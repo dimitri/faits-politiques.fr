@@ -1,0 +1,58 @@
+# Gouvernements de la Ve République.
+#
+# SOURCE : « Composition des gouvernements de la Vème République (1959-2014) »,
+# services du Premier ministre, data.gouv.fr, Licence Ouverte.
+# https://www.data.gouv.fr/datasets/composition-des-gouvernements-de-la-veme-republique-1959-2014
+#
+# SEULE LA DATE DE DÉBUT EST TRANSCRITE. Le document mêle la date de nomination
+# et celle de publication au Journal officiel, parfois à deux jours d'écart :
+# extraire une date de fin de ce mélange produisait des gouvernements de
+# quarante-huit heures. La fin d'un gouvernement est donc DÉDUITE — c'est le
+# début du suivant — ce qui est vrai par construction et vérifiable.
+#
+# Le document d'origine est un RTF de mise en page où la COULEUR du texte porte
+# du sens (ministre jamais remplacé, poste vacant, nomination postérieure à la
+# composition initiale). Cette information est perdue à l'extraction : c'est
+# pourquoi les MINISTRES ne sont pas repris ici. Ils viennent de l'open data de
+# l'Assemblée, qui ne remonte qu'à 2007.
+#
+# La série s'arrête en 2014, limite du document officiel. Les gouvernements
+# postérieurs sont à ajouter à la main, avec leur référence au Journal officiel.
+premier_ministre,rang,debut
+Michel DEBRE,,1959-01-08
+Georges POMPIDOU,1,1962-04-14
+Georges POMPIDOU,2,1962-11-28
+Georges POMPIDOU,3,1966-01-08
+Georges POMPIDOU,4,1968-07-10
+Maurice COUVE DE MURVILLE,,1968-07-10
+Jacques CHABAN-DELMAS,,1969-06-20
+Pierre MESSMER,1,1972-07-05
+Pierre MESSMER,2,1973-03-28
+Pierre MESSMER,3,1974-02-27
+Jacques CHIRAC,1,1974-05-27
+Raymond BARRE,1,1977-03-29
+Raymond BARRE,2,1977-03-30
+Raymond BARRE,3,1978-04-03
+Pierre MAUROY,1,1981-05-21
+Pierre MAUROY,2,1981-06-22
+Pierre MAUROY,3,1983-03-22
+Laurent FABIUS,,1984-07-17
+Jacques CHIRAC,,1986-03-20
+Michel ROCARD,1,1988-05-12
+Michel ROCARD,2,1988-06-03
+Edith CRESSON,,1991-05-16
+Pierre BEREGOVOY,,1992-04-02
+Edouard BALLADUR,,1993-03-29
+Alain JUPPE,1,1995-05-19
+Alain JUPPE,2,1995-11-07
+Lionel JOSPIN,1,1997-06-02
+Jean-Pierre RAFFARIN,,2002-05-07
+Jean-Pierre RAFFARIN,,2002-06-17
+Jean-Pierre RAFFARIN,,2004-03-31
+Jean-Pierre RAFFARIN,,2004-11-28
+Dominique de VILLEPIN,,2005-05-31
+Dominique de VILLEPIN,,2007-03-26
+François FILLON,,2007-06-18
+Jean-Marc AYRAULT,1,2012-05-16
+Jean-Marc AYRAULT,2,2012-06-21
+Manuel VALLS,,2014-03-31

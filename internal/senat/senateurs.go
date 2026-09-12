@@ -35,8 +35,7 @@ var SourceSenateurs = archive.Source{
 }
 
 const (
-	senateursURL   = "https://data.senat.fr/data/senateurs/ODSEN_GENERAL.csv"
-	commissionsURL = "https://data.senat.fr/data/senateurs/ODSEN_COMS.csv"
+	senateursURL = "https://data.senat.fr/data/senateurs/ODSEN_GENERAL.csv"
 )
 
 // IngestSenateurs complète les personnes du Sénat déjà créées à partir des
@@ -73,7 +72,8 @@ func IngestSenateurs(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE sen_in (
-		  matricule text, naissance date, deces date, etat text,
+		  matricule text, nom text, prenom text,
+		  naissance date, deces date, etat text,
 		  groupe text, circonscription text, profession text
 		) ON COMMIT DROP`); err != nil {
 		return fail(err)
@@ -86,15 +86,48 @@ func IngestSenateurs(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 			continue
 		}
 		lignes = append(lignes, []any{
-			mat, dateSenat(r["Date naissance"]), dateSenat(r["Date de décès"]),
+			mat, nulS(r["Nom usuel"]), nulS(r["Prénom usuel"]),
+			dateSenat(r["Date naissance"]), dateSenat(r["Date de décès"]),
 			nulS(r["État"]), nulS(r["Groupe politique"]),
 			nulS(r["Circonscription"]), nulS(r["Description de la profession"]),
 		})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"sen_in"},
-		[]string{"matricule", "naissance", "deces", "etat", "groupe",
+		[]string{"matricule", "nom", "prenom", "naissance", "deces", "etat", "groupe",
 			"circonscription", "profession"}, pgx.CopyFromRows(lignes)); err != nil {
 		return fail(fmt.Errorf("copie des sénateurs : %w", err))
+	}
+
+	// Créer les sénateurs que nous ne connaissons pas encore. Le connecteur ne
+	// créait personne : il complétait les 971 sénateurs issus des VOTES. Or le
+	// répertoire en compte 1 948, et les dates de mandat du dump Dosleg portent
+	// sur cette population plus large — d'où 136 lignes appariées seulement sur
+	// 2 514. Ce sont tous des sénateurs, tous publiés par le Sénat : il n'y a
+	// aucune raison de n'en connaître que la moitié.
+	if _, err := tx.Exec(ctx, `
+		WITH manquants AS (
+		  SELECT s.matricule, s.nom, s.prenom, s.naissance, s.deces, s.profession
+		    FROM sen_in s
+		   WHERE s.nom IS NOT NULL AND s.nom <> ''
+		     AND NOT EXISTS (SELECT 1 FROM core.person_identifier i
+		                     WHERE i.scheme = 'SENAT_MATRICULE' AND i.value = s.matricule)
+		), crees AS (
+		  INSERT INTO core.person (slug, family_name, given_name, birth_date, death_date, profession)
+		  SELECT 'sen-' || lower(regexp_replace(core.f_unaccent(coalesce(prenom,'') || '-' || nom),
+		                                        '[^a-zA-Z0-9]+', '-', 'g')) || '-' || lower(matricule),
+		         nom, coalesce(prenom, ''), naissance, deces, profession
+		    FROM manquants
+		  ON CONFLICT (slug) DO NOTHING
+		  RETURNING id, slug
+		)
+		INSERT INTO core.person_identifier (person_id, scheme, value)
+		SELECT c.id, 'SENAT_MATRICULE', m.matricule
+		  FROM crees c
+		  JOIN manquants m
+		    ON c.slug = 'sen-' || lower(regexp_replace(core.f_unaccent(coalesce(m.prenom,'') || '-' || m.nom),
+		                                               '[^a-zA-Z0-9]+', '-', 'g')) || '-' || lower(m.matricule)
+		ON CONFLICT (scheme, value) DO NOTHING`); err != nil {
+		return fail(fmt.Errorf("création des sénateurs : %w", err))
 	}
 
 	// La jointure se fait sur le matricule : aucun rapprochement de noms, donc

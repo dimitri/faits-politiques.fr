@@ -17,6 +17,8 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/agriculture"
 	"github.com/faits-politiques/faits-politiques/internal/an"
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/associations"
+	"github.com/faits-politiques/faits-politiques/internal/campagne"
 	"github.com/faits-politiques/faits-politiques/internal/carto"
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/entreprises"
@@ -32,7 +34,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | epci | ssmsi | municipales2020 | entreprises | agriculture | hatvp | macro | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | deports | amendements | campagne | senat-repertoire | senat-mandats | senat-commissions | hatvp | macro | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -123,6 +125,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		// Un commentaire dans le connecteur n'a pas suffi — le piège s'est
 		// refermé deux fois. Le recalcul est donc fait ici, où il ne peut plus
 		// être oublié.
+		// Les mandats viennent du même dump, déjà scellé : rien à télécharger.
+		if err := senat.NormalizeMandats(ctx, pool); err != nil {
+			return err
+		}
+		if err := senat.IngestCommissions(ctx, pool, arch); err != nil {
+			return err
+		}
 		fmt.Println("\nthèmes applicables aux scrutins")
 		if err := carto.Themes(ctx, pool); err != nil {
 			return err
@@ -157,6 +166,11 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 
 	// Le seul groupement : recharger BANATIC sans repasser par les 615 000
 	// mandats du RNE ni les 1,7 million de valeurs de l'OFGL.
+	if only == "cog" {
+		fmt.Println("\nréférentiel géographique")
+		return communes.IngestCOG(ctx, pool, arch)
+	}
+
 	if only == "epci" {
 		fmt.Println("\nintercommunalités et compétences")
 		return communes.IngestBANATIC(ctx, pool, arch)
@@ -165,6 +179,21 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "municipales2020" {
 		fmt.Println("\nélections municipales 2020")
 		return communes.IngestMunicipales2020(ctx, pool, arch)
+	}
+
+	if only == "" || only == "associations" {
+		fmt.Println("\ntissu associatif")
+		if err := associations.Ingest(ctx, pool, arch); err != nil {
+			return err
+		}
+	}
+	if only == "associations" {
+		return nil
+	}
+
+	if only == "collectivites" {
+		fmt.Println("\ncomptes des régions, départements et groupements")
+		return communes.IngestCollectivites(ctx, pool, arch)
 	}
 
 	if only == "ssmsi" {
@@ -217,6 +246,43 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		return nil
 	}
 
+	// Les mandats sénatoriaux se recalculent depuis senat_raw, déjà scellé :
+	// inutile de retélécharger 200 Mo de dump pour les seules dates.
+	if only == "senat-repertoire" {
+		fmt.Println("\nrépertoire des sénateurs")
+		return senat.IngestSenateurs(ctx, pool, arch)
+	}
+
+	if only == "senat-commissions" {
+		fmt.Println("\ncommissions du Sénat")
+		return senat.IngestCommissions(ctx, pool, arch)
+	}
+
+	if only == "senat-mandats" {
+		fmt.Println("\nmandats de sénateurs")
+		return senat.NormalizeMandats(ctx, pool)
+	}
+
+	if only == "campagne" {
+		fmt.Println("\ncomptes de campagne")
+		return campagne.Ingest(ctx, pool, arch)
+	}
+
+	if only == "amendements" {
+		fmt.Println("\namendements et exposés sommaires")
+		return an.IngestAmendements(ctx, pool, arch)
+	}
+
+	if only == "deports" {
+		fmt.Println("\ndéclarations de déport")
+		return an.NormalizeDeports(ctx, pool)
+	}
+
+	if only == "exposes" {
+		fmt.Println("\nexposés des motifs")
+		return an.IngestExposes(ctx, pool, arch)
+	}
+
 	if only == "entreprises" {
 		fmt.Println("\ncomptes déposés des grandes sociétés")
 		return entreprises.Ingest(ctx, pool, arch)
@@ -234,6 +300,10 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 
 	fmt.Println("\nnormalisation raw -> core")
 	if err := an.Normalize(ctx, pool); err != nil {
+		return err
+	}
+	// Les déports sont déjà dans raw.record : normalisation seule.
+	if err := an.NormalizeDeports(ctx, pool); err != nil {
 		return err
 	}
 
@@ -256,6 +326,10 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 	fmt.Println("\ncartographie éditoriale")
 	if err := carto.Ingest(ctx, pool, filepath.Join("data", "organisations.csv")); err != nil {
+		return err
+	}
+	fmt.Println("\ngouvernements de la Ve République")
+	if err := carto.IngestGouvernements(ctx, pool, filepath.Join("data", "gouvernements.csv")); err != nil {
 		return err
 	}
 	fmt.Println("\nprésidences de la République")
@@ -292,6 +366,10 @@ func dimensionLocale(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	}
 	fmt.Println("\nélections municipales 2020")
 	if err := communes.IngestMunicipales2020(ctx, pool, arch); err != nil {
+		return err
+	}
+	fmt.Println("\ncomptes des régions, départements et groupements")
+	if err := communes.IngestCollectivites(ctx, pool, arch); err != nil {
 		return err
 	}
 	fmt.Println("\ndélinquance enregistrée par commune")

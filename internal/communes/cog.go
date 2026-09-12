@@ -112,28 +112,29 @@ func IngestCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 			continue
 		}
 		seen[code] = true
-		rows = append(rows, []any{code, COGMillesime, r["LIBELLE"], r["DEP"], r["REG"]})
+		rows = append(rows, []any{code, COGMillesime, r["LIBELLE"], r["DEP"], r["REG"], r["NCC"]})
 	}
 
 	// INSERT ... SELECT depuis une table temporaire alimentée par COPY : c'est
 	// le chemin le plus court pour 35 000 lignes, et il évite 35 000 allers-
 	// retours.
 	if _, err := tx.Exec(ctx, `
-		CREATE TEMP TABLE cog_in (code text, mil int, nom text, dep text, reg text)
+		CREATE TEMP TABLE cog_in (code text, mil int, nom text, dep text, reg text, ncc text)
 		ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"cog_in"},
-		[]string{"code", "mil", "nom", "dep", "reg"}, pgx.CopyFromRows(rows)); err != nil {
+		[]string{"code", "mil", "nom", "dep", "reg", "ncc"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(err)
 	}
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO ref.commune (code_insee, cog_millesime, nom, code_departement, code_region)
-		SELECT code, mil, nom, dep, reg FROM cog_in
+		INSERT INTO ref.commune (code_insee, cog_millesime, nom, code_departement, code_region, nom_clair)
+		SELECT code, mil, nom, dep, reg, ncc FROM cog_in
 		ON CONFLICT (code_insee, cog_millesime) DO UPDATE
 		  SET nom = EXCLUDED.nom,
 		      code_departement = EXCLUDED.code_departement,
-		      code_region = EXCLUDED.code_region`); err != nil {
+		      code_region = EXCLUDED.code_region,
+		      nom_clair = EXCLUDED.nom_clair`); err != nil {
 		return fail(err)
 	}
 
