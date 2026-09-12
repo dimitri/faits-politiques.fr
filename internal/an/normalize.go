@@ -48,9 +48,44 @@ type organe struct {
 // Seuls les organes qui sont des organisations politiques au sens du modèle
 // deviennent des core.organization. Les commissions, missions et groupes
 // d'études sont des organes de travail, pas des organisations politiques.
+// Le type d'organe publié par l'Assemblée, traduit vers la nature
+// d'organisation du modèle. Les organes absents de cette table ne deviennent
+// pas des organisations : ASSEMBLEE, SENAT et PRESREP sont des institutions,
+// et les mandats qui s'y rapportent sont des mandats, pas des adhésions.
 var organeKind = map[string]string{
-	"GP":     "PARLIAMENTARY_GROUP",
-	"PARPOL": "PARTY",
+	"GP":           "PARLIAMENTARY_GROUP",
+	"GROUPESENAT":  "PARLIAMENTARY_GROUP",
+	"PARPOL":       "PARTY",
+	"GOUVERNEMENT": "GOVERNMENT",
+	"MINISTERE":    "GOVERNMENT",
+
+	// Les commissions, au sens strict.
+	"COMPER":     "COMMITTEE",
+	"COMNL":      "COMMITTEE",
+	"CMP":        "COMMITTEE",
+	"COMSENAT":   "COMMITTEE",
+	"COMSPSENAT": "COMMITTEE",
+
+	// Tout le reste des organes parlementaires. Ils ne sont pas des
+	// commissions et les ranger comme telles serait faux ; leur code d'origine
+	// est conservé dans organ_type, qui les distingue sans les regrouper.
+	"DELEG":       "PARLIAMENTARY_BODY",
+	"DELEGSENAT":  "PARLIAMENTARY_BODY",
+	"DELEGBUREAU": "PARLIAMENTARY_BODY",
+	"MISINFO":     "PARLIAMENTARY_BODY",
+	"MISINFOPRE":  "PARLIAMENTARY_BODY",
+	"MISINFOCOM":  "PARLIAMENTARY_BODY",
+	"CNPE":        "PARLIAMENTARY_BODY",
+	"CNPS":        "PARLIAMENTARY_BODY",
+	"GE":          "PARLIAMENTARY_BODY",
+	"GEVI":        "PARLIAMENTARY_BODY",
+	"GA":          "PARLIAMENTARY_BODY",
+	"ORGEXTPARL":  "PARLIAMENTARY_BODY",
+	"BUREAU":      "PARLIAMENTARY_BODY",
+	"API":         "PARLIAMENTARY_BODY",
+	"OFFPAR":      "PARLIAMENTARY_BODY",
+	"CJR":         "PARLIAMENTARY_BODY",
+	"CONFPT":      "PARLIAMENTARY_BODY",
 }
 
 // organeLabels retourne le libellé de chaque organe, quel que soit son type :
@@ -127,12 +162,14 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 
 		var id int64
 		err := pool.QueryRow(ctx, `
-			INSERT INTO core.organization (slug, kind, name, short_name, validity)
-			VALUES ($1,$2,$3,$4, daterange($5::date, $6::date))
-			ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
+			INSERT INTO core.organization (slug, kind, name, short_name, validity, organ_type)
+			VALUES ($1,$2,$3,$4, daterange($5::date, $6::date), $7)
+			ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name,
+			                                 organ_type = EXCLUDED.organ_type
 			RETURNING id`,
 			slug, it.kind, it.o.Libelle.String(), nullable(it.o.LibelleAbrege.String()),
 			nullable(it.o.ViMoDe.DateDebut.String()), nullable(it.o.ViMoDe.DateFin.String()),
+			it.o.CodeType.String(),
 		).Scan(&id)
 		if err != nil {
 			return nil, fmt.Errorf("organisation %s : %w", it.o.UID, err)
@@ -226,15 +263,33 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 			slug = strings.Trim(base+"-"+strings.ToLower(a.UID.String()), "-")
 		}
 
-		var pid int64
-		err := pool.QueryRow(ctx, `
-			INSERT INTO core.person (slug, family_name, given_name, birth_date)
-			VALUES ($1,$2,$3,$4::date)
-			ON CONFLICT (slug) DO UPDATE SET family_name = EXCLUDED.family_name
-			RETURNING id`,
-			slug, a.EtatCivil.Ident.Nom.String(), a.EtatCivil.Ident.Prenom.String(),
-			nullable(a.EtatCivil.InfoNaissance.DateNais.String())).Scan(&pid)
+		nom := a.EtatCivil.Ident.Nom.String()
+		prenom := a.EtatCivil.Ident.Prenom.String()
+		naissance := nullable(a.EtatCivil.InfoNaissance.DateNais.String())
+
+		// Trois chemins, du plus sûr au moins sûr, et jamais de création si un
+		// des deux premiers aboutit :
+		//   1. l'identifiant de l'Assemblée, s'il est déjà connu ;
+		//   2. le triplet exact (nom, prénom, date de naissance), qui rattrape
+		//      une personne créée d'abord par le RNE — sans lui, un député par
+		//      ailleurs conseiller municipal existerait en double ;
+		//   3. le slug, qui est un permalien public et ne doit jamais changer.
+		pid, err := trouverPersonne(ctx, pool, a.UID.String(), nom, prenom, naissance)
 		if err != nil {
+			return nil, fmt.Errorf("personne %s : %w", a.UID, err)
+		}
+		if pid == 0 {
+			if err := pool.QueryRow(ctx, `
+				INSERT INTO core.person (slug, family_name, given_name, birth_date)
+				VALUES ($1,$2,$3,$4::date)
+				ON CONFLICT (slug) DO UPDATE SET family_name = EXCLUDED.family_name
+				RETURNING id`, slug, nom, prenom, naissance).Scan(&pid); err != nil {
+				return nil, fmt.Errorf("personne %s : %w", a.UID, err)
+			}
+		} else if _, err := pool.Exec(ctx, `
+			UPDATE core.person SET family_name = $2, given_name = $3,
+			       birth_date = coalesce($4::date, birth_date)
+			 WHERE id = $1`, pid, nom, prenom, naissance); err != nil {
 			return nil, fmt.Errorf("personne %s : %w", a.UID, err)
 		}
 		byUID[a.UID.String()] = pid
@@ -362,20 +417,47 @@ func applyMandat(ctx context.Context, pool *pgxpool.Pool, personID int64, m mand
 		}
 		return 1, nil
 
-	case "GP", "PARPOL":
+	case "SENAT":
+		// Un député qui fut sénateur. La source de l'Assemblée le dit ; c'est
+		// la seule trace que nous en ayons, le Sénat ne publiant pas ses
+		// mandats dans le dump Dosleg (D-016).
+		_, err := pool.Exec(ctx, `
+			INSERT INTO core.mandate (person_id, mandate_type, institution, role, validity)
+			VALUES ($1,'SENATEUR','SENAT',$2, daterange($3::date, $4::date, '[]'))
+			ON CONFLICT DO NOTHING`,
+			personID, nullable(m.InfosQualite.LibQualite.String()), debut, fin)
+		if err != nil {
+			if isExclusion(err) {
+				return 0, nil
+			}
+			return 0, err
+		}
+		return 1, nil
+
+	case "PRESREP":
+		// Ignoré volontairement : data/presidents.csv fait autorité sur les
+		// présidences, avec les intérims et les dates de passation. Insérer
+		// ici une seconde version, plus pauvre, ferait doublon.
+		return 0, nil
+
+	default:
 		orgUID := str(m.Organes.OrganeRef)
 		orgID, ok := orgByUID[orgUID]
 		if !ok {
 			return 0, nil
 		}
-		kind := "PARLIAMENTARY_GROUP"
+		kind, ok := organeKind[m.TypeOrgane.String()]
+		if !ok {
+			return 0, nil
+		}
 		// D-009 : le canal de connaissance est stocké. L'appartenance à un
-		// groupe est publiée par l'assemblée ; le rattachement à un parti dans
-		// ce fichier est déclaratif, et n'a pas la valeur du rattachement
-		// publié au Journal officiel.
+		// groupe, à une commission ou à une délégation est publiée par
+		// l'assemblée ; le rattachement à un parti dans ce fichier est
+		// déclaratif, et n'a pas la valeur du rattachement publié au Journal
+		// officiel.
 		via := "INSTITUTION"
-		if m.TypeOrgane.String() == "PARPOL" {
-			kind, via = "PARTY", "PARTY_DECLARATION"
+		if kind == "PARTY" {
+			via = "PARTY_DECLARATION"
 		}
 		_, err := pool.Exec(ctx, `
 			INSERT INTO core.affiliation
@@ -385,6 +467,9 @@ func applyMandat(ctx context.Context, pool *pgxpool.Pool, personID int64, m mand
 			personID, orgID, kind, nullable(m.InfosQualite.LibQualite.String()),
 			debut, fin, via)
 		if err != nil {
+			// La contrainte d'exclusion n'interdit qu'une chose : appartenir à
+			// deux groupes parlementaires en même temps. Siéger dans plusieurs
+			// commissions simultanément est normal, et rien ne s'y oppose.
 			if isExclusion(err) {
 				return 0, nil
 			}
@@ -392,7 +477,6 @@ func applyMandat(ctx context.Context, pool *pgxpool.Pool, personID int64, m mand
 		}
 		return 1, nil
 	}
-	return 0, nil
 }
 
 func isExclusion(err error) bool {
@@ -424,23 +508,55 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		  WHERE s.id = g.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.ballot b USING core.scrutin s
 		  WHERE s.id = b.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.affiliation`,
-		`DELETE FROM core.nuance_assignment`,
-		`DELETE FROM core.mandate WHERE institution IS NULL OR institution = 'ASSEMBLEE_NATIONALE'`,
+		// Les affiliations proviennent toutes de l'Assemblée aujourd'hui ; la
+		// portée est bornée malgré tout, pour que l'arrivée d'un connecteur
+		// d'affiliations sénatoriales ne fasse pas de dégât silencieux.
+		`DELETE FROM core.affiliation a
+		  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
+		                WHERE i.organization_id = a.organization_id AND i.scheme = 'AN_ORGANE')`,
+		// Les nuances sont attribuées à des mandats locaux par le connecteur
+		// des communes. L'Assemblée n'en produit aucune, et n'a donc rien à
+		// effacer ici : la ligne est retirée plutôt que bornée.
+		// Portée limitée aux mandats que CE connecteur crée. « institution IS
+		// NULL » couvrait autrefois les seuls mandats ministériels ; depuis que
+		// le RNE est chargé, il couvrirait aussi 613 000 mandats locaux et les
+		// présidences de la République, qu'une simple renormalisation de
+		// l'Assemblée effacerait sans un mot.
+		`DELETE FROM core.mandate
+		  WHERE institution = 'ASSEMBLEE_NATIONALE'
+		     OR (institution IS NULL AND mandate_type = 'MINISTRE')`,
 		// Les dossiers doivent partir avant les organisations : texte_author et
 		// dossier_author y renvoient.
-		`UPDATE core.scrutin SET dossier_id = NULL, texte_id = NULL`,
-		`DELETE FROM core.dossier_author`,
-		`DELETE FROM core.texte_author`,
-		`DELETE FROM core.texte`,
-		`DELETE FROM core.dossier`,
+		// TOUTES ces suppressions sont bornées à l'Assemblée. Elles ne
+		// l'étaient pas, et le prix a été payé : un `DELETE FROM core.dossier`
+		// sans clause a emporté les 8 412 dossiers du Sénat et les 17 660
+		// assignations de thèmes qui s'y rattachaient, faisant tomber
+		// l'héritage de thèmes par la navette (D-019) de 4 806 à 0.
+		`UPDATE core.scrutin SET dossier_id = NULL, texte_id = NULL
+		  WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		`DELETE FROM core.dossier_author a USING core.dossier d
+		  WHERE d.id = a.dossier_id AND d.institution = 'ASSEMBLEE_NATIONALE'`,
+		`DELETE FROM core.texte_author a USING core.texte t
+		  WHERE t.id = a.texte_id AND t.institution = 'ASSEMBLEE_NATIONALE'`,
+		`DELETE FROM core.texte WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		`DELETE FROM core.dossier WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		// La cartographie éditoriale pointe les groupes de l'Assemblée. Elle est
+		// rechargée juste après la normalisation (cmd/ingest), mais tant qu'elle
+		// pointe des organisations sur le point d'être détruites, la clé
+		// étrangère refuse la suppression — et le connecteur échouerait sans
+		// qu'on comprenne pourquoi.
+		`DELETE FROM core.party_group_link l
+		  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
+		                WHERE i.organization_id = l.group_id AND i.scheme = 'AN_ORGANE')`,
 		// Enfin les entités portant un identifiant de l'Assemblée, et elles seules.
 		`DELETE FROM core.organization o
 		  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
 		                 WHERE i.organization_id = o.id AND i.scheme = 'AN_ORGANE')`,
-		`DELETE FROM core.person p
-		  WHERE EXISTS (SELECT 1 FROM core.person_identifier i
-		                 WHERE i.person_id = p.id AND i.scheme = 'AN_ACTEUR')`,
+		// Les PERSONNES ne sont plus détruites. Elles l'étaient quand
+		// l'Assemblée en était le seul producteur ; depuis que le RNE et la
+		// HATVP y rattachent des mandats et des déclarations, effacer une
+		// personne parce qu'elle est députée emporterait son mandat de maire.
+		// Elles sont donc mises à jour en place, par leur identifiant.
 	} {
 		if _, err := pool.Exec(ctx, q); err != nil {
 			return fmt.Errorf("remise à zéro : %w", err)
@@ -493,3 +609,34 @@ func normalizeScrutinsLegacy(ctx context.Context, pool *pgxpool.Pool,
 }
 
 var _ = pgx.Identifier{}
+
+// trouverPersonne renvoie l'identifiant d'une personne déjà connue, ou 0.
+// L'ordre compte : l'identifiant de l'Assemblée fait foi ; à défaut, le triplet
+// exact (nom, prénom, date de naissance) rattrape les personnes créées par un
+// autre connecteur. Sans date de naissance, aucun rapprochement n'est tenté —
+// la même règle que pour le RNE (D-025).
+func trouverPersonne(ctx context.Context, pool *pgxpool.Pool, uid, nom, prenom string, naissance any) (int64, error) {
+	var id int64
+	err := pool.QueryRow(ctx, `
+		SELECT person_id FROM core.person_identifier
+		 WHERE scheme = 'AN_ACTEUR' AND value = $1`, uid).Scan(&id)
+	if err == nil {
+		return id, nil
+	}
+	if err != pgx.ErrNoRows {
+		return 0, err
+	}
+	if naissance == nil {
+		return 0, nil
+	}
+	err = pool.QueryRow(ctx, `
+		SELECT id FROM core.person
+		 WHERE birth_date = $3::date
+		   AND core.f_unaccent(lower(family_name)) = core.f_unaccent(lower($1))
+		   AND core.f_unaccent(lower(given_name))  = core.f_unaccent(lower($2))
+		 ORDER BY id LIMIT 1`, nom, prenom, naissance).Scan(&id)
+	if err == pgx.ErrNoRows {
+		return 0, nil
+	}
+	return id, err
+}

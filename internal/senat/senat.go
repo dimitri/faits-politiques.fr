@@ -38,6 +38,12 @@ const DumpURL = "https://data.senat.fr/data/dosleg/dosleg.zip"
 // Ingest télécharge le dump, le restaure dans un schéma dédié, puis en extrait
 // ce qui entre dans le modèle. Le schéma senat_raw joue ici le rôle que
 // raw.record joue pour l'Assemblée : la copie fidèle de ce qui a été publié.
+// ATTENTION À L'ORDRE. Ce connecteur reconstruit core.dossier pour le Sénat,
+// donc avec de nouveaux identifiants. derived.scrutin_topic pointe ces dossiers
+// par une clé étrangère ON DELETE CASCADE : ses 4 806 thèmes hérités par la
+// navette disparaissent à chaque passage, silencieusement. Il faut relancer la
+// cartographie après (`go run ./cmd/ingest -only=carto`), et c'est un contrôle
+// de cmd/verify qui l'a révélé, pas une relecture du code.
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, workDir string) error {
 	srcID, err := arch.EnsureSource(ctx, Source)
 	if err != nil {

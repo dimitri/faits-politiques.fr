@@ -229,7 +229,18 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 		}
 	}
 
-	if _, err := pool.Exec(ctx, `TRUNCATE core.ballot`); err != nil {
+	// TRUNCATE core.ballot était écrit ici, sans portée. Il a détruit les
+	// 1 970 025 votes du Parlement européen — quatrième fois qu'une remise à
+	// zéro déborde son périmètre dans ce projet, et la première où un TRUNCATE
+	// subsistait alors que le connecteur voisin porte un commentaire
+	// expliquant pourquoi il n'en faut pas.
+	//
+	// Un connecteur ne détruit QUE ce qu'il produit. La portée est ici celle de
+	// l'Assemblée, et elle est exprimée par une jointure sur l'institution du
+	// scrutin, jamais par la table entière.
+	if _, err := pool.Exec(ctx, `
+		DELETE FROM core.ballot b USING core.scrutin s
+		 WHERE s.id = b.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`); err != nil {
 		return 0, 0, err
 	}
 	n, err := pool.CopyFrom(ctx,
