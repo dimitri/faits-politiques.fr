@@ -94,6 +94,8 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 			lignes = append(lignes, []any{
 				f.mandateType, commune, circo, nom, prenom,
 				nul(r["Date de naissance"]), debut, nul(r["Libellé de la fonction"]),
+				nul(r["Code de la catégorie socio-professionnelle"]),
+				nul(r["Libellé de la catégorie socio-professionnelle"]),
 			})
 		}
 		fmt.Printf("    %-26s %6d lignes\n", f.mandateType, len(recs))
@@ -108,13 +110,15 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE rne_in (
 		  mandate_type text, commune_code text, constituency text,
-		  nom text, prenom text, naissance date, debut date, fonction text
+		  nom text, prenom text, naissance date, debut date, fonction text,
+		  csp_code text, csp_libelle text
 		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"rne_in"},
 		[]string{"mandate_type", "commune_code", "constituency", "nom", "prenom",
-			"naissance", "debut", "fonction"}, pgx.CopyFromRows(lignes)); err != nil {
+			"naissance", "debut", "fonction", "csp_code", "csp_libelle"},
+		pgx.CopyFromRows(lignes)); err != nil {
 		return fail(fmt.Errorf("copie des élus : %w", err))
 	}
 
@@ -205,6 +209,19 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		INSERT INTO core.person_identifier (person_id, scheme, value)
 		SELECT person_id, 'RNE', cle FROM rne_pers WHERE person_id IS NOT NULL
 		ON CONFLICT (scheme, value) DO NOTHING`); err != nil {
+		return fail(err)
+	}
+
+	// La catégorie socio-professionnelle, quand la source la publie. coalesce :
+	// une valeur déjà présente n'est pas écrasée par une absence.
+	if _, err := tx.Exec(ctx, `
+		UPDATE core.person p
+		   SET csp_code = coalesce(p.csp_code, x.csp_code),
+		       csp_libelle = coalesce(p.csp_libelle, x.csp_libelle)
+		  FROM (SELECT DISTINCT ON (cle) cle, csp_code, csp_libelle FROM rne_in
+		         WHERE csp_libelle IS NOT NULL ORDER BY cle) x
+		  JOIN rne_pers r USING (cle)
+		 WHERE p.id = r.person_id`); err != nil {
 		return fail(err)
 	}
 

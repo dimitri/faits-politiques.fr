@@ -102,12 +102,13 @@ func IngestSenateurs(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	res, err := tx.Exec(ctx, `
 		UPDATE core.person p
 		   SET birth_date = coalesce(p.birth_date, s.naissance),
-		       death_date = coalesce(p.death_date, s.deces)
+		       death_date = coalesce(p.death_date, s.deces),
+		       profession = coalesce(p.profession, s.profession)
 		  FROM sen_in s
 		  JOIN core.person_identifier i
 		    ON i.scheme = 'SENAT_MATRICULE' AND i.value = s.matricule
 		 WHERE p.id = i.person_id
-		   AND (s.naissance IS NOT NULL OR s.deces IS NOT NULL)`)
+		   AND (s.naissance IS NOT NULL OR s.deces IS NOT NULL OR s.profession IS NOT NULL)`)
 	if err != nil {
 		return fail(err)
 	}

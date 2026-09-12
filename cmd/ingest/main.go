@@ -117,6 +117,16 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		if err := senat.IngestSenateurs(ctx, pool, arch); err != nil {
 			return err
 		}
+		// Recharger le Sénat reconstruit ses dossiers avec de NOUVEAUX
+		// identifiants, et derived.scrutin_topic les référence en cascade : les
+		// 4 806 thèmes hérités par la navette disparaissent sans un message.
+		// Un commentaire dans le connecteur n'a pas suffi — le piège s'est
+		// refermé deux fois. Le recalcul est donc fait ici, où il ne peut plus
+		// être oublié.
+		fmt.Println("\nthèmes applicables aux scrutins")
+		if err := carto.Themes(ctx, pool); err != nil {
+			return err
+		}
 	}
 	if only == "senat" {
 		return nil
