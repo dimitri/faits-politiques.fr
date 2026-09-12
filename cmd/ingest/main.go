@@ -14,6 +14,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/faits-politiques/faits-politiques/internal/agriculture"
 	"github.com/faits-politiques/faits-politiques/internal/an"
 	"github.com/faits-politiques/faits-politiques/internal/archive"
 	"github.com/faits-politiques/faits-politiques/internal/carto"
@@ -31,7 +32,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | epci | ssmsi | municipales2020 | entreprises | hatvp | macro | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | epci | ssmsi | municipales2020 | entreprises | agriculture | hatvp | macro | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -196,6 +197,16 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 			return err
 		}
 	}
+	if only == "" || only == "agriculture" {
+		fmt.Println("\nbilans alimentaires et appareil de production agricole")
+		if err := agriculture.Ingest(ctx, pool, arch); err != nil {
+			return err
+		}
+	}
+	if only == "agriculture" {
+		return nil
+	}
+
 	if only == "entreprises" {
 		fmt.Println("\ncomptes déposés des grandes sociétés")
 		return entreprises.Ingest(ctx, pool, arch)
