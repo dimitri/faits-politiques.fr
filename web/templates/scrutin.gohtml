@@ -1,0 +1,109 @@
+{{define "content"}}
+<p class="small muted">{{if .S.EstEuropeen}}Scrutin nominatif — Parlement européen{{else}}Scrutin public n° {{.S.Numero}} — Assemblée nationale, 17<sup>e</sup> législature{{end}}</p>
+<h1>{{.S.Objet}}</h1>
+
+<dl class="kv">
+  <dt>Date</dt><dd>{{.S.Date}}</dd>
+  <dt>Type</dt><dd>{{.S.TypeVote}}</dd>
+  <dt>Résultat officiel</dt><dd><strong>{{.S.Resultat}}</strong></dd>
+  <dt>Décompte{{if .S.EstEuropeen}} <span class="small muted">(tout le Parlement)</span>{{end}}</dt><dd><span class="pos FOR">{{.S.Pour}} pour</span> ·
+    <span class="pos AGAINST">{{.S.Contre}} contre</span> ·
+    <span class="pos ABSTAIN">{{.S.Abstentions}} abstentions</span></dd>
+  <dt>Identifiant officiel</dt><dd><code>{{.S.SourceUID}}</code></dd>
+</dl>
+
+{{if .S.EstEuropeen}}
+<div class="warn">
+<strong>Deux périmètres différents sur cette page.</strong> Le décompte ci-dessus est
+celui publié pour <strong>l'ensemble du Parlement européen</strong>, 720 sièges. Les votes
+nominatifs listés plus bas ne portent que sur les <strong>eurodéputés français</strong>,
+seuls chargés par ce site. Additionner les seconds ne redonne donc pas le premier, et
+c'est normal.
+<br><br>
+Ces scrutins ne sont par ailleurs <strong>pas comparables</strong> à ceux de l'Assemblée
+nationale&nbsp;: objets différents, majorités différentes, groupes différents. Ce site ne
+les agrège jamais.
+</div>
+{{end}}
+
+<h2>Le texte soumis au vote</h2>
+{{if .S.Dossier}}
+<p><strong>Dossier législatif&nbsp;:</strong> {{.S.Dossier.Titre}}</p>
+<p><strong>À l'initiative de&nbsp;:</strong>
+{{if .S.Dossier.Gouvernement}}le Gouvernement{{else if .S.Dossier.Initiateurs}}{{range $i,$a := .S.Dossier.Initiateurs}}{{if $i}}, {{end}}{{if $a.Slug}}<a href="{{$.Root}}/depute/{{$a.Slug}}/">{{$a.Nom}}</a>{{else}}{{$a.Nom}}{{end}}{{end}}{{else}}<span class="muted">non publiée par la source</span>{{end}}</p>
+{{if or .S.Dossier.URLAN .S.Dossier.URLSenat}}
+<p class="small"><strong>Dossier officiel&nbsp;:</strong>
+{{if .S.Dossier.URLAN}}<a href="{{.S.Dossier.URLAN}}" target="_blank" rel="noopener">Assemblée nationale</a>{{end}}{{if and .S.Dossier.URLAN .S.Dossier.URLSenat}} · {{end}}{{if .S.Dossier.URLSenat}}<a href="{{.S.Dossier.URLSenat}}" target="_blank" rel="noopener">Sénat</a>{{end}}
+<span class="muted">— texte intégral, exposé des motifs, rapports et comptes rendus</span></p>
+{{end}}
+{{if .S.Dossier.Textes}}
+<div class="scroll"><table>
+<thead><tr><th>Nature</th><th>Intitulé</th><th>Déposé le</th><th>Origine</th></tr></thead>
+<tbody>{{range .S.Dossier.Textes}}<tr>
+<td class="small">{{.Kind}}</td>
+<td class="small">{{.Titre}}</td>
+<td class="small">{{if .DateDepot}}{{.DateDepot}}{{else}}<span class="muted">—</span>{{end}}</td>
+<td class="small">{{if .Gouvernement}}Gouvernement{{else if .Auteurs}}{{range $i,$a := .Auteurs}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}<span class="muted">voir l'initiative du dossier</span>{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+{{end}}
+<div class="warn">
+<strong>Ce bloc n'est pas un résumé du texte.</strong> L'open data de l'Assemblée publie
+les intitulés, les auteurs, les dates et les étapes&nbsp;; il ne publie pas les exposés des
+motifs. Ce qui est affiché ici est donc <em>ce qui a été déposé et par qui</em> — un fait — et non
+ce que le texte contient. <strong>Aucun résumé n'existe en open data</strong>&nbsp;: ni
+l'Assemblée ni le «&nbsp;Panorama des lois&nbsp;» de vie-publique.fr ne publient de jeu de
+données de résumés. D'où le lien vers le dossier officiel ci-dessus, qui porte l'exposé
+des motifs et les rapports. Un résumé rédigé ici demanderait une écriture humaine relue de
+façon contradictoire&nbsp;: le schéma la prévoit (<code>core.scrutin_resume</code>), aucune
+n'a encore été écrite.
+<br><br>
+La colonne «&nbsp;origine&nbsp;» répond à <em>qui a proposé</em>, question distincte de
+<em>qui a voté pour</em>. Un texte peut être adopté par des groupes qui ne l'ont pas
+déposé, et rejeté par certains de ses cosignataires.
+</div>
+{{else}}
+<p class="nodata">La source ne rattache pas ce scrutin à un dossier législatif. Environ un
+tiers des scrutins sont dans ce cas&nbsp;; le libellé de l'objet reste la seule information
+publiée, et il n'est pas rapproché d'un dossier par déduction.</p>
+{{end}}
+
+<h2>Positions par groupe</h2>
+{{if .Groupes}}
+<div class="scroll"><table>
+<thead><tr><th>Groupe</th><th>Pour</th><th>Contre</th><th>Abstention</th><th>Non-votants</th><th></th></tr></thead>
+<tbody>{{range .Groupes}}<tr>
+<td><a href="{{$.Root}}/groupe/{{.Slug}}/">{{.Nom}}</a></td>
+<td class="pos FOR">{{.Pour}}</td><td class="pos AGAINST">{{.Contre}}</td>
+<td class="pos ABSTAIN">{{.Abstention}}</td><td class="pos ABSENT">{{.Absent}}</td>
+<td style="min-width:9rem"><div class="bar">
+<i style="width:{{.PctPour}}%;background:var(--pour)"></i>
+<i style="width:{{.PctContre}}%;background:var(--contre)"></i>
+<i style="width:{{.PctAbst}}%;background:var(--abst)"></i></div></td>
+</tr>{{end}}</tbody></table></div>
+<p class="small muted">Le groupe de chaque votant est celui que
+<strong>l'Assemblée a publié avec ce scrutin</strong>, à cette date. Les totaux sont la
+somme des votes individuels, jamais une consigne de groupe. Le pourcentage est calculé
+sur les positions <em>exprimées</em>&nbsp;: les non-votants en sont exclus, faute de quoi on
+classerait les groupes par assiduité.</p>
+{{else}}<p class="nodata">Aucune ventilation disponible pour ce scrutin.</p>{{end}}
+
+<h2>Votes nominatifs</h2>
+{{if .Votes}}
+<div class="scroll"><table>
+<thead><tr><th>Député</th><th>Groupe</th><th>Position</th></tr></thead><tbody>
+{{range .Votes}}<tr><td><a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a></td>
+<td class="small muted">{{if .GroupeSlug}}<a href="{{$.Root}}/groupe/{{.GroupeSlug}}/">{{.Groupe}}</a>{{else}}{{.Groupe}}{{end}}</td>
+<td class="pos {{.Position}}">{{.PositionFr}}{{if .Rectifiee}} <span class="small muted">(mise au point)</span>{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+{{else}}<p class="nodata">Ce scrutin ne fait pas l'objet d'une publication nominative.</p>{{end}}
+
+<div class="warn">
+<strong>Ce que cette fiche ne dit pas.</strong> Elle rapporte un vote, pas une opinion.
+Voter contre un texte peut viser son véhicule législatif, son calendrier, ou un texte
+concurrent préféré — ce n'est pas nécessairement un désaccord sur son objet. Les
+« mises au point » sont des corrections déposées <em>après</em> le scrutin&nbsp;: elles
+modifient le relevé nominatif sans modifier le résultat officiel, et les deux sont
+affichés séparément. Enfin, ce scrutin est public&nbsp;: la plupart des votes sur le même
+texte ont pu avoir lieu à main levée, sans trace.
+</div>
+{{end}}

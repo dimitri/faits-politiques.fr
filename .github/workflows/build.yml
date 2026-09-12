@@ -1,0 +1,91 @@
+name: build
+
+on:
+  schedule:
+    - cron: '0 5 * * *'     # les scrutins sont publiés au fil des séances
+  workflow_dispatch:
+  pull_request:             # build sans déploiement : voir l'effet d'une diff de data/
+  push:
+    branches: [main]
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+
+    services:
+      db:
+        image: postgres:17
+        env:
+          POSTGRES_USER: fp
+          POSTGRES_PASSWORD: fp
+          POSTGRES_DB: fp
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U fp -d fp"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+
+    env:
+      DATABASE_URL: postgres://fp:fp@localhost:5432/fp?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      # Les documents scellés sont conservés entre deux exécutions : l'archive
+      # est immuable et adressée par empreinte, un document déjà vu n'est pas
+      # retéléchargé. Seule une nouvelle récupération est enregistrée.
+      - name: Restaurer l'archive scellée
+        uses: actions/cache@v4
+        with:
+          path: raw
+          key: raw-${{ github.run_id }}
+          restore-keys: raw-
+
+      - name: Ingestion
+        run: go run ./cmd/ingest
+
+      # Porte 1 : les garanties structurelles tournent sur la base RÉELLEMENT
+      # chargée, pas sur une base vide. Une donnée qui violerait une règle
+      # éditoriale bloque la publication.
+      - name: Garanties structurelles
+        run: |
+          fail=0
+          for f in db/tests/*.sql; do
+            out=$(psql -v ON_ERROR_STOP=1 -d "$DATABASE_URL" -f "$f" 2>&1) || fail=1
+            echo "$out" | grep -E 'NOTICE|ERROR'
+            echo "$out" | grep -q 'ERROR' && fail=1
+          done
+          exit $fail
+
+      # Porte 2 : cohérence des données chargées avec les décomptes officiels.
+      - name: Concordance avec les décomptes officiels
+        run: go run ./cmd/verify
+
+      - name: Génération du site
+        run: go run ./cmd/build
+
+      - name: Taille produite
+        run: |
+          echo "pages : $(find site -name '*.html' | wc -l)"
+          echo "poids : $(du -sh site | cut -f1)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site
+          path: site/
+          retention-days: 7
+
+      # Le déploiement n'a lieu que sur la branche principale : une pull request
+      # produit un site complet, consultable, mais non publié.
+      - name: Déploiement
+        if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+        run: echo "cible d'hébergement à trancher — voir docs/decisions.md D-012"

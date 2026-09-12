@@ -1,0 +1,79 @@
+{{define "content"}}
+<h1>Candidats déclarés à l'élection présidentielle de 2027</h1>
+<p class="lede">Ce que chacun a voté quand il siégeait, et l'organisation dont il se
+réclame. Aucun classement, aucune note, aucun positionnement produit par ce site&nbsp;:
+l'ordre est alphabétique.</p>
+
+<p class="small muted">Liste arrêtée au 11 septembre 2026, <strong>incomplète et sourcée
+ligne à ligne</strong> (<code>data/candidats.csv</code>). Il n'existe pas de liste
+officielle avant la publication des parrainages par le Conseil constitutionnel, le
+12 mars 2027.</p>
+
+<div class="cards">
+{{range .Candidats}}
+<article class="cand">
+  <header class="avec-portrait">
+    {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.Fichier}}" alt=""
+      width="64" height="64" loading="lazy" class="portrait">{{else}}<div class="portrait vide"></div>{{end}}
+    <div>
+    <h3><a href="{{$.Root}}/candidat/{{.Slug}}/">{{.Prenom}} {{.Nom}}</a></h3>
+    <div class="small muted">
+      {{if .Org}}<a href="{{$.Root}}/organisation/{{.Org.Slug}}/">{{.Organisation}}</a>{{else}}{{.Organisation}}{{end}}
+      {{if .DateDeclaration}} · déclaré {{.DateDeclaration}}{{end}}
+    </div></div>
+  </header>
+
+  {{if and .Person .Person.HasVotes}}
+    <div class="bilan">
+      <div class="chiffre">{{.Person.Exprimes}}<span class="small muted"> positions exprimées</span></div>
+      <div class="bar">
+        <i style="width:{{.Person.PctPour}}%;background:var(--pour)"></i>
+        <i style="width:{{.Person.PctContre}}%;background:var(--contre)"></i>
+        <i style="width:{{.Person.PctAbst}}%;background:var(--abst)"></i>
+      </div>
+      <div class="small">
+        <span class="pos FOR">{{.Person.Pour}} pour</span> ·
+        <span class="pos AGAINST">{{.Person.Contre}} contre</span> ·
+        <span class="pos ABSTAIN">{{.Person.Abstention}} abst.</span>
+      </div>
+      <div class="small muted">{{.Person.Mandat}}</div>
+    </div>
+  {{else}}
+    <div class="bilan vide">
+      <div class="etiquette">Pas de mandat à l'Assemblée</div>
+      {{if and .Org .Org.Groupe}}
+        <div class="small">Groupe apparenté&nbsp;:
+          <a href="{{$.Root}}/groupe/{{.Org.Groupe.Slug}}/">{{.Org.Groupe.NomCourt}}</a>
+          <span class="muted">({{.Org.Groupe.Effectif}} députés)</span></div>
+      {{else}}
+        <div class="small muted">Aucun groupe apparenté à l'Assemblée</div>
+      {{end}}
+    </div>
+  {{end}}
+
+  <footer class="small muted">
+    {{if .Org}}{{if .Org.HasComptes}}Comptes publics{{else}}Pas de comptes rattachés{{end}}{{end}}
+    {{if and .Org .Org.Classifications}} · {{len .Org.Classifications}} classifications tierces{{end}}
+  </footer>
+</article>
+{{end}}
+</div>
+
+<p class="small muted">Les portraits proviennent de Wikimedia Commons et ne sont
+retenus que sous licence libre&nbsp;; licence et auteur figurent sur chaque fiche. Les
+photographies officielles des sites de campagne sont protégées et ne peuvent pas être
+reproduites ici.</p>
+
+<div class="warn">
+<strong>Pourquoi tant de fiches sans bilan de vote.</strong> Un candidat à la présidence
+n'a pas forcément siégé à l'Assemblée&nbsp;: beaucoup sont maires, sénateurs, eurodéputés, ou
+n'ont jamais eu de mandat parlementaire. Une case «&nbsp;pas de mandat&nbsp;» décrit le
+périmètre de ce site, <strong>pas l'activité de la personne</strong>. Elle ne dit rien de
+son travail, de son influence ni de sa légitimité.
+<br><br>
+Le bloc «&nbsp;groupe apparenté&nbsp;» renvoie au groupe parlementaire dont son parti est la
+composante principale. <strong>Ce n'est pas son bilan</strong>&nbsp;: un groupe n'est pas un
+parti, et elle n'en est pas membre. C'est le plus proche substitut disponible, et il est
+étiqueté comme tel.
+</div>
+{{end}}

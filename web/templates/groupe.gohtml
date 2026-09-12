@@ -1,0 +1,97 @@
+{{define "content"}}
+<p class="small muted">Groupe parlementaire — Assemblée nationale, 17<sup>e</sup> législature</p>
+<h1>{{.G.Nom}}</h1>
+<p class="lede">{{.G.Periode}}. {{.G.Effectif}} députés ayant voté sous ce groupe,
+sur {{.G.ScrutinsCouverts}} scrutins publics.</p>
+
+<h2>Formations rattachées</h2>
+{{if .G.Partis}}
+<ul class="tight">{{range .G.Partis}}<li><a href="{{$.Root}}/organisation/{{.Slug}}/">{{.Libelle}}</a>
+  {{if .HasComptes}}<span class="small muted"> — comptes publics</span>{{end}}</li>{{end}}</ul>
+{{else}}<p class="nodata">Aucune formation n'est rattachée à ce groupe dans la carte de
+rattachement.</p>{{end}}
+<p class="small muted">Un groupe parlementaire <strong>n'est pas un parti</strong>&nbsp;: il
+rassemble des formations, des apparentés et des non-inscrits ralliés, et son périmètre ne
+recouvre celui d'aucune d'entre elles. Cette liste ne contient que les formations dont ce
+site documente le rattachement — c'est une décision éditoriale, justifiée dans
+<code>data/organisations.csv</code>, et <strong>elle est incomplète par construction</strong>&nbsp;:
+un groupe peut rassembler des formations que ce site ne suit pas.</p>
+
+{{range .G.Coalitions}}
+<div class="card">
+<strong>Ce groupe porte le nom d'une coalition électorale</strong>
+<p>Son intitulé mentionne le <strong>{{.Libelle}}</strong>, coalition constituée pour
+{{.Scrutin | lower}}. <strong>Une coalition n'est ni un parti ni un groupe</strong>&nbsp;: elle
+ne dépose pas de comptes à la CNCCFP, n'a pas d'adhérents, et ses composantes conservent
+leur structure propre. Il n'existe d'ailleurs <strong>aucune entrée «&nbsp;{{.Libelle}}&nbsp;»
+au registre CNCCFP</strong>.</p>
+<p>Le fait qu'un groupe porte ce nom <strong>ne signifie pas qu'il rassemble la
+coalition</strong>&nbsp;: les autres composantes ont constitué leurs propres groupes.
+Composantes recensées&nbsp;:
+{{range $i, $o := .Composantes}}{{if $i}}, {{end}}<a href="{{$.Root}}/organisation/{{$o.Slug}}/">{{$o.Libelle}}</a>{{end}}.</p>
+<p class="small muted" style="margin-bottom:0">Source&nbsp;:
+<a href="{{.Source}}" target="_blank" rel="noopener">{{.Source}}</a>, consultée le {{.SourceConsultee}}.
+La composition d'une coalition est une décision éditoriale, consignée dans
+<code>data/coalitions.csv</code>.</p>
+</div>
+{{end}}
+
+{{if .G.PartisDeclares}}
+<h2>Partis déclarés par les membres</h2>
+<div class="scroll"><table>
+<thead><tr><th>Parti</th><th>Députés du groupe</th><th>Période du mandat de parti</th></tr></thead>
+<tbody>{{range .G.PartisDeclares}}<tr>
+<td>{{.Nom}}</td><td>{{.Deputes}}</td><td class="small muted">{{.Periode}}</td>
+</tr>{{end}}</tbody></table></div>
+<div class="warn">
+<strong>Ce n'est pas la composition actuelle du groupe.</strong> L'Assemblée n'a publié
+<em>aucune</em> appartenance partisane pour la 17<sup>e</sup> législature&nbsp;: tous les mandats
+de parti s'arrêtent au 10 juin 2024, jour de la dissolution. Ce tableau montre donc le
+parti déclaré <strong>lors de la législature précédente</strong> par des députés qui
+siègent aujourd'hui dans ce groupe. C'est une indication datée, pas un état des lieux.
+</div>
+{{end}}
+
+<h2>Positions agrégées</h2>
+<dl class="kv">
+  <dt>Pour</dt><dd class="pos FOR">{{.G.Pour}}</dd>
+  <dt>Contre</dt><dd class="pos AGAINST">{{.G.Contre}}</dd>
+  <dt>Abstention</dt><dd class="pos ABSTAIN">{{.G.Abstention}}</dd>
+  <dt>Total exprimé</dt><dd>{{.G.Exprimes}}</dd>
+  <dt>Régularité observée</dt><dd>{{.G.Cohesion}} %</dd>
+</dl>
+<p class="small muted">La «&nbsp;régularité observée&nbsp;» est la part des votes conformes à la
+position majoritaire du groupe sur le scrutin concerné. C'est une régularité
+<strong>constatée</strong>, pas une discipline supposée&nbsp;: elle ne dit rien d'une consigne,
+ni d'une contrainte exercée sur les membres.</p>
+
+<h2>Membres</h2>
+<div class="scroll"><table>
+<thead><tr><th>Député</th><th>Pour</th><th>Contre</th><th>Abstention</th><th>Exprimés</th></tr></thead>
+<tbody>{{range .G.Membres}}<tr>
+<td><a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a></td>
+<td class="pos FOR">{{.Pour}}</td><td class="pos AGAINST">{{.Contre}}</td>
+<td class="pos ABSTAIN">{{.Abstention}}</td><td>{{.Exprimes}}</td>
+</tr>{{end}}</tbody></table></div>
+
+<h2>Derniers scrutins</h2>
+<div class="scroll"><table>
+<thead><tr><th>Date</th><th>Objet</th><th>Position majoritaire</th><th>Répartition</th></tr></thead>
+<tbody>{{range .G.Scrutins}}<tr>
+<td class="small">{{.Date}}</td>
+<td><a href="{{$.Root}}/scrutin/{{.Slug}}/">{{.Objet}}</a></td>
+<td class="small">{{.Position}}</td>
+<td class="small"><span class="pos FOR">{{.Pour}}</span> ·
+<span class="pos AGAINST">{{.Contre}}</span> ·
+<span class="pos ABSTAIN">{{.Abstention}}</span></td>
+</tr>{{end}}</tbody></table></div>
+
+<div class="warn">
+<strong>Ce que cette fiche ne dit pas.</strong> Un groupe parlementaire <strong>n'est pas un
+parti</strong>&nbsp;: il agrège plusieurs formations et des apparentés, et son périmètre ne
+recouvre celui d'aucun parti. Les positions agrégées ici sont la somme de votes
+individuels transcrits du relevé officiel, jamais une consigne de groupe. Seuls les
+scrutins <em>publics</em> sont couverts&nbsp;: la majorité des votes ont lieu à main levée,
+sans trace nominative.
+</div>
+{{end}}

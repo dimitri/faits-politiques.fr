@@ -1,0 +1,52 @@
+# Organisations politiques documentées par ce site, et leur rattachement aux
+# référentiels.
+#
+# La liste N'EST PAS limitée aux organisations dont un candidat s'est réclamé :
+# elle l'était, ce qui faisait disparaître le Rassemblement national, Reconquête
+# ou le MoDem au seul motif qu'aucun candidat déclaré ne les citait. Une absence
+# due à la structure d'un fichier, et non aux données, est un défaut.
+#
+# C'EST UNE DÉCISION ÉDITORIALE, pas un fait. Le libellé d'une organisation dans
+# la déclaration d'un candidat n'est pas un identifiant : le rapprocher d'une
+# entrée CNCCFP ou d'une ligne PopuList est un choix, contestable ligne à ligne.
+#
+# code_cnccfp  : identifiant du registre de fait des partis (comptes publics).
+#                Vide = l'organisation n'a pas déposé de comptes sous ce nom,
+#                ou le rapprochement n'est pas défendable. Vide n'est pas zéro.
+# populist_nom : libellé EXACT publié par The PopuList 4.0. Vide = ce parti
+#                n'est pas classé par ce référentiel, ce qui ne dit rien de plus.
+# justification: pourquoi ce rapprochement tient. Obligatoire quand un code est
+#                renseigné.
+#
+# ches_nom     : abréviation EXACTE employée par le Chapel Hill Expert Survey.
+#                Vide = ce parti n'est pas couvert par l'enquête.
+#
+# groupe_an_uid: identifiant de l'organe « groupe politique » de l'Assemblée
+#                dont ce parti est la composante principale, 17e législature.
+#                Vide = le parti n'a pas de groupe, ou le rattachement n'est pas
+#                défendable. Un groupe n'est PAS un parti : il agrège plusieurs
+#                formations et des apparentés. Une vue agrégée de groupe ne dit
+#                donc rien de ce parti seul.
+#
+# Aucune de ces lignes n'exprime une position de l'outil sur l'organisation.
+slug,libelle,code_cnccfp,populist_nom,ches_nom,groupe_an_uid,wikipedia_fr,justification
+renaissance,Renaissance,910,,RE,PO845407,Renaissance (parti),Dénomination identique au registre CNCCFP
+les-republicains,Les Républicains,401,Les Républicains,LR,PO845425,Les Républicains,Dénomination identique ; PopuList classe ce parti sous ce libellé exact
+parti-communiste-francais,Parti communiste français,60,Parti Communiste Français,PCF,PO845514,Parti communiste français,Dénomination identique dans les deux référentiels
+les-ecologistes,Les Écologistes,104,,LE/EELV,PO845439,Les Écologistes,Dénomination identique au registre CNCCFP
+parti-socialiste,Parti socialiste,76,,PS,PO845419,Parti socialiste (France),Dénomination identique au registre CNCCFP
+horizons,Horizons,1344,,Horizons,PO845470,Horizons (parti politique),Dénomination identique au registre CNCCFP
+la-france-insoumise,La France insoumise,976,La France Insoumise,FI,PO845413,La France insoumise,Dénomination identique dans les deux référentiels
+lutte-ouvriere,Lutte ouvrière,96,Lutte ouvrière,,,Lutte ouvrière,Dénomination identique dans les deux référentiels
+debout-la-france,Debout la France,410,Debout la république | Debout la France,,,Debout la France,PopuList suit la continuité DLR puis DLF sous une entrée unique
+les-patriotes,Les Patriotes,1027,,,,Les Patriotes (parti politique),Dénomination identique au registre CNCCFP
+union-populaire-republicaine,Union populaire républicaine,806,,,,Union populaire républicaine,Dénomination identique au registre CNCCFP
+nouvelle-energie,Nouvelle Énergie,834,,,,Nouvelle Énergie,Dénomination identique au registre CNCCFP
+generation-ecologie,Génération écologie,42,,,,Génération écologie,Dénomination identique au registre CNCCFP
+rassemblement-national,Rassemblement national,40,Front National / Rassemblement National,RN,PO845401,Rassemblement national,Dénomination identique au registre CNCCFP ; PopuList et CHES le classent sous ce libellé
+reconquete,Reconquête,1307,Reconquete,REC,,Reconquête (parti politique),Dénomination identique au registre CNCCFP
+udr,Union des droites pour la République,702,Union des droites pour la République,,PO847173,Union des droites pour la République,Dénomination identique dans les deux référentiels
+mouvement-democrate,Mouvement démocrate,529,,MoDem,PO845454,Mouvement démocrate,Dénomination identique au registre CNCCFP
+place-publique,Place publique,1098,,,,Place publique (parti politique),Dénomination identique au registre CNCCFP
+udi,Union des démocrates et indépendants,709,,,,Union des démocrates et indépendants,Dénomination identique au registre CNCCFP
+parti-radical-de-gauche,Parti radical de gauche,52,,,,Parti radical de gauche,Dénomination identique au registre CNCCFP

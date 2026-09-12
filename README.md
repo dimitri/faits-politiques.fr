@@ -1,0 +1,97 @@
+# faits-politiques.fr
+
+Outil de vérification factuelle de l'action politique française. Il documente **ce qui a
+été proposé, voté et décidé**, avec la source primaire de chaque donnée — et il ne
+conclut jamais à la place du lecteur.
+
+Cas d'usage : sortir d'un débat télévisé et contrôler une affirmation ; sourcer ou
+contredire une affirmation sous contrainte de temps ; contester une erreur formulée par
+un adversaire ou un commentateur.
+
+## Principes
+
+Quatre règles gouvernent tout le reste, et sont traduites en **contraintes de base de
+données** plutôt qu'en bonnes intentions :
+
+1. **Aucun verdict.** Ni « vrai », ni « faux ». Un objet factuel, sa source, ses limites.
+2. **Le « non vérifiable » est une réponse de plein droit**, avec sa raison typée.
+   Un outil bien fait résout 25 à 35 % des affirmations d'un débat, pas 90 %.
+3. **Jamais de causalité.** Un indicateur décrit une évolution, pas l'effet d'une
+   politique.
+4. **Jamais un vote de groupe projeté sur un individu.** La granularité de chaque
+   scrutin est une donnée stockée, pas une convention.
+
+Voir [docs/perimetre.md](docs/perimetre.md), et [docs/decisions.md](docs/decisions.md)
+pour l'historique des arbitrages.
+
+## Démarrage
+
+```bash
+make db-up      # Postgres local (docker)
+make ingest     # télécharge, scelle et charge les données de l'Assemblée nationale
+make build      # génère le site statique dans ./site
+```
+
+Première exécution : environ 6 minutes, dont 40 Mo téléchargés.
+
+## Architecture
+
+```
+sources publiques  ──►  raw/        archive scellée : octets + SHA-256, jamais écrasés
+                        raw.*       métadonnées, récupérations datées
+                        ref.*       nomenclatures externes, millésimées
+                        core.*      données normalisées, historisées, sourcées
+                        derived.*   indicateurs, avec method_version
+                        selection.* filtres nommés, sans prose
+                   ──►  site/       HTML statique
+```
+
+**Invariant central** : `core` est intégralement reconstructible depuis `raw` par une
+fonction idempotente. `cmd/ingest` reconstruit les tables dérivées à chaque exécution
+plutôt que de les compléter — rejouer l'ingestion doit produire un état identique.
+
+## Commandes
+
+| Commande | Rôle |
+|---|---|
+| `cmd/ingest` | connecteurs, archive scellée, `raw` → `core` |
+| `cmd/verify` | contrôles de cohérence des **données chargées** — porte de publication |
+| `cmd/build` | `core` → site statique |
+
+## Deux portes avant publication
+
+1. **`db/tests/*.sql`** — 70 garanties structurelles, exécutées sur la base réellement
+   chargée. Une donnée qui violerait une règle éditoriale bloque le déploiement.
+2. **`cmd/verify`** — concordance des décomptes chargés avec le relevé officiel publié
+   par l'Assemblée. Cette porte a déjà servi : elle a détecté que le jeu de données
+   « députés actifs » omettait les députés ayant quitté leur siège en cours de
+   législature, dont les votes disparaissaient silencieusement.
+
+```bash
+make test
+go run ./cmd/verify
+```
+
+## `data/` — les décisions éditoriales
+
+Tout ce qui relève d'un **choix** y est un fichier, et toute modification y est une diff
+relisible : liste des candidats et leurs sources, cartes de rattachement, codage de sens,
+corpus pré-enregistrés, alias.
+
+Une modification dans `data/` exige une relecture contradictoire ; une modification dans
+`internal/` une relecture technique.
+
+## Sources
+
+Assemblée nationale — [open data](https://data.assemblee-nationale.fr/), Licence Ouverte.
+Seuls les **scrutins publics** sont couverts : la majorité des votes ont lieu à main
+levée et ne laissent aucune trace nominative. Ni cet outil ni aucun autre ne peut dire
+qui a voté quoi sur ces textes.
+
+Aucune source non librement redistribuable n'entre dans le pipeline sans que sa
+restriction soit tracée (`raw.source.reuse_class`).
+
+## Licence
+
+Code sous AGPL-3.0. Données produites sous Licence Ouverte, dans la limite des licences
+des sources amont.

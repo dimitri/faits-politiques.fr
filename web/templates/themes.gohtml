@@ -1,0 +1,35 @@
+{{define "content"}}
+<p class="eyebrow">Classification</p>
+<h1 style="margin-top:0">Thèmes</h1>
+<p class="lede">Les scrutins du Parlement européen sont rattachés à des concepts
+<strong>EuroVoc</strong>, le thésaurus multilingue officiel des institutions de l'Union.</p>
+
+<div class="card">
+<strong>Pourquoi ces thèmes-là, et pas les nôtres</strong>
+<p class="small" style="margin-bottom:.5rem">EuroVoc est produit par l'Office des
+publications de l'Union européenne, et l'affectation d'un concept à un scrutin est faite
+par le producteur de la donnée. <strong>Ce site ne fait que la transcrire</strong>&nbsp;: il
+ne classe rien lui-même.</p>
+<p class="small muted" style="margin-bottom:0">Il n'existe aucune classification officielle
+équivalente pour l'Assemblée nationale. En construire une serait une décision éditoriale,
+qui suppose un protocole publié et scellé avant d'être exécuté
+(<code>docs/pre-enregistrement-002.md</code>, non scellé à ce jour). D'ici là, les scrutins
+français ne sont rattachés à aucun thème — une absence assumée plutôt qu'un classement
+improvisé.</p>
+</div>
+
+<h2>Concepts EuroVoc les plus fréquents</h2>
+<p class="small muted">Concepts rattachés à au moins 20 scrutins, les 60 premiers.</p>
+<div class="scroll"><table>
+<thead><tr><th>Concept</th><th>Scrutins rattachés</th></tr></thead>
+<tbody>{{range .E.Themes}}<tr>
+<td>{{.Label}}</td><td>{{nb .Scrutins}}</td>
+</tr>{{end}}</tbody></table></div>
+
+<div class="warn">
+<strong>Ce que cette page ne dit pas.</strong> Un concept fréquent ne signifie pas un sujet
+important&nbsp;: il signifie qu'il a été souvent rattaché à un scrutin faisant l'objet d'un
+vote nominatif. Or les scrutins nominatifs ne sont qu'une partie des votes, et leur
+répartition thématique reflète l'agenda parlementaire, pas l'importance des sujets.
+</div>
+{{end}}

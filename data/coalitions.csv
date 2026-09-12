@@ -1,0 +1,16 @@
+# Coalitions électorales.
+#
+# Une coalition n'est NI un parti NI un groupe parlementaire. Elle ne dépose pas
+# de comptes à la CNCCFP, n'a pas d'adhérents, et ses composantes conservent
+# leur structure propre. C'est la troisième catégorie que le français confond
+# volontiers avec les deux autres — et que le schéma distingue depuis le début
+# (core.organization_kind = COALITION).
+#
+# Un groupe parlementaire peut porter le nom d'une coalition dans SON nom sans
+# pour autant la rassembler : les autres composantes constituent leurs propres
+# groupes. C'est précisément le cas du groupe « La France insoumise - Nouveau
+# Front Populaire », que son intitulé peut faire mal lire.
+#
+# composantes : slugs de data/organisations.csv, séparés par « | »
+slug,libelle,annee,scrutin,composantes,source,source_consultee
+nouveau-front-populaire,Nouveau Front Populaire,2024,Élections législatives de juin-juillet 2024,la-france-insoumise|parti-socialiste|parti-communiste-francais|les-ecologistes,https://fr.wikipedia.org/wiki/Nouveau_Front_populaire,2026-09-11

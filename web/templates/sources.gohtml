@@ -1,0 +1,108 @@
+{{define "content"}}
+<p class="eyebrow">Provenance et méthode</p>
+<h1 style="margin-top:0">Sources &amp; méthodologie</h1>
+<p class="lede">D'où viennent les données, sous quelle licence, à quelle date — et les
+règles qui décident de ce qui peut être publié.</p>
+
+<h2>Comment une donnée arrive ici</h2>
+<div class="scroll"><table>
+<thead><tr><th>Étape</th><th>Ce qui se passe</th><th>Règle</th></tr></thead>
+<tbody>
+<tr><td><strong>1. Récupération</strong></td>
+    <td class="small">Le document est téléchargé et son empreinte SHA-256 calculée.</td>
+    <td class="small muted">Un téléchargement tronqué n'est jamais scellé&nbsp;: on archiverait l'empreinte d'un fichier corrompu.</td></tr>
+<tr><td><strong>2. Archivage</strong></td>
+    <td class="small">Les octets sont conservés tels quels, identifiés par leur empreinte, avec l'URL et la date de consultation.</td>
+    <td class="small muted">Jamais écrasés, jamais modifiés. Récupérer deux fois le même contenu ne duplique rien mais atteste qu'il était encore en ligne.</td></tr>
+<tr><td><strong>3. Extraction</strong></td>
+    <td class="small">Chaque enregistrement logique est extrait tel quel, sans interprétation.</td>
+    <td class="small muted">Opération pure&nbsp;: rejouée sur le même document, elle donne le même résultat.</td></tr>
+<tr><td><strong>4. Normalisation</strong></td>
+    <td class="small">Les enregistrements deviennent personnes, mandats, scrutins, votes.</td>
+    <td class="small muted">Les tables sont <em>reconstruites</em>, jamais complétées. Rejouer l'ingestion doit produire un état identique.</td></tr>
+<tr><td><strong>5. Vérification</strong></td>
+    <td class="small">17 contrôles s'exécutent sur les données réellement chargées.</td>
+    <td class="small muted">Notamment&nbsp;: les décomptes nominatifs doivent concorder avec le relevé officiel. Un écart bloque la publication.</td></tr>
+<tr><td><strong>6. Publication</strong></td>
+    <td class="small">Le site est regénéré intégralement.</td>
+    <td class="small muted">Chaque page porte ses sources, leur date et leur empreinte.</td></tr>
+</tbody></table></div>
+
+<h2>Ce que ce site s'interdit</h2>
+<div class="grid" style="margin-top:1rem">
+  <div class="card"><strong>Aucun verdict</strong>
+    <p class="small muted" style="margin-bottom:0">Ni «&nbsp;vrai&nbsp;» ni «&nbsp;faux&nbsp;». Un objet factuel, sa source primaire, ses limites. Un verdict est attaquable&nbsp;; un document sourcé ne l'est pas de la même façon.</p></div>
+  <div class="card"><strong>Aucune causalité</strong>
+    <p class="small muted" style="margin-bottom:0">Une évolution constatée pendant un mandat n'est pas l'effet d'une politique, et n'est jamais présentée comme telle.</p></div>
+  <div class="card"><strong>Aucune projection d'un groupe sur un individu</strong>
+    <p class="small muted" style="margin-bottom:0">Quand la source ne publie que la position d'un groupe, le site ne dit jamais comment une personne a voté. La granularité est une donnée stockée, pas une convention.</p></div>
+  <div class="card"><strong>Aucune classification de notre fait</strong>
+    <p class="small muted" style="margin-bottom:0">Les positionnements viennent de référentiels tiers, cités avec leur vocabulaire et leur millésime. Jamais traduits, jamais moyennés entre eux.</p></div>
+  <div class="card"><strong>Aucune donnée comblée</strong>
+    <p class="small muted" style="margin-bottom:0">Une absence s'affiche avec sa raison&nbsp;: pas de scrutin public, donnée non produite, compétence intercommunale, hors période. Un trou déclaré vaut mieux qu'un trou masqué.</p></div>
+  <div class="card"><strong>Aucune source non licenciée reversée</strong>
+    <p class="small muted" style="margin-bottom:0">Une source sans licence explicite est affichée mais exclue des exports. Une absence de licence n'est pas une autorisation.</p></div>
+</div>
+
+<h2>Les décisions éditoriales, et où elles vivent</h2>
+<p>Tout ce qui relève d'un <strong>choix</strong> est un fichier du dépôt, relisible et
+contestable ligne à ligne&nbsp;: la liste des candidats et leurs sources, le rattachement
+des organisations au registre CNCCFP et aux référentiels tiers, les coalitions, la
+chronologie des présidences, les explications françaises des catégories employées par les
+référentiels. Aucune de ces décisions n'est enfouie dans le code.</p>
+
+<h2>Flux ingérés</h2>
+<p class="small muted">Une source absente de cette liste n'alimente rien.</p>
+
+{{range .Flux}}
+<h2>{{.Label}}</h2>
+<dl class="kv">
+  <dt>Producteur</dt><dd>{{.Publisher}}</dd>
+  <dt>Hiérarchie</dt><dd>{{.Tier}}</dd>
+  <dt>Licence</dt><dd>{{.Licence}}</dd>
+  <dt>Réutilisation</dt><dd>{{.ReuseClass}}
+    {{if .Redistribuable}}<span class="pos FOR small"> · reversable dans un export ouvert</span>
+    {{else}}<span class="pos ABSTAIN small"> · exclue des exports</span>{{end}}</dd>
+  <dt>Fréquence annoncée</dt><dd>{{if .Cadence}}{{.Cadence}}{{else}}<span class="muted">non précisée</span>{{end}}</dd>
+  <dt>Dernière ingestion</dt><dd>{{if .DerniereIngestion}}{{.DerniereIngestion}}{{if .Statut}} <span class="small muted">({{.Statut}})</span>{{end}}{{else}}<span class="muted">jamais</span>{{end}}</dd>
+  <dt>Volume archivé</dt><dd>{{nb .Documents}} documents scellés{{if .Enregistrements}}, {{nb .Enregistrements}} enregistrements extraits{{end}}</dd>
+  {{if .Empreinte}}<dt>Empreinte du dernier</dt><dd><code>{{.Empreinte}}</code></dd>{{end}}
+  <dt>Attribution</dt><dd class="small">{{.Attribution}}</dd>
+</dl>
+{{if .URLs}}
+<p class="small"><strong>URL récupérées</strong></p>
+<ul class="tight small">{{range .URLs}}<li><a href="{{.}}" target="_blank" rel="noopener"><code>{{.}}</code></a></li>{{end}}</ul>
+{{end}}
+{{if .Notes}}<p class="small muted"><strong>À savoir&nbsp;:</strong> {{.Notes}}</p>{{end}}
+{{end}}
+
+<h2>Ce que nous n'utilisons pas, et pourquoi</h2>
+<div class="scroll"><table>
+<thead><tr><th>Source</th><th>Motif</th></tr></thead>
+<tbody>
+<tr><td>Dumps NosDéputés.fr / NosSénateurs.fr</td>
+    <td class="small">Publiés en CC BY-NC-SA. La restriction non commerciale se propagerait
+    à toutes les données dérivées, et interdirait leur réutilisation par un média commercial —
+    or c'est l'un des publics visés. Les mêmes données existent en Licence Ouverte
+    directement chez l'Assemblée.</td></tr>
+<tr><td>Panorama des lois, vie-publique.fr</td>
+    <td class="small">Contient exactement les résumés en langage clair qui manquent à ce
+    site, mais <strong>n'est pas publié comme jeu de données</strong> et le site bloque
+    l'accès automatisé (redirection JavaScript et cookie obligatoire). Le récupérer
+    malgré tout irait contre l'intention affichée de l'éditeur.</td></tr>
+<tr><td>Manifesto Project (MARPOR)</td>
+    <td class="small">Compte requis et licence d'usage scientifique. Incompatible avec la
+    publication d'un site ouvert.</td></tr>
+<tr><td>Délibérations municipales</td>
+    <td class="small">Aucun agrégateur national, adoption marginale du schéma SCDL. Une
+    couverture partielle serait biaisée vers les collectivités les mieux dotées, ce qui
+    invaliderait toute comparaison.</td></tr>
+</tbody></table></div>
+
+<div class="warn">
+<strong>Reconstruire ce site à partir de zéro.</strong> Les données normalisées sont
+intégralement reconstructibles depuis les documents archivés, par une opération
+idempotente. Rejouer l'ingestion deux fois doit produire un état identique&nbsp;: c'est
+l'invariant central du projet, et il est vérifié avant chaque publication.
+</div>
+{{end}}

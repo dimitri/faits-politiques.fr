@@ -1,0 +1,17 @@
+services:
+  db:
+    image: postgres:17-alpine
+    container_name: fp_db
+    environment:
+      POSTGRES_USER: fp
+      POSTGRES_PASSWORD: fp
+      POSTGRES_DB: fp
+    ports: ["55432:5432"]
+    volumes: ["fp_pgdata:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fp -d fp"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+volumes:
+  fp_pgdata:

@@ -1,0 +1,85 @@
+{{define "content"}}
+<p class="small muted">Organisation politique</p>
+{{if .O.Logo}}<div class="entete-portrait">
+  <img src="{{.Root}}/media/{{.O.Logo.Fichier}}" alt="Logo de {{.O.Libelle}}" width="120" loading="lazy">
+  <div>
+    <h1 style="margin-top:0">{{.O.Libelle}}</h1>
+    <p class="small muted" style="margin:0">Logo&nbsp;: {{.O.Logo.Licence}}{{if .O.Logo.Auteur}}, {{.O.Logo.Auteur}}{{end}}
+      — <a href="{{.O.Logo.SourceURL}}" target="_blank" rel="noopener">Wikimedia Commons</a></p>
+  </div>
+</div>{{else}}<h1>{{.O.Libelle}}</h1>
+<p class="small muted">Aucun logo librement réutilisable n'est disponible pour cette
+organisation. La plupart des logos de partis sont protégés par le droit d'auteur&nbsp;: les
+reproduire ici serait une contrefaçon.</p>{{end}}
+
+{{if .O.Candidats}}
+<p class="lede">Candidat{{if gt (len .O.Candidats) 1}}s{{end}} déclaré{{if gt (len .O.Candidats) 1}}s{{end}} à l'élection présidentielle de 2027&nbsp;:
+{{range $i, $c := .O.Candidats}}{{if $i}}, {{end}}<a href="{{$.Root}}/candidat/{{$c.Slug}}/">{{$c.Prenom}} {{$c.Nom}}</a>{{end}}.</p>
+{{end}}
+
+<h2>Comptes déposés à la CNCCFP</h2>
+{{if .O.Exercices}}
+<p class="small muted">Comptes d'ensemble déposés au titre de la loi du 11 mars 1988 sur la
+transparence financière de la vie politique. Identifiant CNCCFP&nbsp;: <code>{{.O.CodeCNCCFP}}</code>.
+Montants en euros.</p>
+<div class="scroll"><table>
+<thead><tr><th>Poste</th>{{range .O.Exercices}}<th style="text-align:right">{{.}}</th>{{end}}</tr></thead>
+<tbody>
+{{range .O.Postes}}
+<tr{{if eq .Categorie "SOLDE"}} style="font-weight:600"{{end}}>
+  <td>{{.Label}}{{if .Caveat}}<div class="small muted" style="font-weight:400">{{.Caveat}}</div>{{end}}</td>
+  {{range .Montants}}<td style="text-align:right;white-space:nowrap">{{.}}</td>{{end}}
+</tr>
+{{end}}
+</tbody></table></div>
+<p class="small muted">Une case vide signifie que le poste n'est pas renseigné pour cet
+exercice&nbsp;: c'est une absence de donnée, jamais un zéro. Un parti absent d'un exercice
+n'a pas cessé d'exister — il peut ne pas avoir déposé, ou ne pas y être tenu.</p>
+{{else}}
+<p class="nodata">Aucun compte rattaché à cette organisation dans les exercices couverts
+(2021-2024). Cela ne signifie pas qu'elle n'en a pas déposé&nbsp;: le rapprochement avec le
+registre CNCCFP peut simplement ne pas avoir été jugé défendable — voir
+<code>data/organisations.csv</code>.</p>
+{{end}}
+
+<h2>Positionnement selon des référentiels tiers</h2>
+{{if .O.Classifications}}
+<div class="scroll"><table>
+<thead><tr><th>Référentiel</th><th>Catégorie ou dimension</th><th>Valeur</th><th>Période</th></tr></thead><tbody>
+{{range .O.Classifications}}<tr>
+  <td>{{.Referentiel}}</td>
+  <td><a href="{{$.Root}}/referentiel/{{.SetSlug}}/#{{.Categorie}}" target="_blank" rel="noopener"><code>{{.Categorie}}</code></a>
+      {{if .LibelleFr}}<div class="small muted">{{.LibelleFr}}</div>{{end}}</td>
+  <td>{{if .Valeur}}{{jauge .Categorie .Valeur}}
+      <div class="small muted poles"><span>{{poleG .Categorie}}</span><span>{{poleD .Categorie}}</span></div>
+      {{else}}<span class="muted">—</span>{{end}}</td>
+  <td class="small">{{.Periode}}</td>
+</tr>{{end}}
+</tbody></table></div>
+<div class="warn">
+<strong>Ce ne sont pas des faits.</strong> Ce sont les jugements d'un référentiel tiers,
+reproduits <strong>avec son vocabulaire d'origine et sans traduction</strong>. «&nbsp;far
+right&nbsp;» n'est pas «&nbsp;extrême droite&nbsp;»&nbsp;: la littérature comparée distingue
+<em>radical</em> — rejette la démocratie libérale, accepte l'élection — et <em>extrême</em> —
+rejette la démocratie, distinction que l'usage français ignore.
+Aucune synthèse n'est produite&nbsp;: si deux référentiels divergent sur une organisation, les
+deux sont affichés. Moyenner deux classifications fabriquerait un jugement et le
+présenterait comme un fait.
+<br><br>Chaque catégorie renvoie à
+<strong>sa définition détaillée en français</strong>, et à la description de la façon dont
+elle est attribuée.
+</div>
+{{else}}
+<p class="nodata">Aucun référentiel tiers ingéré ne classe cette organisation. Ce n'est
+pas une information sur elle&nbsp;: les référentiels ne couvrent qu'un petit nombre de partis.</p>
+{{end}}
+
+<div class="warn">
+<strong>Ce que cette fiche ne dit pas.</strong> Les comptes CNCCFP décrivent les recettes
+et les dépenses déclarées d'une structure&nbsp;; ils ne disent rien de son influence, de son
+nombre d'adhérents — aucun registre des adhérents n'existe, et il serait illégal d'en
+constituer un — ni de son activité. Le rattachement de cette organisation au candidat qui
+s'en réclame est une décision éditoriale, justifiée ligne à ligne dans
+<code>data/organisations.csv</code> et contestable.
+</div>
+{{end}}

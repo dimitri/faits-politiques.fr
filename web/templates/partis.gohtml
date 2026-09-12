@@ -1,0 +1,33 @@
+{{define "content"}}
+<h1>Partis et organisations politiques</h1>
+<p class="lede">Les organisations politiques documentées par ce site, avec leurs comptes
+publics déposés à la CNCCFP et leur positionnement selon des référentiels tiers.</p>
+<p class="small muted">La liste n'est pas exhaustive — le registre CNCCFP compte plus de
+700 formations, dont beaucoup sont des structures de financement sans activité politique
+propre. Elle recense les organisations que ce site suit, et son périmètre est lui-même une
+décision éditoriale, consignée dans <code>data/organisations.csv</code>.</p>
+<p class="small muted">Le rattachement d'une organisation à un candidat, à une entrée du
+registre CNCCFP ou à une ligne d'un référentiel est une <strong>décision éditoriale</strong>,
+justifiée ligne à ligne dans <code>data/organisations.csv</code> et contestable.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Organisation</th><th>Identifiant CNCCFP</th><th>Comptes</th>
+<th>Groupe à l'Assemblée</th><th>Classifications tierces</th></tr></thead>
+<tbody>
+{{range .Orgs}}<tr>
+<td><a href="{{$.Root}}/organisation/{{.Slug}}/">{{.Libelle}}</a></td>
+<td class="small"><code>{{if .CodeCNCCFP}}{{.CodeCNCCFP}}{{else}}—{{end}}</code></td>
+<td class="small">{{if .HasComptes}}{{len .Exercices}} exercices{{else}}<span class="muted">aucun rattaché</span>{{end}}</td>
+<td class="small">{{if .Groupe}}<a href="{{$.Root}}/groupe/{{.Groupe.Slug}}/">{{.Groupe.NomCourt}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
+<td class="small">{{if .Classifications}}{{range $i, $c := .Classifications}}{{if $i}}, {{end}}<code>{{$c.Categorie}}</code>{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody></table></div>
+
+<div class="warn">
+<strong>Ce que ce tableau ne dit pas.</strong> L'absence de comptes rattachés ne signifie
+pas qu'une organisation n'en a pas déposé&nbsp;: le rapprochement peut simplement ne pas avoir
+été jugé défendable. L'absence de classification ne dit rien de l'organisation&nbsp;: les
+référentiels tiers ne couvrent qu'un petit nombre de partis. Un groupe parlementaire n'est
+pas un parti&nbsp;: il agrège plusieurs formations et des apparentés.
+</div>
+{{end}}

@@ -1,0 +1,28 @@
+# Liste des candidats déclarés à l'élection présidentielle de 2027.
+#
+# CRITÈRE D'INCLUSION (docs/pre-enregistrement-002.md §3) : déclaration publique
+# de candidature, sourcée et datée. Il n'existe pas de liste officielle avant la
+# publication des parrainages validés par le Conseil constitutionnel, attendue
+# le 12 mars 2027 ; cette liste la remplacera alors, et l'écart sera publié.
+#
+# CETTE LISTE EST INCOMPLÈTE ET DATÉE. Elle reflète ce qui était sourçable au
+# 11 septembre 2026. Elle est révisée UNIQUEMENT PAR AJOUT : un candidat qui se
+# retire reste affiché comme retiré, avec sa date. Retirer silencieusement une
+# ligne serait indistinguable d'un tri.
+#
+# Toute modification de ce fichier est une décision éditoriale et doit être
+# relue comme telle.
+slug,nom,prenom,organisation,organisation_slug,statut,date_declaration,source_url,source_consultee,site_campagne,wikipedia_fr
+fabien-roussel,Roussel,Fabien,Parti communiste français,parti-communiste-francais,DECLARE,2026-09-06,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Fabien Roussel
+jean-luc-melenchon,Mélenchon,Jean-Luc,La France insoumise,la-france-insoumise,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Jean-Luc Mélenchon
+marine-tondelier,Tondelier,Marine,Les Écologistes,les-ecologistes,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Marine Tondelier
+delphine-batho,Batho,Delphine,Génération écologie,generation-ecologie,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Delphine Batho
+karim-bouamrane,Bouamrane,Karim,Parti socialiste,parti-socialiste,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Karim Bouamrane
+nathalie-arthaud,Arthaud,Nathalie,Lutte ouvrière,lutte-ouvriere,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Nathalie Arthaud
+edouard-philippe,Philippe,Édouard,Horizons,horizons,DECLARE,2024-09,https://www.france24.com/fr/france/20260524-france-presidentielle-2027-qui-sont-les-candidats-officiellement-declares,2026-09-11,,Édouard Philippe
+gabriel-attal,Attal,Gabriel,Renaissance,renaissance,DECLARE,2026-05-22,https://www.france24.com/fr/france/20260524-france-presidentielle-2027-qui-sont-les-candidats-officiellement-declares,2026-09-11,,Gabriel Attal
+bruno-retailleau,Retailleau,Bruno,Les Républicains,les-republicains,DECLARE,2026-04-19,https://www.france24.com/fr/france/20260524-france-presidentielle-2027-qui-sont-les-candidats-officiellement-declares,2026-09-11,,Bruno Retailleau
+david-lisnard,Lisnard,David,Nouvelle Énergie,nouvelle-energie,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,David Lisnard
+nicolas-dupont-aignan,Dupont-Aignan,Nicolas,Debout la France,debout-la-france,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Nicolas Dupont-Aignan
+florian-philippot,Philippot,Florian,Les Patriotes,les-patriotes,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Florian Philippot
+francois-asselineau,Asselineau,François,Union populaire républicaine,union-populaire-republicaine,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,François Asselineau

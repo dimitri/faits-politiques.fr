@@ -1,0 +1,22 @@
+# Présidents de la République sous la Ve République.
+#
+# Sert uniquement à SITUER un mandat ministériel dans le temps : « ministre du
+# 21/07/2023 au 10/01/2024 » devient « sous la présidence d'Emmanuel Macron ».
+#
+# CE N'EST PAS UNE IMPUTATION. Un ministre n'est pas responsable des actes du
+# président, ni l'inverse. La concomitance est un repère chronologique, rien de
+# plus, et la page le dit.
+#
+# Les intérims du président du Sénat sont inclus : les omettre laisserait des
+# trous dans la chronologie.
+debut,fin,nom,qualite,source
+1959-01-08,1969-04-28,Charles de Gaulle,Président de la République,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise
+1969-04-28,1969-06-20,Alain Poher,Président du Sénat assurant l'intérim,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise
+1969-06-20,1974-04-02,Georges Pompidou,Président de la République,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise
+1974-04-02,1974-05-27,Alain Poher,Président du Sénat assurant l'intérim,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise
+1974-05-27,1981-05-21,Valéry Giscard d'Estaing,Président de la République,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise
+1981-05-21,1995-05-17,François Mitterrand,Président de la République,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise
+1995-05-17,2007-05-16,Jacques Chirac,Président de la République,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise
+2007-05-16,2012-05-15,Nicolas Sarkozy,Président de la République,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise
+2012-05-15,2017-05-14,François Hollande,Président de la République,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise
+2017-05-14,,Emmanuel Macron,Président de la République,https://www.elysee.fr/la-presidence/les-presidents-de-la-republique-francaise

@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 58" role="img"
+     aria-label="faits-politiques.fr — ce qui a été voté, décidé, proposé">
+  <title>faits-politiques.fr</title>
+  <!-- Marque : trois lignes de registre, chacune marquée d'une position.
+       Un graphique en barres aurait suggéré que ce site produit des
+       statistiques ; il tient un RELEVÉ. La forme dit donc une liste
+       d'entrées consignées, pas une mesure. -->
+  <rect x="0" y="4" width="50" height="50" rx="13" fill="currentColor" opacity=".06"/>
+  <circle cx="15" cy="18" r="3.2" fill="#1B6E3C"/>
+  <rect x="22" y="16.4" width="17" height="3.2" rx="1.6" fill="currentColor" opacity=".45"/>
+  <circle cx="15" cy="29" r="3.2" fill="#A32A2A"/>
+  <rect x="22" y="27.4" width="13" height="3.2" rx="1.6" fill="currentColor" opacity=".45"/>
+  <circle cx="15" cy="40" r="3.2" fill="#8A6510"/>
+  <rect x="22" y="38.4" width="15" height="3.2" rx="1.6" fill="currentColor" opacity=".45"/>
+  <text x="64" y="29" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif"
+        font-size="23" font-weight="680" fill="currentColor" letter-spacing="-.7">faits-politiques</text>
+  <text x="64" y="47" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif"
+        font-size="12" fill="currentColor" opacity=".6" letter-spacing=".2">ce qui a été voté, décidé, proposé</text>
+</svg>

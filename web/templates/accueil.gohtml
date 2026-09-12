@@ -1,0 +1,50 @@
+{{define "content"}}
+<p class="eyebrow">Parcourir</p>
+<h2 style="margin-top:0">Par institution et par acteur</h2>
+
+<div class="sections">
+  <a class="sec" href="{{.Root}}/candidats/">
+    <div class="v">{{.Cov.Candidats}}</div>
+    <div class="t">Candidats 2027</div>
+    <div class="d">Déclarés et sourcés. Bilan de vote quand il existe, organisation, et ce que le site ne couvre pas.</div>
+  </a>
+  <a class="sec" href="{{.Root}}/assemblee/">
+    <div class="v">{{nb .Cov.Scrutins}}</div>
+    <div class="t">Assemblée nationale</div>
+    <div class="d">Scrutins publics de la 17<sup>e</sup> législature, groupes, députés, dossiers.</div>
+  </a>
+  <a class="sec" href="{{.Root}}/partis/">
+    <div class="v">{{.Cov.Organisations}}</div>
+    <div class="t">Partis</div>
+    <div class="d">Comptes publics déposés à la CNCCFP, positionnement selon des référentiels tiers.</div>
+  </a>
+  <a class="sec vide" href="{{.Root}}/senat/">
+    <div class="v">non couvert</div>
+    <div class="t">Sénat</div>
+    <div class="d">Connecteur à écrire. Les scrutins y sont publiés par groupe, pas par sénateur.</div>
+  </a>
+  <a class="sec" href="{{.Root}}/europe/">
+    <div class="v">{{nb .Cov.ScrutinsPE}}</div>
+    <div class="t">Parlement européen</div>
+    <div class="d">Scrutins nominatifs et votes des eurodéputés français, depuis HowTheyVote.eu.</div>
+  </a>
+  <a class="sec" href="{{.Root}}/themes/">
+    <div class="v">{{nb .Cov.Themes}}</div>
+    <div class="t">Thèmes</div>
+    <div class="d">Concepts EuroVoc rattachés aux scrutins européens par le producteur, transcrits tels quels.</div>
+  </a>
+</div>
+
+<p class="eyebrow">Méthode</p>
+<h2 style="margin-top:0">Ce que ce site ne dit pas</h2>
+<div class="grid" style="margin-top:1rem">
+  <div class="card"><strong>Aucun verdict</strong>
+    <p class="small muted" style="margin-bottom:0">Ni «&nbsp;vrai&nbsp;» ni «&nbsp;faux&nbsp;». Un objet factuel, sa source primaire, et ses limites. La conclusion appartient au lecteur.</p></div>
+  <div class="card"><strong>Seulement les scrutins publics</strong>
+    <p class="small muted" style="margin-bottom:0">La majorité des votes ont lieu à main levée, sans trace nominative. Ni cet outil ni aucun autre ne peut dire qui a voté quoi sur ces textes.</p></div>
+  <div class="card"><strong>Les absences sont affichées</strong>
+    <p class="small muted" style="margin-bottom:0">Quand une donnée manque, la page le dit et en donne la raison, plutôt que de combler le trou.</p></div>
+  <div class="card"><strong>Jamais de causalité</strong>
+    <p class="small muted" style="margin-bottom:0">Une évolution constatée pendant un mandat n'est pas l'effet d'une politique, et n'est jamais présentée comme telle.</p></div>
+</div>
+{{end}}

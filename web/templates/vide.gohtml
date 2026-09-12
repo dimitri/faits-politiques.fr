@@ -1,0 +1,18 @@
+{{define "content"}}
+<h1>{{.Titre}}</h1>
+<p class="lede">{{.Chapeau}}</p>
+
+<div class="card">
+  <strong>Pourquoi cette section est vide</strong>
+  <p style="margin-bottom:0">{{.Raison}}</p>
+  <p class="small muted" style="margin-bottom:0">Code de non-couverture&nbsp;:
+  <code>{{.Code}}</code></p>
+</div>
+
+<div class="warn">
+<strong>Une absence affichée vaut mieux qu'une absence tue.</strong> Ce site préfère
+déclarer ce qu'il ne couvre pas plutôt que de laisser croire à une couverture complète.
+Une section vide n'est pas un jugement sur l'institution concernée&nbsp;: c'est l'état de
+l'ingestion, à une date donnée.
+</div>
+{{end}}

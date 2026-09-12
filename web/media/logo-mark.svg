@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" role="img" aria-label="faits-politiques.fr">
+  <title>faits-politiques.fr</title>
+  <rect x="1" y="1" width="50" height="50" rx="12" fill="#15151A"/>
+  <circle cx="16" cy="17" r="3.4" fill="#4FBF80"/>
+  <rect x="23.5" y="15.3" width="17" height="3.4" rx="1.7" fill="#ECEAE5" opacity=".5"/>
+  <circle cx="16" cy="27" r="3.4" fill="#E27272"/>
+  <rect x="23.5" y="25.3" width="13" height="3.4" rx="1.7" fill="#ECEAE5" opacity=".5"/>
+  <circle cx="16" cy="37" r="3.4" fill="#D4A73C"/>
+  <rect x="23.5" y="35.3" width="15" height="3.4" rx="1.7" fill="#ECEAE5" opacity=".5"/>
+</svg>
