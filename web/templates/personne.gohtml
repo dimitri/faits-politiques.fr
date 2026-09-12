@@ -1,105 +1,157 @@
 {{define "content"}}
-{{if and .Cand .Cand.Portrait}}<div class="entete-portrait">
-  <img src="{{.Root}}/media/{{.Cand.Portrait.Fichier}}" alt="Portrait de {{.P.Prenom}} {{.P.Nom}}"
-       width="120" loading="lazy">
-  <div>
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  {{if .Cand}}<a href="{{.Root}}/candidats/">Candidats 2027</a>
+  {{else}}<a href="{{.Root}}/assemblee/">Assemblée nationale</a>{{end}} ›
+  <span>{{.P.Prenom}} {{.P.Nom}}</span></p>
+
+<div class="entete-portrait" style="margin-top:.6rem">
+  {{if and .Cand .Cand.Portrait}}<img src="{{.Root}}/media/{{.Cand.Portrait.Fichier}}"
+    alt="Portrait de {{.P.Prenom}} {{.P.Nom}}" width="104" height="104" loading="lazy"
+    style="object-fit:cover">{{end}}
+  <div style="flex:1;min-width:16rem">
+    {{if .P.Mandat}}<span class="sur">{{.P.Mandat}}</span>{{end}}
     <h1 style="margin-top:0">{{.P.Prenom}} {{.P.Nom}}</h1>
-    <p class="small muted" style="margin:0">Portrait&nbsp;: {{.Cand.Portrait.Licence}}{{if .Cand.Portrait.Auteur}},
-      {{.Cand.Portrait.Auteur}}{{end}} — <a href="{{.Cand.Portrait.SourceURL}}" target="_blank" rel="noopener">Wikimedia Commons</a></p>
+    {{if .P.Groupe}}<p class="muted" style="margin:.4rem 0 0;font-size:.95rem">{{.P.Groupe}}</p>{{end}}
+    {{if and .Cand .Cand.Portrait}}<p class="small muted" style="margin:.5rem 0 0">Portrait&nbsp;:
+      {{.Cand.Portrait.Licence}}{{if .Cand.Portrait.Auteur}}, {{.Cand.Portrait.Auteur}}{{end}} —
+      <a href="{{.Cand.Portrait.SourceURL}}" target="_blank" rel="noopener">Wikimedia Commons</a></p>{{end}}
   </div>
-</div>{{else}}<h1>{{.P.Prenom}} {{.P.Nom}}</h1>{{end}}
-{{if .Cand}}<p class="lede">Candidat déclaré à l'élection présidentielle de 2027
-pour {{if .Cand.Org}}<a href="{{.Root}}/organisation/{{.Cand.Org.Slug}}/">{{.Cand.Organisation}}</a>{{else}}{{.Cand.Organisation}}{{end}}{{if .Cand.DateDeclaration}}, déclaré le {{.Cand.DateDeclaration}}{{end}}.
+  <div class="actions" style="margin:0">
+    <button type="button" class="btn" data-copier="url" hidden>Copier le lien</button></div>
+</div>
+
+{{if .Cand}}<p class="lede">Candidat déclaré à l'élection présidentielle de 2027 pour
+{{if .Cand.Org}}<a href="{{.Root}}/organisation/{{.Cand.Org.Slug}}/">{{.Cand.Organisation}}</a>{{else}}{{.Cand.Organisation}}{{end}}{{if .Cand.DateDeclaration}}, déclaré le {{.Cand.DateDeclaration}}{{end}}.
 <span class="small">Source&nbsp;: <a href="{{.Cand.SourceURL}}">déclaration publique</a>,
 consultée le {{.Cand.SourceConsultee}}.</span></p>{{end}}
 
+{{if .P.HasVotes}}
+{{/* Le bilan passe devant : c'est la question qu'on vient poser à cette fiche.
+     Le taux de participation, lui, disparaît — voir la carte d'absence typée. */}}
+<h2 style="margin-top:2.2rem">{{nb .P.Exprimes}} positions exprimées</h2>
+<div style="display:grid;gap:1.6rem;grid-template-columns:repeat(auto-fit,minmax(19rem,1fr));
+  align-items:start;margin-top:1.2rem">
+  <div>
+    <div class="bar" style="height:26px" role="img"
+         aria-label="{{.P.Pour}} pour, {{.P.Contre}} contre, {{.P.Abstention}} abstentions">
+      <i style="width:{{pct .P.Pour .P.Exprimes}}%;background:var(--pour)"></i>
+      <i style="width:{{pct .P.Contre .P.Exprimes}}%;background:var(--contre)"></i>
+      <i style="width:{{pct .P.Abstention .P.Exprimes}}%;background:var(--abst)"></i></div>
+    <div class="seuil-lg" style="margin-top:1rem">
+      <span style="color:var(--encre)"><i style="background:var(--pour)"></i>
+        <b>{{nb .P.Pour}}</b>&nbsp;pour</span>
+      <span style="color:var(--encre)"><i style="background:var(--contre)"></i>
+        <b>{{nb .P.Contre}}</b>&nbsp;contre</span>
+      <span style="color:var(--encre)"><i style="background:var(--abst)"></i>
+        <b>{{nb .P.Abstention}}</b>&nbsp;abstentions</span>
+      <span><i style="background:transparent;border:1.5px solid var(--absent)"></i>
+        {{nb .P.NonVotant}} non-votant{{if gt .P.NonVotant 1}}s{{end}}</span>
+    </div>
+    <p class="note">Cette répartition porte sur les positions <em>exprimées</em>. Elle ne mesure ni
+    une ligne politique ni une proximité&nbsp;: un vote contre peut viser le véhicule législatif, le
+    calendrier, ou un texte concurrent préféré. «&nbsp;Non-votant&nbsp;» n'est pas une position
+    politique&nbsp;: c'est une donnée manquante, et elle n'entre dans aucun calcul.</p>
+  </div>
+
+  {{/* Le site affichait ici « N sur 8 434 scrutins (X %) », rapporté au total de
+       TOUTE la législature. Pour quiconque n'a pas siégé sur toute la période —
+       ou fut ministre, période pendant laquelle un député ne vote pas — le
+       dénominateur est faux, et le chiffre se lit comme un score d'assiduité.
+       Un score est un verdict : principe n° 1. On publie donc le numérateur, et
+       on type l'absence — principe n° 2. */}}
+  <div class="carte creuse">
+    <span class="t">Taux de participation&nbsp;: non calculé</span>
+    <span class="d" style="margin-top:.5rem">Le calculer exige de connaître le nombre de scrutins
+    <strong>tenus pendant les mandats effectifs</strong> de cette personne, en excluant toute
+    période de fonction gouvernementale — un ministre ne vote pas. Ce dénominateur n'est pas
+    encore dérivé, et le rapporter au total de la législature produirait un score d'assiduité
+    faux.</span>
+    <span class="d" style="margin-top:.6rem">Raison de l'absence&nbsp;:
+      <code>DENOMINATEUR_NON_BORNE</code></span>
+  </div>
+</div>
+
+<h2>Comment a-t-il voté</h2>
+{{if .P.Votes}}
+<div class="filtre" data-filtre="votes-personne">
+  <input type="search" placeholder="Filtrer par objet…" aria-label="Filtrer par objet">
+  <button type="button" class="puce" aria-pressed="true">Tous</button>
+  <button type="button" class="puce" data-g="Pour">Pour</button>
+  <button type="button" class="puce" data-g="Contre">Contre</button>
+  <button type="button" class="puce" data-g="Abstention">Abstention</button>
+</div>
+<p class="small muted"><span data-compte>{{.P.VotesShown}}</span> scrutins affichés sur
+  {{nb .P.Exprimes}} positions exprimées&nbsp;: la liste est bornée, et la troncature est visible
+  plutôt que silencieuse.</p>
+<div class="scroll"><table class="pile pile-1" id="votes-personne">
+<thead><tr><th>Date</th><th>Objet</th><th>Position</th><th>Résultat</th></tr></thead>
+<tbody>{{range .P.Votes}}<tr data-g="{{.PositionFr}}">
+  <td class="small z" style="white-space:nowrap">{{.Date}}</td>
+  <td data-l="Objet"><a href="{{$.Root}}/scrutin/{{.Slug}}/">{{.Objet}}</a></td>
+  <td data-l="Position"><span class="pastille {{.Position}}">{{.PositionFr}}</span></td>
+  <td class="small z" data-l="Résultat">{{.Resultat}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note abs">Le filtre est purement local&nbsp;: aucune requête, le site reste statique. Il
+ne porte que sur les scrutins affichés ci-dessus, pas sur l'ensemble des positions exprimées.</p>
+{{else}}<p class="nodata">Aucun vote chargé pour cette personne.</p>{{end}}
+{{else}}
+<p class="nodata" style="margin-top:1.6rem">Aucun vote dans le périmètre couvert. Cela décrit
+<strong>le périmètre de ce site</strong>, pas l'activité de la personne&nbsp;: un élu peut siéger
+au Sénat, au Parlement européen, dans une collectivité, ou n'avoir jamais eu de mandat
+parlementaire.</p>
+{{end}}
+
 <h2>Mandats</h2>
 {{if .P.Mandats}}
-<div class="scroll"><table>
-<thead><tr><th>Mandat</th><th>Fonction</th><th>Circonscription ou portefeuille</th><th>Période</th><th>Président en fonction</th></tr></thead>
-<tbody>
-{{range .P.Mandats}}<tr>
-  <td>{{.Type}}</td>
-  <td class="small">{{if .Role}}{{.Role}}{{else}}<span class="muted">—</span>{{end}}</td>
-  <td class="small">{{if .Circo}}{{.Circo}}{{else if .Portefeuille}}{{.Portefeuille}}{{else}}<span class="muted">—</span>{{end}}</td>
-  <td class="small">{{.Periode}}</td>
-  <td class="small muted">{{if .SousPresidence}}{{.SousPresidence}}{{else}}—{{end}}</td>
-</tr>{{end}}
-</tbody></table></div>
-<p class="small muted">Les fonctions et portefeuilles sont repris tels que publiés par
-l'Assemblée, sans normalisation. Un mandat ministériel figure ici parce qu'il est publié
-dans le même référentiel&nbsp;; il ne relève pas de l'activité parlementaire.
-La colonne «&nbsp;président en fonction&nbsp;» est un <strong>repère chronologique</strong>,
-pas une imputation&nbsp;: un ministre n'est pas responsable des actes du président, ni
-l'inverse. Un mandat à cheval sur deux présidences les cite toutes les deux.</p>
+<div class="scroll"><table class="pile">
+<thead><tr><th>Mandat</th><th>Fonction</th><th>Circonscription ou portefeuille</th><th>Période</th>
+  <th>Président en fonction</th></tr></thead>
+<tbody>{{range .P.Mandats}}<tr>
+  <td><b>{{.Type}}</b></td>
+  <td class="small z" data-l="Fonction">{{if .Role}}{{.Role}}{{else}}—{{end}}</td>
+  <td class="small" data-l="Périmètre">{{if .Circo}}{{.Circo}}{{else if .Portefeuille}}{{.Portefeuille}}{{else}}<span class="z">—</span>{{end}}</td>
+  <td class="small z" data-l="Période">{{.Periode}}</td>
+  <td class="small z" data-l="Président">{{if .SousPresidence}}{{.SousPresidence}}{{else}}—{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note">Les fonctions et portefeuilles sont repris <strong>tels que publiés</strong> par
+l'Assemblée, sans normalisation. Un mandat ministériel figure ici parce qu'il est publié dans le
+même référentiel&nbsp;; il ne relève pas de l'activité parlementaire — et c'est précisément pour
+cela qu'il fausserait un taux de participation. La colonne «&nbsp;président en fonction&nbsp;» est
+un <strong>repère chronologique</strong>, pas une imputation&nbsp;: un ministre n'est pas
+responsable des actes du président, ni l'inverse.</p>
 {{else}}<p class="nodata">Aucun mandat dans le périmètre couvert (Assemblée nationale,
 17<sup>e</sup> législature).</p>{{end}}
 
-<h2>Appartenances</h2>
 {{if .P.Affiliations}}
-<table><thead><tr><th>Organisation</th><th>Nature</th><th>Période</th><th>Comment on le sait</th></tr></thead><tbody>
-{{range .P.Affiliations}}<tr><td>{{.Nom}}</td><td>{{.Kind}}</td><td>{{.Periode}}</td>
-<td class="small muted">{{.Via}}</td></tr>{{end}}
-</tbody></table>
-<p class="small muted">L'appartenance à un groupe parlementaire est publiée par
-l'Assemblée. Le rattachement à un parti figurant dans ce même fichier est
-<strong>déclaratif</strong>&nbsp;: il n'a pas la valeur du rattachement publié au Journal
-officiel en décembre au titre de l'aide publique, qui n'est pas encore ingéré.</p>
-{{else}}<p class="nodata">Aucune appartenance enregistrée.</p>{{end}}
-
-{{if .P.HasVotes}}
-<h2>Participation aux scrutins publics</h2>
-<dl class="kv">
-  <dt>Positions exprimées</dt><dd>{{.P.Exprimes}} sur {{.TotalScrutins}} scrutins ({{.P.PctExprimes}} %)</dd>
-  <dt>Pour</dt><dd class="pos FOR">{{.P.Pour}}</dd>
-  <dt>Contre</dt><dd class="pos AGAINST">{{.P.Contre}}</dd>
-  <dt>Abstention</dt><dd class="pos ABSTAIN">{{.P.Abstention}}</dd>
-  <dt>Non-votant</dt><dd class="pos ABSENT">{{.P.NonVotant}}</dd>
-</dl>
-<p class="small muted">« Non-votant » n'est pas une position politique&nbsp;: c'est une
-donnée manquante. Elle n'entre dans aucun calcul de proximité.</p>
-
-<h3>Derniers votes</h3>
-<div class="scroll"><table>
-<thead><tr><th>Date</th><th>Objet</th><th>Position</th><th>Résultat</th></tr></thead><tbody>
-{{range .P.Votes}}<tr>
-<td class="small">{{.Date}}</td>
-<td><a href="{{$.Root}}/scrutin/{{.Slug}}/">{{.Objet}}</a></td>
-<td class="pos {{.Position}}">{{.PositionFr}}{{if .Rectifiee}} <span class="small muted">(mise au point)</span>{{end}}</td>
-<td class="small muted">{{.Resultat}}</td></tr>{{end}}
-</tbody></table></div>
-<p class="small muted">{{.P.VotesShown}} scrutins affichés sur {{.P.Exprimes}} positions exprimées.</p>
-{{else}}
-<h2>Participation aux scrutins publics</h2>
-<p class="nodata">Aucun vote nominatif dans le périmètre couvert.</p>
-
-{{if and .Cand .Cand.Org}}{{with .Cand.Org.Groupe}}
-<h2>À défaut : le groupe apparenté à l'Assemblée</h2>
-<p class="small muted">Ce candidat n'a pas de bilan de vote propre. Le groupe
-<a href="{{$.Root}}/groupe/{{.Slug}}/">{{.Nom}}</a> est celui dont
-{{$.Cand.Organisation}} est la composante principale à la 17<sup>e</sup> législature —
-c'est une décision éditoriale, justifiée dans <code>data/organisations.csv</code>.</p>
-<dl class="kv">
-  <dt>Députés</dt><dd>{{.Effectif}}</dd>
-  <dt>Pour</dt><dd class="pos FOR">{{.Pour}}</dd>
-  <dt>Contre</dt><dd class="pos AGAINST">{{.Contre}}</dd>
-  <dt>Abstention</dt><dd class="pos ABSTAIN">{{.Abstention}}</dd>
-  <dt>Régularité observée</dt><dd>{{.Cohesion}} %</dd>
-</dl>
-<div class="warn">
-<strong>Ce bloc ne parle pas de ce candidat.</strong> Il décrit un groupe
-parlementaire, qui n'est pas un parti et dont ce candidat n'est pas membre. Attribuer
-ces positions à la personne dont c'est la fiche serait une erreur factuelle.
-</div>
-{{end}}{{end}}
+<details class="plus">
+  <summary>Appartenances déclarées ({{len .P.Affiliations}})</summary>
+  <div class="dedans">
+    <div class="scroll"><table class="pile">
+    <thead><tr><th>Organisation</th><th>Nature</th><th>Période</th><th>Comment on le sait</th></tr></thead>
+    <tbody>{{range .P.Affiliations}}<tr>
+      <td>{{.Nom}}</td><td class="small z" data-l="Nature">{{.Kind}}</td>
+      <td class="small z" data-l="Période">{{.Periode}}</td>
+      <td class="small z" data-l="Source">{{.Via}}</td>
+    </tr>{{end}}</tbody></table></div>
+    <p class="note">L'appartenance à un groupe parlementaire est publiée par l'Assemblée. Le
+    rattachement à un parti figurant dans ce même fichier est <strong>déclaratif</strong>&nbsp;: il
+    n'a pas la valeur du rattachement publié au Journal officiel en décembre au titre de l'aide
+    publique, qui n'est pas encore ingéré.</p>
+  </div>
+</details>
 {{end}}
 
-<div class="warn">
-<strong>Ce que cette fiche ne dit pas.</strong> Elle ne couvre que les scrutins
-<em>publics</em> de la 17<sup>e</sup> législature&nbsp;: la majorité des votes ont lieu à
-main levée, sans trace nominative. Elle ne dit rien du travail en commission, des
-questions écrites, ni de l'activité en circonscription. Un vote contre un texte n'est
-pas un désaccord sur son objet&nbsp;: il peut viser le véhicule législatif, le calendrier,
-ou préférer un texte concurrent. Aucune position n'est ici interprétée.
-</div>
+<details class="plus" open>
+  <summary>Ce que cette fiche ne dit pas</summary>
+  <div class="dedans">
+    <p class="note">Elle décrit <strong>le périmètre de ce site</strong>, pas l'activité de la
+    personne&nbsp;: travail en commission, rapports, questions au Gouvernement et votes à main levée
+    n'y figurent pas. Une fiche vide ne dit rien de son travail, de son influence ni de sa
+    légitimité.</p>
+    <p class="note"><strong>Aucun classement, aucune note, aucun score de proximité</strong> n'est
+    produit&nbsp;: le site refuse de les calculer, et pas seulement de les afficher.</p>
+    <p class="note">Seuls les scrutins <em>publics</em> sont couverts. La majorité des votes ont
+    lieu à main levée et ne laissent aucune trace nominative.</p>
+  </div>
+</details>
 {{end}}

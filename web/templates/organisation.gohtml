@@ -44,16 +44,16 @@ registre CNCCFP peut simplement ne pas avoir été jugé défendable — voir
 
 <h2>Positionnement selon des référentiels tiers</h2>
 {{if .O.Classifications}}
-<div class="scroll"><table>
+<div class="scroll"><table class="pile">
 <thead><tr><th>Référentiel</th><th>Catégorie ou dimension</th><th>Valeur</th><th>Période</th></tr></thead><tbody>
 {{range .O.Classifications}}<tr>
   <td>{{.Referentiel}}</td>
-  <td><a href="{{$.Root}}/referentiel/{{.SetSlug}}/#{{.Categorie}}" target="_blank" rel="noopener"><code>{{.Categorie}}</code></a>
+  <td data-l="Catégorie"><a href="{{$.Root}}/referentiel/{{.SetSlug}}/#{{.Categorie}}" target="_blank" rel="noopener"><code>{{.Categorie}}</code></a>
       {{if .LibelleFr}}<div class="small muted">{{.LibelleFr}}</div>{{end}}</td>
-  <td>{{if .Valeur}}{{jauge .Categorie .Valeur}}
+  <td data-l="Valeur">{{if .Valeur}}{{jauge .Categorie .Valeur}}
       <div class="small muted poles"><span>{{poleG .Categorie}}</span><span>{{poleD .Categorie}}</span></div>
       {{else}}<span class="muted">—</span>{{end}}</td>
-  <td class="small">{{.Periode}}</td>
+  <td class="small z" data-l="Période">{{.Periode}}</td>
 </tr>{{end}}
 </tbody></table></div>
 <div class="warn">

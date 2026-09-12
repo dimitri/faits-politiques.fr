@@ -1,50 +1,100 @@
 {{define "content"}}
-<p class="eyebrow">Parcourir</p>
-<h2 style="margin-top:0">Par institution et par acteur</h2>
 
-<div class="sections">
-  <a class="sec" href="{{.Root}}/candidats/">
-    <div class="v">{{.Cov.Candidats}}</div>
-    <div class="t">Candidats 2027</div>
-    <div class="d">Déclarés et sourcés. Bilan de vote quand il existe, organisation, et ce que le site ne couvre pas.</div>
-  </a>
-  <a class="sec" href="{{.Root}}/assemblee/">
-    <div class="v">{{nb .Cov.Scrutins}}</div>
-    <div class="t">Assemblée nationale</div>
-    <div class="d">Scrutins publics de la 17<sup>e</sup> législature, groupes, députés, dossiers.</div>
-  </a>
-  <a class="sec" href="{{.Root}}/partis/">
-    <div class="v">{{.Cov.Organisations}}</div>
-    <div class="t">Partis</div>
-    <div class="d">Comptes publics déposés à la CNCCFP, positionnement selon des référentiels tiers.</div>
-  </a>
-  <a class="sec vide" href="{{.Root}}/senat/">
-    <div class="v">non couvert</div>
-    <div class="t">Sénat</div>
-    <div class="d">Connecteur à écrire. Les scrutins y sont publiés par groupe, pas par sénateur.</div>
-  </a>
-  <a class="sec" href="{{.Root}}/europe/">
-    <div class="v">{{nb .Cov.ScrutinsPE}}</div>
-    <div class="t">Parlement européen</div>
-    <div class="d">Scrutins nominatifs et votes des eurodéputés français, depuis HowTheyVote.eu.</div>
-  </a>
-  <a class="sec" href="{{.Root}}/themes/">
-    <div class="v">{{nb .Cov.Themes}}</div>
-    <div class="t">Thèmes</div>
-    <div class="d">Concepts EuroVoc rattachés aux scrutins européens par le producteur, transcrits tels quels.</div>
-  </a>
-</div>
+{{/* « Ce qui a été voté cette semaine » est la première question d'un soir de
+     débat. Le site n'y répondait nulle part : le flux passe donc devant. */}}
+<section class="bloc" style="padding-top:2.4rem">
+  <div class="tete">
+    <div><span class="sur">Assemblée nationale</span>
+      <h2 class="h2">Derniers scrutins publics</h2></div>
+    <a class="plus" href="{{.Root}}/assemblee/">Les {{nb .Cov.Scrutins}} scrutins →</a>
+  </div>
 
-<p class="eyebrow">Méthode</p>
-<h2 style="margin-top:0">Ce que ce site ne dit pas</h2>
-<div class="grid" style="margin-top:1rem">
-  <div class="card"><strong>Aucun verdict</strong>
-    <p class="small muted" style="margin-bottom:0">Ni «&nbsp;vrai&nbsp;» ni «&nbsp;faux&nbsp;». Un objet factuel, sa source primaire, et ses limites. La conclusion appartient au lecteur.</p></div>
-  <div class="card"><strong>Seulement les scrutins publics</strong>
-    <p class="small muted" style="margin-bottom:0">La majorité des votes ont lieu à main levée, sans trace nominative. Ni cet outil ni aucun autre ne peut dire qui a voté quoi sur ces textes.</p></div>
-  <div class="card"><strong>Les absences sont affichées</strong>
-    <p class="small muted" style="margin-bottom:0">Quand une donnée manque, la page le dit et en donne la raison, plutôt que de combler le trou.</p></div>
-  <div class="card"><strong>Jamais de causalité</strong>
-    <p class="small muted" style="margin-bottom:0">Une évolution constatée pendant un mandat n'est pas l'effet d'une politique, et n'est jamais présentée comme telle.</p></div>
-</div>
+  <div class="flux">
+    {{range .Derniers}}<a class="ligne" href="{{$.Root}}/scrutin/{{.Slug}}/">
+      <span class="d">{{.Date}}</span>
+      <span class="o">{{.Objet}}{{if .TypeVote}}<em>{{.TypeVote}}</em>{{end}}</span>
+      <span class="mini" role="img" aria-label="{{.Pour}} pour, {{.Contre}} contre, {{.Abstentions}} abstentions">
+        <i style="width:{{pct .Pour .Exprimes}}%;background:var(--pour)"></i>
+        <i style="width:{{pct .Contre .Exprimes}}%;background:var(--contre)"></i>
+        <i style="width:{{pct .Abstentions .Exprimes}}%;background:var(--abst)"></i></span>
+      <span class="r">{{.Resultat}}</span>
+    </a>{{end}}
+  </div>
+
+  <p class="note abs">Ce flux ne couvre que les <strong>scrutins publics</strong>. La majorité
+  des votes ont lieu à main levée et ne laissent aucune trace nominative&nbsp;: ni cet outil ni
+  aucun autre ne peut dire qui a voté quoi sur ces textes. Un scrutin public est par ailleurs
+  demandé <em>stratégiquement</em>&nbsp;: le corpus n'est pas un échantillon neutre de l'activité
+  législative.</p>
+</section>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Parcourir</span>
+    <h2 class="h2">Par institution et par acteur</h2></div></div>
+  <div class="cartes trois">
+    <a class="carte" href="{{.Root}}/assemblee/">
+      <span class="v">{{nb .Cov.Scrutins}}</span><span class="t">Assemblée nationale</span>
+      <span class="d">Scrutins publics de la 17<sup>e</sup> législature, groupes, députés, dossiers.</span></a>
+    <a class="carte" href="{{.Root}}/europe/">
+      <span class="v">{{nb .Cov.ScrutinsPE}}</span><span class="t">Parlement européen</span>
+      <span class="d">Scrutins nominatifs et votes des eurodéputés français, depuis HowTheyVote.eu.</span></a>
+    <a class="carte" href="{{.Root}}/candidats/">
+      <span class="v">{{.Cov.Candidats}}</span><span class="t">Candidats 2027</span>
+      <span class="d">Déclarés et sourcés. Bilan de vote quand il existe, organisation, et ce que
+        le site ne couvre pas.</span></a>
+    <a class="carte" href="{{.Root}}/partis/">
+      <span class="v">{{.Cov.Organisations}}</span><span class="t">Partis</span>
+      <span class="d">Comptes publics déposés à la CNCCFP, positionnement selon des référentiels
+        tiers.</span></a>
+    <a class="carte" href="{{.Root}}/themes/">
+      <span class="v">{{nb .Cov.Themes}}</span><span class="t">Thèmes</span>
+      <span class="d">Concepts EuroVoc rattachés aux scrutins européens par le producteur,
+        transcrits tels quels.</span></a>
+    <a class="carte creuse" href="{{.Root}}/senat/">
+      <span class="v">Pas encore couvert</span><span class="t">Sénat</span>
+      <span class="d">Connecteur à écrire. Les scrutins y sont publiés par groupe, pas par
+        sénateur.</span></a>
+  </div>
+</section>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Méthode</span>
+    <h2 class="h2">Ce que ce site ne dit pas</h2></div></div>
+  <div class="cartes">
+    <div class="carte"><span class="t">Aucun verdict</span>
+      <span class="d">Ni «&nbsp;vrai&nbsp;» ni «&nbsp;faux&nbsp;». Un objet factuel, sa source
+        primaire, et ses limites. La conclusion vous appartient.</span></div>
+    <div class="carte"><span class="t">Jamais de causalité</span>
+      <span class="d">Une évolution constatée pendant un mandat n'est pas l'effet d'une politique,
+        et n'est jamais présentée comme telle.</span></div>
+    <div class="carte"><span class="t">Jamais un groupe projeté sur une personne</span>
+      <span class="d">Un vote de groupe n'est pas le vote de chacun de ses membres. La granularité
+        de chaque scrutin est une donnée stockée, pas une convention.</span></div>
+    <div class="carte"><span class="t">Les absences sont affichées</span>
+      <span class="d">Quand une donnée manque, la page le dit et en donne la raison typée, plutôt
+        que de combler le trou.</span></div>
+  </div>
+  <p class="note proc"><strong>«&nbsp;Non vérifiable&nbsp;» est une réponse de plein droit.</strong>
+  Un outil bien fait tranche 25 à 35&nbsp;% des affirmations d'un débat, pas 90&nbsp;%. Un site qui
+  répondrait à tout mentirait quelque part.</p>
+</section>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Couverture</span>
+    <h2 class="h2">Ce que contient l'archive</h2></div></div>
+  <div class="chiffres">
+    <div class="chiffre-bloc"><div class="v">{{nb .Cov.Scrutins}}</div>
+      <span class="l">scrutins à l'Assemblée</span></div>
+    <div class="chiffre-bloc"><div class="v">{{nb .Cov.Ballots}}</div>
+      <span class="l">votes nominatifs</span></div>
+    <div class="chiffre-bloc"><div class="v">{{nb .Cov.Deputes}}</div>
+      <span class="l">députés</span></div>
+    <div class="chiffre-bloc"><div class="v">{{nb .Cov.Dossiers}}</div>
+      <span class="l">dossiers législatifs</span></div>
+    <div class="chiffre-bloc"><div class="v">{{nb .Cov.ScrutinsPE}}</div>
+      <span class="l">scrutins européens</span></div>
+    <div class="chiffre-bloc"><div class="v">{{nb .Cov.Documents}}</div>
+      <span class="l">documents scellés</span></div>
+  </div>
+</section>
 {{end}}

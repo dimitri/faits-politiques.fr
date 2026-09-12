@@ -1,19 +1,26 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 58" role="img"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 48" role="img"
      aria-label="faits-politiques.fr — ce qui a été voté, décidé, proposé">
   <title>faits-politiques.fr</title>
-  <!-- Marque : trois lignes de registre, chacune marquée d'une position.
-       Un graphique en barres aurait suggéré que ce site produit des
-       statistiques ; il tient un RELEVÉ. La forme dit donc une liste
-       d'entrées consignées, pas une mesure. -->
-  <rect x="0" y="4" width="50" height="50" rx="13" fill="currentColor" opacity=".06"/>
-  <circle cx="15" cy="18" r="3.2" fill="#1B6E3C"/>
-  <rect x="22" y="16.4" width="17" height="3.2" rx="1.6" fill="currentColor" opacity=".45"/>
-  <circle cx="15" cy="29" r="3.2" fill="#A32A2A"/>
-  <rect x="22" y="27.4" width="13" height="3.2" rx="1.6" fill="currentColor" opacity=".45"/>
-  <circle cx="15" cy="40" r="3.2" fill="#8A6510"/>
-  <rect x="22" y="38.4" width="15" height="3.2" rx="1.6" fill="currentColor" opacity=".45"/>
-  <text x="64" y="29" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif"
-        font-size="23" font-weight="680" fill="currentColor" letter-spacing="-.7">faits-politiques</text>
-  <text x="64" y="47" font-family="ui-sans-serif,system-ui,Segoe UI,Roboto,sans-serif"
-        font-size="12" fill="currentColor" opacity=".6" letter-spacing=".2">ce qui a été voté, décidé, proposé</text>
+  <rect width="48" height="48" rx="11" fill="#15161B"/>
+  <rect x="5.2" y="5.2" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="15.4" y="5.2" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="25.6" y="5.2" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="35.8" y="5.2" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="5.2" y="15.4" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="15.4" y="15.4" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="25.6" y="15.4" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="35.8" y="15.4" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="5.2" y="25.6" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="15.4" y="25.6" width="7" height="7" rx="2" fill="#E4756F"/>
+  <rect x="25.6" y="25.6" width="7" height="7" rx="2" fill="#E4756F"/>
+  <rect x="35.8" y="25.6" width="7" height="7" rx="2" fill="#E4756F"/>
+  <rect x="5.2" y="35.8" width="7" height="7" rx="2" fill="#E4756F"/>
+  <rect x="15.4" y="35.8" width="7" height="7" rx="2" fill="#D6A93F"/>
+  <rect x="25.6" y="35.8" width="7" height="7" rx="2" fill="#D6A93F"/>
+  <rect x="36.55" y="36.55" width="5.5" height="5.5" rx="1.6" fill="none" stroke="#918D85" stroke-width="1.5"/>
+  <text x="62" y="24" font-family="IBM Plex Sans,ui-sans-serif,system-ui,sans-serif"
+        font-size="21" font-weight="600" fill="currentColor" letter-spacing="-.6">faits-politiques<tspan
+        opacity=".62" font-weight="450">.fr</tspan></text>
+  <text x="62" y="41" font-family="IBM Plex Sans,ui-sans-serif,system-ui,sans-serif"
+        font-size="12" fill="currentColor" opacity=".62">ce qui a été voté, décidé, proposé</text>
 </svg>

@@ -103,7 +103,8 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	defer pool.Close()
 
 	fns := template.FuncMap{"jauge": Jauge, "poleG": PoleGauche, "poleD": PoleDroit,
-		"lower": strings.ToLower, "nb": Nombre, "ico": Icone}
+		"lower": strings.ToLower, "nb": Nombre, "ico": Icone,
+		"marque": Marque, "grille": Grille, "pct": Pourcent}
 	base := template.Must(template.New("base.gohtml").Funcs(fns).
 		ParseFiles(filepath.Join(tplDir, "base.gohtml")))
 	page := func(name string) *template.Template {
@@ -176,6 +177,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	if err := copyMedia("web/media", filepath.Join(out, "media")); err != nil {
 		return err
 	}
+	// Fontes hébergées en propre : aucune requête vers un tiers, aucun traceur.
+	if err := copyMedia("web/fonts", filepath.Join(out, "fonts")); err != nil {
+		return err
+	}
 	for _, c := range candidats {
 		c.Portrait = portraits[c.Slug]
 	}
@@ -230,20 +235,36 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	if err != nil {
 		return err
 	}
+	flux, err := derniersFlux(ctx, pool, 8)
+	if err != nil {
+		return err
+	}
+	seuils, err := loadSeuils(filepath.Join(dataDir, "seuils.csv"))
+	if err != nil {
+		return err
+	}
+	if err := ecrireIndex(out, root, persons, candidats, orgs, groupes, refs); err != nil {
+		return err
+	}
 
 	layout.Cov.Organisations = len(orgs)
 
 	l := layout
 	l.Title = "Accueil"
 	l.Hero = true
-	l.HeroTitre = "Ce que les responsables politiques ont réellement voté"
+	l.HeroTitre = "Ce qui a été voté, décidé, proposé — et d'où on le sait."
 	_ = pool.QueryRow(ctx, `
 		SELECT coalesce(to_char(max(fetched_at),'DD/MM/YYYY'),'')
 		FROM raw.retrieval WHERE document_id IS NOT NULL`).Scan(&l.DerniereIngestion)
+	// Se définir par une absence (« rien n'est commenté ») oblige le lecteur à
+	// deviner ce qu'il obtient. On dit les trois choses qu'il reçoit.
 	l.HeroLede = "Chaque chiffre remonte à un document officiel archivé et horodaté. " +
-		"Rien n'est commenté : le site documente ce qui a été proposé, voté et décidé, " +
-		"et laisse la conclusion au lecteur."
-	if err := write(page("accueil.gohtml"), filepath.Join(out, "index.html"), l); err != nil {
+		"Aucun verdict n'est rendu : vous obtenez le fait, sa source primaire, " +
+		"et ce qu'elle ne permet pas de conclure."
+	if err := write(page("accueil.gohtml"), filepath.Join(out, "index.html"), struct {
+		Layout
+		Derniers []FluxLigne
+	}{l, flux}); err != nil {
 		return err
 	}
 
@@ -433,7 +454,17 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	}
 
 	// --- fiches scrutins
-	n, err := buildScrutins(ctx, pool, page("scrutin.gohtml"), layout, out, maxScrutins)
+	// La citation d'un scrutin porte l'empreinte de la source dont il provient :
+	// un lien qu'on colle vaut mieux qu'une capture d'écran.
+	srcScrutins := SourceInfo{Attribution: "Assemblée nationale, open data, Licence Ouverte"}
+	for _, s := range layout.Sources {
+		if strings.Contains(strings.ToLower(s.Label), "scrutins") {
+			srcScrutins = s
+			break
+		}
+	}
+	n, err := buildScrutins(ctx, pool, page("scrutin.gohtml"), layout, out, maxScrutins,
+		seuils, srcScrutins)
 	if err != nil {
 		return err
 	}

@@ -1,10 +1,25 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 52 52" role="img" aria-label="faits-politiques.fr">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" role="img"
+     aria-label="faits-politiques.fr">
   <title>faits-politiques.fr</title>
-  <rect x="1" y="1" width="50" height="50" rx="12" fill="#15151A"/>
-  <circle cx="16" cy="17" r="3.4" fill="#4FBF80"/>
-  <rect x="23.5" y="15.3" width="17" height="3.4" rx="1.7" fill="#ECEAE5" opacity=".5"/>
-  <circle cx="16" cy="27" r="3.4" fill="#E27272"/>
-  <rect x="23.5" y="25.3" width="13" height="3.4" rx="1.7" fill="#ECEAE5" opacity=".5"/>
-  <circle cx="16" cy="37" r="3.4" fill="#D4A73C"/>
-  <rect x="23.5" y="35.3" width="15" height="3.4" rx="1.7" fill="#ECEAE5" opacity=".5"/>
+  <!-- Une gaufre de 16 cases : 9 pour, 4 contre, 2 abstentions, 1 non-votant.
+       Forme de graphique réelle, identique à la grille des sièges des pages de
+       scrutin. Aucun hémicycle : sa forme suggérerait un axe gauche-droite que
+       ce site refuse de produire. -->
+  <rect width="48" height="48" rx="11" fill="#15161B"/>
+  <rect x="5.2" y="5.2" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="15.4" y="5.2" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="25.6" y="5.2" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="35.8" y="5.2" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="5.2" y="15.4" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="15.4" y="15.4" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="25.6" y="15.4" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="35.8" y="15.4" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="5.2" y="25.6" width="7" height="7" rx="2" fill="#54BE86"/>
+  <rect x="15.4" y="25.6" width="7" height="7" rx="2" fill="#E4756F"/>
+  <rect x="25.6" y="25.6" width="7" height="7" rx="2" fill="#E4756F"/>
+  <rect x="35.8" y="25.6" width="7" height="7" rx="2" fill="#E4756F"/>
+  <rect x="5.2" y="35.8" width="7" height="7" rx="2" fill="#E4756F"/>
+  <rect x="15.4" y="35.8" width="7" height="7" rx="2" fill="#D6A93F"/>
+  <rect x="25.6" y="35.8" width="7" height="7" rx="2" fill="#D6A93F"/>
+  <rect x="36.55" y="36.55" width="5.5" height="5.5" rx="1.6" fill="none" stroke="#918D85" stroke-width="1.5"/>
 </svg>

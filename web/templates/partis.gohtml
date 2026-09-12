@@ -10,16 +10,16 @@ décision éditoriale, consignée dans <code>data/organisations.csv</code>.</p>
 registre CNCCFP ou à une ligne d'un référentiel est une <strong>décision éditoriale</strong>,
 justifiée ligne à ligne dans <code>data/organisations.csv</code> et contestable.</p>
 
-<div class="scroll"><table>
+<div class="scroll"><table class="pile">
 <thead><tr><th>Organisation</th><th>Identifiant CNCCFP</th><th>Comptes</th>
 <th>Groupe à l'Assemblée</th><th>Classifications tierces</th></tr></thead>
 <tbody>
 {{range .Orgs}}<tr>
 <td><a href="{{$.Root}}/organisation/{{.Slug}}/">{{.Libelle}}</a></td>
-<td class="small"><code>{{if .CodeCNCCFP}}{{.CodeCNCCFP}}{{else}}—{{end}}</code></td>
-<td class="small">{{if .HasComptes}}{{len .Exercices}} exercices{{else}}<span class="muted">aucun rattaché</span>{{end}}</td>
-<td class="small">{{if .Groupe}}<a href="{{$.Root}}/groupe/{{.Groupe.Slug}}/">{{.Groupe.NomCourt}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
-<td class="small">{{if .Classifications}}{{range $i, $c := .Classifications}}{{if $i}}, {{end}}<code>{{$c.Categorie}}</code>{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
+<td class="small" data-l="CNCCFP"><code>{{if .CodeCNCCFP}}{{.CodeCNCCFP}}{{else}}—{{end}}</code></td>
+<td class="small" data-l="Comptes">{{if .HasComptes}}{{len .Exercices}} exercices{{else}}<span class="muted">aucun rattaché</span>{{end}}</td>
+<td class="small" data-l="Groupe">{{if .Groupe}}<a href="{{$.Root}}/groupe/{{.Groupe.Slug}}/">{{.Groupe.NomCourt}}</a>{{else}}<span class="muted">—</span>{{end}}</td>
+<td class="small" data-l="Classifications">{{if .Classifications}}{{range $i, $c := .Classifications}}{{if $i}}, {{end}}<code>{{$c.Categorie}}</code>{{end}}{{else}}<span class="muted">—</span>{{end}}</td>
 </tr>{{end}}
 </tbody></table></div>
 

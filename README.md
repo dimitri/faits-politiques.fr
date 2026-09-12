@@ -44,7 +44,13 @@ sources publiques  ──►  raw/        archive scellée : octets + SHA-256, j
                         derived.*   indicateurs, avec method_version
                         selection.* filtres nommés, sans prose
                    ──►  site/       HTML statique
+                        web/        gabarits, marque, fontes hébergées en propre
 ```
+
+Le site est **statique et sans dépendance distante** : aucune requête vers un tiers,
+aucun traceur, aucune fonte de CDN. Le seul JavaScript est une recherche locale sur un
+index statique, et ses déclencheurs restent masqués s'il ne s'exécute pas — le reste du
+site fonctionne sans lui. Présentation : [docs/charte-graphique.md](docs/charte-graphique.md).
 
 **Invariant central** : `core` est intégralement reconstructible depuis `raw` par une
 fonction idempotente. `cmd/ingest` reconstruit les tables dérivées à chaque exécution
@@ -76,7 +82,9 @@ go run ./cmd/verify
 
 Tout ce qui relève d'un **choix** y est un fichier, et toute modification y est une diff
 relisible : liste des candidats et leurs sources, cartes de rattachement, codage de sens,
-corpus pré-enregistrés, alias.
+corpus pré-enregistrés, alias, **seuils de majorité par type de scrutin**
+(`data/seuils.csv`, avec sa règle et sa source — sans lui, « 197 pour · 0 contre →
+rejeté » n'est pas lisible).
 
 Une modification dans `data/` exige une relecture contradictoire ; une modification dans
 `internal/` une relecture technique.

@@ -13,6 +13,7 @@ var icones = map[string]string{
 	"europe":    `<circle cx="8" cy="8" r="5.6"/><path d="M8 2.4v11.2M2.4 8h11.2M5 3.4a9 9 0 0 0 0 9.2M11 3.4a9 9 0 0 1 0 9.2"/>`,
 	"themes":    `<path d="M2.6 4.2h10.8M2.6 8h10.8M2.6 11.8h6.6"/>`,
 	"sources":   `<path d="M4 2.4h5.2L12 5.2v8.4H4z"/><path d="M9.2 2.4v2.8H12"/><path d="M6 8.6h4M6 11h3"/>`,
+	"loupe":     `<circle cx="7.2" cy="7.2" r="4.6"/><path d="m14 14-3.5-3.5"/>`,
 }
 
 // Icone retourne le SVG d'une entrée de menu. L'icône est décorative :

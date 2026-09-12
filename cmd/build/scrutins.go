@@ -21,12 +21,39 @@ type Scrutin struct {
 	Slug, Numero, Objet, Date, TypeVote string
 	Resultat, SourceUID                 string
 	Pour, Contre, Abstentions           int
+
+	// TitreCourt est le libellé source rendu lisible comme un titre, sans
+	// réécriture : coupé avant les signataires, première lettre en capitale.
+	// Tronque dit si l'opération a eu lieu, auquel cas la page affiche le
+	// libellé officiel intégral juste en dessous.
+	TitreCourt   string
+	Tronque      bool
+	ResultatLong string
+
+	// Seuil : le nombre de voix requis, quand une règle s'applique à ce type
+	// de scrutin (data/seuils.csv). Zéro signifie « pas de seuil à base fixe »,
+	// et la page retombe sur une barre proportionnelle aux exprimés.
+	Seuil                              int
+	Base                               int
+	SeuilRegle, SeuilNote, SeuilSource string
+
+	Exprimes     int
+	NonVotants   int
+	SansPosition int
 }
+
+// ScrutinLien : de quoi naviguer de proche en proche. Une fiche isolée oblige
+// à repasser par une liste pour lire le scrutin suivant.
+type ScrutinLien struct{ Slug, Objet string }
 
 type GroupeLigne struct {
 	Nom, Slug                        string
 	Pour, Contre, Abstention, Absent int
 	PctPour, PctContre, PctAbst      int
+	// Total : l'effectif recensé du groupe sur CE scrutin. Il sert d'échelle
+	// absolue aux barres — une barre en pourcentage des exprimés occupe toute
+	// la largeur pour tous les groupes, et fait lire 4 voix comme 72.
+	Total int
 }
 
 type VoteLigne struct {
@@ -39,7 +66,7 @@ type VoteLigne struct {
 // relevé, pas une reconstitution à partir des mandats — les fichiers de mandats
 // publiés par l'Assemblée ne portent pas les groupes de la 17e législature.
 func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Template,
-	layout Layout, out string, max int) (int, error) {
+	layout Layout, out string, max int, seuils map[string]Seuil, src SourceInfo) (int, error) {
 
 	limit := "ALL"
 	if max > 0 {
@@ -65,6 +92,13 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 			"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié",
 		}[s.Resultat]
 		s.EstEuropeen = s.Institution == "PARLEMENT_EUROPEEN"
+		s.TitreCourt, s.Tronque = TitreCourt(s.Objet)
+		s.ResultatLong = ResultatLong(s.Resultat, s.TypeVote)
+		s.Exprimes = s.Pour + s.Contre + s.Abstentions
+		if sl, ok := seuils[s.TypeVote]; ok {
+			s.Seuil, s.Base = sl.Voix, sl.Base
+			s.SeuilRegle, s.SeuilNote, s.SeuilSource = sl.Regle, sl.Note, sl.Source
+		}
 		all = append(all, s)
 	}
 	rows.Close()
@@ -93,15 +127,45 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 		return 0, err
 	}
 
-	for _, s := range all {
+	// all est trié par date décroissante : le « précédent » chronologique est
+	// donc l'élément suivant dans la tranche.
+	for i, s := range all {
+		gs := groupes[s.ID]
+		maxG := 0
+		for _, g := range gs {
+			if g.Total > maxG {
+				maxG = g.Total
+			}
+			s.NonVotants += g.Absent
+		}
+		// « Sans position enregistrée » n'est calculé que lorsqu'une base
+		// certaine existe (data/seuils.csv). Ailleurs, l'effectif de référence
+		// n'est pas une donnée : on ne le devine pas.
+		if s.Base > 0 {
+			if n := s.Base - len(votes[s.ID]); n > 0 {
+				s.SansPosition = n
+			}
+		}
+
+		var prec, suiv *ScrutinLien
+		if i+1 < len(all) {
+			prec = &ScrutinLien{all[i+1].Slug, all[i+1].TitreCourt}
+		}
+		if i > 0 {
+			suiv = &ScrutinLien{all[i-1].Slug, all[i-1].TitreCourt}
+		}
+
 		l := layout
 		l.Title = "Scrutin n° " + s.Numero
 		data := struct {
 			Layout
-			S       Scrutin
-			Groupes []GroupeLigne
-			Votes   []VoteLigne
-		}{l, s, groupes[s.ID], votes[s.ID]}
+			S          Scrutin
+			Groupes    []GroupeLigne
+			Votes      []VoteLigne
+			MaxGroupe  int
+			Prec, Suiv *ScrutinLien
+			Src        SourceInfo
+		}{l, s, gs, votes[s.ID], maxG, prec, suiv, src}
 		if err := write(tpl, filepath.Join(out, "scrutin", s.Slug, "index.html"), data); err != nil {
 			return 0, err
 		}
@@ -163,6 +227,7 @@ func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bo
 				g.PctContre = g.Contre * 100 / e
 				g.PctAbst = 100 - g.PctPour - g.PctContre
 			}
+			g.Total = g.Pour + g.Contre + g.Abstention + g.Absent
 			list = append(list, *g)
 		}
 		sort.Slice(list, func(i, j int) bool {
@@ -230,9 +295,46 @@ func derniersScrutins(ctx context.Context, pool *pgxpool.Pool, limit int) ([]Vot
 		if err := rows.Scan(&v.Slug, &v.Objet, &v.Date, &v.Resultat); err != nil {
 			return nil, err
 		}
-		v.Objet = tronque(v.Objet, 140)
+		v.Objet, _ = TitreCourt(v.Objet)
 		v.Resultat = map[string]string{"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié"}[v.Resultat]
 		out = append(out, v)
+	}
+	return out, rows.Err()
+}
+
+// FluxLigne alimente le flux d'accueil. « Ce qui a été voté cette semaine » est
+// la première question d'un soir de débat, et le site n'y répondait nulle part.
+type FluxLigne struct {
+	Slug, Objet, Date, TypeVote, Resultat string
+	Pour, Contre, Abstentions, Exprimes   int
+}
+
+func derniersFlux(ctx context.Context, pool *pgxpool.Pool, limit int) ([]FluxLigne, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT slug, objet, to_char(date_seance,'DD/MM/YYYY'), coalesce(type_vote,''),
+		       coalesce(resultat,''), coalesce(nb_pour,0), coalesce(nb_contre,0),
+		       coalesce(nb_abstentions,0)
+		FROM core.scrutin
+		WHERE institution = 'ASSEMBLEE_NATIONALE'
+		ORDER BY date_seance DESC, numero DESC
+		LIMIT $1`, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var out []FluxLigne
+	for rows.Next() {
+		var f FluxLigne
+		if err := rows.Scan(&f.Slug, &f.Objet, &f.Date, &f.TypeVote, &f.Resultat,
+			&f.Pour, &f.Contre, &f.Abstentions); err != nil {
+			return nil, err
+		}
+		f.Objet, _ = TitreCourt(f.Objet)
+		f.Resultat = ResultatLong(
+			map[string]string{"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié"}[f.Resultat],
+			f.TypeVote)
+		f.Exprimes = f.Pour + f.Contre + f.Abstentions
+		out = append(out, f)
 	}
 	return out, rows.Err()
 }

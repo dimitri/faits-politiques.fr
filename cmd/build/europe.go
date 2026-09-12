@@ -75,7 +75,7 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 		if err := rows.Scan(&v.Slug, &v.Objet, &v.Date, &v.Resultat); err != nil {
 			return nil, err
 		}
-		v.Objet = tronque(v.Objet, 130)
+		v.Objet, _ = TitreCourt(v.Objet)
 		e.Derniers = append(e.Derniers, v)
 	}
 	rows.Close()

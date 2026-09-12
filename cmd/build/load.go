@@ -206,8 +206,12 @@ func loadVotes(ctx context.Context, pool *pgxpool.Pool, p *Person, limit int) er
 			return err
 		}
 		v.PositionFr = positionFr[v.Position]
-		v.Objet = tronque(v.Objet, 130)
-		v.Resultat = strings.ToLower(v.Resultat)
+		// Même traitement que les titres de fiches : coupé avant les
+		// signataires, première lettre en capitale. Aucun mot ajouté.
+		v.Objet, _ = TitreCourt(v.Objet)
+		v.Resultat = map[string]string{
+			"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié",
+		}[v.Resultat]
 		p.Votes = append(p.Votes, v)
 	}
 	p.VotesShown = len(p.Votes)
@@ -277,16 +281,6 @@ func fr(iso string) string {
 		return iso
 	}
 	return iso[8:10] + "/" + iso[5:7] + "/" + iso[0:4]
-}
-
-func tronque(s string, n int) string {
-	if len(s) <= n {
-		return s
-	}
-	if i := strings.LastIndex(s[:n], " "); i > n/2 {
-		return s[:i] + "…"
-	}
-	return s[:n] + "…"
 }
 
 var _ = template.HTMLEscapeString

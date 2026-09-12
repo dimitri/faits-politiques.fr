@@ -201,7 +201,7 @@ func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]
 			total[id] += exprimes
 			g.ScrutinsCouverts++
 			if len(g.Scrutins) < 40 {
-				sg.Objet = tronque(sg.Objet, 120)
+				sg.Objet, _ = TitreCourt(sg.Objet)
 				g.Scrutins = append(g.Scrutins, sg)
 			}
 		}

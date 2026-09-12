@@ -1,0 +1,1759 @@
+<title>Refonte faits-politiques.fr</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;450;500;600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
+<style>
+/* ════════════════════════════════════════════════════════════════════
+   JETONS — proposés pour faits-politiques.fr
+   Tous les rapports de contraste sont vérifiés sur les TROIS surfaces
+   (papier, papier-2, carte), dans les deux thèmes. Minimum constaté : 4,86:1.
+   ════════════════════════════════════════════════════════════════════ */
+:root{
+  --papier:#FAF8F3; --papier2:#F1EEE6; --carte:#FFFFFF;
+  --encre:#17181D; --encre2:#5A5850; --filet:#E4E0D6; --filet2:#EFEBE2;
+  --accent:#125863; --accent-doux:#E3EEF0;
+  --pour:#1C6B45; --contre:#A32C2A; --abst:#7E5C0E; --absent:#6B675F;
+  --pour-f:#CFE4D8; --contre-f:#EFD6D4; --abst-f:#EDE1C6; --absent-f:#E2DFD9;
+  --seuil:#17181D;
+  --r:12px; --r-s:7px;
+  --sans:"IBM Plex Sans",ui-sans-serif,system-ui,sans-serif;
+  --mono:"IBM Plex Mono",ui-monospace,SFMono-Regular,Menlo,monospace;
+  --serif:"Newsreader",Georgia,"Times New Roman",serif;
+}
+:root:not([data-theme=light]) .sombre,
+[data-theme=dark] .sombre{
+  --papier:#131419; --papier2:#0E0F14; --carte:#1B1C22;
+  --encre:#EEEBE4; --encre2:#9C988F; --filet:#2A2B33; --filet2:#212229;
+  --accent:#74C3D3; --accent-doux:#16323A;
+  --pour:#58C089; --contre:#E87D76; --abst:#DAAE45; --absent:#918D85;
+  --pour-f:#1E3B2D; --contre-f:#3E2523; --abst-f:#3A2F16; --absent-f:#2B2A28;
+  --seuil:#EEEBE4;
+}
+*{box-sizing:border-box}
+
+/* ── Chrome du document de proposition (neutre, hors maquette) ───────── */
+body{margin:0;background:#0E0F14;color:#EEEBE4;font:15px/1.6 var(--sans)}
+.doc{max-width:78rem;margin:0 auto;padding:0 1.5rem 8rem}
+.doc-hd{padding:5rem 0 3rem;border-bottom:1px solid #2A2B33;margin-bottom:3rem}
+.doc-hd .k{font:500 .72rem/1 var(--mono);letter-spacing:.14em;text-transform:uppercase;color:#74C3D3}
+.doc-hd h1{font:600 clamp(2rem,5vw,3.4rem)/1.05 var(--serif);letter-spacing:-.02em;margin:.9rem 0 1rem;max-width:20ch}
+.doc-hd h1,section.part > h2,.doc h3{text-wrap:balance}
+.doc a:focus-visible,.toc a:focus-visible{outline:2px solid #74C3D3;outline-offset:2px;border-radius:4px}
+.doc-hd p{color:#9C988F;max-width:58ch;font-size:1.05rem;margin:0}
+section.part{margin:6rem 0 0;scroll-margin-top:5rem}
+section.part > .num{font:500 .72rem/1 var(--mono);letter-spacing:.14em;color:#74C3D3;text-transform:uppercase}
+section.part > h2{font:500 clamp(1.5rem,3.4vw,2.2rem)/1.15 var(--serif);letter-spacing:-.015em;margin:.7rem 0 .8rem}
+section.part > .intro{color:#9C988F;max-width:66ch;margin:0 0 2.2rem;font-size:1rem}
+.doc h3{font:600 1.02rem/1.3 var(--sans);margin:2.6rem 0 .7rem;letter-spacing:-.005em}
+.doc p{max-width:66ch}
+.doc-note{color:#9C988F;font-size:.9rem;max-width:66ch}
+.doc a{color:#74C3D3}
+mark{background:#3A2F16;color:#DAAE45;padding:.05em .3em;border-radius:3px}
+
+/* barre de navigation du document */
+.toc{position:sticky;top:0;z-index:60;background:rgba(14,15,20,.9);backdrop-filter:blur(10px);
+border-bottom:1px solid #2A2B33;margin-bottom:0}
+.toc ul{display:flex;gap:.1rem;list-style:none;margin:0;padding:.5rem 1.5rem;max-width:78rem;
+margin-inline:auto;overflow-x:auto;scrollbar-width:none}
+.toc ul::-webkit-scrollbar{display:none}
+.toc a{color:#9C988F;text-decoration:none;font:500 .8rem/1 var(--sans);padding:.5rem .7rem;
+border-radius:6px;white-space:nowrap}
+.toc a:hover{color:#EEEBE4;background:#1B1C22}
+
+/* cadres d'appareil */
+.frames{display:grid;gap:1.5rem;grid-template-columns:minmax(0,1fr);margin:1.5rem 0}
+@media(min-width:1180px){.frames.duo{grid-template-columns:minmax(0,1fr) 400px}}
+.device{border:1px solid #2A2B33;border-radius:14px;overflow:hidden;background:#000}
+.device > .bar{display:flex;align-items:center;gap:.45rem;padding:.6rem .8rem;background:#1B1C22;
+border-bottom:1px solid #2A2B33}
+.device > .bar i{width:9px;height:9px;border-radius:50%;background:#3A3B44;display:block}
+.device > .bar span{margin-left:.5rem;font:400 .72rem/1 var(--mono);color:#6E6A63}
+.device .vp{overflow:auto;max-height:none}
+.device.mob{max-width:400px}
+.device.mob .vp{width:100%}
+.legende{font:400 .82rem/1.5 var(--sans);color:#6E6A63;margin:.5rem 0 0}
+
+/* comparatif avant/après */
+.ab{display:grid;gap:1rem;grid-template-columns:1fr;margin:1.4rem 0}
+@media(min-width:900px){.ab{grid-template-columns:1fr 1fr}}
+.ab > div{border:1px solid #2A2B33;border-radius:var(--r);overflow:hidden;background:#1B1C22}
+.ab h4{margin:0;padding:.55rem .9rem;font:600 .74rem/1 var(--sans);letter-spacing:.09em;
+text-transform:uppercase;border-bottom:1px solid #2A2B33}
+.ab .avant h4{color:#E87D76}.ab .apres h4{color:#58C089}
+.ab .corps{padding:1rem}
+
+/* ════════════════════════════════════════════════════════════════════
+   LE PRODUIT — tout ce qui est dans .fp est la maquette elle-même
+   ════════════════════════════════════════════════════════════════════ */
+.fp{background:var(--papier);color:var(--encre);font:15px/1.6 var(--sans);
+font-variant-numeric:tabular-nums;-webkit-font-smoothing:antialiased}
+.fp *{box-sizing:border-box}
+.fp .wrap{max-width:72rem;margin:0 auto;padding:0 1.6rem}
+.fp a{color:var(--accent);text-underline-offset:3px;text-decoration-thickness:1px}
+/* La charte l'exige et le site actuel le fait : le focus reste visible,
+   sur TOUS les éléments interactifs, et n'est jamais supprimé. */
+.fp a:focus-visible,.fp button:focus-visible,.fp input:focus-visible,
+.fp summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px;border-radius:4px}
+.fp h1,.fp .h2,.fp .carte .t{text-wrap:balance}
+.fp h1,.fp h2,.fp h3{margin:0}
+
+/* — barre de marque — */
+.fp .top{background:var(--carte);border-bottom:1px solid var(--filet);position:relative;z-index:5}
+.fp .top .row{display:flex;align-items:center;gap:1.4rem;padding:.85rem 0}
+.fp .marque{display:flex;align-items:center;gap:.6rem;text-decoration:none;color:inherit;flex:0 0 auto}
+.fp .marque .mot{font:600 1.06rem/1 var(--sans);letter-spacing:-.025em}
+.fp .marque .mot i{font-style:normal;color:var(--encre2);font-weight:450}
+.fp .top nav{display:flex;gap:.05rem;margin-left:auto;flex-wrap:wrap}
+.fp .top nav a{font:500 .875rem/1 var(--sans);color:var(--encre2);text-decoration:none;
+padding:.55rem .7rem;border-radius:var(--r-s)}
+.fp .top nav a:hover{color:var(--encre);background:var(--papier2)}
+.fp .top nav a[aria-current]{color:var(--encre);background:var(--papier2)}
+
+/* — champ de recherche : la porte d'entrée — */
+.fp .rech{display:flex;align-items:center;gap:.7rem;background:var(--carte);
+border:1.5px solid var(--filet);border-radius:var(--r);padding:.85rem 1.1rem;
+box-shadow:0 1px 0 rgba(0,0,0,.02)}
+.fp .rech:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-doux)}
+.fp .rech svg{flex:0 0 auto;color:var(--encre2)}
+.fp .rech input{border:0;background:0;font:450 1.02rem/1.3 var(--sans);color:var(--encre);
+width:100%;outline:0}
+.fp .rech input::placeholder{color:var(--encre2)}
+.fp .rech kbd{font:500 .72rem/1 var(--mono);border:1px solid var(--filet);border-radius:5px;
+padding:.28rem .42rem;color:var(--encre2);flex:0 0 auto}
+.fp .rech.grand{padding:1.05rem 1.25rem}
+.fp .rech.grand input{font-size:1.14rem}
+.fp .suggest{display:flex;gap:.4rem;flex-wrap:wrap;margin-top:.85rem;align-items:baseline}
+.fp .suggest span{font-size:.82rem;color:var(--encre2)}
+.fp .suggest a{font:450 .82rem/1 var(--sans);text-decoration:none;border:1px solid var(--filet);
+background:var(--carte);color:var(--encre2);padding:.36rem .65rem;border-radius:999px}
+.fp .suggest a:hover{border-color:var(--accent);color:var(--accent)}
+
+/* — le hero — */
+.fp .hero{background:var(--papier2);border-bottom:1px solid var(--filet);
+padding:3.6rem 0 2.6rem;position:relative;overflow:hidden}
+.fp .hero .wrap{position:relative;z-index:2}
+.fp .champ{position:absolute;inset:0;pointer-events:none;opacity:.5;
+-webkit-mask-image:linear-gradient(to bottom,transparent 0%,#000 78%);
+mask-image:linear-gradient(to bottom,transparent 0%,#000 78%)}
+.fp .hero h1{font:500 clamp(2rem,4.6vw,3.15rem)/1.06 var(--serif);letter-spacing:-.022em;
+max-width:19ch;margin:0 0 .9rem}
+.fp .hero .lede{color:var(--encre2);font-size:1.06rem;max-width:50ch;margin:0 0 2rem;line-height:1.55}
+.fp .hero .outil{max-width:41rem}
+.fp .arret{display:flex;gap:1.6rem;flex-wrap:wrap;margin-top:1.9rem;padding-top:1.2rem;
+border-top:1px solid var(--filet)}
+.fp .arret div{font-size:.84rem}
+.fp .arret dt{font:500 .68rem/1.2 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+color:var(--encre2);margin:0 0 .2rem}
+.fp .arret dd{margin:0;font-weight:500}
+
+/* — étiquettes & titres de section — */
+.fp .sur{font:500 .7rem/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;
+color:var(--accent);display:block;margin-bottom:.55rem}
+.fp .h2{font:500 1.6rem/1.2 var(--serif);letter-spacing:-.012em}
+.fp .bloc{padding:3rem 0}
+.fp .bloc + .bloc{border-top:1px solid var(--filet)}
+.fp .tete{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;
+flex-wrap:wrap;margin-bottom:1.4rem}
+.fp .tete .plus{font:500 .86rem/1 var(--sans);text-decoration:none}
+
+/* — chiffres — */
+.fp .chiffres{display:grid;gap:1.2rem 1rem;grid-template-columns:repeat(auto-fit,minmax(7.5rem,1fr))}
+.fp .chiffres .v{font:600 clamp(1.35rem,2.6vw,1.85rem)/1 var(--sans);letter-spacing:-.03em}
+.fp .chiffres .l{font-size:.76rem;color:var(--encre2);margin-top:.3rem;display:block;line-height:1.35}
+
+/* — flux des derniers scrutins — */
+.fp .flux{display:grid;gap:0}
+.fp .ligne{display:grid;grid-template-columns:5.2rem 1fr 11rem 5.5rem;gap:1rem;align-items:center;
+padding:.85rem 0;border-top:1px solid var(--filet);text-decoration:none;color:inherit}
+.fp .ligne:hover{background:var(--carte)}
+.fp .ligne .d{font:400 .78rem/1.3 var(--mono);color:var(--encre2)}
+.fp .ligne .o{font-weight:500;font-size:.95rem;line-height:1.4;
+display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.fp .ligne .o em{font-style:normal;color:var(--encre2);font-weight:400;font-size:.82rem;display:block;margin-top:.1rem}
+.fp .ligne .r{font-size:.82rem;font-weight:600;text-align:right;white-space:nowrap}
+
+/* — mini-barre de décompte — */
+.fp .mini{display:flex;height:7px;border-radius:4px;overflow:hidden;background:var(--filet2);width:100%}
+.fp .mini i{display:block;height:100%}
+
+/* — cartes — */
+.fp .cartes{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))}
+.fp .cartes.trois{grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))}
+.fp .carte{background:var(--carte);border:1px solid var(--filet);border-radius:var(--r);
+padding:1.15rem 1.2rem;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:.4rem}
+.fp a.carte:hover{border-color:var(--accent)}
+.fp .carte .v{font:600 1.6rem/1 var(--sans);letter-spacing:-.03em}
+.fp .carte .t{font-weight:600;font-size:.98rem}
+.fp .carte .d{font-size:.855rem;color:var(--encre2);line-height:1.5;margin-top:auto}
+.fp .carte.creuse{background:transparent;border-style:dashed}
+.fp .carte.creuse .v{font:500 .95rem/1.3 var(--sans);color:var(--encre2);letter-spacing:0}
+
+/* — tableaux — */
+.fp table{border-collapse:collapse;width:100%;font-size:.9rem}
+.fp .scroll{overflow-x:auto}
+.fp th,.fp td{text-align:left;padding:.6rem .7rem;border-bottom:1px solid var(--filet);vertical-align:middle}
+.fp th{font:500 .68rem/1.2 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+color:var(--encre2);border-bottom:1px solid var(--encre2)}
+.fp td.n,.fp th.n{text-align:right;font-variant-numeric:tabular-nums}
+.fp tbody tr:hover{background:var(--carte)}
+.fp .z{color:var(--encre2);font-weight:400}
+
+/* — positions — */
+.fp .POUR{color:var(--pour);font-weight:600}
+.fp .CONTRE{color:var(--contre);font-weight:600}
+.fp .ABST{color:var(--abst);font-weight:600}
+.fp .ABSENT{color:var(--absent);font-weight:400}
+.fp .NR{color:var(--absent);font-weight:400;font-style:italic}
+
+/* — pastilles de position (redondance non colorimétrique) — */
+.fp .pastille{display:inline-flex;align-items:center;gap:.42rem;white-space:nowrap}
+.fp .pastille::before{content:"";width:9px;height:9px;border-radius:2.5px;background:currentColor;flex:0 0 auto}
+.fp .pastille.ABSENT::before{background:transparent;border:1.5px solid currentColor;border-radius:2.5px}
+.fp .pastille.NR::before{background:transparent;border:1.5px dashed currentColor;border-radius:2.5px}
+
+/* — notes et avertissements — */
+.fp .note{border-left:2px solid var(--filet);padding:.15rem 0 .15rem 1rem;color:var(--encre2);
+font-size:.9rem;line-height:1.55;max-width:62ch}
+.fp .note strong{color:var(--encre);font-weight:600}
+.fp .note.proc{border-left-color:var(--accent)}
+.fp .note.abs{border-left-style:dashed}
+.fp details.plus{border-top:1px solid var(--filet);margin-top:1.4rem}
+.fp details.plus summary{cursor:pointer;padding:.85rem 0;font:500 .875rem/1 var(--sans);
+color:var(--accent);list-style:none;display:flex;align-items:center;gap:.45rem}
+.fp details.plus summary::-webkit-details-marker{display:none}
+.fp details.plus summary::before{content:"+";font:500 1rem/1 var(--mono);width:1rem}
+.fp details[open].plus summary::before{content:"−"}
+.fp details.plus .dedans{padding:0 0 1.2rem;display:grid;gap:1rem}
+
+/* — le bandeau de résultat — */
+.fp .verdict{background:var(--carte);border:1px solid var(--filet);border-radius:var(--r);
+padding:1.4rem 1.5rem;margin:1.6rem 0}
+.fp .verdict .haut{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;
+flex-wrap:wrap;margin-bottom:1.1rem}
+.fp .verdict .etat{font:600 1.28rem/1.2 var(--sans);letter-spacing:-.02em}
+.fp .verdict .chiffre{font:400 .88rem/1 var(--mono);color:var(--encre2)}
+
+/* — la barre de seuil : l'idée centrale — */
+.fp .seuil-bar{position:relative;height:34px;border-radius:6px;overflow:visible;
+background:var(--filet2);border:1px solid var(--filet)}
+.fp .seuil-bar .fill{position:absolute;inset:0 auto 0 0;border-radius:5px 0 0 5px;display:flex;overflow:hidden}
+.fp .seuil-bar .fill i{display:block;height:100%}
+.fp .seuil-bar .tick{position:absolute;top:-9px;bottom:-9px;width:2px;background:var(--seuil)}
+.fp .seuil-bar .tick::after{content:attr(data-l);position:absolute;top:-1.35rem;left:50%;
+transform:translateX(-50%);white-space:nowrap;font:500 .7rem/1 var(--mono);color:var(--encre)}
+.fp .seuil-lg{display:flex;gap:1.1rem;flex-wrap:wrap;margin-top:1.5rem;font-size:.82rem}
+.fp .seuil-lg span{display:inline-flex;align-items:center;gap:.42rem;color:var(--encre2)}
+.fp .seuil-lg i{width:10px;height:10px;border-radius:3px;display:block}
+
+/* — grille des sièges : identité ET donnée — */
+.fp .grille{display:flex;flex-wrap:wrap;gap:3px;margin:.5rem 0}
+.fp .grille b{width:9px;height:9px;border-radius:2px;display:block;background:var(--absent-f)}
+.fp .grille b.p{background:var(--pour)}
+.fp .grille b.c{background:var(--contre)}
+.fp .grille b.a{background:var(--abst)}
+.fp .grille b.nv{background:transparent;border:1.5px solid var(--absent)}
+.fp .grille b.nr{background:var(--filet)}
+.fp .bloc-gr{display:grid;gap:.9rem 1.4rem;grid-template-columns:repeat(auto-fill,minmax(13rem,1fr))}
+.fp .bloc-gr .g{min-width:0}
+.fp .bloc-gr .g .nom{display:flex;align-items:baseline;justify-content:space-between;gap:.6rem;
+font-size:.83rem;margin-bottom:.35rem}
+.fp .bloc-gr .g .nom b{font-weight:600}
+.fp .bloc-gr .g .nom span{color:var(--encre2);font:400 .76rem/1 var(--mono)}
+
+/* — barres à échelle absolue — */
+.fp .ech{position:relative;height:15px;background:var(--filet2);border-radius:3px;overflow:hidden}
+.fp .ech .g{position:absolute;top:0;bottom:0;left:0;display:flex;border-radius:3px;overflow:hidden}
+.fp .ech .g i{display:block}
+
+/* — actions : citer / partager — */
+.fp .actions{display:flex;gap:.5rem;flex-wrap:wrap;margin:1.3rem 0 0}
+.fp .btn{display:inline-flex;align-items:center;gap:.45rem;font:500 .855rem/1 var(--sans);
+border:1px solid var(--filet);background:var(--carte);color:var(--encre);border-radius:var(--r-s);
+padding:.58rem .85rem;text-decoration:none;cursor:pointer}
+.fp .btn:hover{border-color:var(--accent);color:var(--accent)}
+.fp .btn.fort{background:var(--encre);color:var(--papier);border-color:var(--encre)}
+.fp .btn.fort:hover{opacity:.88;color:var(--papier)}
+.fp .cite{background:var(--papier2);border:1px solid var(--filet);border-radius:var(--r-s);
+padding:.8rem .9rem;font:400 .8rem/1.65 var(--mono);color:var(--encre2);margin-top:.8rem;
+word-break:break-word}
+.fp .cite b{color:var(--encre);font-weight:500}
+
+/* — filtre local — */
+.fp .filtre{display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;margin:1.1rem 0}
+.fp .filtre input{border:1px solid var(--filet);background:var(--carte);border-radius:var(--r-s);
+padding:.5rem .7rem;font:450 .875rem/1 var(--sans);color:var(--encre);min-width:12rem;outline:0}
+.fp .filtre input:focus{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-doux)}
+.fp .puce{font:500 .78rem/1 var(--sans);border:1px solid var(--filet);background:var(--carte);
+color:var(--encre2);padding:.42rem .6rem;border-radius:999px;cursor:pointer}
+.fp .puce[aria-pressed=true]{background:var(--encre);color:var(--papier);border-color:var(--encre)}
+
+/* — fil d'ariane & pagination — */
+.fp .fil{font-size:.82rem;color:var(--encre2);padding:.9rem 0 0}
+.fp .fil a{text-decoration:none}
+.fp .voisins{display:flex;justify-content:space-between;gap:1rem;border-top:1px solid var(--filet);
+margin-top:2.4rem;padding-top:1rem;font-size:.86rem}
+.fp .voisins a{text-decoration:none;max-width:22rem}
+.fp .voisins .lb{display:block;font:500 .68rem/1 var(--mono);letter-spacing:.1em;
+text-transform:uppercase;color:var(--encre2);margin-bottom:.28rem}
+
+/* — pied — */
+.fp .pied{background:var(--carte);border-top:1px solid var(--filet);padding:2.6rem 0 3rem;
+color:var(--encre2);font-size:.86rem;margin-top:3rem}
+.fp .pied .cols{display:grid;gap:1.8rem;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr))}
+.fp .pied h4{font:500 .68rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+color:var(--encre);margin:0 0 .7rem}
+.fp .pied ul{list-style:none;margin:0;padding:0;display:grid;gap:.35rem}
+.fp .pied a{text-decoration:none}
+.fp .pied .bas{border-top:1px solid var(--filet);margin-top:2rem;padding-top:1.2rem;font-size:.8rem}
+
+/* — responsive du produit — */
+.fp[data-vp=mob] .wrap{padding:0 1.05rem}
+.fp[data-vp=mob] .top nav{display:none}
+.fp[data-vp=mob] .hero{padding:1.6rem 0 1.8rem}
+.fp[data-vp=mob] .hero h1{font-size:1.72rem;max-width:none}
+.fp[data-vp=mob] .hero .lede{font-size:.96rem;margin-bottom:1.4rem}
+.fp[data-vp=mob] .arret{gap:1rem;margin-top:1.4rem}
+.fp[data-vp=mob] .bloc{padding:2rem 0}
+.fp[data-vp=mob] .chiffres{grid-template-columns:1fr 1fr;gap:1rem .8rem}
+.fp[data-vp=mob] .cartes{grid-template-columns:1fr}
+.fp[data-vp=mob] .ligne{grid-template-columns:1fr;gap:.4rem;padding:.9rem 0}
+.fp[data-vp=mob] .ligne .r{text-align:left}
+.fp[data-vp=mob] .ligne .mini{max-width:11rem}
+.fp[data-vp=mob] .h2{font-size:1.3rem}
+.fp[data-vp=mob] .bloc-gr{grid-template-columns:1fr}
+.fp[data-vp=mob] .voisins{flex-direction:column;gap:.9rem}
+/* barre d'onglets basse, spécifique au mobile */
+.fp .tabbar{display:none}
+.fp[data-vp=mob] .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:sticky;bottom:0;
+background:var(--carte);border-top:1px solid var(--filet);z-index:20}
+.fp .tabbar a{display:flex;flex-direction:column;align-items:center;gap:.22rem;padding:.55rem 0 .7rem;
+font:500 .66rem/1 var(--sans);color:var(--encre2);text-decoration:none}
+.fp .tabbar a[aria-current]{color:var(--accent)}
+/* tableau → liste empilée */
+.fp[data-vp=mob] .champ{opacity:.032!important}
+.fp[data-vp=mob] .seuil-bar{margin-top:1.9rem}
+.fp[data-vp=mob] .seuil-bar .tick::after{font-size:.64rem;top:-1.2rem}
+.fp[data-vp=mob] .verdict .chiffre{margin-bottom:0}
+.fp[data-vp=mob] table.pile thead{display:none}
+.fp[data-vp=mob] table.pile tr{display:grid;grid-template-columns:1fr auto;gap:.15rem .8rem;
+padding:.65rem 0;border-bottom:1px solid var(--filet)}
+.fp[data-vp=mob] table.pile td{border:0;padding:0}
+.fp[data-vp=mob] table.pile td[data-l]::before{content:attr(data-l) " ";
+font:500 .66rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;color:var(--encre2);
+margin-right:.35rem}
+</style>
+
+<nav class="toc"><ul>
+  <li><a href="#diag">Diagnostic</a></li>
+  <li><a href="#ident">Identité</a></li>
+  <li><a href="#palette">Palette</a></li>
+  <li><a href="#typo">Typographie</a></li>
+  <li><a href="#fond">Fond</a></li>
+  <li><a href="#accueil">Accueil</a></li>
+  <li><a href="#scrutin">Scrutin</a></li>
+  <li><a href="#personne">Personne</a></li>
+  <li><a href="#mobile">Mobile</a></li>
+  <li><a href="#refs">Références</a></li>
+  <li><a href="#copy">Copy</a></li>
+  <li><a href="#plan">Chantiers</a></li>
+</ul></nav>
+
+<div class="doc">
+<header class="doc-hd">
+  <p class="k">Proposition de refonte · 12 septembre 2026</p>
+  <h1>D'une archive consultable à un instrument de vérification</h1>
+  <p>Le site actuel est bien construit et remarquablement bien écrit. Son problème n'est pas
+  esthétique&nbsp;: il est <strong>fonctionnel</strong>. Il est conçu comme une archive qu'on parcourt,
+  alors que son cas d'usage déclaré — contrôler une affirmation en sortant d'un débat — est
+  une interrogation urgente et adverse. Cette proposition remet l'architecture à l'endroit,
+  et donne au projet une identité à la hauteur de sa rigueur.</p>
+</header>
+
+<!-- ══════════════════════ DIAGNOSTIC ══════════════════════ -->
+<section class="part" id="diag">
+  <p class="num">00 — Diagnostic</p>
+  <h2>Six constats, du plus grave au plus léger</h2>
+  <p class="intro">Établis en inspectant le site construit sous Chromium en 1440&nbsp;px et 390&nbsp;px,
+  et en relisant <code>cmd/build</code>. Les deux premiers ne sont pas des questions de design.</p>
+
+  <div class="ab">
+    <div class="avant"><h4>1 · Un pourcentage faux, présenté sans réserve</h4><div class="corps">
+      <p style="margin-top:0"><code>load.go:169</code> calcule
+      <code>PctExprimes = Exprimes × 100 / totalScrutins</code>, où <code>totalScrutins</code> est le
+      total de <em>toute la législature</em> (8&nbsp;434). La fiche de Charles Rodwell affiche donc
+      <mark>«&nbsp;2680 sur 8434 scrutins (31&nbsp;%)&nbsp;»</mark> alors qu'il n'a pas siégé sur toute la
+      période et qu'il a été ministre six mois — période pendant laquelle un député ne vote pas.</p>
+      <p>Ce nombre se lit comme un <strong>score d'assiduité</strong>. C'en est un mauvais, et c'est
+      un verdict — exactement ce que le principe n°1 interdit. Le dénominateur correct est le
+      nombre de scrutins <em>tenus pendant son mandat effectif</em>. Tant qu'il n'est pas calculé,
+      le pourcentage doit disparaître&nbsp;; le compte brut, lui, peut rester.</p>
+      <p class="doc-note" style="margin-bottom:0">Un test dans <code>db/tests/</code> devrait
+      interdire tout ratio dont le dénominateur n'est pas borné par la période de mandat.</p>
+    </div></div>
+    <div class="avant"><h4>2 · Un décompte incompréhensible faute d'une ligne de procédure</h4><div class="corps">
+      <p style="margin-top:0">Le scrutin n°&nbsp;1 affiche <mark>«&nbsp;197 pour · 0 contre · 0 abstentions&nbsp;»
+      → «&nbsp;rejeté&nbsp;»</mark>. Aucun lecteur ne peut relier les deux. Il manque un fait, pas un avis&nbsp;:
+      sur une motion de censure, <strong>seuls les votes favorables sont recensés</strong>, et il en faut
+      289 — la majorité absolue des membres composant l'Assemblée.</p>
+      <p>Les 359&nbsp;députés absents du tableau ne se sont pas abstenus&nbsp;: ils <em>n'ont pas de position
+      enregistrée</em>, ce qui est un cinquième état que le site ne sait pas représenter aujourd'hui.</p>
+      <p class="doc-note" style="margin-bottom:0">Sans cette ligne, la page produit un contresens
+      chez un lecteur pressé — le contraire de sa raison d'être.</p>
+    </div></div>
+  </div>
+
+  <div class="ab">
+    <div class="avant"><h4>3 · Aucune recherche, aucune actualité</h4><div class="corps">
+      <p style="margin-top:0">Sept entrées de nav, aucun champ de recherche, et rien nulle part qui
+      dise <em>ce qui a été voté cette semaine</em>. Pour quelqu'un qui sort d'un plateau télé à 22&nbsp;h
+      avec une affirmation à contrôler, le site n'a pas de porte d'entrée. C'est le manque le plus coûteux.</p>
+    </div></div>
+    <div class="avant"><h4>4 · Des barres qui mentent à l'œil</h4><div class="corps">
+      <p style="margin-top:0">Dans «&nbsp;Positions par groupe&nbsp;», la barre est en pourcentage des
+      exprimés et occupe toujours toute la largeur. LIOT (4&nbsp;pour) et LFI-NFP (72&nbsp;pour)
+      affichent <strong>exactement la même barre verte pleine</strong>. L'œil lit une magnitude
+      là où la donnée est un ratio.</p>
+    </div></div>
+  </div>
+
+  <div class="ab">
+    <div class="avant"><h4>5 · Mobile : tableaux tronqués, nav amputée</h4><div class="corps">
+      <p style="margin-top:0">À 390&nbsp;px, la colonne «&nbsp;non-votants&nbsp;» est coupée et la barre
+      sort du cadre, sans indice de défilement. La nav cache 4 de ses 7 entrées derrière un
+      défilement horizontal dont le fondu est presque invisible. Le hero occupe deux écrans
+      avant le moindre contenu.</p>
+    </div></div>
+    <div class="avant"><h4>6 · Le titre d'un scrutin n'est pas un titre</h4><div class="corps">
+      <p style="margin-top:0">Le <code>h1</code> reprend le libellé source brut&nbsp;: neuf lignes
+      commençant par une minuscule, sur mobile. Fidèle, mais illisible. Un titre d'usage tronqué
+      et signalé comme tel, avec le libellé officiel affiché intégralement juste en dessous,
+      est aussi fidèle et lisible.</p>
+    </div></div>
+  </div>
+
+  <h3>Ce qu'il faut surtout ne pas casser</h3>
+  <p>Les blocs «&nbsp;ce que cette fiche ne dit pas&nbsp;» sont ce que le site a de meilleur, et
+  presque personne ne les écrit aussi bien. La discipline de couleur, le refus du bleu-blanc-rouge,
+  l'absence de police distante et le SHA-256 en clair dans le pied sont des décisions justes.
+  La refonte les conserve toutes&nbsp;; elle change leur <em>place</em>, pas leur contenu.</p>
+</section>
+
+<!-- ══════════════════════ IDENTITÉ ══════════════════════ -->
+<section class="part" id="ident">
+  <p class="num">01 — Identité</p>
+  <h2>La marque est la donnée</h2>
+  <p class="intro">Le logo actuel — trois lignes de registre — est une bonne idée mal servie&nbsp;:
+  le carré de fond à 6&nbsp;% d'opacité disparaît, et la baseline en 12&nbsp;px se réduit à une bouillie
+  grise dans l'en-tête. Surtout, la forme est générique&nbsp;: elle dit «&nbsp;application de listes&nbsp;».
+  Proposition&nbsp;: <strong>faire de la marque un objet de donnée réel du site</strong>, la grille des
+  577&nbsp;sièges, employée à l'identique dans l'identité et dans les graphiques.</p>
+
+  <div id="logos" class="logos"></div>
+
+  <h3>Le mot</h3>
+  <div id="mots"></div>
+  <p class="doc-note">La baseline quitte l'en-tête — elle y était illisible — et se réplace dans le
+  hero, où elle a la place d'être lue. Le lockup complet (marque + mot + baseline) reste pour les
+  cartes de partage et le favicon Apple Touch.</p>
+</section>
+
+<!-- ══════════════════════ PALETTE ══════════════════════ -->
+<section class="part" id="palette">
+  <p class="num">02 — Palette</p>
+  <h2>Papier d'archive, encre, et quatre couleurs qui portent seules du sens</h2>
+  <p class="intro">La règle de la charte est la bonne et je n'y touche pas&nbsp;: la couleur n'encode
+  que du sens, un seul accent, aucune couleur de parti, pas de bleu-blanc-rouge. Deux corrections
+  toutefois. D'abord le papier se réchauffe (<code>#FAF8F3</code>) et gagne un second ton
+  (<code>#F1EEE6</code>) qui permet de creuser une bande sans dessiner de cadre. Ensuite —
+  c'est le point important — <strong>les contrastes de la charte actuelle ne sont vérifiés que sur
+  <code>--papier</code></strong>, alors que l'en-tête, le hero et les cartes sont sur
+  <code>--carte</code>. Tout est ici recalculé sur les trois surfaces.</p>
+
+  <div id="swatches"></div>
+
+  <h3>Sur le vert et le rouge</h3>
+  <p>Un site qui refuse tout verdict encode «&nbsp;pour&nbsp;» en vert et «&nbsp;contre&nbsp;» en rouge,
+  c'est-à-dire dans la paire la plus moralement chargée du répertoire occidental. L'objection est
+  réelle. Je propose malgré tout de <strong>garder la convention</strong>, pour une raison qui prime&nbsp;:
+  le lecteur visé est pressé, et une convention connue lui coûte zéro apprentissage. Trois
+  garde-fous la rendent tenable — les teintes sont désaturées vers l'encre plutôt que vers le
+  feu tricolore&nbsp;; chaque position porte toujours son libellé écrit et une <strong>forme</strong>
+  distincte (carré plein, carré ouvert, carré pointillé)&nbsp;; et aucun tri, aucun classement du site
+  n'ordonne jamais par «&nbsp;pour&nbsp;».</p>
+  <p class="doc-note">Une variante non morale existe — sarcelle contre argile — et se substitue par
+  quatre jetons. Si l'objection revient en relecture contradictoire, le changement coûte une ligne.</p>
+</section>
+
+<!-- ══════════════════════ TYPOGRAPHIE ══════════════════════ -->
+<section class="part" id="typo">
+  <p class="num">03 — Typographie</p>
+  <h2>Une superfamille, hébergée en propre</h2>
+  <p class="intro">La pile système actuelle est un choix de confidentialité juste, mais elle a un
+  coût réel&nbsp;: le site n'a aucune voix, et le rendu part dans tous les sens d'un poste à l'autre.
+  On peut garder l'intégralité du bénéfice — <strong>aucune requête vers un tiers, aucun traceur,
+  aucun décalage au chargement</strong> — en hébergeant soi-même des fontes libres. C'est une
+  différence de nature avec Google&nbsp;Fonts, pas de degré.</p>
+
+  <div id="typo-specimen"></div>
+
+  <h3>Le choix</h3>
+  <p><strong>IBM&nbsp;Plex Sans</strong> pour le texte et les données, <strong>IBM&nbsp;Plex Mono</strong>
+  pour les identifiants, les empreintes et les surtitres, <strong>Newsreader</strong> pour les titres.
+  Plex a de vrais chiffres tabulaires — indispensable ici — et une allure d'ingénierie plutôt que de
+  campagne&nbsp;; Sans et Mono partagent leurs métriques, donc un <code>VTANR5L17V1</code> ne fait pas
+  sauter la ligne. Newsreader apporte la voix éditoriale qui manque, sans emphase.</p>
+  <p class="doc-note">Sous-jeu latin&nbsp;+&nbsp;accents français, <code>woff2</code>, axes variables&nbsp;:
+  environ 105&nbsp;Ko pour les trois, servis depuis le même domaine, <code>font-display:swap</code>
+  avec la pile système en repli métrique. Licences OFL, redistribuables — cohérent avec
+  l'AGPL du dépôt. Dans cette maquette elles viennent de Google&nbsp;Fonts&nbsp;;
+  <strong>en production elles seraient dans <code>web/fonts/</code></strong>.</p>
+</section>
+
+<!-- ══════════════════════ FOND ══════════════════════ -->
+<section class="part" id="fond">
+  <p class="num">04 — Fond</p>
+  <h2>Un motif qui dit quelque chose de vrai</h2>
+  <p class="intro">Le motif actuel figure une liste à puces générique. Puisque la marque devient la
+  grille des sièges, le fond peut être <strong>cette même grille</strong>, à l'échelle de la page&nbsp;:
+  géométrique, régulier, et sémantiquement honnête — c'est la forme de l'objet que le site
+  documente. Il reste confiné au hero, sous 4&nbsp;% d'opacité, fondu vers le haut, et
+  <strong>jamais derrière une donnée</strong>.</p>
+  <div id="fonds"></div>
+  <p class="doc-note">Aucune photographie, aucune illustration, aucun hémicycle&nbsp;: la forme en
+  hémicycle suggérerait un classement gauche-droite que ce site refuse de produire. La grille est
+  un ordre <em>arbitraire et assumé</em>, ce qui est exactement le propos.</p>
+</section>
+
+<!-- ══════════════════════ ACCUEIL ══════════════════════ -->
+<section class="part" id="accueil">
+  <p class="num">05 — Écran</p>
+  <h2>Accueil</h2>
+  <p class="intro">Trois changements structurels. <strong>La recherche devient la porte d'entrée</strong>
+  plutôt qu'une absence. <strong>Les derniers scrutins apparaissent</strong> — sur un outil qu'on
+  ouvre le soir d'un débat, «&nbsp;ce qui a été voté cette semaine&nbsp;» est la première question, et
+  le site n'y répondait nulle part. Et le bandeau de chiffres, qui occupait le premier écran entier,
+  passe <em>après</em> le contenu&nbsp;: la couverture est une information de confiance, pas une vitrine.</p>
+
+  <div class="frames"><div class="device"><div class="bar"><i></i><i></i><i></i>
+    <span>faits-politiques.fr — 1440 px</span></div><div class="vp">
+
+<div class="fp" data-vp="desk">
+  <div class="top"><div class="wrap"><div class="row">
+    <a class="marque" href="#"><span data-mark="grille" data-size="30"></span>
+      <span class="mot">faits-politiques<i>.fr</i></span></a>
+    <nav>
+      <a href="#" aria-current="page">Accueil</a>
+      <a href="#">Scrutins</a>
+      <a href="#">Personnes</a>
+      <a href="#">Partis</a>
+      <a href="#">Thèmes</a>
+      <a href="#">Méthode</a>
+      <a href="#">Sources</a>
+    </nav>
+  </div></div></div>
+
+  <div class="hero">
+    <div class="champ" data-champ></div>
+    <div class="wrap">
+      <h1>Ce qui a été voté, décidé, proposé — et d'où on le sait.</h1>
+      <p class="lede">Chaque chiffre remonte à un document officiel archivé et horodaté. Aucun
+      verdict n'est rendu&nbsp;: vous obtenez le fait, sa source primaire, et ce qu'elle ne permet
+      pas de conclure.</p>
+
+      <div class="outil">
+        <div class="rech grand">
+          <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+               stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+          <input placeholder="Un nom, un vote, un texte de loi…" aria-label="Rechercher">
+          <kbd>/</kbd>
+        </div>
+        <div class="suggest">
+          <span>Par exemple&nbsp;:</span>
+          <a href="#">Gabriel Attal</a><a href="#">motion de censure</a>
+          <a href="#">retraites</a><a href="#">loi de finances 2026</a><a href="#">Marine Tondelier</a>
+        </div>
+      </div>
+
+      <dl class="arret">
+        <div><dt>Données arrêtées au</dt><dd>12 septembre 2026</dd></div>
+        <div><dt>Documents scellés</dt><dd>19, empreinte SHA-256</dd></div>
+        <div><dt>Reconstruction</dt><dd>intégrale depuis l'archive brute</dd></div>
+        <div><dt>Vérifier</dt><dd><a href="#">Sources, licences et dates →</a></dd></div>
+      </dl>
+    </div>
+  </div>
+
+  <div class="wrap">
+    <section class="bloc">
+      <div class="tete"><div>
+        <span class="sur">Assemblée nationale</span>
+        <h2 class="h2">Derniers scrutins publics</h2>
+      </div><a class="plus" href="#">Les 8 434 scrutins →</a></div>
+
+      <div class="flux">
+        <a class="ligne" href="#">
+          <span class="d">21.07.26</span>
+          <span class="o">Ensemble de la proposition de loi visant à protéger les mineurs des risques
+            liés à l'utilisation des réseaux sociaux
+            <em>proposition de loi · lecture définitive</em></span>
+          <span class="mini"><i style="width:63%;background:var(--pour)"></i><i style="width:24%;background:var(--contre)"></i><i style="width:13%;background:var(--abst)"></i></span>
+          <span class="r">adopté</span>
+        </a>
+        <a class="ligne" href="#">
+          <span class="d">21.07.26</span>
+          <span class="o">Motion de rejet préalable du projet de loi visant à offrir des réponses
+            immédiates aux phénomènes troublant l'ordre public
+            <em>motion de procédure</em></span>
+          <span class="mini"><i style="width:34%;background:var(--pour)"></i><i style="width:58%;background:var(--contre)"></i><i style="width:8%;background:var(--abst)"></i></span>
+          <span class="r">rejeté</span>
+        </a>
+        <a class="ligne" href="#">
+          <span class="d">21.07.26</span>
+          <span class="o">Ensemble du projet de loi relatif à la protection des enfants
+            <em>projet de loi · première lecture</em></span>
+          <span class="mini"><i style="width:71%;background:var(--pour)"></i><i style="width:19%;background:var(--contre)"></i><i style="width:10%;background:var(--abst)"></i></span>
+          <span class="r">adopté</span>
+        </a>
+        <a class="ligne" href="#">
+          <span class="d">20.07.26</span>
+          <span class="o">Ensemble de la proposition de loi pour une montagne vivante et souveraine
+            <em>proposition de loi · commission mixte paritaire</em></span>
+          <span class="mini"><i style="width:81%;background:var(--pour)"></i><i style="width:11%;background:var(--contre)"></i><i style="width:8%;background:var(--abst)"></i></span>
+          <span class="r">adopté</span>
+        </a>
+        <a class="ligne" href="#">
+          <span class="d">20.07.26</span>
+          <span class="o">Ensemble de la proposition de loi relative à l'organisation, à la gestion
+            et au financement du sport professionnel
+            <em>proposition de loi · première lecture</em></span>
+          <span class="mini"><i style="width:58%;background:var(--pour)"></i><i style="width:29%;background:var(--contre)"></i><i style="width:13%;background:var(--abst)"></i></span>
+          <span class="r">adopté</span>
+        </a>
+      </div>
+      <p class="note abs" style="margin-top:1.2rem">Ce flux ne couvre que les <strong>scrutins
+      publics</strong>. La majorité des votes ont lieu à main levée et ne laissent aucune trace
+      nominative&nbsp;: ni cet outil ni aucun autre ne peut dire qui a voté quoi sur ces textes.</p>
+    </section>
+
+    <section class="bloc">
+      <div class="tete"><div>
+        <span class="sur">Parcourir</span>
+        <h2 class="h2">Par institution et par acteur</h2>
+      </div></div>
+      <div class="cartes trois">
+        <a class="carte" href="#"><span class="v">8 434</span><span class="t">Assemblée nationale</span>
+          <span class="d">Scrutins publics de la 17<sup>e</sup> législature, groupes, députés, dossiers.</span></a>
+        <a class="carte" href="#"><span class="v">24 844</span><span class="t">Parlement européen</span>
+          <span class="d">Scrutins nominatifs et votes des eurodéputés français, depuis HowTheyVote.eu.</span></a>
+        <a class="carte" href="#"><span class="v">13</span><span class="t">Candidats 2027</span>
+          <span class="d">Déclarés et sourcés. Bilan de vote quand il existe, et ce qui n'est pas couvert.</span></a>
+        <a class="carte" href="#"><span class="v">13</span><span class="t">Partis</span>
+          <span class="d">Comptes publics déposés à la CNCCFP, positionnement selon des référentiels tiers.</span></a>
+        <a class="carte" href="#"><span class="v">1 808</span><span class="t">Thèmes</span>
+          <span class="d">Concepts EuroVoc rattachés aux scrutins par le producteur, transcrits tels quels.</span></a>
+        <a class="carte creuse" href="#"><span class="v">Pas encore couvert</span><span class="t">Sénat</span>
+          <span class="d">Connecteur à écrire. Les scrutins y sont publiés par groupe, pas par sénateur.</span></a>
+      </div>
+    </section>
+
+    <section class="bloc">
+      <div class="tete"><div>
+        <span class="sur">Méthode</span>
+        <h2 class="h2">Ce que ce site ne dit pas</h2>
+      </div><a class="plus" href="#">Périmètre complet →</a></div>
+      <div class="cartes">
+        <div class="carte"><span class="t">Aucun verdict</span><span class="d">Ni «&nbsp;vrai&nbsp;»
+          ni «&nbsp;faux&nbsp;». Un objet factuel, sa source primaire, ses limites. La conclusion
+          vous appartient.</span></div>
+        <div class="carte"><span class="t">Jamais de causalité</span><span class="d">Une évolution
+          constatée pendant un mandat n'est pas l'effet d'une politique, et n'est jamais présentée
+          comme telle.</span></div>
+        <div class="carte"><span class="t">Jamais un groupe projeté sur une personne</span>
+          <span class="d">Un vote de groupe n'est pas le vote de chacun de ses membres. La
+          granularité de chaque scrutin est stockée, pas devinée.</span></div>
+        <div class="carte"><span class="t">Les absences sont affichées</span><span class="d">Quand
+          une donnée manque, la page le dit et en donne la raison typée, plutôt que de combler
+          le trou.</span></div>
+      </div>
+      <p class="note proc" style="margin-top:1.4rem"><strong>«&nbsp;Non vérifiable&nbsp;» est une
+      réponse de plein droit.</strong> Un outil bien fait tranche 25 à 35&nbsp;% des affirmations
+      d'un débat, pas 90&nbsp;%. Un site qui répondrait à tout mentirait quelque part.</p>
+    </section>
+
+    <section class="bloc">
+      <div class="tete"><div>
+        <span class="sur">Couverture</span>
+        <h2 class="h2">Ce que contient l'archive</h2>
+      </div></div>
+      <div class="chiffres">
+        <div><div class="v">8 434</div><span class="l">scrutins à l'Assemblée</span></div>
+        <div><div class="v">1 270 476</div><span class="l">votes nominatifs</span></div>
+        <div><div class="v">577</div><span class="l">députés</span></div>
+        <div><div class="v">3 069</div><span class="l">dossiers législatifs</span></div>
+        <div><div class="v">24 844</div><span class="l">scrutins européens</span></div>
+        <div><div class="v">19</div><span class="l">documents scellés</span></div>
+      </div>
+    </section>
+  </div>
+
+  <footer class="pied"><div class="wrap">
+    <div class="cols">
+      <div><h4>Parcourir</h4><ul>
+        <li><a href="#">Scrutins</a></li><li><a href="#">Personnes</a></li>
+        <li><a href="#">Partis</a></li><li><a href="#">Thèmes</a></li></ul></div>
+      <div><h4>Comprendre</h4><ul>
+        <li><a href="#">Méthode et périmètre</a></li><li><a href="#">Ce que le site ne dit pas</a></li>
+        <li><a href="#">Journal des arbitrages</a></li><li><a href="#">Pré-enregistrements</a></li></ul></div>
+      <div><h4>Vérifier</h4><ul>
+        <li><a href="#">Les 19 sources et leurs empreintes</a></li>
+        <li><a href="#">Signaler une erreur</a></li>
+        <li><a href="#">Code source (AGPL-3.0)</a></li>
+        <li><a href="#">Télécharger les données</a></li></ul></div>
+      <div><h4>État du site</h4>
+        <p style="margin:0 0 .5rem">Données arrêtées au <strong>12 septembre 2026</strong>.<br>
+        Site reconstruit le 12/09/2026 à 01:02.</p>
+        <p style="margin:0">Le site est régénéré intégralement depuis l'archive brute&nbsp;:
+        aucune donnée n'est éditée en place.</p></div>
+    </div>
+    <p class="bas">Données produites sous Licence Ouverte, dans la limite des licences amont.
+    Code sous AGPL-3.0. Sources primaires&nbsp;: Assemblée nationale (open data), CNCCFP,
+    HowTheyVote.eu, Chapel Hill Expert Survey, The PopuList.
+    <a href="#">Le détail, avec dates de consultation et empreintes SHA-256 →</a></p>
+  </div></footer>
+</div>
+
+  </div></div></div>
+  <p class="legende">Le mur de sources qui occupait le pied de <em>toutes</em> les pages est
+  remplacé par un pied structuré, avec un lien vers la page dédiée. Les empreintes SHA-256 ne
+  disparaissent pas&nbsp;: elles cessent d'être imprimées 34 100 fois.</p>
+</section>
+
+<!-- ══════════════════════ SCRUTIN ══════════════════════ -->
+<section class="part" id="scrutin">
+  <p class="num">06 — Écran</p>
+  <h2>Scrutin</h2>
+  <p class="intro">C'est la page qui compte&nbsp;: c'est elle qu'on ouvre, qu'on cite et qu'on envoie.
+  Elle est reconstruite autour de l'ordre <strong>réponse → preuve → provenance → brut</strong>,
+  là où les quatre étaient jusqu'ici à la même altitude visuelle. Toutes les données ci-dessous
+  sont les vraies données du scrutin n°&nbsp;1.</p>
+
+  <div class="frames"><div class="device"><div class="bar"><i></i><i></i><i></i>
+    <span>faits-politiques.fr/scrutin/an-17-1/ — 1440 px</span></div><div class="vp">
+
+<div class="fp" data-vp="desk">
+  <div class="top"><div class="wrap"><div class="row">
+    <a class="marque" href="#"><span data-mark="grille" data-size="30"></span>
+      <span class="mot">faits-politiques<i>.fr</i></span></a>
+    <div class="rech" style="max-width:19rem;margin-left:auto;flex:1">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input placeholder="Rechercher…" aria-label="Rechercher"><kbd>/</kbd></div>
+    <nav style="margin-left:0">
+      <a href="#" aria-current="page">Scrutins</a><a href="#">Personnes</a>
+      <a href="#">Méthode</a><a href="#">Sources</a>
+    </nav>
+  </div></div></div>
+
+  <div class="wrap">
+    <p class="fil"><a href="#">Accueil</a> › <a href="#">Assemblée nationale</a> ›
+      <a href="#">Scrutins publics</a> › <span>n° 1</span></p>
+
+    <div style="padding:.4rem 0 0">
+      <span class="sur">Scrutin public n° 1 · Assemblée nationale · 17<sup>e</sup> législature · 8 octobre 2024</span>
+      <h1 style="font:500 clamp(1.7rem,3.6vw,2.5rem)/1.13 var(--serif);letter-spacing:-.02em;max-width:22ch">
+        Motion de censure déposée en application de l'article&nbsp;49, alinéa&nbsp;2, de la Constitution</h1>
+      <p class="note" style="margin-top:.9rem"><strong>Libellé officiel</strong>, publié tel quel par
+      l'Assemblée&nbsp;: «&nbsp;la motion de censure déposée en application de l'article 49, alinéa 2,
+      de la Constitution par M. Boris Vallaud, Mme Mathilde Panot, Mme Cyrielle Chatelain,
+      M. André Chassaigne et 188 de leurs collègues.&nbsp;» Le titre ci-dessus est obtenu par deux opérations mécaniques et
+      réversibles&nbsp;: <em>couper avant la liste des signataires</em>, et <em>mettre la première
+      lettre en capitale</em>. Aucun mot n'y a été ajouté, aucun n'a été remplacé.</p>
+    </div>
+
+    <!-- ── LE BANDEAU DE RÉSULTAT : la réponse, d'abord ── -->
+    <div class="verdict">
+      <div class="haut">
+        <div><div class="etat">Rejetée</div>
+          <div class="chiffre" style="margin-top:.25rem">197 voix pour · seuil requis 289</div></div>
+        <div style="text-align:right">
+          <div class="chiffre">résultat officiel publié par l'Assemblée</div>
+          <div class="chiffre" style="margin-top:.25rem">identifiant <b style="color:var(--encre)">VTANR5L17V1</b></div></div>
+      </div>
+
+      <div class="seuil-bar">
+        <div class="fill" style="width:34.14%"><i style="width:100%;background:var(--pour)"></i></div>
+        <div class="tick" data-l="289 — majorité absolue requise" style="left:50.09%"></div>
+      </div>
+      <div class="seuil-lg">
+        <span><i style="background:var(--pour)"></i>197 pour <b style="color:var(--encre);font-weight:600">recensés</b></span>
+        <span><i style="background:transparent;border:1.5px solid var(--absent);border-radius:2.5px"></i>21 non-votants recensés</span>
+        <span><i style="background:var(--filet)"></i>359 sans position enregistrée</span>
+        <span style="margin-left:auto"><i style="background:var(--seuil);width:2px;height:13px;border-radius:0"></i>seuil des 289</span>
+      </div>
+
+      <p class="note" style="margin-top:1.2rem"><strong>Le résultat est en encre, pas en couleur.</strong>
+      «&nbsp;Adopté&nbsp;» et «&nbsp;rejeté&nbsp;» ne sont pas des positions de vote&nbsp;: les colorer en
+      vert et en rouge reviendrait à dire qu'adopter est bien et rejeter est mal. Les quatre couleurs
+      restent réservées aux quatre positions, et à rien d'autre — y compris sur le flux de l'accueil.</p>
+
+      <p class="note proc" style="margin-top:1.2rem"><strong>Pourquoi « 0 contre » ?</strong>
+      Sur une motion de censure, la procédure ne fait voter que ses <em>soutiens</em>&nbsp;:
+      seuls les votes favorables sont recensés, et il en faut 289 — la majorité absolue des
+      membres composant l'Assemblée. Les 359 députés absents du relevé ne se sont pas opposés
+      et ne se sont pas abstenus&nbsp;: <strong>ils n'ont aucune position enregistrée</strong>.
+      Additionner 197 + 21 ne donne donc pas 577, et c'est normal.</p>
+    </div>
+
+    <div class="actions">
+      <button class="btn fort">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+          stroke-linecap="round"><rect x="9" y="9" width="12" height="12" rx="2"/><path d="M5 15V5a2 2 0 0 1 2-2h10"/></svg>
+        Copier le lien</button>
+      <button class="btn">Citer ce scrutin</button>
+      <a class="btn" href="#">Données brutes (CSV · JSON)</a>
+      <a class="btn" href="#">Relevé officiel sur assemblee-nationale.fr ↗</a>
+    </div>
+    <div class="cite">faits-politiques.fr — <b>Scrutin public n° 1, Assemblée nationale, 17<sup>e</sup> législature,
+      8 octobre 2024</b>. Source&nbsp;: Assemblée nationale, open data, Licence Ouverte, consultée le
+      11/09/2026, empreinte SHA-256 <b>e9df96b2af759070b5c624a1cc6ae91cbc1863b81cfee1f2ea21b60a94ac851f</b>.
+      Consulté le 12/09/2026.</div>
+    <p class="note abs" style="margin-top:.9rem">Le bouton «&nbsp;citer&nbsp;» est ce qui manquait le
+    plus au cas d'usage réel — contester une affirmation demande un lien qu'on colle, avec son
+    empreinte, pas une capture d'écran.</p>
+
+    <!-- ── LE TEXTE ── -->
+    <section class="bloc">
+      <span class="sur">Le texte soumis au vote</span>
+      <h2 class="h2">Aucun dossier législatif rattaché</h2>
+      <p class="note abs" style="margin-top:1rem">La source ne rattache pas ce scrutin à un dossier
+      législatif. Environ un tiers des scrutins sont dans ce cas&nbsp;: le libellé de l'objet reste
+      la seule information publiée, et il n'est pas rapproché d'un dossier par déduction.</p>
+    </section>
+
+    <!-- ── POSITIONS PAR GROUPE ── -->
+    <section class="bloc">
+      <div class="tete"><div>
+        <span class="sur">Preuve</span>
+        <h2 class="h2">Positions par groupe</h2>
+      </div></div>
+
+      <div class="scroll"><table>
+        <thead><tr><th>Groupe</th><th class="n">Pour</th><th class="n">Contre</th>
+          <th class="n">Abst.</th><th class="n">Non-votants</th>
+          <th style="width:40%">Effectif recensé sur ce scrutin</th></tr></thead>
+        <tbody id="tblGroupes"></tbody>
+      </table></div>
+
+      <p class="note" style="margin-top:1.1rem"><strong>Les barres sont désormais à l'échelle.</strong>
+      Elles sont proportionnelles à l'effectif recensé, ramené au groupe le plus nombreux sur ce
+      scrutin (LFI-NFP, 72). Dans la version actuelle du site, elles étaient en pourcentage des
+      exprimés et occupaient toutes la largeur entière&nbsp;: LIOT, avec 4 voix, affichait la même
+      barre pleine que LFI-NFP avec 72.</p>
+      <p class="note" style="margin-top:.8rem">Le groupe de chaque votant est celui que
+      <strong>l'Assemblée a publié avec ce scrutin</strong>, à cette date. Les totaux sont la somme
+      des votes individuels, <strong>jamais une consigne de groupe</strong>.</p>
+    </section>
+
+    <!-- ── LA GRILLE DES SIÈGES ── -->
+    <section class="bloc">
+      <div class="tete"><div>
+        <span class="sur">577 sièges</span>
+        <h2 class="h2">Qui figure au relevé</h2>
+      </div></div>
+      <p class="note" style="margin:0 0 1.5rem">Un carré par siège. L'ordre à l'intérieur d'un groupe
+      est alphabétique et sans signification&nbsp;; il n'y a <strong>pas d'hémicycle</strong>, dont la
+      forme suggérerait un axe gauche-droite que ce site ne produit pas.</p>
+      <div class="bloc-gr" id="grilleGroupes"></div>
+      <div style="margin-top:1.6rem;border-top:1px solid var(--filet);padding-top:1.2rem">
+        <div class="nom" style="display:flex;align-items:baseline;justify-content:space-between;
+          gap:.6rem;font-size:.83rem;margin-bottom:.5rem">
+          <b style="font-weight:600">Sans position enregistrée</b>
+          <span style="color:var(--encre2);font:400 .76rem/1 var(--mono)">359 sièges</span></div>
+        <div class="grille" id="grilleNR"></div>
+      </div>
+      <div class="seuil-lg" style="margin-top:1.4rem">
+        <span class="POUR" style="color:var(--encre2)"><i style="background:var(--pour)"></i>Pour</span>
+        <span><i style="background:var(--contre)"></i>Contre</span>
+        <span><i style="background:var(--abst)"></i>Abstention</span>
+        <span><i style="background:transparent;border:1.5px solid var(--absent);border-radius:2.5px"></i>Non-votant recensé</span>
+        <span><i style="background:var(--filet)"></i>Sans position enregistrée</span>
+      </div>
+    </section>
+
+    <!-- ── VOTES NOMINATIFS ── -->
+    <section class="bloc">
+      <div class="tete"><div>
+        <span class="sur">Brut · 218 lignes</span>
+        <h2 class="h2">Votes nominatifs</h2>
+      </div></div>
+      <div class="filtre">
+        <input placeholder="Filtrer par nom…" aria-label="Filtrer par nom">
+        <button class="puce" aria-pressed="true">Tous</button>
+        <button class="puce">LFI-NFP</button><button class="puce">SOC</button>
+        <button class="puce">EcoS</button><button class="puce">GDR</button>
+        <button class="puce">EPR</button><button class="puce">DR</button>
+        <button class="puce">LIOT</button><button class="puce">Dem</button>
+        <button class="puce">HOR</button><button class="puce">NI</button>
+      </div>
+      <div class="scroll"><table class="pile">
+        <thead><tr><th>Député</th><th>Groupe</th><th>Position</th></tr></thead>
+        <tbody>
+          <tr><td><a href="#">Abomangoli, Nadège</a></td><td data-l="Groupe"><a href="#">LFI-NFP</a></td>
+            <td data-l="Position"><span class="pastille POUR">Pour</span></td></tr>
+          <tr><td><a href="#">Alexandre, Laurent</a></td><td data-l="Groupe"><a href="#">LFI-NFP</a></td>
+            <td data-l="Position"><span class="pastille POUR">Pour</span></td></tr>
+          <tr><td><a href="#">Allemand, Marie-José</a></td><td data-l="Groupe"><a href="#">SOC</a></td>
+            <td data-l="Position"><span class="pastille POUR">Pour</span></td></tr>
+          <tr><td><a href="#">Amard, Gabriel</a></td><td data-l="Groupe"><a href="#">LFI-NFP</a></td>
+            <td data-l="Position"><span class="pastille POUR">Pour</span></td></tr>
+          <tr><td><a href="#">Armand, Antoine</a></td><td data-l="Groupe"><a href="#">EPR</a></td>
+            <td data-l="Position"><span class="pastille ABSENT">Non-votant</span></td></tr>
+          <tr><td><a href="#">Arrighi, Christine</a></td><td data-l="Groupe"><a href="#">EcoS</a></td>
+            <td data-l="Position"><span class="pastille POUR">Pour</span></td></tr>
+          <tr><td class="z">Attal, Gabriel</td><td data-l="Groupe" class="z">EPR</td>
+            <td data-l="Position"><span class="pastille NR">Sans position enregistrée</span></td></tr>
+        </tbody>
+      </table></div>
+      <p class="note abs" style="margin-top:1.1rem">Les députés sans position enregistrée
+      apparaissent dans la liste, en gris et sans lien de position&nbsp;: <strong>une absence de
+      donnée s'affiche, elle ne se cache pas.</strong> Le filtre et les puces de groupe sont
+      purement locaux — aucune requête, le site reste statique.</p>
+    </section>
+
+    <details class="plus" open>
+      <summary>Ce que cette fiche ne dit pas</summary>
+      <div class="dedans">
+        <p class="note" style="margin:0"><strong>Elle rapporte un vote, pas une opinion.</strong>
+        Voter contre un texte peut viser son véhicule législatif, son calendrier, ou un texte
+        concurrent préféré&nbsp;: ce n'est pas nécessairement un désaccord sur son objet.</p>
+        <p class="note" style="margin:0"><strong>Les mises au point sont des corrections déposées
+        après le scrutin.</strong> Elles modifient le relevé nominatif sans modifier le résultat
+        officiel&nbsp;; les deux sont affichés séparément.</p>
+        <p class="note" style="margin:0"><strong>Ce scrutin est public.</strong> La plupart des votes
+        sur le même texte ont pu avoir lieu à main levée, sans aucune trace nominative.</p>
+      </div>
+    </details>
+
+    <nav class="voisins">
+      <a href="#"><span class="lb">← Scrutin précédent</span>Aucun — premier scrutin de la législature</a>
+      <a href="#" style="text-align:right"><span class="lb">Scrutin suivant →</span>
+        Ensemble du projet de loi spéciale prévu par l'article 45 de la loi organique…</a>
+    </nav>
+  </div>
+
+  <footer class="pied"><div class="wrap"><p class="bas" style="border:0;margin:0;padding:0">
+    Source&nbsp;: Assemblée nationale — open data, Licence Ouverte. Scrutins publics, 17<sup>e</sup> législature,
+    consulté le 11/09/2026, empreinte <code style="font-family:var(--mono)">e9df96b2af759070…</code>.
+    <a href="#">Toutes les sources →</a></p></div></footer>
+</div>
+
+  </div></div></div>
+  <p class="legende">Le bandeau de résultat, la barre de seuil et la note de procédure sont les
+  trois éléments qui transforment une page incompréhensible en une réponse. Aucun d'eux n'ajoute
+  d'interprétation&nbsp;: 289 est un fait constitutionnel, et «&nbsp;sans position enregistrée&nbsp;»
+  est un état de la donnée, pas une opinion prêtée à qui que ce soit.</p>
+</section>
+
+<!-- ══════════════════════ PERSONNE ══════════════════════ -->
+<section class="part" id="personne">
+  <p class="num">07 — Écran</p>
+  <h2>Personne</h2>
+  <p class="intro">La fiche est réordonnée autour de la question qu'on vient réellement lui poser —
+  <em>comment a-t-il voté sur&nbsp;X&nbsp;?</em> — et non autour de l'ordre des tables en base.
+  Elle applique surtout au site sa propre règle&nbsp;: <strong>le pourcentage de participation, faux,
+  est retiré et remplacé par une absence typée.</strong></p>
+
+  <div class="frames"><div class="device"><div class="bar"><i></i><i></i><i></i>
+    <span>faits-politiques.fr/depute/charles-rodwell/ — 1440 px</span></div><div class="vp">
+
+<div class="fp" data-vp="desk">
+  <div class="top"><div class="wrap"><div class="row">
+    <a class="marque" href="#"><span data-mark="grille" data-size="30"></span>
+      <span class="mot">faits-politiques<i>.fr</i></span></a>
+    <div class="rech" style="max-width:19rem;margin-left:auto;flex:1">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+        stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+      <input placeholder="Rechercher…" aria-label="Rechercher"><kbd>/</kbd></div>
+    <nav style="margin-left:0"><a href="#">Scrutins</a>
+      <a href="#" aria-current="page">Personnes</a><a href="#">Méthode</a><a href="#">Sources</a></nav>
+  </div></div></div>
+
+  <div class="wrap">
+    <p class="fil"><a href="#">Accueil</a> › <a href="#">Personnes</a> › <span>Charles Rodwell</span></p>
+
+    <div style="display:flex;gap:1.6rem;align-items:flex-start;flex-wrap:wrap;padding:.6rem 0 0">
+      <div style="width:96px;height:96px;border-radius:var(--r);background:var(--filet2);
+        border:1px solid var(--filet);flex:0 0 auto"></div>
+      <div style="flex:1;min-width:16rem">
+        <span class="sur">Député · Yvelines, 1<sup>re</sup> circonscription</span>
+        <h1 style="font:500 2.2rem/1.1 var(--serif);letter-spacing:-.02em">Charles Rodwell</h1>
+        <p style="color:var(--encre2);margin:.5rem 0 0;font-size:.95rem">Non inscrit depuis le
+          08/07/2024 · précédemment Renaissance · ancien ministre en mission (juin&nbsp;–&nbsp;décembre 2023)</p>
+      </div>
+      <div class="actions" style="margin:0"><button class="btn">Copier le lien</button>
+        <a class="btn" href="#">Données brutes</a></div>
+    </div>
+
+    <!-- ── LE BILAN, D'ABORD ── -->
+    <section class="bloc">
+      <div class="tete"><div><span class="sur">Bilan de vote</span>
+        <h2 class="h2">2 680 positions exprimées</h2></div></div>
+
+      <div style="display:grid;gap:1.6rem;grid-template-columns:minmax(0,1.3fr) minmax(0,1fr);align-items:start">
+        <div>
+          <div class="ech" style="height:26px;margin-bottom:.9rem">
+            <div class="g" style="width:100%">
+              <i style="width:28.3%;background:var(--pour)"></i>
+              <i style="width:70.2%;background:var(--contre)"></i>
+              <i style="width:1.5%;background:var(--abst)"></i></div></div>
+          <div class="seuil-lg" style="margin:0">
+            <span class="POUR" style="color:var(--encre)"><i style="background:var(--pour)"></i>
+              <b style="font-weight:600">758</b>&nbsp;pour</span>
+            <span style="color:var(--encre)"><i style="background:var(--contre)"></i>
+              <b style="font-weight:600">1 881</b>&nbsp;contre</span>
+            <span style="color:var(--encre)"><i style="background:var(--abst)"></i>
+              <b style="font-weight:600">41</b>&nbsp;abstentions</span>
+            <span><i style="background:transparent;border:1.5px solid var(--absent);border-radius:2.5px"></i>0 non-votant</span>
+          </div>
+          <p class="note" style="margin-top:1.2rem">Cette répartition porte sur les positions
+          <em>exprimées</em>. Elle ne mesure ni une ligne politique ni une proximité&nbsp;: un vote
+          contre peut viser le véhicule législatif, le calendrier, ou un texte concurrent préféré.</p>
+        </div>
+
+        <div class="carte" style="border-style:dashed;background:transparent">
+          <span class="t">Taux de participation&nbsp;: non calculé</span>
+          <span class="d" style="margin-top:.5rem">Le calculer exigerait de connaître le nombre de
+          scrutins <strong>tenus pendant ses mandats effectifs</strong>, en excluant les six mois
+          où il était ministre — période pendant laquelle un député ne vote pas. Ce dénominateur
+          n'est pas encore dérivé.<br><br>
+          <strong>Le site affichait jusqu'ici «&nbsp;31&nbsp;%&nbsp;»</strong>, rapporté aux 8 434 scrutins
+          de toute la législature. Ce chiffre se lisait comme un score d'assiduité&nbsp;; il était faux,
+          et un score est un verdict.</span>
+        </div>
+      </div>
+      <p class="note abs" style="margin-top:1.3rem"><strong>Raison de l'absence&nbsp;:</strong>
+      <code style="font-family:var(--mono);font-size:.85em">DENOMINATEUR_NON_BORNE</code> — «&nbsp;non
+      vérifiable&nbsp;» est une réponse de plein droit, y compris quand elle porte sur une mesure que
+      le site produisait lui-même.</p>
+    </section>
+
+    <!-- ── CHERCHER DANS SES VOTES ── -->
+    <section class="bloc">
+      <div class="tete"><div><span class="sur">2 680 votes</span>
+        <h2 class="h2">Comment a-t-il voté sur…</h2></div>
+        <a class="plus" href="#">Tout parcourir →</a></div>
+      <div class="rech" style="max-width:34rem">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+          stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+        <input placeholder="retraites, budget, agriculture…" aria-label="Chercher dans ses votes"></div>
+      <div class="filtre" style="margin-top:.8rem">
+        <button class="puce" aria-pressed="true">Tous</button><button class="puce">Pour</button>
+        <button class="puce">Contre</button><button class="puce">Abstention</button>
+        <button class="puce">2026</button><button class="puce">2025</button><button class="puce">2024</button>
+      </div>
+
+      <div class="flux" style="margin-top:1.2rem">
+        <a class="ligne" href="#" style="grid-template-columns:5.2rem 1fr 7rem 6rem">
+          <span class="d">21.07.26</span>
+          <span class="o">Ensemble de la proposition de loi visant à moderniser la gestion du
+            patrimoine immobilier de l'État<em>texte de la commission</em></span>
+          <span class="r POUR"><span class="pastille POUR">Pour</span></span>
+          <span class="r z" style="font-weight:400">adopté</span></a>
+        <a class="ligne" href="#" style="grid-template-columns:5.2rem 1fr 7rem 6rem">
+          <span class="d">21.07.26</span>
+          <span class="o">Motion de rejet préalable du projet de loi visant à offrir des réponses
+            immédiates aux phénomènes troublant l'ordre public<em>motion de procédure</em></span>
+          <span class="r CONTRE"><span class="pastille CONTRE">Contre</span></span>
+          <span class="r z" style="font-weight:400">rejeté</span></a>
+        <a class="ligne" href="#" style="grid-template-columns:5.2rem 1fr 7rem 6rem">
+          <span class="d">21.07.26</span>
+          <span class="o">Ensemble du projet de loi relatif à la protection des enfants
+            <em>première lecture</em></span>
+          <span class="r POUR"><span class="pastille POUR">Pour</span></span>
+          <span class="r z" style="font-weight:400">adopté</span></a>
+      </div>
+      <p class="note" style="margin-top:1.1rem">La recherche est locale et instantanée&nbsp;: l'index
+      des votes de la personne est un fichier statique chargé avec la page. Aucun serveur, aucune
+      requête sortante, aucun traceur.</p>
+    </section>
+
+    <!-- ── PARCOURS ── -->
+    <section class="bloc">
+      <div class="tete"><div><span class="sur">Provenance</span>
+        <h2 class="h2">Mandats et appartenances</h2></div></div>
+      <div class="scroll"><table class="pile">
+        <thead><tr><th>Mandat</th><th>Circonscription ou portefeuille</th><th>Période</th></tr></thead>
+        <tbody>
+          <tr><td><b>Député</b></td><td data-l="Circo">Yvelines, 1<sup>re</sup> circonscription</td>
+            <td data-l="Période" class="z">depuis le 07/07/2024</td></tr>
+          <tr><td><b>Ministre</b> <span class="z">(en mission)</span></td>
+            <td data-l="Portefeuille">Commerce extérieur, attractivité et Français de l'étranger</td>
+            <td data-l="Période" class="z">12/06/2023 → 12/12/2023</td></tr>
+          <tr><td><b>Député</b></td><td data-l="Circo">Yvelines, 1<sup>re</sup> circonscription</td>
+            <td data-l="Période" class="z">19/06/2022 → 10/06/2024</td></tr>
+        </tbody></table></div>
+      <p class="note" style="margin-top:1rem">Fonctions et portefeuilles repris <strong>tels que
+      publiés</strong> par l'Assemblée, sans normalisation. Un mandat ministériel figure ici parce
+      qu'il est publié dans le même référentiel&nbsp;; il ne relève pas de l'activité parlementaire —
+      et c'est précisément pour cela qu'il fausserait un taux de participation.</p>
+
+      <details class="plus"><summary>Appartenances déclarées (4)</summary>
+        <div class="dedans"><div class="scroll"><table class="pile">
+          <thead><tr><th>Organisation</th><th>Nature</th><th>Période</th><th>Comment on le sait</th></tr></thead>
+          <tbody>
+            <tr><td>Non inscrit</td><td data-l="Nature" class="z">groupe parlementaire</td>
+              <td data-l="Période" class="z">depuis le 08/07/2024</td>
+              <td data-l="Source" class="z">publié par l'Assemblée</td></tr>
+            <tr><td>Renaissance</td><td data-l="Nature" class="z">groupe parlementaire</td>
+              <td data-l="Période" class="z">29/06/2022 → 10/06/2024</td>
+              <td data-l="Source" class="z">publié par l'Assemblée</td></tr>
+            <tr><td>Ensemble</td><td data-l="Nature" class="z">parti</td>
+              <td data-l="Période" class="z">02/12/2022 → 10/06/2024</td>
+              <td data-l="Source" class="z"><b>déclaratif</b></td></tr>
+            <tr><td>Non inscrit</td><td data-l="Nature" class="z">groupe parlementaire</td>
+              <td data-l="Période" class="z">22/06/2022 → 29/06/2022</td>
+              <td data-l="Source" class="z">publié par l'Assemblée</td></tr>
+          </tbody></table></div>
+          <p class="note" style="margin:0">Le rattachement à un parti figurant dans ce fichier est
+          <strong>déclaratif</strong>&nbsp;: il n'a pas la valeur du rattachement publié au Journal
+          officiel en décembre au titre de l'aide publique, qui n'est pas encore ingéré.</p>
+        </div></details>
+    </section>
+
+    <details class="plus" open>
+      <summary>Ce que cette fiche ne dit pas</summary>
+      <div class="dedans">
+        <p class="note" style="margin:0">Elle décrit <strong>le périmètre de ce site</strong>, pas
+        l'activité de la personne&nbsp;: travail en commission, rapports, questions au Gouvernement et
+        votes à main levée n'y figurent pas. Une fiche vide ne dit rien de son travail, de son
+        influence ni de sa légitimité.</p>
+        <p class="note" style="margin:0">Aucun classement, aucune note, aucun score de proximité
+        n'est produit&nbsp;: le site refuse de les calculer, et pas seulement de les afficher.</p>
+      </div>
+    </details>
+  </div>
+  <footer class="pied"><div class="wrap"><p class="bas" style="border:0;margin:0;padding:0">
+    Source&nbsp;: Assemblée nationale — open data, Licence Ouverte, consultée le 11/09/2026.
+    <a href="#">Toutes les sources et leurs empreintes →</a></p></div></footer>
+</div>
+
+  </div></div></div>
+</section>
+
+<!-- ══════════════════════ MOBILE ══════════════════════ -->
+<section class="part" id="mobile">
+  <p class="num">08 — Écran</p>
+  <h2>Mobile, 390 px</h2>
+  <p class="intro">C'est le contexte réel du cas d'usage&nbsp;: on vérifie une affirmation depuis un
+  canapé, sur un téléphone, pendant que le débat continue. Quatre décisions&nbsp;: la recherche est
+  au-dessus de la ligne de flottaison, la nav passe en <strong>barre d'onglets basse</strong> à
+  atteinte du pouce plutôt qu'en défilement horizontal qui cache quatre entrées sur sept, les
+  <strong>tableaux se replient en listes</strong> au lieu d'être tronqués, et le hero est comprimé
+  de deux écrans à un demi.</p>
+
+  <div style="display:grid;gap:1.5rem;grid-template-columns:repeat(auto-fit,minmax(330px,1fr))">
+
+    <div><div class="device mob"><div class="bar"><i></i><i></i><i></i><span>Accueil</span></div><div class="vp">
+      <div class="fp" data-vp="mob">
+        <div class="top"><div class="wrap"><div class="row">
+          <a class="marque" href="#"><span data-mark="grille" data-size="26"></span>
+            <span class="mot">faits-politiques<i>.fr</i></span></a></div></div></div>
+        <div class="hero"><div class="champ" data-champ></div><div class="wrap">
+          <h1>Ce qui a été voté, décidé, proposé — et d'où on le sait.</h1>
+          <div class="rech">
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+            <input placeholder="Un nom, un vote, une loi…" aria-label="Rechercher"></div>
+          <div class="suggest"><a href="#">Gabriel Attal</a><a href="#">motion de censure</a>
+            <a href="#">retraites</a></div>
+          <dl class="arret"><div><dt>Données arrêtées au</dt><dd>12 septembre 2026</dd></div>
+            <div><dt>Scellés</dt><dd>19 documents</dd></div></dl>
+        </div></div>
+        <div class="wrap"><section class="bloc">
+          <span class="sur">Assemblée nationale</span>
+          <h2 class="h2" style="margin-bottom:.9rem">Derniers scrutins</h2>
+          <div class="flux">
+            <a class="ligne" href="#"><span class="d">21.07.26 · proposition de loi</span>
+              <span class="o">Ensemble de la proposition de loi visant à protéger les mineurs
+                des risques liés à l'utilisation des réseaux sociaux</span>
+              <span class="mini"><i style="width:63%;background:var(--pour)"></i><i style="width:24%;background:var(--contre)"></i><i style="width:13%;background:var(--abst)"></i></span>
+              <span class="r">adopté</span></a>
+            <a class="ligne" href="#"><span class="d">21.07.26 · motion</span>
+              <span class="o">Motion de rejet préalable du projet de loi visant à offrir des
+                réponses immédiates aux phénomènes troublant l'ordre public</span>
+              <span class="mini"><i style="width:34%;background:var(--pour)"></i><i style="width:58%;background:var(--contre)"></i><i style="width:8%;background:var(--abst)"></i></span>
+              <span class="r">rejeté</span></a>
+            <a class="ligne" href="#"><span class="d">21.07.26 · projet de loi</span>
+              <span class="o">Ensemble du projet de loi relatif à la protection des enfants</span>
+              <span class="mini"><i style="width:71%;background:var(--pour)"></i><i style="width:19%;background:var(--contre)"></i><i style="width:10%;background:var(--abst)"></i></span>
+              <span class="r">adopté</span></a>
+          </div>
+          <p class="note abs" style="margin-top:1rem">Seuls les <strong>scrutins publics</strong>.
+          La majorité des votes ont lieu à main levée, sans trace nominative.</p>
+        </section></div>
+        <nav class="tabbar">
+          <a href="#" aria-current="page"><span data-ico="rech"></span>Chercher</a>
+          <a href="#"><span data-ico="vote"></span>Scrutins</a>
+          <a href="#"><span data-ico="pers"></span>Personnes</a>
+          <a href="#"><span data-ico="theme"></span>Thèmes</a>
+          <a href="#"><span data-ico="src"></span>Sources</a>
+        </nav>
+      </div>
+    </div></div><p class="legende">Le premier écran contient la recherche, la fraîcheur des
+      données et le début du flux. Aujourd'hui il ne contient que le titre.</p></div>
+
+    <div><div class="device mob"><div class="bar"><i></i><i></i><i></i><span>Scrutin n° 1</span></div><div class="vp">
+      <div class="fp" data-vp="mob">
+        <div class="top"><div class="wrap"><div class="row">
+          <a class="marque" href="#"><span data-mark="grille" data-size="26"></span>
+            <span class="mot">faits-politiques<i>.fr</i></span></a></div></div></div>
+        <div class="wrap">
+          <p class="fil"><a href="#">Scrutins</a> › <span>n° 1</span></p>
+          <span class="sur" style="margin-top:.5rem">Scrutin public n° 1 · 8 octobre 2024</span>
+          <h1 style="font:500 1.6rem/1.15 var(--serif);letter-spacing:-.02em">Motion de censure
+            (article 49, alinéa 2)</h1>
+
+          <div class="verdict" style="padding:1.1rem">
+            <div class="etat" style="font-size:1.15rem">Rejetée</div>
+            <div class="chiffre" style="margin:.3rem 0 1.4rem">197 voix pour · seuil requis 289</div>
+            <div class="seuil-bar" style="height:28px">
+              <div class="fill" style="width:34.14%"><i style="width:100%;background:var(--pour)"></i></div>
+              <div class="tick" data-l="289 requises" style="left:50.09%"></div></div>
+            <div class="seuil-lg" style="gap:.7rem 1rem;font-size:.78rem">
+              <span><i style="background:var(--pour)"></i>197 pour</span>
+              <span><i style="background:transparent;border:1.5px solid var(--absent);border-radius:2.5px"></i>21 non-votants</span>
+              <span><i style="background:var(--filet)"></i>359 sans position</span></div>
+            <p class="note proc" style="margin-top:1.1rem;font-size:.85rem">
+              <strong>Pourquoi «&nbsp;0 contre&nbsp;»&nbsp;?</strong> Sur une motion de censure, seuls
+              les votes favorables sont recensés&nbsp;; il en faut 289. Les 359 députés absents du
+              relevé n'ont <strong>aucune position enregistrée</strong>.</p>
+          </div>
+
+          <div class="actions"><button class="btn fort" style="flex:1;justify-content:center">Copier le lien</button>
+            <button class="btn" style="flex:1;justify-content:center">Citer</button></div>
+
+          <section class="bloc" style="padding:1.8rem 0">
+            <span class="sur">Preuve</span><h2 class="h2" style="margin-bottom:.4rem">Positions par groupe</h2>
+            <table class="pile" style="margin-top:.8rem"><tbody id="tblGroupesMob"></tbody></table>
+          </section>
+        </div>
+        <nav class="tabbar">
+          <a href="#"><span data-ico="rech"></span>Chercher</a>
+          <a href="#" aria-current="page"><span data-ico="vote"></span>Scrutins</a>
+          <a href="#"><span data-ico="pers"></span>Personnes</a>
+          <a href="#"><span data-ico="theme"></span>Thèmes</a>
+          <a href="#"><span data-ico="src"></span>Sources</a>
+        </nav>
+      </div>
+    </div></div><p class="legende">Le tableau des groupes se replie en liste&nbsp;: aucune colonne
+      coupée, aucun défilement horizontal invisible. Le seuil des 289 reste lisible à 390&nbsp;px.</p></div>
+  </div>
+</section>
+
+<!-- ══════════════════════ RÉFÉRENCES ══════════════════════ -->
+<section class="part" id="refs">
+  <p class="num">09 — Références</p>
+  <h2>Douze sites à connaître, et ce qu'il faut leur prendre</h2>
+  <p class="intro">La charte actuelle contient déjà une revue de six sites, honnête sur sa propre
+  limite («&nbsp;fondée sur une connaissance de ces sites, non sur un audit systématique&nbsp;»).
+  Elle est élargie ici, et surtout&nbsp;: chaque entrée dit <strong>quoi prendre</strong>, pas si le
+  site est bien. Les quatre derniers sont des contre-modèles — utiles pour la même raison.</p>
+
+  <div id="refs-table"></div>
+
+  <h3>Le meilleur du lot pour ce projet précis</h3>
+  <p><strong>HowTheyVote.eu</strong> est le voisin le plus proche&nbsp;: mêmes objets, même refus du
+  verdict, et il est déjà source de ce site. Sa page de vote fait en un écran ce que la page scrutin
+  actuelle fait en cinq — résultat, seuil, ventilation par groupe, grille des sièges, relevé nominatif
+  filtrable, bouton de partage. C'est le plancher, pas le plafond&nbsp;: rien de ce qu'il fait n'est
+  hors de portée d'un site statique.</p>
+  <p><strong>Our World in Data</strong> donne l'autre moitié&nbsp;: le graphique y est l'unité citable,
+  avec sa source, son téléchargement et son «&nbsp;comment c'est mesuré&nbsp;» attachés à lui et non à
+  la page. Transposé ici&nbsp;: un scrutin doit être un objet qu'on cite, pas une page qu'on lit.</p>
+</section>
+
+<!-- ══════════════════════ COPY ══════════════════════ -->
+<section class="part" id="copy">
+  <p class="num">10 — Copy</p>
+  <h2>L'écriture est déjà le point fort. Elle est mal placée.</h2>
+  <p class="intro">Je le dis franchement&nbsp;: les blocs «&nbsp;ce que cette fiche ne dit pas&nbsp;»
+  sont meilleurs que ce qu'écrivent la plupart des rédactions de données. Le problème n'est pas la
+  qualité, c'est la <strong>distribution</strong> — tout est au même niveau, tout le temps, si bien
+  qu'un lecteur pressé saute l'ensemble, y compris la ligne dont il avait besoin.</p>
+
+  <h3>La règle&nbsp;: séparer les deux natures de précaution</h3>
+  <div class="ab">
+    <div class="apres"><h4>Fait de procédure → inline, toujours visible</h4><div class="corps">
+      <p style="margin-top:0">Une information sans laquelle la page se lit <em>de travers</em>.
+      «&nbsp;Il fallait 289 voix.&nbsp;» «&nbsp;Seuls les votes favorables sont recensés.&nbsp;»
+      «&nbsp;Ce décompte porte sur les 720 sièges, la liste ci-dessous sur les seuls Français.&nbsp;»</p>
+      <p style="margin-bottom:0">Court, à côté du chiffre qu'il corrige, jamais repliable.</p>
+    </div></div>
+    <div class="apres"><h4>Limite de portée → repliable, ouvert par défaut</h4><div class="corps">
+      <p style="margin-top:0">Une information qui empêche une <em>surinterprétation</em>.
+      «&nbsp;Un vote n'est pas une opinion.&nbsp;» «&nbsp;Une fiche vide ne dit rien du travail de
+      la personne.&nbsp;»</p>
+      <p style="margin-bottom:0">Regroupée sous un titre unique et stable, à la même place sur
+      toutes les pages, pour qu'on apprenne à la trouver.</p>
+    </div></div>
+  </div>
+
+  <h3>Sept corrections précises</h3>
+  <div id="copy-table"></div>
+
+  <h3>Le registre, en cinq règles</h3>
+  <p>Elles décrivent ce que le site fait déjà bien&nbsp;; les écrire permet de le tenir quand
+  d'autres mains écriront.</p>
+  <ol style="max-width:66ch;line-height:1.7">
+    <li><strong>Le sujet est la donnée, pas la personne.</strong> «&nbsp;La source ne rattache pas
+      ce scrutin à un dossier&nbsp;», et non «&nbsp;nous n'avons pas pu rattacher&nbsp;».</li>
+    <li><strong>Aucun adverbe d'insistance.</strong> «&nbsp;réellement&nbsp;», «&nbsp;vraiment&nbsp;»,
+      «&nbsp;enfin&nbsp;» insinuent un mensonge adverse. Un fait sourcé n'en a pas besoin.</li>
+    <li><strong>Dire l'absence avec sa cause.</strong> Jamais «&nbsp;aucune donnée&nbsp;» seul&nbsp;;
+      toujours «&nbsp;aucune donnée, parce que la source publie par groupe et non par sénateur&nbsp;».</li>
+    <li><strong>Nommer qui affirme.</strong> «&nbsp;Résultat publié par l'Assemblée&nbsp;»,
+      «&nbsp;positionnement selon Chapel Hill&nbsp;» — jamais le site à la première personne du savoir.</li>
+    <li><strong>Un chiffre ne sort jamais seul de son périmètre.</strong> Si le dénominateur n'est
+      pas sûr, on publie le numérateur et on dit pourquoi le ratio manque.</li>
+  </ol>
+</section>
+
+<!-- ══════════════════════ PLAN ══════════════════════ -->
+<section class="part" id="plan">
+  <p class="num">11 — Chantiers</p>
+  <h2>Par ordre de valeur rendue</h2>
+  <p class="intro">Rien ici n'exige de quitter le statique, ni d'ajouter un serveur, ni d'accepter
+  une requête vers un tiers. Les deux premiers points ne sont pas du design et devraient partir
+  devant, refonte ou pas.</p>
+  <div id="plan-table"></div>
+  <p class="doc-note" style="margin-top:1.6rem">La recherche locale mérite un mot&nbsp;: un index
+  réduit aux noms, aux libellés de scrutins et aux titres de dossiers, sténographié et compressé,
+  tient en 300–600&nbsp;Ko pour 8 434 scrutins et 577 personnes. Chargé à la demande au premier
+  appui sur la touche, avec une correspondance floue et un repli sur les seules personnes si le
+  réseau est mauvais. Aucun serveur, aucun traceur, et le site reste consultable hors ligne.</p>
+</section>
+
+<footer style="margin-top:7rem;padding-top:2rem;border-top:1px solid #2A2B33;color:#6E6A63;font-size:.85rem">
+  <p>Maquette interactive — les écrans ci-dessus sont du HTML réel, pas des images. Les données
+  du scrutin n°&nbsp;1, de la fiche Rodwell et des compteurs de couverture sont celles du site
+  construit&nbsp;; les décomptes des lignes de flux de l'accueil sont illustratifs, faute d'être
+  chargés en base au moment de la revue.</p>
+  <p>Contrastes vérifiés par calcul WCAG sur les trois surfaces et les deux thèmes&nbsp;: minimum
+  constaté 4,86:1. Inspection visuelle sous Chromium headless en 1440&nbsp;px et 390&nbsp;px.</p>
+</footer>
+</div>
+
+<script>
+const C={pour:'#58C089',contre:'#E87D76',abst:'#DAAE45',absent:'#918D85',
+         pourL:'#1C6B45',contreL:'#A32C2A',abstL:'#7E5C0E',absentL:'#6B675F'};
+
+/* ── Les marques ─────────────────────────────────────────────────── */
+function mark(kind,s,bg){
+  bg=bg||'#17181D';
+  // Sur conteneur clair, les teintes claires de position ; sur conteneur sombre,
+  // les sombres. Une marque n'échappe pas à la règle de contraste.
+  const clair = (parseInt(bg.slice(1,3),16)*.299+parseInt(bg.slice(3,5),16)*.587
+                +parseInt(bg.slice(5,7),16)*.114) > 140;
+  const C = clair
+    ? {pour:'#1C6B45',contre:'#A32C2A',abst:'#7E5C0E',absent:'#6B675F',creux:'#E4E0D6',trait:'#17181D'}
+    : {pour:'#58C089',contre:'#E87D76',abst:'#DAAE45',absent:'#918D85',creux:'#2B2C34',trait:'#EEEBE4'};
+  const o=`<svg width="${s}" height="${s}" viewBox="0 0 48 48" role="img" aria-label="faits-politiques.fr">`;
+  const box=`<rect width="48" height="48" rx="11" fill="${bg}"/>`;
+  if(kind==='grille'){
+    // 4×4 = une gaufre : 9 pour, 4 contre, 2 abstentions, 1 non-votant.
+    // C'est une vraie forme de graphique, pas une décoration.
+    const f=[1,1,1,1, 1,1,1,2, 1,1,2,2, 2,3,3,4];
+    const col={1:C.pour,2:C.contre,3:C.abst};
+    let g='';
+    for(let i=0;i<16;i++){
+      const x=5.2+(i%4)*10.2, y=5.2+((i/4)|0)*10.2, v=f[i];
+      g += v===4
+        ? `<rect x="${x+.75}" y="${y+.75}" width="5.5" height="5.5" rx="1.6" fill="none" stroke="${C.absent}" stroke-width="1.5"/>`
+        : `<rect x="${x}" y="${y}" width="7" height="7" rx="2" fill="${col[v]}"/>`;
+    }
+    return o+box+g+'</svg>';
+  }
+  if(kind==='colonne'){
+    const seg=[[7,15,C.pour],[22,8,C.contre],[30,5,C.abst],[35,6,C.absent]];
+    const id='cc'+(mark.n=(mark.n||0)+1);
+    let g=`<clipPath id="${id}"><rect x="17" y="7" width="14" height="34" rx="3"/></clipPath><g clip-path="url(#${id})">`+
+      seg.map(([y,h,c])=>`<rect x="17" y="${y}" width="14" height="${h}" fill="${c}"/>`).join('')+`</g>`;
+    return o+box+g+'</svg>';
+  }
+  if(kind==='seuil'){
+    return o+box+
+      `<rect x="8" y="20" width="32" height="9" rx="3" fill="${C.creux}"/>`+
+      `<rect x="8" y="20" width="17" height="9" rx="3" fill="${C.pour}"/>`+
+      `<rect x="27.5" y="12" width="2.4" height="25" rx="1.2" fill="${C.trait}"/>`+'</svg>';
+  }
+  if(kind==='registre'){
+    let g='';[[15,C.pour,15],[25,C.contre,11],[35,C.abst,13]].forEach(([y,c,w])=>{
+      g+=`<circle cx="14" cy="${y}" r="3.2" fill="${c}"/>`+
+         `<rect x="21" y="${y-1.6}" width="${w}" height="3.2" rx="1.6" fill="${C.trait}" opacity=".45"/>`;});
+    return o+box+g+'</svg>';
+  }
+}
+const MARKS=[
+ ['grille','Le relevé','Une gaufre de 16 cases — 9 pour, 4 contre, 2 abstentions, 1 non-votant. C\'est une vraie forme de graphique, à l\'identique de la grille des sièges employée sur les pages de scrutin. <b>La marque et la donnée sont le même objet.</b> Recommandé.'],
+ ['seuil','Le seuil','La barre et sa ligne de majorité — l\'idée explicative centrale du site, réduite à un glyphe. Très distinctive, mais risque de se lire comme une barre de progression.'],
+ ['colonne','La colonne','Le décompte empilé, vertical. Lisible à 16 px, mais générique : c\'est l\'icône « graphique » de n\'importe quel tableur.'],
+ ['registre','Le registre (actuel, redressé)','Le concept existant, exécuté correctement : conteneur opaque, pastilles plus grosses, contraste tenu. Si l\'on ne change rien d\'autre, changez au moins cela.'],
+];
+document.getElementById('logos').innerHTML =
+`<div style="display:grid;gap:1.1rem;grid-template-columns:repeat(auto-fit,minmax(17rem,1fr))">`+
+MARKS.map(([k,t,d],i)=>`<div style="border:1px solid ${i?'#2A2B33':'#58C089'};border-radius:12px;
+  padding:1.2rem;background:#1B1C22">
+  <div style="display:flex;gap:.9rem;align-items:center;margin-bottom:.9rem">
+    ${mark(k,52)}${mark(k,30)}${mark(k,20)}${mark(k,16)}</div>
+  <div style="font:600 .95rem/1.3 var(--sans);margin-bottom:.35rem">${t}${i?'':' <span style="color:#58C089;font:500 .7rem/1 var(--mono);letter-spacing:.08em">◄ RETENU</span>'}</div>
+  <p style="margin:0;font-size:.85rem;line-height:1.55;color:#9C988F">${d}</p>
+  <div style="margin-top:.9rem;padding-top:.8rem;border-top:1px solid #2A2B33;display:flex;
+    gap:.6rem;align-items:center">
+    ${mark(k,22,'#FAF8F3')}<span style="font:400 .72rem/1 var(--mono);color:#6E6A63">sur papier clair</span></div>
+</div>`).join('')+`</div>`;
+
+document.getElementById('mots').innerHTML=
+`<div style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(20rem,1fr))">
+ <div style="background:#FAF8F3;border-radius:12px;padding:1.6rem 1.4rem">
+   <div style="display:flex;align-items:center;gap:.65rem">${mark('grille',32)}
+     <span style="font:600 1.22rem/1 var(--sans);letter-spacing:-.028em;color:#17181D">faits-politiques<span style="color:#5A5850;font-weight:450">.fr</span></span></div>
+   <p style="margin:.55rem 0 0;font:400 .78rem/1 var(--mono);color:#6E6A63">en-tête · la baseline est retirée</p>
+ </div>
+ <div style="background:#FAF8F3;border-radius:12px;padding:1.6rem 1.4rem">
+   <div style="display:flex;align-items:center;gap:.8rem">${mark('grille',46)}
+     <div><div style="font:600 1.42rem/1.1 var(--sans);letter-spacing:-.03em;color:#17181D">faits-politiques<span style="color:#5A5850;font-weight:450">.fr</span></div>
+     <div style="font:400 .86rem/1.3 var(--sans);color:#5A5850;margin-top:.15rem">ce qui a été voté, décidé, proposé</div></div></div>
+   <p style="margin:.55rem 0 0;font:400 .78rem/1 var(--mono);color:#6E6A63">lockup complet · partage, favicon</p>
+ </div>
+ <div style="background:#131419;border-radius:12px;padding:1.6rem 1.4rem;border:1px solid #2A2B33">
+   <div style="display:flex;align-items:center;gap:.65rem">${mark('grille',32,'#EEEBE4')}
+     <span style="font:600 1.22rem/1 var(--sans);letter-spacing:-.028em;color:#EEEBE4">faits-politiques<span style="color:#9C988F;font-weight:450">.fr</span></span></div>
+   <p style="margin:.55rem 0 0;font:400 .78rem/1 var(--mono);color:#6E6A63">thème sombre · le conteneur s'inverse</p>
+ </div></div>`;
+
+/* ── Palette ─────────────────────────────────────────────────────── */
+function lin(c){c/=255;return c<=.04045?c/12.92:Math.pow((c+.055)/1.055,2.4)}
+function L(h){h=h.replace('#','');return .2126*lin(parseInt(h.slice(0,2),16))+.7152*lin(parseInt(h.slice(2,4),16))+.0722*lin(parseInt(h.slice(4,6),16))}
+function ratio(a,b){let x=L(a),y=L(b);if(x<y){[x,y]=[y,x]}return (x+.05)/(y+.05)}
+const PAL=[
+ ['Papier','#FAF8F3','#131419','fond du corps — plus chaud que l\'actuel, moins clinique'],
+ ['Papier creusé','#F1EEE6','#0E0F14','bandes en retrait (hero, pied) — nouveau, évite de dessiner des cadres'],
+ ['Carte','#FFFFFF','#1B1C22','surfaces posées'],
+ ['Filet','#E4E0D6','#2A2B33','séparateurs — jamais du texte'],
+ ['Encre','#17181D','#EEEBE4','texte courant'],
+ ['Encre atténuée','#5A5850','#9C988F','métadonnées, libellés'],
+ ['Accent','#125863','#74C3D3','liens et actions — pétrole, couleur d\'aucun parti français'],
+ ['Pour','#1C6B45','#58C089','position de vote'],
+ ['Contre','#A32C2A','#E87D76','position de vote'],
+ ['Abstention','#7E5C0E','#DAAE45','position de vote'],
+ ['Non-votant','#6B675F','#918D85','donnée manquante — désaturé et sans graisse, volontairement'],
+];
+const BG={clair:['#FAF8F3','#F1EEE6','#FFFFFF'],sombre:['#131419','#0E0F14','#1B1C22']};
+document.getElementById('swatches').innerHTML=
+`<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:.86rem;min-width:44rem">
+<thead><tr style="border-bottom:1px solid #9C988F">
+ ${['Rôle','Clair','Sombre','Contraste min. (3 surfaces)','Emploi'].map(h=>
+  `<th style="text-align:left;padding:.5rem .6rem;font:500 .68rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;color:#9C988F">${h}</th>`).join('')}
+</tr></thead><tbody>`+
+PAL.map(([n,l,d,u])=>{
+  const isBg=/Papier|Carte|Filet/.test(n);
+  let cell='<span style="color:#6E6A63">—</span>';
+  if(!isBg){
+    const wl=Math.min(...BG.clair.map(b=>ratio(l,b))), wd=Math.min(...BG.sombre.map(b=>ratio(d,b)));
+    const w=Math.min(wl,wd);
+    const ok=w>=7?['AAA','#58C089']:w>=4.5?['AA','#58C089']:['ÉCHEC','#E87D76'];
+    cell=`<b style="color:${ok[1]};font-weight:600">${w.toFixed(2)}:1 · ${ok[0]}</b>
+      <span style="color:#6E6A63"> (clair ${wl.toFixed(2)} / sombre ${wd.toFixed(2)})</span>`;
+  }
+  return `<tr style="border-bottom:1px solid #2A2B33">
+   <td style="padding:.55rem .6rem;font-weight:500">${n}</td>
+   <td style="padding:.55rem .6rem"><span style="display:inline-flex;align-items:center;gap:.5rem">
+     <i style="width:26px;height:18px;border-radius:4px;background:${l};border:1px solid #2A2B33;display:block"></i>
+     <code style="font:400 .78rem/1 var(--mono);color:#9C988F">${l}</code></span></td>
+   <td style="padding:.55rem .6rem"><span style="display:inline-flex;align-items:center;gap:.5rem">
+     <i style="width:26px;height:18px;border-radius:4px;background:${d};border:1px solid #2A2B33;display:block"></i>
+     <code style="font:400 .78rem/1 var(--mono);color:#9C988F">${d}</code></span></td>
+   <td style="padding:.55rem .6rem;font-size:.8rem">${cell}</td>
+   <td style="padding:.55rem .6rem;color:#9C988F;font-size:.83rem">${u}</td></tr>`;
+}).join('')+`</tbody></table></div>
+<p class="doc-note" style="margin-top:.9rem">Calculé dans la page, à l'instant, par la formule WCAG 2.1 —
+pas recopié d'un tableau. La colonne retient le <em>pire</em> des trois fonds de chaque thème.</p>`;
+</script>
+
+<script>
+/* ── Typographie ─────────────────────────────────────────────────── */
+document.getElementById('typo-specimen').innerHTML=
+`<div style="background:#FAF8F3;color:#17181D;border-radius:14px;padding:2rem 2.2rem">
+  <div style="font:500 .68rem/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;color:#125863">
+    IBM Plex Mono · surtitre, identifiants, empreintes</div>
+  <h3 style="font:500 clamp(1.8rem,4vw,2.9rem)/1.08 var(--serif);letter-spacing:-.022em;margin:.7rem 0 .1rem;max-width:20ch">
+    Motion de censure déposée en application de l'article 49, alinéa 2</h3>
+  <p style="font:400 .78rem/1 var(--mono);color:#5A5850;margin:.2rem 0 1.3rem">
+    Newsreader 500 · titres — la voix éditoriale qui manque aujourd'hui</p>
+  <p style="font:400 1.02rem/1.62 var(--sans);max-width:60ch;margin:0 0 1.1rem">
+    Sur une motion de censure, la procédure ne fait voter que ses soutiens&nbsp;: seuls les votes
+    favorables sont recensés, et il en faut 289 — la majorité absolue des membres composant
+    l'Assemblée. <span style="font:400 .78rem/1 var(--mono);color:#5A5850">← IBM Plex Sans 400</span></p>
+  <div style="display:flex;gap:2.4rem;flex-wrap:wrap;border-top:1px solid #E4E0D6;padding-top:1.2rem">
+    <div><div style="font:600 2rem/1 var(--sans);letter-spacing:-.03em;font-variant-numeric:tabular-nums">1 270 476</div>
+      <div style="font:400 .74rem/1 var(--mono);color:#5A5850;margin-top:.35rem">chiffres tabulaires · Plex Sans 600</div></div>
+    <div><div style="font:500 .95rem/1.5 var(--mono);word-break:break-all;max-width:22rem">e9df96b2af759070b5c624a1cc6ae91c</div>
+      <div style="font:400 .74rem/1 var(--mono);color:#5A5850;margin-top:.35rem">empreinte · Plex Mono 500</div></div>
+    <div><div style="display:flex;gap:.5rem;flex-wrap:wrap">
+      ${[['Pour','#1C6B45'],['Contre','#A32C2A'],['Abstention','#7E5C0E'],['Non-votant','#6B675F']]
+        .map(([t,c],i)=>`<span style="display:inline-flex;align-items:center;gap:.4rem;color:${c};
+          font:${i===3?'400':'600'} .9rem/1 var(--sans)">
+          <i style="width:9px;height:9px;border-radius:2.5px;
+          ${i===3?`border:1.5px solid ${c}`:`background:${c}`};display:block"></i>${t}</span>`).join('')}</div>
+      <div style="font:400 .74rem/1 var(--mono);color:#5A5850;margin-top:.6rem">positions · couleur + libellé + forme</div></div>
+  </div>
+</div>
+<p class="doc-note" style="margin-top:.9rem">Échelle&nbsp;: 0,68 / 0,78 / 0,86 / 1 / 1,15 rem pour le
+texte, puis 1,6 / 2,2 / 3,15 rem pour les titres. Cinq niveaux de texte, trois de titre&nbsp;: au-delà,
+la hiérarchie cesse d'être perçue comme une hiérarchie.</p>`;
+
+/* ── Fonds ───────────────────────────────────────────────────────── */
+function champCSS(px){return `background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='${px}' height='${px}'%3E%3Crect width='${px*.5}' height='${px*.5}' rx='${(px*.14).toFixed(1)}' fill='%23000'/%3E%3C/svg%3E");background-repeat:repeat`;}
+document.querySelectorAll('[data-champ]').forEach(e=>{
+  e.style.cssText += ';'+champCSS(14)+';opacity:.05;'+
+    '-webkit-mask-image:linear-gradient(to left,#000 0%,transparent 62%);'+
+    'mask-image:linear-gradient(to left,#000 0%,transparent 62%)';
+});
+document.getElementById('fonds').innerHTML=
+`<div style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(19rem,1fr))">
+ <div style="border:1px solid #58C089;border-radius:12px;overflow:hidden">
+   <div style="position:relative;height:170px;background:#F1EEE6">
+     <div style="position:absolute;inset:0;${champCSS(14)};opacity:.045;
+       -webkit-mask-image:linear-gradient(to bottom,transparent,#000 80%);
+       mask-image:linear-gradient(to bottom,transparent,#000 80%)"></div>
+     <div style="position:relative;padding:1.4rem;color:#17181D">
+       <div style="font:500 1.35rem/1.15 var(--serif);letter-spacing:-.02em;max-width:16ch">Ce qui a été voté, décidé, proposé</div></div></div>
+   <div style="padding:.9rem 1.1rem;background:#1B1C22">
+     <b style="font:600 .9rem/1 var(--sans);color:#58C089">Champ de sièges — retenu</b>
+     <p style="margin:.45rem 0 0;font-size:.84rem;color:#9C988F;line-height:1.55">La même grille que
+     la marque, à 4,5&nbsp;% d'opacité, fondue vers le haut. Géométrique, régulière, et
+     <b>sémantiquement vraie</b> : c'est la forme de l'objet documenté.</p></div></div>
+
+ <div style="border:1px solid #2A2B33;border-radius:12px;overflow:hidden">
+   <div style="position:relative;height:170px;background:#F1EEE6">
+     <div style="position:absolute;inset:0;background-image:linear-gradient(#000 1px,transparent 1px),linear-gradient(90deg,#000 1px,transparent 1px);background-size:22px 22px;opacity:.05;
+       -webkit-mask-image:linear-gradient(to bottom,transparent,#000 80%);
+       mask-image:linear-gradient(to bottom,transparent,#000 80%)"></div>
+     <div style="position:relative;padding:1.4rem;color:#17181D">
+       <div style="font:500 1.35rem/1.15 var(--serif);letter-spacing:-.02em;max-width:16ch">Ce qui a été voté, décidé, proposé</div></div></div>
+   <div style="padding:.9rem 1.1rem;background:#1B1C22">
+     <b style="font:600 .9rem/1 var(--sans)">Papier millimétré</b>
+     <p style="margin:.45rem 0 0;font-size:.84rem;color:#9C988F;line-height:1.55">L'option de la
+     charte actuelle. Correcte, sobre, mais muette : elle évoque le tableur, pas le scrutin.
+     À garder en repli si le champ de sièges est jugé trop chargé.</p></div></div>
+
+ <div style="border:1px solid #2A2B33;border-radius:12px;overflow:hidden">
+   <div style="position:relative;height:170px;background:#F1EEE6">
+     <div style="position:relative;padding:1.4rem;color:#17181D">
+       <div style="font:500 1.35rem/1.15 var(--serif);letter-spacing:-.02em;max-width:16ch">Ce qui a été voté, décidé, proposé</div></div></div>
+   <div style="padding:.9rem 1.1rem;background:#1B1C22">
+     <b style="font:600 .9rem/1 var(--sans)">Rien du tout</b>
+     <p style="margin:.45rem 0 0;font-size:.84rem;color:#9C988F;line-height:1.55">Toujours une
+     réponse valable, et la seule qui ne coûte rien. Le ton du site la supporterait
+     parfaitement — la bande creusée suffit à séparer le hero.</p></div></div>
+</div>`;
+</script>
+
+<script>
+/* ── Données réelles du scrutin n° 1 (AN, 17e législature, 08/10/2024) ── */
+const G=[
+ {n:'LFI-NFP',p:72,c:0,a:0,nv:0},{n:'SOC',p:66,c:0,a:0,nv:0},
+ {n:'EcoS',p:38,c:0,a:0,nv:0},{n:'GDR',p:16,c:0,a:0,nv:0},
+ {n:'EPR',p:0,c:0,a:0,nv:10},{n:'LIOT',p:4,c:0,a:0,nv:1},
+ {n:'DR',p:0,c:0,a:0,nv:4},{n:'Dem',p:0,c:0,a:0,nv:3},
+ {n:'HOR',p:0,c:0,a:0,nv:3},{n:'NI',p:1,c:0,a:0,nv:0}];
+const tot=g=>g.p+g.c+g.a+g.nv, MAX=Math.max(...G.map(tot));
+const z=v=>v?`${v}`:`<span class="z">0</span>`;
+
+document.getElementById('tblGroupes').innerHTML=G.map(g=>{
+  const t=tot(g), w=t/MAX*100;
+  return `<tr>
+   <td><a href="#">${g.n}</a></td>
+   <td class="n POUR">${z(g.p)}</td><td class="n CONTRE">${z(g.c)}</td>
+   <td class="n ABST">${z(g.a)}</td><td class="n ABSENT">${z(g.nv)}</td>
+   <td><div style="display:flex;align-items:center;gap:.7rem">
+     <div class="ech" style="flex:1"><div class="g" style="width:${w}%">
+       ${g.p?`<i style="width:${g.p/t*100}%;background:var(--pour)"></i>`:''}
+       ${g.c?`<i style="width:${g.c/t*100}%;background:var(--contre)"></i>`:''}
+       ${g.a?`<i style="width:${g.a/t*100}%;background:var(--abst)"></i>`:''}
+       ${g.nv?`<i style="width:${g.nv/t*100}%;background:var(--absent-f);border-right:1px solid var(--absent)"></i>`:''}
+     </div></div>
+     <span style="font:400 .78rem/1 var(--mono);color:var(--encre2);width:2.2rem;text-align:right">${t}</span>
+   </div></td></tr>`;}).join('');
+
+document.getElementById('tblGroupesMob').innerHTML=G.map(g=>{
+  const t=tot(g), w=t/MAX*100;
+  return `<tr style="display:block;padding:.7rem 0;border-bottom:1px solid var(--filet)">
+   <td style="display:flex;justify-content:space-between;align-items:baseline;border:0;padding:0 0 .35rem">
+     <a href="#" style="font-weight:600">${g.n}</a>
+     <span style="font-size:.8rem">${g.p?`<b class="POUR">${g.p} pour</b>`:''}${g.p&&g.nv?' · ':''}${g.nv?`<span class="ABSENT">${g.nv} non-votant${g.nv>1?'s':''}</span>`:''}</span></td>
+   <td style="border:0;padding:0;display:block"><div class="ech"><div class="g" style="width:${w}%">
+     ${g.p?`<i style="width:${g.p/t*100}%;background:var(--pour)"></i>`:''}
+     ${g.nv?`<i style="width:${g.nv/t*100}%;background:var(--absent-f);border-right:1px solid var(--absent)"></i>`:''}
+   </div></div></td></tr>`;}).join('');
+
+/* ── Les grilles de sièges ────────────────────────────────────────── */
+const dots=g=>'<b class="p"></b>'.repeat(g.p)+'<b class="c"></b>'.repeat(g.c)+
+              '<b class="a"></b>'.repeat(g.a)+'<b class="nv"></b>'.repeat(g.nv);
+document.getElementById('grilleGroupes').innerHTML=G.map(g=>`
+  <div class="g"><div class="nom"><b>${g.n}</b><span>${tot(g)} recensés</span></div>
+  <div class="grille">${dots(g)}</div></div>`).join('');
+document.getElementById('grilleNR').innerHTML='<b class="nr"></b>'.repeat(359);
+
+/* ── Icônes de la barre d'onglets ─────────────────────────────────── */
+const ICO={
+ rech:'<circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/>',
+ vote:'<path d="M4 6h16M4 12h16M4 18h9"/>',
+ pers:'<circle cx="12" cy="8" r="3.5"/><path d="M5 20a7 7 0 0 1 14 0"/>',
+ theme:'<path d="M4 7h16M7 12h10M10 17h4"/>',
+ src:'<path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/>'};
+document.querySelectorAll('[data-ico]').forEach(e=>{
+  e.outerHTML=`<svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+    stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">${ICO[e.dataset.ico]}</svg>`;});
+document.querySelectorAll('[data-mark]').forEach(e=>{
+  e.outerHTML=mark(e.dataset.mark,+e.dataset.size);});
+
+/* ── Références ──────────────────────────────────────────────────── */
+const REFS=[
+ ['GOV.UK','Royaume-Uni','Service public','Le <b>Content Design manual</b> : phrases courtes, mots ordinaires, un seul accent, zéro décoration. On lit une page sans apprendre à s\'en servir. À prendre : la discipline de rédaction, pas l\'austérité — elle convient mal à une navigation exploratoire.'],
+ ['Our World in Data','International','Données','Le <b>graphique est l\'unité citable</b>, pas la page : source, téléchargement et « comment c\'est mesuré » sont attachés à l\'objet et le suivent quand on l\'intègre ailleurs. À prendre : faire du scrutin un objet qu\'on cite.'],
+ ['HowTheyVote.eu','Union européenne','Parlement','Le voisin le plus proche — et déjà une source de ce site. Résultat, seuil, ventilation par groupe, grille des sièges, relevé filtrable et partage, <b>en un seul écran</b>. Open source. À prendre : à peu près toute la page de vote.'],
+ ['TheyWorkForYou','Royaume-Uni','Parlement','mySociety, vingt ans d\'antériorité. À prendre : les <b>permaliens stables</b> et la page « comment nous calculons » liée depuis chaque chiffre. Voir aussi en contre-modèle, plus bas.'],
+ ['ProPublica','États-Unis','Journalisme','Les « news apps » et la <b>méthodologie en page de plein droit</b>, pas en note de bas de page. À prendre : la couleur employée uniquement pour encoder, le monospace pour les identifiants.'],
+ ['The Markup / CalMatters','États-Unis','Journalisme','La série <b>« Show Your Work »</b> : chaque enquête publie sa méthode, ses données et son code. C\'est exactement la posture de ce dépôt — le site devrait la rendre visible autant que le README le fait.'],
+ ['Abgeordnetenwatch.de','Allemagne','Parlement','Comportement de vote par député, financement, et questions posées aux élus. À prendre : la <b>traçabilité du financement</b> à côté du vote, sans jamais suggérer un lien de cause entre les deux.'],
+ ['GovTrack.us','États-Unis','Parlement','Suivi de textes, statut structuré, alertes par sujet. À prendre : le <b>cycle de vie d\'un texte</b> rendu lisible en une frise. À ne pas prendre : ses scores idéologiques.'],
+ ['Full Fact','Royaume-Uni','Fact-checking','La référence sur <b>ce qu\'on ne peut pas vérifier</b> et pourquoi. Leur honnêteté sur les limites de l\'automatisation est le meilleur allié rédactionnel du principe n° 2 de ce site.'],
+ ['Chequeado','Argentine','Fact-checking','Pionnier du <b>fact-checking en direct pendant les débats</b> — précisément le cas d\'usage déclaré ici. À prendre : la vitesse de publication et le format court et citable.'],
+ ['Maldita.es','Espagne','Fact-checking','Base de données d\'affirmations <b>structurée et réutilisable</b>, distribuée là où la désinformation circule. À prendre : le modèle de données des affirmations, pas la distribution.'],
+ ['Financial Times — Visual Vocabulary','International','Doctrine graphique','La grille de référence <b>« quelle forme pour quelle relation »</b>. Une page à afficher au mur avant chaque nouveau graphique — elle aurait interdit les barres en pourcentage de largeur pleine.'],
+];
+const ANTI=[
+ ['PolitiFact — Truth-O-Meter','Le contre-modèle fondateur : une échelle de verdicts (<i>Mostly True</i>, <i>Pants on Fire</i>) qui transforme un travail de sourçage en notation. C\'est exactement ce que le principe n° 1 interdit, et il faut savoir le nommer.'],
+ ['TheyWorkForYou — résumés de vote','Ses synthèses (« a généralement voté pour X ») agrègent des scrutins hétérogènes en une phrase d\'opinion. Critiqué par des députés de tous bords, à raison. <b>Le piège exact que ce site évite</b> — et la raison de ne jamais produire de score de proximité.'],
+ ['data.gouv.fr / DSFR','Excellent système, accessible, rigoureux — et <b>inutilisable ici</b> : le bleu-blanc-rouge suggérerait une caution officielle que ce site n\'a pas. À connaître pour ses composants RGAA, pas pour son identité.'],
+ ['VoteWatch Europe','Longtemps la référence sur les votes européens, fermé en 2022. Le rappel qu\'un service de données <b>meurt avec son financement</b> : c\'est l\'argument le plus fort en faveur du statique, de l\'AGPL et de l\'archive scellée.'],
+];
+document.getElementById('refs-table').innerHTML=
+`<div style="display:grid;gap:.7rem">`+
+REFS.map(([n,pays,cat,d])=>`<div style="border:1px solid #2A2B33;border-radius:10px;padding:.95rem 1.1rem;
+  background:#1B1C22;display:grid;gap:.3rem .9rem;grid-template-columns:minmax(0,15rem) minmax(0,1fr)">
+  <div><div style="font:600 .95rem/1.3 var(--sans)">${n}</div>
+   <div style="font:400 .74rem/1.4 var(--mono);color:#6E6A63;margin-top:.2rem">${pays} · ${cat}</div></div>
+  <p style="margin:0;font-size:.88rem;line-height:1.55;color:#C9C5BC">${d}</p></div>`).join('')+
+`</div>
+<h3>Quatre contre-modèles</h3>
+<div style="display:grid;gap:.7rem">`+
+ANTI.map(([n,d])=>`<div style="border:1px solid #3E2523;border-left:3px solid #E87D76;border-radius:10px;
+  padding:.95rem 1.1rem;background:#1B1C22">
+  <div style="font:600 .95rem/1.3 var(--sans);margin-bottom:.3rem">${n}</div>
+  <p style="margin:0;font-size:.88rem;line-height:1.55;color:#C9C5BC">${d}</p></div>`).join('')+`</div>`;
+</script>
+
+<script>
+/* ── Corrections de copy ─────────────────────────────────────────── */
+const COPY=[
+ ['Titre d\'accueil',
+  'Ce que les responsables politiques ont <b>réellement</b> voté',
+  'Ce qui a été voté, décidé, proposé — et d\'où on le sait.',
+  '« Réellement » insinue un écart entre le discours et les actes. C\'est une accusation implicite, donc un verdict — sur un site dont le premier principe est de n\'en rendre aucun. Le nouveau titre dit la même chose et ajoute le vrai différenciateur : la provenance.'],
+ ['Chapô d\'accueil',
+  '<b>Rien n\'est commenté</b> : le site documente ce qui a été proposé, voté et décidé, et laisse la conclusion au lecteur.',
+  'Aucun verdict n\'est rendu : vous obtenez le fait, sa source primaire, et ce qu\'elle ne permet pas de conclure.',
+  'Se définir par une absence (« rien n\'est commenté ») demande au lecteur de deviner ce qu\'il obtient. Dire les trois choses qu\'il reçoit est plus court et plus fort.'],
+ ['Navigation',
+  'Candidats · Partis · Assemblée · Sénat · Europe · Thèmes · Sources',
+  'Scrutins · Personnes · Partis · Thèmes · Méthode · Sources',
+  'Sept entrées qui mélangent trois registres : des acteurs, des institutions, une page méta. Le lecteur ne cherche pas « l\'Assemblée », il cherche un vote ou une personne. Six entrées organisées par <b>objet</b> tiennent sans défilement à 390 px.'],
+ ['Sénat',
+  '<b>non couvert</b>',
+  'Pas encore couvert',
+  'Trois caractères qui changent une lacune en feuille de route. La raison typée qui suit — « les scrutins y sont publiés par groupe, pas par sénateur » — est déjà excellente, on la garde mot pour mot.'],
+ ['Titre de scrutin',
+  '<i>la motion de censure déposée en application de l\'article 49, alinéa 2, de la Constitution par M. Boris Vallaud, Mme Mathilde Panot… et 188 de leurs collègues.</i>',
+  'Motion de censure déposée en application de l\'article 49, alinéa 2 <span style="color:#6E6A63">+ libellé officiel intégral en dessous</span>',
+  'Neuf lignes commençant par une minuscule sur mobile. Une troncature signalée <b>n\'est pas une réécriture</b> : aucun mot ajouté, le libellé source reste affiché intégralement et étiqueté comme tel.'],
+ ['Participation',
+  '2680 sur 8434 scrutins (<b>31 %</b>)',
+  '2 680 positions exprimées. <span style="color:#6E6A63">Taux : non calculé — dénominateur non borné par la période de mandat.</span>',
+  'Le dénominateur est celui de toute la législature, mandat effectif et passage au gouvernement compris. Le chiffre est faux, et il se lit comme un score d\'assiduité. Appliquer au site sa propre règle : « non vérifiable » est une réponse.'],
+ ['État vide',
+  'Aucune ventilation disponible pour ce scrutin.',
+  'Aucune ventilation par groupe : la source ne publie pas le groupe des votants pour ce scrutin.',
+  'Le principe n° 2 exige une <b>raison typée</b>, pas seulement le constat. La règle se généralise : aucun état vide du site ne devrait s\'arrêter avant le « parce que ».'],
+];
+document.getElementById('copy-table').innerHTML=
+`<div style="display:grid;gap:.8rem">`+
+COPY.map(([q,av,ap,pq])=>`<div style="border:1px solid #2A2B33;border-radius:10px;background:#1B1C22;overflow:hidden">
+ <div style="padding:.6rem 1.1rem;border-bottom:1px solid #2A2B33;font:500 .7rem/1 var(--mono);
+   letter-spacing:.1em;text-transform:uppercase;color:#9C988F">${q}</div>
+ <div style="display:grid;gap:0;grid-template-columns:1fr">
+  <div style="padding:.85rem 1.1rem;border-bottom:1px solid #2A2B33;display:grid;
+    grid-template-columns:5.5rem 1fr;gap:.9rem;align-items:baseline">
+    <span style="font:600 .68rem/1 var(--mono);letter-spacing:.09em;color:#E87D76">AUJOURD'HUI</span>
+    <span style="font-size:.9rem;line-height:1.5;color:#9C988F">${av}</span></div>
+  <div style="padding:.85rem 1.1rem;border-bottom:1px solid #2A2B33;display:grid;
+    grid-template-columns:5.5rem 1fr;gap:.9rem;align-items:baseline">
+    <span style="font:600 .68rem/1 var(--mono);letter-spacing:.09em;color:#58C089">PROPOSÉ</span>
+    <span style="font-size:.95rem;line-height:1.5;color:#EEEBE4;font-weight:500">${ap}</span></div>
+  <div style="padding:.85rem 1.1rem;display:grid;grid-template-columns:5.5rem 1fr;gap:.9rem;align-items:baseline">
+    <span style="font:600 .68rem/1 var(--mono);letter-spacing:.09em;color:#6E6A63">POURQUOI</span>
+    <span style="font-size:.87rem;line-height:1.55;color:#C9C5BC">${pq}</span></div>
+ </div></div>`).join('')+`</div>`;
+
+/* ── Chantiers ───────────────────────────────────────────────────── */
+const PLAN=[
+ ['1','Retirer le taux de participation faux','Correction','Un jour',
+  'Supprimer <code>PctExprimes</code> de la fiche personne, ou borner le dénominateur par la période de mandat effectif hors fonction gouvernementale. Ajouter une garantie dans <code>db/tests/</code> interdisant tout ratio dont le dénominateur n\'est pas borné.','#E87D76'],
+ ['2','La ligne de procédure sur les scrutins à seuil','Correction','Deux jours',
+  'Motions de censure, lois organiques, révisions constitutionnelles : stocker le seuil applicable et l\'afficher. Sans lui, « 197 pour · 0 contre → rejeté » produit un contresens chez tout lecteur.','#E87D76'],
+ ['3','La recherche locale','Fonction','Une semaine',
+  'Index statique JSON, chargé au premier appui sur <kbd style="font-family:var(--mono)">/</kbd>, correspondance floue côté client. C\'est la porte d\'entrée absente — le cas d\'usage déclaré n\'existe pas sans elle.','#58C089'],
+ ['4','Le flux des derniers scrutins','Fonction','Deux jours',
+  'Sur l\'accueil et sur chaque page d\'institution. « Ce qui a été voté cette semaine » est la première question d\'un soir de débat, et le site n\'y répond nulle part.','#58C089'],
+ ['5','La page scrutin : bandeau de résultat, barre de seuil, grille des sièges','Refonte','Une semaine',
+  'Réordonner en réponse → preuve → provenance → brut. Barres de groupe à l\'échelle absolue. Filtre local sur le relevé nominatif. Bouton « citer » avec l\'empreinte.','#74C3D3'],
+ ['6','Le socle : jetons, fontes, mobile','Refonte','Une semaine',
+  'Palette recalculée sur les trois surfaces, superfamille Plex + Newsreader hébergée en propre, tableaux qui se replient, barre d\'onglets basse, hero comprimé.','#74C3D3'],
+ ['7','L\'identité : marque, champ de sièges, favicon','Identité','Deux jours',
+  'Un seul fichier SVG, décliné en quatre tailles. Le champ de fond réutilise la même géométrie — un actif, pas deux.','#74C3D3'],
+ ['8','La distribution des précautions','Rédaction','Trois jours',
+  'Séparer faits de procédure (inline) et limites de portée (repliables, ouvertes par défaut, place stable). Aucun texte n\'est supprimé : ils changent de place et de poids.','#DAAE45'],
+];
+document.getElementById('plan-table').innerHTML=
+`<div style="display:grid;gap:.6rem">`+
+PLAN.map(([n,t,cat,eff,d,c])=>`<div style="border:1px solid #2A2B33;border-left:3px solid ${c};
+  border-radius:10px;background:#1B1C22;padding:1rem 1.15rem;display:grid;gap:.35rem .9rem;
+  grid-template-columns:1.6rem minmax(0,1fr)">
+  <div style="font:600 1rem/1.2 var(--mono);color:${c}">${n}</div>
+  <div>
+   <div style="display:flex;gap:.7rem;align-items:baseline;flex-wrap:wrap;margin-bottom:.35rem">
+    <span style="font:600 .98rem/1.3 var(--sans)">${t}</span>
+    <span style="font:500 .66rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+      border:1px solid #2A2B33;border-radius:999px;padding:.24rem .5rem;color:#9C988F">${cat}</span>
+    <span style="font:400 .74rem/1 var(--mono);color:#6E6A63">${eff}</span></div>
+   <p style="margin:0;font-size:.87rem;line-height:1.55;color:#C9C5BC">${d}</p></div>
+</div>`).join('')+`</div>`;
+
+/* ── Onglet actif dans la table des matières ─────────────────────── */
+const secs=[...document.querySelectorAll('section.part')];
+const links=new Map([...document.querySelectorAll('.toc a')].map(a=>[a.getAttribute('href').slice(1),a]));
+new IntersectionObserver(es=>{es.forEach(e=>{const a=links.get(e.target.id);if(!a)return;
+  if(e.isIntersecting){links.forEach(l=>l.style.color='');a.style.color='#EEEBE4';a.style.background='#1B1C22';}
+  })},{rootMargin:'-10% 0px -80% 0px'}).observe&&secs.forEach(s=>
+  new IntersectionObserver(es=>es.forEach(e=>{const a=links.get(e.target.id);if(!a)return;
+    if(e.isIntersecting){[...links.values()].forEach(l=>{l.style.color='';l.style.background=''});
+      a.style.color='#EEEBE4';a.style.background='#1B1C22';}}),
+    {rootMargin:'-5% 0px -85% 0px'}).observe(s));
+
+/* ── Les puces de filtre sont démonstratives ─────────────────────── */
+document.querySelectorAll('.puce').forEach(b=>b.addEventListener('click',()=>{
+  const grp=b.closest('.filtre');
+  grp.querySelectorAll('.puce').forEach(o=>o.setAttribute('aria-pressed','false'));
+  b.setAttribute('aria-pressed','true');}));
+</script>
