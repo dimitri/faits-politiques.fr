@@ -1,0 +1,23 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/comprendre/">Comprendre</a> › <span>{{.D.Titre}}</span></p>
+
+<div class="doc-page">
+  <article class="prose">
+    <span class="sur">Document de méthode · <code>docs/{{.D.Fichier}}</code></span>
+    {{.D.Corps}}
+    <p class="note abs" style="margin-top:2.5rem">Rendu intégralement depuis
+    <code>docs/{{.D.Fichier}}</code> à la construction du site. Le texte n'est ni résumé ni
+    réécrit&nbsp;: c'est celui que relit un contributeur, et toute modification y est une diff.</p>
+  </article>
+
+  {{if gt (len .D.Sections) 2}}
+  <nav class="doc-toc" aria-label="Sommaire">
+    <p class="lb">Sommaire</p>
+    <ul>{{range .D.Sections}}<li><a href="#{{.ID}}">{{.Titre}}</a></li>{{end}}</ul>
+    <p class="lb" style="margin-top:1.2rem">Autres documents</p>
+    <ul>{{range .Autres}}<li><a href="{{$.Root}}/comprendre/{{.Slug}}/">{{.Titre}}</a></li>{{end}}</ul>
+  </nav>
+  {{end}}
+</div>
+{{end}}

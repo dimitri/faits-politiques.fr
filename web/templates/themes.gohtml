@@ -1,35 +1,74 @@
 {{define "content"}}
-<p class="eyebrow">Classification</p>
-<h1 style="margin-top:0">Thèmes</h1>
-<p class="lede">Les scrutins du Parlement européen sont rattachés à des concepts
-<strong>EuroVoc</strong>, le thésaurus multilingue officiel des institutions de l'Union.</p>
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Thèmes</span></p>
+<span class="sur">Classification</span>
+<h1>Thèmes</h1>
+<p class="lede">Deux taxonomies officielles, posées sur deux objets différents. Aucune n'est
+produite par ce site&nbsp;: les poser nous-mêmes serait un jugement éditorial.</p>
 
-<div class="card">
-<strong>Pourquoi ces thèmes-là, et pas les nôtres</strong>
-<p class="small" style="margin-bottom:.5rem">EuroVoc est produit par l'Office des
-publications de l'Union européenne, et l'affectation d'un concept à un scrutin est faite
-par le producteur de la donnée. <strong>Ce site ne fait que la transcrire</strong>&nbsp;: il
-ne classe rien lui-même.</p>
-<p class="small muted" style="margin-bottom:0">Il n'existe aucune classification officielle
-équivalente pour l'Assemblée nationale. En construire une serait une décision éditoriale,
-qui suppose un protocole publié et scellé avant d'être exécuté
-(<code>docs/pre-enregistrement-002.md</code>, non scellé à ce jour). D'ici là, les scrutins
-français ne sont rattachés à aucun thème — une absence assumée plutôt qu'un classement
-improvisé.</p>
+<div class="cartes trois">
+  <div class="carte"><span class="v">{{.T.TotalSenat}}</span><span class="t">thèmes du Sénat</span>
+    <span class="d">Posés par le Sénat sur la <strong>loi</strong>. {{len .T.Themes}} d'entre eux
+      atteignent au moins un des {{nb .T.ScrutinsAN}} scrutins thémés de l'Assemblée, par la
+      navette et par égalité exacte des clés publiées&nbsp;: aucun rapprochement de titres, aucune
+      heuristique.</span></div>
+  <div class="carte"><span class="v">{{nb .T.TotalConcepts}}</span><span class="t">concepts EuroVoc</span>
+    <span class="d">Posés par le Parlement européen directement sur le <strong>scrutin</strong>,
+      pour {{nb .T.ScrutinsPE}} scrutins. La hiérarchie EuroVoc n'est pas chargée&nbsp;: 1 808
+      descripteurs à plat ne font pas une navigation. <code>EUROVOC_SANS_HIERARCHIE</code></span></div>
+  <div class="carte creuse"><span class="v">Aucun thème</span><span class="t">sur les votes du Sénat</span>
+    <span class="d">Le paradoxe, assumé tel quel&nbsp;: les thèmes du Sénat portent sur les lois, et
+      le dump Dosleg ne rattache ses scrutins à aucun texte. Les thèmes du Sénat n'atteignent donc
+      pas ses propres votes. <code>SENAT_SANS_DOSSIER</code></span></div>
 </div>
 
-<h2>Concepts EuroVoc les plus fréquents</h2>
-<p class="small muted">Concepts rattachés à au moins 20 scrutins, les 60 premiers.</p>
-<div class="scroll"><table>
-<thead><tr><th>Concept</th><th>Scrutins rattachés</th></tr></thead>
-<tbody>{{range .E.Themes}}<tr>
-<td>{{.Label}}</td><td>{{nb .Scrutins}}</td>
-</tr>{{end}}</tbody></table></div>
+<h2>Les {{len .T.Themes}} thèmes qui atteignent un scrutin</h2>
+<p class="note"><strong>Un thème qui prend 44&nbsp;% du corpus ne discrimine rien.</strong>
+L'effectif est affiché à côté de chaque libellé, et les barres sont à l'échelle&nbsp;: mettre les
+trente thèmes sur le même plan mentirait sur leur poids. Une dizaine seulement supportent une
+lecture.</p>
 
-<div class="warn">
-<strong>Ce que cette page ne dit pas.</strong> Un concept fréquent ne signifie pas un sujet
-important&nbsp;: il signifie qu'il a été souvent rattaché à un scrutin faisant l'objet d'un
-vote nominatif. Or les scrutins nominatifs ne sont qu'une partie des votes, et leur
-répartition thématique reflète l'agenda parlementaire, pas l'importance des sujets.
-</div>
+<div class="scroll"><table class="pile">
+<thead><tr><th>Thème</th><th class="n">Scrutins de l'Assemblée</th>
+  <th style="width:45%">Part du corpus thémé</th></tr></thead>
+<tbody>
+{{$max := .T.MaxScrutins}}
+{{range .T.Themes}}<tr>
+  <td><a href="{{$.Root}}/theme/{{.Slug}}/">{{.Label}}</a></td>
+  <td class="n" data-l="Scrutins">{{nb .Scrutins}}</td>
+  <td data-l="Part"><div class="ech"><div class="g" style="width:{{pct .Scrutins $max}}%">
+    <i style="width:100%;background:var(--attenue)"></i></div></div></td>
+</tr>{{end}}
+</tbody></table></div>
+
+<h2>Pourquoi ce site ne relie pas les thèmes au classement gauche-droite</h2>
+<p class="note proc"><strong>Ce n'est pas un refus, c'est une impossibilité mesurée.</strong>
+Le classement gauche-droite du site vient de <strong>CHES&nbsp;2024</strong>, qui note
+{{.T.CHESPartis}} partis français sur cinq dimensions. Le rattachement d'un parti à un groupe
+parlementaire existe aussi, pour {{.T.CHESGroupesLies}} partis. Mais les deux ne se rejoignent
+pas&nbsp;: CHES nomme ses partis dans ses propres lignes («&nbsp;RN&nbsp;»,
+«&nbsp;PS&nbsp;»&nbsp;…) tandis que le rattachement part des entrées du registre CNCCFP
+(«&nbsp;RASSEMBLEMENT NATIONAL&nbsp;»&nbsp;…). L'intersection des identifiants vaut
+<strong>{{.T.CHESJoignables}}</strong>. Aucune requête ne peut donc aujourd'hui joindre une note
+CHES à un vote. Code&nbsp;: <code>CHES_SANS_PONT_VERS_GROUPE</code>.</p>
+<p class="note">Et même le pont posé, une corrélation resterait à ne pas publier telle quelle&nbsp;:
+avec neuf à dix partis appariés, l'intervalle de confiance d'un coefficient couvre à peu près toute
+son étendue utile, et trente thèmes fois cinq dimensions offrent cent cinquante corrélations où
+pêcher celle qui « marche ». La seule forme défendable — une hypothèse unique et directionnelle
+testée sur les <em>paires</em> de groupes — exige un pré-enregistrement scellé avant calcul, comme
+le prévoit <code>docs/themes-conception.md</code>. Il n'est pas écrit&nbsp;; rien n'est donc
+calculé.</p>
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note">Un thème fréquent ne signifie pas un sujet important&nbsp;: il signifie qu'il a
+    été souvent rattaché à un texte ayant fait l'objet d'un scrutin public. La répartition reflète
+    l'agenda parlementaire, pas l'importance des sujets.</p>
+    <p class="note">Le rattachement d'un scrutin de l'Assemblée à un thème du Sénat passe par la
+    navette, et n'existe que si l'Assemblée cite elle-même le dossier du Sénat. Il est
+    <strong>dérivé</strong>, porte sa <code>method_version</code>, et n'est jamais réinjecté dans
+    les assignations de la source&nbsp;: une assignation de <code>core</code> est une affirmation
+    du producteur, pas un calcul de ce site.</p>
+  </div>
+</details>
 {{end}}

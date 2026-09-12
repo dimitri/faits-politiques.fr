@@ -23,11 +23,20 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	// reçoivent une fiche. Le fichier « tous acteurs » de l'Assemblée remonte à
 	// plusieurs législatures : publier des milliers de fiches vides donnerait
 	// l'illusion d'une couverture qui n'existe pas.
+	//
+	// Le filtre porte sur les mandats NATIONAUX. Depuis l'ingestion du RNE,
+	// core.mandate compte 613 256 lignes, dont 508 788 conseillers municipaux :
+	// un simple « a un mandat » produisait 514 410 fiches, presque toutes vides
+	// de tout vote, et un site de 500 000 pages. Les élus locaux sont documentés
+	// par la fiche de leur COMMUNE (docs/mairies-conception.md), pas par une
+	// fiche personnelle sans contenu.
 	rows, err := pool.Query(ctx, `
 		SELECT DISTINCT p.id, p.slug, p.given_name, p.family_name
 		FROM core.person p
-		WHERE EXISTS (SELECT 1 FROM core.mandate m WHERE m.person_id = p.id)
-		   OR EXISTS (SELECT 1 FROM core.ballot  b WHERE b.person_id = p.id)`)
+		WHERE EXISTS (SELECT 1 FROM core.ballot b WHERE b.person_id = p.id)
+		   OR EXISTS (SELECT 1 FROM core.mandate m WHERE m.person_id = p.id
+		               AND m.mandate_type IN ('DEPUTE','SENATEUR','DEPUTE_EUROPEEN',
+		                                      'MINISTRE','PRESIDENT_REPUBLIQUE'))`)
 	if err != nil {
 		return nil, err
 	}

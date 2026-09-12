@@ -34,6 +34,8 @@ type Coverage struct {
 	Organisations                    int
 	Documents                        int64
 	ScrutinsPE, Themes               int
+	ScrutinsSenat, VotesSenat        int
+	Senateurs, ThemesSenat           int
 }
 
 type Layout struct {
@@ -110,6 +112,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	page := func(name string) *template.Template {
 		t := template.Must(base.Clone())
 		return template.Must(t.ParseFiles(filepath.Join(tplDir, name)))
+	}
+
+	if err := preparerSortie(out); err != nil {
+		return err
 	}
 
 	layout := Layout{Root: root, BuiltAt: time.Now().Format("2 January 2006 à 15:04")}
@@ -211,9 +217,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	for _, p := range persons {
 		deputes = append(deputes, p)
 	}
-	sort.Slice(deputes, func(i, j int) bool {
-		return CleTri(deputes[i].Nom+" "+deputes[i].Prenom) < CleTri(deputes[j].Nom+" "+deputes[j].Prenom)
-	})
+	trierPersonnes(deputes)
 
 	orgList := make([]*Organisation, 0, len(orgs))
 	for _, o := range orgs {
@@ -241,9 +245,6 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	}
 	seuils, err := loadSeuils(filepath.Join(dataDir, "seuils.csv"))
 	if err != nil {
-		return err
-	}
-	if err := ecrireIndex(out, root, persons, candidats, orgs, groupes, refs); err != nil {
 		return err
 	}
 
@@ -314,49 +315,103 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	if err != nil {
 		return err
 	}
-	for _, sec := range []struct{ dir, titre, tpl string }{
-		{"europe", "Parlement européen", "europe.gohtml"},
-		{"themes", "Thèmes", "themes.gohtml"},
-	} {
+	l = layout
+	l.Title = "Parlement européen"
+	if err := write(page("europe.gohtml"), filepath.Join(out, "europe", "index.html"), struct {
+		Layout
+		E *StatsEurope
+	}{l, europe}); err != nil {
+		return err
+	}
+
+	// --- thèmes : index et une fiche par thème du Sénat
+	themes, err := loadThemes(ctx, pool, 60)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Thèmes"
+	if err := write(page("themes.gohtml"), filepath.Join(out, "themes", "index.html"), struct {
+		Layout
+		T *StatsThemes
+	}{l, themes}); err != nil {
+		return err
+	}
+	tth := page("theme.gohtml")
+	for _, th := range themes.Themes {
+		maxG := 0
+		for _, g := range th.Groupes {
+			if g.Total > maxG {
+				maxG = g.Total
+			}
+		}
 		l = layout
-		l.Title = sec.titre
-		if err := write(page(sec.tpl), filepath.Join(out, sec.dir, "index.html"), struct {
+		l.Title = th.Label
+		if err := write(tth, filepath.Join(out, "theme", th.Slug, "index.html"), struct {
 			Layout
-			E *StatsEurope
-		}{l, europe}); err != nil {
+			Th        *Theme
+			MaxGroupe int
+		}{l, th, maxG}); err != nil {
 			return err
 		}
 	}
 
-	// Section non couverte : déclarée comme telle, avec sa raison typée.
-	// Une absence affichée vaut mieux qu'une absence tue.
-	tv := page("vide.gohtml")
-	type vide struct {
+	// --- Sénat : la section n'est plus « non couverte »
+	senat, err := loadSenat(ctx, pool, persons)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Sénat"
+	if err := write(page("senat.gohtml"), filepath.Join(out, "senat", "index.html"), struct {
 		Layout
-		Titre, Chapeau, Raison, Code string
+		Se *StatsSenat
+	}{l, senat}); err != nil {
+		return err
 	}
-	sections := []struct {
-		dir string
-		v   vide
-	}{
-		{"senat", vide{Titre: "Sénat",
-			Chapeau: "Aucune donnée du Sénat n'est ingérée à ce jour.",
-			Raison: "Le Sénat publie ses données sous Licence Ouverte, en dumps PostgreSQL " +
-				"complets — sénateurs, dossiers depuis 1977, amendements, questions, comptes " +
-				"rendus. Le connecteur reste à écrire, et il est d'une autre nature que les " +
-				"précédents : il faut restaurer un dump entier pour en extraire ce qui nous " +
-				"intéresse. Une particularité l'attend : les scrutins y sont publiés PAR " +
-				"GROUPE, avec la liste nominative des seules exceptions. On ne pourra donc " +
-				"jamais y dire comment un sénateur donné a voté, sauf s'il figure parmi les " +
-				"exceptions nommées — le schéma le prévoit déjà (granularité GROUP).",
-			Code: "NOT_INGESTED"}},
+
+	// --- comprendre : les documents de méthode, rendus en pages
+	docs, err := loadDocs("docs")
+	if err != nil {
+		return err
 	}
-	for _, sec := range sections {
-		sec.v.Layout = layout
-		sec.v.Layout.Title = sec.v.Titre
-		if err := write(tv, filepath.Join(out, sec.dir, "index.html"), sec.v); err != nil {
+	l = layout
+	l.Title = "Comprendre"
+	if err := write(page("comprendre.gohtml"), filepath.Join(out, "comprendre", "index.html"),
+		struct {
+			Layout
+			Docs []*Doc
+		}{l, docs}); err != nil {
+		return err
+	}
+	td := page("doc.gohtml")
+	for _, d := range docs {
+		var autres []*Doc
+		for _, o := range docs {
+			if o.Slug != d.Slug {
+				autres = append(autres, o)
+			}
+		}
+		l = layout
+		l.Title = d.Titre
+		if err := write(td, filepath.Join(out, "comprendre", d.Slug, "index.html"), struct {
+			Layout
+			D      *Doc
+			Autres []*Doc
+		}{l, d, autres}); err != nil {
 			return err
 		}
+	}
+
+	// L'index de recherche est écrit en dernier : il référence les thèmes, les
+	// documents de méthode et les sénateurs, tous chargés plus haut.
+	senateurs := map[string]bool{}
+	for _, p := range senat.Senateurs2 {
+		senateurs[p.Slug] = true
+	}
+	if err := ecrireIndex(out, persons, candidats, orgs, groupes, refs,
+		themes.Themes, docs, senateurs); err != nil {
+		return err
 	}
 
 	// --- fiches personnes (les candidats obtiennent en plus une URL dédiée)
@@ -474,6 +529,59 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	return nil
 }
 
+// trierPersonnes : ordre alphabétique sur le nom puis le prénom. Ce site ne
+// classe pas les personnes autrement.
+func trierPersonnes(l []*Person) {
+	sort.Slice(l, func(i, j int) bool {
+		return CleTri(l[i].Nom+" "+l[i].Prenom) < CleTri(l[j].Nom+" "+l[j].Prenom)
+	})
+}
+
+// Le site se veut « régénéré intégralement depuis l'archive brute » — c'est
+// écrit au pied de chaque page. Sans nettoyage, c'était faux : le répertoire de
+// sortie accumulait les pages des périmètres précédents. Après le resserrement
+// des fiches personnes aux mandats nationaux, 34 744 fiches de maires y
+// subsistaient, servies alors qu'aucune construction ne les produisait plus.
+//
+// On n'efface que ce que ce programme a écrit : le marqueur en atteste. Un
+// répertoire non vide qui ne le porte pas fait échouer la construction plutôt
+// que d'être supprimé.
+const marqueurSortie = ".site-genere"
+
+func preparerSortie(out string) error {
+	info, err := os.Stat(out)
+	if os.IsNotExist(err) {
+		return ecrireMarqueur(out)
+	}
+	if err != nil {
+		return err
+	}
+	if !info.IsDir() {
+		return fmt.Errorf("%s n'est pas un répertoire", out)
+	}
+	if _, err := os.Stat(filepath.Join(out, marqueurSortie)); err != nil {
+		entries, err := os.ReadDir(out)
+		if err != nil {
+			return err
+		}
+		if len(entries) > 0 {
+			return fmt.Errorf("%s n'est pas vide et ne porte pas %s : "+
+				"refus de l'effacer", out, marqueurSortie)
+		}
+	} else if err := os.RemoveAll(out); err != nil {
+		return err
+	}
+	return ecrireMarqueur(out)
+}
+
+func ecrireMarqueur(out string) error {
+	if err := os.MkdirAll(out, 0o755); err != nil {
+		return err
+	}
+	return os.WriteFile(filepath.Join(out, marqueurSortie),
+		[]byte("Répertoire produit par cmd/build. Effacé et réécrit à chaque construction.\n"), 0o644)
+}
+
 func write(t *template.Template, path string, data any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
@@ -527,13 +635,17 @@ func coverage(ctx context.Context, pool *pgxpool.Pool) (Coverage, error) {
 	if err != nil {
 		return c, err
 	}
-	if err != nil {
-		return c, err
-	}
 	err = pool.QueryRow(ctx, `
 		SELECT (SELECT count(*) FROM raw.document),
 		       (SELECT count(*) FROM core.scrutin WHERE institution='PARLEMENT_EUROPEEN'),
-		       (SELECT count(DISTINCT topic_code) FROM core.topic_assignment)`).
-		Scan(&c.Documents, &c.ScrutinsPE, &c.Themes)
+		       (SELECT count(DISTINCT topic_code) FROM core.topic_assignment),
+		       (SELECT count(*) FROM core.scrutin WHERE institution='SENAT'),
+		       (SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id=b.scrutin_id
+		         WHERE s.institution='SENAT'),
+		       (SELECT count(DISTINCT b.person_id) FROM core.ballot b
+		         JOIN core.scrutin s ON s.id=b.scrutin_id WHERE s.institution='SENAT'),
+		       (SELECT count(*) FROM ref.topic WHERE taxonomy_version='senat')`).
+		Scan(&c.Documents, &c.ScrutinsPE, &c.Themes,
+			&c.ScrutinsSenat, &c.VotesSenat, &c.Senateurs, &c.ThemesSenat)
 	return c, err
 }

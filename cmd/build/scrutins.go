@@ -17,6 +17,12 @@ type Scrutin struct {
 	Dossier     *Dossier
 	Institution string
 	EstEuropeen bool
+	EstSenat    bool
+	// InstitutionNom et Chambre évitent le piège du booléen binaire : tant que
+	// le gabarit ne connaissait que « européen ou non », les 4 764 scrutins du
+	// Sénat s'affichaient sous « Assemblée nationale, 17e législature ».
+	InstitutionNom string
+	Chambre        string
 
 	Slug, Numero, Objet, Date, TypeVote string
 	Resultat, SourceUID                 string
@@ -92,6 +98,15 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 			"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié",
 		}[s.Resultat]
 		s.EstEuropeen = s.Institution == "PARLEMENT_EUROPEEN"
+		s.EstSenat = s.Institution == "SENAT"
+		switch s.Institution {
+		case "PARLEMENT_EUROPEEN":
+			s.InstitutionNom, s.Chambre = "Parlement européen", "europe"
+		case "SENAT":
+			s.InstitutionNom, s.Chambre = "Sénat", "senat"
+		default:
+			s.InstitutionNom, s.Chambre = "Assemblée nationale", "assemblee"
+		}
 		s.TitreCourt, s.Tronque = TitreCourt(s.Objet)
 		s.ResultatLong = ResultatLong(s.Resultat, s.TypeVote)
 		s.Exprimes = s.Pour + s.Contre + s.Abstentions

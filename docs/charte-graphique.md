@@ -135,6 +135,36 @@ la pile système, `font-display:swap`.
   1,28 / 1,55 / 2,1 / 3,1 rem pour les titres. Au-delà, la hiérarchie cesse
   d'être perçue comme une hiérarchie.
 
+## 4 bis. Icônes
+
+**Font Awesome Free 6.7.2**, tracés officiels **embarqués un par un** dans
+`cmd/build/icones.go` — ni CDN, ni fonte d'icônes. La famille *solid* pèse plus
+de 400 Ko pour quatorze glyphes utilisés ; les tracés retenus en font 7 Ko,
+servis avec le HTML, sans requête supplémentaire.
+
+Les icônes restent **décoratives** : `aria-hidden`, et chaque entrée garde son
+libellé écrit. Une icône ne porte jamais seule une information. Sous 75 rem
+elles disparaissent de la navigation, dont les libellés suffisent.
+
+Licence : icônes sous **CC BY 4.0**, attribution au pied de chaque page.
+
+## 4 ter. Thème clair et sombre
+
+Trois états, pas deux : **système** (aucun attribut, `prefers-color-scheme`
+décide), **clair** et **sombre** (`data-theme` forcé). Le sélecteur vit dans la
+barre de marque ; le choix est écrit dans `localStorage` et **ne quitte jamais
+le navigateur**.
+
+Un script minuscule applique le choix **avant le premier rendu** : sans lui la
+page clignote du thème système au thème choisi. Le groupe de boutons reste
+masqué sans JavaScript — on ne montre pas une commande morte.
+
+Règle qui en découle, et qu'un défaut réel a rappelée : **aucune couleur ne doit
+être définie uniquement dans un bloc `@media`**. La trame du hero l'était, et
+disparaissait dès qu'on forçait le thème sombre depuis un système en clair. Elle
+est désormais un masque sur `var(--encre)`, et les blocs conditionnels ne
+contiennent plus que des jetons.
+
 ## 5. Composants
 
 - **Tableaux** : filets horizontaux seulement, en-têtes en petites capitales

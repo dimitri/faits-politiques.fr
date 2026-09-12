@@ -101,6 +101,52 @@ header.top nav a[aria-current]{color:var(--encre);background:var(--papier2)}
 .ico{width:16px;height:16px;flex:0 0 auto;opacity:.78}
 header.top nav a:hover .ico,header.top nav a[aria-current] .ico{opacity:1}
 
+/* ── Sélecteur de thème ──────────────────────────────────────────────── */
+.theme{display:flex;gap:.1rem;flex:0 0 auto;border:1px solid var(--filet);
+border-radius:999px;padding:.15rem;background:var(--papier2)}
+.theme button{display:grid;place-items:center;width:1.85rem;height:1.85rem;padding:0;
+border:0;border-radius:999px;background:0;color:var(--attenue);cursor:pointer}
+.theme button:hover{color:var(--encre)}
+.theme button[aria-pressed=true]{background:var(--carte);color:var(--accent);
+box-shadow:0 1px 2px rgba(0,0,0,.06)}
+.theme .ico{width:15px;height:15px;opacity:1}
+
+/* ── Documents de méthode rendus depuis Markdown ─────────────────────── */
+.doc-page{display:grid;gap:2.6rem;grid-template-columns:minmax(0,1fr)}
+@media(min-width:64rem){.doc-page{grid-template-columns:minmax(0,1fr) 15rem}}
+.doc-toc{position:sticky;top:1.5rem;align-self:start;font-size:.85rem;
+border-left:1px solid var(--filet);padding-left:1.1rem}
+@media(max-width:64rem){.doc-toc{position:static;border-left:0;border-top:1px solid var(--filet);
+padding:1.2rem 0 0;order:-1}}
+.doc-toc .lb{font:500 .68rem/1 var(--mono);letter-spacing:.1em;text-transform:uppercase;
+color:var(--attenue);margin:0 0 .6rem}
+.doc-toc ul{list-style:none;margin:0;padding:0;display:grid;gap:.42rem}
+.doc-toc a{text-decoration:none;color:var(--attenue);display:block;line-height:1.35}
+.doc-toc a:hover{color:var(--accent)}
+.prose{max-width:44rem}
+.prose h1{font:500 2.1rem/1.14 var(--titre);letter-spacing:-.02em;margin:.2rem 0 1.2rem}
+.prose h2{font:500 1.5rem/1.22 var(--titre);letter-spacing:-.014em;margin:2.6rem 0 .8rem;
+padding-bottom:.35rem;border-bottom:1px solid var(--filet);scroll-margin-top:1.5rem}
+.prose h3{font:600 1.02rem/1.35 var(--sans);margin:1.9rem 0 .5rem;scroll-margin-top:1.5rem}
+.prose h4{font:600 .92rem/1.35 var(--sans);margin:1.4rem 0 .4rem;color:var(--attenue)}
+.prose p,.prose li{line-height:1.68}
+.prose ul,.prose ol{padding-left:1.25rem}
+.prose li{margin:.3rem 0}
+.prose li::marker{color:var(--attenue)}
+.prose blockquote{margin:1.4rem 0;padding:.15rem 0 .15rem 1.1rem;
+border-left:2px solid var(--accent);color:var(--attenue)}
+.prose blockquote p{margin:.4rem 0}
+.prose hr{border:0;border-top:1px solid var(--filet);margin:2.4rem 0}
+.prose table{margin:1.2rem 0;font-size:.875rem}
+.prose th{vertical-align:bottom}
+.prose td{vertical-align:top}
+.prose pre{background:var(--papier2);border:1px solid var(--filet);border-radius:var(--rayon-s);
+padding:.9rem 1rem;overflow-x:auto;font-size:.83rem;line-height:1.6}
+.prose pre code{background:0;padding:0;font-size:1em}
+.prose a{text-underline-offset:3px}
+.prose strong{font-weight:600}
+.prose img{max-width:100%;height:auto}
+
 /* ── Recherche ───────────────────────────────────────────────────────── */
 .rech{display:flex;align-items:center;gap:.7rem;background:var(--carte);width:100%;
 border:1.5px solid var(--filet);border-radius:var(--rayon);padding:.8rem 1rem;
@@ -439,21 +485,42 @@ font-size:.8rem;max-width:none}
   background:var(--carte);border-top:1px solid var(--filet);z-index:20}
   footer.pied{margin-top:2rem}
 }
-</style></head><body>
+</style>
+<script>
+// Appliqué avant le premier rendu : sans cela la page clignote du thème
+// système au thème choisi. Trois états — système, clair, sombre — et le choix
+// ne quitte jamais le navigateur.
+try{var t=localStorage.getItem('fp-theme');
+if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)}catch(e){}
+</script>
+</head><body>
 <a class="saut" href="#contenu">Aller au contenu</a>
 
 <header class="top"><div class="wrap"><div class="row">
   <a class="marque" href="{{.Root}}/">{{marque 30}}<span class="mot">faits-politiques<i>.fr</i></span></a>
   <button type="button" class="rech compact" data-rech hidden>
     {{ico "loupe"}}<span class="txt">Rechercher une personne, un parti…</span><kbd>/</kbd></button>
+  <div class="theme" role="group" aria-label="Thème de couleur" hidden>
+    <button type="button" data-theme-set="auto" title="Suivre le système"
+      aria-label="Suivre le système">{{ico "systeme"}}</button>
+    <button type="button" data-theme-set="light" title="Thème clair"
+      aria-label="Thème clair">{{ico "soleil"}}</button>
+    <button type="button" data-theme-set="dark" title="Thème sombre"
+      aria-label="Thème sombre">{{ico "lune"}}</button>
+  </div>
+  {{/* Ordre : d'abord les chambres, par complétude de la donnée publiée —
+       l'Assemblée porte résultats, types de vote, groupes et seuils ; le Sénat
+       a plus de bulletins (1,65 M) mais ni résultat ni groupe ; l'Europe ne
+       charge que les élus français. Puis l'entrée par sujet, puis les acteurs,
+       puis la méthode. Les sources vivent dans « Comprendre » et au pied. */}}
   <nav>
     <a href="{{.Root}}/assemblee/">{{ico "assemblee"}}Assemblée</a>
-    <a href="{{.Root}}/europe/">{{ico "europe"}}Europe</a>
     <a href="{{.Root}}/senat/">{{ico "senat"}}Sénat</a>
+    <a href="{{.Root}}/europe/">{{ico "europe"}}Europe</a>
+    <a href="{{.Root}}/themes/">{{ico "themes"}}Thèmes</a>
     <a href="{{.Root}}/candidats/">{{ico "candidats"}}Candidats</a>
     <a href="{{.Root}}/partis/">{{ico "partis"}}Partis</a>
-    <a href="{{.Root}}/themes/">{{ico "themes"}}Thèmes</a>
-    <a href="{{.Root}}/sources/">{{ico "sources"}}Sources</a>
+    <a href="{{.Root}}/comprendre/">{{ico "comprendre"}}Comprendre</a>
   </nav>
 </div></div></header>
 
@@ -488,25 +555,26 @@ font-size:.8rem;max-width:none}
 <nav class="tabbar" aria-label="Navigation principale">
   <button type="button" data-rech hidden>{{ico "loupe"}}Chercher</button>
   <a href="{{.Root}}/assemblee/">{{ico "assemblee"}}Assemblée</a>
-  <a href="{{.Root}}/candidats/">{{ico "candidats"}}Candidats</a>
-  <a href="{{.Root}}/partis/">{{ico "partis"}}Partis</a>
-  <a href="{{.Root}}/sources/">{{ico "sources"}}Sources</a>
+  <a href="{{.Root}}/senat/">{{ico "senat"}}Sénat</a>
+  <a href="{{.Root}}/themes/">{{ico "themes"}}Thèmes</a>
+  <a href="{{.Root}}/comprendre/">{{ico "comprendre"}}Comprendre</a>
 </nav>
 
 <footer class="pied"><div class="wrap">
   <div class="cols">
     <div><h4>Parcourir</h4><ul>
       <li><a href="{{.Root}}/assemblee/">Assemblée nationale</a></li>
+      <li><a href="{{.Root}}/senat/">Sénat</a></li>
       <li><a href="{{.Root}}/europe/">Parlement européen</a></li>
       <li><a href="{{.Root}}/candidats/">Candidats 2027</a></li>
       <li><a href="{{.Root}}/partis/">Partis</a></li>
       <li><a href="{{.Root}}/themes/">Thèmes</a></li>
     </ul></div>
     <div><h4>Comprendre</h4><ul>
-      <li><a href="{{.Root}}/senat/">Ce qui n'est pas couvert</a></li>
-      <li>Méthode et périmètre&nbsp;: <code>docs/perimetre.md</code></li>
-      <li>Journal des arbitrages&nbsp;: <code>docs/decisions.md</code></li>
-      <li>Charte graphique&nbsp;: <code>docs/charte-graphique.md</code></li>
+      <li><a href="{{.Root}}/comprendre/">Tous les documents de méthode</a></li>
+      <li><a href="{{.Root}}/comprendre/perimetre/">Méthode et périmètre</a></li>
+      <li><a href="{{.Root}}/comprendre/decisions/">Journal des arbitrages</a></li>
+      <li><a href="{{.Root}}/comprendre/charte-graphique/">Charte graphique</a></li>
     </ul></div>
     <div><h4>Vérifier</h4><ul>
       <li><a href="{{.Root}}/sources/">Les {{nb .Cov.Documents}} documents scellés</a></li>
@@ -519,7 +587,12 @@ font-size:.8rem;max-width:none}
       <p>Le site est régénéré <strong>intégralement</strong> depuis l'archive brute&nbsp;:
       aucune donnée n'est éditée en place.</p></div>
   </div>
-  <p class="bas">Sources primaires&nbsp;:
+  <p class="bas" style="border-top:1px solid var(--filet);margin-top:2rem;padding-top:1.2rem">
+    Typographie&nbsp;: IBM&nbsp;Plex Sans et Mono, Newsreader — <abbr title="SIL Open Font License 1.1">OFL&nbsp;1.1</abbr>.
+    Icônes&nbsp;: <a href="https://fontawesome.com/license/free" target="_blank" rel="noopener">Font
+    Awesome Free 6.7.2</a>, <abbr title="Creative Commons Attribution 4.0">CC&nbsp;BY&nbsp;4.0</abbr>.
+    Les trois sont hébergées en propre&nbsp;: ce site ne fait aucune requête vers un tiers.</p>
+  <p class="bas" style="border:0;margin-top:0;padding-top:0">Sources primaires&nbsp;:
     {{range $i, $s := .Sources}}{{if $i}} · {{end}}{{$s.Attribution}}{{end}}.
     Dans la limite des licences amont.
     <a href="{{.Root}}/sources/">Le détail, avec dates de consultation et empreintes SHA-256 →</a></p>
@@ -549,16 +622,17 @@ font-size:.8rem;max-width:none}
     b.hidden=false; b.addEventListener('click',ouvrir);
   });
   function norm(s){return s.normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase()}
+  // La racine est lue sur le lien de la marque plutôt qu'écrite en dur : un
+  // proxy de préversion réécrit les attributs href et les url() des feuilles de
+  // style, jamais les chaînes d'un script ni le contenu d'un JSON. L'index est
+  // donc appelé, et ses entrées résolues, à partir de cette racine — sans quoi
+  // tout tombe en 404 dès que le site est monté sous un préfixe.
+  var a0=document.querySelector('a.marque');
+  var racine=(a0?a0.getAttribute('href'):'/').replace(/\/?$/,'/');
   function ouvrir(){
     dlg.showModal(); q.focus(); q.select();
     if(idx===null){ idx=[];
-      // La racine est lue sur le lien de la marque plutôt qu'écrite en dur :
-      // un proxy de préversion réécrit les attributs href, jamais les chaînes
-      // d'un script. Sans cela l'index tombe en 404 dès que le site est monté
-      // sous un préfixe.
-      var racine=(document.querySelector('a.marque')||{}).getAttribute
-        ? document.querySelector('a.marque').getAttribute('href') : '/';
-      fetch(racine.replace(/\/?$/,'/')+'recherche-index.json')
+      fetch(racine+'recherche-index.json')
         .then(function(r){return r.json()})
         .then(function(d){ idx=d.map(function(e){e.k=norm(e.n+' '+(e.s||''));return e});
           rendre(q.value)})
@@ -575,7 +649,7 @@ font-size:.8rem;max-width:none}
       t.replace(/[<>&]/g,'')+'&nbsp;». Les scrutins ne sont pas indexés.</p>'; return }
     sel=0;
     res.innerHTML=cur.map(function(e,i){
-      return '<a href="'+e.u+'" class="'+(i?'':'sel')+'"><span class="n">'+
+      return '<a href="'+racine+e.u+'" class="'+(i?'':'sel')+'"><span class="n">'+
         e.n.replace(/[<>&]/g,'')+'</span><span class="k">'+e.t+'</span></a>'}).join('');
   }
   q.addEventListener('input',function(){rendre(q.value)});
@@ -593,6 +667,28 @@ font-size:.8rem;max-width:none}
     if(e.key==='/'&&!/^(INPUT|TEXTAREA|SELECT)$/.test(document.activeElement.tagName)
        &&!dlg.open){ e.preventDefault(); ouvrir() }
   });
+})();
+
+// Sélecteur de thème : trois états. « auto » retire l'attribut et rend la main
+// à prefers-color-scheme ; les deux autres le forcent. Rien ne quitte le
+// navigateur, et le groupe reste masqué sans JavaScript — on ne montre pas une
+// commande morte.
+(function(){
+  var grp=document.querySelector('.theme'); if(!grp) return;
+  var btns=[].slice.call(grp.querySelectorAll('[data-theme-set]'));
+  function lire(){ try{return localStorage.getItem('fp-theme')||'auto'}catch(e){return 'auto'} }
+  function appliquer(v){
+    if(v==='auto') document.documentElement.removeAttribute('data-theme');
+    else document.documentElement.setAttribute('data-theme',v);
+    btns.forEach(function(b){b.setAttribute('aria-pressed',String(b.dataset.themeSet===v))});
+  }
+  grp.hidden=false;
+  appliquer(lire());
+  btns.forEach(function(b){b.addEventListener('click',function(){
+    var v=b.dataset.themeSet;
+    try{ v==='auto'?localStorage.removeItem('fp-theme'):localStorage.setItem('fp-theme',v) }catch(e){}
+    appliquer(v);
+  })});
 })();
 
 // Filtre local des relevés nominatifs : purement client, le site reste statique.

@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Index de recherche locale. Un fichier statique, chargé au premier usage :
@@ -21,12 +22,13 @@ type Entree struct {
 	N string `json:"n"`           // nom affiché
 	S string `json:"s,omitempty"` // complément, entre aussi dans la recherche
 	T string `json:"t"`           // nature, affichée à droite
-	U string `json:"u"`           // URL
+	U string `json:"u"`           // chemin RELATIF à la racine du site
 }
 
-func ecrireIndex(out, root string, persons map[string]*Person, candidats []*Candidat,
+func ecrireIndex(out string, persons map[string]*Person, candidats []*Candidat,
 	orgs map[string]*Organisation, groupes map[string]*Groupe,
-	refs map[string]*Referentiel) error {
+	refs map[string]*Referentiel, themes []*Theme, docs []*Doc,
+	senateurs map[string]bool) error {
 
 	var idx []Entree
 	vus := map[string]bool{}
@@ -40,20 +42,37 @@ func ecrireIndex(out, root string, persons map[string]*Person, candidats []*Cand
 
 	for _, c := range candidats {
 		add(Entree{N: c.Prenom + " " + c.Nom, S: c.Organisation,
-			T: "Candidat 2027", U: root + "/candidat/" + c.Slug + "/"})
+			T: "Candidat 2027", U: "candidat/" + c.Slug + "/"})
 	}
 	for _, p := range persons {
+		// La nature vient du mandat que la SOURCE publie, jamais d'une
+		// supposition. Depuis que le Sénat est chargé, core.person contient des
+		// personnes sans mandat ingéré : les étiqueter « Député » serait une
+		// affirmation fausse sur 971 d'entre elles.
+		nature := "Personne"
+		switch {
+		case strings.HasPrefix(p.Mandat, "depute"):
+			nature = "Député"
+		case senateurs[p.Slug]:
+			nature = "Sénateur"
+		}
 		add(Entree{N: p.Prenom + " " + p.Nom, S: p.Groupe,
-			T: "Député", U: root + "/depute/" + p.Slug + "/"})
+			T: nature, U: "depute/" + p.Slug + "/"})
 	}
 	for _, o := range orgs {
-		add(Entree{N: o.Libelle, T: "Parti", U: root + "/organisation/" + o.Slug + "/"})
+		add(Entree{N: o.Libelle, T: "Parti", U: "organisation/" + o.Slug + "/"})
 	}
 	for _, g := range groupes {
-		add(Entree{N: g.Nom, S: g.NomCourt, T: "Groupe", U: root + "/groupe/" + g.Slug + "/"})
+		add(Entree{N: g.Nom, S: g.NomCourt, T: "Groupe", U: "groupe/" + g.Slug + "/"})
 	}
 	for _, r := range refs {
-		add(Entree{N: r.Titre, T: "Référentiel", U: root + "/referentiel/" + r.Slug + "/"})
+		add(Entree{N: r.Titre, T: "Référentiel", U: "referentiel/" + r.Slug + "/"})
+	}
+	for _, t := range themes {
+		add(Entree{N: t.Label, T: "Thème", U: "theme/" + t.Slug + "/"})
+	}
+	for _, d := range docs {
+		add(Entree{N: d.Titre, S: d.Fichier, T: "Méthode", U: "comprendre/" + d.Slug + "/"})
 	}
 
 	b, err := json.Marshal(idx)

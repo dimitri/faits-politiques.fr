@@ -1,0 +1,49 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Comprendre</span></p>
+<span class="sur">Méthode</span>
+<h1>Comprendre</h1>
+<p class="lede">Les documents qui gouvernent ce site&nbsp;: son périmètre, ses arbitrages, sa
+charte, son architecture. Ils étaient jusqu'ici des chemins de fichiers dans un dépôt Git, ce qui
+les réservait à qui sait le cloner.</p>
+
+<p class="note proc">Ces pages sont rendues <strong>intégralement</strong> depuis les fichiers
+Markdown du dépôt, à chaque construction. Elles ne sont ni résumées ni réécrites&nbsp;: ce que
+vous lisez ici est le texte que relit un contributeur.</p>
+
+<div class="cartes trois">
+{{range .Docs}}
+  <a class="carte" href="{{$.Root}}/comprendre/{{.Slug}}/">
+    <span class="t">{{.Titre}}</span>
+    <span class="d">{{if .Sections}}{{range $i, $s := .Sections}}{{if $i}} · {{end}}{{$s.Titre}}{{end}}{{else}}Document de méthode.{{end}}</span>
+    <span class="d" style="margin-top:.6rem;font:400 .74rem/1 var(--mono);color:var(--attenue)">
+      {{nb .Mots}} mots · <code>docs/{{.Fichier}}</code></span>
+  </a>
+{{end}}
+</div>
+
+<h2>Les quatre règles</h2>
+<p class="lede">Elles gouvernent tout le reste, et sont traduites en contraintes de base de données
+plutôt qu'en bonnes intentions.</p>
+<div class="cartes">
+  <div class="carte"><span class="t">Aucun verdict</span><span class="d">Ni «&nbsp;vrai&nbsp;» ni
+    «&nbsp;faux&nbsp;». Un objet factuel, sa source, ses limites.</span></div>
+  <div class="carte"><span class="t">«&nbsp;Non vérifiable&nbsp;» est une réponse</span>
+    <span class="d">De plein droit, avec sa raison typée. Un outil bien fait tranche 25 à 35&nbsp;%
+    des affirmations d'un débat, pas 90&nbsp;%.</span></div>
+  <div class="carte"><span class="t">Jamais de causalité</span><span class="d">Un indicateur décrit
+    une évolution, pas l'effet d'une politique.</span></div>
+  <div class="carte"><span class="t">Jamais un groupe projeté sur une personne</span>
+    <span class="d">La granularité de chaque scrutin est une donnée stockée, pas une
+    convention.</span></div>
+</div>
+
+<h2>Vérifier par soi-même</h2>
+<ul class="tight">
+  <li><a href="{{.Root}}/sources/">Les sources, leurs licences, leurs dates de consultation et
+    leurs empreintes SHA-256</a></li>
+  <li>Le code est sous AGPL-3.0&nbsp;; les données produites sous Licence Ouverte, dans la limite
+    des licences amont.</li>
+  <li>Le site est reconstruit <strong>intégralement</strong> depuis l'archive scellée&nbsp;: aucune
+    donnée n'est éditée en place.</li>
+</ul>
+{{end}}

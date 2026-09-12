@@ -1,0 +1,70 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <a href="{{.Root}}/themes/">Thèmes</a> ›
+  <span>{{.Th.Label}}</span></p>
+<span class="sur">Thème du Sénat · {{.Th.Code}}</span>
+<h1>{{.Th.Label}}</h1>
+<p class="lede">{{nb .Th.Scrutins}} scrutins de l'Assemblée nationale rattachés à ce thème par la
+navette.</p>
+
+{{if .Th.Groupes}}
+<h2>Positions par groupe sur ce thème</h2>
+<div class="scroll"><table class="pile">
+<thead><tr><th>Groupe</th><th class="n">Pour</th><th class="n">Contre</th><th class="n">Abst.</th>
+  <th class="n">Non-votants</th><th style="width:34%">Bulletins sur ce thème</th></tr></thead>
+<tbody>{{$max := .MaxGroupe}}{{range .Th.Groupes}}<tr>
+  <td><a href="{{$.Root}}/groupe/{{.Slug}}/">{{.Nom}}</a></td>
+  <td class="n pos FOR" data-l="Pour">{{nb .Pour}}</td>
+  <td class="n pos AGAINST" data-l="Contre">{{nb .Contre}}</td>
+  <td class="n pos ABSTAIN" data-l="Abst.">{{nb .Abstention}}</td>
+  <td class="n pos ABSENT" data-l="Non-votants">{{nb .Absent}}</td>
+  <td data-l="Bulletins"><div style="display:flex;align-items:center;gap:.7rem">
+    <div class="ech" style="flex:1"><div class="g" style="width:{{pct .Total $max}}%">
+      {{if .Pour}}<i style="width:{{pct .Pour .Total}}%;background:var(--pour)"></i>{{end}}
+      {{if .Contre}}<i style="width:{{pct .Contre .Total}}%;background:var(--contre)"></i>{{end}}
+      {{if .Abstention}}<i style="width:{{pct .Abstention .Total}}%;background:var(--abst)"></i>{{end}}
+      {{if .Absent}}<i style="width:{{pct .Absent .Total}}%;background:var(--absent-f)"></i>{{end}}
+    </div></div>
+    <span style="font:400 .78rem/1 var(--mono);color:var(--attenue);width:3.4rem;text-align:right">{{nb .Total}}</span>
+  </div></td>
+</tr>{{end}}</tbody></table></div>
+<p class="note"><strong>C'est un décompte, pas un classement.</strong> Les totaux sont la somme de
+bulletins individuels, jamais une consigne de groupe, et l'ordre du tableau suit l'effectif — pas
+une quelconque proximité. Ce site ne calcule aucun score d'accord entre groupes, et n'ordonne
+jamais par «&nbsp;pour&nbsp;».</p>
+<p class="note abs">Aucune note CHES n'est affichée à côté de ces groupes&nbsp;: le pont entre les
+partis notés par CHES et les groupes parlementaires n'existe pas en base.
+<a href="{{.Root}}/themes/">Le détail de ce blocage</a>. <code>CHES_SANS_PONT_VERS_GROUPE</code></p>
+{{else}}
+<p class="nodata">Aucune ventilation par groupe pour ce thème.</p>
+{{end}}
+
+<h2>Scrutins rattachés</h2>
+{{if .Th.Derniers}}
+<div class="flux">
+  {{range .Th.Derniers}}<a class="ligne" href="{{$.Root}}/scrutin/{{.Slug}}/">
+    <span class="d">{{.Date}}</span>
+    <span class="o">{{.Objet}}</span>
+    <span class="mini" role="img" aria-label="{{.Pour}} pour, {{.Contre}} contre, {{.Abstentions}} abstentions">
+      <i style="width:{{pct .Pour .Exprimes}}%;background:var(--pour)"></i>
+      <i style="width:{{pct .Contre .Exprimes}}%;background:var(--contre)"></i>
+      <i style="width:{{pct .Abstentions .Exprimes}}%;background:var(--abst)"></i></span>
+    <span class="r">{{.Resultat}}</span>
+  </a>{{end}}
+</div>
+<p class="small muted">{{len .Th.Derniers}} scrutins affichés sur {{nb .Th.Scrutins}}&nbsp;: la
+liste est bornée, et la troncature est visible plutôt que silencieuse.</p>
+{{else}}<p class="nodata">Aucun scrutin listé pour ce thème.</p>{{end}}
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note">Le thème vient du <strong>Sénat</strong>, qui le pose sur la loi. Il atteint ce
+    scrutin de l'Assemblée par la navette, et seulement parce que l'Assemblée cite elle-même le
+    dossier du Sénat dans le sien. Un scrutin sans thème n'est pas hors sujet&nbsp;: il n'a pas de
+    chaîne de citation.</p>
+    <p class="note">Un vote «&nbsp;contre&nbsp;» sur un texte rattaché à ce thème n'est pas une
+    position <em>sur</em> le thème&nbsp;: il peut viser le véhicule législatif, le calendrier, ou un
+    texte concurrent préféré.</p>
+  </div>
+</details>
+{{end}}

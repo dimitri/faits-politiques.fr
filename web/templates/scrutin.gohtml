@@ -1,12 +1,12 @@
 {{define "content"}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
-  {{if .S.EstEuropeen}}<a href="{{.Root}}/europe/">Parlement européen</a>
-  {{else}}<a href="{{.Root}}/assemblee/">Assemblée nationale</a>{{end}} ›
+  <a href="{{.Root}}/{{.S.Chambre}}/">{{.S.InstitutionNom}}</a> ›
   <span>{{if .S.Numero}}n° {{.S.Numero}}{{else}}scrutin{{end}}</span></p>
 
-<span class="sur">{{if .S.EstEuropeen}}Scrutin nominatif · Parlement européen
-  {{else}}Scrutin public n° {{.S.Numero}} · Assemblée nationale · 17<sup>e</sup> législature
-  {{end}} · {{.S.Date}}</span>
+<span class="sur">{{if .S.EstEuropeen}}Scrutin nominatif
+  {{else}}Scrutin public{{if .S.Numero}} n° {{.S.Numero}}{{end}}{{end}} ·
+  {{.S.InstitutionNom}}{{if not (or .S.EstEuropeen .S.EstSenat)}} ·
+  17<sup>e</sup> législature{{end}} · {{.S.Date}}</span>
 <h1>{{.S.TitreCourt}}</h1>
 
 {{if .S.Tronque}}
@@ -29,7 +29,8 @@ lettre en capitale</em>. Aucun mot n'y a été ajouté, aucun n'a été remplac�
           <b>{{nb .S.Abstentions}}</b> abstentions{{end}}</div>
     </div>
     <div style="text-align:right">
-      <div class="chiffre">résultat officiel publié par la source</div>
+      <div class="chiffre">{{if .S.Resultat}}résultat officiel publié par la source
+        {{else}}résultat non publié par la source{{end}}</div>
       <div class="chiffre">identifiant <b>{{.S.SourceUID}}</b></div>
     </div>
   </div>
@@ -92,11 +93,21 @@ ceux de l'Assemblée&nbsp;: objets différents, majorités différentes, groupes
     target="_blank" rel="noopener">Dossier officiel ↗</a>{{end}}{{end}}
   <a class="btn" href="{{.Root}}/sources/">Sources et empreintes</a>
 </div>
-<p class="cite" id="citation">faits-politiques.fr — <b>{{if .S.EstEuropeen}}Scrutin nominatif,
-  Parlement européen{{else}}Scrutin public n° {{.S.Numero}}, Assemblée nationale,
-  17<sup>e</sup> législature{{end}}, {{.S.Date}}</b>, identifiant <b>{{.S.SourceUID}}</b>.
+<p class="cite" id="citation">faits-politiques.fr — <b>{{if .S.EstEuropeen}}Scrutin nominatif
+  {{else}}Scrutin public{{if .S.Numero}} n° {{.S.Numero}}{{end}}{{end}},
+  {{.S.InstitutionNom}}{{if not (or .S.EstEuropeen .S.EstSenat)}}, 17<sup>e</sup> législature{{end}},
+  {{.S.Date}}</b>, identifiant <b>{{.S.SourceUID}}</b>.
   {{.Src.Attribution}}, consultée le {{.Src.Fetched}}, empreinte SHA-256
   <b>{{.Src.SHA}}</b>.</p>
+
+{{if .S.EstSenat}}
+<p class="note proc"><strong>Ce que le Sénat publie, et ce qu'il ne publie pas.</strong>
+Le dump Dosleg donne la date, l'objet, les décomptes et le <strong>relevé nominatif</strong> de
+chaque scrutin — mais ni le résultat officiel, ni le type de vote, ni le groupe des votants, ni
+aucune référence vers le texte débattu. Les thèmes du Sénat portent sur les <em>lois</em>, pas sur
+ses scrutins&nbsp;: ils n'apparaissent donc pas ici.
+Codes de non-couverture&nbsp;: <code>SENAT_SANS_RESULTAT</code>, <code>SENAT_SANS_DOSSIER</code>.</p>
+{{end}}
 
 <h2>Le texte soumis au vote</h2>
 {{if .S.Dossier}}
@@ -135,9 +146,11 @@ ceux de l'Assemblée&nbsp;: objets différents, majorités différentes, groupes
   </div>
 </details>
 {{else}}
-<p class="nodata">La source ne rattache pas ce scrutin à un dossier législatif. Environ un tiers
-des scrutins sont dans ce cas&nbsp;; le libellé de l'objet reste la seule information publiée, et
-il n'est pas rapproché d'un dossier par déduction.</p>
+<p class="nodata">{{if .S.EstSenat}}Le dump Dosleg ne porte <strong>aucune</strong> référence de
+texte sur les scrutins du Sénat&nbsp;: le libellé de l'objet est la seule information publiée, et
+il n'est rapproché d'aucun dossier par déduction.{{else}}La source ne rattache pas ce scrutin à un
+dossier législatif. Environ un tiers des scrutins sont dans ce cas&nbsp;; le libellé de l'objet
+reste la seule information publiée, et il n'est pas rapproché d'un dossier par déduction.{{end}}</p>
 {{end}}
 
 <h2>Positions par groupe</h2>
@@ -196,10 +209,15 @@ axe gauche-droite que ce site ne produit pas.</p>
   <span><i style="background:transparent;border:1.5px solid var(--absent)"></i>Non-votant recensé</span>
   {{if gt .S.SansPosition 0}}<span><i style="background:var(--filet)"></i>Sans position enregistrée</span>{{end}}
 </div>
-{{else}}<p class="nodata">Aucune ventilation par groupe&nbsp;: la source ne publie pas le groupe
-des votants pour ce scrutin.</p>{{end}}
+{{else}}<p class="nodata">{{if .S.EstSenat}}<strong>Aucune ventilation par groupe.</strong>
+Le dump Dosleg du Sénat ne rattache aucun bulletin à un groupe politique&nbsp;: les votes sont
+publiés nominativement, sans appartenance. Le groupe d'un sénateur n'est donc pas déductible du
+relevé, et ce site ne le devine pas.
+Code de non-couverture&nbsp;: <code>SENAT_BALLOT_SANS_GROUPE</code>.
+{{else}}Aucune ventilation par groupe&nbsp;: la source ne publie pas le groupe des votants pour
+ce scrutin.{{end}}</p>{{end}}
 
-<h2>Votes nominatifs</h2>
+<h2>Votes nominatifs{{if .S.EstSenat}} des sénateurs{{end}}</h2>
 {{if .Votes}}
 <div class="filtre" data-filtre="nominatifs">
   <input type="search" placeholder="Filtrer par nom…" aria-label="Filtrer par nom">

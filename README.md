@@ -47,6 +47,11 @@ sources publiques  ──►  raw/        archive scellée : octets + SHA-256, j
                         web/        gabarits, marque, fontes hébergées en propre
 ```
 
+Sections publiées : Assemblée nationale, **Sénat**, Parlement européen,
+**thèmes** (les 30 thèmes officiels du Sénat, rattachés aux scrutins de
+l'Assemblée par la navette), candidats, partis, et **Comprendre** — les
+documents de `docs/` rendus intégralement en pages du site.
+
 Le site est **statique et sans dépendance distante** : aucune requête vers un tiers,
 aucun traceur, aucune fonte de CDN. Le seul JavaScript est une recherche locale sur un
 index statique, et ses déclencheurs restent masqués s'il ne s'exécute pas — le reste du

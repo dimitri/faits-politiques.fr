@@ -1,0 +1,75 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Sénat</span></p>
+<span class="sur">Institution</span>
+<h1>Sénat</h1>
+<p class="lede">{{nb .Se.Scrutins}} scrutins publics, {{nb .Se.Votes}} votes nominatifs de
+{{nb .Se.Senateurs}} sénateurs, du {{.Se.Debut}} au {{.Se.Fin}}.</p>
+
+{{/* Le site a longtemps annoncé l'inverse. La correction est due au lecteur
+     autant que la donnée elle-même. */}}
+<p class="note proc"><strong>Le Sénat publie ses votes nominativement.</strong> Ce site a
+longtemps annoncé le contraire — « les scrutins y sont publiés par groupe, pas par sénateur ».
+C'était faux&nbsp;: le dump Dosleg donne le vote de <em>chaque</em> sénateur, et c'est le
+<strong>groupe</strong> qui manque, pas le nom.</p>
+
+<h2>Ce que la source ne publie pas</h2>
+<div class="cartes">
+  <div class="carte creuse"><span class="v">Aucun groupe</span><span class="t">sur les bulletins</span>
+    <span class="d">Les {{nb .Se.Votes}} bulletins ne portent aucune appartenance politique. Une
+      ventilation par groupe est donc impossible, et ce site ne la devine pas depuis les mandats.
+      <br><code>SENAT_BALLOT_SANS_GROUPE</code></span></div>
+  <div class="carte creuse"><span class="v">Aucun résultat</span><span class="t">officiel</span>
+    <span class="d">Les décomptes sont publiés, le sens du vote ne l'est pas. Déduire
+      «&nbsp;adopté&nbsp;» d'un décompte supposerait de connaître la majorité requise, qui varie.
+      <br><code>SENAT_SANS_RESULTAT</code></span></div>
+  <div class="carte creuse"><span class="v">Aucun texte</span><span class="t">rattaché</span>
+    <span class="d">Aucun scrutin du Sénat ne cite le dossier débattu. Les 30 thèmes du Sénat
+      portent sur les <em>lois</em>&nbsp;: ils n'atteignent donc pas ses propres votes.
+      <br><code>SENAT_SANS_DOSSIER</code></span></div>
+  <div class="carte creuse"><span class="v">Aucun type</span><span class="t">de scrutin</span>
+    <span class="d">Ni scrutin ordinaire, ni solennel, ni motion&nbsp;: la colonne est vide dans le
+      dump. Aucun seuil de majorité n'est donc applicable.
+      <br><code>SENAT_SANS_TYPE_VOTE</code></span></div>
+</div>
+
+<h2>Derniers scrutins</h2>
+<div class="flux">
+  {{range .Se.Derniers}}<a class="ligne" href="{{$.Root}}/scrutin/{{.Slug}}/"
+     style="grid-template-columns:5.4rem 1fr 10rem 7rem">
+    <span class="d">{{.Date}}</span>
+    <span class="o">{{.Objet}}</span>
+    <span class="mini" role="img" aria-label="{{.Pour}} pour, {{.Contre}} contre, {{.Abstentions}} abstentions">
+      <i style="width:{{pct .Pour .Exprimes}}%;background:var(--pour)"></i>
+      <i style="width:{{pct .Contre .Exprimes}}%;background:var(--contre)"></i>
+      <i style="width:{{pct .Abstentions .Exprimes}}%;background:var(--abst)"></i></span>
+    <span class="r z" style="font-weight:400">{{nb .Pour}} · {{nb .Contre}} · {{nb .Abstentions}}</span>
+  </a>{{end}}
+</div>
+<p class="small muted">{{len .Se.Derniers}} scrutins affichés sur {{nb .Se.Scrutins}}&nbsp;: la
+liste est bornée, et la troncature est visible plutôt que silencieuse. La colonne de droite donne
+le décompte pour · contre · abstentions, <strong>pas un résultat</strong>&nbsp;: la source n'en
+publie pas.</p>
+
+<h2>Sénateurs</h2>
+<p class="small muted">{{nb (len .Se.Senateurs2)}} sénateurs ayant pris part à au moins un scrutin
+public sur la période. Ordre alphabétique&nbsp;: ce site ne classe pas les personnes.</p>
+<div class="grid">
+{{range .Se.Senateurs2}}<div class="small"><a href="{{$.Root}}/depute/{{.Slug}}/">{{.Prenom}} {{.Nom}}</a></div>{{end}}
+</div>
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note">Le périmètre du Sénat n'est <strong>pas comparable</strong> à celui de
+    l'Assemblée&nbsp;: vingt ans de scrutins contre une législature, aucun groupe, aucun résultat.
+    Ce site ne les agrège jamais, et n'additionne jamais un vote du Sénat à un vote de l'Assemblée.</p>
+    <p class="note">Comme à l'Assemblée, seuls les <strong>scrutins publics</strong> laissent une
+    trace nominative. La majorité des votes ont lieu à main levée&nbsp;: ni cet outil ni aucun autre
+    ne peut dire qui a voté quoi sur ces textes.</p>
+    <p class="note">Les fiches des sénateurs vivent pour l'instant sous <code>/depute/</code>, ce
+    qui est un défaut d'adressage hérité de l'époque où seule l'Assemblée était couverte. Le
+    changement d'URL est une décision de permaliens, à consigner dans
+    <code>docs/decisions.md</code> avant d'être faite.</p>
+  </div>
+</details>
+{{end}}

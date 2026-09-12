@@ -35,6 +35,10 @@
     <a class="carte" href="{{.Root}}/assemblee/">
       <span class="v">{{nb .Cov.Scrutins}}</span><span class="t">Assemblée nationale</span>
       <span class="d">Scrutins publics de la 17<sup>e</sup> législature, groupes, députés, dossiers.</span></a>
+    <a class="carte" href="{{.Root}}/senat/">
+      <span class="v">{{nb .Cov.ScrutinsSenat}}</span><span class="t">Sénat</span>
+      <span class="d">{{nb .Cov.VotesSenat}} votes nominatifs de {{nb .Cov.Senateurs}} sénateurs,
+        sur vingt ans. Sans groupe ni résultat&nbsp;: la source n'en publie pas.</span></a>
     <a class="carte" href="{{.Root}}/europe/">
       <span class="v">{{nb .Cov.ScrutinsPE}}</span><span class="t">Parlement européen</span>
       <span class="d">Scrutins nominatifs et votes des eurodéputés français, depuis HowTheyVote.eu.</span></a>
@@ -47,13 +51,13 @@
       <span class="d">Comptes publics déposés à la CNCCFP, positionnement selon des référentiels
         tiers.</span></a>
     <a class="carte" href="{{.Root}}/themes/">
-      <span class="v">{{nb .Cov.Themes}}</span><span class="t">Thèmes</span>
-      <span class="d">Concepts EuroVoc rattachés aux scrutins européens par le producteur,
-        transcrits tels quels.</span></a>
-    <a class="carte creuse" href="{{.Root}}/senat/">
-      <span class="v">Pas encore couvert</span><span class="t">Sénat</span>
-      <span class="d">Connecteur à écrire. Les scrutins y sont publiés par groupe, pas par
-        sénateur.</span></a>
+      <span class="v">{{.Cov.ThemesSenat}}</span><span class="t">Thèmes</span>
+      <span class="d">Les thèmes officiels du Sénat, posés sur les lois et rattachés aux scrutins
+        de l'Assemblée par la navette. Aucun n'est produit par ce site.</span></a>
+    <a class="carte" href="{{.Root}}/comprendre/">
+      <span class="v">Méthode</span><span class="t">Comprendre</span>
+      <span class="d">Périmètre, arbitrages, charte et architecture — les documents qui gouvernent
+        ce site, rendus intégralement.</span></a>
   </div>
 </section>
 
@@ -91,6 +95,8 @@
       <span class="l">députés</span></div>
     <div class="chiffre-bloc"><div class="v">{{nb .Cov.Dossiers}}</div>
       <span class="l">dossiers législatifs</span></div>
+    <div class="chiffre-bloc"><div class="v">{{nb .Cov.VotesSenat}}</div>
+      <span class="l">votes au Sénat</span></div>
     <div class="chiffre-bloc"><div class="v">{{nb .Cov.ScrutinsPE}}</div>
       <span class="l">scrutins européens</span></div>
     <div class="chiffre-bloc"><div class="v">{{nb .Cov.Documents}}</div>
