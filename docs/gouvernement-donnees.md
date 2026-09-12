@@ -1,0 +1,215 @@
+# Onglet GOUVERNEMENT : ce que l'open data fournit, et ce qu'il ne fournit pas
+
+Étude et intégration du 2026-09-12. La demande portait sur une frise depuis
+Chirac — présidences, gouvernements, ministères — accompagnée des grands
+chiffres : dette, dépenses par pôle, recettes fiscales, chômage, RSA, pauvreté,
+dividendes et impôt sur les sociétés du CAC 40. Plus, séparément, les
+manifestations avec chiffres de la police, interpellations et blessés.
+
+Tout n'est pas disponible. Ce document sépare ce qui est chargé, ce qui est
+atteignable et ce qui n'existe pas.
+
+## 1. Chargé et vérifié
+
+### 1.1 Les grandes séries : Eurostat, 1995-2025
+
+**18 séries, 529 valeurs.** Eurostat republie les comptes nationaux transmis
+par l'INSEE, sous une forme stable et documentée. C'est la raison de le
+préférer à trente fichiers annuels épars qu'il faudrait raccorder soi-même.
+
+| Série | Couverture |
+|---|---|
+| Dette publique (M€ et % du PIB) | 1995-2025 |
+| Solde public (% du PIB) | 1995-2025 |
+| Recettes fiscales et cotisations | 1995-2024 |
+| Chômeurs au sens du BIT (milliers) | 1995-2025 |
+| Taux de chômage | 2003-2025 |
+| Personnes sous le seuil de pauvreté (milliers) | 2004-2025 |
+| Taux de pauvreté | 1995-2025 |
+| Dépense publique par fonction COFOG (10 séries) | 1995-2024 |
+
+**Les « pôles » de dépense sont les dix fonctions COFOG** : services généraux,
+défense, ordre et sécurité, affaires économiques, environnement, logement,
+santé, loisirs et culture, enseignement, protection sociale. C'est la seule
+ventilation à la fois officielle, stable dans le temps et comparable. Les
+« missions » du budget de l'État, elles, changent de périmètre à chaque réforme
+et ne se raccordent pas d'une législature à l'autre.
+
+Deux pièges que `ref.macro_serie.definition` documente pour chaque série :
+
+- Le **chômage BIT** n'est pas le nombre d'inscrits à France Travail. Les deux
+  chiffres diffèrent de plus d'un million et obéissent à des règles
+  différentes ; les confondre est l'erreur la plus courante des débats.
+- Le **seuil de pauvreté est relatif** : 60 % de la médiane. Il bouge avec le
+  niveau de vie médian, et une baisse du médian peut faire reculer le nombre de
+  pauvres sans que personne se soit enrichi.
+
+### 1.2 RSA : CNAF, 2016-2025 seulement
+
+**10 années.** Le nombre de foyers allocataires du RSA au mois de décembre,
+régime général, tous types additionnés — 1 811 239 foyers en décembre 2024.
+
+Trois décisions que la source ne prend pas et qui sont écrites dans le
+connecteur : le mois retenu est décembre (le RSA varie avec la saison), tous
+les types sont additionnés, et l'unité est le **foyer**, pas la personne.
+
+**Cette série ne remonte pas aux années Chirac.** Elle commence en juin 2016, et
+le RSA lui-même n'existe que depuis 2009 — le RMI le précédait, sur des règles
+différentes. Une frise depuis 1995 aurait ici un trou de vingt ans, et il vaut
+mieux l'afficher comme tel que de raccorder deux dispositifs incomparables.
+
+### 1.3 Présidences et gouvernements
+
+Les présidences sont chargées (D-026) avec les intérims. La table
+`core.gouvernement` est créée mais **vide** : aucune source open data ne publie
+la liste des gouvernements de la Ve République avec leurs bornes. Elle se
+constituera comme `data/presidents.csv`, en fichier éditorial sourcé.
+
+Les **ministres** sont en base depuis l'Assemblée : 145 mandats depuis 2007,
+avec leur portefeuille. Avant 2007, l'open data de l'Assemblée ne remonte pas.
+
+## 2. Ce qui n'existe pas en open data
+
+### 2.1 Dividendes et impôt sur les sociétés — par société nommée
+
+**Aucune des deux données n'est publique sous forme exploitable au niveau d'une
+société identifiée.**
+
+Les dividendes versés figurent dans les rapports annuels de chaque société,
+publiés en PDF, société par société — il n'existe aucun jeu agrégé, et les
+compilations qui circulent dans la presse sont des travaux privés, non
+reproductibles et souvent non sourcés dans le détail.
+
+L'impôt sur les sociétés payé par une entreprise donnée est couvert par le
+**secret fiscal**. La déclaration pays par pays existe depuis 2016 mais n'est
+transmise qu'à l'administration ; la directive européenne de publicité ne
+s'applique qu'à partir des exercices 2025 et avec un périmètre restreint.
+
+Conséquence : ces deux chiffres ne peuvent pas figurer sur la frise **par
+société** sans sortir des sources primaires vérifiables. Un onglet qui les
+afficherait quand même reposerait sur des agrégations de presse — exactement le
+type de chiffre que l'outil existe pour permettre de contester.
+
+### 2.1 bis — La même question, posée au bon niveau : chargée
+
+L'objectif énoncé était de **corréler les dividendes distribués par les grands
+groupes avec les impôts acquittés, le budget de l'État et la dette**. Cette
+corrélation ne demande pas les chiffres société par société : elle demande des
+agrégats comparables, mesurés selon les mêmes conventions, sur la même période.
+
+Les comptes nationaux les publient, et Eurostat les diffuse depuis **1971** —
+plus de cinquante ans, contre trente pour les finances publiques :
+
+| Série | 2024 | Profondeur |
+|---|---|---|
+| Dividendes versés par les sociétés non financières (D.42) | 302 Md€ | 1971 → |
+| Dividendes versés par les sociétés financières | 58 Md€ | 1971 → |
+| Dividendes reçus par les ménages | 68 Md€ | 1971 → |
+| Impôts sur le revenu payés par les sociétés non financières (D.51) | 65 Md€ | 1971 → |
+| Impôt sur les bénéfices encaissé par l'État (D.51B) | 84 Md€ | 1995 → |
+| Rémunération des salariés versée par les sociétés non financières (D.1) | 992 Md€ | 1971 → |
+| Excédent brut d'exploitation | 487 Md€ | 1971 → |
+| Valeur ajoutée | 1 513 Md€ | 1971 → |
+
+Toutes dans `core.macro_value`, aux côtés de la dette, du solde public et des
+dépenses par fonction — donc jointes par l'année, sans retraitement.
+
+Ce que la série permet de montrer, et qui n'était pas montrable autrement :
+
+    part de l'EBE distribuée en dividendes, sociétés non financières
+      1980  18,8 %      2010  67,8 %
+      1990  22,0 %      2020  56,5 %
+      2000  43,6 %      2024  62,1 %
+
+**Trois mises en garde à afficher avec ces séries** :
+
+1. **C'est un agrégat.** Il couvre toutes les sociétés résidentes, pas les
+   quarante plus grandes. Il ne se rapporte à aucune société identifiable et ne
+   remplace pas ce qu'un rapport annuel publie.
+2. **Les dividendes versés ne vont pas tous à des actionnaires français.** L'écart
+   entre le total versé (302 Md€) et la part reçue par les ménages résidents
+   (68 Md€) mesure ce qui va aux autres sociétés et au reste du monde — une part
+   étant du flux intra-groupe compté deux fois dans la chaîne de détention.
+3. **Deux mesures de l'impôt coexistent**, et elles ne coïncident pas : le D.51
+   payé par les sociétés non financières (65 Md€) et le D.51B encaissé par les
+   administrations (84 Md€), qui inclut les sociétés financières et suit une
+   autre convention de rattachement. Les deux sont justes. L'écart est un fait à
+   montrer, pas à masquer.
+
+**Et la corrélation ne sera pas une causalité.** Que la part distribuée du profit
+ait triplé pendant que la dette publique quadruplait n'établit aucun lien entre
+les deux. La frise met les séries côte à côte parce que le lecteur a le droit de
+les voir ensemble ; elle ne doit pas suggérer qu'elles s'expliquent.
+
+### 2.2 Manifestations, interpellations, blessés
+
+Six recherches ciblées sur data.gouv.fr — comptage de manifestants, usage de la
+force, interpellations, gardes à vue, blessés des forces de l'ordre, ordre
+public — renvoient **zéro jeu de données**.
+
+Ce qui existe, et qui ne suffit pas :
+
+- Le ministère de l'Intérieur communique des chiffres de participation à la
+  presse, manifestation par manifestation. Ils ne sont **pas publiés** sous
+  forme de jeu de données, ni même de liste.
+- L'IGPN et l'IGGN publient un rapport annuel d'activité en PDF, avec le nombre
+  d'enquêtes ouvertes — jamais rattaché à une manifestation identifiée.
+- Le SSMSI publie la délinquance enregistrée par commune, qui ne distingue pas
+  ce qui relève d'une manifestation.
+
+**Seconde recherche (2026-09-12).** Six requêtes supplémentaires — préfecture,
+SSMSI, statistiques de sécurité intérieure, victimes de violences, outrage et
+rébellion, armes intermédiaires — renvoient elles aussi zéro jeu exploitable.
+
+La base du SSMSI a été téléchargée et examinée : elle est **annuelle et
+départementale**, et ses dix-huit indicateurs sont thématiques (homicides,
+violences intrafamiliales, vols, stupéfiants, dégradations). Aucun ne relève de
+l'ordre public ; il n'y a ni interpellations, ni blessés, ni « violences contre
+personnes dépositaires de l'autorité publique ».
+
+**Conséquence pour l'idée de rapprochement par date : il n'y a rien à
+rapprocher.** Un rapprochement suppose deux séries datées ; ici la seule série
+existante est annuelle, et ne contient pas la grandeur cherchée. Même en
+extrayant les dates de manifestations de la presse, aucune jointure ne
+produirait le nombre d'interpellations ou de blessés d'un jour donné.
+
+### Ce qui resterait possible, et à quel prix
+
+Construire la liste depuis la presse est faisable, mais ce ne serait pas une
+ingestion : ce serait un **fichier éditorial**, une ligne par manifestation,
+chacune citant son article et attribuant chaque chiffre à qui l'annonce —
+« 30 000 selon la préfecture, 120 000 selon la CGT ». C'est le modèle de
+`data/presidents.csv` : sourcé ligne à ligne, contestable, et jamais présenté
+comme une donnée publique.
+
+Trois réserves à poser avant de s'y engager :
+
+1. **La sélection est le biais principal.** Ce sont les manifestations couvertes
+   qui entreraient, pas les manifestations. Un seuil « plus de N personnes »
+   appliqué à un corpus de presse mesure la couverture médiatique autant que la
+   mobilisation.
+2. **Le chiffre policier cité dans un article reste une source secondaire.** Le
+   périmètre le classerait en `SECONDARY_PRESS`, au même rang que le chiffre des
+   organisateurs — ce qui est exact et doit rester visible.
+3. **Interpellations et blessés ne sont presque jamais publiés par
+   manifestation**, même dans la presse, et jamais de façon comparable d'un
+   événement à l'autre.
+
+La voie propre reste une **demande CADA** auprès du ministère de l'Intérieur pour
+les chiffres de participation, et auprès de l'IGPN pour les enquêtes ouvertes.
+C'est une démarche administrative, pas une ingestion — mais c'est la seule qui
+produirait des données primaires.
+
+## 3. Ce que la frise pourra montrer, et la limite à écrire dessus
+
+**Pourra** : les présidences depuis 1959, les ministres depuis 2007, et dix-huit
+séries nationales depuis 1995, avec pour chacune sa définition exacte et son
+producteur.
+
+**Ne pourra pas** : imputer. Une courbe de dette qui monte sous une présidence
+ne dit pas que cette présidence l'a fait monter. Les décisions budgétaires
+produisent leurs effets avec plusieurs années de retard, et les chocs
+extérieurs — 2008, 2020 — ne demandent l'avis de personne. La frise **situe**,
+elle n'explique pas, et la page doit le dire aussi clairement qu'elle affiche
+les chiffres. C'est la même règle que pour les mandats replacés sous une
+présidence (D-026).

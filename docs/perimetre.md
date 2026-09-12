@@ -111,7 +111,7 @@ Taxonomie des affirmations entendues en débat, confrontée aux données existan
 | Affirmation type | Vérifiable | Source | Réserve |
 |---|---|---|---|
 | « Le groupe X a voté contre la loi Y » | ✅ si scrutin public | AN – Scrutins | La majorité des votes sont à main levée → `NO_ROLL_CALL` fréquent |
-| « Le député X a voté contre » | ✅ AN / ❌ Sénat | AN – relevé nominatif | Sénat : `GROUP_LEVEL_ONLY` |
+| « Le député X a voté contre » | ✅ AN et Sénat | Relevés nominatifs | Voir [D-016](decisions.md) : contrairement à ce que ce document affirmait, le Sénat publie bien les votes individuels |
 | « X a déposé / proposé Y » | ✅ | AN – Amendements, Dossiers | Dimension inexploitée par les outils existants |
 | « X a dit Y à l'Assemblée » | ✅ | AN – Comptes rendus | Hémicycle + une partie des commissions |
 | « X a dit Y à la télé » | ❌ | — | `OUT_OF_CORPUS`. Aucun corpus, aucune intention d'en créer un |
@@ -150,7 +150,7 @@ Statuts : **P1** = socle V1, **P2** = socle V2, **P3** = ultérieur.
 | AN — Dossiers législatifs | Dossiers, textes, lectures | Dossier | 14e lég. → | Continue | XML, JSON | Licence Ouverte | **P1** |
 | AN — Comptes rendus | Débats en séance, texte intégral | Intervention | 14e lég. → | Par séance | XML | Licence Ouverte | P2 |
 | [data.senat.fr](https://data.senat.fr/) — Sénateurs, Dosleg, Ameli | Sénateurs, dossiers (depuis 1977), amendements | Individu / dossier | 1977 → | Périodique | **Dump PostgreSQL**, CSV, XML Akoma Ntoso | Licence Ouverte | P2 |
-| Sénat — Scrutins publics | Résultats **par groupe, exceptions nommées** | **Groupe** | — | Par séance | Web / dump | Licence Ouverte | P2 |
+| Sénat — base Dosleg | Sénateurs, scrutins, **votes nominatifs** (1,65 M depuis 2006), dossiers, **30 thèmes officiels** | Individu | 2006 → | Périodique | Dump PostgreSQL | Licence Ouverte | **Ingéré** |
 | [HowTheyVote.eu](https://howtheyvote.eu/) | Scrutins nominatifs Parlement européen | Individu | 2019 → | Hebdomadaire | CSV, API | ODbL (code GPLv3) | P3 |
 
 **Piège majeur — les dumps NosDéputés/NosSénateurs sont en CC BY-NC-SA.** Ils
@@ -162,29 +162,51 @@ autorisent explicitement l'usage commercial.
 
 | Source | Contenu | Granularité | Profondeur | Fréquence | Format | Licence | Priorité |
 |---|---|---|---|---|---|---|---|
-| [RNE](https://www.data.gouv.fr/datasets/repertoire-national-des-elus-1) | Maires, conseillers municipaux, **code nuance** | Individu | Mandature courante | Trimestrielle | CSV | Licence Ouverte | **P2** |
-| RNE — Dictionnaire des nuances | Nomenclature des nuances politiques | — | Par circulaire (dernière : févr. 2026) | Par circulaire | CSV | Licence Ouverte | **P2** |
+| [RNE](https://www.data.gouv.fr/datasets/repertoire-national-des-elus-1) | Maires et conseillers municipaux : identité, commune, CSP, dates de mandat. **Aucune nuance politique** | Individu | Mandature courante | Trimestrielle | CSV | Licence Ouverte | **P2** |
+| [Résultats des élections municipales](https://www.data.gouv.fr/organizations/ministere-de-l-interieur/) (Intérieur) | **Nuance de chaque liste**, voix, sièges au conseil municipal | Commune × liste | Par scrutin, 2001 → 2026 | Par scrutin | CSV | Licence Ouverte | **P2** |
+| Dictionnaire des nuances | Nomenclature des nuances politiques | — | Par circulaire | Par circulaire | CSV | Licence Ouverte | **P2** |
 | INSEE — COG | Communes, fusions, scissions, millésimes | Commune | Historique | Annuelle | CSV | Licence Ouverte | **P2** |
 | INSEE — Population, revenus (Filosofi) | Population municipale, revenu médian | Commune | Annuelle | Annuelle | CSV | Licence Ouverte | **P2** |
-| BANATIC | Périmètres EPCI et **compétences transférées** | EPCI / commune | Annuelle | Annuelle | CSV | Licence Ouverte | **P2** |
+| [BANATIC](https://www.banatic.interieur.gouv.fr/) | Périmètres EPCI, **125 compétences transférées**, président de chaque groupement | EPCI × commune | Annuelle | Continue | API JSON + export XLSX | Licence Ouverte | **chargé** |
+| [Résultats municipaux 2020](https://www.data.gouv.fr/datasets/municipales-2020-resultats-2nd-tour) (Intérieur) | Nuance de chaque liste, voix, sièges — **mandature 2020-2026** | Commune × liste | 2020 | Par scrutin | TXT (ISO-8859-1) | **Non déclarée** — usage autorisé par D-036, classée RESTRICTED | **chargé** |
 
 **La mandature municipale courante court depuis mars 2026** (renouvellement général des
 15 et 22 mars 2026). Le RNE a été actualisé en août 2026. La profondeur historique du RNE
 est faible : reconstituer les mandatures antérieures demande les fichiers de résultats
 électoraux du ministère de l'Intérieur, à traiter séparément.
 
-**Piège nuances politiques** : les nuances ne sont pas attribuées à toutes les communes, et
-la nomenclature change à chaque circulaire (d'où le millésime obligatoire). Une part
-importante des maires est « divers » ou sans étiquette. **Toute comparaison par étiquette
-doit exclure ces communes explicitement et afficher le taux d'exclusion.**
+**La nuance ne vient pas du RNE.** Le fichier public des maires ne porte que
+l'identité, la commune, la catégorie socio-professionnelle et les dates de mandat :
+quatorze colonnes, aucune politique. La nuance est attribuée par les préfectures
+aux **listes candidates**, et n'est publiée que dans les fichiers de résultats du
+ministère de l'Intérieur. Relier un maire à une nuance suppose donc de passer par
+la liste qui a remporté la majorité des sièges au conseil municipal — une étape de
+plus, et une décision de plus (voir D-022).
+
+**Piège nuances politiques**, mesuré sur le scrutin de mars 2026 :
+
+| | communes | part |
+|---|---|---|
+| avec au moins une liste nuancée | 3 282 | **9,4 %** |
+| sans aucune nuance | 31 553 | **90,6 %** |
+
+Le seuil est de population : parmi les communes nuancées, le minimum observé est
+1 064 inscrits ; parmi les non nuancées, le maximum est 4 343. **Neuf communes sur
+dix n'ont aucune étiquette politique, et ce n'est pas un défaut de collecte : c'est
+la règle.**
+
+Et parmi les 9,4 % nuancées, les quatre nuances « divers » (LDVD, LDVG, LDVC, LDIV)
+représentent **85,9 %** des majorités élues. La nomenclature change à chaque
+circulaire, d'où le millésime obligatoire. **Toute comparaison par étiquette doit
+exclure ces communes explicitement et afficher le taux d'exclusion.**
 
 ### 4.3 Indicateurs communaux
 
 | Source | Contenu | Granularité | Profondeur | Fréquence | Format | Licence | Priorité |
 |---|---|---|---|---|---|---|---|
-| [OFGL](https://data.ofgl.fr/) | Comptes des communes : dette, investissement, fonctionnement, masse salariale, épargne | Commune × année | ~2013 → | Annuelle | API Opendatasoft, CSV | Licence Ouverte | **P2** |
+| [OFGL](https://data.ofgl.fr/) | Comptes des communes : dette, investissement, fonctionnement, charges de personnel, épargne, **strates** (population, rural, QPV, revenu) | Commune × année | 2018 → | Annuelle | API Opendatasoft, CSV | Licence Ouverte | **chargé** |
 | DGFiP — REI / taux votés | Taux de fiscalité directe locale | Commune × année | Longue | Annuelle | CSV, XLSX | Licence Ouverte | **P2** |
-| [SSMSI](https://www.data.gouv.fr/datasets/bases-statistiques-communale-departementale-et-regionale-de-la-delinquance-enregistree-par-la-police-et-la-gendarmerie-nationales) | Délinquance enregistrée, indicateurs principaux | Commune × année | 2016 → | Annuelle | CSV | Licence Ouverte | **P2** |
+| [SSMSI](https://www.data.gouv.fr/datasets/bases-statistiques-communale-departementale-et-regionale-de-la-delinquance-enregistree-par-la-police-et-la-gendarmerie-nationales) | Délinquance enregistrée, 15 indicateurs (46 % des lignes sous secret statistique) | Commune × année | 2016 → | Annuelle | CSV.gz (5,2 M lignes) | Licence Ouverte | **chargé** |
 | RPLS | Parc locatif social | Commune × année | Longue | Annuelle | CSV | Licence Ouverte | P2 |
 | Inventaire SRU | Taux de logement social, communes carencées | Commune × période | Longue | Annuelle | CSV | Licence Ouverte | P2 |
 | [DECP consolidées](https://www.data.gouv.fr/datasets/donnees-essentielles-de-la-commande-publique-consolidees-format-tabulaire) | Attributions de marchés, acheteur, titulaire, montant | Marché | 2018 → | Quotidienne | Parquet, CSV | Licence Ouverte | P2 |
@@ -199,6 +221,29 @@ ce qu'une commune **a décidé**. Ces sources décrivent ce que les producteurs 
 **mesurent** chaque année. Le glissement de l'un à l'autre est la principale erreur à ne
 jamais commettre (§2.3).
 
+### 4.6 Comptes nationaux, entreprises et transparence
+
+Ajoutées le 2026-09-12. Toutes chargées.
+
+| Source | Contenu | Granularité | Profondeur | Format | Licence | État |
+|---|---|---|---|---|---|---|
+| [Eurostat — comptes nationaux](https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data) | Dette, solde, recettes fiscales, dépense par fonction COFOG, chômage, pauvreté | France × année | 1995 → | API JSON-stat | Réutilisation autorisée avec mention (2011/833/UE) | **chargé** |
+| Eurostat — compte des sociétés (`nasa_10_nf_tr`) | **Dividendes versés, impôts acquittés, rémunération des salariés, EBE, valeur ajoutée** | Secteur institutionnel × année | **1971 →** | API JSON-stat | idem | **chargé** |
+| [CNAF](https://data.caf.fr/) | Foyers allocataires du RSA | National × mois | 2016 → | API Opendatasoft | Licence Ouverte | **chargé** |
+| [HATVP](https://www.hatvp.fr/livraison/merge/declarations.xml) | Déclarations d'intérêts et de patrimoine : activités professionnelles, mandats, rémunérations déclarées | Déclarant | continue | XML (87 Mo) | Licence Ouverte | **chargé** |
+| [INPI / BCE — ratios financiers](https://data.economie.gouv.fr/explore/dataset/ratios_inpi_bce/) | CA, marge, EBE, EBIT, résultat net par SIREN et exercice | Société × exercice | 2016 → | API Opendatasoft | Licence Ouverte v2.0 | **chargé** |
+| [GLEIF](https://api.gleif.org/api/v1/lei-records) | LEI ↔ **SIREN** (`registeredAs`) | Entité juridique | continue | API JSON | CC0 1.0 | **chargé** |
+| [Sénat — répertoire des sénateurs](https://data.senat.fr/data/senateurs/ODSEN_GENERAL.csv) | Matricule, **date de naissance, date de décès**, groupe, circonscription, profession | Sénateur | historique | CSV (ISO-8859-1) | Licence Ouverte | **chargé** |
+| [ESMA FIRDS](https://registers.esma.europa.eu/) | Instruments admis à la négociation, LEI de l'émetteur, place de cotation | Instrument | 2017 → | Solr + ZIP/XML | Ouvert | identifié, non chargé |
+
+**Ce qui n'existe dans aucune source ouverte**, après recherche documentée
+(D-034, D-035) : la composition du CAC 40 — indice propriétaire d'Euronext ; les
+**dividendes versés par une société nommée** — seulement dans les rapports
+annuels en PDF ; l'**impôt sur les sociétés payé par une société nommée** —
+secret fiscal ; la **masse salariale par société** — même raison. Les trois
+derniers existent en agrégat dans les comptes nationaux, et c'est à ce niveau
+que le projet les documente.
+
 ### 4.5 Partis et affiliations — ce qui est officiel et ce qui ne l'est pas
 
 Il n'existe **aucun registre national des adhérents** d'un parti, et il serait illégal
@@ -212,7 +257,7 @@ l'article 9 du RGPD. Ce qui existe :
 | Groupe d'un sénateur | ✅ daté | data.senat.fr | Excellent |
 | **Parti d'un parlementaire** | ✅ **annuel** | Rattachement au titre de la seconde fraction de l'aide publique, déclaré en novembre et **publié au JO en décembre** par les bureaux des deux assemblées | Officiel mais à granularité annuelle : un changement en cours d'année n'apparaît qu'au décembre suivant |
 | Groupe + parti national d'un eurodéputé | ✅ | Parlement européen | Excellent |
-| **Étiquette d'un maire** | ⚠️ | RNE — code nuance | **La nuance est une qualification préfectorale, pas une adhésion.** Seuillée en population, « divers » massif |
+| **Étiquette d'un maire** | ⚠️ | Résultats électoraux (Intérieur) — nuance de la liste majoritaire ; **jamais le RNE, qui n'en publie aucune** | **La nuance qualifie une LISTE, pas une personne, et c'est une qualification préfectorale, pas une adhésion.** Absente dans 90,6 % des communes, « divers » dans 85,9 % du reste |
 | Parti d'un ministre | ❌ | — | Les décrets de nomination ne portent pas d'appartenance. Déclaratif uniquement |
 
 Le rattachement publié au JO est la seule affiliation partisane individuelle officielle
@@ -224,10 +269,12 @@ en France, et elle est très peu exploitée.
 
 1. le **groupe parlementaire** — le mieux fondé, daté au jour près ;
 2. le **parti** au sens du rattachement JO — fiable, granularité annuelle ;
-3. la **nuance** du RNE — administrative, seuillée, sans équivalence avec le parti.
+3. la **nuance** attribuée par la préfecture à une liste candidate — administrative,
+   seuillée en population, sans équivalence avec le parti.
 
 Écrire « les communes RN » est donc un raccourci. La formulation défendable est
-« les communes dont le maire porte la nuance X au RNE, circulaire de millésime Y ».
+« les communes où la liste arrivée en tête en sièges portait la nuance LRN à
+l'élection de mars 2026, circulaire de millésime Y ».
 Le schéma impose déjà cette distinction : `core.affiliation` (adhésion déclarée) et
 `core.nuance_assignment` (qualification administrative) sont deux tables séparées.
 
