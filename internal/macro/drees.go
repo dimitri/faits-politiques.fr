@@ -82,7 +82,7 @@ func IngestPrestationsSolidarite(ctx context.Context, pool *pgxpool.Pool, arch *
 
 	var rows [][]any
 	vu := map[string]bool{}
-	var sansValeur, sansDate int
+	var sansValeur, sansDate, doublons int
 	for _, l := range lignes {
 		// Une valeur absente n'est pas un zéro : la DREES ne publie pas toujours
 		// le détail départemental d'une série. On l'écarte plutôt que de la
@@ -122,6 +122,7 @@ func IngestPrestationsSolidarite(ctx context.Context, pool *pgxpool.Pool, arch *
 		}
 		k := l.Serie + "|" + l.Mois + "|" + niveau + "|" + code
 		if vu[k] {
+			doublons++
 			continue
 		}
 		vu[k] = true
@@ -152,8 +153,18 @@ func IngestPrestationsSolidarite(ctx context.Context, pool *pgxpool.Pool, arch *
 		return fail(err)
 	}
 
+	// Convention de comptage, lue par cmd/verify : toute ligne reçue est soit
+	// chargée, soit rejetée sous un motif nommé `rejet_*`. La somme doit
+	// refermer. C'est ce contrôle qui aurait attrapé, dès le premier
+	// chargement, les 6 604 lignes que le marqueur « NA » faisait disparaître :
+	// elles n'étaient ni chargées ni rejetées, elles s'évaporaient.
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"lignes": len(rows), "sans_valeur": sansValeur, "sans_date": sansDate}, "")
+		"lignes_recues":     len(lignes),
+		"lignes_chargees":   len(rows),
+		"rejet_sans_valeur": sansValeur,
+		"rejet_sans_date":   sansDate,
+		"rejet_doublon_cle": doublons,
+	}, "")
 	fmt.Printf("  prestations de solidarité : %d lignes (%d sans valeur, %d sans date)\n",
 		len(rows), sansValeur, sansDate)
 	return nil

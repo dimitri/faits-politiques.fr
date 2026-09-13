@@ -455,6 +455,26 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.entreprise WHERE coalesce(verification,'') = ''`,
 	},
 	{
+		// La sonde générique de complétude d'ingestion.
+		//
+		// Convention : un connecteur qui lit une entrée bornée enregistre
+		// `lignes_recues`, `lignes_chargees`, et un compteur `rejet_*` par
+		// motif de rejet. La somme doit refermer exactement. Une ligne qui
+		// n'est ni chargée ni rejetée sous un motif nommé s'est évaporée.
+		//
+		// Un simple ratio ne suffirait pas : le marqueur « NA » de la DREES
+		// faisait disparaître 5 % des lignes, ce qu'un seuil de tolérance
+		// aurait laissé passer. Ici la seule valeur admise est zéro.
+		name: "aucune ligne ne disparaît entre la source et la base",
+		query: `SELECT count(*) FROM raw.fetch_run r
+		         WHERE r.status = 'SUCCESS'
+		           AND r.stats ? 'lignes_recues'
+		           AND (r.stats->>'lignes_recues')::bigint <> (
+		                 (r.stats->>'lignes_chargees')::bigint
+		               + coalesce((SELECT sum(value::bigint) FROM jsonb_each_text(r.stats)
+		                            WHERE key LIKE 'rejet\_%'), 0))`,
+	},
+	{
 		name:  "les onze proclamations présidentielles sont chargées",
 		query: `SELECT count(*) FROM core.pdr_resultat`,
 		min:   11,
@@ -837,6 +857,32 @@ var checks = []check{
 		query: `SELECT count(*) FROM pg_constraint
 		         WHERE conname = 'bloc_texte_fk' AND conrelid = 'jo.bloc'::regclass`,
 		min: 1,
+	},
+	{
+		// `jo.bloc.recherche` est une colonne ORDINAIRE et non générée : c'est ce
+		// qui permet à pg_dump de la transporter, et donc à une restauration de
+		// la LIRE au lieu de la recalculer — 35,8 s contre 105,1 s sur 200 000
+		// blocs. Le prix est que le moteur ne garantit plus sa cohérence avec le
+		// texte. Le corpus est en écriture unique, ce qui rend le risque
+		// théorique ; ce contrôle le rend vérifié.
+		//
+		// L'échantillon est borné : recalculer trois millions huit cent mille
+		// vecteurs pour un contrôle de cohérence coûterait une demi-heure à
+		// chaque exécution de cmd/verify.
+		name: "le vecteur de recherche concorde avec le texte indexé",
+		query: `SELECT count(*) FROM (
+		          SELECT contenu, recherche FROM jo.bloc
+		           WHERE recherche IS NOT NULL LIMIT 2000) x
+		         WHERE recherche IS DISTINCT FROM to_tsvector('fr', contenu)`,
+	},
+	{
+		// Les tables d'atterrissage sont vidées à la fin du chargement. Si elles
+		// ne le sont pas, c'est que le connecteur s'est arrêté en chemin — et la
+		// base porte alors deux fois les mêmes blocs, une fois indexés et une
+		// fois non.
+		name: "les tables d'atterrissage du corpus sont vides",
+		query: `SELECT (SELECT count(*) FROM jo.bloc_chargement)
+		             + (SELECT count(*) FROM jo.texte_chargement)`,
 	},
 	{
 		// La configuration `fr` déaccentue avant de désuffixer. Si elle

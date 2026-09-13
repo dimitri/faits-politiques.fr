@@ -23,6 +23,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [budget-donnees.md](budget-donnees.md) | Budget de l'État et budget de la Sécurité sociale : comment ils s'articulent, et quelles sources donnent le voté et l'exécuté par année. |
 | [monnaie-et-inflation.md](monnaie-et-inflation.md) | Francs, euros, inflation : ce que `core` stocke, ce que `derived` calcule, et pourquoi une valeur déflatée n'est pas un fait. |
 | [entreprises-perimetre.md](entreprises-perimetre.md) | `core.entreprise` n'est pas le CAC 40 : trois populations d'entreprises à ne pas confondre, et la réserve à écrire sur les dividendes. |
+| [violences-policieres-donnees.md](violences-policieres-donnees.md) | Le piège d'étiquette « par » contre « contre », ce que la France et l'Europe ne publient pas, et pourquoi les arrêts CEDH sont un majorant. |
 | [recherche-jo.md](recherche-jo.md) | Chercher dans le Journal officiel : configuration française, colonne stockée contre index fonctionnel, plein texte contre trigrammes, thésaurus des élus. |
 | [scrutins-et-bulletins.md](scrutins-et-bulletins.md) | Le modèle des scrutins et des votes nominatifs. |
 | [contributions-utilisateurs.md](contributions-utilisateurs.md) | Cartographies alternatives sans compte utilisateur. |
