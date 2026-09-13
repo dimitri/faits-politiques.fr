@@ -4,6 +4,11 @@
 > donnée réelle, nouvelle architecture, ordre des chantiers.
 > Maquette : [maquette-refonte.html](maquette-refonte.html).
 
+**Ce document explore.** Aucune règle n'y est définitive, sauf une : ne montrer
+que des faits, jamais des opinions. Tout le reste — découpage, forme, ordre — se
+discute et se révise. Ce qui suit dit ce que la donnée permet, pas ce qu'il
+faudrait penser.
+
 La base a beaucoup grossi : 5,2 millions de faits de délinquance, 1,7 million
 d'indicateurs communaux, 341 931 lignes de déclarations d'intérêts, 260 778
 interventions en séance, 27 séries macroéconomiques, 34 875 communes. Les six
@@ -143,6 +148,45 @@ porte déjà sa question : *le pays arrive-t-il à nourrir ses habitants ?*
   l'apport en kcal/habitant/jour.
 - **Emploi** : agricole 1991 → 2025, agroalimentaire 2000 → 2023.
 
+### 4.1 Humains ou bétail : le partage est dans la donnée
+
+Le bilan FAO distingue **`Food`** (alimentation humaine) et **`Feed`**
+(alimentation animale). Le partage est donc publié, pas déduit. En 2023, sur les
+produits élémentaires :
+
+| Produit | Humain (kt) | Bétail (kt) | Part au bétail |
+|---|---:|---:|---:|
+| Blé | 6 866 | 6 695 | 49 % |
+| Maïs | 756 | 7 291 | **91 %** |
+| Orge | 51 | 2 521 | **98 %** |
+| Autres céréales | 38 | 2 194 | 98 % |
+| Pommes de terre | 3 545 | 851 | 19 % |
+| Lait | 17 188 | 2 437 | 12 % |
+
+C'est une des choses les plus parlantes que la base sache dire : **l'essentiel de
+la sole céréalière française ne nourrit pas des humains.** Le fait est publié par
+la FAO, il ne demande aucun modèle, et il change la lecture de « la France
+produit assez de céréales ».
+
+**Deux précautions, l'une méthodologique, l'autre technique.**
+
+`Food + Feed` ne fait pas la disponibilité intérieure : 161 207 kt contre
+290 572 kt en 2023. Le reste — semences, transformation, pertes, usages non
+alimentaires — existe mais **n'est pas publié dans ce jeu**. Le graphique doit
+montrer les deux barres et dire que le total leur échappe, plutôt que de laisser
+croire à un partage exhaustif.
+
+`ref.produit_alimentaire.agregat` **est incomplet** : 4 lignes sur 116 sont
+marquées comme agrégats (Animal Products, Vegetal Products, Grand Total,
+Population), alors que « Cereals — Excluding Beer », « Meat », « Vegetables »,
+« Fruits », « Starchy Roots » en sont aussi. Sommer sans les écarter compte le
+blé deux fois. À corriger dans la table de référence avant toute somme publiée.
+
+Les libellés sont par ailleurs ceux de la FAO, en anglais. Les traduire est une
+décision éditoriale de plus, à consigner.
+
+### 4.2 Auto-approvisionnement
+
 **Ce que ça permet sans rien inventer** : un taux d'auto-approvisionnement par
 produit et par année, production ÷ disponibilité intérieure. Une division entre
 deux colonnes publiées par la même source, pas un modèle.
@@ -224,31 +268,89 @@ les Terres australes sont dispersées de l'océan Indien à l'Antarctique et ne 
 dessinent pas en un carton. Les sept collectivités n'ont par ailleurs **aucune
 donnée communale en base** : leur contour existe pour que l'absence soit montrée.
 
-### 6.3 La carte des partis n'est pas constructible
+### 6.3 Agréger change tout — et ne suffit pas
 
-Deux obstacles indépendants :
+**Correction d'une conclusion précédente.** J'avais écrit que la couverture des
+nuances était de 9,4 %, ce qui est vrai *par commune* et trompeur : le seuil de
+nuançage est un seuil de population, donc les communes nuancées sont les
+peuplées. Mesurée autrement :
 
-1. **Le pont nuance → parti est vide.** `core.nuance_party_link` et
-   `core.commune_party` comptent 0 ligne. Une nuance (`LDVD`, « liste divers
-   droite ») est une étiquette attribuée par le ministère de l'Intérieur à une
-   *liste*, pas un parti. Colorier une commune « LR » parce que sa liste est
-   nuancée LLR serait une affirmation que personne n'a publiée.
-2. **90,6 % des communes n'ont pas de nuance.** 3 269 nuancées sur 34 875 en
-   2026, parce que le ministère ne nuance qu'au-dessus d'un seuil de population.
-   Une carte politique serait à 90 % blanche — et ce blanc n'est pas une
-   neutralité, c'est un seuil administratif.
+| Mesure | Couverture |
+|---|---|
+| Par commune | **9,4 %** (3 269 / 34 875) |
+| **Par habitant** | **69,1 %** (47,4 M / 68,5 M) |
+
+Agréger n'est donc pas un pis-aller, c'est la bonne échelle. Par niveau :
+
+| Niveau | Unités | Couverture min → max | Moyenne | Au-dessus de 50 % |
+|---|---:|---|---:|---|
+| **Régions** | 18 | 43 % → 100 % | 73 % | **17 / 18** |
+| **Départements** | 101 | 18 % → 100 % | 58 % | 56 / 101 |
+| **Agglomérations (EPCI)** | 4 809 | — | **56,3 % des sièges** | — |
+| Communes | 34 875 | — | 9,4 % | — |
+
+L'échelon intercommunal se mesure autrement, et mieux : `municipal_list.sieges_cc`
+donne les sièges communautaires, et **80 287 des 142 723 sièges (56,3 %) portent
+une nuance**. L'unité y est le siège, pas l'habitant — plus propre, parce qu'un
+siège est ce qui est réellement attribué.
+
+**Conclusion : oui aux régions, oui aux agglomérations, oui aux départements à
+condition d'afficher la couverture de chaque unité à côté de sa composition.**
+Non aux communes prises une à une.
+
+### 6.4 Mais ce ne sera pas une carte des *partis*
+
+Deux raisons demeurent, et la seconde est la plus intéressante.
+
+**Le pont nuance → parti est vide.** `core.nuance_party_link` et
+`core.commune_party` comptent 0 ligne. Une nuance est une étiquette attribuée par
+le ministère de l'Intérieur à une *liste*, pas un parti.
+
+**Et surtout : 82,7 % des sièges portent une nuance « divers ».** Sur les
+102 000 sièges municipaux nuancés de 2026 :
+
+| Nuance | Sièges | Part |
+|---|---:|---:|
+| LDVD — divers droite | 32 701 | 31,9 % |
+| LDVG — divers gauche | 19 155 | 18,7 % |
+| LDIV — divers | 16 427 | 16,0 % |
+| LDVC — divers centre | 16 420 | 16,0 % |
+| *sous-total « divers »* | | **82,7 %** |
+| *nuances nommant un parti* (LLR, LRN, LSOC, LFI, LCOM, LVEC…) | | **7,7 %** |
+
+Même avec le pont construit, une carte des partis serait donc à 4/5 vide de
+partis. Par département, la part des sièges dont la nuance nomme un parti est de
+**7,4 % en moyenne**, 37 % au maximum (Alpes-Maritimes), et **13 départements
+sont à zéro**.
+
+Ce n'est pas un défaut de la donnée : c'est un fait sur la politique municipale
+française, et il mérite d'être la carte elle-même plutôt que d'être caché
+derrière une carte des partis qu'on ne peut pas faire. **Ce qu'on publie donc :
+une carte des nuances, nommée comme telle**, et une carte de la part partisane —
+qui dit, en une image, que les listes municipales ne sont majoritairement pas des
+listes de parti.
+
+**Un piège rencontré en la construisant.** Les départements sans aucun siège
+partisan donnaient `NULL`, et `ntile` range les `NULL` en dernier : les treize
+départements à **zéro** se retrouvaient dans la classe la plus foncée, soit
+exactement l'inverse de la vérité. Un `coalesce` corrige ; la leçon est qu'une
+absence doit être ramenée à zéro *explicitement* avant tout classement.
 
 ### 6.4 Ce qu'on fait à la place
 
 | Carte | Couverture | Forme | Statut |
 |---|---:|---|---|
+| **Nuances par région** | 17/18 régions au-dessus de 50 % | composition, couverture affichée | prête |
+| **Nuances par agglomération** | 56,3 % des 142 723 sièges | composition par EPCI | prête |
+| **Nuances par département** | 56/101 au-dessus de 50 % | composition + couverture par unité | prête |
+| **Part des sièges à nuance partisane** | 96 départements | choroplèthe séquentielle | prête |
 | Finances communales (dette, investissement, épargne, masse salariale) | 34 869 / 34 875 | choroplèthe séquentielle | prête |
 | Délinquance enregistrée, 15 indicateurs | 34 875 | choroplèthe, taux pour 1 000 habitants | prête |
 | Budgets des collectivités | 1 381 entités | choroplèthe + tableau | prête |
 | Densité associative | 1 184 622 associations | choroplèthe pour 1 000 habitants | prête |
 | Couverture du nuançage | 3 269 / 34 875 | carte binaire : **le blanc est le sujet** | à cadrer |
 | Nuances des municipales | 3 269 | **petits multiples** : une carte par nuance | à cadrer |
-| ~~Carte des partis~~ | — | — | impossible, `NUANCE_SANS_PONT_PARTI` |
+| ~~Carte des *partis*~~ | — | — | pas de pont nuance → parti, et 82,7 % de « divers » |
 
 **Pourquoi des petits multiples et pas une carte arc-en-ciel.** Douze nuances sur
 une carte, c'est douze classes de couleur porteuses de sens : au-delà de sept les
@@ -338,7 +440,7 @@ le contraste.
 | 6 | Connecteur OSM scellé | ingestion | Remplacer le chargement manuel des contours par un connecteur qui scelle la source dans `raw`. |
 | 7 | Gouvernements depuis 2014 | ingestion | Onze gouvernements manquants ; `core.acte_jo` est le point d'entrée. |
 | 8 | Sécurité sociale | ingestion | `depense.GF10` n'est pas le budget de la Sécu. |
-| 9 | Pont nuance → parti | **décision éditoriale** | Sans lui, aucune carte des partis. Appelle une relecture contradictoire. |
+| 9 | Pont nuance → parti | **décision éditoriale** | Ne débloquerait que 7,7 % des sièges : à faire pour la complétude, pas pour la carte. |
 | 10 | Communes en géométrie | ingestion lourde | 34 875 polygones, par département, après les cartes départementales. |
 
 **La règle qui les ordonne** : publier d'abord ce dont la couverture est bonne.
