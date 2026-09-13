@@ -21,6 +21,8 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [candidats-donnees.md](candidats-donnees.md) | Frise de carrière, mandats actuels, réconciliation des identités. |
 | [gouvernement-donnees.md](gouvernement-donnees.md) | Onglet GOUVERNEMENT : grandes séries nationales, comptes des sociétés, et ce qui n'existe pas (manifestations). |
 | [budget-donnees.md](budget-donnees.md) | Budget de l'État et budget de la Sécurité sociale : comment ils s'articulent, et quelles sources donnent le voté et l'exécuté par année. |
+| [monnaie-et-inflation.md](monnaie-et-inflation.md) | Francs, euros, inflation : ce que `core` stocke, ce que `derived` calcule, et pourquoi une valeur déflatée n'est pas un fait. |
+| [entreprises-perimetre.md](entreprises-perimetre.md) | `core.entreprise` n'est pas le CAC 40 : trois populations d'entreprises à ne pas confondre, et la réserve à écrire sur les dividendes. |
 | [recherche-jo.md](recherche-jo.md) | Chercher dans le Journal officiel : configuration française, colonne stockée contre index fonctionnel, plein texte contre trigrammes, thésaurus des élus. |
 | [scrutins-et-bulletins.md](scrutins-et-bulletins.md) | Le modèle des scrutins et des votes nominatifs. |
 | [contributions-utilisateurs.md](contributions-utilisateurs.md) | Cartographies alternatives sans compte utilisateur. |
