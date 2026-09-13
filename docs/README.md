@@ -20,6 +20,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [securite-conception.md](securite-conception.md) | Délinquance enregistrée et mandats municipaux : ce qui est vérifiable, et pourquoi l'attribution reste fautive. |
 | [candidats-donnees.md](candidats-donnees.md) | Frise de carrière, mandats actuels, réconciliation des identités. |
 | [gouvernement-donnees.md](gouvernement-donnees.md) | Onglet GOUVERNEMENT : grandes séries nationales, comptes des sociétés, et ce qui n'existe pas (manifestations). |
+| [budget-donnees.md](budget-donnees.md) | Budget de l'État et budget de la Sécurité sociale : comment ils s'articulent, et quelles sources donnent le voté et l'exécuté par année. |
 | [scrutins-et-bulletins.md](scrutins-et-bulletins.md) | Le modèle des scrutins et des votes nominatifs. |
 | [contributions-utilisateurs.md](contributions-utilisateurs.md) | Cartographies alternatives sans compte utilisateur. |
 | [charte-graphique.md](charte-graphique.md) | Palette, contrastes, typographie. |
