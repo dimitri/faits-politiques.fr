@@ -36,7 +36,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -343,6 +343,20 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "jorf-gouvernement" {
 		fmt.Println("\ndécrets de composition du Gouvernement")
 		return jorf.IngestGouvernement(ctx, pool, arch)
+	}
+
+	// Le Journal officiel en entier : 1,24 million d'actes de 1861 à 2025,
+	// chargés en une traversée par quatre flux COPY parallèles.
+	// Voir internal/jorf/copie.go.
+	if only == "jorf-complet" {
+		fmt.Println("\nchargement complet du Journal officiel")
+		return jorf.IngestComplet(ctx, pool, arch)
+	}
+
+	// Le thésaurus des élus, appliqué au corpus déjà chargé.
+	if only == "jorf-elus" {
+		fmt.Println("\nreconnaissance des élus dans le Journal officiel")
+		return jorf.NormalizeElus(ctx, pool)
 	}
 
 	// La lecture des décrets déjà scellés : corriger l'analyse d'une phrase ne

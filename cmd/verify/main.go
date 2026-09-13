@@ -815,6 +815,49 @@ var checks = []check{
 		                            WHERE i.person_id = g.person_id)`,
 	},
 	{
+		// Le corpus du Journal officiel. Un chargement partiel ne lève aucune
+		// erreur : les quatre flux COPY sont indépendants, et l'un peut rendre
+		// zéro ligne pendant que les autres réussissent — c'est exactement ce
+		// qui est arrivé quand le routage se faisait sur le chemin et non sur
+		// le nom de base, et seul un compteur resté à zéro l'a dit.
+		name:  "le corpus du Journal officiel porte plus d'un million d'actes",
+		query: `SELECT count(*) FROM jo.texte`,
+		min:   1000000,
+	},
+	{
+		name:  "chaque acte du corpus porte au moins un bloc de texte",
+		query: `SELECT count(*) FROM jo.bloc`,
+		min:   3000000,
+	},
+	{
+		// La clé étrangère est retirée pendant le chargement en masse et remise
+		// ensuite. Si le connecteur échoue entre les deux, elle reste absente —
+		// et la table accepterait alors des blocs orphelins sans rien dire.
+		name: "la clé étrangère du corpus est bien remise après le chargement",
+		query: `SELECT count(*) FROM pg_constraint
+		         WHERE conname = 'bloc_texte_fk' AND conrelid = 'jo.bloc'::regclass`,
+		min: 1,
+	},
+	{
+		// La configuration `fr` déaccentue avant de désuffixer. Si elle
+		// retombait sur la configuration `french` livrée, « Élysée » et
+		// « Elysee » redeviendraient deux lexèmes différents et la recherche
+		// perdrait des actes en silence — 60 contre 10 sur les seuls titres.
+		name: "la recherche en français ignore les accents",
+		query: `SELECT count(*) FROM (
+		          SELECT to_tsvector('fr', 'Élysée') = to_tsvector('fr', 'Elysee') AS ok) x
+		         WHERE ok`,
+		min: 1,
+	},
+	{
+		// Le thésaurus reconnaît par PHRASE : prénom immédiatement suivi du nom.
+		// Une requête à un seul terme signalerait qu'un nom n'a pas été analysé
+		// comme attendu, et croiserait alors deux mots au lieu d'identifier une
+		// personne.
+		name:  "toute entrée du thésaurus des élus est une phrase",
+		query: `SELECT count(*) FROM ref.elu_recherche WHERE numnode(requete) < 2`,
+	},
+	{
 		// Les trois référentiels sont semés par la migration. S'ils sont vides,
 		// aucune valeur budgétaire n'a pu être chargée — et les contrôles de
 		// volume ci-dessus l'auraient dit — mais le message serait obscur.

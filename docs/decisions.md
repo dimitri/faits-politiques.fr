@@ -1568,3 +1568,105 @@ La troisième formulation est aussi la plus sensible : une régression du décod
 ferait tomber ce contrôle sur les **934** actes concernés, là où le seuil en
 pourcentage attendait d'être franchi. Un contrôle doit énoncer la propriété que
 la source garantit, pas une tolérance autour de ce qu'on a observé.
+
+## D-050 — Le chargement du Journal officiel : une traversée, quatre flux COPY
+
+1,24 million d'actes de 1861 à 2025, 3,8 millions de blocs de texte, 1,1 Go
+compressé. Trois façons de charger cela, et la troisième n'a pas le défaut
+qu'on lui prête.
+
+|  | Coût |
+|---|---|
+| Une seule table large, avec un discriminant | un seul flux, débit maximal — mais on écrit une forme qu'il faudra démêler |
+| Plusieurs passes, une par table | chaque passe coûte une décompression complète |
+| **Une traversée, N flux COPY parallèles** | **retenue** |
+
+`COPY` monopolise une connexion : on ne peut pas alimenter plusieurs tables sur
+la même. La troisième voie ouvre donc une connexion par table cible, et un
+lecteur unique distribue les lignes par canaux.
+
+**La question de l'ordre des COMMIT ne se pose pas**, parce qu'il n'y a rien à
+ordonner : les tables d'atterrissage n'ont ni clé étrangère ni index. Un bloc qui
+arrive avant l'acte qu'il désigne n'est pas une violation, c'est une ligne. La
+clé étrangère est posée **après**, en quatre secondes, et vérifie tout d'un coup —
+1 236 284 identifiants distincts, zéro lien orphelin.
+
+### Pourquoi c'était lent, et ce qui l'a corrigé
+
+La première version mettait 1 497 s. Décomposition mesurée :
+
+| Étape | Temps | Part |
+|---|---|---|
+| Décompression gzip + parcours tar | 117 s | 8 % |
+| Analyse XML | ~1 020 s | 68 % |
+| Canaux + COPY | ~360 s | 24 % |
+
+Et le micro-banc d'essai, sur 3 000 actes réels (17,6 Mo) :
+
+| | Débit | Allocations |
+|---|---|---|
+| Tokenisation seule, **sans rien construire** | 20,4 Mo/s | 2,60 M |
+| Décodage des métadonnées | 16,9 Mo/s | 2,74 M |
+| Découpage en blocs | 15,0 Mo/s | 2,81 M |
+| Les deux enchaînés | **8,0 Mo/s** | 5,56 M |
+
+`encoding/xml` alloue **une fois tous les sept octets**. C'est le prix d'un
+décodeur générique — espaces de noms, entités, XML arbitraire — sur un format qui
+est en réalité plat, régulier et produit par machine. Et le prototype parsait
+chaque acte **deux fois** : 16,9 et 15,0 séparément donnent exactement 8,0
+enchaînés.
+
+Le parcours de l'archive ne se parallélise pas — gzip est un flux séquentiel, et
+il impose un plancher de 117 s. L'analyse, si. Le lecteur ne fait plus que lire
+et distribuer, vingt-quatre ouvriers décodent : **1 497 s → 187 s**, à comptes
+identiques. La même propriété qui dispensait d'ordonner les COMMIT — des tables
+sans contraintes — dispense d'ordonner les sorties du pool.
+
+### Un routage sur le chemin, et 1,2 million d'actes au mauvais endroit
+
+Un texte est rangé **dans le répertoire de son sommaire** :
+
+```
+…/JORFCONT000000016676/JORFTEXT000000339141.xml
+```
+
+`strings.Contains(chemin, "JORFCONT")` est donc vrai pour les deux. Les 1 236 284
+textes sont partis dans la table des sommaires, où ils se sont décodés **sans
+erreur** — un JORFTEXT a lui aussi une balise `<ID>`. Seul un compteur resté à
+zéro l'a dit. Le routage se fait sur le nom de base.
+
+## D-051 — Le vecteur de recherche : la mesure du chargement conduisait à la faute
+
+Deux façons d'indexer 2,9 Go de prose : une colonne `tsvector` générée et
+stockée, ou un index fonctionnel sur l'expression. Les deux mesurées, dans cet
+ordre, donnent des verdicts opposés.
+
+**Au chargement**, l'index fonctionnel gagne : 187 s + 1 687 s contre 1 832 s +
+211 s, et trois gigaoctets économisés. Le calcul de `to_tsvector` coûte le même
+prix des deux côtés — environ 1 650 s — et il est sériel dans les deux cas :
+`COPY` ne parallélise pas les colonnes générées, et PostgreSQL 17 ne parallélise
+pas un index GIN.
+
+J'ai donc retiré la colonne. C'était une faute, et la mesure suivante l'a dit :
+
+| Requête | Vecteur stocké | Index fonctionnel |
+|---|---|---|
+| Recherche de phrase | **15 ms** | **50 057 ms** |
+| Sur la même table : phrase | — | 1 807 ms |
+| Sur la même table : conjonction | — | 12,6 ms |
+
+**GIN ne stocke pas les positions des lexèmes.** Une conjonction se résout dans
+l'index seul ; une recherche de phrase doit vérifier l'adjacence sur chaque
+candidat. Avec une colonne stockée, cette vérification LIT un vecteur ; avec un
+index fonctionnel, elle le RECALCULE, sur des blocs de plusieurs mégaoctets.
+
+Conséquence concrète : la reconnaissance des 3 401 noms du thésaurus, à 1,8 s par
+nom, demandait plus d'une heure et demie. Sur la colonne stockée, elle rentre
+dans le budget d'un traitement de nuit.
+
+### La leçon
+
+Mesurer une seule phase, c'est optimiser contre soi. **Un corpus se charge une
+fois et s'interroge indéfiniment** : vingt-huit minutes et trois gigaoctets de
+plus au chargement sont le bon prix pour trois ordres de grandeur à la requête.
+La colonne est restaurée.
