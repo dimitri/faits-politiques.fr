@@ -1,0 +1,7 @@
+niveau,code_osm,code_insee,operation,raison,source
+REGION,972R,02,RENOMMER,"La Martinique est une collectivité territoriale unique depuis 2015 : OSM la tague 972R, le COG lui donne le code région 02.",https://www.insee.fr/fr/information/2560452
+REGION,973R,03,RENOMMER,"La Guyane est une collectivité territoriale unique depuis 2015 : OSM la tague 973R, le COG lui donne le code région 03.",https://www.insee.fr/fr/information/2560452
+DEPARTEMENT,69D+69M,69,FUSIONNER,"OSM distingue le Rhône (69D) de la Métropole de Lyon (69M), collectivité à statut particulier depuis 2015. Le COG des communes garde 69 pour les deux : les deux contours sont réunis pour rester joignable.",https://www.legifrance.gouv.fr/loi/id/JORFTEXT000028526298
+DEPARTEMENT,972R,972,COPIER_REGION,"Aucun département 972 n'existe dans OSM : la Martinique n'est plus un département. Le contour de la collectivité est réutilisé pour que les communes de code_departement 972 aient une carte.",https://www.insee.fr/fr/information/2560452
+DEPARTEMENT,973R,973,COPIER_REGION,"Aucun département 973 n'existe dans OSM : la Guyane n'est plus un département. Même traitement que la Martinique.",https://www.insee.fr/fr/information/2560452
+DEPARTEMENT,9873,,ECARTER,"Tuamotu-Gambier est une subdivision de la Polynésie française, hors du périmètre des communes suivies par ce site.",https://www.insee.fr/fr/information/2028273

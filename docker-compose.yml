@@ -1,6 +1,10 @@
 services:
   db:
-    image: postgres:17-alpine
+    # PostGIS, et non postgres nu : les contours administratifs (geo.contour)
+    # sont dessinés par la base elle-même, en SVG, sans bibliothèque de carto ni
+    # serveur de tuiles. Même base Alpine et même version majeure que l'image
+    # précédente : le volume de données reste valable.
+    image: postgis/postgis:17-3.5-alpine
     container_name: fp_db
     environment:
       POSTGRES_USER: fp
