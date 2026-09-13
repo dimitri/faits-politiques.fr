@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/balisage"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -55,8 +56,6 @@ var (
 	reObtenusPar = regexp.MustCompile(`(?i)Suffrages` + esp + `+obtenus` + esp + `+par` + esp + `+(?:M\.|Mme|Mlle|Monsieur|Madame)?` + esp + `*([^:]{2,60}?)` + esp + `*:` + esp + `*(` + nb + `)`)
 	reOntObtenu  = regexp.MustCompile(`(?:M\.|Mme|Mlle|Monsieur|Madame)` + esp + `+([^:]{2,60}?)` + esp + `*:` + esp + `*(` + nb + `)`)
 
-	reTag     = regexp.MustCompile(`(?s)<(script|style)[^>]*>.*?</(?:script|style)>`)
-	reAnyTag  = regexp.MustCompile(`<[^>]+>`)
 	reSpaces  = regexp.MustCompile(`[\s\x{00a0}\x{202f}]+`)
 	reNonDigi = regexp.MustCompile(`[^\d]`)
 )
@@ -188,8 +187,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 // ancre, on chargerait les chiffres d'un bureau de vote annulé.
 func extraire(page string) (chiffres, error) {
 	var c chiffres
-	t := reTag.ReplaceAllString(page, " ")
-	t = reAnyTag.ReplaceAllString(t, " ")
+	// Le texte de la page passe par l'analyseur lexical de internal/balisage,
+	// pas par un motif : une décision du Conseil constitutionnel se lit
+	// entièrement ou pas du tout.
+	t := balisage.Ligne(page)
 	t = html.UnescapeString(t)
 	t = reSpaces.ReplaceAllString(t, " ")
 

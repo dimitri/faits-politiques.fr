@@ -3,13 +3,14 @@ package an
 import (
 	"context"
 	"fmt"
-	"html"
 	"os"
+	"path/filepath"
 	"regexp"
 	"strings"
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/balisage"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -48,9 +49,7 @@ const exposeBase = "https://www.assemblee-nationale.fr/dyn/opendata/"
 var uidDepose = regexp.MustCompile(`^(PION|PRJL)ANR5L17B`)
 
 var (
-	reScript = regexp.MustCompile(`(?is)<(script|style)[^>]*>.*?</(script|style)>`)
-	reBalise = regexp.MustCompile(`(?s)<[^>]+>`)
-	reBlancs = regexp.MustCompile(`[ \t\x{00a0}]+`)
+	reEspaceAvant = regexp.MustCompile(`\s+([,.;:!?])`)
 	// L'exposé commence à l'un de ces marqueurs et court jusqu'au dispositif.
 	reDebut = regexp.MustCompile(`(?i)(EXPOSÉ DES MOTIFS|EXPOSE DES MOTIFS|Mesdames, Messieurs)`)
 	reFin   = regexp.MustCompile(`(?i)(PROPOSITION DE LOI|PROJET DE LOI|Article 1er|Article unique)`)
@@ -142,18 +141,17 @@ func extraireExpose(path string) (string, bool) {
 	if err != nil {
 		return "", false
 	}
-	t := reScript.ReplaceAllString(string(b), " ")
-	t = reBalise.ReplaceAllString(t, "\n")
-	t = html.UnescapeString(t)
-	t = reBlancs.ReplaceAllString(t, " ")
-
-	var lignes []string
-	for _, l := range strings.Split(t, "\n") {
-		l = strings.TrimSpace(l)
-		if l != "" {
-			lignes = append(lignes, l)
-		}
-	}
+	// Le découpage est fait par un analyseur lexical, pas par une expression
+	// régulière : voir internal/balisage. Les balises de BLOC deviennent un
+	// saut de ligne, les balises EN LIGNE disparaissent sans laisser d'espace —
+	// les remplacer toutes par un séparateur coupait les mots au milieu :
+	// « <span>M</span>esdames » donnait « M esdames », et l'artefact s'est lu
+	// dans le texte publié.
+	t := balisage.Texte(string(b))
+	// L'espace insécable avant une ponctuation double est correct en français ;
+	// l'espace ordinaire avant une virgule ou un point ne l'est pas.
+	t = reEspaceAvant.ReplaceAllString(t, "$1")
+	lignes := strings.Split(t, "\n")
 	// Le marqueur est cherché sur une version APLATIE. Le titre est souvent
 	// balisé mot par mot — <b>EXPOSÉ</b> DES MOTIFS — et le découpage en
 	// lignes le coupait en deux : la recherche échouait sur les 131 premiers
@@ -198,4 +196,51 @@ func chapeau(texte string) string {
 
 func lireFichier(path string) ([]byte, error) {
 	return os.ReadFile(path)
+}
+
+// ReparseExposes recalcule les textes à partir des fichiers DÉJÀ archivés, sans
+// rien retélécharger. Écrit pour corriger une extraction fautive sans repasser
+// trois heures sur le site de l'Assemblée — et parce que l'archive scellée est
+// faite pour ça : ce qui a été récupéré une fois n'a pas à l'être deux fois.
+func ReparseExposes(ctx context.Context, pool *pgxpool.Pool, racine string) error {
+	rows, err := pool.Query(ctx, `
+		SELECT e.texte_id, d.storage_key
+		  FROM core.texte_expose e
+		  JOIN raw.retrieval r ON r.url = e.url AND r.document_id IS NOT NULL
+		  JOIN raw.document d ON d.id = r.document_id
+		 GROUP BY e.texte_id, d.storage_key`)
+	if err != nil {
+		return err
+	}
+	type cible struct {
+		id  int64
+		key string
+	}
+	var cibles []cible
+	for rows.Next() {
+		var c cible
+		if err := rows.Scan(&c.id, &c.key); err != nil {
+			rows.Close()
+			return err
+		}
+		cibles = append(cibles, c)
+	}
+	rows.Close()
+
+	var n int
+	for _, c := range cibles {
+		texte, ok := extraireExpose(filepath.Join(racine, c.key))
+		if !ok {
+			continue
+		}
+		if _, err := pool.Exec(ctx, `
+			UPDATE core.texte_expose
+			   SET integral = $2, chapeau = $3, n_caracteres = $4
+			 WHERE texte_id = $1`, c.id, texte, chapeau(texte), len([]rune(texte))); err != nil {
+			return err
+		}
+		n++
+	}
+	fmt.Printf("  exposés réextraits : %d\n", n)
+	return nil
 }

@@ -4,10 +4,9 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"html"
-	"regexp"
 	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/balisage"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -16,8 +15,6 @@ import (
 // Un déport n'est pas un manquement, c'est sa prévention — le député signale
 // lui-même un lien qui pourrait créer un conflit et s'abstient de participer.
 // L'explication est transcrite dans ses mots, jamais résumée.
-var reBaliseHTML = regexp.MustCompile(`(?s)<[^>]+>`)
-
 func NormalizeDeports(ctx context.Context, pool *pgxpool.Pool) error {
 	rows, err := pool.Query(ctx, `
 		SELECT DISTINCT ON (natural_key) payload FROM raw.record
@@ -110,11 +107,12 @@ func NormalizeDeports(ctx context.Context, pool *pgxpool.Pool) error {
 }
 
 // texteBrut retire le balisage HTML que l'Assemblée met dans les explications,
-// et rend les entités. Le texte reste celui du député, mot pour mot.
+// et rend les entités. Le découpage passe par un analyseur lexical et non par
+// une expression régulière (internal/balisage) : le motif retiré était
+// `<[^>]+>`, qui ne survit pas à un chevron dans un attribut. Le texte reste
+// celui du député, mot pour mot.
 func texteBrut(s string) string {
-	s = reBaliseHTML.ReplaceAllString(s, " ")
-	s = html.UnescapeString(s)
-	return strings.Join(strings.Fields(s), " ")
+	return balisage.Ligne(s)
 }
 
 func nul(s string) any {
