@@ -11,6 +11,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"strconv"
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
@@ -22,6 +23,12 @@ const ConnectorVersion = "an/1"
 
 const Base = "https://data.assemblee-nationale.fr/static/openData/repository/17"
 
+// BaseLegislature donne l'adresse du dépôt d'une législature antérieure.
+func BaseLegislature(n int) string {
+	return "https://data.assemblee-nationale.fr/static/openData/repository/" +
+		strconv.Itoa(n)
+}
+
 var Sources = map[string]archive.Source{
 	"an-amo": {
 		Slug: "an-amo", Label: "AN — Tous acteurs, mandats et organes (AMO30)",
@@ -30,6 +37,22 @@ var Sources = map[string]archive.Source{
 		Attribution: "Source : Assemblée nationale, open data",
 		Cadence:     "continue, non contractuelle",
 		Notes:       "Un champ peut être un objet ou un tableau selon le nombre d'éléments.",
+	},
+	"an-amo-16": {
+		Slug: "an-amo-16", Label: "AN — Tous acteurs, mandats et organes (16e législature)",
+		Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
+		Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+		Attribution: "Source : Assemblée nationale, open data",
+		Cadence:     "close",
+		Notes:       "Publication propre à la 16e législature (2022-2024).",
+	},
+	"an-amo-15": {
+		Slug: "an-amo-15", Label: "AN — Tous acteurs, mandats et organes (15e législature)",
+		Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
+		Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+		Attribution: "Source : Assemblée nationale, open data",
+		Cadence:     "close",
+		Notes:       "Publication propre à la 15e législature (2017-2022).",
 	},
 	"an-dossiers": {
 		Slug: "an-dossiers", Label: "AN — Dossiers législatifs (17e législature)",
@@ -64,7 +87,18 @@ func Download(ctx context.Context, arch *archive.Archive) (map[string]*archive.F
 		// une absence de données comme une absence d'action.
 		// Le contrôle de concordance de cmd/verify est précisément là pour
 		// empêcher qu'une telle erreur soit publiée.
-		"an-amo":      Base + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip",
+		"an-amo": Base + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip",
+		// Les législatures antérieures ont leur propre publication. Le fichier
+		// de la 17e contient bien 3 121 acteurs, mais l'historique de MANDATS
+		// qu'il porte ne couvre que ceux de la législature en cours : nous
+		// avions 641 mandats de député pour 3 121 personnes. Charger aussi les
+		// 15e et 16e fait remonter la couverture à 2017.
+		//
+		// Au-delà, le dépôt de l'Assemblée répond 404 : les législatures 14 et
+		// antérieures ne sont pas publiées en open data. C'est une limite de la
+		// source, pas du chargement.
+		"an-amo-16":   BaseLegislature(16) + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip",
+		"an-amo-15":   BaseLegislature(15) + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip",
 		"an-scrutins": Base + "/loi/scrutins/Scrutins.json.zip",
 		"an-dossiers": Base + "/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip",
 	}

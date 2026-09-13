@@ -151,13 +151,23 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	// RNE doit disparaître, sinon sa commune finirait avec deux maires
 	// simultanés — que la contrainte d'exclusion du schéma ne verrait pas,
 	// puisqu'elle porte sur la personne et non sur le territoire.
+	// La portée est celle de CE connecteur, et de rien d'autre. Un mandat
+	// parlementaire porte l'institution qui l'a publié ; ceux que le RNE crée
+	// n'en portent aucune. Sans le `institution IS NULL`, cette suppression
+	// emportait les mandats de député de toute personne ayant aussi un mandat
+	// local — c'est-à-dire la plupart des députés : 1 419 mandats détruits d'un
+	// coup, dont l'histoire parlementaire remontant à 2002, remplacés par la
+	// version pauvre du RNE qui ne connaît que la date de début. Exactement ce
+	// que la règle « le RNE complète, il n'écrase pas » interdit, écrit trente
+	// lignes plus bas.
 	if _, err := tx.Exec(ctx, `
 		DELETE FROM core.mandate m
 		 WHERE m.mandate_type IN ('MAIRE','CONSEILLER_MUNICIPAL','CONSEILLER_COMMUNAUTAIRE',
 		                          'CONSEILLER_DEPARTEMENTAL','CONSEILLER_REGIONAL')
-		    OR EXISTS (SELECT 1 FROM core.person_identifier i
-		               WHERE i.person_id = m.person_id AND i.scheme = 'RNE'
-		                 AND m.mandate_type IN ('DEPUTE','SENATEUR','DEPUTE_EUROPEEN'))`); err != nil {
+		    OR (m.institution IS NULL
+		        AND m.mandate_type IN ('DEPUTE','SENATEUR','DEPUTE_EUROPEEN')
+		        AND EXISTS (SELECT 1 FROM core.person_identifier i
+		                     WHERE i.person_id = m.person_id AND i.scheme = 'RNE'))`); err != nil {
 		return fail(err)
 	}
 

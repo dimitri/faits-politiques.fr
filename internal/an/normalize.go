@@ -7,6 +7,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -301,7 +302,7 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 			return nil, err
 		}
 		// L'identifiant HATVP est publie dans le fichier acteurs : une ligne de
-		// crosswalk gratuite (docs/perimetre.md 4.5).
+		// crosswalk gratuite (docs/perimetre.md §4.5).
 		if h := a.URIHatvp.String(); h != "" {
 			if ref := h[strings.LastIndex(h, "/")+1:]; ref != "" {
 				_, _ = pool.Exec(ctx, `
@@ -313,21 +314,51 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 	return byUID, nil
 }
 
-// normalizeMandats lit les mandats comme des enregistrements AUTONOMES.
-// AMO50 les publie comme des objets a part entiere, complets et porteurs de
-// acteurRef : les lire la plutot que dans la structure imbriquee de l'acteur
-// evite de dependre d'une serialisation qui varie d'un fichier a l'autre.
+// normalizeMandats lit les mandats aux DEUX endroits où l'Assemblée les publie.
+//
+// AMO50 les publie comme des objets autonomes, porteurs de acteurRef : c'était
+// la seule lecture jusqu'ici, et elle paraissait la plus sûre — pas de
+// dépendance à une sérialisation imbriquée. Elle était surtout la plus pauvre.
+// AMO50 est le fichier « divisé », qui omet les députés partis en cours de
+// législature : 1 258 mandats de député pour 577 personnes, soit exactement la
+// promotion en exercice.
+//
+// AMO30, le fichier « tous acteurs », porte les mêmes mandats DANS chaque
+// acteur, sous `mandats.mandat` — et il en porte 3 952, pour 2 120 personnes,
+// remontant au 19 juin 2002. C'est trois fois plus de mandats et près de quatre
+// fois plus de députés. La structure imbriquée qu'on avait voulu éviter était
+// l'endroit où se trouvait l'histoire.
+//
+// Les deux sources sont lues et réunies sur l'identifiant du mandat (`uid`) :
+// aucun rapprochement approximatif, et aucun doublon.
 func normalizeMandats(ctx context.Context, pool *pgxpool.Pool,
 	personByUID, orgByUID map[string]int64, labels map[string]string) (int, error) {
 
 	rows, err := pool.Query(ctx,
-		`SELECT DISTINCT ON (natural_key) payload FROM raw.record
-		  WHERE record_type = 'an.mandat'
-		  ORDER BY natural_key, extracted_at DESC, id DESC`)
+		`WITH acteurs AS (
+		   SELECT DISTINCT ON (natural_key) payload FROM raw.record
+		    WHERE record_type = 'an.acteur'
+		    ORDER BY natural_key, extracted_at DESC, id DESC
+		 )
+		 SELECT payload FROM (
+		   SELECT DISTINCT ON (natural_key) payload FROM raw.record
+		    WHERE record_type = 'an.mandat'
+		    ORDER BY natural_key, extracted_at DESC, id DESC
+		 ) autonomes
+		 UNION ALL
+		 -- Cinq acteurs n'ont qu'un mandat, et le JSON le sérialise alors comme
+		 -- un objet et non comme un tableau. Les ignorer perdrait cinq
+		 -- carrières sans le dire.
+		 SELECT jsonb_array_elements(payload #> '{mandats,mandat}') FROM acteurs
+		  WHERE jsonb_typeof(payload #> '{mandats,mandat}') = 'array'
+		 UNION ALL
+		 SELECT payload #> '{mandats,mandat}' FROM acteurs
+		  WHERE jsonb_typeof(payload #> '{mandats,mandat}') = 'object'`)
 	if err != nil {
 		return 0, err
 	}
 	var mandats []mandat
+	vus := map[string]bool{}
 	for rows.Next() {
 		var raw []byte
 		if err := rows.Scan(&raw); err != nil {
@@ -336,6 +367,12 @@ func normalizeMandats(ctx context.Context, pool *pgxpool.Pool,
 		var m mandat
 		if err := json.Unmarshal(raw, &m); err != nil {
 			continue
+		}
+		if u := m.UID.String(); u != "" {
+			if vus[u] {
+				continue
+			}
+			vus[u] = true
 		}
 		mandats = append(mandats, m)
 	}
@@ -348,13 +385,15 @@ func normalizeMandats(ctx context.Context, pool *pgxpool.Pool,
 		return mandats[i].DateDebut.String() < mandats[j].DateDebut.String()
 	})
 
+	fins := recoller(mandats, personByUID)
+
 	n := 0
 	for _, m := range mandats {
 		pid, ok := personByUID[m.ActeurRef.String()]
 		if !ok {
 			continue
 		}
-		k, err := applyMandat(ctx, pool, pid, m, orgByUID, labels)
+		k, err := applyMandat(ctx, pool, pid, m, orgByUID, labels, fins[m.UID.String()])
 		if err != nil {
 			return 0, err
 		}
@@ -363,13 +402,75 @@ func normalizeMandats(ctx context.Context, pool *pgxpool.Pool,
 	return n, nil
 }
 
+// recoller règle le chevauchement de deux jours que la source publie à chaque
+// changement de législature.
+//
+// La quatorzième législature s'achève le 20 juin 2017 et la quinzième débute
+// le 18 : les deux dates sont justes — l'Assemblée sortante siège jusqu'à ce
+// que la nouvelle soit constituée — mais la contrainte d'exclusion, elle, voit
+// deux mandats simultanés et refuse le second. Le prix était lourd : 1 258
+// mandats de député dans la source, 64 en base, et pas un message. Chaque
+// député n'y gardait que sa première élection.
+//
+// Le recollement clôt un mandat la veille du suivant. C'est ce que la source
+// veut dire, et c'est la seule lecture compatible avec un siège qui ne se
+// détient pas deux fois. Elle ne vaut QUE pour les sièges parlementaires : un
+// ministre peut cumuler deux portefeuilles, et ses chevauchements restent des
+// faits, pas des bavures.
+func recoller(mandats []mandat, personByUID map[string]int64) map[string]string {
+	type cle struct {
+		pid   int64
+		type_ string
+	}
+	suites := map[cle][]*mandat{}
+	for i := range mandats {
+		m := &mandats[i]
+		t := m.TypeOrgane.String()
+		if t != "ASSEMBLEE" && t != "SENAT" {
+			continue
+		}
+		pid, ok := personByUID[m.ActeurRef.String()]
+		if !ok || m.DateDebut.String() == "" {
+			continue
+		}
+		suites[cle{pid, t}] = append(suites[cle{pid, t}], m)
+	}
+
+	fins := map[string]string{}
+	for _, suite := range suites {
+		// mandats est déjà trié par date de début ; suite en hérite.
+		for i := 0; i < len(suite)-1; i++ {
+			fin, debutSuivant := suite[i].DateFin.String(), suite[i+1].DateDebut.String()
+			if fin == "" || fin < debutSuivant {
+				continue
+			}
+			d, err := time.Parse("2006-01-02", debutSuivant)
+			if err != nil {
+				continue
+			}
+			veille := d.AddDate(0, 0, -1).Format("2006-01-02")
+			// Un mandat qui commencerait après sa propre fin corrigée est une
+			// vraie anomalie de source : elle reste signalée par l'absence.
+			if veille < suite[i].DateDebut.String() {
+				continue
+			}
+			fins[suite[i].UID.String()] = veille
+		}
+	}
+	return fins
+}
+
 func applyMandat(ctx context.Context, pool *pgxpool.Pool, personID int64, m mandat,
-	orgByUID map[string]int64, labels map[string]string) (int, error) {
+	orgByUID map[string]int64, labels map[string]string, finRecollee string) (int, error) {
 	debut := m.DateDebut.String()
 	if debut == "" {
 		return 0, nil // un mandat sans date de début n'est pas exploitable
 	}
-	fin := nullable(m.DateFin.String())
+	brute := m.DateFin.String()
+	if finRecollee != "" {
+		brute = finRecollee
+	}
+	fin := nullable(brute)
 	if f, ok := fin.(string); ok && f < debut {
 		return 0, nil // anomalie de source : signalée par l'absence, jamais devinée
 	}
@@ -499,6 +600,19 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	// dans l'ordre des dépendances. Pas de TRUNCATE CASCADE : sa portée a déjà
 	// dépassé deux fois ce périmètre, détruisant les comptes CNCCFP puis les
 	// scrutins et leurs 1,27 million de votes.
+	// EN UNE TRANSACTION. Ces suppressions s'enchaînent dans l'ordre des
+	// dépendances ; si l'une échoue à mi-parcours et que les précédentes ont
+	// déjà été validées, la base reste à moitié vidée — 1,27 million de votes
+	// effacés, les organisations encore là, et plus aucun moyen de savoir où on
+	// en était. C'est arrivé : deux exécutions concurrentes se sont marché
+	// dessus, l'une reconstruisant ce que l'autre effaçait, et le message final
+	// parlait d'une clé étrangère au lieu de parler d'une course.
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
 	for _, q := range []string{
 		// Portée limitée à l'Assemblée : un DELETE global emporterait les votes
 		// du Parlement européen, qui viennent d'un autre connecteur.
@@ -532,8 +646,21 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		// sans clause a emporté les 8 412 dossiers du Sénat et les 17 660
 		// assignations de thèmes qui s'y rattachaient, faisant tomber
 		// l'héritage de thèmes par la navette (D-019) de 4 806 à 0.
-		`UPDATE core.scrutin SET dossier_id = NULL, texte_id = NULL
+		`UPDATE core.scrutin SET dossier_id = NULL, texte_id = NULL, amendement_id = NULL
 		  WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		// Les interventions en séance pointent le dossier discuté. Elles
+		// survivent à la renormalisation — elles viennent d'un autre jeu — mais
+		// leur pointeur, lui, désigne des dossiers sur le point de disparaître.
+		`UPDATE core.intervention SET dossier_id = NULL
+		  WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		// Les amendements se rattachent aux textes par clé étrangère. Rebâtir
+		// core.texte sans les effacer d'abord faisait échouer toute la
+		// normalisation — ce qui est le bon comportement : la contrainte a
+		// tenu. Ils sont rechargés par le connecteur des amendements, qui
+		// s'exécute après la normalisation dans la chaîne.
+		`DELETE FROM core.amendement WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		`DELETE FROM core.lecture l USING core.dossier d
+		  WHERE d.id = l.dossier_id AND d.institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.dossier_author a USING core.dossier d
 		  WHERE d.id = a.dossier_id AND d.institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.texte_author a USING core.texte t
@@ -558,9 +685,12 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		// personne parce qu'elle est députée emporterait son mandat de maire.
 		// Elles sont donc mises à jour en place, par leur identifiant.
 	} {
-		if _, err := pool.Exec(ctx, q); err != nil {
+		if _, err := tx.Exec(ctx, q); err != nil {
 			return fmt.Errorf("remise à zéro : %w", err)
 		}
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return fmt.Errorf("remise à zéro : %w", err)
 	}
 
 	orgByUID, err := normalizeOrganes(ctx, pool)
