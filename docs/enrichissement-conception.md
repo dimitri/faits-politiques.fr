@@ -1,0 +1,347 @@
+# Enrichir le site : ce que la base permet, et ce qu'elle ne permet pas encore
+
+> Plan du 13 septembre 2026. Audit de la base, confrontation de six demandes à la
+> donnée réelle, nouvelle architecture, ordre des chantiers.
+> Maquette : [maquette-refonte.html](maquette-refonte.html).
+
+La base a beaucoup grossi : 5,2 millions de faits de délinquance, 1,7 million
+d'indicateurs communaux, 341 931 lignes de déclarations d'intérêts, 260 778
+interventions en séance, 27 séries macroéconomiques, 34 875 communes. Les six
+demandes sont réalisables — mais **aucune telle qu'elle est formulée**, et les
+écarts sont ce que ce document a de plus utile.
+
+L'audit a été fait **pendant une ingestion** (`cmd/ingest -only=normalize`) : les
+comptages de l'Assemblée ont été transitoirement nuls puis rétablis. Les volumes
+ci-dessous sont ceux des connecteurs stables.
+
+---
+
+## 1. Ce que la base contient vraiment
+
+| Domaine | Volume | Couverture | Verdict |
+|---|---:|---|---|
+| Indicateurs communaux (OFGL) | 1 678 562 | 34 869 / 34 875 communes, 2018-2025, 6 indicateurs | quasi totale |
+| Délinquance enregistrée | 5 231 250 | 34 875 communes, 2016-2025, 15 indicateurs | totale |
+| Associations (RNA) | 1 184 622 | avec code commune | totale |
+| Mandats (RNE) | 612 704 | dont 508 788 conseillers municipaux, 34 743 maires | totale |
+| Déclarations HATVP | 341 931 lignes | 2 776 personnes, 6 525 déclarations | bonne |
+| Interventions en séance | 260 778 | 674 personnes, 07/2024 → 07/2026 | deux ans |
+| Bilan alimentaire (FAO) | 10 770 | 116 produits, 2010-2023, 9 éléments | bonne |
+| Budgets des collectivités | 55 110 | 1 381 entités, 2018-2025 | bonne |
+| Séries macroéconomiques | 947 points | 27 séries, 1971-2025 selon la famille | tardive |
+| Contours administratifs | 126 | 18 régions, 101 départements, 7 collectivités | totale |
+| Agriculture — usage des sols | 315 | 1961-2024 | la plus longue série du site |
+| Nuances municipales | 43 270 | **3 269 communes nuancées sur 34 875** en 2026 | 9,4 % |
+| Gouvernements | 36 | **1959 → mars 2014 seulement** | s'arrête en 2014 |
+| Mandats ministériels | 115 | 80 personnes, 2002-2010 | huit ans |
+| Pont nuance → parti | **0** | table vide | inexistant |
+| Pont CHES → groupe | **0** | intersection des identifiants nulle | inexistant |
+| Comptes de campagne | 6 290 | aucun relié à une personne | non relié |
+| Amendements, textes | 0 | tables créées, non chargées | en cours |
+
+**La leçon de ce tableau.** Les données *territoriales* et *financières* sont
+quasi complètes ; les données *politiques* le sont beaucoup moins. C'est
+l'inverse de ce qu'on attend d'un site politique, et c'est ce qui décide de
+l'ordre des chantiers : les vues les plus solides à construire ne sont pas celles
+qu'on imaginerait.
+
+---
+
+## 2. La frise de la V<sup>e</sup> République
+
+### 2.1 Le repère chronologique est autorisé
+
+**Décision du 13 septembre 2026.** Une frise qui associe les présidents à des
+chiffres n'est pas une affirmation de causalité : c'est de l'histoire avec des
+nombres. Le principe n° 3 interdit d'écrire qu'une politique a produit un
+résultat ; il n'interdit pas de situer un chiffre dans le temps, ce que
+`data/presidents.csv` fait déjà pour les mandats ministériels — « sert uniquement
+à **situer** un mandat dans le temps ».
+
+La frise est donc construite, avec trois garde-fous qui restent nécessaires :
+
+1. **Les bandes présidentielles ne sont jamais colorées par parti.** Un rail
+   neutre, alterné pour la lisibilité, rien d'autre.
+2. **Aucun titre de la forme « bilan de X ».** La bande dit qui était en fonction,
+   pas qui est responsable.
+3. **Les courbes traversent les alternances sans rupture visuelle**, ce qui est
+   précisément ce que la donnée montre : il ne se passe rien de particulier au
+   changement de président. C'est un fait, et il vaut d'être vu.
+
+### 2.2 Les séries commencent bien après 1958
+
+C'est la contrainte qui gouverne le dessin.
+
+| Famille | Début | Ce que ça couvre |
+|---|---|---|
+| Entreprises (VA, EBE, dividendes, salaires, impôts payés) | **1971** | à partir de Pompidou |
+| Comptes publics (dette, solde, recettes, dépenses COFOG) | **1995** | à partir de Chirac |
+| Chômage BIT (taux) | **2003** | à partir de Chirac II |
+| Pauvreté en nombre | **2004** | idem |
+| RSA (foyers) | **2016** | à partir de Hollande |
+
+De Gaulle et Pompidou n'ont donc **aucun** chiffre ; Giscard et Mitterrand n'ont
+que le partage de la valeur ajoutée. Commencer la frise en 1995 masquerait que la
+République est plus vieille que ses statistiques : **la frise part de 1958 et
+montre le bord**. Le vide est la première information.
+
+### 2.3 Deux pièges de dessin, et leur parade
+
+**Les euros courants.** Comparer 1971 et 2024 en euros courants est un mensonge,
+et **aucune série de déflateur n'est en base**. 3 425 M€ de dividendes en 1971 et
+301 932 M€ en 2024 ne sont pas comparables. Par défaut, la frise affiche donc des
+**parts et des ratios** — dette en % du PIB, solde en % du PIB, dividendes
+rapportés à l'excédent brut d'exploitation. Les euros courants restent
+accessibles, étiquetés comme tels.
+
+**La double échelle.** Superposer dette (% PIB) et chômeurs (milliers) sur deux
+axes verticaux fabriquerait une corrélation absente de la donnée. La frise est
+donc faite de **petits multiples** : une colonne par indicateur, chacune avec sa
+propre échelle, toutes alignées sur le même axe du temps, une seule teinte. Les
+séries ne sont pas des identités à distinguer, ce sont des mesures d'un même pays.
+
+### 2.4 Et la Sécurité sociale
+
+Il n'y a **pas** de budget de la Sécurité sociale en base. Le plus proche est
+`depense.GF10` — « protection sociale » au sens COFOG, toutes administrations
+confondues — qui n'est pas le budget de la Sécu et ne doit pas être étiqueté
+ainsi. Le chantier est ouvert côté ingestion (`docs/budget-donnees.md`) : la
+colonne existera, elle n'existe pas encore.
+
+---
+
+## 3. Gouvernement
+
+Réalisable pour 1959-2014, et **vide exactement là où le reste du site travaille**.
+
+- `core.gouvernement` : 36 gouvernements, du 8 janvier 1959 au 31 mars 2014.
+- **Rien depuis avril 2014** — Valls, Cazeneuve, Philippe, Castex, Borne, Attal,
+  Barnier, Bayrou, Lecornu. Le jeu de données amont s'arrête là.
+- 10 gouvernements sur 36 ont un Premier ministre relié à une personne ; les
+  mandats `MINISTRE` couvrent 2002-2010, 80 personnes. Une composition de
+  gouvernement n'est donc pas affichable.
+
+**Conséquence.** Une entrée « Gouvernement » ouverte aujourd'hui afficherait une
+liste qui s'arrête douze ans avant le présent, sur un site dont l'Assemblée
+couvre 2024-2026 : une section qui a l'air complète et ne l'est pas. Il faut le
+connecteur d'abord — la composition des gouvernements récents est publiée au
+*Journal officiel*, et `core.acte_jo` (4 590 actes) est le point d'entrée. À
+défaut, la section s'ouvre sur son propre trou, avec un
+`GOUVERNEMENT_APRES_2014_NON_INGERE`.
+
+---
+
+## 4. Agriculture et alimentation
+
+La demande la mieux servie par la donnée, et la seule sans trou gênant. Elle
+porte déjà sa question : *le pays arrive-t-il à nourrir ses habitants ?*
+
+- **Usage des sols** : 1961 → 2024, 64 points par série (terres agricoles,
+  arables, cultivées, prairies). Soixante-trois ans continus.
+- **Bilan alimentaire** : 116 produits, 2010 → 2023, avec production,
+  importation, exportation, disponibilité intérieure, alimentation animale, et
+  l'apport en kcal/habitant/jour.
+- **Emploi** : agricole 1991 → 2025, agroalimentaire 2000 → 2023.
+
+**Ce que ça permet sans rien inventer** : un taux d'auto-approvisionnement par
+produit et par année, production ÷ disponibilité intérieure. Une division entre
+deux colonnes publiées par la même source, pas un modèle.
+
+**Forme** : une matrice produits × années, triée par taux — 116 lignes lisibles
+d'un coup là où 116 courbes seraient illisibles. Échelle **divergente** centrée
+sur 100 %, seul cas du site où une divergente se justifie : il y a un vrai point
+neutre. Deux teintes opposées, gris au milieu, et **surtout pas** le vert et le
+rouge des positions de vote, qui diraient « bien / mal » d'un fait agronomique.
+
+**Ce que ça ne dit pas** : un taux supérieur à 100 % n'est pas l'autonomie. La
+France exporte du blé et importe du soja pour nourrir ses animaux ; le bilan par
+produit ne se somme pas en une souveraineté. La disponibilité intérieure inclut
+l'alimentation animale et les usages non alimentaires.
+
+---
+
+## 5. La fiche individuelle
+
+C'est là que la nouvelle donnée change le plus la vie du lecteur.
+
+| À ajouter | Volume | Portée | Précaution |
+|---|---:|---|---|
+| Intérêts déclarés (HATVP) | 341 931 | 2 776 personnes | Le bloc `non_publie` existe : une case vide n'est pas un zéro, c'est une rétention légale. |
+| Participations de dirigeant | 189 343 | 173 718 avec montant | Une participation n'est pas un conflit d'intérêts. Le mot « conflit » n'apparaît nulle part. |
+| Activités des cinq ans précédents | 39 679 | 31 218 avec montant | Déclaratif, non vérifié à la ligne par la HATVP. |
+| Interventions en séance | 260 778 | 674 personnes | **Le nombre d'interventions est un fait ; le « temps de parole » n'en est pas un.** |
+| Déports | 59 | Assemblée | 59 lignes ne font pas une statistique. |
+| Patrimoine | 594 | 67 déclarations de situation patrimoniale | Publier un patrimoine pour 67 personnes et rien pour les autres crée une asymétrie qui se lit comme un jugement. |
+
+**Sur le temps de parole.** `core.intervention.instant_s` est un *instant*, pas
+une durée. En déduire un temps de parole exige une dérivation datée, avec sa
+`method_version` — et une décision sur ce qu'on fait des interruptions. Tant
+qu'elle n'est pas écrite, la fiche compte des interventions et ne parle pas de
+minutes.
+
+**Le principe d'agencement.** La fiche répond déjà à « comment a-t-il voté ».
+Elle doit maintenant répondre à « qu'a-t-il dit » et « quels intérêts a-t-il
+déclarés » — en gardant ces trois questions **séparées**. Les mêler produirait
+l'insinuation que le site refuse : un vote à côté d'une participation financière
+suggère un lien que la donnée n'établit pas.
+
+**Couverture.** 2 776 personnes ont une déclaration HATVP pour 2 126 fiches, mais
+l'intersection n'est pas totale : beaucoup de fiches n'auront aucun intérêt
+déclaré, et cette absence doit être typée (`HATVP_SANS_DECLARATION`).
+
+---
+
+## 6. Les cartes
+
+### 6.1 Ce qui est en place
+
+PostGIS 3.5 est installé, et `geo.contour` porte **18 régions, 101 départements
+et 7 collectivités d'outre-mer** issus d'OpenStreetMap (ODbL), soit 3 Mo une fois
+simplifiés. Les 101 codes de département joignent exactement le COG.
+
+Le rendu se fait **en SVG par la base elle-même** (`ST_AsSVG`), sans bibliothèque
+de cartographie, sans serveur de tuiles et sans requête vers un tiers : la règle
+du site tient donc aussi pour les cartes. En contrepartie, l'ODbL impose que
+« © les contributeurs OpenStreetMap » accompagne **chaque carte affichée**, et
+non la seule page des sources.
+
+Six rattachements sont écrits plutôt que devinés
+(`data/geo-rattachements.csv`) : la Martinique et la Guyane ne sont plus des
+départements depuis 2015, OSM distingue le Rhône de la Métropole de Lyon, et
+Tuamotu-Gambier est hors périmètre.
+
+### 6.2 Outre-mer : une projection par territoire
+
+La France ne tient pas dans une seule projection. Chaque contour porte donc sa
+`srid_rendu` (`data/geo-projections.csv`), et les outre-mer se dessinent en
+**cartons séparés** : RGAF09 aux Antilles, RGFG95 en Guyane, RGR92 à La Réunion,
+RGM04 à Mayotte, Lambert NC en Nouvelle-Calédonie. Les cartons ne sont pas à la
+même échelle entre eux, et la carte doit le dire.
+
+Deux cas se déclarent comme problématiques plutôt que d'être résolus en silence :
+la Polynésie s'étend sur 2 000 km et un carton unique en fausse les distances ;
+les Terres australes sont dispersées de l'océan Indien à l'Antarctique et ne se
+dessinent pas en un carton. Les sept collectivités n'ont par ailleurs **aucune
+donnée communale en base** : leur contour existe pour que l'absence soit montrée.
+
+### 6.3 La carte des partis n'est pas constructible
+
+Deux obstacles indépendants :
+
+1. **Le pont nuance → parti est vide.** `core.nuance_party_link` et
+   `core.commune_party` comptent 0 ligne. Une nuance (`LDVD`, « liste divers
+   droite ») est une étiquette attribuée par le ministère de l'Intérieur à une
+   *liste*, pas un parti. Colorier une commune « LR » parce que sa liste est
+   nuancée LLR serait une affirmation que personne n'a publiée.
+2. **90,6 % des communes n'ont pas de nuance.** 3 269 nuancées sur 34 875 en
+   2026, parce que le ministère ne nuance qu'au-dessus d'un seuil de population.
+   Une carte politique serait à 90 % blanche — et ce blanc n'est pas une
+   neutralité, c'est un seuil administratif.
+
+### 6.4 Ce qu'on fait à la place
+
+| Carte | Couverture | Forme | Statut |
+|---|---:|---|---|
+| Finances communales (dette, investissement, épargne, masse salariale) | 34 869 / 34 875 | choroplèthe séquentielle | prête |
+| Délinquance enregistrée, 15 indicateurs | 34 875 | choroplèthe, taux pour 1 000 habitants | prête |
+| Budgets des collectivités | 1 381 entités | choroplèthe + tableau | prête |
+| Densité associative | 1 184 622 associations | choroplèthe pour 1 000 habitants | prête |
+| Couverture du nuançage | 3 269 / 34 875 | carte binaire : **le blanc est le sujet** | à cadrer |
+| Nuances des municipales | 3 269 | **petits multiples** : une carte par nuance | à cadrer |
+| ~~Carte des partis~~ | — | — | impossible, `NUANCE_SANS_PONT_PARTI` |
+
+**Pourquoi des petits multiples et pas une carte arc-en-ciel.** Douze nuances sur
+une carte, c'est douze classes de couleur porteuses de sens : au-delà de sept les
+classes voisines se confondent, et sous daltonisme elles fusionnent. Une carte par
+nuance, chacune en une teinte, se lit sans légende et se compare d'un coup d'œil.
+C'est aussi la seule forme qui ne suggère pas que les nuances forment un spectre
+ordonné.
+
+### 6.5 Granularité
+
+Le département d'abord : 101 polygones, 380 Ko simplifiés, instantané et sans
+découpage en tuiles. Les 34 875 communes sont un autre problème — plusieurs
+dizaines de mégaoctets bruts, à ne charger que par département, en second temps.
+
+---
+
+## 7. Architecture : accueil, menu, navigation
+
+Le menu range aujourd'hui par institution. Avec le gouvernement, les territoires,
+la macroéconomie et l'agriculture, il faudrait onze entrées : ranger par
+institution ne tient plus.
+
+**Ranger par question.** Le lecteur n'arrive pas en cherchant « l'Assemblée
+nationale » ; il arrive avec une affirmation à contrôler. Quatre questions
+couvrent tout ce que le site sait :
+
+| Question | Ce qu'elle ouvre |
+|---|---|
+| **Qui décide** | Gouvernement, Assemblée, Sénat, Europe, Personnes |
+| **Ce qui a été voté** | Scrutins, thèmes, dossiers |
+| **Où** | Territoires, communes, collectivités, cartes |
+| **Combien** | La frise, budget, dette, entreprises, agriculture |
+
+Menu retenu : `Chercher · Qui décide · Ce qui a été voté · Où · Combien ·
+Comprendre`. Six entrées, dont quatre ouvrent un panneau listant leurs sections
+avec **leur volume réel** — un menu qui dit combien il y a derrière chaque porte
+est déjà une réponse.
+
+**L'accueil.** La recherche reste la porte d'entrée. Sous elle, **la frise devient
+la colonne vertébrale du site**, en bandeau horizontal compact : cliquer une année
+ouvre ce que le site sait de cette année. Puis les derniers scrutins, puis les
+quatre questions, puis la méthode.
+
+**Ce qui disparaît** : le bandeau de compteurs. « 8 434 scrutins » n'aide personne
+à vérifier quoi que ce soit. Les volumes restent dans le menu et sur les pages de
+section, là où ils informent un choix.
+
+---
+
+## 8. Règles de visualisation
+
+Le site a déjà une discipline de couleur forte : quatre positions de vote, un
+accent, rien d'autre. Les données continues, géographiques et longitudinales
+demandent trois familles de plus, qui ne doivent pas empiéter sur les quatre
+existantes.
+
+1. **Jamais deux axes verticaux.** L'alignement des échelles est arbitraire : le
+   graphique fabriquerait une corrélation absente de la donnée.
+2. **Séquentielle = une teinte, clair → foncé.** Rampe pétrole vérifiée par
+   calcul : clarté OKLab monotone, pas ≥ 9.
+3. **Divergente seulement s'il y a un vrai zéro**, deux teintes opposées et un
+   gris neutre au milieu. Jamais une teinte au point neutre.
+4. **Les quatre couleurs de vote ne servent qu'aux votes.** Le vert « pour » sur
+   un taux agricole dirait « bien ».
+5. **Au-delà de sept classes, un tableau.**
+6. **La couleur n'est jamais seule** : libellé, forme, et tableau équivalent.
+7. **Montrer le bord des données.** Commencer un graphique là où la série commence
+   masque que le sujet est plus ancien.
+
+**À corriger dans l'existant** : les quatre couleurs de vote n'ont jamais été
+vérifiées pour le daltonisme, seulement pour le contraste. Vert et rouge sont la
+paire à risque. Le libellé écrit et la forme distincte rendent la paire
+acceptable, mais la vérification devrait être faite et consignée, comme l'a été
+le contraste.
+
+---
+
+## 9. Chantiers, par valeur rendue
+
+| # | Chantier | Dépend de | Note |
+|---|---|---|---|
+| 1 | Cartes des territoires | rien | Géométrie chargée, couverture quasi totale, chaîne prouvée. |
+| 2 | Agriculture et alimentation | rien | La donnée la mieux couverte du site. |
+| 3 | Fiche individuelle enrichie | rien | Le plus gros gain pour le lecteur ; couverture inégale, donc absences typées. |
+| 4 | Accueil, menu, navigation | rien | Six entrées par question ; la frise en colonne vertébrale. |
+| 5 | La frise de la V<sup>e</sup> République | rien | Réalisable telle quelle, bord de données visible, ratios plutôt qu'euros courants. |
+| 6 | Connecteur OSM scellé | ingestion | Remplacer le chargement manuel des contours par un connecteur qui scelle la source dans `raw`. |
+| 7 | Gouvernements depuis 2014 | ingestion | Onze gouvernements manquants ; `core.acte_jo` est le point d'entrée. |
+| 8 | Sécurité sociale | ingestion | `depense.GF10` n'est pas le budget de la Sécu. |
+| 9 | Pont nuance → parti | **décision éditoriale** | Sans lui, aucune carte des partis. Appelle une relecture contradictoire. |
+| 10 | Communes en géométrie | ingestion lourde | 34 875 polygones, par département, après les cartes départementales. |
+
+**La règle qui les ordonne** : publier d'abord ce dont la couverture est bonne.
+Les territoires et l'agriculture sont mieux couverts que la politique — c'est
+contre-intuitif pour un site politique, mais c'est ce que dit la base, et publier
+dans cet ordre évite de mettre en avant des sections à trous.
