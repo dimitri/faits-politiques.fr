@@ -193,6 +193,106 @@ func series() []serie {
 		Requete: "gov_10a_taxag?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=D51B",
 	})
 
+	// Les sous-secteurs des administrations publiques.
+	//
+	// C'est le SEUL endroit où l'État et la Sécurité sociale se mesurent sur la
+	// même règle. Un solde de loi de finances et un solde de loi de financement
+	// ne se comparent pas : ils ne sont pas dans la même comptabilité, ils n'ont
+	// pas le même périmètre, et l'un autorise la dépense quand l'autre la prévoit.
+	// La comptabilité nationale, elle, les mesure tous les deux en droits
+	// constatés sur un périmètre consolidé — et donne le fait central du sujet :
+	// en 2025, les administrations de sécurité sociale dépensent 803,5 Md€ contre
+	// 680,8 Md€ pour l'administration centrale, et le besoin de financement est
+	// celui de l'État (−130,2 Md€) bien plus que celui du social (−6,7 Md€).
+	//
+	// S1312 (États fédérés) n'existe pas en France : les quatre secteurs
+	// ci-dessous épuisent le champ.
+	secteurs := []struct{ code, label, definition string }{
+		{"S13", "toutes administrations publiques",
+			"État, organismes divers, collectivités et sécurité sociale réunis, APRÈS " +
+				"consolidation des flux entre eux. C'est le périmètre du déficit au sens " +
+				"de Maastricht."},
+		{"S1311", "administration centrale",
+			"L'État et les organismes divers d'administration centrale. Ce n'est PAS le " +
+				"budget général de l'État : les opérateurs y sont inclus, et les flux vers " +
+				"les autres administrations ne sont pas retirés."},
+		{"S1313", "administrations publiques locales",
+			"Communes, départements, régions, groupements et leurs satellites."},
+		{"S1314", "administrations de sécurité sociale",
+			"Régimes obligatoires, mais AUSSI l'assurance chômage et les retraites " +
+				"complémentaires, que la loi de financement de la sécurité sociale ne " +
+				"couvre pas. Le périmètre est donc plus large que celui de la LFSS."},
+	}
+	agregats := []struct{ code, naItem, label, definition string }{
+		{"depense", "TE", "Dépenses totales",
+			"Dépense totale au sens du SEC 2010 : prestations, rémunérations, " +
+				"consommations, investissement et intérêts."},
+		{"recette", "TR", "Recettes totales",
+			"Recette totale au sens du SEC 2010 : impôts, cotisations, ventes et " +
+				"transferts reçus."},
+		{"solde", "B9", "Capacité (+) ou besoin (−) de financement",
+			"Recettes moins dépenses. Un nombre négatif est un besoin de financement, " +
+				"c'est-à-dire un déficit."},
+	}
+	for _, sec := range secteurs {
+		for _, a := range agregats {
+			out = append(out, serie{
+				Code:  a.code + "." + sec.code,
+				Label: a.label + " — " + sec.label,
+				Unite: "MEUR", Famille: "FINANCES_PUBLIQUES",
+				Definition: a.definition + " Sous-secteur " + sec.code + " : " + sec.definition +
+					" Comptabilité NATIONALE (SEC 2010), droits constatés, sous-secteur " +
+					"consolidé : ces montants NE SONT PAS COMPARABLES à un solde de loi de " +
+					"finances ou de loi de financement, qui relèvent de la comptabilité " +
+					"budgétaire. La comptabilité nationale ne connaît que l'exécuté, " +
+					"retraité, et à dix-huit mois de délai pour les comptes définitifs.",
+				Requete: "gov_10a_main?format=JSON&lang=FR&geo=FR&unit=MIO_EUR&na_item=" +
+					a.naItem + "&sector=" + sec.code,
+			})
+		}
+	}
+
+	// ESSPROS : la structure de FINANCEMENT de la protection sociale, depuis 1990.
+	//
+	// C'est la mesure directe de la fiscalisation du modèle social français, et
+	// elle est comparable en Europe. Trente-quatre points annuels permettent de
+	// DATER le basculement des cotisations vers l'impôt affecté plutôt que de
+	// l'affirmer.
+	//
+	// Périmètre ESSPROS = protection sociale, assurance chômage et retraites
+	// complémentaires comprises. Plus large que la LFSS : rapprocher ces montants
+	// d'un solde de LFSS serait une faute.
+	//
+	// spr_exp_sum, que la documentation ancienne cite partout, est RETIRÉ et
+	// renvoie 404 ; les dépenses sont sous spr_exp_func et ses déclinaisons.
+	financement := []struct{ code, sptype, label, definition string }{
+		{"protection.financement.total", "TOTAL", "Financement total de la protection sociale",
+			"Toutes ressources du système de protection sociale."},
+		{"protection.financement.cotisations.employeurs", "SCO_EMPL",
+			"Cotisations à la charge des employeurs",
+			"Cotisations sociales versées par les employeurs."},
+		{"protection.financement.cotisations.protegees", "SCO_PER_PRO",
+			"Cotisations à la charge des personnes protégées",
+			"Cotisations des salariés, indépendants, retraités et autres assurés."},
+		{"protection.financement.impot.affecte", "GOV_GEN_EM",
+			"Contributions publiques — recettes fiscales affectées",
+			"Impôts et taxes affectés à la protection sociale : c'est la CSG et les " +
+				"fractions de TVA transférées. Cette ligne est le canal État → Sécurité " +
+				"sociale vu de l'extérieur."},
+		{"protection.financement.impot.general", "GOV_GEN_REVGEN",
+			"Contributions publiques — recettes fiscales générales",
+			"Financement par le budget général, sans affectation."},
+	}
+	for _, f := range financement {
+		out = append(out, serie{
+			Code: f.code, Label: f.label, Unite: "MEUR", Famille: "PROTECTION_SOCIALE",
+			Definition: f.definition + " Source ESSPROS (Eurostat), champ PROTECTION SOCIALE : " +
+				"assurance chômage et retraites complémentaires comprises, donc plus large " +
+				"que la loi de financement de la sécurité sociale.",
+			Requete: "spr_rec_sumt?format=JSON&lang=FR&geo=FR&unit=MIO_EUR&sptype=" + f.sptype,
+		})
+	}
+
 	for _, c := range cofog {
 		out = append(out, serie{
 			Code: "depense." + c.code, Label: "Dépense publique — " + c.label,
