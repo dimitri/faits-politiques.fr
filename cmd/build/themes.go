@@ -24,6 +24,16 @@ type Theme struct {
 	Scrutins          int
 	Groupes           []GroupeLigne
 	Derniers          []FluxLigne
+	// Ce que le thème dit des candidats de 2027 : leur vote personnel sur les
+	// scrutins qui s'y rattachent. C'est un décompte, pas une position — un
+	// vote contre peut viser le véhicule, le calendrier ou un texte concurrent.
+	Candidats []VoteThemeCandidat
+}
+
+type VoteThemeCandidat struct {
+	Slug, Nom, Organisation          string
+	Pour, Contre, Abstention, Absent int
+	Exprimes                         int
 }
 
 type StatsThemes struct {
@@ -38,7 +48,8 @@ type StatsThemes struct {
 	CHESJoignables  int
 }
 
-func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int) (*StatsThemes, error) {
+func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
+	candidatSlugs []string, orgParSlug map[string]string) (*StatsThemes, error) {
 	st := &StatsThemes{}
 	byCode := map[string]*Theme{}
 
@@ -133,7 +144,43 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int) (*Stat
 		t.Derniers = append(t.Derniers, f)
 	}
 
+	// Vote des candidats déclarés à 2027, thème par thème.
+	crows, err := pool.Query(ctx, `
+		SELECT t.topic_code, p.slug, p.given_name||' '||p.family_name,
+		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text='FOR'),
+		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text='AGAINST'),
+		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text='ABSTAIN'),
+		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text
+		                        NOT IN ('FOR','AGAINST','ABSTAIN'))
+		FROM derived.scrutin_topic t
+		JOIN ref.topic r ON r.code=t.topic_code AND r.taxonomy_version='senat'
+		JOIN core.ballot b ON b.scrutin_id=t.scrutin_id
+		JOIN core.person p ON p.id=b.person_id
+		WHERE p.slug = ANY($1)
+		GROUP BY 1,2,3`, candidatSlugs)
+	if err != nil {
+		return nil, err
+	}
+	for crows.Next() {
+		var code string
+		var v VoteThemeCandidat
+		if err := crows.Scan(&code, &v.Slug, &v.Nom, &v.Pour, &v.Contre,
+			&v.Abstention, &v.Absent); err != nil {
+			crows.Close()
+			return nil, err
+		}
+		v.Exprimes = v.Pour + v.Contre + v.Abstention
+		if t := byCode[code]; t != nil && v.Exprimes > 0 {
+			v.Organisation = orgParSlug[v.Slug]
+			t.Candidats = append(t.Candidats, v)
+		}
+	}
+	crows.Close()
+
 	for _, t := range st.Themes {
+		sort.Slice(t.Candidats, func(i, j int) bool {
+			return CleTri(t.Candidats[i].Nom) < CleTri(t.Candidats[j].Nom)
+		})
 		sort.Slice(t.Groupes, func(i, j int) bool {
 			if t.Groupes[i].Total != t.Groupes[j].Total {
 				return t.Groupes[i].Total > t.Groupes[j].Total

@@ -40,3 +40,6 @@ var sansAccent = strings.NewReplacer(
 func CleTri(s string) string {
 	return sansAccent.Replace(strings.ToLower(strings.TrimSpace(s)))
 }
+
+// Nombre64 : même formatage que Nombre, pour les sommes qui débordent l'int.
+func Nombre64(n int64) string { return Nombre(int(n)) }

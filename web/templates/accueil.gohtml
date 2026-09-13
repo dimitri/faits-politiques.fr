@@ -1,8 +1,28 @@
 {{define "content"}}
 
+<section class="bloc" style="padding-top:2.4rem">
+  <div class="tete"><div><span class="sur">Échéance</span>
+    <h2 class="h2">Présidentielle 2027</h2></div>
+    <a class="plus" href="{{.Root}}/2027/">Les {{.Cov.Candidats}} candidats déclarés →</a></div>
+  <div class="cartes trois">
+    <a class="carte" href="{{.Root}}/2027/"><span class="v">{{.Cov.Candidats}}</span>
+      <span class="t">Candidats déclarés</span>
+      <span class="d">Ce qu'ils ont voté, ce que leur parti déclare, où il présente des listes —
+        et les cases vides, qui disent autant.</span></a>
+    <a class="carte" href="{{.Root}}/territoires/"><span class="v">{{nb .Cov.Communes}}</span>
+      <span class="t">Communes en cartes</span>
+      <span class="d">Dette, investissement, épargne, vie associative. Dessinées par la base,
+        sans tuile ni traceur.</span></a>
+    <a class="carte" href="{{.Root}}/securite/"><span class="v">15</span>
+      <span class="t">Indicateurs de sécurité</span>
+      <span class="d">Faits <em>enregistrés</em> par la police et la gendarmerie, commune par
+        commune, sur dix ans.</span></a>
+  </div>
+</section>
+
 {{/* « Ce qui a été voté cette semaine » est la première question d'un soir de
      débat. Le site n'y répondait nulle part : le flux passe donc devant. */}}
-<section class="bloc" style="padding-top:2.4rem">
+<section class="bloc">
   <div class="tete">
     <div><span class="sur">Assemblée nationale</span>
       <h2 class="h2">Derniers scrutins publics</h2></div>
@@ -54,6 +74,10 @@
       <span class="v">{{.Cov.ThemesSenat}}</span><span class="t">Thèmes</span>
       <span class="d">Les thèmes officiels du Sénat, posés sur les lois et rattachés aux scrutins
         de l'Assemblée par la navette. Aucun n'est produit par ce site.</span></a>
+    <a class="carte" href="{{.Root}}/frise/">
+      <span class="v">1958</span><span class="t">La V<sup>e</sup> République en chiffres</span>
+      <span class="d">Dette, chômage, pauvreté, dividendes, délinquance — datés sous les présidents,
+        et le bord où les statistiques commencent.</span></a>
     <a class="carte" href="{{.Root}}/comprendre/">
       <span class="v">Méthode</span><span class="t">Comprendre</span>
       <span class="d">Périmètre, arbitrages, charte et architecture — les documents qui gouvernent

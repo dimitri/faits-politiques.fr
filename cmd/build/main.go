@@ -36,15 +36,18 @@ type Coverage struct {
 	ScrutinsPE, Themes               int
 	ScrutinsSenat, VotesSenat        int
 	Senateurs, ThemesSenat           int
+	Communes                         int
 }
 
 type Layout struct {
 	Title, Root, BuiltAt string
-	Hero                 bool
-	HeroTitre, HeroLede  string
-	DerniereIngestion    string
-	Sources              []SourceInfo
-	Cov                  Coverage
+	// Noms des ressources partagées, empreinte comprise. Voir assets.go.
+	CSS, JS             string
+	Hero                bool
+	HeroTitre, HeroLede string
+	DerniereIngestion   string
+	Sources             []SourceInfo
+	Cov                 Coverage
 }
 
 type Vote struct {
@@ -106,7 +109,11 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 
 	fns := template.FuncMap{"jauge": Jauge, "poleG": PoleGauche, "poleD": PoleDroit,
 		"lower": strings.ToLower, "nb": Nombre, "ico": Icone,
-		"marque": Marque, "grille": Grille, "pct": Pourcent}
+		"marque": Marque, "grille": Grille, "pct": Pourcent, "nb64": Nombre64,
+		"add": func(a, b int) int { return a + b },
+		"sub": func(a, b int) int { return a - b },
+		"mul": func(a, b int) int { return a * b },
+		"odd": func(i int) bool { return i%2 == 1 }}
 	base := template.Must(template.New("base.gohtml").Funcs(fns).
 		ParseFiles(filepath.Join(tplDir, "base.gohtml")))
 	page := func(name string) *template.Template {
@@ -118,7 +125,12 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return err
 	}
 
-	layout := Layout{Root: root, BuiltAt: time.Now().Format("2 January 2006 à 15:04")}
+	assets, err := copierAssets("web/assets", out)
+	if err != nil {
+		return err
+	}
+	layout := Layout{Root: root, BuiltAt: time.Now().Format("2 January 2006 à 15:04"),
+		CSS: assets.CSS, JS: assets.JS}
 	if layout.Sources, err = sources(ctx, pool); err != nil {
 		return err
 	}
@@ -325,7 +337,15 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	}
 
 	// --- thèmes : index et une fiche par thème du Sénat
-	themes, err := loadThemes(ctx, pool, 60)
+	var candSlugs []string
+	orgParSlug := map[string]string{}
+	for _, c := range candidats {
+		if c.Person != nil {
+			candSlugs = append(candSlugs, c.Person.Slug)
+			orgParSlug[c.Person.Slug] = c.Organisation
+		}
+	}
+	themes, err := loadThemes(ctx, pool, 60, candSlugs, orgParSlug)
 	if err != nil {
 		return err
 	}
@@ -367,6 +387,63 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		Layout
 		Se *StatsSenat
 	}{l, senat}); err != nil {
+		return err
+	}
+
+	// --- territoires, sécurité, présidentielle 2027 : les nouvelles sections
+	terr, err := loadTerritoires(ctx, pool)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Territoires"
+	if err := write(page("territoires.gohtml"), filepath.Join(out, "territoires", "index.html"),
+		struct {
+			Layout
+			T *StatsTerritoires
+		}{l, terr}); err != nil {
+		return err
+	}
+
+	fr, err := loadFrise(ctx, pool, dataDir)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "La Ve République en chiffres"
+	if err := write(page("frise.gohtml"), filepath.Join(out, "frise", "index.html"),
+		struct {
+			Layout
+			F *StatsFrise
+		}{l, fr}); err != nil {
+		return err
+	}
+
+	sec, err := loadSecurite(ctx, pool)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Sécurité"
+	if err := write(page("securite.gohtml"), filepath.Join(out, "securite", "index.html"),
+		struct {
+			Layout
+			S *StatsSecurite
+		}{l, sec}); err != nil {
+		return err
+	}
+
+	e27, err := load2027(ctx, pool, candidats, dataDir)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Présidentielle 2027"
+	if err := write(page("election2027.gohtml"), filepath.Join(out, "2027", "index.html"),
+		struct {
+			Layout
+			E *Stats2027
+		}{l, e27}); err != nil {
 		return err
 	}
 
@@ -644,8 +721,9 @@ func coverage(ctx context.Context, pool *pgxpool.Pool) (Coverage, error) {
 		         WHERE s.institution='SENAT'),
 		       (SELECT count(DISTINCT b.person_id) FROM core.ballot b
 		         JOIN core.scrutin s ON s.id=b.scrutin_id WHERE s.institution='SENAT'),
-		       (SELECT count(*) FROM ref.topic WHERE taxonomy_version='senat')`).
+		       (SELECT count(*) FROM ref.topic WHERE taxonomy_version='senat'),
+		       (SELECT count(DISTINCT commune_code) FROM core.commune_indicator)`).
 		Scan(&c.Documents, &c.ScrutinsPE, &c.Themes,
-			&c.ScrutinsSenat, &c.VotesSenat, &c.Senateurs, &c.ThemesSenat)
+			&c.ScrutinsSenat, &c.VotesSenat, &c.Senateurs, &c.ThemesSenat, &c.Communes)
 	return c, err
 }

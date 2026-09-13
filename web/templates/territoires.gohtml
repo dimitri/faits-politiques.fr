@@ -1,0 +1,47 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Territoires</span></p>
+<span class="sur">Cartes</span>
+<h1>Les territoires</h1>
+<p class="lede">{{nb .T.Communes}} communes, {{.T.Departements}} départements métropolitains.
+C'est aujourd'hui la donnée <strong>la mieux couverte</strong> du site — bien mieux que la donnée
+politique.</p>
+
+<p class="note proc"><strong>Ces cartes sont dessinées par la base.</strong> PostGIS projette les
+contours en Lambert-93 et écrit le tracé, la page l'affiche&nbsp;: aucune bibliothèque de
+cartographie, aucun serveur de tuiles, <strong>aucune requête vers un tiers</strong>. Passez la
+souris sur un département pour lire sa valeur.</p>
+
+<div class="cartes-grille">
+{{range .T.Cartes}}
+  <div class="bloc-carte">
+    <h3>{{.Titre}}</h3>
+    <p class="q">{{.Question}}</p>
+    {{if .Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+    {{.Carte.SVG}}
+    {{$t := .Carte.Teintes}}<div class="echelle"><span class="u">{{.Carte.Unite}}</span>
+      {{range $i, $b := .Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+    </div>
+    {{end}}
+    <p class="src">{{.Source}}{{if .Carte.NbAbsents}} · {{.Carte.NbAbsents}} départements sans donnée{{end}}</p>
+    {{if .Note}}<p class="q" style="margin:.6rem 0 0">{{.Note}}</p>{{end}}
+  </div>
+{{end}}
+</div>
+
+<p class="attr-osm">Contours&nbsp;: © les contributeurs OpenStreetMap, sous ODbL&nbsp;1.0.</p>
+
+<details class="plus" open>
+  <summary>Ce que ces cartes ne disent pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Une carte par habitant n'est pas une carte de richesse.</strong> Un
+    montant rapporté à la population dépend autant du dénominateur que du numérateur&nbsp;: un
+    département peu peuplé sort haut sans qu'il s'y passe rien de particulier.</p>
+    <p class="note"><strong>Les cinq départements d'outre-mer ne sont pas sur ces cartes.</strong>
+    Chacun demande sa propre projection et se dessine en carton séparé&nbsp;; les mettre dans le
+    repère de l'hexagone donnerait une forme et une échelle fausses. Leurs données sont en base.</p>
+    <p class="note"><strong>Le découpage en cinq classes est un choix.</strong> Ce sont des
+    quintiles&nbsp;: chaque classe contient le même nombre de départements, pas la même amplitude
+    de valeurs. Les bornes affichées sont celles des données réelles.</p>
+  </div>
+</details>
+{{end}}

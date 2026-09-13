@@ -1,0 +1,51 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Sécurité</span></p>
+<span class="sur">Faits enregistrés · {{.S.Debut}}–{{.S.Annee}}</span>
+<h1>Sécurité</h1>
+<p class="lede">Quinze indicateurs, {{nb .S.Communes}} communes, dix ans. Publiés par le service
+statistique du ministère de l'Intérieur.</p>
+
+<p class="note proc"><strong>Ce sont des faits <em>enregistrés</em>, pas des faits commis.</strong>
+Une hausse peut venir d'une hausse des faits, d'une hausse des plaintes, ou d'un changement dans la
+façon d'enregistrer. Les trois se ressemblent dans les chiffres et ne se distinguent pas. Le SSMSI
+le dit lui-même&nbsp;; ce site ne prétend pas mieux savoir.</p>
+
+<p class="note abs"><strong>Certaines communes sont masquées.</strong> Sous un certain nombre de
+faits, le SSMSI ne diffuse pas la valeur — un fait rare dans une petite commune identifierait les
+personnes. Ces communes sont exclues du calcul, pas comptées comme zéro.</p>
+
+<div class="cartes-grille">
+{{range .S.Indicateurs}}
+  <div class="bloc-carte">
+    <h3>{{.Libelle}}</h3>
+    <p class="q">{{if .Question}}{{.Question}}{{end}}</p>
+    {{if .Carte.Vide}}<p class="nodata">Aucune donnée diffusée.</p>{{else}}
+    {{.Carte.SVG}}
+    {{$t := .Carte.Teintes}}<div class="echelle"><span class="u">‰ habitants</span>
+      {{range $i, $b := .Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+    </div>
+    {{end}}
+    <p class="src">{{.National | printf "%.1f"}} ‰ au niveau national en {{$.S.Annee}}
+      {{if .Masques}} · {{nb .Masques}} communes masquées{{end}}</p>
+  </div>
+{{end}}
+</div>
+
+<p class="attr-osm">Contours&nbsp;: © les contributeurs OpenStreetMap, sous ODbL&nbsp;1.0 ·
+Faits&nbsp;: SSMSI, bases communales de la délinquance enregistrée.</p>
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Aucun lien n'est établi avec une politique, un élu ou un parti.</strong>
+    Ce site ne relie pas un chiffre de délinquance à une majorité municipale&nbsp;: la donnée ne
+    permet pas de le faire, et le suggérer par une mise en page serait une opinion déguisée en fait.</p>
+    <p class="note"><strong>Le trafic et l'usage de stupéfiants mesurent d'abord l'activité des
+    services.</strong> Sans plainte de victime, un fait n'est enregistré que s'il est constaté&nbsp;:
+    la carte y montre autant où l'on cherche que où il s'en produit.</p>
+    <p class="note"><strong>Un taux pour mille habitants rapporte les faits à la population
+    résidente</strong>, pas à la population présente. Une commune touristique ou un centre d'emploi
+    accueille chaque jour bien plus de monde qu'elle n'en héberge.</p>
+  </div>
+</details>
+{{end}}

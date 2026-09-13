@@ -38,6 +38,31 @@ partis notés par CHES et les groupes parlementaires n'existe pas en base.
 <p class="nodata">Aucune ventilation par groupe pour ce thème.</p>
 {{end}}
 
+{{if .Th.Candidats}}
+<h2>Ce que les candidats de 2027 ont voté sur ce thème</h2>
+<div class="scroll"><table class="pile">
+<thead><tr><th>Candidat</th><th>Organisation</th><th class="n">Pour</th><th class="n">Contre</th>
+  <th class="n">Abst.</th><th class="n">Exprimés</th><th style="width:24%">Répartition</th></tr></thead>
+<tbody>{{range .Th.Candidats}}<tr>
+  <td><a href="{{$.Root}}/candidat/{{.Slug}}/">{{.Nom}}</a></td>
+  <td class="small z" data-l="Organisation">{{.Organisation}}</td>
+  <td class="n pos FOR" data-l="Pour">{{nb .Pour}}</td>
+  <td class="n pos AGAINST" data-l="Contre">{{nb .Contre}}</td>
+  <td class="n pos ABSTAIN" data-l="Abst.">{{nb .Abstention}}</td>
+  <td class="n" data-l="Exprimés">{{nb .Exprimes}}</td>
+  <td data-l="Répartition"><div class="bar" style="margin:0">
+    <i style="width:{{pct .Pour .Exprimes}}%;background:var(--pour)"></i>
+    <i style="width:{{pct .Contre .Exprimes}}%;background:var(--contre)"></i>
+    <i style="width:{{pct .Abstention .Exprimes}}%;background:var(--abst)"></i></div></td>
+</tr>{{end}}</tbody></table></div>
+<p class="note"><strong>Un décompte, pas une position sur le thème.</strong> Voter contre un texte
+rattaché à «&nbsp;{{.Th.Label}}&nbsp;» peut viser son véhicule législatif, son calendrier, ou un
+texte concurrent préféré. Ce tableau dit combien de fois, pas pourquoi.</p>
+<p class="note abs">Seuls les candidats ayant siégé dans une assemblée couverte apparaissent ici.
+Une absence de ligne ne dit rien de l'intérêt d'un candidat pour ce thème&nbsp;:
+elle dit qu'il n'a pas voté dans le périmètre de ce site.</p>
+{{end}}
+
 <h2>Scrutins rattachés</h2>
 {{if .Th.Derniers}}
 <div class="flux">

@@ -1,0 +1,76 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>La V<sup>e</sup> République</span></p>
+<span class="sur">1958 — {{.F.An1}}</span>
+<h1>La V<sup>e</sup> République en chiffres</h1>
+<p class="lede">Les présidents, et les nombres datés sous eux. Chaque colonne a sa propre
+échelle&nbsp;: aucune n'est comparée à une autre.</p>
+
+<p class="note proc"><strong>Une bande présidentielle est un repère chronologique, pas une
+imputation.</strong> Dire «&nbsp;en 2010, la dette valait tant&nbsp;» sous une bande est de
+l'histoire avec des nombres&nbsp;; dire qu'un président a produit ce chiffre serait une opinion, et
+ce site n'en publie pas. Les bandes ne sont jamais colorées par parti, et vous constaterez que
+<strong>les courbes traversent les alternances sans rupture</strong> — c'est précisément ce que la
+donnée montre.</p>
+
+<div class="scroll">
+<svg viewBox="0 -46 {{len .F.Series | mul 142 | add 200}} {{.F.Hauteur | add 66}}"
+     style="min-width:52rem;width:100%;height:auto" role="img"
+     aria-label="Frise des présidents de la Ve République et des indicateurs">
+  {{range $i, $p := .F.Presidents}}
+    <rect x="0" y="{{$p.Y0}}" width="186" height="{{sub $p.Y1 $p.Y0 | add -2}}" rx="3"
+      fill="{{if odd $i}}var(--carte){{else}}var(--filet2){{end}}"/>
+    <text x="12" y="{{add $p.Y0 16}}" font-size="12" font-weight="600"
+      fill="var(--encre)">{{$p.Nom}}</text>
+    <text x="12" y="{{add $p.Y0 30}}" font-size="10" font-family="var(--mono)"
+      fill="var(--attenue)">{{$p.Debut}}–{{if lt $p.Fin 2026}}{{$p.Fin}}{{end}}{{if $p.SansAucunChiffre}} · aucun chiffre{{end}}</text>
+  {{end}}
+  {{range $i, $s := .F.Series}}
+    {{$x := add 200 (mul $i 142)}}
+    <text x="{{$x}}" y="-30" font-size="11.5" font-weight="600" fill="var(--encre)">{{$s.Titre}}</text>
+    <text x="{{$x}}" y="-17" font-size="9.5" font-family="var(--mono)" fill="var(--attenue)">{{$s.Unite}}</text>
+    <text x="{{$x}}" y="-5" font-size="9.5" font-family="var(--mono)" fill="var(--accent)">depuis {{$s.Debut}}</text>
+    <rect x="{{$x}}" y="0" width="120" height="{{mul (sub $s.Debut 1958) 9}}" fill="var(--filet2)" opacity=".55"/>
+    <g transform="translate({{$x}},0)">
+      <path d="{{$s.Path}}" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linejoin="round"/>
+    </g>
+    <text x="{{add $x 120}}" y="{{add (mul (sub $s.Fin 1958) 9) 4}}" font-size="10.5"
+      font-family="var(--mono)" fill="var(--encre)" text-anchor="end">{{$s.Dernier}}</text>
+  {{end}}
+  {{range .F.Decennies}}
+    <text x="194" y="{{add (mul (sub . 1958) 9) 4}}" font-size="10" font-family="var(--mono)"
+      fill="var(--attenue)" text-anchor="end">{{.}}</text>
+  {{end}}
+</svg>
+</div>
+
+<h2>Pourquoi la frise commence avant les chiffres</h2>
+<p>La V<sup>e</sup> République a {{sub .F.An1 1958}} ans&nbsp;; les séries publiques en couvrent
+beaucoup moins. Les comptes publics d'Eurostat démarrent en <strong>1995</strong>, le chômage au
+sens du BIT en <strong>2003</strong>, les faits de délinquance communaux en <strong>2016</strong>.
+Seul le partage de la valeur ajoutée remonte à <strong>1971</strong>.</p>
+<p>Commencer la frise en 1995 aurait donné une République née avec ses statistiques. Le bord
+grisé de chaque colonne dit exactement le contraire&nbsp;: <strong>de Gaulle et Pompidou n'ont
+aucun chiffre ici</strong>, et ce n'est pas la même chose que d'avoir eu zéro.</p>
+
+<div class="cartes">
+{{range .F.Series}}
+  <div class="carte"><span class="t">{{.Titre}}</span>
+    <span class="d"><strong>{{.Debut}} → {{.Fin}}</strong> · {{.Unite}}{{if .Note}}<br>{{.Note}}{{end}}</span></div>
+{{end}}
+</div>
+
+<details class="plus" open>
+  <summary>Ce que cette frise ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Rien sur les causes.</strong> Aucune des courbes n'est expliquée par la
+    présidence en regard. Les indicateurs économiques dépendent de la conjoncture mondiale, de
+    décisions antérieures, de l'Union européenne et de mille choses que ce site ne mesure pas.</p>
+    <p class="note"><strong>Les montants sont en euros courants là où ils sont en euros.</strong>
+    Aucune série de déflateur n'est en base&nbsp;: c'est pourquoi les dividendes sont montrés en
+    part de l'excédent brut d'exploitation plutôt qu'en milliards.</p>
+    <p class="note"><strong>Les faits de délinquance sont des faits <em>enregistrés</em>.</strong>
+    Une hausse peut venir des faits, des plaintes, ou de l'enregistrement — les trois se
+    ressemblent dans les chiffres. <a href="{{.Root}}/securite/">Le détail par département</a>.</p>
+  </div>
+</details>
+{{end}}

@@ -1,0 +1,100 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Présidentielle 2027</span></p>
+<span class="sur">Élection présidentielle</span>
+<h1>2027</h1>
+<p class="lede">Ce que le site sait de chaque candidat déclaré — et, tout aussi utile, ce qu'il ne
+sait pas. Aucun classement, aucune note, aucun pronostic&nbsp;: l'ordre est alphabétique.</p>
+
+<p class="note abs">Liste <strong>incomplète et sourcée ligne à ligne</strong>
+(<code>data/candidats.csv</code>). Il n'existe pas de liste officielle avant la publication des
+parrainages par le Conseil constitutionnel, le 12 mars 2027.</p>
+
+<h2>Quatre angles, quatre couvertures très inégales</h2>
+<div class="angles">
+  <div class="angle"><div class="t">Votes</div><div class="v">{{.E.AvecVotes}} / {{len .E.Candidats}}</div>
+    <div class="d">ont siégé dans une assemblée couverte</div></div>
+  <div class="angle"><div class="t">Comptes du parti</div><div class="v">{{.E.AvecComptes}} / {{len .E.Candidats}}</div>
+    <div class="d">ont une organisation aux comptes CNCCFP</div></div>
+  <div class="angle"><div class="t">Terrain</div><div class="v">{{.E.AvecTerrain}} / {{len .E.Candidats}}</div>
+    <div class="d">ont un parti que l'Intérieur nuance</div></div>
+  <div class="angle"><div class="t">Intérêts</div><div class="v">{{.E.AvecInterets}} / {{len .E.Candidats}}</div>
+    <div class="d">ont une déclaration HATVP</div></div>
+</div>
+<p class="note"><strong>C'est le résultat le plus important de cette page.</strong> Un candidat sur
+lequel le site n'a rien n'est pas un candidat sans passé&nbsp;: c'est un candidat dont l'activité
+s'est déroulée hors du périmètre couvert — mairie, région, entreprise, société civile. Une case
+vide décrit <em>ce site</em>, pas la personne.</p>
+
+{{range .E.Candidats}}
+<section class="bloc">
+  <div class="tete"><div>
+    <span class="sur">{{if .Org}}{{.Organisation}}{{else}}sans organisation rattachée{{end}}</span>
+    <h2 class="h2" style="margin:0">{{.Prenom}} {{.Nom}}</h2>
+  </div><a class="plus" href="{{$.Root}}/candidat/{{.Slug}}/">Fiche complète →</a></div>
+
+  <div class="angles">
+    {{if .Votes.Present}}
+    <div class="angle"><div class="t">A voté</div>
+      <div class="v">{{nb .Exprimes}}</div>
+      <div class="d"><span class="pos FOR">{{nb .Pour}} pour</span> ·
+        <span class="pos AGAINST">{{nb .Contre}} contre</span> ·
+        <span class="pos ABSTAIN">{{nb .Abstention}} abst.</span></div></div>
+    {{else}}<div class="angle vide"><div class="t">Votes</div>
+      <div class="v">{{.Votes.Raison}}</div></div>{{end}}
+
+    {{if .Comptes.Present}}
+    <div class="angle"><div class="t">Comptes du parti</div>
+      <div class="v">{{.Exercices}}</div>
+      <div class="d">exercices déposés à la CNCCFP</div></div>
+    {{else}}<div class="angle vide"><div class="t">Comptes du parti</div>
+      <div class="v">{{.Comptes.Raison}}</div></div>{{end}}
+
+    {{if .Terrain.Present}}
+    <div class="angle"><div class="t">Municipales 2026</div>
+      <div class="v">{{nb .CommunesListes}}</div>
+      <div class="d">communes avec une liste <code>{{.NuanceCode}}</code> ·
+        {{nb .SiegesCM}} sièges · {{nb64 .VoixMunicipales}} voix</div></div>
+    {{else}}<div class="angle vide"><div class="t">Municipales 2026</div>
+      <div class="v">{{.Terrain.Raison}}</div></div>{{end}}
+
+    {{if .Interets.Present}}
+    <div class="angle"><div class="t">Intérêts déclarés</div>
+      <div class="v">{{nb .NbInterets}}</div>
+      <div class="d">lignes de déclaration HATVP</div></div>
+    {{else}}<div class="angle vide"><div class="t">Intérêts déclarés</div>
+      <div class="v">{{.Interets.Raison}}</div></div>{{end}}
+  </div>
+
+  {{if and .Terrain.Present (not .Carte.Vide)}}
+  <div style="display:grid;gap:1.4rem;grid-template-columns:minmax(0,15rem) minmax(0,1fr);
+    align-items:start;margin-top:1rem">
+    <div>{{.Carte.SVG}}
+      {{$t := .Carte.Teintes}}<div class="echelle"><span class="u">part des voix</span>
+        {{range $i, $b := .Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+    </div>
+    <p class="note" style="margin:0">Part des voix obtenues par les listes <code>{{.NuanceCode}}</code>
+    au premier tour des municipales 2026, <strong>rapportée aux seules listes nuancées</strong> —
+    soit 64,6&nbsp;% des voix exprimées. Le gris signale les départements où
+    <strong>aucune liste de cette nuance ne s'est présentée</strong>&nbsp;: ce n'est pas un score
+    de zéro. Une nuance est attribuée par le ministère de l'Intérieur à une <em>liste</em>&nbsp;;
+    le rattachement au parti est une décision de ce site, consignée dans
+    <code>data/nuance-partis.csv</code>.</p>
+  </div>
+  {{end}}
+</section>
+{{end}}
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Les quatre angles ne se combinent pas.</strong> Un vote, un compte de
+    parti, un score municipal et un intérêt déclaré ne se somment en aucun indicateur. Les mettre
+    côte à côte sert à les consulter, pas à les additionner.</p>
+    <p class="note"><strong>Le score municipal d'un parti n'est pas le score de son candidat.</strong>
+    Une élection municipale se joue sur des listes locales, souvent d'union, et se rapporte à un
+    scrutin de 2026 — pas à une intention de vote pour 2027.</p>
+    <p class="note"><strong>Aucun sondage, aucune projection, aucun pronostic.</strong> Ce site
+    documente ce qui a eu lieu.</p>
+  </div>
+</details>
+{{end}}
