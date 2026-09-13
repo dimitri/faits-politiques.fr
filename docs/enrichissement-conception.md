@@ -359,7 +359,54 @@ nuance, chacune en une teinte, se lit sans légende et se compare d'un coup d'œ
 C'est aussi la seule forme qui ne suggère pas que les nuances forment un spectre
 ordonné.
 
-### 6.5 Granularité
+### 6.5 Cartes de scores : une seule élection est cartographiable
+
+Question posée : peut-on dessiner, pour chaque parti, une carte de ses derniers
+scores — municipales, législatives ou présidentielle ? Réponse par élection :
+
+| Élection | Ce qu'on a | Cartographiable ? |
+|---|---|---|
+| **Municipales 2020 et 2026** | voix par liste et par commune, avec nuance | **oui** |
+| Présidentielle | `core.pdr_voix` : **22 lignes** — totaux nationaux du second tour, vainqueur et finaliste, de 1965 à 2022 | non : aucune géographie, aucun premier tour |
+| Législatives | rien | non |
+
+La présidentielle vient des proclamations du Conseil constitutionnel : c'est un
+résultat national, pas un résultat par commune. Pour cartographier la
+présidentielle ou les législatives, il faudrait le connecteur des résultats
+détaillés du ministère de l'Intérieur — publiés par commune et par bureau de
+vote. C'est un chantier d'ingestion, pas un chantier de rendu.
+
+**Ce qui est faisable aujourd'hui**, et qui est fait : une carte par nuance,
+score aux municipales 2026, agrégé au département.
+
+- 26 059 311 voix au premier tour, dont **16 835 701 sur des listes nuancées
+  (64,6 %)**, réparties sur 3 269 communes.
+- Le score affiché est la part des voix **rapportée aux seules listes nuancées**,
+  et doit être nommé ainsi : un tiers des voix se porte sur des listes que
+  l'Intérieur ne nuance pas, et les ignorer silencieusement gonflerait tous les
+  scores.
+
+**Trois règles de dessin, apprises en le faisant.**
+
+1. **Une carte par nuance, jamais une carte multicolore.** Douze nuances sur une
+   carte, ce sont douze classes de couleur à distinguer ; six cartes en une
+   teinte se lisent sans légende.
+2. **Chaque carte a sa propre échelle.** Le RN plafonne à 21,8 % là où « divers
+   droite » atteint 73,8 % : une échelle commune écraserait tout sauf les deux
+   nuances majoritaires. Les couleurs ne se comparent donc pas d'une carte à
+   l'autre — seules les **formes** le font, et c'est ce qu'on vient y chercher.
+3. **L'absence n'est pas un zéro.** Un département où aucune liste LR ne s'est
+   présentée n'est pas un département où LR fait 0 %. Il reçoit un gris neutre,
+   distinct du bas de la rampe, et la légende le dit.
+
+**Ce que les cartes montrent d'emblée** : les nuances qui nomment un parti sont
+géographiquement clairsemées — Les Républicains présents dans 40 départements sur
+96, le Parti socialiste dans 33, La France insoumise dans 69, le RN dans 83 —
+tandis que « divers droite » et « divers gauche » couvrent la quasi-totalité du
+territoire. La carte d'un parti aux municipales est d'abord la carte des endroits
+où il présente des listes sous son nom.
+
+### 6.6 Granularité
 
 Le département d'abord : 101 polygones, 380 Ko simplifiés, instantané et sans
 découpage en tuiles. Les 34 875 communes sont un autre problème — plusieurs
@@ -441,7 +488,8 @@ le contraste.
 | 7 | Gouvernements depuis 2014 | ingestion | Onze gouvernements manquants ; `core.acte_jo` est le point d'entrée. |
 | 8 | Sécurité sociale | ingestion | `depense.GF10` n'est pas le budget de la Sécu. |
 | 9 | Pont nuance → parti | **décision éditoriale** | Ne débloquerait que 7,7 % des sièges : à faire pour la complétude, pas pour la carte. |
-| 10 | Communes en géométrie | ingestion lourde | 34 875 polygones, par département, après les cartes départementales. |
+| 10 | Résultats détaillés Intérieur (présidentielle, législatives, par commune) | ingestion | Débloquerait les cartes de score pour les deux élections nationales. Aujourd'hui seules les municipales sont cartographiables. |
+| 11 | Communes en géométrie | ingestion lourde | 34 875 polygones, par département, après les cartes départementales. |
 
 **La règle qui les ordonne** : publier d'abord ce dont la couverture est bonne.
 Les territoires et l'agriculture sont mieux couverts que la politique — c'est
