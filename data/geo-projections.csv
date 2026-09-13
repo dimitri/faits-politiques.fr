@@ -1,0 +1,14 @@
+code_insee,srid,projection,raison
+DEFAUT,2154,RGF93 / Lambert-93,"Projection officielle de la France métropolitaine. Elle déforme absurdement tout ce qui n'est pas l'hexagone : chaque outre-mer a donc la sienne."
+971,5490,RGAF09 / UTM 20N,Guadeloupe — projection légale aux Antilles françaises.
+977,5490,RGAF09 / UTM 20N,Saint-Barthélemy — même zone que la Guadeloupe.
+978,5490,RGAF09 / UTM 20N,Saint-Martin — même zone que la Guadeloupe.
+972,5490,RGAF09 / UTM 20N,Martinique — projection légale aux Antilles françaises.
+973,2972,RGFG95 / UTM 22N,Guyane — projection légale du territoire.
+974,2975,RGR92 / UTM 40S,La Réunion — projection légale du territoire.
+976,4471,RGM04 / UTM 38S,Mayotte — projection légale du territoire.
+975,32621,WGS 84 / UTM 21N,Saint-Pierre-et-Miquelon — zone UTM couvrant l'archipel.
+986,32701,WGS 84 / UTM 1S,Wallis-et-Futuna — zone UTM couvrant l'archipel.
+987,32706,WGS 84 / UTM 6S,"Polynésie française — zone de Tahiti. Le territoire s'étend sur 2 000 km : un carton unique en fausse les distances, et il faut le dire."
+988,3163,RGNC91-93 / Lambert NC,Nouvelle-Calédonie — projection légale du territoire.
+984,4326,WGS 84 (aucune),"Terres australes et antarctiques : districts dispersés de l'océan Indien à l'Antarctique. Aucune projection unique n'a de sens ; le territoire ne se dessine pas en un carton."

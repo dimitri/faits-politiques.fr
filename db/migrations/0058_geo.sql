@@ -31,7 +31,8 @@ COMMENT ON SCHEMA geo IS
 -- collectivité tient lieu des deux — un fait administratif, pas un doublon.
 CREATE TABLE geo.contour (
   niveau          text        NOT NULL
-                  CHECK (niveau IN ('REGION','DEPARTEMENT','COMMUNE','EPCI','PAYS')),
+                  CHECK (niveau IN ('REGION','DEPARTEMENT','COLLECTIVITE',
+                                    'COMMUNE','EPCI','PAYS')),
   -- Code officiel publié par la source dans ref:INSEE. Peut être NULL : OSM
   -- n'est pas tenu de le porter, et une absence se déclare.
   code_insee      text        NOT NULL,
@@ -41,6 +42,12 @@ CREATE TABLE geo.contour (
   -- Les tags OSM tels quels, pour que rien de ce qui a servi ne soit perdu.
   tags            jsonb       NOT NULL DEFAULT '{}'::jsonb,
   geom            geometry(MultiPolygon, 4326) NOT NULL,
+  -- La projection dans laquelle CE territoire se dessine sans déformation.
+  -- La France ne tient pas dans une seule projection : le Lambert-93 est fait
+  -- pour la métropole et déforme absurdement la Réunion ou la Polynésie. Chaque
+  -- outre-mer porte donc la sienne, et se dessine en carton séparé — jamais
+  -- dans le même repère que l'hexagone, ce qui donnerait une échelle fausse.
+  srid_rendu      integer     NOT NULL DEFAULT 2154,
   source_id       bigint      REFERENCES raw.source(id),
   provenance      bigint      REFERENCES raw.document(id),
   created_at      timestamptz NOT NULL DEFAULT now()
@@ -50,6 +57,8 @@ CREATE INDEX contour_geom_idx        ON geo.contour USING gist (geom);
 
 COMMENT ON COLUMN geo.contour.code_insee IS
   'Code officiel lu dans le tag ref:INSEE, rattaché au COG par data/geo-rattachements.csv.';
+COMMENT ON COLUMN geo.contour.srid_rendu IS
+  'Projection de rendu propre au territoire. 2154 (Lambert-93) pour la métropole ; chaque outre-mer a la sienne.';
 COMMENT ON COLUMN geo.contour.geom IS
   'WGS 84. Sert à dessiner, jamais à mesurer : une aire en degrés n''a pas de sens.';
 
