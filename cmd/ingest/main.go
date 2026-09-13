@@ -18,12 +18,14 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/an"
 	"github.com/faits-politiques/faits-politiques/internal/archive"
 	"github.com/faits-politiques/faits-politiques/internal/associations"
+	"github.com/faits-politiques/faits-politiques/internal/budget"
 	"github.com/faits-politiques/faits-politiques/internal/campagne"
 	"github.com/faits-politiques/faits-politiques/internal/carto"
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/entreprises"
 	"github.com/faits-politiques/faits-politiques/internal/europe"
 	"github.com/faits-politiques/faits-politiques/internal/hatvp"
+	"github.com/faits-politiques/faits-politiques/internal/jorf"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
 	"github.com/faits-politiques/faits-politiques/internal/partis"
@@ -34,7 +36,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | deports | amendements | campagne | senat-repertoire | senat-mandats | senat-commissions | hatvp | macro | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -109,14 +111,44 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		return ingestMedia(ctx, pool, arch, "data", "web/media")
 	}
 
+	// La normalisation de l'Assemblée vient AVANT le RNE et le Sénat.
+	// L'ordre n'est pas cosmétique : le RNE n'insère un mandat de député que si
+	// l'Assemblée n'en a pas déjà publié un (« le RNE complète, il n'écrase
+	// pas »). Tant que la normalisation passait en dernier, ce garde-fou ne
+	// gardait rien — le RNE arrivait le premier avec sa version pauvre, sans
+	// circonscription ni date de fin, et la contrainte d'exclusion faisait
+	// rejeter celle de l'Assemblée. En silence.
+	if only == "" || only == "normalize" {
+		fmt.Println("\nnormalisation raw -> core")
+		if err := an.Normalize(ctx, pool); err != nil {
+			return err
+		}
+		// Les déports sont déjà dans raw.record : normalisation seule.
+		if err := an.NormalizeDeports(ctx, pool); err != nil {
+			return err
+		}
+	}
+	if only == "normalize" {
+		return cartographie(ctx, pool)
+	}
+
 	if only == "" || only == "senat" {
 		fmt.Println("\nSénat")
 		if err := senat.Ingest(ctx, pool, arch, filepath.Join(rawDir, "senat-work")); err != nil {
 			return err
 		}
-		// Le répertoire des sénateurs vient après les votes : il complète des
-		// personnes existantes, il n'en crée aucune.
+		// Le répertoire des sénateurs vient après les votes : il complète les
+		// personnes issues des scrutins, et crée les sénateurs plus anciens
+		// qu'aucun vote n'a fait connaître.
 		if err := senat.IngestSenateurs(ctx, pool, arch); err != nil {
+			return err
+		}
+		// Puis la fusion, car le Sénat ne partage aucun identifiant avec les
+		// autres sources : sans elle, un sénateur également conseiller
+		// municipal existe en deux fiches, chacune amputée de la moitié de sa
+		// vie publique. Elle vient avant les mandats et les commissions pour
+		// qu'ils se rattachent à la fiche unique.
+		if err := senat.Fusionner(ctx, pool); err != nil {
 			return err
 		}
 		// Recharger le Sénat reconstruit ses dossiers avec de NOUVEAUX
@@ -130,6 +162,11 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 			return err
 		}
 		if err := senat.IngestCommissions(ctx, pool, arch); err != nil {
+			return err
+		}
+		// L'objet des dossiers est dans le même dump : il se reprend sans rien
+		// retélécharger.
+		if err := senat.NormalizePresentations(ctx, pool); err != nil {
 			return err
 		}
 		fmt.Println("\nthèmes applicables aux scrutins")
@@ -169,6 +206,14 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "cog" {
 		fmt.Println("\nréférentiel géographique")
 		return communes.IngestCOG(ctx, pool, arch)
+	}
+
+	// Le seul RNE : après une renormalisation de l'Assemblée, ses mandats
+	// parlementaires doivent être recalculés — le garde-fou « le RNE complète,
+	// il n'écrase pas » ne peut trancher qu'une fois l'Assemblée chargée.
+	if only == "rne" {
+		fmt.Println("\nrépertoire national des élus")
+		return communes.IngestRNE(ctx, pool, arch)
 	}
 
 	if only == "epci" {
@@ -227,6 +272,16 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		return nil
 	}
 
+	if only == "" || only == "budget" {
+		fmt.Println("\nbudget de l'État et de la Sécurité sociale")
+		if err := budget.Ingest(ctx, pool, arch); err != nil {
+			return err
+		}
+	}
+	if only == "budget" {
+		return nil
+	}
+
 	if only == "" || only == "macro" {
 		fmt.Println("\ngrandes séries nationales")
 		if err := macro.Ingest(ctx, pool, arch); err != nil {
@@ -263,9 +318,48 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		return senat.NormalizeMandats(ctx, pool)
 	}
 
+	if only == "senat-presentations" {
+		fmt.Println("\nprésentations des dossiers du Sénat")
+		return senat.NormalizePresentations(ctx, pool)
+	}
+
+	if only == "senat-fusion" {
+		fmt.Println("\nfusion des fiches de sénateurs")
+		return senat.Fusionner(ctx, pool)
+	}
+
+	// Le nombre d'archives est borné : le flux complet fait 784 livraisons et
+	// deux gigaoctets. On commence par les plus récentes, qui couvrent les
+	// responsables en fonction.
+	if only == "jorf" {
+		fmt.Println("\nactes nominatifs du Journal officiel")
+		return jorf.Ingest(ctx, pool, arch, 60)
+	}
+
+	// La base complète du Journal officiel, traversée en flux pour n'en retenir
+	// que les décrets de composition du Gouvernement. C'est la seule source qui
+	// couvre 2014-2026 : le jeu officiel des services du Premier ministre
+	// s'arrête en 2014 (voir internal/jorf/gouvernement.go).
+	if only == "jorf-gouvernement" {
+		fmt.Println("\ndécrets de composition du Gouvernement")
+		return jorf.IngestGouvernement(ctx, pool, arch)
+	}
+
+	// La lecture des décrets déjà scellés : corriger l'analyse d'une phrase ne
+	// doit pas obliger à retraverser un gigaoctet d'archive.
+	if only == "gouvernement-membres" {
+		fmt.Println("\nmembres du Gouvernement, d'après les décrets")
+		return jorf.NormalizeMembres(ctx, pool)
+	}
+
 	if only == "campagne" {
 		fmt.Println("\ncomptes de campagne")
 		return campagne.Ingest(ctx, pool, arch)
+	}
+
+	if only == "interventions" {
+		fmt.Println("\ninterventions en séance")
+		return an.IngestInterventions(ctx, pool, arch)
 	}
 
 	if only == "amendements" {
@@ -276,6 +370,11 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "deports" {
 		fmt.Println("\ndéclarations de déport")
 		return an.NormalizeDeports(ctx, pool)
+	}
+
+	if only == "exposes-reparse" {
+		fmt.Println("\nréextraction des exposés depuis l'archive")
+		return an.ReparseExposes(ctx, pool, rawDir)
 	}
 
 	if only == "exposes" {
@@ -298,13 +397,29 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		return nil
 	}
 
-	fmt.Println("\nnormalisation raw -> core")
-	if err := an.Normalize(ctx, pool); err != nil {
-		return err
-	}
-	// Les déports sont déjà dans raw.record : normalisation seule.
-	if err := an.NormalizeDeports(ctx, pool); err != nil {
-		return err
+	// Les travaux qui s'appuient sur core.texte et core.dossier viennent après
+	// la normalisation, jamais avant : ils y font référence par clé étrangère.
+	if only == "" {
+		fmt.Println("\namendements et exposés sommaires")
+		if err := an.IngestAmendements(ctx, pool, arch); err != nil {
+			return err
+		}
+		fmt.Println("\nexposés des motifs")
+		if err := an.IngestExposes(ctx, pool, arch); err != nil {
+			return err
+		}
+		fmt.Println("\ninterventions en séance")
+		if err := an.IngestInterventions(ctx, pool, arch); err != nil {
+			return err
+		}
+		fmt.Println("\ncomptes de campagne")
+		if err := campagne.Ingest(ctx, pool, arch); err != nil {
+			return err
+		}
+		fmt.Println("\nactes nominatifs du Journal officiel")
+		if err := jorf.Ingest(ctx, pool, arch, 60); err != nil {
+			return err
+		}
 	}
 
 	if err := cartographie(ctx, pool); err != nil {

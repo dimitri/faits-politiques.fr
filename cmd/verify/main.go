@@ -559,6 +559,272 @@ var checks = []check{
 		         WHERE serie_code = 'dividendes.verses.snf' AND annee < 1980`,
 		min: 8,
 	},
+	{
+		// Un sénateur qui est aussi conseiller municipal ne doit pas exister en
+		// deux fiches (D-039). La fusion est faite sur nom + date de naissance
+		// exacte, avec appariement unique des deux côtés : ce contrôle vérifie
+		// qu'il ne reste aucune paire de ce genre à réunir.
+		name: "aucun sénateur en double avec une personne déjà connue",
+		query: `SELECT count(*)
+		          FROM core.person s JOIN core.person o
+		            ON core.f_unaccent(lower(s.family_name)) = core.f_unaccent(lower(o.family_name))
+		           AND core.f_unaccent(lower(s.given_name))  = core.f_unaccent(lower(o.given_name))
+		           AND s.birth_date = o.birth_date AND s.id <> o.id
+		         WHERE s.birth_date IS NOT NULL
+		           AND EXISTS (SELECT 1 FROM core.person_identifier i
+		                        WHERE i.person_id = s.id AND i.scheme = 'SENAT_MATRICULE')
+		           AND NOT EXISTS (SELECT 1 FROM core.person_identifier i
+		                            WHERE i.person_id = o.id AND i.scheme = 'SENAT_MATRICULE')`,
+	},
+	{
+		// 539 310 heures de parole en deux ans avaient été publiées parce que
+		// `stime` avait été lu comme une durée (D-038). Une session de l'Assemblée
+		// tient dans l'année : 3 000 heures de débat est déjà généreux.
+		name: "le temps de parole tient dans une année de séance",
+		query: `SELECT count(*) FROM derived.temps_de_parole
+		         WHERE duree_debat_s > 3000 * 3600`,
+	},
+	{
+		// L'Assemblée publie 1 258 mandats de député depuis 1988 ; la contrainte
+		// d'exclusion en refusait 1 194 à cause d'un chevauchement de deux jours
+		// entre législatures (D-041). Le seuil est bas à dessein : il tombe si
+		// le recollement cesse de fonctionner, pas si la source évolue.
+		name: "les mandats de député remontent avant 2017",
+		query: `SELECT count(*) FROM core.mandate
+		         WHERE mandate_type = 'DEPUTE' AND institution = 'ASSEMBLEE_NATIONALE'
+		           AND lower(validity) < '2017-01-01'`,
+		min: 200,
+	},
+	{
+		// Un acte du Journal officiel sans corps de texte ne peut rien nommer, et
+		// le décodeur en a déjà perdu la trace deux fois : rejet du fichier
+		// entier par le décodeur strict (D-040), puis chemin figé vers
+		// <BLOC_TEXTUEL> qui vidait deux cents décrets sur deux cent quatre
+		// (D-049).
+		//
+		// Ce contrôle a d'abord exigé ZÉRO acte sans corps, puis moins de 5 %.
+		// Les deux formulations étaient mauvaises : la première affirmait plus
+		// que la source ne promet, la seconde est un pourcentage qui dérive avec
+		// la composition du corpus — il est passé à 5,07 % en ajoutant les
+		// décrets anciens, et le contrôle a échoué sans que rien ne soit cassé.
+		//
+		// Le fait réel est daté, pas statistique : la DILA ne publie que les
+		// MÉTADONNÉES des actes anciens, et son dernier acte nominatif sans
+		// texte date du 4 juin 1997. Au-delà de 1998, un acte sans corps est
+		// nécessairement un défaut de lecture — et une régression du décodeur
+		// ferait tomber ce contrôle sur les 934 actes concernés, pas sur trois.
+		name: "tout acte nominatif postérieur à 1998 porte un corps de texte",
+		query: `SELECT count(*) FROM core.acte_jo
+		         WHERE nominatif AND contenu IS NULL
+		           AND coalesce(date_texte, date_publi) >= '1998-01-01'`,
+	},
+
+	// ----------------------------------------------------------------------
+	// Budget de l'État et de la Sécurité sociale.
+	{
+		// Une sonde de concordance passe trivialement sur une table vide : c'est
+		// déjà arrivé dans ce dépôt. On compte donc d'abord, on rapproche ensuite.
+		// Douze séries — quatre sous-secteurs × dépenses, recettes, solde — dont
+		// chacune porte trente et un millésimes depuis 1995.
+		name:  "les douze séries par sous-secteur sont chargées",
+		query: `SELECT count(*) FROM ref.macro_serie WHERE code ~ '^(depense|recette|solde)\.S13'`,
+		min:   12,
+	},
+	{
+		name: "chaque série par sous-secteur a au moins vingt-cinq points",
+		query: `SELECT count(*) FROM (
+		          SELECT serie_code FROM core.macro_value
+		           WHERE serie_code ~ '^(depense|recette|solde)\.S13'
+		           GROUP BY 1 HAVING count(*) < 25) x`,
+	},
+	{
+		// ESSPROS remonte à 1990, quatre ans plus tôt que les comptes des
+		// administrations publiques. C'est son intérêt : dater le basculement
+		// des cotisations vers l'impôt affecté plutôt que de l'affirmer.
+		name: "les cinq séries de financement de la protection sociale ont au moins trente points",
+		query: `SELECT count(*) FROM (
+		          SELECT serie_code FROM core.macro_value
+		           WHERE serie_code LIKE 'protection.financement.%'
+		           GROUP BY 1 HAVING count(*) < 30) x`,
+	},
+	{
+		// L'identité comptable du SEC 2010 : recettes moins dépenses égale la
+		// capacité de financement. Si elle cesse d'être vraie, c'est que trois
+		// séries indépendantes ne décrivent plus le même sous-secteur — une
+		// dimension a changé de nom chez Eurostat et la requête ramène autre
+		// chose sans le dire. La tolérance d'un million d'euros couvre les
+		// arrondis de publication ; l'écart observé est de 0,1 M€.
+		name: "TE − TR = −B9 pour chaque sous-secteur et chaque année",
+		query: `SELECT count(*) FROM derived.budget_sous_secteur
+		         WHERE depenses_meur IS NOT NULL AND recettes_meur IS NOT NULL
+		           AND solde_meur IS NOT NULL
+		           AND abs(depenses_meur - recettes_meur + solde_meur) > 1`,
+	},
+	{
+		// La somme des sous-secteurs dépasse toujours le total : les transferts
+		// entre administrations sont comptés une fois chez celle qui verse et
+		// une fois chez celle qui reçoit, et le total S13 les consolide. L'écart
+		// n'est donc PAS nul par construction — il vaut de 6,2 % à 11,0 % sur
+		// 1995-2025, et c'est la mesure des flux internes. La borne de 15 %
+		// attrape la disparition d'un sous-secteur, pas la consolidation.
+		name: "la somme des sous-secteurs reste à moins de 15 % du total consolidé",
+		query: `SELECT count(*) FROM (
+		          SELECT annee,
+		                 max(depenses_meur) FILTER (WHERE secteur = 'S13')    AS total,
+		                 sum(depenses_meur) FILTER (WHERE secteur <> 'S13')   AS somme
+		            FROM derived.budget_sous_secteur GROUP BY 1) s
+		         WHERE total IS NOT NULL AND somme IS NOT NULL
+		           AND (somme - total) / total NOT BETWEEN 0 AND 0.15`,
+	},
+	{
+		name:  "les comptes de la protection sociale couvrent au moins soixante millésimes",
+		query: `SELECT count(DISTINCT annee) FROM core.protection_sociale`,
+		min:   60,
+	},
+	{
+		// La table croise deux hiérarchies. Le sommet de chacune — total des
+		// prestations, tous régimes — doit donner EXACTEMENT une ligne par année.
+		// Deux lignes signaleraient un dépliage fautif, et une somme naïve sur
+		// la table compterait alors chaque euro deux fois de plus.
+		name: "le total des prestations est unique chaque année",
+		query: `SELECT count(*) FROM (
+		          SELECT annee FROM core.protection_sociale
+		           WHERE ps_niveau = 0 AND si_niveau = 0
+		           GROUP BY 1 HAVING count(*) <> 1) x`,
+	},
+	{
+		// Le secteur institutionnel du financeur est la colonne la plus utile de
+		// la table et la plus facile à perdre : c'est elle qui permet de ventiler
+		// la protection sociale entre l'État, le régime général et les autres.
+		name: "la protection sociale est ventilée par secteur institutionnel",
+		query: `SELECT count(DISTINCT si_code) FROM core.protection_sociale
+		         WHERE si_code LIKE 'S13%'`,
+		min: 5,
+	},
+	{
+		// Le jeu est publié pivoté, une colonne par arrêté. Un dépliage qui
+		// perdrait une colonne ne ferait pas d'erreur : il rendrait un mois de
+		// moins. On compte donc les arrêtés.
+		name:  "l'exécution de l'État porte au moins vingt arrêtés mensuels",
+		query: `SELECT count(DISTINCT date_arrete) FROM core.execution_etat`,
+		min:   20,
+	},
+	{
+		// Chaque arrêté doit porter les mêmes postes que les autres. Un poste
+		// manquant à une date est le symptôme d'une colonne partiellement lue.
+		name: "chaque arrêté mensuel porte le même nombre de postes",
+		query: `SELECT count(*) FROM (
+		          SELECT date_arrete FROM core.execution_etat GROUP BY 1
+		           HAVING count(*) <> (SELECT count(DISTINCT (categorie, sous_categorie, ligne))
+		                                 FROM core.execution_etat)) x`,
+	},
+	{
+		name:  "les exonérations de cotisations couvrent au moins vingt millésimes",
+		query: `SELECT count(DISTINCT annee) FROM core.exoneration_cotisation`,
+		min:   20,
+	},
+	{
+		name:  "la masse salariale couvre au moins cent trimestres",
+		query: `SELECT count(*) FROM core.masse_salariale`,
+		min:   100,
+	},
+	{
+		// Fraîcheur. C'est le contrôle qui aurait attrapé les encaissements
+		// URSSAF, figés depuis juillet 2023 et pourtant présentés comme courants.
+		// Les seuils suivent la cadence réelle de chaque source : les comptes de
+		// la protection sociale paraissent avec deux ans de recul, les
+		// exonérations avec un peu plus d'un an, la masse salariale au trimestre.
+		name: "aucune source budgétaire annuelle n'a pris plus de trois ans de retard",
+		query: `SELECT count(*) FROM (
+		          SELECT 1 FROM core.protection_sociale
+		           HAVING max(annee) < extract(year FROM CURRENT_DATE) - 3
+		          UNION ALL
+		          SELECT 1 FROM core.exoneration_cotisation
+		           HAVING max(annee) < extract(year FROM CURRENT_DATE) - 3
+		          UNION ALL
+		          SELECT 1 FROM core.masse_salariale
+		           HAVING max(dernier_jour) < CURRENT_DATE - INTERVAL '18 months') x`,
+	},
+	{
+		name: "l'exécution de l'État a moins de quinze mois de retard",
+		query: `SELECT count(*) FROM (
+		          SELECT 1 FROM core.execution_etat
+		           HAVING max(date_arrete) < CURRENT_DATE - INTERVAL '15 months') x`,
+	},
+	{
+		// Le schéma doit rendre la faute impossible, pas la signaler. Ce contrôle
+		// vérifie que la vue de rapprochement tient sa promesse : elle n'apparie
+		// jamais deux valeurs de comptabilités différentes. Comparer un solde de
+		// loi de finances et un besoin de financement au sens de Maastricht
+		// fabriquerait un « écart d'exécution » qui ne mesure rien.
+		name: "le rapprochement n'aligne jamais deux comptabilités différentes",
+		query: `SELECT count(*) FROM derived.budget_rapprochement
+		         WHERE solde_comptes_meur IS NOT NULL AND comptabilite <> 'NATIONALE'`,
+	},
+	{
+		// La composition des gouvernements n'existait plus en open data après
+		// 2014 : le jeu des services du Premier ministre est gelé depuis le
+		// 18 juin 2014. Les décrets du Journal officiel comblent le trou ; ce
+		// contrôle vérifie qu'ils le comblent vraiment.
+		name: "les décrets de gouvernement couvrent 2014-2026",
+		query: `SELECT count(DISTINCT date_trunc('year', coalesce(date_texte, date_publi)))
+		          FROM core.acte_jo
+		         WHERE titre_complet ~* 'composition du gouvernement|nomination du premier ministre'
+		           AND coalesce(date_texte, date_publi) >= '2014-01-01'`,
+		min: 9,
+	},
+	{
+		// « 2999-01-01 » est la sentinelle que la DILA écrit quand la date d'un
+		// texte est inconnue. Prise au mot, elle datait dix-huit décrets de
+		// composition du trentième siècle et faussait l'ordre chronologique dont
+		// dépend la déduction des périodes ministérielles. Une sentinelle n'est
+		// pas une date : elle doit être NULL.
+		name: "aucun acte du Journal officiel n'est daté du trentième siècle",
+		query: `SELECT count(*) FROM core.acte_jo
+		         WHERE date_texte > '2100-01-01' OR date_publi > '2100-01-01'`,
+	},
+	{
+		// Un décret qui compose un gouvernement entier nomme plus de dix
+		// ministres de plein exercice. S'il n'en reste aucun de cette taille,
+		// c'est que la lecture de la prose a cessé de fonctionner — et elle
+		// échouerait en silence, un décret illisible ne produisant pas d'erreur.
+		name: "des décrets composent un gouvernement entier",
+		query: `SELECT count(*) FROM (
+		          SELECT acte_id FROM core.gouvernement_membre
+		           WHERE sens = 'NOMINATION' AND fonction IN ('MINISTRE', 'MINISTRE_ETAT')
+		           GROUP BY 1 HAVING count(*) >= 10) x`,
+		min: 10,
+	},
+	{
+		// Les périodes déduites doivent être ordonnées. Une fin antérieure au
+		// début signalerait que l'ordre chronologique des décrets est faux —
+		// exactement ce que la sentinelle 2999 provoquait.
+		name: "aucune fonction ministérielle ne se termine avant de commencer",
+		query: `SELECT count(*) FROM derived.mandat_ministeriel
+		         WHERE NOT upper_inf(validity) AND upper(validity) <= lower(validity)`,
+	},
+	{
+		// Le rapprochement d'un nom de décret avec une personne de la base reste
+		// CANDIDAT : le décret ne porte aucune date de naissance, et 41,9 % de
+		// nos élus ont un homonyme exact. Rien ne doit y être CONFIRME tant
+		// qu'un identifiant ne l'a pas établi.
+		name: "aucun membre du Gouvernement n'est confirmé sans identifiant",
+		query: `SELECT count(*) FROM core.gouvernement_membre g
+		         WHERE g.statut = 'CONFIRME'
+		           AND NOT EXISTS (SELECT 1 FROM core.person_identifier i
+		                            WHERE i.person_id = g.person_id)`,
+	},
+	{
+		// Les trois référentiels sont semés par la migration. S'ils sont vides,
+		// aucune valeur budgétaire n'a pu être chargée — et les contrôles de
+		// volume ci-dessus l'auraient dit — mais le message serait obscur.
+		name: "les référentiels de périmètre, comptabilité et stade sont semés",
+		query: `SELECT least(
+		          (SELECT count(*) FROM ref.budget_perimetre),
+		          (SELECT count(*) FROM ref.budget_comptabilite),
+		          (SELECT count(*) FROM ref.budget_stade))`,
+		min: 3,
+	},
 }
 
 func main() {
