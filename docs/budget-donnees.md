@@ -1,6 +1,6 @@
 # Budget de l'État et budget de la Sécurité sociale : ce que les sources permettent
 
-> Document de conception. Version 1 — 13 septembre 2026.
+> Document de conception. Version 2 — 13 septembre 2026.
 > Deux questions : **comment les deux budgets s'articulent**, et **quelles sources
 > permettent de publier, pour chaque année, un montant voté et un montant exécuté.**
 >
@@ -201,6 +201,72 @@ documenté en données ouvertes.
 | **[URSSAF — exonérations par mesure](https://open.urssaf.fr/explore/dataset/exos-secteur-prive-france-entiere-par-mesures)** | montant des exonérations, **mesure par mesure** | 890 lignes, maj 24 juillet 2026 | **ODbL** | **directement pertinent** : c'est la matière du canal n° 2 du § 1.3 |
 | **Cour des comptes** — RALFSS, certification des comptes | exécution, fiabilité, réserves par branche | annuel | PDF | contrôle |
 
+### 4.3 Le fonctionnement financier : collecte, redistribution, dette
+
+Le budget social n'est pas une caisse mais un circuit, et chaque étape a — ou n'a pas —
+sa source.
+
+> **URSSAF** collecte cotisations et CSG → répartition entre les cinq branches →
+> **ACOSS / Urssaf Caisse nationale** porte la trésorerie commune → **CADES** amortit
+> la dette qu'on lui transfère → **l'État** compense les exonérations et affecte de la
+> TVA → le **FSV** finance les avantages vieillesse non contributifs.
+
+| Source | Étape du circuit | Couverture | Format / licence | Verdict |
+|---|---|---|---|---|
+| **[URSSAF — exonérations par mesure](https://open.urssaf.fr/explore/dataset/exos-secteur-prive-france-entiere-par-mesures)** | ce que l'État décide d'alléger | 890 lignes, maj 24 juillet 2026 | ODbL | **chiffre le canal n° 2** du § 1.3 |
+| **[URSSAF — masse salariale du secteur privé](https://open.urssaf.fr/explore/dataset/masse-salariale-du-secteur-prive-france-entiere)** | l'assiette des cotisations | 118 lignes, maj **28 août 2026** | ODbL | très à jour, c'est le dénominateur de tout le reste |
+| **URSSAF — restes à recouvrer**, contrôle, travail illégal | l'efficacité du recouvrement | maj août 2026 et juillet 2025 | ODbL | rare : la plupart des systèmes ne publient pas leur taux de recouvrement |
+| **[URSSAF — encaissements annuels](https://open.urssaf.fr/explore/dataset/encaissements-annuels-des-urssaf)** | l'argent effectivement encaissé | 525 lignes, **maj 5 juillet 2023** | ODbL | **dormant depuis trois ans** |
+| **[CNAM — data.ameli.fr](https://data.ameli.fr)** | ce que la branche maladie rembourse | 51 jeux, dont `depenses` (24 800 lignes, maj juillet 2026) | ODbL | **dépenses par pathologie**, pas comptes de branche |
+| **CADES** | amortissement de la dette | rapports financiers annuels | **PDF** | 387,7 Md€ repris depuis 1996 ; **121,7 Md€ restant fin 2025** |
+| **COR** — rapport annuel retraites | projections du système de retraite | XLSX **joints aux rapports** sur cor-retraites.fr | XLSX derrière un PDF | le [jeu data.gouv.fr](https://www.data.gouv.fr/datasets/evolutions-et-perspectives-des-retraites-en-france-rapport-annuel) est **abandonné depuis 2016 et son organisation supprimée** |
+| **[Jaune budgétaire « Bilan des relations financières entre l'État et la protection sociale »](https://www.assemblee-nationale.fr/dyn/dyn/contenu/visualisation/1089977/file/2-Jaune2026_Protection_Sociale-1.pdf)** | **les cinq canaux, chiffrés** | annexé à chaque PLF | **PDF** | **le seul document qui répond à la question du § 1.3** — et il n'est pas exploitable par machine |
+
+Le total de l'URSSAF est remarquable — **124 jeux, tous en ODbL** — mais il décrit
+l'**activité** du recouvrement, pas les **comptes**. On sait combien d'exonérations,
+combien de masse salariale, combien de redressements ; on ne trouve nulle part le
+tableau d'équilibre d'une branche.
+
+### 4.4 Ce qui est hors LFSS mais pèse sur le même circuit
+
+L'assurance chômage et les retraites complémentaires **ne sont pas dans la LFSS** et
+sont pourtant dans les administrations de sécurité sociale au sens comptable — donc
+dans le déficit public. Les ignorer fausse toute comparaison européenne.
+
+L'**Unédic** en donne l'illustration la plus nette. Sa dette nette est de **59,6 Md€
+fin 2024** (pic à 63,6 Md€ en 2021) et son solde 2026 est prévu à **−1,3 Md€**. Surtout :
+la **non-compensation partielle des exonérations décidée en décembre 2023 ampute ses
+recettes de 12,05 Md€ sur 2023-2026**. C'est douze milliards du canal n° 2 du § 1.3,
+prélevés sur un organisme dont aucun débat sur « le déficit de la Sécu » ne parle,
+parce qu'il n'est pas dans la LFSS.
+
+Ses prévisions financières sont publiées deux à trois fois par an, en **PDF**.
+
+### 4.5 La comparaison européenne du financement
+
+Eurostat publie, sous ESSPROS, la **structure de financement** de la protection
+sociale — et c'est la mesure directe de la fiscalisation du modèle français.
+
+Dataflow `spr_rec_sumt`, dimension `sptype`, **1990 → 2023**, vérifié :
+
+| Catégorie | France 2023 |
+|---|---|
+| Total | 970,1 Md€ |
+| Cotisations à charge des employeurs | 376,6 Md€ |
+| Cotisations à charge des personnes protégées | 154,3 Md€ |
+| **Contributions publiques — recettes fiscales affectées** | **289,3 Md€** |
+| Contributions publiques — recettes fiscales générales | 131,2 Md€ |
+
+La ligne en gras est le canal n° 1 du § 1.3 vu de l'extérieur : **la TVA et la CSG
+affectées pèsent désormais autant que les cotisations salariales et patronales
+réunies moins un tiers**. Trente-quatre points annuels permettent de dater le
+basculement plutôt que de l'affirmer.
+
+Les dépenses ESSPROS sont sous `spr_exp_func` et ses déclinaisons par fonction
+(`spr_exp_fol` vieillesse, `spr_exp_fsi` maladie, `spr_exp_ffa` famille,
+`spr_exp_fun` chômage…). **Attention : `spr_exp_sum`, souvent cité, est retiré** et
+renvoie 404.
+
 ---
 
 ## 5. Le socle commun : la comptabilité nationale, déjà branchée
@@ -242,6 +308,22 @@ ne connaît que l'exécuté, retraité, et à 18 mois de délai pour les comptes
 4. **Aucune source ne fournit les cinq canaux du § 1.3 sous forme de flux chiffré
    consolidé.** Le rapport annuel du gouvernement au Parlement sur les relations
    financières entre l'État et la sécurité sociale existe, en PDF.
+5. **Aucun compte de branche en données ouvertes.** La CNAM publie 51 jeux sur
+   data.ameli.fr, dont les dépenses **par pathologie** — mais pas les comptes de la
+   branche maladie. L'URSSAF publie 124 jeux sur son **activité** de recouvrement, pas
+   ses comptes. Le circuit est documenté de partout sauf à l'endroit où il se solde.
+6. **Les indicateurs financiers de la Sécurité sociale ont quitté le format tableur.**
+   Les REPSS, gelés sur data.gouv.fr en janvier 2022, vivent désormais sur
+   [evaluation.securite-sociale.fr](https://evaluation.securite-sociale.fr) sous forme
+   de **texte et de graphiques en image** : la page qui donne la dette restant à
+   amortir par la CADES ne contient **aucun tableau** et aucun fichier joint. C'est une
+   régression : l'information est publiée, la donnée ne l'est plus.
+7. **Le jeu de données du COR est orphelin** : dernière mise à jour 2016, organisation
+   propriétaire supprimée sur data.gouv.fr. Les séries actuelles n'existent qu'en XLSX
+   attachés aux rapports.
+8. **Le seul document qui chiffre les cinq canaux État ↔ Sécurité sociale est un PDF** :
+   le jaune budgétaire annexé au PLF. Il est complet, annuel, officiel — et illisible
+   par machine.
 
 ---
 
@@ -256,6 +338,8 @@ Par rapport coût / valeur, en s'appuyant sur ce qui est déjà branché.
 | **3** | `situations-mensuelles-budgetaires-series-longues` | seule série d'exécution budgétaire de l'État ; dépliage de la table pivotée à écrire | moyen |
 | **4** | URSSAF, exonérations par mesure | chiffre le canal État → Sécu le plus discuté ; **ODbL, donc `reuse_class = ATTRIBUTION`** et partage à l'identique à vérifier avant tout export | faible |
 | **5** | Soldes votés, LFI et LFSS | table de référence semée, une ligne par loi, avec la référence *JORF* — **exactement le patron de `ref.pdr_proclamation`** : la liste des textes est semée, les chiffres viennent du document scellé | moyen |
+| **6** | Eurostat ESSPROS `spr_rec_sumt` | structure de financement depuis 1990, quatre lignes qui datent la fiscalisation ; même connecteur que le lot 1 | très faible |
+| **7** | URSSAF — masse salariale et exonérations | l'assiette et les allègements, tous deux à jour à moins de deux mois ; **ODbL, partage à l'identique à tracer** | faible |
 
 Le point 5 mérite d'être dit explicitement : à ce volume — une dizaine de lois par
 décennie — **une table de référence relue vaut mieux qu'un parseur de texte de loi**,
