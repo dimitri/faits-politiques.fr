@@ -164,7 +164,7 @@ année » suppose d'écrire un adaptateur par millésime, ou de repartir du text
 
 | Source | Ce qu'elle donne | Couverture | Format / licence | Verdict |
 |---|---|---|---|---|
-| **[`situations-mensuelles-budgetaires-series-longues`](https://data.economie.gouv.fr/explore/dataset/situations-mensuelles-budgetaires-series-longues)** | exécution **mensuelle** : recettes, dépenses, solde | **2013 → aujourd'hui**, maj 3 septembre 2026 | Opendatasoft, **Licence Ouverte v2.0** | **la meilleure série d'exécution**. Piège : table **pivotée**, 26 lignes et *une colonne par mois* — il faut la déplier |
+| **[`situations-mensuelles-budgetaires-series-longues`](https://data.economie.gouv.fr/explore/dataset/situations-mensuelles-budgetaires-series-longues)** | exécution **mensuelle** : recettes, dépenses, solde | **2013 → aujourd'hui**, maj 3 septembre 2026 | Opendatasoft, **Licence Ouverte v2.0** | **chargé** → `core.execution_etat`. Table **pivotée** dépliée au chargement ; couverture réelle **janvier 2024 → juillet 2026**, pas 2013 |
 | **[`balances_des_comptes_etat`](https://data.economie.gouv.fr/explore/dataset/balances_des_comptes_etat)** | comptabilité **générale** de l'État, compte par compte | 10 ans glissants, **517 489 lignes**, maj 22 avril 2026 | Opendatasoft, **Licence Ouverte v2.0** | massif et exploitable ; comptabilité générale, donc **pas comparable à la LFI** |
 | **`performance-de-la-depense`** / **`performance-de-la-depense-rap-2025`** | RAP : exécution et indicateurs par mission / programme | un jeu par millésime (2 177 et 2 140 lignes), maj juin 2026 | **Licence Ouverte v2.0** | utile pour la performance ; colonnes `exec_2022`, `exec_2023` **en dur dans le schéma**, donc à re-mapper chaque année |
 | **Cour des comptes**, *Le budget de l'État — résultats et gestion* | analyse annuelle de l'exécution | annuel | jeux déposés sur data.gouv.fr, PDF | contrôle et mise en garde, pas série |
@@ -194,11 +194,11 @@ documenté en données ouvertes.
 
 | Source | Ce qu'elle donne | Couverture | Format / licence | Verdict |
 |---|---|---|---|---|
-| **[DREES — Les comptes de la protection sociale](https://data.drees.solidarites-sante.gouv.fr/explore/dataset/305_les-comptes-de-la-protection-sociale)** | dépenses et recettes par **risque** et par **régime** | **15 654 lignes, séries depuis 1959**, maj 18 décembre 2025 | Opendatasoft, **Licence Ouverte v2.0** | **la meilleure série longue du champ social.** Attention : périmètre **protection sociale**, plus large que la LFSS (chômage et retraites complémentaires compris) |
+| **[DREES — Les comptes de la protection sociale](https://data.drees.solidarites-sante.gouv.fr/explore/dataset/305_les-comptes-de-la-protection-sociale)** | dépenses et recettes par **risque** et par **régime** | **15 654 lignes, séries depuis 1959**, maj 18 décembre 2025 | Opendatasoft, **Licence Ouverte v2.0** | **chargé** → `core.protection_sociale`. Périmètre **protection sociale**, plus large que la LFSS (chômage et retraites complémentaires compris) |
 | **Rapports de la commission des comptes de la sécurité sociale (CCSS)** | comptes détaillés, deux fois par an (printemps, automne) | depuis 1979 | **PDF** | la référence de place, illisible par machine |
 | **LACSS** (depuis 2023) | comptes du dernier exercice clos, approuvés par le Parlement | annuel | texte de loi | nouveauté de la LOLFSS 2022 |
 | **[URSSAF — encaissements annuels](https://open.urssaf.fr/explore/dataset/encaissements-annuels-des-urssaf)** | cotisations et contributions encaissées | 525 lignes, **dernière maj 5 juillet 2023** | **ODbL** | **dormant** — à ne pas présenter comme à jour |
-| **[URSSAF — exonérations par mesure](https://open.urssaf.fr/explore/dataset/exos-secteur-prive-france-entiere-par-mesures)** | montant des exonérations, **mesure par mesure** | 890 lignes, maj 24 juillet 2026 | **ODbL** | **directement pertinent** : c'est la matière du canal n° 2 du § 1.3 |
+| **[URSSAF — exonérations par mesure](https://open.urssaf.fr/explore/dataset/exos-secteur-prive-france-entiere-par-mesures)** | montant des exonérations, **mesure par mesure** | 890 lignes, maj 24 juillet 2026 | **ODbL** | **chargé** → `core.exoneration_cotisation` : la matière du canal n° 2 du § 1.3 |
 | **Cour des comptes** — RALFSS, certification des comptes | exécution, fiabilité, réserves par branche | annuel | PDF | contrôle |
 
 ### 4.3 Le fonctionnement financier : collecte, redistribution, dette
@@ -213,8 +213,8 @@ sa source.
 
 | Source | Étape du circuit | Couverture | Format / licence | Verdict |
 |---|---|---|---|---|
-| **[URSSAF — exonérations par mesure](https://open.urssaf.fr/explore/dataset/exos-secteur-prive-france-entiere-par-mesures)** | ce que l'État décide d'alléger | 890 lignes, maj 24 juillet 2026 | ODbL | **chiffre le canal n° 2** du § 1.3 |
-| **[URSSAF — masse salariale du secteur privé](https://open.urssaf.fr/explore/dataset/masse-salariale-du-secteur-prive-france-entiere)** | l'assiette des cotisations | 118 lignes, maj **28 août 2026** | ODbL | très à jour, c'est le dénominateur de tout le reste |
+| **[URSSAF — exonérations par mesure](https://open.urssaf.fr/explore/dataset/exos-secteur-prive-france-entiere-par-mesures)** | ce que l'État décide d'alléger | 890 lignes, maj 24 juillet 2026 | ODbL | **chargé** → `core.exoneration_cotisation`, canal n° 2 du § 1.3 |
+| **[URSSAF — masse salariale du secteur privé](https://open.urssaf.fr/explore/dataset/masse-salariale-du-secteur-prive-france-entiere)** | l'assiette des cotisations | 118 lignes, maj **28 août 2026** | ODbL | **chargé** → `core.masse_salariale`, le dénominateur de tout le reste |
 | **URSSAF — restes à recouvrer**, contrôle, travail illégal | l'efficacité du recouvrement | maj août 2026 et juillet 2025 | ODbL | rare : la plupart des systèmes ne publient pas leur taux de recouvrement |
 | **[URSSAF — encaissements annuels](https://open.urssaf.fr/explore/dataset/encaissements-annuels-des-urssaf)** | l'argent effectivement encaissé | 525 lignes, **maj 5 juillet 2023** | ODbL | **dormant depuis trois ans** |
 | **[CNAM — data.ameli.fr](https://data.ameli.fr)** | ce que la branche maladie rembourse | 51 jeux, dont `depenses` (24 800 lignes, maj juillet 2026) | ODbL | **dépenses par pathologie**, pas comptes de branche |
@@ -262,10 +262,18 @@ affectées pèsent désormais autant que les cotisations salariales et patronale
 réunies moins un tiers**. Trente-quatre points annuels permettent de dater le
 basculement plutôt que de l'affirmer.
 
+**Chargé** → `core.macro_value`, cinq séries `protection.financement.*`, 1990 → 2023.
+Ce qu'elles datent, plutôt que de l'affirmer :
+
+| | 1990 | 2000 | 2010 | 2020 | 2023 |
+|---|---|---|---|---|---|
+| Impôts affectés | 3,5 % | 20,1 % | 23,4 % | 29,3 % | **29,8 %** |
+| Cotisations | 79,9 % | 65,9 % | 63,0 % | 53,6 % | **54,7 %** |
+
 Les dépenses ESSPROS sont sous `spr_exp_func` et ses déclinaisons par fonction
 (`spr_exp_fol` vieillesse, `spr_exp_fsi` maladie, `spr_exp_ffa` famille,
-`spr_exp_fun` chômage…). **Attention : `spr_exp_sum`, souvent cité, est retiré** et
-renvoie 404.
+`spr_exp_fun` chômage…) — **non chargées à ce jour**. **Attention : `spr_exp_sum`,
+souvent cité, est retiré** et renvoie 404.
 
 ---
 
@@ -286,6 +294,10 @@ depuis 1995 :
 
 Vérifié au 13 septembre 2026 pour 2024 : S13 = 1 672,7 Md€, S1311 = 671,3 Md€,
 S1314 = 777,3 Md€.
+
+**Chargé** → `ref.macro_serie` / `core.macro_value`, remis en forme par
+`derived.budget_sous_secteur` : douze séries (quatre sous-secteurs × dépenses,
+recettes, solde), 1995 → 2025.
 
 **Ce que cela permet, et que rien d'autre ne permet** : afficher la part de chaque
 sous-secteur dans la dépense publique, sur trente ans, sans mélanger les comptabilités.
@@ -327,23 +339,85 @@ ne connaît que l'exécuté, retraité, et à 18 mois de délai pour les comptes
 
 ---
 
-## 7. Ordre d'ingestion proposé
+## 7. Ce qui est ingéré
 
-Par rapport coût / valeur, en s'appuyant sur ce qui est déjà branché.
+Ingestion faite le 13 septembre 2026. Migration `0059_budget.sql`, connecteurs
+`internal/budget/` et `internal/macro/`, commande `go run ./cmd/ingest -only=budget`
+pour les trois jeux Opendatasoft et `-only=macro` pour les séries Eurostat.
 
-| Priorité | Source | Pourquoi d'abord | Coût |
-|---|---|---|---|
-| **1** | Eurostat `gov_10a_main`, dimension `sector` | une ligne de dimension à ajouter à un connecteur existant, et on obtient la comparaison État / Sécu sur trente ans | très faible |
-| **2** | DREES, comptes de la protection sociale | série depuis 1959, Licence Ouverte, API Opendatasoft identique à celle de la CNAF déjà utilisée | faible |
-| **3** | `situations-mensuelles-budgetaires-series-longues` | seule série d'exécution budgétaire de l'État ; dépliage de la table pivotée à écrire | moyen |
-| **4** | URSSAF, exonérations par mesure | chiffre le canal État → Sécu le plus discuté ; **ODbL, donc `reuse_class = ATTRIBUTION`** et partage à l'identique à vérifier avant tout export | faible |
-| **5** | Soldes votés, LFI et LFSS | table de référence semée, une ligne par loi, avec la référence *JORF* — **exactement le patron de `ref.pdr_proclamation`** : la liste des textes est semée, les chiffres viennent du document scellé | moyen |
-| **6** | Eurostat ESSPROS `spr_rec_sumt` | structure de financement depuis 1990, quatre lignes qui datent la fiscalisation ; même connecteur que le lot 1 | très faible |
-| **7** | URSSAF — masse salariale et exonérations | l'assiette et les allègements, tous deux à jour à moins de deux mois ; **ODbL, partage à l'identique à tracer** | faible |
+| # | Source | État | Table de destination | Volume chargé |
+|---|---|---|---|---|
+| **1** | Eurostat `gov_10a_main`, dimension `sector` | **chargé** | `ref.macro_serie` / `core.macro_value`, vue `derived.budget_sous_secteur` | 12 séries × 31 ans (1995 → 2025) : dépenses, recettes et solde pour S13, S1311, S1313, S1314 |
+| **2** | DREES, comptes de la protection sociale | **chargé** | `core.protection_sociale`, vue `derived.protection_sociale_total` | 15 654 lignes, 66 millésimes (1959 → 2024) |
+| **3** | `situations-mensuelles-budgetaires-series-longues` | **chargé** | `core.execution_etat` | 26 postes × 31 arrêtés = 806 lignes (janvier 2024 → juillet 2026) |
+| **4** | URSSAF, exonérations par mesure | **chargé** | `core.exoneration_cotisation` | 890 mesures, 22 millésimes (2004 → 2025) |
+| **5** | Soldes votés, LFI et LFSS | **liste semée, chiffres non chargés** | `ref.loi_financiere` (2 lois) / `core.solde_vote` (vide) | voir ci-dessous |
+| **6** | Eurostat ESSPROS `spr_rec_sumt` | **chargé** | `ref.macro_serie` / `core.macro_value` | 5 séries × 34 ans (1990 → 2023) |
+| **7** | URSSAF, masse salariale du secteur privé | **chargé** | `core.masse_salariale` | 118 trimestres (1997 → 2026) |
 
-Le point 5 mérite d'être dit explicitement : à ce volume — une dizaine de lois par
-décennie — **une table de référence relue vaut mieux qu'un parseur de texte de loi**,
-et c'est le seul chemin vers `PRIMARY_OFFICIAL`.
+Le point 5 n'est pas un oubli, c'est le patron de `ref.pdr_proclamation` appliqué :
+la **liste** des textes est semée et relue pièce par pièce, les **chiffres** viennent
+d'un document scellé, jamais d'une migration. `core.solde_vote` restera vide tant
+qu'un connecteur n'aura pas extrait les tableaux d'équilibre du texte publié au
+*Journal officiel*. Une table vide se voit ; un chiffre saisi à la main dans une
+migration ne se voit plus jamais.
+
+### Trois écarts entre ce que les catalogues annoncent et ce qu'ils livrent
+
+1. **`situations-mensuelles-budgetaires-series-longues` ne porte pas de série
+   longue.** Son titre annonce « les exercices 2013 à nos jours » ; le schéma publié
+   ne contient que **trente et un arrêtés, de janvier 2024 à juillet 2026**. L'écart a
+   été constaté sur l'API du catalogue, pas déduit. La table stocke ce qu'elle reçoit,
+   et le contrôle de fraîcheur de `cmd/verify` dira si cela change.
+2. **Les exports Opendatasoft sont compressés.** Le corps est renvoyé en `gzip` dès
+   que le client l'accepte, ce que Go fait par défaut. Le lecteur renifle les deux
+   octets magiques plutôt que de dépendre du transport : l'archive est faite pour être
+   relue dans dix ans.
+3. **L'API refuse `offset + limit > 10 000`**, avec un HTTP 400 explicite. Paginer les
+   15 654 lignes de la DREES échoue donc à mi-parcours — et une pagination mal
+   contrôlée s'arrêterait en silence sur les 10 000 premières. Tout passe par
+   `/exports/json`. Le piège vaut pour **tous** les portails Opendatasoft, y compris
+   `data.caf.fr` déjà utilisé par `internal/macro`.
+
+### Ce que le schéma refuse
+
+Le § 8 est traduit en colonnes et en clés étrangères, pas en commentaires :
+
+- `ref.budget_comptabilite`, `ref.budget_perimetre`, `ref.budget_stade` sont
+  **obligatoires** sur toute valeur budgétaire. Une valeur sans périmètre ne peut pas
+  entrer.
+- `ref.budget_perimetre.hors_lfss` marque les périmètres qui incluent l'assurance
+  chômage et les retraites complémentaires — la ligne de partage entre ce que la LFSS
+  couvre et ce que les comptes nationaux mesurent.
+- `core.solde_vote.est_objectif` distingue l'ONDAM, objectif révisable dont le
+  dépassement n'est pas une irrégularité, des crédits limitatifs de l'État dont le
+  dépassement est illégal. L'affichage n'a pas le choix.
+- `derived.budget_rapprochement` n'apparie un solde voté et un solde constaté que
+  lorsque **la comptabilité et le périmètre coïncident**. Un rapprochement vide n'est
+  pas un défaut : c'est la source qui dit que ces deux chiffres ne se comparent pas.
+- `core.protection_sociale` croise deux hiérarchies (`ps_niveau` 0-4, `si_niveau` 0-2).
+  Sommer toutes ses lignes compte chaque euro plusieurs fois ; c'est
+  `derived.protection_sociale_total` qui fixe un niveau sur chaque axe, et un contrôle
+  vérifie que le sommet de chaque hiérarchie donne exactement une ligne par année.
+
+### Le fait que ces chargements établissent
+
+```
+ annee | etat_depenses | etat_recettes | etat_solde | secu_depenses | secu_recettes | secu_solde
+-------+---------------+---------------+------------+---------------+---------------+------------
+  2023 |      664606.5 |      510787.5 |  -153819.0 |      737017.4 |      748863.0 |    11845.6
+  2024 |      671253.2 |      518788.9 |  -152464.3 |      777288.0 |      778428.1 |     1140.1
+  2025 |      680753.2 |      550515.9 |  -130237.3 |      803531.0 |      796813.1 |    -6717.9
+```
+
+**Les administrations de sécurité sociale dépensent plus que l'administration
+centrale — 803,5 Md€ contre 680,8 Md€ en 2025 — et le besoin de financement est
+celui de l'État.** En 2023 et 2024, les administrations de sécurité sociale étaient
+même en excédent au sens de la comptabilité nationale, pendant que la presse parlait
+du « trou de la Sécu ». Les deux affirmations peuvent coexister sans qu'aucune soit
+fausse : elles ne portent ni sur le même périmètre ni sur la même comptabilité — et
+c'est exactement pour cela que les colonnes `perimetre` et `comptabilite` sont
+obligatoires.
 
 ---
 

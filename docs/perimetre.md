@@ -148,7 +148,9 @@ Statuts : **P1** = socle V1, **P2** = socle V2, **P3** = ultérieur.
 | AN — Scrutins | Scrutins publics, **positions nominatives** | Individu | 14e lég. → | Par séance | XML, JSON | Licence Ouverte | **P1** |
 | AN — Amendements | Amendements, auteurs, cosignataires, sort | Individu | 14e lég. → | Continue | XML, JSON | Licence Ouverte | **P1** |
 | AN — Dossiers législatifs | Dossiers, textes, lectures | Dossier | 14e lég. → | Continue | XML, JSON | Licence Ouverte | **P1** |
-| AN — Comptes rendus | Débats en séance, texte intégral | Intervention | 14e lég. → | Par séance | XML | Licence Ouverte | P2 |
+| AN — Comptes rendus (Syceron) | Débats en séance, texte intégral, **`id_acteur` sur chaque paragraphe** | Intervention | 17e lég. (601 séances, 260 778 interventions) | Par séance | XML | Licence Ouverte | **Ingéré** |
+| [DILA — Journal officiel, incréments](https://echanges.dila.gouv.fr/OPENDATA/JORFSIMPLE/) | Actes nominatifs : nominations dans les corps d'État, entrées au Gouvernement, missions temporaires | Acte (personnes en **prose libre**) | Incréments quotidiens depuis 2025-07 | Deux livraisons par jour | XML dans tar.gz | Licence Ouverte | **Ingéré** |
+| [DILA — Journal officiel, base complète](https://echanges.dila.gouv.fr/OPENDATA/JORFSIMPLE/) | **Décrets de composition du Gouvernement** — la seule source qui couvre 2014-2026, le jeu officiel des services du Premier ministre s'arrêtant en 2014 | Membre du Gouvernement | 1990 → 2026 pour le texte ; métadonnées seules avant | Ponctuelle (1,1 Go, 1 236 284 fichiers) | XML dans tar.gz | Licence Ouverte | **Ingéré (filtré aux décrets de gouvernement)** |
 | [data.senat.fr](https://data.senat.fr/) — Sénateurs, Dosleg, Ameli | Sénateurs, dossiers (depuis 1977), amendements | Individu / dossier | 1977 → | Périodique | **Dump PostgreSQL**, CSV, XML Akoma Ntoso | Licence Ouverte | P2 |
 | Sénat — base Dosleg | Sénateurs, scrutins, **votes nominatifs** (1,65 M depuis 2006), dossiers, **30 thèmes officiels** | Individu | 2006 → | Périodique | Dump PostgreSQL | Licence Ouverte | **Ingéré** |
 | [HowTheyVote.eu](https://howtheyvote.eu/) | Scrutins nominatifs Parlement européen | Individu | 2019 → | Hebdomadaire | CSV, API | ODbL (code GPLv3) | P3 |
@@ -158,7 +160,31 @@ interdiraient toute réutilisation commerciale et contamineraient les données d
 **Ne pas les ingérer.** Aller aux sources primaires AN et Sénat, en Licence Ouverte, qui
 autorisent explicitement l'usage commercial.
 
-### 4.2 Élus locaux et territoires
+### 4.2 Budget de l'État et de la Sécurité sociale
+
+| Source | Contenu | Granularité | Profondeur | Fréquence | Format | Licence | Priorité |
+|---|---|---|---|---|---|---|---|
+| [Eurostat `gov_10a_main`](https://ec.europa.eu/eurostat/databrowser/view/gov_10a_main) | Dépenses, recettes et solde **par sous-secteur** (S13, S1311, S1313, S1314) | Sous-secteur × année | 1995 → 2025 | Annuelle, avec révisions | JSON-stat | Décision 2011/833/UE | **Ingéré** |
+| [Eurostat ESSPROS `spr_rec_sumt`](https://ec.europa.eu/eurostat/databrowser/view/spr_rec_sumt) | **Structure de financement** de la protection sociale : cotisations, impôts affectés, impôts généraux | Type de ressource × année | 1990 → 2023 | Annuelle | JSON-stat | Décision 2011/833/UE | **Ingéré** |
+| [DREES — comptes de la protection sociale](https://data.drees.solidarites-sante.gouv.fr/explore/dataset/305_les-comptes-de-la-protection-sociale) | Prestations par risque, régime et **secteur institutionnel financeur** | Croisement risque × régime × financeur | **1959 → 2024** | Annuelle | JSON (Opendatasoft) | Licence Ouverte v2.0 | **Ingéré** |
+| [DGFiP — situations mensuelles budgétaires](https://data.economie.gouv.fr/explore/dataset/situations-mensuelles-budgetaires-series-longues) | Exécution budgétaire de l'État, cumulée depuis le 1er janvier | Poste × date d'arrêté | janvier 2024 → juillet 2026 (le titre annonce 2013) | Mensuelle | JSON **pivoté** | Licence Ouverte v2.0 | **Ingéré** |
+| [URSSAF — exonérations par mesure](https://open.urssaf.fr/explore/dataset/exos-secteur-prive-france-entiere-par-mesures) | Montant des allègements de cotisations, mesure par mesure | Mesure × année | 2004 → 2025 | Annuelle | JSON | **ODbL** — partage à l'identique | **Ingéré** |
+| [URSSAF — masse salariale du secteur privé](https://open.urssaf.fr/explore/dataset/masse-salariale-du-secteur-prive-france-entiere) | L'assiette des cotisations | Trimestre | 1997 → 2026 | Trimestrielle | JSON | **ODbL** — partage à l'identique | **Ingéré** |
+| LEGI / JORF — lois de finances et de financement | Les tableaux d'équilibre **votés** | Loi | Intégrale | Quotidienne | XML en vrac | Licence Ouverte | Liste semée, chiffres **non extraits** |
+
+**Deux avertissements portés par le schéma, pas par une note.** Les valeurs
+budgétaires référencent obligatoirement une comptabilité (`BUDGETAIRE`, `GENERALE`,
+`NATIONALE`), un périmètre et un stade (`DEPOT`, `ADOPTION`, `REVISION`, `EXECUTION`).
+Un solde de loi de finances et un déficit public ne sont pas le même objet ; un solde
+voté au dépôt et le même solde à l'adoption non plus. Voir `docs/budget-donnees.md`
+et D-048.
+
+**L'ODbL impose le partage à l'identique.** Les deux jeux URSSAF sont redistribuables,
+y compris commercialement, mais toute base dérivée qui les incorpore doit être publiée
+sous la même licence. L'obligation contamine les exports et se vérifie avant toute
+redistribution.
+
+### 4.3 Élus locaux et territoires
 
 | Source | Contenu | Granularité | Profondeur | Fréquence | Format | Licence | Priorité |
 |---|---|---|---|---|---|---|---|
@@ -200,7 +226,7 @@ représentent **85,9 %** des majorités élues. La nomenclature change à chaque
 circulaire, d'où le millésime obligatoire. **Toute comparaison par étiquette doit
 exclure ces communes explicitement et afficher le taux d'exclusion.**
 
-### 4.3 Indicateurs communaux
+### 4.4 Indicateurs communaux
 
 | Source | Contenu | Granularité | Profondeur | Fréquence | Format | Licence | Priorité |
 |---|---|---|---|---|---|---|---|
@@ -221,7 +247,7 @@ ce qu'une commune **a décidé**. Ces sources décrivent ce que les producteurs 
 **mesurent** chaque année. Le glissement de l'un à l'autre est la principale erreur à ne
 jamais commettre (§2.3).
 
-### 4.6 Comptes nationaux, entreprises et transparence
+### 4.5 Comptes nationaux, entreprises et transparence
 
 Ajoutées le 2026-09-12. Toutes chargées.
 
@@ -244,7 +270,7 @@ secret fiscal ; la **masse salariale par société** — même raison. Les trois
 derniers existent en agrégat dans les comptes nationaux, et c'est à ce niveau
 que le projet les documente.
 
-### 4.5 Partis et affiliations — ce qui est officiel et ce qui ne l'est pas
+### 4.6 Partis et affiliations — ce qui est officiel et ce qui ne l'est pas
 
 Il n'existe **aucun registre national des adhérents** d'un parti, et il serait illégal
 d'en constituer un : l'appartenance partisane est une opinion politique au sens de
@@ -278,7 +304,7 @@ l'élection de mars 2026, circulaire de millésime Y ».
 Le schéma impose déjà cette distinction : `core.affiliation` (adhésion déclarée) et
 `core.nuance_assignment` (qualification administrative) sont deux tables séparées.
 
-### 4.4 Hors matrice
+### 4.7 Hors matrice
 
 **Délibérations municipales.** Le [schéma SCDL Délibérations](https://schema.data.gouv.fr/scdl/deliberations/)
 existe et est référencé, mais son adoption reste marginale — quelques centaines de
@@ -353,7 +379,7 @@ coûte beaucoup moins cher qu'un comité éditorial.
 
 | Exclu | Raison |
 |---|---|
-| Décisions municipales / délibérations comme objet comparable | Pas d'agrégateur national, couverture biaisée (§4.4) |
+| Décisions municipales / délibérations comme objet comparable | Pas d’agrégateur national, couverture biaisée (§4.7) |
 | Suivi annonce → réalisation | Suppose les délibérations |
 | Verdict vrai/faux | §2.1 |
 | Déclarations hors Parlement | Aucun corpus |

@@ -1023,3 +1023,548 @@ présidence (D-026).
 | BODACC | publie les avis de dépôt des comptes, pas les montants |
 | `opendata-rncs.inpi.fr` | seule porte vers la liasse fiscale déposée (IS, salaires par société) ; exige un compte |
 | Banque de France (FIBEN) | non ouverte |
+
+## D-038 — « stime » n'était pas une durée : 539 310 heures de parole en deux ans
+
+Le connecteur des comptes rendus de séance (`internal/an/interventions.go`) a
+chargé 260 778 prises de parole, chacune portant l'attribut `stime` du jeu
+Syceron. La colonne a été nommée `duree_s` et la vue `derived.temps_de_parole`
+l'a sommée. Le total : **539 310 heures de parole** pour les sessions 2024-2026,
+dont 5 940 pour une seule ministre — deux heures et demie par intervention.
+
+La Ve République n'a pas assez d'heures. La lecture était fausse.
+
+`stime` est la **position** de la prise de parole dans la séance, en secondes
+depuis son ouverture. « La séance est ouverte » y vaut 26,68 ; le maximum
+observé en base vaut 25 771, soit 7 h 09 — la durée d'une séance, pas celle
+d'une phrase.
+
+### Ce qui est corrigé
+
+- la colonne s'appelle `instant_s`, et son commentaire SQL dit ce qu'elle n'est
+  pas (migration `0052_temps_parole.sql`) ;
+- la durée est **dérivée** : l'écart avec la prise de parole suivante de la même
+  séance, par `lead(...) OVER (PARTITION BY séance ORDER BY ordre)` ;
+- les écarts négatifs ou supérieurs à un quart d'heure sont écartés comme
+  anomalies de séquence, et leur nombre est publié dans la colonne
+  `duree_indeterminee` plutôt que dissous dans le total.
+
+Après correction : **1 780 heures de débat**, 1 174 interventions de durée
+indéterminée sur 228 920. La première oratrice de la législature totalise 28,5
+heures, ce qui est vérifiable.
+
+### La règle
+
+Le nom d'une colonne est une affirmation. `duree_s` affirmait une durée que la
+source ne publie pas. Un attribut numérique sans unité documentée doit être
+**confronté à un ordre de grandeur connu** avant d'être nommé, et le nom doit
+être celui de la mesure brute, pas celui de l'usage qu'on espère en faire.
+
+Corollaire déjà appliqué ailleurs : la même vue révélait « Thibault Bazin » deux
+fois. Ce n'était pas un doublon de personne mais deux sessions — la vue groupe
+par session. La leçon tient quand même : une sortie qui surprend se diagnostique
+avant d'être publiée, y compris quand elle finit par être juste.
+
+## D-039 — Le Sénat n'ayant pas d'identifiant commun, 982 élus existaient en double
+
+Le répertoire du Sénat publie un matricule (`14263U`) qui n'existe nulle part
+ailleurs : ni à l'Assemblée, ni au RNE, ni à la HATVP. Le connecteur créait donc
+une personne par matricule inconnu. Résultat mesuré : **982 fiches en double**.
+
+Patrick Abate y figurait deux fois — une fois comme sénateur avec 1 693 votes,
+une fois comme conseiller municipal avec son mandat local. Deux fiches pour un
+homme, aucune complète. Au total, les doublons portaient 1 646 481 votes, 9 442
+affiliations de groupe et 417 mandats, tous invisibles depuis l'autre moitié de
+la fiche.
+
+### Le rapprochement, et pourquoi il est admis ici
+
+Ce projet refuse le rapprochement par nom (D-033). L'exception est bornée :
+
+1. **nom ET date de naissance au jour près** — le seul discriminant fiable dont
+   nous disposons, et celui que le Sénat publie ;
+2. **appariement unique des deux côtés** — une paire est retenue seulement si
+   ni le sénateur ni la personne candidate n'apparaissent dans une autre paire ;
+3. **l'ambiguïté est mesurée, pas supposée** : elle vaut 0 sur 982, et le
+   connecteur publie ce compte à chaque exécution. S'il cesse de valoir 0, les
+   paires ambiguës sont écartées, pas devinées ;
+4. **population fermée** : 1 948 sénateurs depuis 1958.
+
+Sur les 1 948 sénateurs, 982 sont désormais reliés à une autre source ; les 966
+restants n'ont jamais siégé à l'Assemblée ni figuré dans un RNE, ce qui est
+attendu pour des mandats antérieurs aux répertoires électroniques.
+
+### Ce que la fusion déplace, et ce qu'elle refuse de perdre
+
+Les quatorze tables qui référencent `core.person` sont déplacées explicitement,
+et **la liste est confrontée au catalogue** : si le schéma gagne une table qui
+référence une personne, la fusion échoue plutôt que de l'oublier. Une table
+oubliée serait effacée en cascade ou orpheline — dans les deux cas sans un mot.
+
+Trois mandats sénatoriaux existaient des deux côtés avec des périodes
+différentes : le dump Dosleg couvre le mandat entier, le RNE seulement sa
+portion courante. La règle retenue est de **garder la période la plus large**.
+
+## D-040 — Le décodeur XML strict jetait 70 % des actes du Journal officiel
+
+Le connecteur JORF annonçait « 60 archives, 1 349 actes ». Huit archives en
+contenaient déjà 1 065 : le compte était faux d'un facteur sept, et rien ne le
+signalait.
+
+Cause : `xml.Unmarshal` en mode strict. Les actes du JO enferment du HTML dans
+`<CONTENU>` — balises non fermées, entités de traitement de texte. Le décodeur
+rejette le fichier **en entier**, métadonnées parfaitement valides comprises, et
+le code passait au suivant par un `continue` silencieux.
+
+Correctif : `xml.Decoder` avec `Strict = false`, `AutoClose = HTMLAutoClose` et
+`Entity = HTMLEntity`. Le corps, lui, reste extrait par expression régulière
+(`<BLOC_TEXTUEL><CONTENU>`), comme les exposés des motifs.
+
+Second défaut du même connecteur : l'extrait de contexte d'une mention était
+tronqué à 120 **octets**, ce qui coupait « é » en son milieu et produisait un
+`0xc3` orphelin. PostgreSQL refusait l'insertion et le chargement s'arrêtait net
+sur `invalid byte sequence for encoding "UTF8"`. La troncature se fait
+désormais sur des **caractères**, avec `strings.ToValidUTF8` en dernier recours.
+C'est la troisième fois que ce bug apparaît dans ce dépôt (HATVP, JORF, extraits).
+
+### La règle qui manquait
+
+Le connecteur tient maintenant un **bilan** : fichiers vus, décodés, en échec,
+sans identifiant. Un fichier écarté est compté et affiché. Un `continue` qui ne
+compte rien est une panne en attente — c'est le même enseignement que le
+commentaire qui n'empêchait pas le `TRUNCATE` (D-031) : seul un contrôle
+empêche, et seul un compteur révèle.
+
+## D-041 — Deux jours de chevauchement effaçaient l'histoire des députés
+
+L'Assemblée publie, dans `AMO30_..._historique`, **1 258 mandats de député**
+remontant au 12 juin 1988. Notre base en contenait **64**, tous postérieurs à
+2012, et rien ne le signalait.
+
+La cause tient en deux dates. La quatorzième législature s'achève le 20 juin
+2017 ; la quinzième débute le 18. Les deux sont justes — l'Assemblée sortante
+siège jusqu'à ce que la nouvelle soit constituée — mais la contrainte
+d'exclusion temporelle sur `core.mandate`, elle, voit deux mandats simultanés et
+refuse le second. Chaque député ne gardait donc que sa première élection.
+
+Le refus était même *documenté* comme un choix : « un refus est une anomalie de
+source, signalée par l'absence, jamais comblée ». La règle est bonne ; son
+application était aveugle. Ce chevauchement n'est pas une anomalie de source,
+c'est une convention de publication, et il fallait la lire plutôt que la subir.
+
+### Le recollement
+
+`recoller()` clôt un mandat parlementaire la veille du suivant. Portée stricte :
+
+- **sièges parlementaires seulement** (`ASSEMBLEE`, `SENAT`) — un siège ne se
+  détient pas deux fois ;
+- **jamais les ministères** — un ministre peut cumuler deux portefeuilles, et
+  ses chevauchements restent des faits ;
+- **jamais au-delà du raisonnable** — si la veille du mandat suivant tombe avant
+  le début du mandat courant, c'est une vraie anomalie de source, et elle
+  redevient signalée par l'absence.
+
+### Ce que la source ne donne toujours pas
+
+Le fichier de la 17e législature ne porte l'historique que des **acteurs
+présents** : 577 personnes, celles qui siègent aujourd'hui. Les députés partis
+en 2017, 2022 ou 2024 viennent des publications propres aux 15e et 16e
+législatures, déclarées dans `internal/an/extract.go`. Au-delà, le dépôt de
+l'Assemblée répond 404 : les législatures 14 et antérieures ne sont pas
+publiées, et l'histoire de leurs élus n'existe dans notre base que par les
+mandats que les députés d'aujourd'hui y ont exercés.
+
+## D-042 — L'histoire des députés était dans le fichier, pas dans celui qu'on lisait
+
+Suite immédiate de D-041. Le recollement des chevauchements de législature
+rendait exploitables les 1 258 mandats de député publiés par l'Assemblée. Il
+restait à comprendre pourquoi ces 1 258 mandats ne concernaient que **577
+personnes** — exactement la promotion en exercice.
+
+L'Assemblée publie ses mandats à deux endroits :
+
+| Fichier | Forme | Mandats `ASSEMBLEE` | Députés | Remonte à |
+|---|---|---|---|---|
+| AMO50 « divisés » | objets autonomes, un par mandat | 1 258 | 577 | 2012 |
+| AMO30 « tous acteurs » | tableau `mandats.mandat` DANS chaque acteur | **3 952** | **2 120** | **2002** |
+
+Le connecteur lisait AMO50, et le commentaire justifiait ce choix : les objets
+y sont autonomes, « ce qui évite de dépendre d'une sérialisation qui varie d'un
+fichier à l'autre ». L'argument est bon. Il conduisait au mauvais fichier.
+AMO50 est la publication « divisée », celle qui omet les députés partis en
+cours de législature — le connecteur en avertissait d'ailleurs, quinze lignes
+plus haut, à propos du téléchargement.
+
+La structure imbriquée qu'on avait voulu éviter était l'endroit où se trouvait
+l'histoire. Les deux sources sont désormais lues et réunies sur l'identifiant du
+mandat (`uid`) : aucun rapprochement approximatif, aucun doublon. Cinq acteurs
+n'ayant qu'un seul mandat, le JSON le sérialise pour eux comme un objet et non
+comme un tableau ; les ignorer aurait perdu cinq carrières sans le dire.
+
+### Ce qui a été vérifié et ne marche pas
+
+Les publications propres aux 15e et 16e législatures (`repository/15`,
+`repository/16`) ont été téléchargées et dépliées : elles apportent **deux**
+acteurs que la 17e ne contenait pas. Le fichier « tous acteurs depuis la XIe
+législature » porte bien ce qu'il annonce, dans chaque dépôt. Les charger ne
+nuit pas ; il ne faut pas en attendre davantage. Les législatures 14 et
+antérieures répondent 404 : ce n'est pas publié.
+
+## D-043 — L'ordre de la chaîne d'ingestion faisait mentir un garde-fou
+
+Le connecteur du RNE n'insère un mandat de député que si l'Assemblée n'en a pas
+déjà publié un : « le RNE complète, il n'écrase pas ». Le garde-fou est écrit,
+commenté, et il ne gardait rien — parce que `an.Normalize` s'exécutait **en fin
+de chaîne**, après le RNE. Le RNE arrivait donc le premier avec sa version
+pauvre (pas de circonscription, pas de date de fin), et la contrainte
+d'exclusion faisait rejeter celle de l'Assemblée, en silence.
+
+Résultat visible avant correction : 577 mandats de député sans institution ni
+circonscription, 64 avec. La normalisation est remontée avant le Sénat et les
+communes.
+
+Deux autres défauts de la même remise à zéro, découverts en la rejouant :
+
+1. **Elle n'était pas transactionnelle.** Chaque suppression s'exécutait par
+   `pool.Exec`, donc validée séparément. Un échec à mi-parcours laissait la base
+   à moitié vide — 1,27 million de votes effacés, les organisations encore là,
+   et aucun moyen de savoir où on en était. Elle tient maintenant en une
+   transaction.
+2. **Deux exécutions concurrentes se sont marché dessus**, l'une reconstruisant
+   ce que l'autre effaçait. Le message d'erreur parlait d'une clé étrangère ; la
+   cause était une course. Une seule instance à la fois, et le point est noté.
+
+Enfin, la remise à zéro ne libérait pas tout ce qui pointe les textes qu'elle
+reconstruit : `core.amendement`, `core.lecture`, `core.intervention.dossier_id`
+et `core.scrutin.amendement_id` la faisaient échouer. Les amendements sont donc
+rechargés APRÈS la normalisation, et la chaîne complète les enchaîne désormais
+elle-même — avec les exposés, les interventions, les comptes de campagne et le
+Journal officiel, qui n'étaient accessibles que par `-only`.
+
+### Et sept clés étrangères n'étaient pas indexées
+
+`DELETE FROM core.amendement` tournait encore au bout de sept minutes.
+PostgreSQL n'indexe pas le côté référençant d'une clé étrangère : chaque ligne
+supprimée déclenchait un parcours complet de `core.scrutin`, de
+`core.topic_assignment` et de `selection.dossier_item`. Même chose pour
+`core.organization`, dont six tables référençantes n'avaient aucun index — dont
+`core.organization_identifier`, par où passe tout rapprochement d'organisation.
+Migrations `0054` et `0055`. Coût : onze index. Gain : une renormalisation qui
+se termine.
+
+## D-044 — La présentation des textes du Sénat était dans le dump depuis le début
+
+Question posée : peut-on rapatrier les présentations des scrutins venus du Sénat,
+plutôt que de ne présenter que ceux de l'Assemblée ? Réponse : oui, et sans rien
+télécharger.
+
+`senat_raw.loi`, table du dump Dosleg scellé le premier jour, porte trois
+colonnes que nous n'avions jamais ouvertes :
+
+| Colonne | Contenu | Rempli |
+|---|---|---|
+| `objet` | présentation rédigée du texte, jusqu'à 14 649 caractères | 1 454 |
+| `motclef` | mots-clefs du service de la séance | 5 069 |
+| `en_clair_url` | page « La loi en clair » du service des études | 234 |
+
+Les 12 429 dossiers du Sénat se rattachent **tous** à une ligne de `loi` par
+`loicod` : jointure sur identifiant, aucun rapprochement de titre.
+
+`derived.scrutin_presentation` présente désormais les scrutins des deux
+assemblées, avec un champ `origine` qui dit d'où vient la présentation —
+`EXPOSE_DES_MOTIFS` (Assemblée, récupéré page par page) ou `OBJET_DU_DOSSIER`
+(Sénat, repris du dump). Une présentation dont on ignore la provenance ne vaut
+rien.
+
+`senat_raw.rap.rapres` porte en outre **2 557 résumés de rapports**, non encore
+repris : ils appartiennent au rapport, pas au texte, et leur rattachement demande
+d'être établi avant d'être affiché.
+
+### La leçon, pour la troisième fois
+
+Ce dump s'est révélé plus riche que prévu trois fois : d'abord 1,65 million de
+votes nominatifs, puis 30 thèmes officiels, maintenant les présentations. Avant
+de chercher une source nouvelle, finir de lire celle qu'on a déjà.
+
+## D-045 — Le balisage se lit avec un analyseur, pas avec une expression régulière
+
+Question posée, et la réponse honnête était gênante : quatre endroits du dépôt
+extrayaient du texte de documents balisés avec `regexp.MustCompile("<[^>]+>")`.
+
+Tout le reste utilise de vrais analyseurs — `encoding/json` pour l'Assemblée,
+`encoding/csv` pour les référentiels, `encoding/xml` pour Syceron et le Journal
+officiel, `archive/zip` + `encoding/xml` pour les XLSX — mais le **contenu
+textuel** des documents HTML était découpé au motif.
+
+Un motif ne sait pas ce qu'est une balise ; il sait reconnaître une forme. Sur
+`<p title="a>b">Texte</p>`, `<[^>]+>` s'arrête au premier `>` et laisse `b">`
+dans le texte publié. L'artefact existait déjà sous une autre forme :
+`<span>M</span>esdames` a été publié « M esdames ».
+
+Le paquet `internal/balisage` fait ce découpage avec `xml.Decoder` — un vrai
+analyseur lexical, qui connaît les attributs, les guillemets, les entités et les
+sections CDATA — réglé en mode tolérant pour le HTML enfermé dans du XML
+(`Strict = false`, `AutoClose = HTMLAutoClose`, `Entity = HTMLEntity`). Les
+balises de bloc deviennent un saut de ligne, les balises en ligne disparaissent
+sans laisser d'espace. Onze cas de test, dont les deux artefacts ci-dessus.
+
+Quatre connecteurs y sont passés : le Journal officiel (dont le corps était en
+plus *localisé* par une expression régulière sur `<BLOC_TEXTUEL>`, ce qui est
+indéfendable pour du XML et se fait maintenant par la structure de décodage),
+les exposés des motifs, les déclarations de déport, et les décisions du Conseil
+constitutionnel.
+
+Reste une expression régulière assumée : celle qui repère les **noms de
+personnes dans la prose juridique** du Journal officiel. Là, il n'y a aucune
+structure à analyser — l'acte ne balise pas les personnes qu'il nomme. C'est
+précisément pourquoi ces mentions restent `CANDIDAT` et ne sont jamais publiées
+comme des faits.
+
+## D-046 — Une carrière est un multirange, pas N lignes
+
+`core.mandate` porte une ligne par période, et c'est juste : chaque période a sa
+circonscription, sa qualité, son institution. Mais la question « depuis combien
+de temps siège-t-il ? » n'a alors de réponse sur aucune ligne, et un sénateur
+élu en 2001, battu en 2011, réélu en 2014 se lit en trois morceaux.
+
+PostgreSQL dit cela en un seul type. `derived.mandat_serie` agrège les périodes
+par (personne × type de mandat × institution) avec `range_agg`, ce qui donne un
+**`datemultirange`** : `{[2001-10-01,2011-10-01), [2014-10-01,)}`. L'ensemble
+**porte l'interruption**, là où trois lignes obligent le lecteur à la
+reconstituer.
+
+Deux précisions de type et de place :
+
+- `datemultirange` et non `tstzmultirange` : un mandat commence un jour, pas à
+  une heure. Le fuseau horaire n'a rien à faire dans une date d'élection.
+- une **vue dérivée** et non une colonne : fondre les périodes dans un
+  multirange perdrait les faits propres à chacune. La série se déduit des
+  lignes, ce qui est le sens du schéma `derived`.
+
+## D-047 — Le RNE écrasait ce qu'il devait compléter
+
+La règle est écrite dans `internal/communes/rne.go`, en toutes lettres : « le RNE
+complète, il n'écrase pas ». Elle est appliquée à l'INSERTION, par un `NOT
+EXISTS` qui refuse d'ajouter un mandat de député quand l'Assemblée en a déjà
+publié un. Elle ne l'était pas à la SUPPRESSION :
+
+```sql
+DELETE FROM core.mandate m
+ WHERE m.mandate_type IN ('MAIRE', …)
+    OR EXISTS (SELECT 1 FROM core.person_identifier i
+               WHERE i.person_id = m.person_id AND i.scheme = 'RNE'
+                 AND m.mandate_type IN ('DEPUTE','SENATEUR','DEPUTE_EUROPEEN'))
+```
+
+Ce `EXISTS` efface les mandats parlementaires de **toute personne portant un
+identifiant RNE** — c'est-à-dire de la plupart des députés, qui ont presque tous
+un mandat local. Mesure du dégât, prise juste après la correction de D-042 :
+3 270 mandats de député remontant à 2002, ramenés à 1 851. Mille quatre cent
+dix-neuf carrières parlementaires détruites et remplacées par la version pauvre
+du RNE, qui ne connaît ni circonscription, ni date de fin.
+
+La correction tient en une clause : `m.institution IS NULL`. Un mandat
+parlementaire porte l'institution qui l'a publié ; ceux que le RNE crée n'en
+portent aucune. La suppression est donc bornée à ce que ce connecteur possède —
+la même discipline que D-029 et D-031, appliquée une fois de plus.
+
+### Ce que ces trois décisions ont en commun
+
+D-029 (`DELETE FROM core.dossier` sans clause), D-031 (`TRUNCATE core.ballot`),
+et celle-ci : à chaque fois une suppression dont la portée dépassait ce que le
+connecteur produisait, et à chaque fois la perte a été **silencieuse**. Aucune
+n'a fait échouer quoi que ce soit ; toutes ont été découvertes en regardant un
+chiffre qui avait baissé.
+
+D'où le contrôle ajouté à `cmd/verify` : « les mandats de député remontent avant
+2017 ». Il ne mesure pas la source, il mesure ce qui reste après la chaîne. Un
+commentaire n'empêche rien ; une clause borne ; seul un contrôle révèle.
+
+## D-048 — Le budget social est le plus lourd des deux et le moins documenté
+
+Sept sources budgétaires repérées, six chargées. Le constat qui les traverse toutes
+est asymétrique : l'État publie une exécution mensuelle, des balances de comptes et
+des jeux par millésime ; **la Sécurité sociale ne publie pas ses comptes**. Une
+recherche « comptes de la sécurité sociale » sur data.gouv.fr renvoie zéro jeu, et le
+seul jeu rattaché à la loi de financement, les REPSS, est gelé depuis janvier 2022.
+Le budget le plus lourd des deux — 803,5 Md€ de dépenses en 2025 contre 680,8 Md€
+pour l'administration centrale — est le moins documenté en données ouvertes.
+
+### Ce que le schéma refuse, et pourquoi il le refuse
+
+Trois confusions traversent le débat budgétaire français. Elles produisent des
+phrases fausses avec des chiffres justes, et elles ne se corrigent pas dans une note
+de bas de page : `ref.budget_comptabilite`, `ref.budget_perimetre` et
+`ref.budget_stade` sont des clés étrangères obligatoires sur toute valeur chargée.
+
+1. **Trois comptabilités.** Budgétaire, générale, nationale. Le solde de la loi de
+   finances et le déficit public ne sont pas le même objet et ne se comparent pas.
+2. **Quatre périmètres côté social.** Régime général, régime général + FSV, tous
+   régimes obligatoires de base, et protection sociale au sens de la DREES et
+   d'Eurostat — ce dernier incluant l'assurance chômage et les retraites
+   complémentaires, que la LFSS ne couvre pas. La colonne `hors_lfss` marque cette
+   ligne de partage, qui vaut des dizaines de milliards.
+3. **« Voté » n'est pas un état stable.** Le solde de la LFSS 2026 vaut −17,5 Md€ au
+   dépôt et −19,4 Md€ à l'adoption. Sans colonne `stade`, ces deux chiffres justes se
+   contredisent dans la base.
+
+S'y ajoute une distinction juridique que l'affichage ne doit pas pouvoir escamoter :
+`core.solde_vote.est_objectif` sépare l'ONDAM — un objectif révisable, dont le
+dépassement n'est pas une irrégularité — des crédits limitatifs de l'État, dont le
+dépassement est illégal.
+
+Enfin `derived.budget_rapprochement` n'apparie un solde voté et un solde constaté que
+lorsque la comptabilité ET le périmètre coïncident. Un rapprochement vide n'est pas un
+défaut de la vue : c'est la source qui dit que ces deux chiffres ne se comparent pas.
+
+### Le fait que la comptabilité nationale établit
+
+C'est le seul cadre où l'État et la Sécurité sociale se mesurent sur la même règle, et
+il renverse la phrase courante. En 2025, les administrations de sécurité sociale
+dépensent **803,5 Md€** contre **680,8 Md€** pour l'administration centrale, et le
+besoin de financement est celui de l'État : **−130,2 Md€** contre **−6,7 Md€**. En
+2023 et 2024, les administrations de sécurité sociale étaient même **en excédent** au
+sens de la comptabilité nationale, pendant que le débat public parlait du « trou de la
+Sécu ».
+
+Les deux affirmations peuvent coexister sans qu'aucune soit fausse — elles ne portent
+ni sur le même périmètre ni sur la même comptabilité. C'est exactement pour cela que
+les colonnes existent.
+
+ESSPROS, de son côté, permet de **dater** la fiscalisation du financement social au
+lieu de l'affirmer : la part des impôts affectés passe de 3,5 % en 1990 à 29,8 % en
+2023, celle des cotisations de 79,9 % à 54,7 %.
+
+### Ce qui n'est pas chargé, et ne peut pas l'être
+
+`core.solde_vote` est **vide**. Les tableaux d'équilibre que le Parlement vote
+n'existent que dans le texte de loi et dans des PDF. `ref.loi_financiere` sème donc la
+LISTE des textes — numéro, date, référence au *Journal officiel* — et pas un seul
+montant. C'est le patron de `ref.pdr_proclamation` : une table vide se voit, un
+chiffre saisi à la main dans une migration ne se voit plus jamais.
+
+### Trois pièges de source, mesurés et non supposés
+
+- **Un titre qui promet plus que le contenu.** Le jeu
+  `situations-mensuelles-budgetaires-series-longues` s'annonce « exercices 2013 à nos
+  jours » ; son schéma ne porte que 31 arrêtés, de janvier 2024 à juillet 2026. La
+  table stocke ce qu'elle reçoit, et un contrôle de fraîcheur dira si cela change.
+- **Une table pivotée.** Ce même jeu publie 26 lignes de postes et *une colonne par
+  date d'arrêté*. Le dépliage **refuse** une colonne dont le nom ne se parse pas en
+  date, plutôt que de l'ignorer : une colonne ignorée, c'est un mois perdu sans trace.
+  Le contrôle va plus loin qu'une expression régulière — « 31_02_2024 » a la bonne
+  forme et n'existe pas au calendrier.
+- **`offset + limit > 10 000` est refusé** par les portails Opendatasoft, avec un
+  HTTP 400. Paginer les 15 654 lignes de la DREES échoue à mi-parcours, et une
+  pagination mal contrôlée s'arrêterait en silence sur les 10 000 premières. Tout
+  passe par `/exports/json`. Le piège vaut pour tous ces portails, `data.caf.fr`
+  compris.
+
+### Une sonde qui affirmait plus que la source ne promet
+
+Le contrôle « les actes du Journal officiel portent un corps de texte » (D-040)
+exigeait **zéro** acte sans corps. Il échouait sur cinq actes de 1958 à 1988 qui ne
+portent aucun `<BLOC_TEXTUEL>` : la DILA n'en publie dans JORFSIMPLE que les
+métadonnées, leur texte vivant dans le fonds consolidé LEGI. Ce sont 0,6 % des actes
+nominatifs, et c'est un état de la source, pas un défaut de chargement.
+
+Le seuil est passé à 5 %, ce qui garde ce qui compte : une régression du décodeur
+ferait passer cette part à 100 %, pas à 1 %. Une sonde qui échoue sur un fait normal
+finit par être désactivée, et c'est ainsi qu'on perd un contrôle utile.
+
+## D-049 — Les gouvernements s'arrêtaient en 2014 ; la source de droit les continue
+
+Notre base croyait Manuel Valls Premier ministre en septembre 2026. Le fichier
+`data/gouvernements.csv` transcrit le jeu officiel des services du Premier
+ministre, « Composition des gouvernements de la Vème République », et ce jeu
+**s'arrête en 2014** : dernière mise à jour le 18 juin 2014, aucun successeur au
+catalogue. Douze ans de gouvernements manquaient, ministres compris.
+
+### Quatre pistes, une seule tient
+
+| Piste | Verdict |
+|---|---|
+| data.gouv.fr — composition des gouvernements | **gelée en 2014**, aucun successeur au catalogue |
+| Légifrance, site et API | **HTTP 403** derrière une protection anti-robot ; l'API exige un compte PISTE |
+| Annuaire de service-public.fr | les ministères d'aujourd'hui, **aucun historique** |
+| Open data de l'Assemblée (AMO30) | **partiel et contaminé** : seulement les ministres qui furent députés, et 398 lignes sur 1 103 sont des « parlementaires en mission » — qui ne sont pas membres du Gouvernement |
+| **DILA — Journal officiel, base complète** | **retenue** : le décret lui-même |
+
+La source de droit était la seule réponse, et elle était à portée : le décret
+relatif à la composition du Gouvernement est publié au *Journal officiel*, la
+DILA le diffuse en open data sous Licence Ouverte, et le connecteur qui lit ce
+flux existait déjà.
+
+**Sa prose est réglée parce que c'est du droit.** La même phrase depuis 1959 :
+« Sont nommés ministres : M. X, ministre de Y ; … ». Le repère qui rend la
+découpe possible est une convention typographique — **le patronyme est en
+capitales, le prénom ne l'est pas** — et c'est elle qui sépare « Amélie de
+MONTCHALIN » et « Anne Le HÉNANFF » sans heuristique de position.
+
+Coût : la base complète du Journal officiel, 1,1 Go, **1 236 284 fichiers XML**.
+Le connecteur la traverse en flux et n'en retient que les décrets de
+gouvernement. Charger la totalité du Journal officiel pour répondre à cette
+question serait disproportionné ; c'est une décision séparée.
+
+### Deux pièges, tous deux silencieux
+
+**La date sentinelle.** Quand la date d'un texte est inconnue, le Journal
+officiel ne laisse pas le champ vide : il écrit **`2999-01-01`**. Quatre cent
+dix-neuf actes de notre corpus la portent, dont dix-huit décrets de composition
+des années 1990. Prise au mot, elle datait ces décrets du trentième siècle et les
+rangeait après tout le reste — or la déduction des périodes ministérielles
+repose entièrement sur l'ordre chronologique des décrets. Une sentinelle n'est
+pas une date : elle devient NULL, et c'est la date de publication qui sert alors
+de repère.
+
+**Le chemin figé.** `<BLOC_TEXTUEL>` ne se trouve pas à la même profondeur selon
+la publication : les livraisons quotidiennes le placent directement sous
+`<TEXTE>`, la base complète le range sous `<STRUCT><ARTICLE>`. Le champ
+`xml:"BLOC_TEXTUEL>CONTENU"` lisait donc les quatre décrets récents et rendait
+vides les deux cents autres — **sans erreur**, puisqu'un acte sans corps est un
+cas possible (D-040). Le corps est désormais collecté par un parcours à
+profondeur libre, qui prend tout `<CONTENU>` dont le parent est
+`<BLOC_TEXTUEL>`, où qu'il soit. Les `<CONTENU>` de `<NOTICE>`, `<VISAS>` et
+`<ABRO>` restent écartés : ce sont la notice, les visas et les abrogations, pas
+le dispositif.
+
+C'est la deuxième fois dans ce connecteur qu'une hypothèse de structure fait
+disparaître des données en silence. La règle qui s'en dégage : **quand une source
+publie le même objet sous deux formes, ne pas choisir — parcourir.**
+
+### Ce qui est chargé n'est pas attribué
+
+`core.gouvernement_membre` contient ce que le décret DIT : une civilité, un
+prénom, un patronyme, une fonction, un portefeuille. Pas une personne de notre
+base. Le décret ne porte aucune date de naissance, et 41,9 % de nos élus ont un
+homonyme exact en nom et prénom : le rapprochement reste donc `CANDIDAT`, et
+`AMBIGU` dès qu'il y a plusieurs porteurs du nom. Même échelle que
+`core.acte_jo_mention` (D-040), même règle — rien de `CANDIDAT` ne se publie
+comme un fait.
+
+Les PÉRIODES, elles, sont dans `derived.mandat_ministeriel` avec leur
+`method_version` : un décret nomme, il ne dit pas jusqu'à quand. Une fonction
+s'achève à la première cessation nominative, ou au premier décret qui recompose
+un gouvernement entier sans reprendre la personne. Ce second critère — plus de
+dix ministres de plein exercice nommés — est imparfait, et c'est précisément
+pourquoi il est dans `derived` et non dans `core`.
+
+### D-049 (suite) — Un contrôle en pourcentage dérive ; un contrôle daté, non
+
+Le contrôle « les actes du Journal officiel portent un corps de texte » a été
+écrit trois fois, et les deux premières étaient fausses :
+
+1. **zéro exception** — plus que la source ne promet : cinq actes de 1958 à 1988
+   ne portent que des métadonnées, la DILA ne publiant pas leur texte ;
+2. **moins de 5 %** — un pourcentage, donc une valeur qui dépend de la
+   composition du corpus. En ajoutant les 231 décrets de gouvernement, dont 42
+   antérieurs à 1990, la part est passée à **5,07 %** et le contrôle a échoué
+   sans que rien ne soit cassé ;
+3. **tout acte postérieur à 1998 porte un corps** — le fait réel, qui est daté
+   et non statistique. Le dernier acte nominatif sans texte de notre corpus est
+   du 4 juin 1997 ; au-delà, un corps vide ne peut être qu'un défaut de lecture.
+
+La troisième formulation est aussi la plus sensible : une régression du décodeur
+ferait tomber ce contrôle sur les **934** actes concernés, là où le seuil en
+pourcentage attendait d'être franchi. Un contrôle doit énoncer la propriété que
+la source garantit, pas une tolérance autour de ce qu'on a observé.

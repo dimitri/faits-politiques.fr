@@ -60,13 +60,94 @@ mieux l'afficher comme tel que de raccorder deux dispositifs incomparables.
 
 ### 1.3 Présidences et gouvernements
 
-Les présidences sont chargées (D-026) avec les intérims. La table
-`core.gouvernement` est créée mais **vide** : aucune source open data ne publie
-la liste des gouvernements de la Ve République avec leurs bornes. Elle se
-constituera comme `data/presidents.csv`, en fichier éditorial sourcé.
+Les présidences sont chargées (D-026) avec les intérims.
 
-Les **ministres** sont en base depuis l'Assemblée : 145 mandats depuis 2007,
-avec leur portefeuille. Avant 2007, l'open data de l'Assemblée ne remonte pas.
+Les **gouvernements** viennent de `data/gouvernements.csv`, transcrit du jeu
+officiel des services du Premier ministre — qui **s'arrête en 2014**. Dernière
+mise à jour du jeu : 18 juin 2014, et aucun successeur au catalogue. Notre base
+a cru Manuel Valls Premier ministre jusqu'en septembre 2026.
+
+### 1.4 Les ministres : quatre sources essayées, une seule tient
+
+| Source | Ce qu'elle donne | Verdict |
+|---|---|---|
+| [data.gouv.fr — composition des gouvernements](https://www.data.gouv.fr/datasets/composition-des-gouvernements-de-la-veme-republique-1959-2014) | Premiers ministres et ministres, 1959-2014 | **gelée en 2014**, aucun successeur |
+| Légifrance (site et API) | le texte des décrets | **HTTP 403** derrière une protection anti-robot ; l'API exige un compte PISTE |
+| [Annuaire de service-public.fr](https://api-lannuaire.service-public.fr) | les ministères d'aujourd'hui et leur décret d'attribution | **instantané sans historique** : il ne remonte à rien |
+| Open data de l'Assemblée (AMO30) | mandats ministériels depuis 2007 | **partiel et contaminé** : seulement les ministres qui furent députés, et 398 lignes sur 1 103 sont des « parlementaires en mission », qui ne sont pas membres du Gouvernement |
+| **DILA — Journal officiel, base complète** | **le décret de composition lui-même** | **retenue** → `core.gouvernement_membre` |
+
+La source de droit était la seule réponse. Le décret relatif à la composition du
+Gouvernement est publié au *Journal officiel*, la DILA le diffuse en open data
+sous Licence Ouverte, et **sa prose est réglée parce que c'est du droit** — la
+même phrase depuis 1959 :
+
+```
+Sont nommés ministres : M. Laurent NUNEZ, ministre de l'intérieur ; …
+Mme Catherine PÉGARD est nommée ministre de la culture.
+Il est mis fin aux fonctions de : Mme Rachida DATI, ministre de la culture ; …
+```
+
+Le repère qui rend la découpe possible tient en une convention typographique :
+**le patronyme est en capitales, le prénom ne l'est pas.** C'est elle qui sépare
+« Amélie de MONTCHALIN » et « Anne Le HÉNANFF » sans heuristique de position.
+
+Le coût est la base complète du Journal officiel : 1,1 Go, 1 236 284 fichiers
+XML. Le connecteur la traverse **en flux** et n'en retient que les décrets de
+gouvernement — 231 actes de 1920 à 2026. Charger la totalité du Journal officiel
+pour répondre à cette question serait disproportionné, et c'est une décision
+séparée.
+
+**Ce qui est chargé n'est pas attribué.** Une ligne de décret donne un nom, pas
+une personne de notre base : 41,9 % de nos élus ont un homonyme exact en nom et
+prénom, et un décret ne porte aucune date de naissance pour trancher. Le
+rapprochement porte donc son statut — `CANDIDAT`, `AMBIGU` ou `ABSENT` — et rien
+de `CANDIDAT` ne doit être publié comme un fait sans le dire.
+
+#### Ce qui est en base
+
+| | |
+|---|---|
+| Décrets retenus | **231**, dont 204 de composition ou de nomination du Premier ministre |
+| Décrets porteurs d'un texte | **162**, couvrant **1990 → 2026** sans trou |
+| Citations de membres | **1 382** (2 décrets muets : un rectificatif et une modification de libellé, tous deux sans nom) |
+| Mandats déduits | **1 262** — 576 ministres, 384 secrétaires d'État, 263 ministres délégués, 25 Premiers ministres, 11 ministres d'État, 3 hauts-commissaires |
+| Rapprochement | 972 `CANDIDAT`, 154 `AMBIGU`, 245 `ABSENT` |
+
+Avant 1990, la DILA ne publie que les métadonnées : les 42 décrets antérieurs
+sont en base avec leur titre et leur date, sans texte. Leur contenu n'existe pas
+en données ouvertes, et `data/gouvernements.csv` — transcrit du document officiel
+1959-2014 — reste la source pour cette période.
+
+La succession des Premiers ministres, que la base ignorait entièrement après
+mars 2014 :
+
+```
+Manuel Valls        2014-03-31 → 2014-08-25      Gabriel Attal     2024-01-09 → 2024-09-05
+Manuel Valls (II)   2014-08-25 → 2016-12-06      Michel Barnier    2024-09-05 → 2024-12-13
+Bernard Cazeneuve   2016-12-06 → 2017-05-15      François Bayrou   2024-12-13 → 2025-10-10
+Édouard Philippe    2017-05-15 → 2017-06-19      Sébastien Lecornu 2025-10-10 → en cours
+Édouard Philippe II 2017-06-19 → 2020-07-03
+Jean Castex         2020-07-03 → 2022-05-16
+Élisabeth Borne     2022-05-16 → 2024-01-09
+```
+
+#### Les périodes sont déduites, pas publiées
+
+Un décret nomme ; il ne dit pas jusqu'à quand. `derived.mandat_ministeriel`
+applique trois règles, et leur imperfection est la raison pour laquelle elles
+sont dans `derived` avec une `method_version` :
+
+1. un **Premier ministre** reste en fonction jusqu'à la nomination du suivant.
+   Appliquer la règle des ministres lui donnait un mandat de quarante-huit
+   heures — le décret qui nomme *ses* ministres ne le reprend pas ;
+2. un **ministre** cesse à la première cessation nominative, ou au premier
+   décret qui recompose un gouvernement entier sans le reprendre. « Entier » est
+   ici *plus de dix ministres de plein exercice nommés* : c'est un seuil, donc
+   une convention ;
+3. une **nouvelle nomination** de la même personne à la même fonction clôt la
+   précédente — sans quoi un ministre reconduit accumulait autant de périodes
+   ouvertes que de reconductions.
 
 ## 2. Ce qui n'existe pas en open data
 
