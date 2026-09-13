@@ -84,6 +84,9 @@ type texteJO struct {
 	Titre     string `xml:"TITRE"`
 	TitreFull string `xml:"TITREFULL"`
 	Ministere string `xml:"MINISTERE"`
+	// Le numéro du Journal officiel où l'acte a paru : « JORF n°0117 du 18 mai
+	// 2017 ». C'est le lien vers le sommaire, et la référence qui fait foi.
+	OriginePubli string `xml:"ORIGINE_PUBLI"`
 	// Le corps n'est PAS décodé par un champ de cette structure, et ce n'est pas
 	// un oubli : <BLOC_TEXTUEL> ne se trouve pas à la même profondeur selon la
 	// publication. Les livraisons quotidiennes le placent directement sous

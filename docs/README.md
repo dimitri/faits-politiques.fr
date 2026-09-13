@@ -7,7 +7,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 
 | Document | Ce qu'il contient |
 |---|---|
-| [decisions.md](decisions.md) | **Le journal des décisions, D-001 à D-049.** Toute affirmation de ce projet doit pouvoir s'y rattacher, y compris les erreurs corrigées. |
+| [decisions.md](decisions.md) | **Le journal des décisions, D-001 à D-051.** Toute affirmation de ce projet doit pouvoir s'y rattacher, y compris les erreurs corrigées. |
 | [perimetre.md](perimetre.md) | Ce que le projet couvre, la matrice des sources avec leurs licences, et ce qui est hors de portée. |
 | [architecture.md](architecture.md) | Le choix statique / dynamique et ses conséquences. |
 
@@ -21,6 +21,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [candidats-donnees.md](candidats-donnees.md) | Frise de carrière, mandats actuels, réconciliation des identités. |
 | [gouvernement-donnees.md](gouvernement-donnees.md) | Onglet GOUVERNEMENT : grandes séries nationales, comptes des sociétés, et ce qui n'existe pas (manifestations). |
 | [budget-donnees.md](budget-donnees.md) | Budget de l'État et budget de la Sécurité sociale : comment ils s'articulent, et quelles sources donnent le voté et l'exécuté par année. |
+| [recherche-jo.md](recherche-jo.md) | Chercher dans le Journal officiel : configuration française, colonne stockée contre index fonctionnel, plein texte contre trigrammes, thésaurus des élus. |
 | [scrutins-et-bulletins.md](scrutins-et-bulletins.md) | Le modèle des scrutins et des votes nominatifs. |
 | [contributions-utilisateurs.md](contributions-utilisateurs.md) | Cartographies alternatives sans compte utilisateur. |
 | [charte-graphique.md](charte-graphique.md) | Palette, contrastes, typographie. |
