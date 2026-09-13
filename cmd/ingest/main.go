@@ -290,6 +290,9 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		if err := macro.IngestRSA(ctx, pool, arch); err != nil {
 			return err
 		}
+		if err := macro.IngestPrestationsSolidarite(ctx, pool, arch); err != nil {
+			return err
+		}
 	}
 	if only == "" || only == "agriculture" {
 		fmt.Println("\nbilans alimentaires et appareil de production agricole")
