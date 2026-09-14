@@ -29,46 +29,161 @@ radicaux différents pour le même mot.
 Ce que cela change en pratique : **60 actes trouvés contre 10**, sur les seuls
 titres, pour une recherche « Elysee » saisie sans accent.
 
+### Faut-il un dictionnaire plutôt qu'un désuffixeur ?
+
+`french_stem`, le désuffixeur Snowball, tronque les mots selon des règles
+mécaniques. Sur le vocabulaire du Journal officiel, il se trompe **dans les deux
+sens** :
+
+| | `french_stem` | `fr_hunspell` |
+|---|---|---|
+| `ministre` | `ministr` | `ministre` |
+| `ministères` | `minister` | `ministère` |
+| `nomination` | `nomin` | `nomination` |
+| `nommés` | `nomm` | `nommé, nommer` |
+| `abrogés` | `abrog` | `abroger` |
+| `budgétaire` | `budgétair` | `budgétaire` |
+| `retraites` | `retrait` | `retrait, retraiter, retraire` |
+| `retrait` | `retr` | `retrait, retraire` |
+
+**Il sépare ce qui est identique** : `ministre` donne `ministr` et `ministères`
+donne `minister` — chercher l'un ne trouve pas l'autre. **Et il confond ce qui
+diffère** : `retraites` (les pensions) et `retrait` (d'un texte) se rejoignent
+sur `retrait`.
+
+Le dictionnaire Hunspell ne tronque pas : il ramène une forme fléchie à son
+**lemme**, par des règles morphologiques appuyées sur une liste de mots réels.
+Il répare le premier défaut — `ministères` donne bien `ministère`.
+
+Il ne répare **pas** le second, et il faut le dire : quand une forme est
+ambiguë, il rend *tous* ses lemmes possibles. `retraites` reste rattaché à
+`retrait`, non plus par accident de troncature mais parce que la forme est
+réellement ambiguë hors contexte. Le dictionnaire rend la confusion explicite ;
+il ne la supprime pas.
+
+**Ce qui est installé.** `hunspell-fr-comprehensive` — le dictionnaire
+Grammalecte v7.0 d'Olivier R., sous licence MPL 2.0, 86 491 entrées. Variante
+« toutes variantes » et non « classique », parce que le corpus va de 1861 à 2025
+et contient donc les orthographes d'avant et d'après la réforme de 1990. Les
+deux fichiers sont copiés dans `tsearch_data` sous les noms que PostgreSQL
+attend, `fr_fr.dict` et `fr_fr.affix` ; il lit le format Hunspell, `FLAG long`
+compris.
+
+**Son coût, mesuré.** Un dictionnaire Ispell est chargé en mémoire au premier
+usage **de chaque session** :
+
+| | Premier appel d'une session | Appels suivants |
+|---|---|---|
+| `fr_hunspell` | **175 à 278 ms** | 0,17 ms |
+| `french_stem` | 1,8 ms | 0,17 ms |
+
+Avec un pool de connexions — ce projet en a un — c'est deux cents millisecondes
+payées une fois par connexion, donc négligeable. Sur une application qui ouvre
+une connexion par requête, ce serait deux cents millisecondes sur chaque
+première requête.
+
+**Ce qui n'est pas fait.** La configuration `fr` en service reste
+`unaccent + french_stem`. Basculer sur le dictionnaire demande de réindexer
+3,8 millions de blocs — une demi-heure — et ce n'est pas un choix à faire sans
+mesurer le gain de rappel sur des recherches réelles. La configuration est prête
+à poser :
+
+```sql
+CREATE TEXT SEARCH DICTIONARY fr_hunspell (
+  TEMPLATE = ispell, DictFile = fr_fr, AffFile = fr_fr, StopWords = french);
+
+CREATE TEXT SEARCH CONFIGURATION fr_lemme (COPY = fr);
+ALTER TEXT SEARCH CONFIGURATION fr_lemme
+  ALTER MAPPING FOR hword, hword_part, word, asciiword, asciihword
+  WITH unaccent, fr_hunspell, french_stem;
+```
+
+L'ordre `fr_hunspell, french_stem` compte : le désuffixeur sert de **repli** pour
+ce que le dictionnaire ne connaît pas — noms propres, sigles, jargon juridique.
+Sans lui, ces mots ne seraient pas indexés du tout.
+
 ---
 
-## 2. Où mettre le vecteur : la mesure contredit l'intuition
+## 2. Où mettre le vecteur : quatre formes mesurées
 
-Deux façons d'indexer : une colonne `tsvector` **générée et stockée**, ou un
-**index fonctionnel** sur l'expression. Mesurées dans cet ordre, elles donnent
-des verdicts opposés.
+Le vecteur doit être **stocké** — c'est le premier résultat, et il est net. Une
+recherche de phrase sur un index fonctionnel recalcule le vecteur de chaque
+candidat :
 
-### Au chargement, l'index fonctionnel gagne — de peu
-
-| | Chargement | Index | Total | Stockage |
-|---|---|---|---|---|
-| Colonne générée | 1 832 s | 211 s | 2 043 s | **+3 Go** |
-| Index fonctionnel | **187 s** | 1 687 s | **1 874 s** | — |
-
-Le calcul de `to_tsvector` coûte le même prix des deux côtés, environ 1 650 s, et
-il est **sériel dans les deux cas** : `COPY` ne parallélise pas les colonnes
-générées, et PostgreSQL 17 ne parallélise pas la construction d'un index GIN.
-
-### À la requête, la colonne stockée gagne par trois ordres de grandeur
-
-| Requête | Vecteur stocké | Index fonctionnel |
+| Recherche de phrase | Vecteur stocké | Index fonctionnel |
 |---|---|---|
-| Recherche de **phrase** | **15 ms** | **50 057 ms** |
-| Même table, un nom : phrase | **—** | 1 807 ms |
-| Même table, même mots en conjonction | — | 12,6 ms |
+| | **15 ms** | **50 057 ms** |
 
-**La raison tient en une phrase : GIN ne stocke pas les positions des lexèmes.**
-Une conjonction se résout dans l'index seul. Une recherche de phrase ne le peut
-pas — elle doit vérifier l'adjacence sur chaque candidat. Avec une colonne
-stockée, cette vérification **lit** un vecteur ; avec un index fonctionnel, elle
-le **recalcule**, sur des blocs qui font parfois plusieurs mégaoctets.
+**GIN ne range pas les positions des lexèmes.** Une conjonction se résout dans
+l'index seul ; une phrase doit vérifier l'adjacence sur chaque candidat — en
+*lisant* un vecteur stocké, ou en le *recalculant* sur des blocs de plusieurs
+mégaoctets.
 
-Un corpus se charge une fois et s'interroge indéfiniment : les trois gigaoctets
-et les vingt-huit minutes sont le bon prix. La colonne générée avait été retirée
-sur la foi du seul chargement ; elle est restaurée.
+Restait à savoir **sous quelle forme** le stocker. Quatre formes, mesurées sur
+200 000 blocs représentatifs :
 
-> C'est précisément le cas d'usage de l'extension **RUM**, qui range les
-> positions dans les listes d'occurrences et rend phrase et classement sans accès
-> au tas. Elle n'est pas dans l'image et reste une piste.
+| Forme | Construction | Index | Dump | Restauration |
+|---|---|---|---|---|
+| Colonne générée | 89,8 s | 13,5 s | 14,1 s / 55,8 Mo | **105,1 s** |
+| Colonne ordinaire, `INSERT…SELECT` | 90,3 s | 12,8 s | 28,8 s / 136,8 Mo | 35,8 s |
+| Table `CREATE TABLE AS` | **30,4 s** | 11,6 s | 27,3 s / 140,8 Mo | **31,3 s** |
+| **Vue matérialisée** | 31,5 s | 11,6 s | **0,3 s / 1,6 Ko** | 44,1 s |
+
+Trois enseignements, dans l'ordre où ils sont apparus :
+
+1. **`pg_dump` ne transporte pas une colonne générée** : il la fait recalculer à
+   la restauration. D'où les 105 s, trois fois le reste. Vérifié sur notre propre
+   dump — l'entrée « MATERIALIZED VIEW DATA » de la table des matières contient
+   en réalité un `REFRESH MATERIALIZED VIEW`, pas des données.
+2. **L'écart entre 90 s et 30 s n'oppose pas la vue à la table** : il oppose
+   `INSERT … SELECT` à `CREATE TABLE AS`. Une relation créée dans la transaction
+   courante évite une partie du travail d'écriture. Et un `TRUNCATE` suivi d'un
+   `INSERT` dans la même transaction ne le retrouve pas — 86,6 s mesurés :
+   avec `wal_level = replica`, l'optimisation ne joue pas.
+3. **Le dump d'une vue matérialisée ne contient que sa définition** : 1,6 Ko
+   contre 140 Mo pour la table équivalente.
+
+> **Une prévision démentie par la mesure.** J'attendais que la vue matérialisée
+> allège le dump du corpus entier de près de trois gigaoctets. Elle ne l'allège
+> pas du tout : 1 352 937 088 octets en 321 s, contre 1 351 402 765 en 320 s
+> avec la colonne générée. C'est logique après coup — **une colonne générée
+> n'est pas dumpée non plus**. Les deux formes excluent le vecteur ; seule la
+> colonne *ordinaire* l'aurait emporté, au prix de 2,7 Go.
+
+### La forme retenue : la vue matérialisée
+
+Son avantage n'est donc pas la taille du dump mais **le temps de restauration**,
+et pour la même raison qui fait gagner le `CREATE TABLE AS` : un `REFRESH` en
+bloc va plus vite qu'un calcul ligne à ligne pendant `COPY`. Sur l'échantillon,
+44,1 s contre 105,1 s.
+
+Et elle apporte ce qu'aucune colonne ne donne : **PostgreSQL connaît la
+dépendance**. La vue ne peut pas dériver ligne à ligne — elle est fraîche ou
+périmée, jamais incohérente — et la source ne peut pas être modifiée sans que le
+moteur le signale. Une colonne ordinaire, elle, repose sur la discipline du
+chargement ; il aurait fallu une sonde pour vérifier qu'elle ne ment pas.
+
+L'index `UNIQUE` sur la vue n'est pas décoratif : sans lui,
+`REFRESH … CONCURRENTLY` est refusé, et tout rafraîchissement prend un verrou
+exclusif — donc coupe la recherche pendant les quarante-quatre secondes qu'il
+dure.
+
+### `maintenance_work_mem`
+
+Le défaut est de **64 Mo**, et le connecteur ne le relevait pas. Sur 200 000
+blocs, la différence avec 1 Go est faible — 11 151 ms contre 10 908 ms, soit
+2 % — parce que l'index tient presque en mémoire à cette taille. Il est relevé
+explicitement tout de même : l'écart grandit avec le corpus, et laisser un
+réglage par défaut sur une construction d'index GIN de quatre gigaoctets n'est
+pas un choix, c'est un oubli.
+
+### Ne pas maintenir l'index pendant le chargement
+
+Un index GIN présent pendant l'insertion coûte **112,3 s** contre **89,8 + 13,5**
+pour le même construit en bloc à la fin — 8 %. L'écart est modeste parce que la
+liste d'attente de GIN amortit déjà les insertions, mais il est gratuit à
+prendre : avec la vue matérialisée, la question ne se pose plus du tout, les
+index ne portant pas sur les tables que `COPY` remplit.
 
 ---
 

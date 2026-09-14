@@ -83,12 +83,13 @@ func NormalizeElus(ctx context.Context, pool *pgxpool.Pool) error {
 		           AND core.f_unaccent(lower(h.given_name))  = core.f_unaccent(lower(e.prenom)))::smallint,
 		       $1
 		  FROM ref.elu_recherche e
-		  -- Sur la COLONNE STOCKÉE, pas sur une expression : la recherche de
-		  -- phrase doit vérifier l'adjacence des lexèmes sur chaque candidat,
-		  -- et un index fonctionnel l'oblige à recalculer le vecteur — 1 807 ms
-		  -- par nom contre 12,6 ms, soit plus d'une heure et demie pour les
-		  -- trois mille quatre cents noms du thésaurus.
-		  JOIN jo.bloc b ON b.recherche @@ e.requete
+		  -- Sur la VUE MATÉRIALISÉE, où le vecteur est stocké — pas sur une
+		  -- expression. Une recherche de phrase doit vérifier l'adjacence des
+		  -- lexèmes sur chaque candidat, et un index fonctionnel l'oblige à
+		  -- recalculer le vecteur : 1 807 ms par nom contre 30 ms, soit plus
+		  -- d'une heure et demie pour les trois mille quatre cents noms du
+		  -- thésaurus au lieu de six minutes.
+		  JOIN jo.recherche_bloc b ON b.recherche @@ e.requete
 		 GROUP BY b.texte_id, e.person_id, e.nom, e.prenom
 		ON CONFLICT (texte_id, person_id) DO NOTHING`, ElusVersion)
 	if err != nil {

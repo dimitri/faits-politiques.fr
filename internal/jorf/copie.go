@@ -158,16 +158,26 @@ func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		return fail(err)
 	}
 
-	// La clé étrangère part le temps du chargement : les quatre tables sont
-	// remplies en parallèle et un bloc peut arriver avant son acte. La remettre
-	// ensuite coûte quatre secondes et vérifie tout d'un coup.
-	if _, err := pool.Exec(ctx,
-		`ALTER TABLE jo.bloc DROP CONSTRAINT IF EXISTS bloc_texte_fk`); err != nil {
-		return fail(err)
-	}
-	if _, err := pool.Exec(ctx,
-		`TRUNCATE jo.sommaire, jo.lien, jo.texte, jo.bloc`); err != nil {
-		return fail(err)
+	// TOUT CE QUI VÉRIFIE PART LE TEMPS DU CHARGEMENT.
+	//
+	// La clé étrangère, parce que les quatre tables sont remplies en parallèle
+	// et qu'un bloc peut arriver avant son acte : la vérifier au fil de l'eau
+	// imposerait un ordre entre les flux, donc de les sérialiser. La vérifier à
+	// la fin coûte quatre secondes et contrôle tout d'un coup.
+	//
+	// Les index de recherche, eux, n'ont rien à retirer : ils ne sont pas sur
+	// ces tables. Ils portent sur des VUES MATÉRIALISÉES, rafraîchies après le
+	// chargement (migration 0063). C'est ce qui permet à COPY d'écrire à plein
+	// débit sans qu'aucun index ne soit maintenu ligne à ligne — mesuré, un GIN
+	// présent pendant l'insertion coûte 8 % de plus que le même construit en
+	// bloc à la fin.
+	for _, q := range []string{
+		`ALTER TABLE jo.bloc DROP CONSTRAINT IF EXISTS bloc_texte_fk`,
+		`TRUNCATE jo.sommaire, jo.lien, jo.texte, jo.bloc`,
+	} {
+		if _, err := pool.Exec(ctx, q); err != nil {
+			return fail(err)
+		}
 	}
 
 	stats, err := CopierArchive(ctx, pool, f.Path, "jo")
@@ -181,13 +191,35 @@ func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		return fail(fmt.Errorf("remise de la clé étrangère : %w", err))
 	}
 
+	// Le vecteur de recherche est calculé ici, en rafraîchissant les vues.
+	// L'expression `to_tsvector('fr', …)` n'est écrite nulle part dans ce
+	// fichier : elle est dans la définition des vues, pour qu'il n'en existe
+	// qu'une seule version. Écrite deux fois, elle finirait par différer — et un
+	// vecteur calculé avec une configuration puis interrogé avec une autre ne
+	// rend rien, sans erreur.
+	//
+	// maintenance_work_mem est relevé explicitement : la valeur par défaut est
+	// de 64 Mo, et la construction d'un index GIN s'en accommode mal à mesure
+	// que le corpus grandit.
+	debutVues := time.Now()
+	if _, err := pool.Exec(ctx, `SET maintenance_work_mem = '1GB'`); err != nil {
+		return fail(err)
+	}
+	for _, v := range []string{"jo.recherche_texte", "jo.recherche_bloc"} {
+		if _, err := pool.Exec(ctx, "REFRESH MATERIALIZED VIEW "+v); err != nil {
+			return fail(fmt.Errorf("rafraîchissement de %s : %w", v, err))
+		}
+	}
+	vues := int64(time.Since(debutVues).Seconds())
+
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"fichiers": stats["fichiers"], "sommaires": stats["sommaire"],
 		"liens": stats["lien"], "actes": stats["texte"], "blocs": stats["bloc"],
-		"secondes": stats["secondes"]}, "")
+		"secondes": stats["secondes"], "recherche_s": vues}, "")
 	fmt.Printf("  Journal officiel : %d fichiers lus en %d s\n", stats["fichiers"], stats["secondes"])
 	fmt.Printf("    %d sommaires, %d liens, %d actes, %d blocs\n",
 		stats["sommaire"], stats["lien"], stats["texte"], stats["bloc"])
+	fmt.Printf("    vues de recherche rafraîchies en %d s\n", vues)
 	return nil
 }
 
@@ -209,8 +241,6 @@ func CopierArchive(ctx context.Context, pool *pgxpool.Pool, chemin, schema strin
 	fLien := nouveauFlux(schema, "lien", "sommaire_id", "texte_id", "titre", "ordre")
 	fTexte := nouveauFlux(schema, "texte", "id", "nature", "num", "nor", "date_publi",
 		"date_texte", "titre", "titre_complet", "ministere", "origine_publi")
-	// `recherche` est une colonne générée : PostgreSQL la calcule, COPY ne doit
-	// pas la fournir.
 	fBloc := nouveauFlux(schema, "bloc", "texte_id", "ordre", "section", "article_id",
 		"article_num", "contenu")
 	flux := []*flux{fSommaire, fLien, fTexte, fBloc}

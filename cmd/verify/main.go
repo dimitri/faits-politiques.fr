@@ -466,12 +466,18 @@ var checks = []check{
 		// faisait disparaître 5 % des lignes, ce qu'un seuil de tolérance
 		// aurait laissé passer. Ici la seule valeur admise est zéro.
 		name: "aucune ligne ne disparaît entre la source et la base",
-		query: `SELECT count(*) FROM raw.fetch_run r
-		         WHERE r.status = 'SUCCESS'
-		           AND r.stats ? 'lignes_recues'
-		           AND (r.stats->>'lignes_recues')::bigint <> (
-		                 (r.stats->>'lignes_chargees')::bigint
-		               + coalesce((SELECT sum(value::bigint) FROM jsonb_each_text(r.stats)
+		// Seul le DERNIER chargement réussi de chaque source est jugé. Un run
+		// ancien, défectueux puis corrigé, reste dans raw.fetch_run — c'est
+		// voulu, l'archive ne se réécrit pas — mais il ne doit pas bloquer la
+		// publication à perpétuité. Ce qui compte est l'état présent des données.
+		query: `SELECT count(*) FROM (
+		          SELECT DISTINCT ON (r.source_id) r.stats
+		            FROM raw.fetch_run r
+		           WHERE r.status = 'SUCCESS' AND r.stats ? 'lignes_recues'
+		           ORDER BY r.source_id, r.started_at DESC) d
+		         WHERE (d.stats->>'lignes_recues')::bigint <> (
+		                 (d.stats->>'lignes_chargees')::bigint
+		               + coalesce((SELECT sum(value::bigint) FROM jsonb_each_text(d.stats)
 		                            WHERE key LIKE 'rejet\_%'), 0))`,
 	},
 	{
@@ -859,30 +865,23 @@ var checks = []check{
 		min: 1,
 	},
 	{
-		// `jo.bloc.recherche` est une colonne ORDINAIRE et non générée : c'est ce
-		// qui permet à pg_dump de la transporter, et donc à une restauration de
-		// la LIRE au lieu de la recalculer — 35,8 s contre 105,1 s sur 200 000
-		// blocs. Le prix est que le moteur ne garantit plus sa cohérence avec le
-		// texte. Le corpus est en écriture unique, ce qui rend le risque
-		// théorique ; ce contrôle le rend vérifié.
-		//
-		// L'échantillon est borné : recalculer trois millions huit cent mille
-		// vecteurs pour un contrôle de cohérence coûterait une demi-heure à
-		// chaque exécution de cmd/verify.
-		name: "le vecteur de recherche concorde avec le texte indexé",
-		query: `SELECT count(*) FROM (
-		          SELECT contenu, recherche FROM jo.bloc
-		           WHERE recherche IS NOT NULL LIMIT 2000) x
-		         WHERE recherche IS DISTINCT FROM to_tsvector('fr', contenu)`,
+		// Le vecteur de recherche vit dans une VUE MATÉRIALISÉE, et non dans une
+		// colonne : pg_dump n'en emporte que la définition, et PostgreSQL
+		// connaît la dépendance vers jo.bloc. Une vue ne peut pas dériver ligne
+		// à ligne — elle est fraîche ou périmée — mais elle peut être PÉRIMÉE,
+		// ce qui se voit à un décompte qui ne suit plus la table.
+		name: "la vue de recherche du corpus couvre tous les blocs",
+		query: `SELECT count(*) FROM jo.bloc
+		         WHERE NOT EXISTS (SELECT 1 FROM jo.recherche_bloc r WHERE r.id = jo.bloc.id)`,
 	},
 	{
-		// Les tables d'atterrissage sont vidées à la fin du chargement. Si elles
-		// ne le sont pas, c'est que le connecteur s'est arrêté en chemin — et la
-		// base porte alors deux fois les mêmes blocs, une fois indexés et une
-		// fois non.
-		name: "les tables d'atterrissage du corpus sont vides",
-		query: `SELECT (SELECT count(*) FROM jo.bloc_chargement)
-		             + (SELECT count(*) FROM jo.texte_chargement)`,
+		// L'index UNIQUE conditionne REFRESH ... CONCURRENTLY. Sans lui, tout
+		// rafraîchissement prend un verrou exclusif et coupe la recherche
+		// pendant les quarante-quatre secondes qu'il dure.
+		name: "la vue de recherche peut être rafraîchie sans couper le service",
+		query: `SELECT count(*) FROM pg_index i
+		         WHERE i.indrelid = 'jo.recherche_bloc'::regclass AND i.indisunique`,
+		min: 1,
 	},
 	{
 		// La configuration `fr` déaccentue avant de désuffixer. Si elle

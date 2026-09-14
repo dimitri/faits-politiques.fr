@@ -1670,3 +1670,91 @@ Mesurer une seule phase, c'est optimiser contre soi. **Un corpus se charge une
 fois et s'interroge indéfiniment** : vingt-huit minutes et trois gigaoctets de
 plus au chargement sont le bon prix pour trois ordres de grandeur à la requête.
 La colonne est restaurée.
+
+## D-052 — Notre propre image PostgreSQL, et ce que le volume ne peut pas traverser
+
+Quatre extensions sont nécessaires et aucune image publiée ne les réunit :
+**postgis** (les contours administratifs sont dessinés par la base elle-même, en
+SVG), **vector** (recherche par voisinage), **rum** (positions des lexèmes dans
+l'index, ce que GIN ne fait pas — voir D-051) et **unaccent** (la configuration
+de recherche `fr`). `postgis/postgis` n'a ni pgvector ni rum ;
+`pgvector/pgvector` n'a pas PostGIS.
+
+L'image est bâtie sur `debian:bookworm-slim` plus le dépôt PGDG, sur le modèle du
+laboratoire TAOP : nativement multi-architecture, paquets à jour, et l'outillage
+d'amorçage copié depuis l'image officielle plutôt que réécrit.
+
+### Le volume ne traverse pas, et c'est le point
+
+L'image précédente était Alpine, donc **musl** ; celle-ci est Debian, donc
+**glibc**. Les collations diffèrent, donc l'ordre des index diffère. Un
+répertoire de données recopié d'une image à l'autre **démarrerait et répondrait
+faux** — c'est la pire des pannes, celle qui ne se signale pas. Le passage se
+fait par `pg_dump -Fc` puis `pg_restore`, jamais par le volume.
+
+Mesuré : dump de 1,26 Go en 321 s depuis une base de 16 Go ; restauration
+vérifiée dans l'image neuve.
+
+### Le dictionnaire français
+
+`french_stem`, le désuffixeur Snowball, tronque selon des règles mécaniques. Sur
+le vocabulaire du Journal officiel il se trompe **dans les deux sens** : il
+sépare `ministre` (`ministr`) de `ministères` (`minister`), et il confond
+`retraites` avec `retrait`. Le dictionnaire Hunspell français — Grammalecte v7.0,
+MPL 2.0, 86 491 entrées, variante « toutes variantes » parce que le corpus va de
+1861 à 2025 — ramène les formes fléchies à leur lemme.
+
+Il répare le premier défaut, pas le second : quand une forme est ambiguë, il rend
+*tous* ses lemmes. Il rend la confusion explicite plutôt que de la supprimer.
+
+Son coût, mesuré : un dictionnaire Ispell est chargé en mémoire au premier usage
+**de chaque session** — 175 à 278 ms, puis 0,17 ms. Avec un pool de connexions,
+c'est négligeable ; sans pool, ce serait deux cents millisecondes sur chaque
+première requête.
+
+## D-053 — Le vecteur de recherche : quatre formes, et deux prévisions démenties
+
+Le vecteur doit être stocké (D-051). Restait à savoir sous quelle forme. Quatre,
+mesurées sur 200 000 blocs :
+
+| Forme | Construction | Index | Dump | Restauration |
+|---|---|---|---|---|
+| Colonne générée | 89,8 s | 13,5 s | 14,1 s / 55,8 Mo | **105,1 s** |
+| Colonne ordinaire, `INSERT…SELECT` | 90,3 s | 12,8 s | 28,8 s / 136,8 Mo | 35,8 s |
+| Table `CREATE TABLE AS` | **30,4 s** | 11,6 s | 27,3 s / 140,8 Mo | **31,3 s** |
+| **Vue matérialisée** | 31,5 s | 11,6 s | **0,3 s / 1,6 Ko** | 44,1 s |
+
+**Première prévision démentie.** L'écart entre 90 s et 30 s à la construction
+n'oppose pas la vue à la table : il oppose `INSERT … SELECT` à
+`CREATE TABLE AS`. Une relation créée dans la transaction courante évite une
+partie du travail d'écriture. Et le contournement évident — `TRUNCATE` puis
+`INSERT` dans la même transaction — ne retrouve rien : 86,6 s mesurés, parce
+qu'avec `wal_level = replica` l'optimisation ne s'applique pas.
+
+**Seconde prévision démentie.** J'attendais que la vue matérialisée allège le
+dump du corpus entier de près de trois gigaoctets. Elle ne l'allège pas du tout :
+1 352 937 088 octets contre 1 351 402 765 avec la colonne générée. C'est logique
+après coup — **une colonne générée n'est pas dumpée non plus.** Seule la colonne
+*ordinaire* aurait emporté les vecteurs, au prix de 2,7 Go.
+
+### Ce qui a décidé
+
+Le temps de **restauration**, et la dépendance déclarée. Un `REFRESH` en bloc va
+plus vite qu'un calcul ligne à ligne pendant `COPY` — 44,1 s contre 105,1 s — et
+surtout PostgreSQL **connaît** la dépendance de la vue vers sa source : elle ne
+peut pas dériver ligne à ligne, elle est fraîche ou périmée. Une colonne
+ordinaire aurait demandé une sonde pour vérifier qu'elle ne ment pas ; la vue
+rend cette sonde inutile.
+
+L'index `UNIQUE` sur la vue conditionne `REFRESH … CONCURRENTLY` : sans lui, tout
+rafraîchissement prend un verrou exclusif et coupe la recherche.
+
+### Deux réglages qui traînaient
+
+`maintenance_work_mem` restait au défaut de 64 Mo pendant la construction des
+index GIN. L'écart avec 1 Go est de 2 % sur l'échantillon — l'index y tient
+presque en mémoire — mais laisser un défaut sur une construction de quatre
+gigaoctets n'est pas un choix, c'est un oubli. Et un index GIN maintenu pendant
+l'insertion coûte 8 % de plus que le même construit à la fin : avec la vue
+matérialisée la question disparaît, les index ne portant plus sur les tables que
+`COPY` remplit.
