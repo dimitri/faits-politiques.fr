@@ -90,7 +90,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err := IngestURSSAF(ctx, pool, arch); err != nil {
 		return err
 	}
-	return IngestURSSAFEncaissements(ctx, pool, arch)
+	if err := IngestURSSAFEncaissements(ctx, pool, arch); err != nil {
+		return err
+	}
+	return IngestPLFDestination(ctx, pool, arch)
 }
 
 // nulF rend NULL plutôt que zéro pour une valeur absente. Un poste que la source

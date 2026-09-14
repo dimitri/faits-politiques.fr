@@ -1,0 +1,297 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Budget de l'État</span></p>
+<span class="sur">Situation mensuelle · cumul au {{.B.Arrete}}</span>
+<h1>Le budget de l'État, mois par mois</h1>
+<p class="lede">Ce que l'État a encaissé et décaissé depuis le 1<sup>er</sup> janvier
+{{.B.Exercice}}, tel que la DGFiP le publie chaque mois.</p>
+
+<p class="note proc"><strong>Ces chiffres sont des cumuls, pas des totaux d'année.</strong>
+«&nbsp;{{mdEur .B.Solde}}&nbsp;» signifie «&nbsp;de janvier à {{.B.MoisNom}}&nbsp;», et se
+compare au <em>même mois</em> de l'année précédente — jamais à une année pleine. Une situation
+mensuelle est en outre <strong>provisoire</strong> et tenue en comptabilité budgétaire
+(encaissements et décaissements)&nbsp;: le chiffre définitif de l'exercice, arrêté par la loi de
+règlement, sera différent.</p>
+
+<div class="cartes trois">
+  <div class="carte"><span class="v">{{mdEur .B.Recettes}}</span>
+    <span class="t">Recettes nettes du budget général</span>
+    <span class="d">Nettes des remboursements et dégrèvements d'impôts.</span></div>
+  <div class="carte"><span class="v">{{mdEur .B.Depenses}}</span>
+    <span class="t">Dépenses nettes du budget général</span>
+    <span class="d">Hors prélèvements sur recettes et comptes spéciaux.</span></div>
+  <div class="carte"><span class="v">{{mdEur .B.Solde}}</span>
+    <span class="t">Solde budgétaire</span>
+    <span class="d">Budget général, budgets annexes et comptes spéciaux réunis. Négatif&nbsp;=
+      déficit.</span></div>
+</div>
+
+<span class="sur">Comptabilité budgétaire · cumul {{.B.Exercice}}, {{.B.MoisNom}}</span>
+<h2>Le solde cumulé, exercice par exercice</h2>
+<p class="q">Une barre par mois et par exercice&nbsp;: le cumul depuis le 1<sup>er</sup> janvier.
+Les exercices partagent la même échelle et la même origine&nbsp;; ils se comparent
+<strong>colonne à colonne</strong>, c'est-à-dire au même mois. Les barres descendent parce que le
+solde est négatif.</p>
+<svg class="graphe" viewBox="0 0 720 260" role="img"
+  aria-label="Solde budgétaire cumulé de janvier au mois publié, par exercice">
+  {{.B.Grille}}
+  {{range .B.Courbes}}{{.Path}}{{end}}
+</svg>
+<div class="legende">
+  {{range $i, $c := .B.Courbes}}<span><i class="e{{$i}}"></i>{{$c.Exercice}} —
+    {{$c.Dernier}} au terme de {{$c.MoisFin}} mois{{if $c.Incomplet}}
+    <strong>(exercice en cours)</strong>{{end}}</span>{{end}}
+</div>
+
+<h2>Où va l'argent, où il passe</h2>
+<p class="q">Les lignes nommées de la situation mensuelle, cumul au {{.B.Arrete}} — ce que le
+tableau détaillé plus bas contient déjà, mais qu'il faut dérouler pour trouver.</p>
+<div class="deux-cartes">
+<div>
+<h3>Les recettes fiscales</h3>
+{{.B.BarresRecettes}}
+</div>
+<div>
+<h3>Les dépenses, par nature</h3>
+{{.B.BarresDepenses}}
+</div>
+</div>
+<p class="note">«&nbsp;Autres recettes fiscales&nbsp;» agrège tout ce qui n'est ni la TVA, ni l'IR,
+ni l'IS, ni la TICPE&nbsp;: droits de succession, de mutation, taxes diverses — la source ne les
+détaille pas plus finement à ce niveau. Les «&nbsp;PSR&nbsp;» (prélèvements sur recettes) sont des
+versements directs aux collectivités et à l'Union européenne, comptés en dépense ici bien qu'ils ne
+financent aucune politique de l'État lui-même.</p>
+
+{{$x := .X}}
+<span class="sur">Comptabilité nationale · exercice {{$x.Annee}}</span>
+<h2>Le budget de l'État n'est pas le budget public</h2>
+<p class="q">La comptabilité nationale range les administrations publiques en <strong>trois
+sous-secteurs</strong>, dont la somme fait «&nbsp;l'argent public&nbsp;»&nbsp;:</p>
+<ul class="tight">
+  <li><strong>l'administration centrale</strong> — l'État et les organismes qu'il finance
+    directement (universités, agences, opérateurs)&nbsp;; son budget est la loi de finances&nbsp;;</li>
+  <li><strong>les administrations publiques locales</strong> — régions, départements, communes,
+    intercommunalités&nbsp;; chacune vote le sien&nbsp;;</li>
+  <li><strong>les administrations de sécurité sociale</strong> — régimes obligatoires, assurance
+    chômage, retraites complémentaires, hôpitaux&nbsp;; leur cadre est la loi de financement de la
+    Sécurité sociale.</li>
+</ul>
+<p class="q">Trois bourses, votées par des assemblées différentes. Dépenses de l'exercice
+<strong>{{$x.Annee}}</strong>, en comptabilité nationale — un exercice CLOS et définitif, à ne pas
+confondre avec le cumul {{.B.Exercice}} <em>encore provisoire</em> de la section précédente, ni avec
+la comptabilité budgétaire du tableau plus bas.</p>
+{{$x.Barres}}
+<div class="scroll"><table>
+<thead><tr><th>Sous-secteur</th><th class="n">Dépenses</th><th class="n">Recettes</th>
+  <th class="n">Solde</th><th class="n">Part des dépenses</th></tr></thead>
+<tbody>
+{{range $x.Secteurs}}<tr>
+  <td>{{.Libelle}}</td><td class="n">{{mdEur .Depenses}}</td>
+  <td class="n z">{{mdEur .Recettes}}</td><td class="n">{{mdEur .Solde}}</td>
+  <td class="n z">{{dec .PartDepenses 0}} %</td>
+</tr>{{end}}
+<tr class="niv1"><td>{{$x.Total.Libelle}}</td><td class="n">{{mdEur $x.Total.Depenses}}</td>
+  <td class="n">{{mdEur $x.Total.Recettes}}</td><td class="n">{{mdEur $x.Total.Solde}}</td>
+  <td class="n z">100 %</td></tr>
+</tbody></table></div>
+<p class="note abs"><strong>Les parts font plus de 100 %, et les dépenses ne s'additionnent pas.</strong>
+La somme des trois sous-secteurs donne {{mdEur $x.SommeDepenses}}, soit {{mdEur $x.EcartConsolidation}}
+de plus que le total consolidé&nbsp;: une dotation de l'État à une collectivité, ou un transfert à la
+Sécurité sociale, est une dépense pour celui qui verse <em>et</em> finance une dépense de celui qui
+reçoit. Le total consolidé ne la compte qu'une fois. <strong>Les soldes, eux, s'additionnent
+exactement</strong>&nbsp;: {{mdEur $x.Total.Solde}} est bien la somme des trois lignes.</p>
+<h3>Dépenses et recettes publiques, année par année</h3>
+<p class="q">Toutes administrations publiques, {{$x.Debut}}–{{$x.Annee}}. L'écart entre les deux barres
+d'une même année est le déficit — ou l'excédent, s'il y en avait eu un.</p>
+{{$x.DepRec}}
+
+<p class="note proc"><strong>C'est la Sécurité sociale qui dépense le plus, pas l'État.</strong>
+Le déficit dont parlent les journaux — celui de Maastricht — est le solde de la ligne « toutes
+administrations publiques », qui est bien la somme des trois soldes. Le
+<strong>{{mdEur .B.Solde}}</strong> en tête de cette page ne concerne que l'État, en comptabilité
+budgétaire&nbsp;: ni le même périmètre, ni la même règle de comptage.</p>
+
+{{if $x.CourbeS1311S1314}}
+<h3>Depuis quand, exactement</h3>
+<p class="q">Dépenses de l'administration centrale (S1311) et de la Sécurité sociale (S1314),
+{{$x.Debut}}–{{$x.Annee}}.{{if $x.AnneeCroisement1314}} La Sécurité sociale dépense plus que l'État
+à partir de {{$x.AnneeCroisement1314}}.{{end}}</p>
+{{$x.CourbeS1311S1314}}
+{{end}}
+
+<h2>La Sécurité sociale n'est plus financée par les cotisations seules</h2>
+<p class="q">Composition du financement de la protection sociale, en {{$x.DebutFin}} et en
+{{$x.AnnFin}}. Deux dates plutôt qu'une série&nbsp;: un empilement en pourcentage année par année
+devient illisible.</p>
+{{$x.BarresFin}}
+<div class="scroll"><table>
+<thead><tr><th>Ressource</th><th class="n">{{$x.AnnFin}}</th><th class="n">Part {{$x.AnnFin}}</th>
+  <th class="n">Part {{$x.DebutFin}}</th><th class="n">Écart</th></tr></thead>
+<tbody>{{range $x.Financem}}<tr>
+  <td>{{.Libelle}}</td><td class="n">{{mdEur .Montant}}</td>
+  <td class="n">{{dec .Part 1}} %</td><td class="n z">{{dec .PartDebut 1}} %</td>
+  <td class="n">{{pctFr (sub64 .Part .PartDebut)}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note abs"><strong>Ce déplacement est le résultat de décisions successives, et ce site
+n'en attribue aucune.</strong> Une part croissante de recettes fiscales — CSG, fraction de TVA
+affectée, compensation des exonérations de cotisations — a remplacé une part des cotisations. Le
+mécanisme, texte par texte, est décrit dans
+<a href="{{.Root}}/comprendre/budget-donnees/">le document de méthode sur les deux budgets</a>,
+avec la loi Veil de 1994 sur la compensation intégrale et ce qu'il en reste.
+<a href="{{.Root}}/protection-sociale/">Les prestations, elles, sont sur leur propre page →</a></p>
+
+<h2>Les exonérations de cotisations, et ce qui n'est pas compensé</h2>
+{{$k := .K}}
+<p class="note abs" style="font-size:1rem"><strong>{{$k.NonCompenseTxt}} d'exonérations de
+cotisations restent officiellement non compensées par l'État en {{$k.AnneeNonComp}}.</strong>
+C'est une perte de recettes définitive pour la Sécurité sociale, décidée par la loi.</p>
+
+<p class="q">Le mécanisme, en trois temps. <strong>L'État exonère</strong> les employeurs d'une
+partie des cotisations qu'ils doivent à la Sécurité sociale — {{mdEur $k.Exonerations}} en
+{{$k.AnneeExo}}, dont {{mdEur $k.AllegementsGen}} d'allégements généraux sur les bas salaires.
+<strong>La loi du 25 juillet 1994, dite loi Veil</strong>, l'oblige à compenser cette perte&nbsp;;
+il le fait pour l'essentiel en affectant à la Sécurité sociale une fraction de la TVA —
+{{$k.PartTVA}} en 2026. <strong>Une loi de financement peut déroger</strong> à la compensation, et
+c'est ainsi que la part non compensée existe légalement.</p>
+
+<figure class="schema">
+{{$k.SVG}}
+<div class="legende ruban-legende">
+  {{range $i, $cat := $k.CategoriesRef}}<span><i class="r{{$i}}"></i>{{$cat.Libelle}} —
+    {{mdEur $cat.Montant}} ({{dec $cat.Part 1}} %)</span>{{end}}
+</div>
+<figcaption><strong>Deux parties de ce schéma sont en largeurs proportionnelles, à la même
+échelle&nbsp;:</strong> la bande des cotisations effectivement versées et le faisceau des
+exonérations, entre Employeurs, Sécurité sociale et État. Les deux viennent de la même source
+(URSSAF), du même champ (entreprises) et de la même année — {{$k.AnneeCotisationsURSSAF}}, la seule
+où les deux montants existent, pas {{$k.AnneeExo}} citée plus haut. Le faisceau des exonérations se
+détaille lui-même en quatre catégories, qui se somment exactement à {{mdEur $k.ExonerationsMemeAnnee}}.
+La compensation et le manque non compensé, eux, restent des flèches simples&nbsp;: aucune source ne
+publie leur montant pour {{$k.AnneeCotisationsURSSAF}}, et leur donner une largeur inventerait un
+chiffre. Chaque montant écrit porte sa propre source et sa propre année.</figcaption>
+</figure>
+
+<p class="note">{{mdEur $k.CotisationsVerseesURSSAF}} versés par les entreprises contre
+{{mdEur $k.ExonerationsMemeAnnee}} exonérés la même année&nbsp;: les entreprises ont versé
+{{$k.RatioCotisationsExo}} fois ce qu'elles ont été exonérées. C'est le chiffre le plus précis que
+la base puisse donner, mais il s'arrête en {{$k.AnneeCotisationsURSSAF}}&nbsp;: l'URSSAF n'a plus
+mis à jour ses encaissements depuis juillet 2023, et le niveau géographique le plus fin qu'elle
+publie pour ce montant est la <strong>région</strong> (par caisse URSSAF), jamais le département.</p>
+
+<h3>Et pour une année plus récente&nbsp;?</h3>
+<p class="q">Pour {{$k.AnneeExo}}, la base ne connaît que les exonérations
+({{mdEur $k.Exonerations}}), pas ce que les entreprises versent effectivement&nbsp;: aucune source
+récente ne publie ce second montant au même champ. La seule approximation disponible vient d'une
+autre source (ESSPROS, Eurostat), sur un périmètre plus large — assurance chômage et retraites
+complémentaires comprises, que la Sécurité sociale au sens strict ne couvre pas — et d'un chiffre de
+non-compensation qui, lui, ne date que du dernier budget connu ({{$k.AnneeNonComp}}). Les lignes
+ci-dessous ne se mélangent donc pas entre elles&nbsp;: chaque barre porte sa propre source, son
+propre champ et sa propre année.</p>
+{{$k.BarresOrdreGrandeur}}
+<p class="note abs">C'est un ordre de grandeur, pas une proportion exacte&nbsp;: au moins deux
+sources et deux années coexistent forcément dans cette comparaison-là, contrairement au schéma
+ci-dessus.</p>
+
+<h3>Les exonérations, année par année</h3>
+<p class="q">Montant total des mesures d'exonération de cotisations, secteur privé, France entière,
+{{$k.AnneeDebut}}–{{$k.AnneeExo}}. De {{mdEur $k.ExoDebut}} à {{mdEur $k.Exonerations}}.</p>
+{{$k.SerieExo}}
+<p class="note">Source&nbsp;: URSSAF, exonérations par mesure. <strong>Ces montants ne sont pas des
+pertes</strong>&nbsp;: dans leur immense majorité ils sont compensés. La part non compensée,
+{{$k.NonCompenseTxt}} en {{$k.AnneeNonComp}}, vient du jaune budgétaire «&nbsp;Bilan des relations
+financières entre l'État et la protection sociale&nbsp;» — elle n'est pas dans la base, et ce site
+ne la recalcule pas.</p>
+
+{{if $k.EmpileesCategories}}
+<h3>La même série, par catégorie</h3>
+<p class="q">Le même total, {{$k.AnneeDebut}}–{{$k.AnneeExo}}, décomposé en catégories empilées —
+mêmes teintes que le faisceau du schéma ci-dessus.</p>
+{{$k.EmpileesCategories}}
+<div class="legende ruban-legende">
+  {{range $i, $cat := $k.Categories}}<span><i class="r{{$i}}"></i>{{$cat.Libelle}}</span>{{end}}
+</div>
+<p class="note">Les allégements généraux dominent la série sur toute sa longueur&nbsp;: ce n'est pas
+un effet d'une seule année récente.</p>
+{{end}}
+
+{{if $k.RatioMasseSalariale}}
+<h3>Les exonérations, rapportées à ce que les entreprises versent</h3>
+<p class="q">Exonérations sur la masse salariale du secteur privé (URSSAF, même champ), en
+%&nbsp;: {{$k.AnneeRatioMSDebut}}–{{$k.AnneeRatioMSFin}}. De {{dec $k.PctRatioMSDebut 1}} % à
+{{dec $k.PctRatioMSFin 1}} %.</p>
+{{$k.RatioMasseSalariale}}
+<p class="note">Contrairement au montant en euros courants ci-dessus, ce ratio est <strong>insensible
+à l'inflation</strong>&nbsp;: les deux séries viennent de la même source, sur le même champ, et
+grossissent ensemble avec les prix — le rapport des deux ne le fait pas. Le doublement de ce taux
+dit quelque chose que la courbe en euros ne peut pas dire à elle seule.</p>
+{{end}}
+
+<h3>Les dispositifs, dans le temps</h3>
+<p class="q">Chaque ligne est un dispositif d'exonération tel que l'URSSAF le nomme — le nom porte
+souvent lui-même la loi ou le plan dont il vient. La présidence indiquée est un
+<strong>repère chronologique</strong>, comme sur les fiches de ministres&nbsp;: elle situe le
+dispositif dans le temps, elle n'impute sa décision à personne — une mesure est votée par le
+Parlement, pas décrétée par un président.</p>
+<div class="scroll"><table>
+<thead><tr><th>Dispositif</th><th class="n">Créé</th><th class="n">Arrêté</th>
+  <th class="n">Pic</th><th>Présidence(s) sur la période</th></tr></thead>
+<tbody>{{range $k.GrandesMesures}}<tr>
+  <td class="small"><a href="{{$.Root}}/budget/dispositif/{{.Code}}/">{{.Libelle}}</a></td>
+  <td class="n">{{.Debut}}</td>
+  <td class="n">{{if .EnCours}}<span class="z">en cours</span>{{else}}{{.Fin}}{{end}}</td>
+  <td class="n">{{mdEur .MontantMax}} <span class="z">({{.AnneeMontantMax}})</span></td>
+  <td class="small">{{range $i, $p := .Presidents}}{{if $i}}, {{end}}{{$p}}{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note abs"><strong>Aucun texte de loi n'est cité ligne à ligne.</strong> La base ne relie
+pas ces dispositifs à un numéro de loi, un article ou un auteur parlementaire&nbsp;: le rattachement
+demanderait un travail éditorial de recherche, dispositif par dispositif, qui n'a pas été fait.
+Ce que la source permet d'affirmer sans ambiguïté, c'est le nom du dispositif et son montant par
+année&nbsp;; le reste appelle une vérification externe.</p>
+
+<h2>Le détail publié</h2>
+<p class="q">Toutes les lignes de la situation au {{.B.Arrete}}, dans l'ordre de la source, avec le
+même mois de l'exercice précédent. Les lignes sont hiérarchisées&nbsp;: <strong>ne les additionnez
+pas</strong>, un total et ses composantes figurent côte à côte.</p>
+<div class="scroll"><table>
+<thead><tr><th>Catégorie</th><th>Ligne</th><th class="n">{{.B.Exercice}}</th>
+  <th class="n">{{sub .B.Exercice 1}}</th><th class="n">Écart</th></tr></thead>
+<tbody>
+{{range .B.Lignes}}<tr class="niv{{.Niveau}}">
+  <td class="small z">{{.Categorie}} · {{.SousCategorie}}</td>
+  <td class="small">{{.Ligne}}</td>
+  <td class="n">{{mdEur .Montant}}</td>
+  <td class="n z">{{if .AvecPrecedent}}{{mdEur .Precedent}}{{else}}<span class="z">—</span>{{end}}</td>
+  <td class="n">{{if .AvecPrecedent}}{{pctFr .Ecart}}{{else}}<span class="z">—</span>{{end}}</td>
+</tr>{{end}}
+</tbody></table></div>
+
+<p class="src">Source&nbsp;: DGFiP, situations mensuelles budgétaires de l'État. Montants en euros
+courants&nbsp;; aucun déflateur n'est en base, voir
+<a href="{{.Root}}/comprendre/monnaie-et-inflation/">la note sur les comparaisons dans le temps</a>.</p>
+
+<div class="cartes">
+  <a class="carte" href="{{.Root}}/protection-sociale/"><span class="t">Le budget de la Sécurité
+    sociale</span><span class="d">Les prestations de protection sociale, par risque, depuis 1959.
+    Un budget distinct de celui de l'État, voté par une loi distincte.</span></a>
+  <a class="carte" href="{{.Root}}/comprendre/budget-donnees/"><span class="t">Comment les deux
+    budgets s'articulent</span><span class="d">Le document de méthode&nbsp;: périmètres,
+    comptabilités, stades de vote, et ce que chaque source permet ou non de publier.</span></a>
+  <a class="carte" href="{{.Root}}/frise/"><span class="t">Dette et solde depuis 1958</span>
+    <span class="d">Les séries longues d'Eurostat, en part du PIB, sous les présidences
+    successives.</span></a>
+</div>
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Le solde budgétaire n'est pas le déficit public.</strong> Le déficit au
+    sens de Maastricht couvre toutes les administrations publiques — État, collectivités, Sécurité
+    sociale — en comptabilité nationale. Celui-ci ne couvre que l'État, en comptabilité budgétaire.
+    Les deux nombres sont différents et ne se remplacent pas.</p>
+    <p class="note"><strong>Aucun écart n'est attribué à une décision.</strong> Une recette qui
+    baisse peut venir d'une baisse d'impôt votée, d'une activité économique moindre, d'un calendrier
+    d'encaissement, ou d'un changement de périmètre. Les quatre se ressemblent dans le tableau.</p>
+    <p class="note"><strong>Les montants sont en euros courants.</strong> Comparer 2024 et 2026 sans
+    déflateur mélange l'évolution des montants et celle des prix.</p>
+  </div>
+</details>
+{{end}}
