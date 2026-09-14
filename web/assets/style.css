@@ -810,9 +810,15 @@ color:var(--attenue);white-space:nowrap;width:3.5rem}
    l'écart entre deux barres n'est ni bon ni mauvais par construction. */
 .graphe.apparie .pa,.legende i.pa{fill:#1E5C69;background:#1E5C69}
 .graphe.apparie .pb,.legende i.pb{fill:#7FB0BA;background:#7FB0BA}
-.deux-lignes .ligne{fill:none;stroke-width:2}
-.deux-lignes .ligne.l1,.deux-lignes .pt.l1,.legende i.l1{stroke:#1E5C69;fill:#1E5C69;background:#1E5C69}
-.deux-lignes .ligne.l2,.deux-lignes .pt.l2,.legende i.l2{stroke:#B0763A;fill:#B0763A;background:#B0763A}
+/* fill:none doit rester le dernier mot sur le TRACÉ : sans lui, .l1/.l2
+   ci-dessous (plus spécifiques) remplissent le path — qui n'est pas fermé
+   (M...L...L, sans Z) — et le navigateur le referme tout seul par une droite
+   du dernier point au premier, dessinant un coin plein au lieu d'une ligne. */
+.deux-lignes .ligne.l1,.deux-lignes .ligne.l2{fill:none;stroke-width:2}
+.deux-lignes .ligne.l1,.deux-lignes .pt.l1,.legende i.l1{stroke:#1E5C69;background:#1E5C69}
+.deux-lignes .pt.l1{fill:#1E5C69}
+.deux-lignes .ligne.l2,.deux-lignes .pt.l2,.legende i.l2{stroke:#B0763A;background:#B0763A}
+.deux-lignes .pt.l2{fill:#B0763A}
 .deux-lignes .et{font:600 .72rem/1 var(--sans)}
 .deux-lignes .et.l1{fill:#1E5C69}.deux-lignes .et.l2{fill:#B0763A}
 .graphe.apparie rect:hover{opacity:.75}
