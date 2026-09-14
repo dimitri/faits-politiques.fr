@@ -1,0 +1,87 @@
+{{define "content"}}
+{{$d := .D}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/frise/">V<sup>e</sup> République</a> › <span>Dette publique</span></p>
+<span class="sur">Comptes publics · {{$d.Debut}}–{{$d.Fin}}</span>
+<h1>La dette publique</h1>
+<p class="lede">{{mdEur $d.DerniereMeur}} fin {{$d.Fin}}, soit {{dec $d.DernierePib 1}} % du PIB.
+En {{$d.Debut}}&nbsp;: {{mdEur $d.PremiereMeur}}, {{dec $d.PremierePib 1}} % du PIB.</p>
+
+<p class="note proc"><strong>La dette est un stock, le déficit un flux.</strong> La dette est ce qui
+reste dû au 31 décembre&nbsp;; le déficit est ce qui a manqué dans l'année. Le second alimente la
+première, mais les deux ne se comparent pas et ne s'additionnent pas. Et
+<strong>«&nbsp;la dette de la France&nbsp;» n'est pas la dette de l'État</strong>&nbsp;: elle
+additionne l'État, les collectivités et la Sécurité sociale, qui empruntent séparément.</p>
+
+<h2>L'encours, année par année</h2>
+<svg class="graphe" viewBox="0 0 720 250" role="img"
+  aria-label="Encours de dette publique de {{$d.Debut}} à {{$d.Fin}}">
+  {{$d.Grille}}
+  {{range $d.Points}}<rect class="b e2" x="{{printf "%.1f" .X}}" y="{{printf "%.1f" .Barre}}"
+    width="{{printf "%.1f" .Largeur}}" height="{{printf "%.1f" .Hauteur}}"><title>{{.Annee}} — {{mdEur .Meur}}, {{dec .Pib 1}} % du PIB</title></rect>{{end}}
+  {{$d.LignePib}}
+</svg>
+<div class="legende">
+  <span><i class="e2"></i>Encours (Md€ courants)</span>
+  <span><i class="ligne-pib"></i>% du PIB</span>
+</div>
+<p class="note"><strong>En euros courants, une partie de cette croissance est celle des prix.</strong>
+Le rapport au PIB, en ligne sur le graphe, n'en dépend pas&nbsp;: c'est la seule lecture des deux qui
+soit insensible à l'inflation. Aucun déflateur n'est en base — <a href="{{.Root}}/comprendre/monnaie-et-inflation/">la
+note de méthode</a> explique pourquoi le site ne convertit pas.</p>
+
+<h2>Qui emprunte, en {{$d.AnneeSecteurs}}</h2>
+<p class="q">Capacité (+) ou besoin (−) de financement, par sous-secteur des administrations
+publiques. La somme est le déficit au sens de Maastricht.</p>
+<div class="scroll"><table>
+<thead><tr><th>Sous-secteur</th><th class="n">Recettes</th><th class="n">Dépenses</th>
+  <th class="n">Solde</th></tr></thead>
+<tbody>{{range $d.Secteurs}}<tr>
+  <td>{{.Libelle}}</td><td class="n z">{{mdEur .Recettes}}</td>
+  <td class="n z">{{mdEur .Depenses}}</td><td class="n">{{mdEur .Solde}}</td>
+</tr>{{end}}
+<tr class="niv1"><td>Toutes administrations publiques</td><td class="n"></td><td class="n"></td>
+  <td class="n">{{mdEur $d.SoldeS13}}</td></tr>
+</tbody></table></div>
+{{if $d.ChargeDette}}
+<p class="note abs"><strong>Ce que la dette coûte chaque année</strong> figure séparément&nbsp;:
+{{mdEur $d.ChargeDette}} de charges de la dette de l'État en cumul {{$d.AnneeChargeDette}}, ligne
+publiée par la DGFiP. <a href="{{.Root}}/budget/">Le détail de la situation mensuelle →</a></p>
+{{end}}
+
+<h2>«&nbsp;La dette par domaine&nbsp;» n'existe pas</h2>
+<p class="note abs">Un emprunt n'est pas fléché vers une dépense&nbsp;: l'État emprunte pour couvrir
+un solde, pas pour financer un poste. Découper la dette en «&nbsp;dette de l'hôpital&nbsp;»,
+«&nbsp;dette des retraites&nbsp;» ou «&nbsp;dette de la défense&nbsp;» suppose une clé de répartition
+que personne ne publie&nbsp;— et le choix de cette clé déciderait du résultat. Ce que la
+comptabilité publie, et qui répond à la même curiosité, c'est la <strong>dépense</strong> par
+domaine.</p>
+
+<h2>La dépense publique par domaine, en {{$d.AnneeFonctions}}</h2>
+<p class="q">Nomenclature COFOG, dix fonctions, toutes administrations publiques confondues. La part
+indiquée est celle du total des dix.</p>
+{{$d.BarresFonctions}}
+<div class="scroll"><table>
+<thead><tr><th>Domaine</th><th class="n">{{$d.AnneeFonctions}}</th><th class="n">Part</th>
+  <th class="n">Part en {{$d.DebutFonctions}}</th><th class="n">Écart</th></tr></thead>
+<tbody>{{range $d.Fonctions}}<tr>
+  <td>{{.Libelle}}</td><td class="n">{{mdEur .Montant}}</td>
+  <td class="n">{{dec .Part 1}} %</td><td class="n z">{{dec .PartDebut 1}} %</td>
+  <td class="n">{{pctFr (sub64 .Part .PartDebut)}}</td>
+</tr>{{end}}</tbody></table></div>
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Rien sur les causes.</strong> Une dette qui monte peut venir d'une baisse
+    de recettes, d'une hausse de dépenses, d'une récession, d'un taux d'intérêt ou d'une reprise de
+    dette d'un autre organisme. Les cinq se ressemblent dans la courbe.</p>
+    <p class="note"><strong>Rien sur la soutenabilité.</strong> Ce site ne dit pas si ce niveau est
+    tenable&nbsp;: c'est une appréciation, pas un fait, et elle dépend d'hypothèses de taux et de
+    croissance que la base ne contient pas.</p>
+    <p class="note"><strong>Aucun montant n'est attribué à une présidence.</strong>
+    <a href="{{.Root}}/frise/">La frise</a> date les chiffres sous les présidents parce que c'est un
+    repère chronologique&nbsp;; ce n'est pas une imputation.</p>
+  </div>
+</details>
+{{end}}
