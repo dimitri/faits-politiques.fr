@@ -18,6 +18,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [themes-conception.md](themes-conception.md) | Que permettent les thèmes officiels du Sénat sur les votes ? Et corrèlent-ils avec la classification gauche-droite ? |
 | [mairies-conception.md](mairies-conception.md) | Communes, nuances, comptes, intercommunalités : ce qui est comparable et ce qui ne l'est pas. |
 | [securite-conception.md](securite-conception.md) | Délinquance enregistrée et mandats municipaux : ce qui est vérifiable, et pourquoi l'attribution reste fautive. |
+| [agriculture-carte-conception.md](agriculture-carte-conception.md) | Cartographier l'agriculture : où trouver le recensement communal, et trois pièges — le vide n'est pas un zéro, la surface est au siège, une exploitation n'est pas un paysan. |
 | [candidats-donnees.md](candidats-donnees.md) | Frise de carrière, mandats actuels, réconciliation des identités. |
 | [gouvernement-donnees.md](gouvernement-donnees.md) | Onglet GOUVERNEMENT : grandes séries nationales, comptes des sociétés, et ce qui n'existe pas (manifestations). |
 | [budget-donnees.md](budget-donnees.md) | Budget de l'État et budget de la Sécurité sociale : comment ils s'articulent, et quelles sources donnent le voté et l'exécuté par année. |
