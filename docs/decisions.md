@@ -1893,3 +1893,40 @@ Trois ajouts (migration 0077, paquet `internal/aides`) pour dire qui reçoit les
 Les trois notions ne se convertissent pas l'une dans l'autre. Aucune table de
 passage « tranche d'effectif → PME/ETI/GE » n'est construite : elle donnerait une
 précision que les données n'ont pas.
+
+## D-058 — Les aides nominatives : trois registres, un croisement, et le nom des seules personnes morales
+
+Migration 0078, `internal/aides` (`-only=aides-nominatives`). Trois sources publient
+les aides bénéficiaire par bénéficiaire : le registre européen de transparence des
+aides d'État (TAM), les aides de l'ADEME, le registre public des aides de minimis.
+Toutes trois sont rapprochées de SIRENE par le SIREN publié, jamais par le nom
+(D-025).
+
+**Le registre européen, avec accord explicite.** La Commission ne publie ni API ni
+fichier complet du TAM ; la recherche publique passe par un formulaire dont la page
+de résultats propose un export CSV lié à la session. Le responsable du projet a
+autorisé explicitement, le 14 septembre 2026, que le connecteur reproduise ce
+parcours. Il le fait en visiteur identifié (User-Agent du projet), une pause de deux
+secondes entre les requêtes, par périodes de date d'octroi d'au plus 800 aides environ :
+au-delà d'un millier de lignes, le registre ne sert plus l'export et propose de l'envoyer
+par courriel contre un nom et une adresse, formulaire que le connecteur ne remplit pas. Chaque export
+est scellé ; son adresse archivée porte la recherche en fragment
+(`#pays=FRA&octroi=…`), sans quoi « export?format=CSV » ne dirait pas ce qui a été
+exporté. Le nombre de lignes est contrôlé contre la pagination de la page de
+résultats ; un écart fait découper la période plutôt que charger un trimestre
+incomplet. Le site ne présente aucune protection anti-robot ; s'il en présentait une,
+le connecteur échouerait.
+
+**Le nom et l'identifiant ne sont gardés que pour les personnes morales du
+répertoire.** Les registres publient aussi des entrepreneurs individuels et des
+exploitants agricoles. Leur SIREN est une donnée personnelle, et la question posée —
+la taille des entreprises aidées — ne demande pas de les nommer : la ligne est
+conservée (elle compte dans les totaux), son bénéficiaire ne l'est pas. Une
+contrainte de la table l'impose.
+
+**Le type « PME » du TAM est remplacé, pas corrigé.** Il est déclaré par l'autorité
+qui octroie ; la vue `derived.aide_tam_type_declare` le confronte à la catégorie de
+l'INSEE sans jamais le réécrire.
+
+**Les sources se recouvrent** (une aide de l'ADEME notifiée figure au TAM) : aucune
+vue ne les additionne.

@@ -41,7 +41,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | aides | aides-urssaf | sirene | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -389,6 +389,26 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	}
 	if only == "aides-urssaf" {
 		return aides.IngestUrssafTaille(ctx, pool, arch)
+	}
+	// Les aides publiées bénéficiaire par bénéficiaire (SIRENE requis).
+	if only == "aides-nominatives" {
+		fmt.Println("\naides nominatives : ADEME, minimis, registre européen (TAM)")
+		for _, f := range []func(context.Context, *pgxpool.Pool, *archive.Archive) error{
+			aides.IngestADEME, aides.IngestMinimis, aides.IngestTAM} {
+			if err := f(ctx, pool, arch); err != nil {
+				return err
+			}
+		}
+		return nil
+	}
+	if only == "tam" {
+		return aides.IngestTAM(ctx, pool, arch)
+	}
+	if only == "ademe" {
+		return aides.IngestADEME(ctx, pool, arch)
+	}
+	if only == "minimis" {
+		return aides.IngestMinimis(ctx, pool, arch)
 	}
 	if only == "sirene" {
 		fmt.Println("\nrépertoire SIRENE")

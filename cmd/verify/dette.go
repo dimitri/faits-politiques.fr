@@ -226,6 +226,52 @@ var checksDette = []check{
 		min: 3,
 	},
 	{
+		// Trois sources d'aides nominatives, chacune avec un volume plancher :
+		// un chargement partiel du registre européen (trimestres manquants)
+		// passerait sinon inaperçu.
+		name: "aides nominatives : les trois sources sont chargées à leur volume attendu",
+		query: `SELECT count(*) FROM (SELECT source, count(*) n FROM core.aide_nominative GROUP BY source) x
+		         WHERE (source = 'TAM' AND n >= 20000) OR (source = 'ADEME' AND n >= 30000)
+		            OR (source = 'MINIMIS' AND n >= 10000)`,
+		min: 3,
+	},
+	{
+		// Le rapprochement avec SIRENE est ce qui donne un sens à ces tables :
+		// si moins de 80 % des aides ADEME trouvent leur personne morale, le
+		// SIREN est mal extrait ou SIRENE mal chargé.
+		name: "aides nominatives : l'ADEME est rapprochée de SIRENE à plus de 80 %",
+		query: `SELECT count(*) FROM (SELECT avg(personne_morale::int) t FROM core.aide_nominative WHERE source = 'ADEME') x
+		         WHERE t >= 0.8`,
+		min: 1,
+	},
+	{
+		// Chaque aide du registre européen porte un élément d'aide (ESB), ou à
+		// défaut une tranche : sinon le montant a été mal lu.
+		name: "aides nominatives : toute aide du registre européen a un montant ou une tranche",
+		query: `SELECT count(*) FROM core.aide_nominative
+		         WHERE source = 'TAM' AND montant_esb_eur IS NULL AND montant_nominal_eur IS NULL
+		           AND tranche_min_eur IS NULL AND tranche_max_eur IS NULL`,
+	},
+	{
+		name: "aides nominatives : la répartition par catégorie retrouve le total de chaque source",
+		query: `SELECT count(*) FROM (SELECT source, sum(aides) a, coalesce(sum(nominal_eur),0) + coalesce(sum(esb_eur),0) m
+		                           FROM derived.aide_par_categorie GROUP BY source) v
+		         JOIN (SELECT n.source, count(*) a,
+		                      coalesce(sum(n.montant_nominal_eur) FILTER (WHERE s.reference IS NULL),0)
+		                    + coalesce(sum(n.montant_esb_eur) FILTER (WHERE s.reference IS NULL),0) m
+		                 FROM core.aide_nominative n
+		                 LEFT JOIN derived.aide_montant_suspect s USING (source, reference)
+		                GROUP BY n.source) t USING (source)
+		        WHERE v.a <> t.a OR abs(v.m - t.m) > 1`,
+	},
+	{
+		// Le filtre des montants aberrants doit rester un filtre : s'il retenait
+		// plus d'une poignée d'aides, la règle serait mal réglée et écarterait
+		// des aides réelles.
+		name:  "aides nominatives : moins de dix montants écartés comme aberrants",
+		query: `SELECT CASE WHEN count(*) >= 10 THEN count(*) ELSE 0 END FROM derived.aide_montant_suspect`,
+	},
+	{
 		// Les séries révisées les plus suivies doivent être fraîches : la
 		// dette négociable est mensuelle, la détention trimestrielle (publiée
 		// avec environ un trimestre de retard).

@@ -665,7 +665,7 @@ clés étrangères en fin de copie ; 1,9 Go en base). Catégorie millésimée 20
 
 ### 14.4 Les aides nominatives : ce qui existe (étude du 14 septembre 2026)
 
-Aucune n'est chargée. [V] = vérifié par requête ou lecture d'un échantillon ; [D] =
+Les trois premières sources du tableau sont désormais chargées : voir § 15. [V] = vérifié par requête ou lecture d'un échantillon ; [D] =
 déclaré par une page.
 
 | Source | Identifiant | Champ | Volume | Accès | Verdict |
@@ -696,3 +696,84 @@ déclaré par une page.
 **Ordre de chargement proposé** : ADEME et registre de minimis (API ouvertes, sans
 décision préalable), puis le TAM selon la voie retenue (soumission automatisée du
 formulaire public, à autoriser explicitement, ou demande d'extrait à la DG COMP).
+
+---
+
+## 15. Les aides nominatives croisées avec la catégorie d'entreprise
+
+> Ajouté le 14 septembre 2026 (migration 0078, `internal/aides`,
+> `go run ./cmd/ingest -only=aides-nominatives`, SIRENE requis). D-058.
+
+### 15.1 Ce qui est chargé
+
+| Source | Aides | dont personnes morales de SIRENE | Montant retenu | Période |
+|---|---|---|---|---|
+| Registre européen de transparence des aides d'État (TAM), France | 100 316 | 91 965 | élément d'aide (ESB) ; 5 279 avantages fiscaux par tranches seulement | octrois 2016-2026 |
+| ADEME, aides financières | 39 577 | 37 686 | montant engagé | conventions 2021-2026 |
+| Registre public des aides de minimis (DGE) | 16 618 | 11 548 | ESB | octrois 2026 |
+
+Table `core.aide_nominative` ; vues `derived.aide_par_categorie` (par source,
+année, catégorie), `derived.aide_tam_type_declare` (type déclaré contre catégorie
+INSEE), `derived.aide_montant_suspect` (montants aberrants écartés des sommes).
+
+**Accès au TAM.** Formulaire public (pays, puis dates d'octroi), export CSV lié à la
+session, avec l'accord explicite du responsable du projet. Au-delà d'environ 1 000
+lignes (951 servies, 1 021 refusées), l'export n'est plus servi : le site propose de
+l'envoyer par courriel contre prénom, nom et adresse, formulaire que le connecteur ne
+remplit pas. Les périodes sont donc découpées d'emblée en tranches d'environ 800 aides
+(203 exports). Chaque requête est espacée de deux secondes et reprise jusqu'à quatre
+fois en cas de coupure. Les exports scellés depuis moins de deux jours sont réutilisés,
+ce qui rend le parcours reprenable. Durée : plusieurs dizaines de minutes à froid, 7 minutes
+en reprise complète.
+
+### 15.2 Ce que montrent les données (entreprises seulement)
+
+Organismes publics (catégories juridiques 4 et 7), associations (92) et bénéficiaires
+qui ne sont pas des personnes morales du répertoire sont exclus.
+
+| | Registre européen (ESB, 2016-2026) | ADEME (engagé, 2021-2026) |
+|---|---|---|
+| Total entreprises | 65,0 Md€ | 7,4 Md€ |
+| **Grandes entreprises** | **27,0 % des montants, 6,1 % des bénéficiaires** (3 529) | **35,6 % des montants, 8,5 % des bénéficiaires** (1 487) |
+| ETI | 32,3 % / 14,2 % | 24,1 % / 16,3 % |
+| PME | 35,4 % / 37,9 % | 32,4 % / 65,4 % |
+| Non catégorisées | 5,2 % / 41,8 % | 7,9 % / 9,8 % |
+| Aide moyenne par bénéficiaire, GE / PME | 4,97 M€ / 1,05 M€ | 1,78 M€ / 0,21 M€ |
+| Part du 1 % des bénéficiaires les mieux dotés | 43,5 % | 47,9 % |
+
+Registre de minimis (2026) : 65,2 % des bénéficiaires entreprises sont des PME, 0,4 %
+des grandes entreprises — ce que le plafond de 300 k€ laisse attendre.
+
+**Lecture.** Le constat est inverse de celui des exonérations de cotisations (§ 14.2),
+et ce n'est pas contradictoire : les exonérations sont un dispositif de masse calé sur
+les bas salaires ; les aides nominatives financent des projets (batteries,
+semi-conducteurs, hydrogène, décarbonation) dont la taille suit celle des entreprises.
+Plus grosses aides : ProLogium (1,37 Md€, gigafactory de batteries), STMicroelectronics
+Crolles (1,06 Md€ cumulés), Automotive Cells Company (0,73 Md€), Symbio (0,68 Md€).
+
+### 15.3 Pièges
+
+1. **Le type « PME » déclaré au TAM est faux pour 43,7 % des montants** : sur 50,6 Md€
+   déclarés « PME », 16,1 Md€ vont à des ETI et 6,0 Md€ à des grandes entreprises selon
+   l'INSEE. Il n'est jamais utilisé comme catégorie (`derived.aide_tam_type_declare`).
+2. **Montant aberrant** : 1 061 M€ à un GAEC dans le régime SA.107520 (investissements
+   agricoles, aide médiane 21 460 €). Écarté des sommes par la règle « plus de 10 M€ et
+   plus de 10 000 fois la médiane d'un régime d'au moins 20 aides », qui ne retient que
+   lui ; une règle à 1 000 fois retenait aussi Nuward (300 M€) et l'ONF (40 M€), aides
+   réelles. Contrôle : moins de dix montants écartés.
+3. **La catégorie INSEE ne voit que le périmètre français d'un groupe** : ProLogium
+   Technology Europe, filiale d'un groupe taïwanais, est « PME ». La part des PME est
+   donc majorée par les filiales de groupes étrangers.
+4. **Les sources se recouvrent** : une aide de l'ADEME notifiée figure aussi au TAM.
+   Jamais de somme entre sources.
+5. **Montants de nature différente** : engagé (ADEME), ESB (TAM, minimis). Les
+   avantages fiscaux du TAM sont publiés par tranches (dont des tranches ouvertes,
+   « > 30,000,000 ») et restent hors des sommes.
+6. **Seuils du TAM** : 500 k€ jusqu'à la révision de 2023, 100 k€ ensuite et pendant
+   les encadrements temporaires ; la hausse du nombre d'aides en 2021 (22 422) est
+   celle des aides Covid, pas un changement de politique mesurable en tant que tel.
+7. **Catégorie « Small Mid-Caps »** : apparue en 2025 dans le TAM (19 aides), chargée
+   comme `PETITE_ETI`.
+8. **Données personnelles** : nom et identifiant conservés pour les seules personnes
+   morales ; 8 351 aides TAM, 1 891 aides ADEME et 5 070 aides de minimis restent sans
+   bénéficiaire identifié.

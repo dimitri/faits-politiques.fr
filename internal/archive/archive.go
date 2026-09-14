@@ -77,7 +77,7 @@ func (a *Archive) Fetch(ctx context.Context, sourceID int64, runID int64, url, e
 func (a *Archive) FetchEntetes(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header) (*Fetched, error) {
 	var last error
 	for attempt := 1; attempt <= 3; attempt++ {
-		f, err := a.fetchOnce(ctx, sourceID, runID, url, ext, entetes)
+		f, err := a.fetchOnce(ctx, sourceID, runID, url, ext, entetes, nil, "")
 		if err == nil {
 			return f, nil
 		}
@@ -91,7 +91,33 @@ func (a *Archive) FetchEntetes(ctx context.Context, sourceID int64, runID int64,
 	return nil, last
 }
 
-func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header) (*Fetched, error) {
+// FetchSession télécharge avec un client fourni — typiquement porteur d'un
+// cookie de session, pour un export qui dépend d'une recherche faite juste
+// avant (registre européen des aides d'État). L'URL d'export seule ne dit pas
+// ce qui a été exporté : urlArchivee, enregistrée à sa place dans
+// raw.retrieval, porte la description de la recherche en fragment (#...),
+// jamais envoyé au serveur.
+func (a *Archive) FetchSession(ctx context.Context, sourceID int64, runID int64, url, urlArchivee, ext string, client *http.Client) (*Fetched, error) {
+	var last error
+	for attempt := 1; attempt <= 3; attempt++ {
+		f, err := a.fetchOnce(ctx, sourceID, runID, url, ext, nil, client, urlArchivee)
+		if err == nil {
+			return f, nil
+		}
+		last = err
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(time.Duration(attempt*5) * time.Second):
+		}
+	}
+	return nil, last
+}
+
+func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header, client *http.Client, urlArchivee string) (*Fetched, error) {
+	if urlArchivee == "" {
+		urlArchivee = url
+	}
 	tmp, err := os.CreateTemp(a.Root, ".dl-*")
 	if err != nil {
 		return nil, err
@@ -105,7 +131,9 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 		}
 	}
 	req.Header.Set("User-Agent", "faits-politiques.fr (ingestion open data)")
-	client := &http.Client{Timeout: 10 * time.Minute}
+	if client == nil {
+		client = &http.Client{Timeout: 10 * time.Minute}
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		tmp.Close()
@@ -122,7 +150,7 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		_, _ = a.Pool.Exec(ctx, `
 			INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status)
-			VALUES ($1,$2,$3,$4)`, sourceID, runID, url, resp.StatusCode)
+			VALUES ($1,$2,$3,$4)`, sourceID, runID, urlArchivee, resp.StatusCode)
 		return nil, fmt.Errorf("%s : HTTP %d", url, resp.StatusCode)
 	}
 
@@ -163,7 +191,7 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	err = a.Pool.QueryRow(ctx, `
 		INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status, document_id, etag)
 		VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-		sourceID, runID, url, resp.StatusCode, docID, resp.Header.Get("ETag")).Scan(&retID)
+		sourceID, runID, urlArchivee, resp.StatusCode, docID, resp.Header.Get("ETag")).Scan(&retID)
 	if err != nil {
 		return nil, err
 	}
