@@ -1,0 +1,132 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/territoires/">Territoires</a> › <span>Agriculture et alimentation</span></p>
+<span class="sur">Séries nationales</span>
+<h1>Agriculture et alimentation</h1>
+<p class="lede">Ce que le pays cultive, et à qui cela sert. Une question suit toute la
+page&nbsp;: <em>la France arrive-t-elle à nourrir ses habitants&nbsp;?</em></p>
+
+<p class="note abs"><strong>Aucune carte ici, et ce n'est pas un oubli.</strong> Les deux séries
+ingérées — usage des sols et bilan alimentaire — sont <strong>nationales</strong>&nbsp;: la maille
+la plus fine publiée est «&nbsp;France entière&nbsp;». Aucune des 1,7 million de lignes communales
+de la base ne porte de donnée agricole, et rien à l'échelle du département ou de la région n'y
+figure non plus. Une carte de la production par produit supposerait de répartir un total national
+entre 96 départements&nbsp;: ce serait inventer la donnée manquante, et le choix de la clé
+déciderait du résultat. Le jour où le recensement agricole sera ingéré — il est, lui, communal — la
+carte deviendra possible&nbsp;; d'ici là, ces chiffres sont montrés tels qu'ils existent.</p>
+
+<h2>Alimentation humaine ou bétail&nbsp;? Le partage est publié</h2>
+<p class="q">Le bilan FAO distingue <code>Food</code> — ce qui va à l'alimentation humaine — et
+<code>Feed</code> — ce qui va au bétail. Le partage n'est pas déduit ici&nbsp;: il est publié.
+Année {{.A.AnneeBilan}}, en milliers de tonnes.</p>
+
+<div class="scroll"><table>
+<thead><tr><th>Produit</th><th class="n">Humain</th><th class="n">Bétail</th>
+  <th class="n">Part au bétail</th><th class="barre"></th></tr></thead>
+<tbody>{{range .A.Partage}}<tr>
+  <td>{{.Libelle}}</td>
+  <td class="n">{{dec .Humain 0}}</td>
+  <td class="n">{{dec .Betail 0}}</td>
+  <td class="n">{{dec .PartBetail 0}} %</td>
+  <td class="barre"><span style="width:{{printf "%.1f" .PartBetail}}%"></span></td>
+</tr>{{end}}</tbody></table></div>
+
+<p class="note proc"><strong>Humain + bétail ne fait pas la disponibilité intérieure.</strong> Le
+reste — semences, transformation industrielle, pertes, usages non alimentaires — existe et
+<strong>n'est pas publié dans ce jeu</strong>. Les deux colonnes ci-dessus se partagent donc une
+part du total, pas le total. Ce que la donnée établit tient en une phrase&nbsp;: sur les céréales,
+l'essentiel de la sole française ne nourrit pas directement des humains.</p>
+
+<p class="note abs"><strong>La liste des produits est une décision de ce site.</strong> La table de
+référence de la FAO ne marque que 4 lignes sur 116 comme agrégats, alors que
+«&nbsp;Cereals&nbsp;», «&nbsp;Meat&nbsp;» ou «&nbsp;Vegetables&nbsp;» en sont aussi&nbsp;: sommer
+sans les écarter compterait le blé deux fois. Les {{.A.NbProduits}} produits retenus sont
+consignés un par un, avec leur raison, dans <code>data/produits-alimentaires.csv</code>. Les
+libellés français sont également de ce site&nbsp;; la FAO publie en anglais.</p>
+
+{{if .A.Kcal}}
+<h2>Les {{dec .A.Kcal 0}} kcal par habitant et par jour</h2>
+<div class="cartes trois">
+  <div class="carte"><span class="v">{{dec .A.Kcal 0}}</span>
+    <span class="t">kcal disponibles par habitant et par jour</span>
+    <span class="d">En {{.A.AnneeKcal}}. C'est ce qui est <em>disponible</em> au stade du
+      détail, pas ce qui est mangé&nbsp;: les pertes au foyer et à la distribution sont
+      dedans.</span></div>
+  <div class="carte"><span class="v">{{dec .A.KcalVegetal 0}}</span>
+    <span class="t">dont produits végétaux</span>
+    <span class="d">Céréales, fruits, légumes, sucre, huiles.</span></div>
+  <div class="carte"><span class="v">{{dec .A.KcalAnimal 0}}</span>
+    <span class="t">dont produits animaux</span>
+    <span class="d">Viandes, lait, œufs, poissons. C'est <strong>ici</strong> que le maïs et
+      l'orge du tableau précédent réapparaissent, une fois passés par le bétail.</span></div>
+</div>
+<p class="note proc"><strong>Non, ces {{dec .A.Kcal 0}} kcal ne comptent pas l'alimentation du
+bétail.</strong> La FAO range les calories du bilan en un seul poste, <code>Food</code>&nbsp;: ce
+qui arrive dans l'assiette humaine. Les 7,3 millions de tonnes de maïs et les 2,5 millions de tonnes
+d'orge donnés au bétail ne sont pas comptés à ce stade&nbsp;; ils reviennent, très amputés, dans les
+{{dec .A.KcalAnimal 0}} kcal de produits animaux — un animal restitue une petite fraction des
+calories végétales qu'il consomme. Additionner <code>Food</code> et <code>Feed</code> compterait
+donc les mêmes calories deux fois.</p>
+<p class="note abs">Le chiffre paraît élevé — un adulte a besoin d'environ 2 000 à 2 500 kcal par
+jour — et c'est normal&nbsp;: la disponibilité se mesure <strong>avant</strong> les pertes au foyer,
+au restaurant et à la distribution, et avant le gaspillage. Ce n'est pas une consommation.</p>
+{{end}}
+
+{{if .A.CourbeRend}}
+<h2>Ce que l'hectare nourrit</h2>
+<p class="q">Calories alimentaires humaines disponibles rapportées à la surface agricole utilisée,
+en millions de kcal par hectare et par an. En {{.A.AnneeBilan}}&nbsp;: {{dec .A.NourrisPar1k 0}}
+personnes nourries pour 10 000 hectares, sur {{nb (int .A.SurfaceHa)}} hectares cultivés.</p>
+{{.A.CourbeRend}}
+<p class="note">Le rapport ne dit rien du rendement agronomique&nbsp;: il mêle ce qui pousse, ce qui
+part à l'export, ce qui passe par le bétail et ce qui est importé. Il mesure une disponibilité
+rapportée à une surface, pas une productivité.</p>
+{{end}}
+
+{{if .A.Autonomie}}
+<h2>Production rapportée à la disponibilité intérieure</h2>
+<p class="q">Production divisée par disponibilité intérieure, en {{.A.AnneeBilan}}, pour les produits
+dont la production dépasse deux millions de tonnes. Deux colonnes publiées, une division&nbsp;: rien
+n'est modélisé.</p>
+<div class="scroll"><table>
+<thead><tr><th>Produit</th><th class="n">Production</th><th class="n">Disponibilité intérieure</th>
+  <th class="n">Rapport</th></tr></thead>
+<tbody>{{range .A.Autonomie}}<tr>
+  <td class="small">{{.Libelle}}</td>
+  <td class="n">{{dec .Production 0}}</td>
+  <td class="n z">{{dec .Interieure 0}}</td>
+  <td class="n">{{dec .Taux 0}} %</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note abs"><strong>Un rapport supérieur à 100 % ne veut pas dire «&nbsp;autosuffisant&nbsp;».</strong>
+La France produit 176 % de sa disponibilité intérieure en céréales <em>et</em> en importe&nbsp;: on
+n'exporte pas et on n'importe pas les mêmes qualités, ni aux mêmes saisons, ni pour les mêmes
+usages. Les libellés sont ceux de la FAO, en anglais, et cette liste mêle des produits élémentaires
+et des agrégats — c'est la table de référence de la FAO qui les mêle, et le site ne les somme
+nulle part.</p>
+{{end}}
+
+<h2>L'usage des sols et l'emploi</h2>
+{{range .A.Series}}
+<h3>{{.Titre}}</h3>
+<p class="q">{{.Debut}} → {{.Fin}} · {{.Unite}} · {{.Premier}} → {{.Dernier}}
+  ({{pctFr .Variation}}){{if .Note}} — {{.Note}}{{end}}</p>
+{{.Courbe}}
+{{end}}
+
+<p class="src">Sources&nbsp;: FAO, bilans alimentaires et usage des sols&nbsp;; Agreste pour
+l'emploi. L'axe de chaque courbe part de zéro.</p>
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Rien sur l'autosuffisance.</strong> Un pays peut produire beaucoup d'un
+    produit et en importer autant&nbsp;: production et disponibilité intérieure sont deux colonnes
+    différentes, et leur rapport n'est pas affiché ici.</p>
+    <p class="note"><strong>Rien sur l'environnement.</strong> Ni intrants, ni émissions, ni eau, ni
+    biodiversité&nbsp;: aucune de ces séries n'est en base.</p>
+    <p class="note"><strong>Aucun lien avec une politique agricole.</strong> Une surface qui recule
+    sur soixante ans traverse une dizaine de réformes, nationales et européennes&nbsp;; la série ne
+    permet d'en attribuer l'effet à aucune.</p>
+  </div>
+</details>
+{{end}}

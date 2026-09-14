@@ -1,0 +1,25 @@
+# Produits élémentaires retenus pour le partage « alimentation humaine / bétail ».
+#
+# POURQUOI UNE LISTE ÉCRITE À LA MAIN. ref.produit_alimentaire.agregat ne marque
+# que 4 lignes sur 116 (Animal Products, Vegetal Products, Grand Total,
+# Population) alors que « Cereals - Excluding Beer », « Meat », « Vegetables »,
+# « Fruits - Excluding Wine » et « Starchy Roots » en sont aussi. Sommer sans les
+# écarter compte le blé deux fois. Tant que la table de référence n'est pas
+# corrigée, la liste des produits ÉLÉMENTAIRES est une décision éditoriale, et
+# elle est consignée ici plutôt que cachée dans une requête.
+#
+# Les libellés FAO sont en anglais ; les traduire est une décision de plus, prise
+# ici, produit par produit, sans rien reformuler d'autre.
+#
+# code,libelle_fr,raison
+code,libelle_fr,raison
+wheat_and_products,Blé,produit élémentaire — composante de « Cereals - Excluding Beer »
+maize_and_products,Maïs,produit élémentaire — composante de « Cereals - Excluding Beer »
+barley_and_products,Orge,produit élémentaire — composante de « Cereals - Excluding Beer »
+oats,Avoine,produit élémentaire — composante de « Cereals - Excluding Beer »
+cereals_other,Autres céréales,poste résiduel de la FAO — élémentaire par construction
+potatoes_and_products,Pommes de terre,produit élémentaire — composante de « Starchy Roots »
+sugar_beet,Betterave sucrière,produit élémentaire — composante de « Sugar Crops »
+sunflower_seed,Graine de tournesol,produit élémentaire — composante de « Oilcrops »
+pulses_other_and_products,Autres légumineuses,poste résiduel de la FAO — élémentaire par construction
+milk_excluding_butter,Lait (hors beurre),produit élémentaire — hors agrégat « Animal Products »
