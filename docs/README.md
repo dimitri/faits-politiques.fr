@@ -22,6 +22,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [candidats-donnees.md](candidats-donnees.md) | Frise de carrière, mandats actuels, réconciliation des identités. |
 | [gouvernement-donnees.md](gouvernement-donnees.md) | Onglet GOUVERNEMENT : grandes séries nationales, comptes des sociétés, et ce qui n'existe pas (manifestations). |
 | [budget-donnees.md](budget-donnees.md) | Budget de l'État et budget de la Sécurité sociale : comment ils s'articulent, et quelles sources donnent le voté et l'exécuté par année. |
+| [cotisations-et-droits.md](cotisations-et-droits.md) | Ce qu'une cotisation achète : répartition ou capitalisation, droit contributif ou non, et le poids de chacun. Section « pour aller plus loin » sur un socle universel. |
 | [monnaie-et-inflation.md](monnaie-et-inflation.md) | Francs, euros, inflation : ce que `core` stocke, ce que `derived` calcule, et pourquoi une valeur déflatée n'est pas un fait. |
 | [entreprises-perimetre.md](entreprises-perimetre.md) | `core.entreprise` n'est pas le CAC 40 : trois populations d'entreprises à ne pas confondre, et la réserve à écrire sur les dividendes. |
 | [violences-policieres-donnees.md](violences-policieres-donnees.md) | Le piège d'étiquette « par » contre « contre », ce que la France et l'Europe ne publient pas, et pourquoi les arrêts CEDH sont un majorant. |
