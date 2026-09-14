@@ -52,12 +52,17 @@ premier fait à opposer à toute phrase qui commence par « le budget de la Fran
    change.
 2. **La compensation des exonérations.** L'État allège les cotisations et compense —
    pour l'essentiel via la TVA. **2,63 Md€ d'exonérations restent officiellement non
-   compensées en 2026.**
+   compensées en 2026.** Le principe de compensation vient de la loi n° 94-637 du
+   25 juillet 1994 relative à la sécurité sociale, dite **loi Veil**, codifié à
+   l'article L. 131-7 du code de la sécurité sociale&nbsp;; une loi de financement peut
+   y déroger, et c'est ainsi que la part non compensée existe légalement.
 3. **L'État employeur** et les subventions d'équilibre aux régimes spéciaux, inscrites
    au budget de l'État.
 4. **Les prestations croisées** : AAH, prime d'activité, AME sont versées par des
    caisses de Sécurité sociale sur crédits de l'État.
 5. **La dette** (§ 1.5).
+
+<!-- schema:canaux -->
 
 > **Le point que la plupart des commentaires ratent.** Un transfert État → Sécurité
 > sociale améliore le solde social, dégrade celui de l'État, et **ne change pas le
@@ -270,6 +275,8 @@ Ce qu'elles datent, plutôt que de l'affirmer :
 | Impôts affectés | 3,5 % | 20,1 % | 23,4 % | 29,3 % | **29,8 %** |
 | Cotisations | 79,9 % | 65,9 % | 63,0 % | 53,6 % | **54,7 %** |
 
+<!-- schema:financement34ans -->
+
 Les dépenses ESSPROS sont sous `spr_exp_func` et ses déclinaisons par fonction
 (`spr_exp_fol` vieillesse, `spr_exp_fsi` maladie, `spr_exp_ffa` famille,
 `spr_exp_fun` chômage…) — **non chargées à ce jour**. **Attention : `spr_exp_sum`,
@@ -403,13 +410,7 @@ Le § 8 est traduit en colonnes et en clés étrangères, pas en commentaires :
 
 ### Le fait que ces chargements établissent
 
-```
- annee | etat_depenses | etat_recettes | etat_solde | secu_depenses | secu_recettes | secu_solde
--------+---------------+---------------+------------+---------------+---------------+------------
-  2023 |      664606.5 |      510787.5 |  -153819.0 |      737017.4 |      748863.0 |    11845.6
-  2024 |      671253.2 |      518788.9 |  -152464.3 |      777288.0 |      778428.1 |     1140.1
-  2025 |      680753.2 |      550515.9 |  -130237.3 |      803531.0 |      796813.1 |    -6717.9
-```
+<!-- schema:s1311s1314 -->
 
 **Les administrations de sécurité sociale dépensent plus que l'administration
 centrale — 803,5 Md€ contre 680,8 Md€ en 2025 — et le besoin de financement est

@@ -1,0 +1,44 @@
+{{define "content"}}
+{{$m := .M}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/budget/">Budget</a> › <span>{{$m.Libelle}}</span></p>
+<span class="sur">Exonération de cotisations · {{$m.Categorie}}</span>
+<h1>{{$m.Libelle}}</h1>
+<p class="lede">{{mdEur $m.MontantMax}} au plus haut, en {{$m.AnneeMontantMax}}. Créé en {{$m.Debut}},
+{{if $m.EnCours}}toujours en vigueur{{else}}arrêté en {{$m.Fin}}{{end}}.</p>
+
+{{if $m.Loi}}
+<p class="note proc"><strong>La loi d'origine.</strong> Loi n°&nbsp;{{$m.Loi.Numero}} du
+{{$m.Loi.Date}}, article {{$m.Loi.Article}} — retrouvée en recherchant le nom du dispositif
+tel que l'URSSAF le publie, puis <strong>vérifiée en lisant l'article lui-même</strong> au
+Journal officiel, jamais supposée d'une simple proximité de date.
+{{if $m.Loi.TexteURL}}<a href="{{$m.Loi.TexteURL}}" target="_blank" rel="noopener">Lire le texte
+intégral sur Légifrance ↗</a>{{end}} L'auteur parlementaire de l'amendement ou du texte, lui,
+reste inconnu de cette page.</p>
+{{else}}
+<p class="note proc"><strong>Ce que cette page peut dire, et ce qu'elle ne peut pas.</strong> La
+base connaît le nom du dispositif tel que l'URSSAF le publie, sa catégorie, et son montant
+par année&nbsp;: c'est sa <strong>conséquence chiffrée</strong>, mesurée à la source. Elle ne
+connaît <strong>ni le numéro de la loi</strong> qui l'a créé, <strong>ni son article</strong>,
+<strong>ni l'auteur parlementaire</strong> de l'amendement ou du texte&nbsp;: l'URSSAF ne publie
+pas ce rattachement, et l'établir demanderait une recherche texte par texte, dispositif par
+dispositif, qui n'a pas été faite pour celui-ci. Cette page appelle donc une vérification externe.</p>
+{{end}}
+
+<h2>Le montant, année par année</h2>
+<p class="q">{{$m.Debut}}–{{if $m.EnCours}}{{$m.AnneeMontantMax}} et au-delà{{else}}{{$m.Fin}}{{end}},
+secteur privé, France entière.</p>
+{{$m.Serie}}
+
+<h2>Repère chronologique</h2>
+<p class="note">{{if $m.Presidents}}<strong>{{range $i, $p := $m.Presidents}}{{if $i}}, {{end}}{{$p}}{{end}}</strong>
+{{if gt (len $m.Presidents) 1}}se sont succédé{{else}}était en fonction{{end}} pendant tout ou partie
+de la période où ce dispositif a existé.{{else}}Aucune présidence n'est associée à cette période.{{end}}
+C'est un repère chronologique, comme sur les fiches de ministres&nbsp;: il situe le dispositif dans
+le temps, il n'impute sa création ni son arrêt à personne — une mesure d'exonération est votée par
+le Parlement, dans une loi de financement de la Sécurité sociale ou de finances, jamais décrétée par
+un président seul.</p>
+
+<p class="src">Source&nbsp;: URSSAF Caisse nationale, données ouvertes sur les exonérations de
+cotisations, secteur privé. <a href="{{.Root}}/budget/">Retour au budget de l'État →</a></p>
+{{end}}
