@@ -117,22 +117,44 @@ colonne existera, elle n'existe pas encore.
 
 ## 3. Gouvernement
 
-Réalisable pour 1959-2014, et **vide exactement là où le reste du site travaille**.
+*Section révisée le 13 septembre 2026, après le chargement du Journal officiel.*
 
-- `core.gouvernement` : 36 gouvernements, du 8 janvier 1959 au 31 mars 2014.
-- **Rien depuis avril 2014** — Valls, Cazeneuve, Philippe, Castex, Borne, Attal,
-  Barnier, Bayrou, Lecornu. Le jeu de données amont s'arrête là.
-- 10 gouvernements sur 36 ont un Premier ministre relié à une personne ; les
-  mandats `MINISTRE` couvrent 2002-2010, 80 personnes. Une composition de
-  gouvernement n'est donc pas affichable.
+Le connecteur réclamé plus bas a été écrit et exécuté. L'état a changé, mais pas
+autant que le mot « ingéré » le laisserait croire : **la donnée est en base, la
+section n'est pas pour autant affichable.**
 
-**Conséquence.** Une entrée « Gouvernement » ouverte aujourd'hui afficherait une
-liste qui s'arrête douze ans avant le présent, sur un site dont l'Assemblée
-couvre 2024-2026 : une section qui a l'air complète et ne l'est pas. Il faut le
-connecteur d'abord — la composition des gouvernements récents est publiée au
-*Journal officiel*, et `core.acte_jo` (4 590 actes) est le point d'entrée. À
-défaut, la section s'ouvre sur son propre trou, avec un
-`GOUVERNEMENT_APRES_2014_NON_INGERE`.
+Ce qui est chargé :
+
+- `core.acte_jo` : **4 821 actes** du *Journal officiel*, du 2 juillet 1901 au
+  13 septembre 2026, dont 1 025 nominatifs ;
+- `core.gouvernement_membre` : **1 371 citations** tirées de 160 décrets de
+  composition, du 18 juillet 1990 au 26 février 2026 — 1 274 nominations et
+  97 cessations de fonctions. La succession des Premiers ministres depuis
+  Valls y est enfin lisible.
+
+Ce qui ne l'est pas :
+
+- `core.gouvernement` est **toujours à 36 lignes, 1959 → 2014**. Le chargement
+  n'y a pas été reversé : la table qui nomme les gouvernements ignore encore
+  tout de ce qui suit mars 2014 ;
+- la déduction des périodes de mandat (`derived.mandat_ministeriel`) **n'existe
+  pas** : un décret nomme, il ne dit pas jusqu'à quand, et la règle qui le
+  déduit reste à écrire ;
+- les mandats ministériels affichés sur les fiches viennent **encore d'AMO30**,
+  la source que le document de conception disqualifie : 1 103 lignes
+  `MINISTRE`, dont **398 « en mission »** — des parlementaires en mission
+  temporaire, qui ne sont pas membres du Gouvernement ;
+- aucun appariement nom → personne n'est `CONFIRME` : 972 `CANDIDAT`,
+  154 `AMBIGU`, 245 `ABSENT`. `CANDIDAT` veut dire « un seul homonyme
+  possible », pas « vérifié ».
+
+**Conséquence, inchangée dans son principe.** Une entrée « Gouvernement » ouverte
+aujourd'hui afficherait une composition dont les dates de fin sont inventées et
+dont les personnes sont devinées. Le code de non-couverture
+`GOUVERNEMENT_APRES_2014_NON_INGERE` est levé ; il est remplacé par
+`GOUVERNEMENT_PERIODES_NON_DEDUITES` et
+`GOUVERNEMENT_APPARIEMENT_NON_VERIFIE`. Le détail source par source est dans
+[Onglet GOUVERNEMENT](gouvernement-donnees.md).
 
 ---
 
