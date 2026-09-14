@@ -165,6 +165,17 @@ et un étage professionnel proportionnel en sont des variantes.
 
 ### 7.3 Ordre de grandeur, hypothèse la plus favorable
 
+> **Ce chiffrage est dépassé par une version plus rigoureuse.** Il utilise un montant forfaitaire **par
+> personne**, alors que le seuil de pauvreté se calcule **par unité de
+> consommation d'un ménage** — un forfait par personne surpaie systématiquement
+> les ménages de plusieurs adultes et laisse les moins de 16 ans sans socle
+> propre. [docs/revenu-universel-microsimulation.md](revenu-universel-microsimulation.md)
+> refait ce calcul par unité de consommation (≈ 698 Md€ bruts, contre 870 ici)
+> et le complète d'une micro-simulation par type de ménage, financée par une
+> reprise fiscale sur le socle plutôt que par les bornes « au plus » ci-dessous
+> (coût net obtenu : ≈ 25 Md€/an, pas 382). Le tableau qui suit reste ici comme
+> trace du premier chiffrage, pas comme référence.
+
 | poste | Md€ |
 |---|---:|
 | Socle à 1 288 €, 56,3 M de personnes | **870** |

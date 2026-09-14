@@ -500,6 +500,112 @@ var checks = []check{
 		                   AND e.nature_juridique IN ('CC','CA','CU','METRO','MET69')) <> 1`,
 	},
 	{
+		// Chaque commune du COG a son contour, pour chaque millésime chargé. Un
+		// trou ici, c'est une commune qui disparaît de la carte sans que rien ne
+		// le signale. L'inverse est admis pour deux communes : Saint-Pierre et
+		// Miquelon-Langlade, que l'IGN dessine et que le COG range parmi les
+		// collectivités d'outre-mer, hors du fichier des communes.
+		name: "toute commune du COG a son contour IGN, à chaque millésime",
+		query: `SELECT count(*) FROM ref.commune c
+		         WHERE c.cog_millesime IN (SELECT DISTINCT cog_millesime FROM geo.contour_cog)
+		           AND NOT EXISTS (SELECT 1 FROM geo.contour_cog g
+		                            WHERE g.niveau = 'COMMUNE' AND g.code = c.code_insee
+		                              AND g.cog_millesime = c.cog_millesime)`,
+	},
+	{
+		name: "aucun contour IGN hors COG, sauf Saint-Pierre et Miquelon-Langlade",
+		query: `SELECT count(*) FROM geo.contour_cog g
+		         WHERE g.niveau = 'COMMUNE' AND g.code NOT IN ('97501','97502')
+		           AND NOT EXISTS (SELECT 1 FROM ref.commune c
+		                            WHERE c.code_insee = g.code AND c.cog_millesime = g.cog_millesime)`,
+	},
+	{
+		// Pour le millésime courant, les contours intercommunaux suivent
+		// BANATIC : chaque EPCI à fiscalité propre a le sien. Un EPCI sans
+		// contour, c'est un SIREN dont aucune commune membre n'a été dessinée.
+		name: "tout EPCI à fiscalité propre et tout EPT du millésime courant a son contour",
+		query: `SELECT count(*) FROM core.epci e
+		         WHERE e.nature_juridique IN ('CC','CA','CU','METRO','MET69','EPT')
+		           AND EXISTS (SELECT 1 FROM core.epci_membre m WHERE m.epci_siren = e.siren
+		                          AND m.cog_millesime = (SELECT max(cog_millesime) FROM ref.commune))
+		           AND NOT EXISTS (SELECT 1 FROM geo.contour_cog g
+		                            WHERE g.niveau IN ('EPCI','EPT') AND g.code = e.siren
+		                              AND g.cog_millesime = (SELECT max(cog_millesime) FROM ref.commune))`,
+	},
+	{
+		// L'IGN publie l'appartenance de chaque commune à son intercommunalité,
+		// mais sa couche du millésime courant retarde sur les changements du
+		// 1er janvier : en 2026, 45 communes — les fusions de Lévézou (19) et de
+		// Thionville Fensch Agglomération (23), et trois communes passées d'un
+		// EPCI à un autre. C'est pourquoi le millésime courant se dessine
+		// d'après BANATIC. Le plafond borne le retard admis : s'il grandit,
+		// l'une des deux sources a changé de nature et il faut savoir laquelle.
+		name: "l'IGN et BANATIC s'accordent sur l'EPCI de chaque commune, au retard de l'IGN près",
+		query: `SELECT greatest(count(*) - 45, 0) FROM geo.contour_cog c
+		         WHERE c.niveau = 'COMMUNE'
+		           AND c.cog_millesime = (SELECT max(cog_millesime) FROM ref.commune)
+		           AND coalesce((SELECT array_agg(m.epci_siren ORDER BY m.epci_siren)
+		                           FROM core.epci_membre m JOIN core.epci e ON e.siren = m.epci_siren
+		                          WHERE m.commune_code = c.code AND m.cog_millesime = c.cog_millesime
+		                            AND e.nature_juridique IN ('CC','CA','CU','METRO','MET69')), '{}')
+		               <> coalesce((SELECT array_agg(s ORDER BY s) FROM unnest(c.codes_siren_epci) s
+		                             WHERE s NOT IN (SELECT siren FROM core.epci WHERE nature_juridique = 'EPT')), '{}')`,
+	},
+	{
+		// Le total « ensemble », publié par la Drees, est une moyenne PONDÉRÉE
+		// par le nombre de ménages de chaque type — pas leur moyenne arithmétique,
+		// les types n'ayant pas le même poids (12 millions de personnes seules,
+		// 335 000 couples de quatre enfants ou plus). Repondérer les neuf types
+		// retenus par leurs effectifs (core.menage_type_effectif) doit redonner ce
+		// total à peu près : 10 % de marge couvrent la couverture incomplète
+		// (97 % des ménages, cf. le commentaire de core.menage_type_effectif) et
+		// l'écart d'univers entre le recensement et l'enquête ERFS. Un écart plus
+		// grand dirait qu'une colonne a été mal reconnue — décalée, feuille
+		// modifiée — bien avant que quiconque ne le remarque dans un total agrégé.
+		name: "le revenu initial pondéré par effectif recompose le total Drees, à 10 % près",
+		query: `SELECT count(*) FROM (
+		          SELECT 1
+		            FROM (SELECT sum(e.nb_menages * d.revenu_initial_menage) / sum(e.nb_menages) AS pondere
+		                    FROM core.menage_type_drees d
+		                    JOIN core.menage_type_effectif e ON e.type_menage = d.type_menage AND e.annee = d.annee
+		                   WHERE d.type_menage <> 'ensemble') p
+		            CROSS JOIN (SELECT revenu_initial_menage AS ensemble
+		                          FROM core.menage_type_drees WHERE type_menage = 'ensemble') e
+		           WHERE abs(p.pondere - e.ensemble) / e.ensemble > 0.10
+		        ) t`,
+	},
+	{
+		// Chaque type de ménage simulé doit avoir son pendant en effectif, sinon
+		// la vue derived.socle_universel_simulation les exclut en silence (jointure
+		// interne) et le total national sous-compte sans qu'aucune requête ne le
+		// signale. Exception assumée : « complexe avec enfants » (ménages
+		// multifamiliaux ou avec un tiers hors famille), que la nomenclature Insee
+		// utilisée par internal/macro/menages_effectif.go ne dénombre pas
+		// séparément — un résidu documenté, pas un oubli.
+		name: "chaque type de ménage de la simulation du socle a un effectif",
+		query: `SELECT count(*) FROM core.menage_type_drees d
+		         WHERE d.type_menage NOT IN ('ensemble', 'complexe_avec_enfants')
+		           AND NOT EXISTS (SELECT 1 FROM core.menage_type_effectif e
+		                            WHERE e.type_menage = d.type_menage AND e.annee = d.annee)`,
+	},
+	{
+		// Une tranche de pension ou de chômage manquante décale silencieusement
+		// tout calcul de reprise fiscale fondé sur la distribution plutôt que sur
+		// la moyenne (docs/revenu-universel-microsimulation.md §3).
+		name: "les tranches de pension EIR totalisent 100 %, à 1 point près",
+		query: `SELECT count(*) FROM (
+		          SELECT annee FROM core.pension_tranche_eir
+		          GROUP BY annee HAVING abs(sum(pct_ensemble) - 100) > 1
+		        ) t`,
+	},
+	{
+		name: "les tranches d'indemnisation chômage totalisent 100 %, à 1 point près, chaque trimestre",
+		query: `SELECT count(*) FROM (
+		          SELECT date_reference FROM core.chomage_tranche_unedic
+		          GROUP BY date_reference HAVING abs(sum(pct) - 100) > 1
+		        ) t`,
+	},
+	{
 		name:  "les onze proclamations présidentielles sont chargées",
 		query: `SELECT count(*) FROM core.pdr_resultat`,
 		min:   11,

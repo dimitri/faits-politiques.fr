@@ -24,6 +24,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/entreprises"
 	"github.com/faits-politiques/faits-politiques/internal/europe"
+	"github.com/faits-politiques/faits-politiques/internal/geo"
 	"github.com/faits-politiques/faits-politiques/internal/hatvp"
 	"github.com/faits-politiques/faits-politiques/internal/jorf"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
@@ -37,7 +38,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -301,11 +302,46 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 			return err
 		}
 	}
+	// Contours communaux et intercommunaux, un jeu par millésime du COG. Après
+	// BANATIC : pour le millésime courant, l'appartenance aux intercommunalités
+	// se lit dans core.epci_membre.
+	// En rechargement ciblé, le COG est rechargé d'abord ; dans la chaîne
+	// complète, le bloc communes l'a déjà fait.
+	if only == "" || only == "contours" {
+		fmt.Println("\ncontours IGN par millésime")
+		if only == "contours" {
+			if err := communes.IngestCOG(ctx, pool, arch); err != nil {
+				return err
+			}
+		}
+		if err := geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime); err != nil {
+			return err
+		}
+	}
 	// Rechargement ciblé : la série des préfets se met à jour une fois par an,
 	// il serait absurde de retélécharger tout le bloc macro pour elle.
 	if only == "prefets" {
 		fmt.Println("\nreprésentation de l'État dans les départements")
 		return prefets.Ingest(ctx, pool, arch)
+	}
+	// Les données de la micro-simulation du socle universel
+	// (docs/revenu-universel-microsimulation.md) : hors chaîne par défaut, ce
+	// n'est pas un fait constaté mais l'instruction d'une hypothèse chiffrée.
+	if only == "socle" {
+		fmt.Println("\nsocle universel : seuil, ménages, pensions, chômage")
+		if err := macro.IngestPauvrete(ctx, pool, arch); err != nil {
+			return err
+		}
+		if err := macro.IngestMenagesDREES(ctx, pool, arch); err != nil {
+			return err
+		}
+		if err := macro.IngestMenagesEffectif(ctx, pool, arch); err != nil {
+			return err
+		}
+		if err := macro.IngestPensionsEIR(ctx, pool, arch); err != nil {
+			return err
+		}
+		return macro.IngestChomageUnedic(ctx, pool, arch)
 	}
 	if only == "" || only == "agriculture" {
 		fmt.Println("\nbilans alimentaires et appareil de production agricole")

@@ -41,6 +41,28 @@ const (
 	COGMouvURL     = "https://www.insee.fr/fr/statistiques/fichier/8740222/v_mvt_commune_2026.csv"
 )
 
+// Les millésimes chargés dans ref.commune.
+//
+// COGMillesime reste LA référence courante : c'est à elle que se rattachent les
+// élus, les comptes, les résultats électoraux. Mais certaines sources publient
+// dans une géographie plus ancienne — le recensement agricole 2020 est diffusé
+// en communes 2025 — et une jointure entre deux millésimes différents perd en
+// silence toutes les communes nouvelles de l'année. On charge donc aussi le
+// millésime précédent, pour que chaque donnée se joigne à SA géographie.
+//
+// L'INSEE change l'identifiant de page à chaque millésime : les URL ne se
+// déduisent pas l'une de l'autre et sont écrites en clair.
+type millesimeCOG struct {
+	Annee               int
+	CommunesURL, MvtURL string
+}
+
+var MillesimesCOG = []millesimeCOG{
+	{2025, "https://www.insee.fr/fr/statistiques/fichier/8377162/v_commune_2025.csv",
+		"https://www.insee.fr/fr/statistiques/fichier/8377162/v_mvt_commune_2025.csv"},
+	{COGMillesime, COGCommunesURL, COGMouvURL},
+}
+
 // Codes MOD du fichier des mouvements, traduits vers les quatre types que le
 // schéma admet. Les codes non listés sont ignorés : ils concernent des objets
 // que nous ne suivons pas (communes déléguées, associées, arrondissements).
@@ -58,6 +80,15 @@ var modVersType = map[string]string{
 }
 
 func IngestCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	for _, m := range MillesimesCOG {
+		if err := chargerCOG(ctx, pool, arch, m); err != nil {
+			return fmt.Errorf("COG %d : %w", m.Annee, err)
+		}
+	}
+	return nil
+}
+
+func chargerCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, mil millesimeCOG) error {
 	srcID, err := arch.EnsureSource(ctx, SourceCOG)
 	if err != nil {
 		return err
@@ -71,11 +102,11 @@ func IngestCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		return err
 	}
 
-	fCom, err := arch.Fetch(ctx, srcID, runID, COGCommunesURL, ".csv")
+	fCom, err := arch.Fetch(ctx, srcID, runID, mil.CommunesURL, ".csv")
 	if err != nil {
 		return fail(err)
 	}
-	fMvt, err := arch.Fetch(ctx, srcID, runID, COGMouvURL, ".csv")
+	fMvt, err := arch.Fetch(ctx, srcID, runID, mil.MvtURL, ".csv")
 	if err != nil {
 		return fail(err)
 	}
@@ -94,7 +125,7 @@ func IngestCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	// Reconstruction plutôt que complétion : une commune disparue du millésime
 	// doit disparaître de la table, sinon le référentiel accumule des fantômes.
 	if _, err := tx.Exec(ctx,
-		`DELETE FROM ref.commune_change WHERE cog_millesime = $1`, COGMillesime); err != nil {
+		`DELETE FROM ref.commune_change WHERE cog_millesime = $1`, mil.Annee); err != nil {
 		return fail(err)
 	}
 
@@ -112,7 +143,7 @@ func IngestCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 			continue
 		}
 		seen[code] = true
-		rows = append(rows, []any{code, COGMillesime, r["LIBELLE"], r["DEP"], r["REG"], r["NCC"]})
+		rows = append(rows, []any{code, mil.Annee, r["LIBELLE"], r["DEP"], r["REG"], r["NCC"]})
 	}
 
 	// INSERT ... SELECT depuis une table temporaire alimentée par COPY : c'est
@@ -153,7 +184,7 @@ func IngestCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 			INSERT INTO ref.commune_change
 			  (effective_date, change_type, code_avant, code_apres, cog_millesime)
 			VALUES ($1::date, $2, $3, $4, $5)`,
-			m["DATE_EFF"], t, m["COM_AV"], m["COM_AP"], COGMillesime); err != nil {
+			m["DATE_EFF"], t, m["COM_AV"], m["COM_AP"], mil.Annee); err != nil {
 			return fail(fmt.Errorf("mouvement %s %s->%s : %w", m["MOD"], m["COM_AV"], m["COM_AP"], err))
 		}
 		nMvt++
@@ -164,7 +195,7 @@ func IngestCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"communes": len(rows), "mouvements": nMvt}, "")
-	fmt.Printf("  COG %d : %d communes, %d mouvements\n", COGMillesime, len(rows), nMvt)
+	fmt.Printf("  COG %d : %d communes, %d mouvements\n", mil.Annee, len(rows), nMvt)
 	return nil
 }
 
