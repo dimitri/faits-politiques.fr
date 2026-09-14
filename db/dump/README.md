@@ -28,6 +28,22 @@ make db-dump
 make db-restore
 ```
 
-`pg_restore -j` parallélise la restauration ; l'essentiel du temps part dans la
-reconstruction des index, en particulier les deux GIN plein texte du corpus du
-Journal officiel.
+Mesuré sur la base complète (16 Go, dump de 1,26 Go) :
+
+| | Durée |
+|---|---|
+| `pg_dump -Fc` | 321 s |
+| `pg_restore -j 4`, vecteur en colonne générée | 2 078 s |
+| `pg_restore -j 4`, vecteur en vue matérialisée | **1 269 s** |
+
+`pg_restore -j` parallélise la restauration, et il a besoin d'un **fichier** —
+il ne sait pas paralléliser depuis un tube. D'où le montage en lecture seule du
+répertoire `db/dump` dans le conteneur, plutôt qu'une copie de 1,3 Go.
+
+L'essentiel du temps part dans le `REFRESH` des vues de recherche du corpus du
+Journal officiel, qui recalcule 3,8 millions de vecteurs : `pg_dump` n'emporte
+que la définition d'une vue matérialisée, pas ses données.
+
+**Après la restauration, le script d'extensions est rejoué.** Le dump ne porte
+que les extensions de la base source : une base venue de l'ancienne image
+arrive sans `vector` ni `rum`.

@@ -41,10 +41,20 @@ db-dump: db-up    ## sauvegarde la base (format custom) dans db/dump/
 # -j : la restauration se parallélise, à la différence du dump en format
 # custom. L'essentiel du temps part dans la reconstruction des index, en
 # particulier les deux GIN plein texte du corpus du Journal officiel.
+#
+# Le script d'extensions est REJOUÉ après la restauration. Le dump ne porte que
+# les extensions de la base SOURCE : restaurer une base de l'ancienne image
+# (sans vector ni rum) dans la nouvelle laissait ces deux extensions absentes,
+# et DROP/CREATE DATABASE saute le script d'initialisation de l'image. Ses
+# CREATE EXTENSION IF NOT EXISTS ignorent ce que le dump a déjà recréé et
+# ajoutent le reste. Le rejouer AVANT pg_restore ferait échouer ses propres
+# CREATE EXTENSION, qui n'ont pas de IF NOT EXISTS.
 db-restore: db-up ## restaure db/dump/fp.dump dans la base courante
 	docker compose exec -T db psql -U fp -d postgres -c "DROP DATABASE IF EXISTS fp WITH (FORCE)"
 	docker compose exec -T db psql -U fp -d postgres -c "CREATE DATABASE fp OWNER fp"
 	time docker compose exec -T db pg_restore -U fp -d fp -j 4 --no-owner /dump/fp.dump
+	docker compose exec -T db psql -U fp -d fp -v ON_ERROR_STOP=1 \
+		-f /docker-entrypoint-initdb.d/01-extensions.sql
 
 migrate: db-up    ## applique les migrations
 	go run ./cmd/ingest -only=migrate
