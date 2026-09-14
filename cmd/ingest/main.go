@@ -34,6 +34,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
 	"github.com/faits-politiques/faits-politiques/internal/partis"
+	"github.com/faits-politiques/faits-politiques/internal/paie"
 	"github.com/faits-politiques/faits-politiques/internal/prefets"
 	"github.com/faits-politiques/faits-politiques/internal/presidentielle"
 	"github.com/faits-politiques/faits-politiques/internal/senat"
@@ -42,7 +43,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -410,6 +411,11 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	}
 	if only == "minimis" {
 		return aides.IngestMinimis(ctx, pool, arch)
+	}
+	// Barème de paie 2026, destinataires et budgets, bulletin d'exemple.
+	if only == "paie" {
+		fmt.Println("\nbarème de paie et destinataires des prélèvements")
+		return paie.Ingest(ctx, pool, arch)
 	}
 	// « La France est-elle un paradis fiscal ? » : listes officielles, OCDE,
 	// Eurostat, estimations académiques, filiales de groupes étrangers

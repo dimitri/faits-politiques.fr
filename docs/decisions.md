@@ -1967,3 +1967,36 @@ depuis leurs sources officielles, hors base.
 **CbCR : on ne somme pas les sièges.** Les comparaisons de juridictions se font à
 siège constant (groupes américains, groupes français) ; les parts sont calculées
 sur le « reste du monde » publié par le siège.
+
+## D-060 — Le bulletin de paie d'exemple : un barème en table, un calcul en vues, un budget par destinataire
+
+Migration 0085, `internal/paie` (`-only=paie`), `cmd/figure-bulletin`,
+docs/cotisations-et-droits.md § 3 bis.
+
+**Un bulletin factice, mais aucun chiffre à la main.** Les taux, le plafond et les
+paramètres de la réduction générale sont des lignes de référence
+(`ref.taux_cotisation`, `ref.parametre_social`), chacune avec son fondement. Le
+bulletin est recalculé par des vues ; la figure du document est régénérée depuis ces
+vues et `cmd/verify` fige ses totaux, calculés indépendamment avant d'écrire les vues.
+Les seules hypothèses propres au cas — taux accidents du travail de l'établissement,
+taux d'impôt du foyer, dispense de mutuelle — sont écrites dans `ref.bulletin_cas`.
+
+**Archiver ce qui peut l'être, citer le reste.** Les fiches de service-public.fr et la
+page de l'INSEE sur le périmètre des administrations de sécurité sociale sont scellées,
+et le connecteur échoue si elles ne contiennent plus les valeurs qu'on leur fait dire.
+Le barème de l'URSSAF et Légifrance refusent l'accès automatisé : ils ne sont pas
+contournés, leurs références sont écrites dans le fondement de chaque ligne.
+
+**« L'État » ou « la Sécu » ne suffit pas.** Chaque destinataire porte le budget
+dont il relève au sens du texte qui l'arrête : État (loi de finances), Sécurité
+sociale dans le champ de la LFSS, régimes paritaires hors LFSS (comptés en
+administrations de sécurité sociale par l'INSEE), opérateur de l'État, fonds de
+l'État, collectivités, organismes privés, affectation choisie par l'employeur. Le
+sous-secteur de comptabilité nationale n'est renseigné que lorsqu'une source l'établit
+(France compétences : liste des ODAC de 2023 ; régimes paritaires et CADES : INSEE) ;
+il reste vide pour l'AGS, le Fnal et le fonds paritaire du dialogue social.
+
+**Deux répartitions restent des conventions, et le disent.** La réduction générale
+est imputée sur la retraite complémentaire selon la règle officielle ; entre les
+caisses de l'URSSAF, faute de clé publiée, elle suit les taux. La CSG est rangée
+comme un seul destinataire, sa répartition légale entre caisses n'étant pas chargée.
