@@ -1,6 +1,6 @@
 # La retraite en France : dépense, pensions, minimum vieillesse
 
-> Note de synthèse. Version 2 — 14 septembre 2026.
+> Note de synthèse. Version 3 — 14 septembre 2026.
 > Trois questions, sur le modèle des notes voisines : combien coûte le système
 > de retraite et comment ce coût a évolué, comment les pensions se distribuent
 > réellement (pas seulement en moyenne), et ce que le minimum vieillesse
@@ -11,6 +11,10 @@
 >
 > **Version 2** ajoute l'âge de départ à la retraite depuis 2004 (§ 3), la
 > trace la plus directe des réformes successives.
+>
+> **Version 3** ajoute le taux de remplacement par quantile (§ 5) et le ratio
+> cotisants / retraités (§ 6) ; documente l'absence d'open data pour
+> AGIRC-ARRCO malgré une recherche dédiée (§ 7).
 
 ---
 
@@ -131,7 +135,64 @@ celle des effectifs (+34 % sur la même période, 2009 : 517 000 → 2024 :
 693 200), qui traduit une revalorisation réelle du montant individuel de
 l'Aspa, pas seulement davantage de bénéficiaires.
 
-## 5. Ce qui est hors de portée de l'open data
+## 5. Le taux de remplacement : ce que la pension remplace vraiment
+
+`core.taux_remplacement_retraite` (Drees, cohortes 2012-2020, quantiles à 10,
+25, 50, 75 et 90 %) mesure la part du revenu d'avant la retraite que la
+pension remplace — 100 signifie une pension égale au revenu antérieur.
+Rapporté au **niveau de vie** (qui lisse les revenus au sein du ménage,
+pas seulement le revenu personnel), cohorte 2020 :
+
+| | q10 | q25 | **médiane** | q75 | q90 |
+|---|---:|---:|---:|---:|---:|
+| Ensemble | 66,3 | 80,9 | **97,4** | 118,5 | 150,9 |
+| Femmes | 68,4 | 82,9 | **99,0** | 119,0 | 148,1 |
+| Hommes | 64,1 | 78,9 | **95,4** | 117,5 | 155,3 |
+
+**La moitié des nouveaux retraités voient leur niveau de vie proche de ce
+qu'il était avant la retraite (médiane à 97,4 %), mais la dispersion est
+large** : un dixième garde moins des deux tiers de son niveau de vie
+antérieur (q10 = 66,3), un dixième voit son niveau de vie augmenter de plus de
+moitié (q90 = 150,9 — un patrimoine ou des revenus d'activité qui cessent au
+profit d'une pension plus favorable, ou un conjoint dont la situation change).
+
+**Fait à contre-courant de l'intuition** : à niveau de vie égal avant la
+retraite, une **carrière incomplète** donne un taux de remplacement MÉDIAN
+plus élevé (102,4) qu'une **carrière complète** (95,1). Ce n'est pas un
+avantage aux carrières courtes : c'est l'effet des mécanismes de solidarité
+(minimum contributif, minimum garanti) qui portent la pension d'une carrière
+courte à un niveau plancher, proportionnellement plus haut par rapport à un
+revenu d'activité qui, pour ces mêmes carrières, était déjà plus faible.
+
+**Femmes et hommes**, à l'inverse, montrent un écart resserré au sommet de la
+distribution (q90 : 148,1 contre 155,3) mais plus marqué à la médiane (99,0
+contre 95,4) — cohérent avec des pensions personnelles plus faibles pour les
+femmes (§ 2) compensées, au niveau du MÉNAGE, par les revenus du conjoint
+avant la retraite étant eux-mêmes souvent plus élevés que le revenu propre de
+la femme, ce qui mécaniquement abaisse la base de comparaison et remonte le
+taux de remplacement mesuré sur le niveau de vie.
+
+## 6. Le ratio cotisants / retraités : la pression démographique, chiffrée
+
+`core.cotisants_retraites_ratio` (Insee, 2004-2023, tous régimes) :
+
+| année | cotisants (M) | retraités (M) | ratio |
+|---|---:|---:|---:|
+| 2004 | 26,2 | 13,0 | **2,02** |
+| 2010 | 26,9 | 15,1 | 1,79 |
+| **2016** | 27,7 | 16,1 | **1,72** *(plus bas de la série)* |
+| 2020 | 28,6 | 16,7 | 1,72 |
+| 2023 | 30,4 | 17,2 | 1,77 |
+
+**Le ratio s'est dégradé sans interruption de 2004 à 2016** (2,02 → 1,72)
+**puis s'est stabilisé, voire légèrement redressé, de 2016 à 2023**
+(1,72 → 1,77) — grâce à une hausse des cotisants (+9,8 % sur la période) plus
+rapide que celle des retraités (+6,6 %), elle-même en partie l'effet du recul
+de l'âge de départ mesuré au § 3. **Le ratio ne s'est PAS dégradé continûment
+jusqu'à aujourd'hui**, contrairement à une intuition répandue : la dernière
+décennie chargée ici montre une stabilisation, pas un effondrement.
+
+## 7. Ce qui est hors de portée de l'open data
 
 - **La distribution des pensions par décile ou par CSP** au-delà des 46
   tranches de l'EIR 2020 (le prochain échantillon, EIR 2024, n'était pas
@@ -150,23 +211,19 @@ l'Aspa, pas seulement davantage de bénéficiaires.
   [docs/immigration-donnees.md](immigration-donnees.md) § 7. Un extrait plus
   étroit mais stable de ce même sujet — le seul âge de départ, sans les
   effectifs ni les montants — existe séparément et EST chargé (§ 3).
-- **Le ratio cotisants / retraités**, la mesure la plus directement liée à la
-  pression démographique sur un système par répartition : identifié dans les
-  rapports du COR, pas dans un jeu de données ouvert et stable.
 - **AGIRC-ARRCO** (retraite complémentaire, hors LFSS mais dans les
-  administrations de sécurité sociale au sens comptable) : pas de portail
-  d'open data identifié à ce jour, distinct de la publication PDF de ses
-  comptes annuels.
-- **Le taux de remplacement** (part du revenu d'avant retraite que la pension
-  remplace) : la Drees publie un jeu de données dédié
-  (« Répartition des taux de remplacement… », 4 806 lignes), identifié mais
-  pas encore exploré pour son schéma.
+  administrations de sécurité sociale au sens comptable) : **aucun portail
+  d'open data identifié**, malgré une recherche dédiée. Les chiffres existent
+  — 20,0 millions de cotisants fin 2023 — mais uniquement dans des
+  publications PDF (« Chiffr'Agirc-Arrco », édition annuelle) et des pages web
+  non structurées (« Cotisants et salaires », agirc-arrco.fr) : rien à
+  télécharger sous une forme qu'un connecteur puisse relire.
 - **La cotisation retraite isolée** dans les encaissements URSSAF : même
   limite que la cotisation chômage, voir
   [docs/chomage-donnees.md](chomage-donnees.md) § 4.2 — l'URSSAF ne publie pas
   ses comptes par branche.
 
-## 6. Ce qui est chargé
+## 8. Ce qui est chargé
 
 | # | Source | Table | Chargée pour |
 |---|---|---|---|
@@ -176,8 +233,10 @@ l'Aspa, pas seulement davantage de bénéficiaires.
 | 4 | Drees, minima sociaux — dispositif ASV/ASPA | `core.minima_sociaux_effectif`, `core.minima_sociaux_depense` | docs/chomage-donnees.md |
 | 5 | Insee, population par âge | `core.population_age` | docs/revenu-universel-microsimulation.md |
 | 6 | Drees, âge conjoncturel moyen de départ à la retraite | `core.age_depart_retraite` | cette note |
+| 7 | Drees, répartition des taux de remplacement | `core.taux_remplacement_retraite` | cette note |
+| 8 | Insee, cotisants et retraités de droit direct | `core.cotisants_retraites_ratio` | cette note |
 
-Les lignes 2 et 6 sont les deux séries chargées spécifiquement pour cette
+Les lignes 2, 6, 7 et 8 sont les séries chargées spécifiquement pour cette
 note ; les quatre autres existaient déjà — la preuve que les sujets de ce
 projet se recoupent plus qu'ils ne s'empilent.
 
@@ -190,5 +249,9 @@ projet se recoupent plus qu'ils ne s'empilent.
 - Drees, *Minima sociaux, RSA et prime d'activité* (jeu de données n° 336),
   dispositif ASV/ASPA.
 - Drees, *Âge conjoncturel moyen de départ à la retraite selon le sexe*.
+- Drees, *Répartition des taux de remplacement entre les revenus juste avant
+  et juste après la retraite*.
+- Insee, *Retraités et retraites* — fichier « Cotisants et retraités de droit
+  direct » (`reve-protec-cotisant-retraite.xlsx`).
 - [docs/cotisations-et-droits.md](cotisations-et-droits.md), pour le
   financement par répartition et la distinction contributif/non contributif.

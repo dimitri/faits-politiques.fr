@@ -1,6 +1,6 @@
 # Le chômage en France : évolution, minima sociaux, financement
 
-> Note de synthèse. Version 2 — 14 septembre 2026.
+> Note de synthèse. Version 3 — 14 septembre 2026.
 > Trois questions : comment le taux de chômage a évolué depuis un demi-siècle,
 > ce que couvre la continuité RMI → RSA, et **d'où vient l'argent** qui finance
 > l'indemnisation et les minima sociaux — qui paie, et comment il est
@@ -9,7 +9,8 @@
 >
 > **Version 2** ajoute les demandeurs d'emploi inscrits à France Travail
 > (§ 1.2), la mesure la plus citée dans le débat public et distincte du taux
-> BIT du § 1.
+> BIT du § 1. **Version 3** ajoute la prime d'activité (§ 2.2), qui a remplacé
+> le RSA activité en 2016.
 
 ---
 
@@ -116,6 +117,19 @@ financé par l'État (pas par l'Unédic) : **336 100 allocataires en 1990,
 **1996 (513 000)**, pas récemment : il est aujourd'hui inférieur à son niveau
 de 1990, malgré des remontées ponctuelles (2009, 2015, 2020).
 
+### 2.2 La prime d'activité, qui a remplacé le RSA activité
+
+`core.prime_activite_effectif` (Drees, même jeu de données que le RSA mais
+fichier distinct, France métropolitaine) : créée le 1er janvier 2016 en
+remplacement du RSA activité et de la prime pour l'emploi, elle est passée de
+**2 562 500 allocataires en 2016** à **4 636 500 en 2024** — soit **+81 %** en
+huit ans, une progression sans commune mesure avec celle du RSA socle sur la
+même période (§ 2). Le saut le plus net n'est pas celui de la création
+(2016 → 2017 : +6,7 %), mais **2018 → 2019 (+43 %, de 3 041 300 à
+4 357 200)** — l'effet de la revalorisation annoncée fin 2018 dans le cadre de
+la réponse au mouvement des Gilets jaunes, qui a fortement élargi l'accès au
+dispositif au-delà de son périmètre initial de 2016.
+
 ## 3. La dépense au sens large : ESSPROS
 
 `core.macro_value`, série `protection.depense.chomage` (Eurostat ESSPROS,
@@ -207,6 +221,7 @@ tranche de montant perçu — le dernier maillon de cette chaîne, chiffré.
 | 7 | Unédic, répartition par tranche d'indemnisation | `core.chomage_tranche_unedic` | 45 trimestres, 2014-2025 |
 | 8 | URSSAF, exonérations et encaissements | `core.exoneration_cotisation`, `core.encaissement_urssaf` | déjà chargés, cf. docs/budget-donnees.md |
 | 9 | Dares/France Travail, demandeurs d'emploi inscrits par catégorie | `core.demandeur_emploi_categorie` | 10 527 lignes, depuis février 1996 |
+| 10 | Drees, RSA et prime d'activité — données nationales | `core.prime_activite_effectif` | 9 millésimes, 2016-2024 |
 
 **Non chargé, et pourquoi :**
 
@@ -215,10 +230,11 @@ tranche de montant perçu — le dernier maillon de cette chaîne, chiffré.
 - **Comptes financiers de l'Unédic** (dette, recettes, dépenses par nature) —
   publiés en PDF deux à trois fois par an, non structurés (déjà documenté en
   [docs/budget-donnees.md](budget-donnees.md) § 4.4).
-- **Prime d'activité** (a remplacé le RSA activité en 2016) : le même jeu de
-  données Drees que les minima sociaux (n° 336) porte un fichier « RSA et
-  prime d'activité — données nationales » distinct de celui déjà chargé,
-  identifié mais pas encore intégré.
+- **Dépense de la prime d'activité** : le fichier chargé (ligne 10) ne publie
+  que des effectifs. Le fichier « dépenses par dispositif » déjà utilisé pour
+  le RSA et l'ASS ne détaille pas la prime d'activité séparément — sa
+  dépense reste, pour l'instant, incluse dans des lignes plus larges de
+  `core.protection_sociale`, pas isolable.
 - **Détail des demandeurs d'emploi par âge, région ou ancienneté** : la même
   source Dares le publie (54 567 lignes au total contre 10 527 chargées) ;
   seul le total agrégé par catégorie a été retenu ici.
@@ -230,8 +246,9 @@ tranche de montant perçu — le dernier maillon de cette chaîne, chiffré.
   `lfsi_sla_a` (halo du chômage), déjà chargés avant cette note ; `spr_exp_fun`
   (dépense ESSPROS, fonction chômage), chargé pour elle.
 - Drees, *Minima sociaux, RSA et prime d'activité*, jeu de données ouvert
-  n° 336, fichiers « données nationales par dispositif » et « données de
-  dépenses par dispositif ».
+  n° 336, fichiers « données nationales par dispositif », « données de
+  dépenses par dispositif » et « RSA et prime d'activité — données
+  nationales ».
 - Cnaf, données nationales du RSA.
 - Unédic, *Montant d'allocation chômage et salaires de référence des
   allocataires de l'Assurance chômage*, data.gouv.fr.

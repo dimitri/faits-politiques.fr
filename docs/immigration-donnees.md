@@ -1,6 +1,6 @@
 # L'immigration en France : ce que les données permettent de dire
 
-> Note de synthèse. Version 2 — 14 septembre 2026.
+> Note de synthèse. Version 3 — 14 septembre 2026.
 > Cette note répond à une question d'inventaire : quels chiffres existent sur
 > l'immigration en France, avec quelle précision, et où s'arrête l'open data
 > pour laisser place à des rapports de recherche ou à des trous documentés.
@@ -10,6 +10,9 @@
 > **Version 2** ajoute la profondeur historique qui manquait à la version 1 :
 > un siècle de recensements (§ 8) et les flux annuels d'immigration et de
 > naturalisation (§ 8.1), pas seulement des stocks récents.
+>
+> **Version 3** ajoute les demandes d'asile déposées devant l'Ofpra (§ 7.1),
+> un flux administratif distinct des titres de séjour et du recensement.
 
 ---
 
@@ -237,6 +240,38 @@ directement sur
 **La publication elle-même s'est arrêtée après juin 2024** dans le catalogue
 consulté : aucune édition plus récente n'y figure.
 
+### 7.1 Les demandes d'asile (Ofpra), un flux distinct
+
+`core.demande_asile_ofpra` : demandes déposées devant l'Office français de
+protection des réfugiés et apatrides, 2021-2025 (2020 absent : la ressource
+data.gouv.fr correspondante renvoie une 404 au moment de l'écriture) :
+
+| année | premières demandes | réexamens | réouvertures |
+|---|---:|---:|---:|
+| 2021 | 89 254 | 13 808 | 100 |
+| 2022 | 115 091 | 16 090 | 73 |
+| 2023 | 124 056 | 18 453 | 140 |
+| 2024 | 130 029 | 23 573 | 113 |
+| 2025 | 111 343 | 33 713 | 214 |
+
+**Ce flux ne se compare ni au stock de titres de séjour ci-dessus, ni à
+l'immigration au sens du recensement (§ 1) :** déposer une demande d'asile
+n'ouvre pas automatiquement droit à un titre de séjour (le taux de protection
+Ofpra tourne autour de 30 %), et la majorité des personnes immigrées entrées
+chaque année (§ 8.1, 438 626 en 2024) ne sont jamais passées par une demande
+d'asile. Par ailleurs, **les demandes comptées par l'Ofpra ne couvrent pas les
+demandeurs sous procédure Dublin**, comptés à part par la DGEF — les deux
+séries ne sont donc pas substituables l'une à l'autre.
+
+Deux faits qui ressortent de la série : **les premières demandes ont
+progressé de 46 % entre 2021 et 2024** (89 254 → 130 029), avant de reculer en
+2025 (111 343, −14 %) pendant que **les réexamens continuent d'augmenter
+fortement** (13 808 → 33 713, +144 % sur la période) — deux dynamiques
+différentes agrégées dans un même total si on ne les distingue pas. En 2024,
+l'Afrique concentre 46 % des premières demandes (59 706 sur 130 029), devant
+l'Asie et l'Europe (30 582 et 30 575) ; l'Afghanistan est la première
+nationalité (12 378), suivie de l'Ukraine (11 814).
+
 ---
 
 ## 8. L'évolution historique : un siècle de recensements
@@ -318,6 +353,7 @@ Migration `0071_immigration.sql`, connecteur `internal/immigration/`, commande
 | 5 | DGEF/MIOM, stock de titres de séjour | `core.titre_sejour_stock` | 33 lignes, 2013-2023 |
 | 6 | Insee, population immigrée et étrangère depuis 1921 | `core.population_historique_nationalite` | 32 millésimes, 1921-2025 |
 | 7 | Eurostat `migr_imm1ctz` + `migr_acq` | `core.flux_migratoire` | 19 + 27 ans |
+| 8 | Ofpra, demandes d'asile et de statut d'apatride | `core.demande_asile_ofpra` | 553 lignes, France, 2021-2025 |
 
 **Non chargé, et pourquoi :**
 
@@ -327,9 +363,9 @@ Migration `0071_immigration.sql`, connecteur `internal/immigration/`, commande
   instable (§ 7).
 - Travaux de recherche (CAE, France Stratégie, OCDE) — synthèses, pas des
   jeux de données (§ 6).
-- Demandes d'asile (OFPRA) : identifiées, pas encore explorées pour leur
-  format — un flux administratif distinct des titres de séjour et de
-  l'immigration au sens du recensement, qui compléterait le § 8.1.
+- Demandes d'asile sous procédure Dublin, comptées par la DGEF et non par
+  l'Ofpra — non identifiées sous forme de jeu de données ouvert distinct
+  (§ 7.1).
 
 **Prolongement documenté, non réalisé** : les mêmes jeux Melodi publient la
 population immigrée jusqu'au département et à l'EPCI (population ≥ 50 000
@@ -360,3 +396,5 @@ descendre à cette maille si un besoin géographique se précise.
 - Insee, *Population immigrée et étrangère en France*, série 1921-2025.
 - Eurostat, `migr_imm1ctz` (immigration par citoyenneté) et `migr_acq`
   (acquisitions de la nationalité par ancienne citoyenneté).
+- Ofpra, *Demandes d'asile et de statut d'apatride déposées devant l'Ofpra*,
+  data.gouv.fr, éditions annuelles 2021-2025.

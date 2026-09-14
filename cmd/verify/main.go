@@ -757,6 +757,52 @@ var checks = []check{
 		              AND abs(abc - somme) > abc * 0.01`,
 	},
 	{
+		name:  "la prime d'activité couvre au moins neuf ans",
+		query: `SELECT count(DISTINCT annee) FROM core.prime_activite_effectif`,
+		min:   9,
+	},
+	{
+		// Le rapport démographique publié par l'Insee doit correspondre au
+		// rapport cotisants/retraités qu'on peut recalculer soi-même à partir
+		// des deux mêmes colonnes — sinon une colonne a été lue à la mauvaise
+		// place.
+		name: "le ratio cotisants/retraités correspond à cotisants ÷ retraités, à 1 % près",
+		query: `SELECT count(*) FROM core.cotisants_retraites_ratio
+		         WHERE abs(ratio_demographique - cotisants_millions / retraites_millions) > 0.02`,
+	},
+	{
+		name:  "le ratio cotisants/retraités couvre au moins quinze ans",
+		query: `SELECT count(DISTINCT annee) FROM core.cotisants_retraites_ratio`,
+		min:   15,
+	},
+	{
+		// Les six continents (dont indéterminé) doivent se sommer au total
+		// publié par l'Ofpra pour la même année — sinon une ligne « Total »
+		// ou « Continent » a été mal reconnue dans le CSV.
+		name: "les demandes d'asile par continent se somment au total, chaque année",
+		query: `SELECT count(*) FROM (
+		          SELECT annee,
+		                 sum(premiere_demande) FILTER (WHERE niveau = 'CONTINENT') AS somme,
+		                 max(premiere_demande) FILTER (WHERE niveau = 'TOTAL') AS total
+		            FROM core.demande_asile_ofpra
+		           GROUP BY annee
+		        ) x WHERE total IS NOT NULL AND somme IS NOT NULL AND somme <> total`,
+	},
+	{
+		name:  "les demandes d'asile Ofpra couvrent au moins quatre ans",
+		query: `SELECT count(DISTINCT annee) FROM core.demande_asile_ofpra`,
+		min:   4,
+	},
+	{
+		// Les quantiles d'un taux de remplacement doivent être croissants
+		// (q10 <= q25 <= ... <= q90) : c'est la définition même d'un quantile,
+		// pas une propriété empirique qui pourrait être fausse.
+		name: "les quantiles du taux de remplacement à la retraite sont croissants",
+		query: `SELECT count(*) FROM core.taux_remplacement_retraite
+		         WHERE taux_q10 > taux_q25 OR taux_q25 > taux_q50
+		            OR taux_q50 > taux_q75 OR taux_q75 > taux_q90`,
+	},
+	{
 		// Une tranche de pension ou de chômage manquante décale silencieusement
 		// tout calcul de reprise fiscale fondé sur la distribution plutôt que sur
 		// la moyenne (docs/revenu-universel-microsimulation.md §3).

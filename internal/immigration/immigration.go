@@ -24,5 +24,14 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err := IngestEurostatMigration(ctx, pool, arch); err != nil {
 		return err
 	}
-	return IngestTitresSejour(ctx, pool, arch)
+	if err := IngestTitresSejour(ctx, pool, arch); err != nil {
+		return err
+	}
+	if err := IngestHistorique(ctx, pool, arch); err != nil {
+		return err
+	}
+	if err := IngestFlux(ctx, pool, arch); err != nil {
+		return err
+	}
+	return IngestAsile(ctx, pool, arch)
 }
