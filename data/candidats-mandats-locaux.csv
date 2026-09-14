@@ -1,0 +1,24 @@
+# Rapprochement entre un candidat déclaré à 2027 et sa fiche du répertoire
+# national des élus (RNE).
+#
+# POURQUOI CE FICHIER. Les candidats viennent de data/candidats.csv, les élus
+# locaux du RNE. Ce sont deux personnes distinctes dans la base tant que
+# personne ne les relie : ni l'une ni l'autre source ne porte d'identifiant
+# commun, et un décret ou un répertoire ne publie pas de date de naissance.
+# Le rapprochement est donc une DÉCISION ÉDITORIALE de ce site, prise ligne à
+# ligne, vérifiable ligne à ligne, et affichée comme telle sur la fiche.
+#
+# LA LIGNE LA PLUS UTILE EST UN REFUS. « Nathalie ARTHAUD » n'a qu'un homonyme
+# au RNE, et ce n'est pas elle : c'est une conseillère municipale de
+# Limey-Remenauville, 200 habitants, en Meurthe-et-Moselle. Un rapprochement
+# automatique sur « un seul homonyme » aurait donné un faux, sur la fiche d'une
+# candidate à la présidence de la République. C'est la raison d'être du fichier.
+#
+# statut : RETENU (le rapprochement est fait) ou REFUSE (il ne l'est pas).
+#
+# candidat_slug,rne_person_id,statut,verification,source
+candidat_slug,rne_person_id,statut,verification,source
+karim-bouamrane,653750,RETENU,maire de Saint-Ouen-sur-Seine — fonction publique et notoire du candidat,https://www.saint-ouen-sur-seine.fr/
+david-lisnard,909825,RETENU,maire de Cannes et président de la communauté d'agglomération Cannes Pays de Lérins,https://www.cannes.com/
+marine-tondelier,1073757,RETENU,conseillère régionale des Hauts-de-France élue en 2021,https://www.hautsdefrance.fr/
+nathalie-arthaud,606711,REFUSE,homonyme — conseillère municipale de Limey-Remenauville (54) ; la candidate n'a pas de mandat local en cours au RNE,

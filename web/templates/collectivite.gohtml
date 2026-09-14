@@ -1,0 +1,95 @@
+{{define "content"}}
+{{$k := .K}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/collectivites/">Collectivités</a>
+  {{if $k.Region}} › {{if $k.Region.URL}}<a href="{{$k.Region.URL}}">{{$k.Region.Nom}}</a>{{else}}{{$k.Region.Nom}}{{end}}{{end}}
+  › <span>{{$k.Nom}}</span></p>
+<span class="sur">{{$k.TypeLabel}} · exercice {{$k.Exercice}}</span>
+<h1>{{$k.Nom}}</h1>
+<p class="lede">{{nb $k.Population}} habitants{{if $k.Conseillers}}, {{$k.Conseillers}} conseillers
+{{$k.MotConseiller}}{{end}}{{if $k.NbEPCI}}, {{$k.NbEPCI}} intercommunalités à fiscalité propre{{end}}.</p>
+
+{{if $k.President}}
+<div class="cartes trois">
+  <div class="carte"><span class="v" style="font-size:1.25rem">{{$k.President.Nom}}</span>
+    <span class="t">{{$k.President.Role}}</span>
+    <span class="d">En fonction depuis le {{$k.President.Depuis}}. Élu par les conseillers, pas au
+      suffrage universel direct.</span></div>
+</div>
+{{else}}
+<p class="nodata">Le répertoire national des élus ne publie pas d'exécutif en cours pour cette
+collectivité.</p>
+{{end}}
+
+{{if $k.CarteCommunes}}
+<h2>Le territoire</h2>
+<p class="q">Les {{$k.NbCommunesCarte}} communes du département, avec le contour de ses
+intercommunalités à fiscalité propre en trait épais.</p>
+{{$k.CarteCommunes}}
+<p class="attr-osm">Contours&nbsp;: IGN Admin Express COG CARTO, Licence Ouverte.</p>
+{{end}}
+
+<h2>Les cinq indicateurs financiers</h2>
+<div class="scroll"><table>
+<thead><tr><th>Indicateur</th><th class="n">Total {{$k.Exercice}}</th><th class="n">Par habitant</th>
+  <th class="n">Médiane du niveau</th><th class="n">Rang</th></tr></thead>
+<tbody>{{range $k.Lignes}}<tr>
+  <td>{{.Libelle}}</td>
+  <td class="n">{{montant .Total}}</td>
+  <td class="n">{{eurHab .ParHab}}</td>
+  <td class="n z">{{eurHab .Mediane}}</td>
+  <td class="n z">{{.Rang}}<sup>e</sup> sur {{.Sur}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note">Le rang classe du plus élevé au plus bas <strong>par habitant</strong>. Il ne dit
+rien d'une bonne ou d'une mauvaise gestion&nbsp;: un montant par habitant dépend d'abord de ce que
+la collectivité gère en propre, et de la taille de son dénominateur.</p>
+
+{{if $k.Vices}}
+<h2>L'exécutif</h2>
+<div class="scroll"><table>
+<thead><tr><th>Fonction</th><th>Nom</th></tr></thead>
+<tbody>{{range $k.Vices}}<tr><td class="small z">{{.Role}}</td>
+  <td>{{if .Fiche}}<a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a>{{else}}{{.Nom}}{{end}}</td></tr>{{end}}</tbody></table></div>
+{{end}}
+
+{{if $k.Groupements}}
+<h2>Les {{len $k.Groupements}} intercommunalités à fiscalité propre</h2>
+<p class="q">Communautés de communes, d'agglomération, urbaines et métropoles ayant leur siège dans
+ce département. Le président est celui que publie la base nationale des intercommunalités.</p>
+<div class="scroll"><table>
+<thead><tr><th>Groupement</th><th>Forme</th><th>Président</th><th class="n">Habitants</th>
+  <th class="n">Communes</th><th class="n">Compétences</th><th class="n">Dette / hab.</th></tr></thead>
+<tbody>{{range $k.Groupements}}<tr>
+  <td><a href="{{$.Root}}/collectivites/epci/{{.Siren}}/">{{.Nom}}</a> <span class="z small">{{.Siren}}</span></td>
+  <td class="small z">{{.Nature}}</td>
+  <td class="small">{{if .President}}{{.President}}{{else}}<span class="z">non publié</span>{{end}}</td>
+  <td class="n">{{nb .Population}}</td>
+  <td class="n z">{{.Membres}}</td>
+  <td class="n z">{{.Competences}}</td>
+  <td class="n">{{eurHab (index .ParHab "ofgl.dette_par_hab")}}</td>
+</tr>{{end}}</tbody></table></div>
+{{end}}
+
+{{if $k.Communes}}
+<h2>Les {{len $k.Communes}} communes</h2>
+<details class="plus">
+  <summary>Toutes les communes, par ordre alphabétique</summary>
+  <div class="dedans"><ul class="liens-communes">{{range $k.Communes}}<li><a href="{{.URL}}">{{.Nom}}</a></li>{{end}}</ul></div>
+</details>
+{{end}}
+
+{{if $k.Departements}}
+<h2>Les {{len $k.Departements}} départements de la région</h2>
+<ul class="liens-cartes">{{range $k.Departements}}<li>{{if .URL}}<a href="{{.URL}}">{{.Nom}}</a>{{else}}{{.Nom}}{{end}} <span class="z small">{{.Code}}</span></li>{{end}}</ul>
+{{end}}
+
+{{if $k.Voisines}}
+<h2>Les autres {{lower $k.TypePluriel}}</h2>
+<ul class="liens-cartes">
+  {{range $k.Voisines}}<li><a href="{{$.Root}}/collectivites/{{$k.TypeURL}}/{{.Slug}}/">{{.Titre}}</a></li>{{end}}
+</ul>
+{{end}}
+
+<p class="src">Finances&nbsp;: OFGL / DGCL, exercice {{$k.Exercice}}. Exécutifs&nbsp;: répertoire
+national des élus. Intercommunalités&nbsp;: base nationale sur les intercommunalités.</p>
+{{end}}

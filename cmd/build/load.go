@@ -53,7 +53,8 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	rows, err = pool.Query(ctx, `
 		SELECT person_id, mandate_type::text, coalesce(constituency,''),
 		       coalesce(role,''), coalesce(portefeuille,''),
-		       lower(validity)::text, coalesce(upper(validity)::text,'')
+		       lower(validity)::text, coalesce(upper(validity)::text,''),
+		       coalesce(commune_code,'')
 		FROM core.mandate ORDER BY lower(validity) DESC`)
 	if err != nil {
 		return nil, err
@@ -62,7 +63,8 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 		var id int64
 		var m Mandat
 		var debut, fin string
-		if err := rows.Scan(&id, &m.Type, &m.Circo, &m.Role, &m.Portefeuille, &debut, &fin); err != nil {
+		if err := rows.Scan(&id, &m.Type, &m.Circo, &m.Role, &m.Portefeuille, &debut, &fin,
+			&m.CommuneCode); err != nil {
 			return nil, err
 		}
 		m.Periode = periode(debut, fin)

@@ -1,0 +1,107 @@
+{{define "content"}}
+{{$c := .C}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/collectivites/">Collectivités</a>
+  {{if $c.Region.Nom}} › {{if $c.Region.URL}}<a href="{{$c.Region.URL}}">{{$c.Region.Nom}}</a>{{else}}{{$c.Region.Nom}}{{end}}{{end}}
+  {{if $c.Dept.Nom}} › {{if $c.Dept.URL}}<a href="{{$c.Dept.URL}}">{{$c.Dept.Nom}}</a>{{else}}{{$c.Dept.Nom}}{{end}}{{end}}
+  › <span>{{$c.Nom}}</span></p>
+<span class="sur">Commune · code INSEE {{$c.Code}}</span>
+<h1>{{$c.Nom}}</h1>
+<p class="lede">{{if $c.Population}}{{nb $c.Population}} habitants{{else}}Population non publiée{{end}}{{if $c.Dept.Nom}},
+{{if $c.Dept.URL}}<a href="{{$c.Dept.URL}}">{{$c.Dept.Nom}}</a>{{else}}{{$c.Dept.Nom}}{{end}}{{end}}{{if $c.EPCI}}. Membre de
+{{if $c.EPCI.URL}}<a href="{{$c.EPCI.URL}}">{{$c.EPCI.Nom}}</a>{{else}}{{$c.EPCI.Nom}}{{end}}{{if $c.NatureEPCI}} <span class="z">({{lower $c.NatureEPCI}})</span>{{end}}{{end}}.</p>
+
+<h2>Le conseil municipal</h2>
+{{if $c.Maire}}
+<div class="cartes trois">
+  <div class="carte"><span class="v" style="font-size:1.25rem">{{if $c.Maire.Fiche}}<a href="{{$.Root}}/depute/{{$c.Maire.Slug}}/">{{$c.Maire.Nom}}</a>{{else}}{{$c.Maire.Nom}}{{end}}</span>
+    <span class="t">Maire</span>
+    <span class="d">Depuis le {{$c.Maire.Depuis}}. Élu par le conseil municipal, pas au suffrage
+      universel direct.</span></div>
+  <div class="carte"><span class="v">{{$c.NbConseillers}}</span><span class="t">Conseillers municipaux</span>
+    <span class="d">En fonction selon le répertoire national des élus, maire compris.</span></div>
+</div>
+{{else}}<p class="nodata">Le répertoire national des élus ne publie pas de maire en fonction pour cette
+commune.</p>{{end}}
+
+{{if $c.Elus}}
+<details class="plus"{{if le (len $c.Elus) 12}} open{{end}}>
+  <summary>Les {{len $c.Elus}} autres membres du conseil</summary>
+  <div class="dedans">
+  <div class="scroll"><table class="pile">
+  <thead><tr><th>Nom</th><th>Fonction</th><th>Depuis</th></tr></thead>
+  <tbody>{{range $c.Elus}}<tr>
+    <td>{{if .Fiche}}<a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a>{{else}}{{.Nom}}{{end}}</td>
+    <td class="small z" data-l="Fonction">{{if .Fonction}}{{.Fonction}}{{else}}conseiller{{end}}</td>
+    <td class="small z" data-l="Depuis">{{.Depuis}}</td>
+  </tr>{{end}}</tbody></table></div>
+  </div>
+</details>
+{{end}}
+
+{{if $c.Listes}}
+<h2>Municipales, {{if eq $c.TourFinal 2}}second tour{{else}}premier tour{{end}}</h2>
+<div class="scroll"><table>
+<thead><tr><th>Liste</th><th>Nuance</th><th class="n">Voix</th><th class="n">Part</th><th class="n">Sièges</th></tr></thead>
+<tbody>{{range $c.Listes}}<tr>
+  <td class="small">{{.Libelle}}</td>
+  <td class="small z">{{if .Nuance}}<code>{{.Nuance}}</code>{{else}}—{{end}}</td>
+  <td class="n">{{nb .Voix}}</td><td class="n">{{dec .Pct 1}} %</td>
+  <td class="n">{{if .Sieges}}{{.Sieges}}{{else}}<span class="z">0</span>{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+{{if $c.ListesT1}}
+<details class="plus">
+  <summary>Le premier tour ({{len $c.ListesT1}} listes)</summary>
+  <div class="dedans"><div class="scroll"><table>
+  <thead><tr><th>Liste</th><th>Nuance</th><th class="n">Voix</th><th class="n">Part</th></tr></thead>
+  <tbody>{{range $c.ListesT1}}<tr>
+    <td class="small">{{.Libelle}}</td>
+    <td class="small z">{{if .Nuance}}<code>{{.Nuance}}</code>{{else}}—{{end}}</td>
+    <td class="n">{{nb .Voix}}</td><td class="n">{{dec .Pct 1}} %</td>
+  </tr>{{end}}</tbody></table></div></div>
+</details>
+{{end}}
+<p class="note">Une nuance est attribuée à chaque liste par la préfecture&nbsp;; ce n'est pas une
+adhésion déclarée. Les sièges sont ceux du conseil municipal, attribués au tour décisif.</p>
+{{else}}
+<p class="note abs">Aucune liste n'est publiée pour cette commune. Sous 1 000 habitants jusqu'en 2020,
+le scrutin était plurinominal et ne produisait pas de résultats par liste&nbsp;; la source n'en porte
+donc pas.</p>
+{{end}}
+
+{{if $c.Finances}}
+<h2>Finances, exercice {{$c.AnneeFinances}}</h2>
+<div class="scroll"><table>
+<thead><tr><th>Indicateur</th><th class="n">Par habitant</th><th class="n">Médiane des communes de même taille</th></tr></thead>
+<tbody>{{range $c.Finances}}<tr>
+  <td>{{.Libelle}}</td><td class="n">{{.Valeur}}</td><td class="n z">{{.Mediane}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note">La comparaison est faite avec les communes de la même strate de population&nbsp;: une
+médiane toutes communes confondues rapprocherait une métropole d'un village. Un écart ne dit rien
+d'une bonne ou d'une mauvaise gestion — il dépend d'abord de ce que la commune gère en propre plutôt
+que par son intercommunalité.</p>
+{{end}}
+
+{{if $c.Securite}}
+<h2>Faits enregistrés, {{$c.AnneeSecurite}}</h2>
+<div class="scroll"><table>
+<thead><tr><th>Indicateur</th><th class="n">Faits</th><th class="n">Pour 1 000 habitants</th></tr></thead>
+<tbody>{{range $c.Securite}}<tr>
+  <td class="small">{{.Libelle}}</td>
+  {{if .Masque}}<td colspan="2" class="n small z">non diffusé par le SSMSI — trop peu de faits pour publier sans identifier</td>
+  {{else}}<td class="n">{{.Nombre}}</td><td class="n">{{.Taux}}</td>{{end}}
+</tr>{{end}}</tbody></table></div>
+<p class="note">Des faits <strong>enregistrés</strong> par la police et la gendarmerie, pas des faits
+commis. Rapportés à la population résidente, pas à la population présente.
+<a href="{{.Root}}/securite/">La carte par département →</a></p>
+{{end}}
+
+{{if $c.Associations}}
+<p class="note proc"><strong>{{nb $c.Associations}} associations</strong> déclarées dans cette commune
+au répertoire national des associations — qui n'enregistre pas toujours les dissolutions.</p>
+{{end}}
+
+<p class="src">Élus&nbsp;: répertoire national des élus. Finances&nbsp;: OFGL. Faits enregistrés&nbsp;:
+SSMSI. Municipales&nbsp;: ministère de l'Intérieur. Intercommunalité&nbsp;: base nationale sur les
+intercommunalités.</p>
+{{end}}

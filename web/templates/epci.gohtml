@@ -1,0 +1,75 @@
+{{define "content"}}
+{{$e := .E}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/collectivites/">Collectivités</a>
+  {{if $e.Region.Nom}} › {{if $e.Region.URL}}<a href="{{$e.Region.URL}}">{{$e.Region.Nom}}</a>{{else}}{{$e.Region.Nom}}{{end}}{{end}}
+  {{if $e.Dept.Nom}} › {{if $e.Dept.URL}}<a href="{{$e.Dept.URL}}">{{$e.Dept.Nom}}</a>{{else}}{{$e.Dept.Nom}}{{end}}{{end}}
+  › <span>{{$e.Nom}}</span></p>
+<span class="sur">{{$e.NatureLib}} · SIREN {{$e.Siren}}</span>
+<h1>{{$e.Nom}}</h1>
+<p class="lede">{{nb $e.Population}} habitants, {{len $e.Communes}} communes membres{{if $e.Dept.Nom}}, siège
+dans {{if $e.Dept.URL}}<a href="{{$e.Dept.URL}}">{{$e.Dept.Nom}}</a>{{else}}{{$e.Dept.Nom}}{{end}}{{end}}.</p>
+
+<div class="cartes trois">
+  <div class="carte"><span class="v" style="font-size:1.25rem">{{if $e.President}}{{$e.President}}{{else}}non publié{{end}}</span>
+    <span class="t">Président du conseil communautaire</span>
+    <span class="d">Élu par les conseillers communautaires, eux-mêmes élus sur les listes municipales
+      de leur commune. Personne ne vote directement pour cette fonction.</span></div>
+  <div class="carte"><span class="v">{{$e.NbConseillers}}</span><span class="t">Conseillers communautaires</span>
+    <span class="d">En fonction selon le répertoire national des élus.</span></div>
+  <div class="carte"><span class="v">{{len $e.Competences}}</span><span class="t">Compétences déclarées</span>
+    <span class="d">Transférées par les communes au groupement, qui les exerce à leur place.</span></div>
+</div>
+
+{{if $e.CarteCommunes}}
+<h2>Le territoire</h2>
+<p class="q">Les {{$e.NbCommunesCarte}} communes membres, avec le contour du groupement en trait
+épais.</p>
+{{$e.CarteCommunes}}
+<p class="attr-osm">Contours&nbsp;: IGN Admin Express COG CARTO, Licence Ouverte.</p>
+{{end}}
+
+{{if $e.Finances}}
+<h2>Finances, exercice {{$e.Exercice}}</h2>
+<div class="scroll"><table>
+<thead><tr><th>Indicateur</th><th class="n">Total</th><th class="n">Par habitant</th>
+  <th class="n">Médiane · {{lower $e.NatureLib}}</th><th class="n">Rang</th></tr></thead>
+<tbody>{{range $e.Finances}}<tr>
+  <td>{{.Libelle}}</td><td class="n">{{montant .Total}}</td><td class="n">{{eurHab .ParHab}}</td>
+  <td class="n z">{{eurHab .Mediane}}</td><td class="n z">{{.Rang}}<sup>e</sup> sur {{.Sur}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note">Comparé aux seuls groupements de la même forme juridique&nbsp;: une métropole et une
+communauté de communes rurale n'exercent pas les mêmes compétences, et un rang entre les deux ne
+voudrait rien dire. Le rang classe du plus élevé au plus bas, sans rien dire d'une bonne gestion.</p>
+{{end}}
+
+<h2>Les {{len $e.Communes}} communes membres</h2>
+<ul class="liens-cartes">{{range $e.Communes}}<li>{{if .URL}}<a href="{{.URL}}">{{.Nom}}</a>{{else}}{{.Nom}}{{end}}</li>{{end}}</ul>
+
+{{if $e.Elus}}
+<h2>Le conseil communautaire</h2>
+<details class="plus"{{if le (len $e.Elus) 25}} open{{end}}>
+  <summary>Les {{len $e.Elus}} conseillers, exécutif en tête</summary>
+  <div class="dedans">
+  <div class="scroll"><table class="pile">
+  <thead><tr><th>Nom</th><th>Fonction</th><th>Depuis</th></tr></thead>
+  <tbody>{{range $e.Elus}}<tr>
+    <td>{{if .Fiche}}<a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a>{{else}}{{.Nom}}{{end}}</td>
+    <td class="small z" data-l="Fonction">{{if .Fonction}}{{.Fonction}}{{else}}conseiller{{end}}</td>
+    <td class="small z" data-l="Depuis">{{.Depuis}}</td>
+  </tr>{{end}}</tbody></table></div>
+  </div>
+</details>
+{{end}}
+
+{{if $e.Competences}}
+<h2>Les compétences</h2>
+<details class="plus">
+  <summary>Les {{len $e.Competences}} compétences déclarées</summary>
+  <div class="dedans"><ul class="tight small">{{range $e.Competences}}<li>{{.}}</li>{{end}}</ul></div>
+</details>
+{{end}}
+
+<p class="src">Groupement et compétences&nbsp;: base nationale sur les intercommunalités. Finances&nbsp;:
+OFGL. Conseil&nbsp;: répertoire national des élus.</p>
+{{end}}

@@ -31,17 +31,25 @@ const rneBase = "https://static.data.gouv.fr/resources/repertoire-national-des-e
 // Les sept fichiers du répertoire, avec le type de mandat correspondant et la
 // colonne qui situe le mandat dans l'espace. Les URL portent l'horodatage de
 // la publication : c'est cette version-là qui est scellée, pas « la dernière ».
+//
+// colonneLibelle nomme la colonne du libellé quand elle ne se déduit pas de
+// celle du code en remplaçant « Code » par « Libellé ». C'est le cas du fichier
+// des conseillers communautaires, dont l'identifiant est « N° SIREN » et le
+// libellé « Libellé de l'EPCI ». La version précédente y cherchait une colonne
+// « Code de la commune » qui n'existe pas dans ce fichier : les 62 123 mandats
+// communautaires arrivaient en base SANS aucune localisation, et aucune page ne
+// pouvait dire de quelle intercommunalité un élu était conseiller.
 var rneFichiers = []struct {
-	url, mandateType, colonneCommune, colonneCirco string
+	url, mandateType, colonneCommune, colonneCirco, colonneLibelle string
 }{
-	{rneBase + "20260811-155100/elus-maire-mai.csv", "MAIRE", "Code de la commune", ""},
-	{rneBase + "20260811-154802/elus-conseiller-municipal-cm.csv", "CONSEILLER_MUNICIPAL", "Code de la commune", ""},
-	{rneBase + "20260811-154854/elus-conseiller-communautaire-epci.csv", "CONSEILLER_COMMUNAUTAIRE", "", "Code de la commune"},
-	{rneBase + "20260811-154909/elus-conseiller-departemental-cd.csv", "CONSEILLER_DEPARTEMENTAL", "", "Code du canton"},
-	{rneBase + "20260811-154932/elus-conseiller-regional-cr.csv", "CONSEILLER_REGIONAL", "", "Code de la région"},
-	{rneBase + "20260811-155016/elus-senateur-sen.csv", "SENATEUR", "", "Code du département"},
-	{rneBase + "20260811-155035/elus-depute-dep.csv", "DEPUTE", "", "Code de la circonscription législative"},
-	{rneBase + "20260811-155000/elus-representant-parlement-europeen-rpe.csv", "DEPUTE_EUROPEEN", "", ""},
+	{rneBase + "20260811-155100/elus-maire-mai.csv", "MAIRE", "Code de la commune", "", ""},
+	{rneBase + "20260811-154802/elus-conseiller-municipal-cm.csv", "CONSEILLER_MUNICIPAL", "Code de la commune", "", ""},
+	{rneBase + "20260811-154854/elus-conseiller-communautaire-epci.csv", "CONSEILLER_COMMUNAUTAIRE", "", "N° SIREN", "Libellé de l'EPCI"},
+	{rneBase + "20260811-154909/elus-conseiller-departemental-cd.csv", "CONSEILLER_DEPARTEMENTAL", "", "Code du canton", ""},
+	{rneBase + "20260811-154932/elus-conseiller-regional-cr.csv", "CONSEILLER_REGIONAL", "", "Code de la région", ""},
+	{rneBase + "20260811-155016/elus-senateur-sen.csv", "SENATEUR", "", "Code du département", ""},
+	{rneBase + "20260811-155035/elus-depute-dep.csv", "DEPUTE", "", "Code de la circonscription législative", ""},
+	{rneBase + "20260811-155000/elus-representant-parlement-europeen-rpe.csv", "DEPUTE_EUROPEEN", "", "", ""},
 }
 
 func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
@@ -86,7 +94,11 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 				}
 			}
 			if f.colonneCirco != "" {
-				libelle := r[strings.Replace(f.colonneCirco, "Code", "Libellé", 1)]
+				colLib := f.colonneLibelle
+				if colLib == "" {
+					colLib = strings.Replace(f.colonneCirco, "Code", "Libellé", 1)
+				}
+				libelle := r[colLib]
 				if v := strings.TrimSpace(r[f.colonneCirco] + " " + libelle); v != "" {
 					circo = v
 				}

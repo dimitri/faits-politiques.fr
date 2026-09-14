@@ -2,7 +2,7 @@
 <p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Territoires</span></p>
 <span class="sur">Cartes</span>
 <h1>Les territoires</h1>
-<p class="lede">{{nb .T.Communes}} communes, {{.T.Departements}} départements métropolitains.
+<p class="lede">{{len .T.Cartes}} cartes, {{nb .T.Communes}} communes, {{.T.Departements}} départements métropolitains.
 C'est aujourd'hui la donnée <strong>la mieux couverte</strong> du site — bien mieux que la donnée
 politique.</p>
 
@@ -11,24 +11,43 @@ contours en Lambert-93 et écrit le tracé, la page l'affiche&nbsp;: aucune bibl
 cartographie, aucun serveur de tuiles, <strong>aucune requête vers un tiers</strong>. Passez la
 souris sur un département pour lire sa valeur.</p>
 
-<div class="cartes-grille">
+<div class="cartes-lignes">
 {{range .T.Cartes}}
-  <div class="bloc-carte">
-    <h3>{{.Titre}}</h3>
-    <p class="q">{{.Question}}</p>
-    {{if .Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
-    {{.Carte.SVG}}
-    {{$t := .Carte.Teintes}}<div class="echelle"><span class="u">{{.Carte.Unite}}</span>
-      {{range $i, $b := .Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+  <a class="bloc-carte ligne" href="{{$.Root}}/territoires/{{.Slug}}/">
+    {{if .Apercu.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}{{.Apercu.SVG}}{{end}}
+    <div>
+      <h3>{{.Titre}}</h3>
+      <p class="q">{{.Question}}</p>
+      {{if not .Apercu.Vide}}
+      {{$t := .Apercu.Teintes}}<span class="echelle"><span class="u">{{.Apercu.Unite}}</span>
+        {{range $i, $b := .Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+      </span>
+      {{end}}
+      {{template "cartons" .Apercu.Cartons}}
+      <span class="src">{{.Source}}{{if .Apercu.NbAbsents}} · {{.Apercu.NbAbsents}} départements sans donnée{{end}}</span>
+      <span class="voir">Voir la carte, le classement et la méthode →</span>
     </div>
-    {{end}}
-    <p class="src">{{.Source}}{{if .Carte.NbAbsents}} · {{.Carte.NbAbsents}} départements sans donnée{{end}}</p>
-    {{if .Note}}<p class="q" style="margin:.6rem 0 0">{{.Note}}</p>{{end}}
-  </div>
+  </a>
 {{end}}
 </div>
+{{.T.Defs}}
 
-<p class="attr-osm">Contours&nbsp;: © les contributeurs OpenStreetMap, sous ODbL&nbsp;1.0.</p>
+<p class="attr-osm">Contours&nbsp;: © les contributeurs OpenStreetMap, sous ODbL&nbsp;1.0.
+Les vignettes sont simplifiées à environ quatre kilomètres&nbsp;; chaque page de détail porte le
+tracé fin.</p>
+
+<h2>L'étage au-dessus des communes</h2>
+<p class="note proc">Ces cartes agrègent des données <strong>communales</strong>. Au-dessus,
+trois niveaux lèvent l'impôt et votent des budgets sans que personne n'élise directement leurs
+exécutifs&nbsp;: régions, départements et intercommunalités.
+<a href="{{.Root}}/collectivites/">Leurs présidents, leurs budgets et leurs compétences →</a></p>
+
+<h2>Agriculture et alimentation</h2>
+<p class="note abs"><strong>Il n'y a pas de carte ici, et c'est un fait sur la donnée.</strong>
+Les séries agricoles et alimentaires que ce site a ingérées (FAO, Agreste) sont
+<strong>nationales</strong>&nbsp;: aucun découpage départemental n'y figure. Les afficher sur une
+carte supposerait de répartir un total national entre les départements, c'est-à-dire d'inventer
+la donnée manquante. <a href="{{.Root}}/agriculture/">Elles sont donc présentées en séries →</a></p>
 
 <details class="plus" open>
   <summary>Ce que ces cartes ne disent pas</summary>

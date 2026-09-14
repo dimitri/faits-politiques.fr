@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"html/template"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -14,27 +14,50 @@ import (
 // la donnée politique. L'ordre des cartes suit cette couverture.
 type CarteTerritoire struct {
 	Slug, Titre, Question, Source, Note string
-	Carte                               Carte
+	Apercu                              Carte
+	Page                                PageCarte
 }
 
 type StatsTerritoires struct {
 	Cartes                 []CarteTerritoire
+	Defs                   template.HTML
 	Communes, Departements int
 	Annee                  int
 }
 
 func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires, error) {
-	contours, _, vb, err := contoursDept(ctx, pool, 0.006)
+	// Deux jeux de tracés : la vignette de l'index, grossière et partagée par
+	// toutes les cartes de la grille ; le tracé fin, réservé aux pages de
+	// détail où une seule carte s'affiche.
+	vign, err := jeuContours(ctx, pool, "DEPARTEMENT", tolApercu)
 	if err != nil {
 		return nil, err
 	}
-	st := &StatsTerritoires{Departements: len(contours), Annee: 2023}
+	fin2, err := jeuContours(ctx, pool, "DEPARTEMENT", tolPleine)
+	if err != nil {
+		return nil, err
+	}
+	st := &StatsTerritoires{Departements: len(vign.Codes), Annee: 2023, Defs: vign.Defs}
+
+	// poser fabrique d'un coup la vignette, la carte pleine et le classement.
+	poser := func(c CarteTerritoire, cases []CaseCarte, unite string,
+		format func(float64) string) CarteTerritoire {
+		c.Apercu = apercu(vign, cases, unite, format)
+		c.Page = PageCarte{
+			Slug: c.Slug, Titre: c.Titre, Question: c.Question,
+			Source: c.Source, Note: c.Note,
+			Section: "Territoires", SectionURL: "territoires",
+			Carte:      pleine(fin2, cases, unite, format),
+			Classement: classement(cases, vign.Noms, format),
+		}
+		return c
+	}
 	_ = pool.QueryRow(ctx, `SELECT count(DISTINCT commune_code) FROM core.commune_indicator`).
 		Scan(&st.Communes)
 
-	eur := func(v float64) string { return Nombre(int(v+0.5)) + " €" }
-	pour1000 := func(v float64) string { return fmt.Sprintf("%.1f ‰", v) }
-	pct := func(v float64) string { return fmt.Sprintf("%.0f %%", v) }
+	eur := func(v float64) string { return Nombre(int(v+0.5)) + "\u202f€" }
+	pour1000 := func(v float64) string { return Decimal(v, 1) + " ‰" }
+	pct := func(v float64) string { return Decimal(v, 0) + " %" }
 
 	// Indicateurs financiers : moyenne pondérée par la population, ce qui
 	// revient à reconstituer le total puis à le diviser par les habitants.
@@ -87,11 +110,10 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 		if err != nil {
 			return nil, err
 		}
-		st.Cartes = append(st.Cartes, CarteTerritoire{
+		st.Cartes = append(st.Cartes, poser(CarteTerritoire{
 			Slug: d.slug, Titre: d.titre, Question: d.question, Note: d.note,
 			Source: "OFGL / DGCL, exercice 2023",
-			Carte:  choroplethe(contours, vb, cases, "€ par habitant", eur),
-		})
+		}, cases, "€ par habitant", eur))
 	}
 
 	// Densité associative : un fait sur la vie locale, sans jugement possible.
@@ -122,13 +144,12 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 			cases = append(cases, cc)
 		}
 		rows.Close()
-		st.Cartes = append(st.Cartes, CarteTerritoire{
+		st.Cartes = append(st.Cartes, poser(CarteTerritoire{
 			Slug: "associations", Titre: "Associations pour 1 000 habitants",
 			Question: "Où la vie associative déclarée est-elle la plus dense ?",
 			Note:     "Le répertoire recense les associations déclarées depuis 1901 et n'enregistre pas toujours les dissolutions : le compte penche vers le haut, surtout dans les départements anciens.",
 			Source:   "RNA — répertoire national des associations",
-			Carte:    choroplethe(contours, vb, cases, "pour 1 000 habitants", pour1000),
-		})
+		}, cases, "pour 1 000 habitants", pour1000))
 	}
 
 	// Part des sièges municipaux dont la nuance nomme un parti. C'est la carte
@@ -160,13 +181,72 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 			cases = append(cases, cc)
 		}
 		prows.Close()
-		st.Cartes = append(st.Cartes, CarteTerritoire{
+		st.Cartes = append(st.Cartes, poser(CarteTerritoire{
 			Slug: "part-partisane", Titre: "Sièges municipaux dont la nuance nomme un parti",
 			Question: "Les élections municipales sont-elles des élections de partis ?",
 			Note:     "Non, très majoritairement : 82,7 % des sièges nuancés portent une nuance « divers », que le ministère de l'Intérieur refuse d'attribuer à un parti. Treize départements sont à zéro.",
 			Source:   "Ministère de l'Intérieur, municipales 2026",
-			Carte:    choroplethe(contours, vb, cases, "part des sièges", pct),
-		})
+		}, cases, "part des sièges", pct))
+	}
+	// Le RSA par habitant, département par département — core.prestation_solidarite,
+	// chargé pour lui-même (RSA, PPA, AAH, ASS, aides au logement, tous mensuels
+	// depuis 2017), mais jamais encore cartographié. Le RSA est le foyer, pas la
+	// personne : c'est ainsi que la CNAF elle-même compte ses allocataires.
+	rsrows, err := pool.Query(ctx, `
+		SELECT p.code_geo, p.nom_geo, to_char(p.mois,'YYYY-MM'), 1000.0*p.valeur/nullif(pop.p,0)
+		FROM core.prestation_solidarite p
+		JOIN (SELECT code_departement AS dep, sum(value) p
+		      FROM core.commune_indicator ci
+		      JOIN ref.commune rc ON rc.code_insee=ci.commune_code AND rc.cog_millesime=ci.cog_millesime
+		      WHERE ci.indicator_code='ofgl.population_totale' AND ci.period_year=2023
+		      GROUP BY 1) pop ON pop.dep=p.code_geo
+		WHERE p.niveau='DEPARTEMENT' AND p.serie='RSA_beneficiaires'
+		  AND p.mois=(SELECT max(mois) FROM core.prestation_solidarite
+		              WHERE serie='RSA_beneficiaires' AND niveau='DEPARTEMENT')`)
+	if err != nil {
+		return nil, err
+	}
+	var casesRSA []CaseCarte
+	var moisRSA string
+	for rsrows.Next() {
+		var cc CaseCarte
+		var mois string
+		var v *float64
+		if err := rsrows.Scan(&cc.Code, &cc.Nom, &mois, &v); err != nil {
+			rsrows.Close()
+			return nil, err
+		}
+		moisRSA = mois
+		if v == nil {
+			cc.Absent = true
+		} else {
+			cc.Valeur = *v
+		}
+		casesRSA = append(casesRSA, cc)
+	}
+	rsrows.Close()
+	if err := rsrows.Err(); err != nil {
+		return nil, err
+	}
+	if len(casesRSA) > 0 {
+		st.Cartes = append(st.Cartes, poser(CarteTerritoire{
+			Slug: "rsa", Titre: "Foyers au RSA pour 1 000 habitants",
+			Question: "Où le revenu de solidarité active est-il le plus versé ?",
+			Note: "C'est le FOYER allocataire qui est compté, pas chaque personne couverte : un " +
+				"foyer avec enfants compte pour un. Le dénominateur (population 2023) et le " +
+				"numérateur (" + moisRSA + ") ne sont pas de la même date, faute d'une " +
+				"population plus récente en base.",
+			Source: "CNAF, données ouvertes sur les prestations de solidarité",
+		}, casesRSA, "‰ habitants", pour1000))
+	}
+
+	for i := range st.Cartes {
+		for _, autre := range st.Cartes {
+			if autre.Slug != st.Cartes[i].Slug {
+				st.Cartes[i].Page.Voisines = append(st.Cartes[i].Page.Voisines,
+					LienCarte{Slug: autre.Slug, Titre: autre.Titre})
+			}
+		}
 	}
 	return st, nil
 }

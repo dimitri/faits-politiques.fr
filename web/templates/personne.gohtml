@@ -25,10 +25,117 @@
 <span class="small">Source&nbsp;: <a href="{{.Cand.SourceURL}}">déclaration publique</a>,
 consultée le {{.Cand.SourceConsultee}}.</span></p>{{end}}
 
+{{if .Cand}}
+{{/* Ce que le site sait d'un candidat qui n'a jamais siégé au Parlement. Sans
+     ce bloc, une fiche comme celle de Nathalie Arthaud était vide — et une page
+     vide se lit comme « cette personne n'a rien fait », ce qui est faux : elle
+     décrit le périmètre du site, pas la personne. */}}
+<h2 style="margin-top:2.2rem">Ce que le site sait, et d'où</h2>
+<div class="angles">
+  <div class="angle{{if not .P.HasVotes}} vide{{end}}"><div class="t">Votes au Parlement</div>
+    {{if .P.HasVotes}}<div class="v">{{nb .P.Exprimes}}</div>
+      <div class="d">positions exprimées, détaillées plus bas</div>
+    {{else}}<div class="v">n'a pas siégé dans une assemblée couverte par ce site</div>{{end}}</div>
+
+  <div class="angle{{if not (and .Local (eq .Local.Statut "RETENU"))}} vide{{end}}">
+    <div class="t">Mandats locaux</div>
+    {{if and .Local (eq .Local.Statut "RETENU")}}<div class="v">{{len .Local.Mandats}}</div>
+      <div class="d">en cours au répertoire national des élus</div>
+    {{else if .Local}}<div class="v">aucun mandat local rattaché — voir la note ci-dessous</div>
+    {{else}}<div class="v">aucun rapprochement avec le répertoire national des élus</div>{{end}}</div>
+
+  <div class="angle{{if not (and .K .K.Comptes.Present)}} vide{{end}}">
+    <div class="t">Comptes du parti</div>
+    {{if and .K .K.Comptes.Present}}<div class="v">{{.K.Exercices}}</div>
+      <div class="d">exercices déposés à la CNCCFP{{if .Cand.Org}} par
+        <a href="{{$.Root}}/organisation/{{.Cand.Org.Slug}}/">{{.Cand.Organisation}}</a>{{end}}</div>
+    {{else if .K}}<div class="v">{{.K.Comptes.Raison}}</div>
+    {{else}}<div class="v">non renseigné</div>{{end}}</div>
+
+  <div class="angle{{if not (and .K .K.Interets.Present)}} vide{{end}}">
+    <div class="t">Intérêts déclarés</div>
+    {{if and .K .K.Interets.Present}}<div class="v">{{nb .K.NbInterets}}</div>
+      <div class="d">lignes de déclaration HATVP</div>
+    {{else if .K}}<div class="v">{{.K.Interets.Raison}}</div>
+    {{else}}<div class="v">non renseigné</div>{{end}}</div>
+</div>
+
+{{if .Local}}
+<p class="note {{if eq .Local.Statut "RETENU"}}proc{{else}}abs{{end}}">
+  {{if eq .Local.Statut "RETENU"}}<strong>Les mandats locaux ci-dessous viennent d'un rapprochement
+  fait par ce site</strong>, pas d'un identifiant commun aux deux sources&nbsp;: le répertoire des
+  élus et la liste des candidats n'en partagent aucun. Vérification retenue&nbsp;:
+  {{.Local.Verification}}.{{if .Local.Source}} <a href="{{.Local.Source}}" target="_blank"
+  rel="noopener">Source</a>.{{end}}
+  {{else}}<strong>Aucun mandat local n'est rattaché à cette fiche, et c'est un choix.</strong>
+  {{.Local.Verification}}. Un rapprochement automatique sur «&nbsp;un seul homonyme&nbsp;» aurait
+  produit un faux sur cette page&nbsp;; la décision est consignée dans
+  <code>data/candidats-mandats-locaux.csv</code>.{{end}}
+</p>
+{{end}}
+
+{{if and .Local (eq .Local.Statut "RETENU") .Local.Mandats}}
+<div class="scroll"><table class="pile">
+<thead><tr><th>Mandat</th><th>Fonction</th><th>Où</th><th>Depuis</th></tr></thead>
+<tbody>{{range .Local.Mandats}}<tr>
+  <td data-l="Mandat"><b>{{.Type}}</b></td>
+  <td class="small z" data-l="Fonction">{{if .Role}}{{.Role}}{{else}}—{{end}}</td>
+  <td class="small" data-l="Où">{{if .Lieux}}{{template "lieux" .Lieux}}{{else if .Lieu}}{{.Lieu}}{{else}}<span class="z">non publié</span>{{end}}</td>
+  <td class="small z" data-l="Depuis">{{.Depuis}}</td>
+</tr>{{end}}</tbody></table></div>
+{{end}}
+
+{{if and .K .K.Terrain.Present (not .K.Apercu.Vide)}}
+<h2>Où son parti a recueilli des voix</h2>
+<div class="une-carte">
+  <a href="{{.Root}}/2027/{{.K.Page.Slug}}/">{{.K.Apercu.SVG}}</a>
+  <div>
+    <p>Part des voix obtenues aux municipales de 2026, premier tour, par les listes que le ministère
+    de l'Intérieur range sous la nuance <code>{{.K.NuanceCode}}</code>, rapportée aux
+    <strong>seules listes nuancées</strong>. {{nb .K.CommunesListes}} communes,
+    {{nb .K.SiegesCM}} sièges, {{nb64 .K.VoixMunicipales}} voix.</p>
+    {{template "cartons" .K.Apercu.Cartons}}
+    {{$t := .K.Apercu.Teintes}}<div class="echelle"><span class="u">{{.K.Apercu.Unite}}</span>
+      {{range $i, $b := .K.Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+    <p class="small muted"><strong>Le score d'un parti n'est pas celui de son candidat.</strong>
+    Une municipale se joue sur des listes locales, souvent d'union, en 2026. Le rattachement de la
+    nuance au parti est une décision de ce site, consignée dans
+    <code>data/nuance-partis.csv</code>. <a href="{{.Root}}/2027/{{.K.Page.Slug}}/">La carte en
+    grand et le classement →</a></p>
+  </div>
+</div>
+{{.Defs}}
+{{end}}
+{{end}}
+
+<h2 style="margin-top:2.2rem">Mandats</h2>
+{{if .P.Mandats}}
+<div class="scroll"><table class="pile">
+<thead><tr><th>Mandat</th><th>Fonction</th><th>Où</th><th>Période</th>
+  <th>Président en fonction</th></tr></thead>
+<tbody>{{range .P.Mandats}}<tr>
+  <td><b>{{libMandat .Type}}</b></td>
+  <td class="small z" data-l="Fonction">{{if .Role}}{{.Role}}{{else}}—{{end}}</td>
+  <td class="small" data-l="Où">{{if .Lieux}}{{template "lieux" .Lieux}}{{else if .Portefeuille}}{{.Portefeuille}}{{else if .Circo}}{{.Circo}}{{else}}<span class="z">non publié par la source</span>{{end}}</td>
+  <td class="small z" data-l="Période">{{.Periode}}</td>
+  <td class="small z" data-l="Président">{{if .SousPresidence}}{{.SousPresidence}}{{else}}—{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note">Les fonctions et portefeuilles sont repris <strong>tels que publiés</strong> par
+l'Assemblée, sans normalisation. Un mandat ministériel figure ici parce qu'il est publié dans le
+même référentiel&nbsp;; il ne relève pas de l'activité parlementaire — et c'est précisément pour
+cela qu'il fausserait un taux de participation. La colonne «&nbsp;président en fonction&nbsp;» est
+un <strong>repère chronologique</strong>, pas une imputation&nbsp;: un ministre n'est pas
+responsable des actes du président, ni l'inverse.</p>
+{{else}}<p class="nodata">Aucun mandat dans le périmètre couvert (Assemblée nationale,
+17<sup>e</sup> législature).</p>{{end}}
+
 {{if .P.HasVotes}}
-{{/* Le bilan passe devant : c'est la question qu'on vient poser à cette fiche.
-     Le taux de participation, lui, disparaît — voir la carte d'absence typée. */}}
-<h2 style="margin-top:2.2rem">{{nb .P.Exprimes}} positions exprimées</h2>
+{{/* Les mandats passent devant : ils disent QUI siège, et à quel titre. Le
+     bilan de vote qui suit ne se lit pas sans eux — « 312 positions exprimées »
+     ne veut rien dire tant qu'on ignore pendant quelle législature, ni si la
+     personne a été ministre au milieu. Le taux de participation, lui, n'est
+     pas affiché : voir la carte d'absence typée. */}}
+<h2>{{nb .P.Exprimes}} positions exprimées</h2>
 <div style="display:grid;gap:1.6rem;grid-template-columns:repeat(auto-fit,minmax(19rem,1fr));
   align-items:start;margin-top:1.2rem">
   <div>
@@ -100,27 +207,6 @@ ne porte que sur les scrutins affichés ci-dessus, pas sur l'ensemble des positi
 au Sénat, au Parlement européen, dans une collectivité, ou n'avoir jamais eu de mandat
 parlementaire.</p>
 {{end}}
-
-<h2>Mandats</h2>
-{{if .P.Mandats}}
-<div class="scroll"><table class="pile">
-<thead><tr><th>Mandat</th><th>Fonction</th><th>Circonscription ou portefeuille</th><th>Période</th>
-  <th>Président en fonction</th></tr></thead>
-<tbody>{{range .P.Mandats}}<tr>
-  <td><b>{{.Type}}</b></td>
-  <td class="small z" data-l="Fonction">{{if .Role}}{{.Role}}{{else}}—{{end}}</td>
-  <td class="small" data-l="Périmètre">{{if .Circo}}{{.Circo}}{{else if .Portefeuille}}{{.Portefeuille}}{{else}}<span class="z">—</span>{{end}}</td>
-  <td class="small z" data-l="Période">{{.Periode}}</td>
-  <td class="small z" data-l="Président">{{if .SousPresidence}}{{.SousPresidence}}{{else}}—{{end}}</td>
-</tr>{{end}}</tbody></table></div>
-<p class="note">Les fonctions et portefeuilles sont repris <strong>tels que publiés</strong> par
-l'Assemblée, sans normalisation. Un mandat ministériel figure ici parce qu'il est publié dans le
-même référentiel&nbsp;; il ne relève pas de l'activité parlementaire — et c'est précisément pour
-cela qu'il fausserait un taux de participation. La colonne «&nbsp;président en fonction&nbsp;» est
-un <strong>repère chronologique</strong>, pas une imputation&nbsp;: un ministre n'est pas
-responsable des actes du président, ni l'inverse.</p>
-{{else}}<p class="nodata">Aucun mandat dans le périmètre couvert (Assemblée nationale,
-17<sup>e</sup> législature).</p>{{end}}
 
 {{if .P.Affiliations}}
 <details class="plus">

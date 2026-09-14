@@ -1,0 +1,70 @@
+{{define "content"}}
+{{$p := .P}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/{{$p.SectionURL}}/">{{$p.Section}}</a> › <span>{{$p.Titre}}</span></p>
+<span class="sur">Carte par département</span>
+<h1>{{$p.Titre}}</h1>
+{{if $p.Question}}<p class="lede">{{$p.Question}}</p>{{end}}
+
+{{if $p.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+<div class="carte-pleine">
+  {{$p.Carte.SVG}}
+  {{$t := $p.Carte.Teintes}}<div class="echelle"><span class="u">{{$p.Carte.Unite}}</span>
+    {{range $i, $b := $p.Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+    {{if $p.Carte.NbAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
+  </div>
+  {{template "cartons" $p.Carte.Cartons}}
+</div>
+<p class="src">{{$p.Source}} · {{$p.Carte.Total}} départements renseignés{{if $p.Carte.NbAbsents}},
+  {{$p.Carte.NbAbsents}} sans donnée{{end}} · contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0</p>
+{{end}}
+
+{{if $p.Note}}<p class="note abs">{{$p.Note}}</p>{{end}}
+
+{{if $p.Courbe}}
+<h2>Évolution nationale</h2>
+<p class="q">{{$p.SerieLegende}}</p>
+{{$p.Courbe}}
+<p class="note"><strong>L'axe part de zéro.</strong> La question posée est «&nbsp;combien&nbsp;»,
+pas «&nbsp;quelle variation&nbsp;»&nbsp;: couper le bas de l'échelle ferait d'une hausse de
+quelques pour cent une falaise.</p>
+{{end}}
+
+{{if $p.Classement}}
+<h2>Tous les départements</h2>
+<p class="q">Du plus haut au plus bas. Aucun palmarès tronqué&nbsp;: un «&nbsp;top&nbsp;10&nbsp;»
+choisirait pour vous le bout de la distribution qui vous intéresse.</p>
+<div class="scroll"><table class="classement">
+  <thead><tr><th>#</th><th>Département</th><th>Code</th><th class="n">Valeur</th><th class="barre"></th></tr></thead>
+  <tbody>
+  {{range $p.Classement}}<tr>
+    <td class="r">{{.Rang}}</td><td>{{.Nom}}</td><td class="c">{{.Code}}</td>
+    <td class="n">{{.Valeur}}</td>
+    <td class="barre"><span style="width:{{printf "%.1f" .Part}}%"></span></td>
+  </tr>{{end}}
+  </tbody>
+</table></div>
+{{end}}
+
+{{if $p.Voisines}}
+<h2>Les autres cartes de «&nbsp;{{$p.Section}}&nbsp;»</h2>
+<ul class="liens-cartes">
+  {{range $p.Voisines}}<li><a href="{{$.Root}}/{{$p.SectionURL}}/{{.Slug}}/">{{.Titre}}</a></li>{{end}}
+</ul>
+{{end}}
+
+<details class="plus">
+  <summary>Comment lire cette carte</summary>
+  <div class="dedans">
+    <p class="note"><strong>Le découpage en classes est un choix.</strong> Ce sont des
+    quintiles&nbsp;: chaque classe contient le même nombre de départements, pas la même amplitude de
+    valeurs. Les bornes affichées sont celles des données réelles, pas des nombres ronds inventés.</p>
+    <p class="note"><strong>Une teinte pâle n'est pas une absence.</strong> Les départements sans
+    donnée sont dans une couleur à part, hors de la rampe&nbsp;: «&nbsp;aucune donnée&nbsp;» n'est
+    pas «&nbsp;la valeur la plus basse&nbsp;».</p>
+    <p class="note"><strong>Les cinq départements d'outre-mer ne sont pas sur cette carte.</strong>
+    Chacun demande sa propre projection&nbsp;; les placer dans le repère de l'hexagone leur donnerait
+    une forme et une échelle fausses. Leurs données sont en base.</p>
+  </div>
+</details>
+{{end}}

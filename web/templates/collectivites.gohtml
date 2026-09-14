@@ -1,0 +1,162 @@
+{{define "content"}}
+{{$c := .C}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Collectivités</span></p>
+<span class="sur">Régions, départements, intercommunalités · exercice {{$c.Exercice}}</span>
+<h1>L'échelon dont on parle le moins</h1>
+<p class="lede">Entre la commune et l'État, trois niveaux lèvent l'impôt, votent des budgets et
+exercent des compétences. Leurs exécutifs ne sont élus par personne <em>directement</em>.</p>
+
+<p class="note proc"><strong>Aucun de ces présidents n'a été élu à cette fonction au suffrage
+universel.</strong> Un président de conseil régional ou départemental est élu par les conseillers,
+eux-mêmes élus sur des listes&nbsp;; un président d'intercommunalité est désigné par des conseillers
+communautaires, eux-mêmes élus sur des listes municipales. C'est le droit, pas un reproche&nbsp;:
+ce site le rappelle parce que la donnée le montre et qu'on l'oublie souvent.</p>
+
+<h2>Trois niveaux, trois cartes</h2>
+<p class="q">{{.IndicLibelle}} par habitant, en {{$c.Exercice}}. Les trois cartes couvrent le même
+territoire dans le même repère&nbsp;: elles se superposent exactement. Celle des intercommunalités
+est nouvelle&nbsp;: jusqu'ici, le site connaissait l'appartenance de chaque commune à son groupement
+sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
+<div class="cartes-empilees">
+  <div class="bloc-carte">
+    <h3>Par région</h3>
+    {{if $c.CarteRegions.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+    {{$c.CarteRegions.SVG}}
+    {{$t := $c.CarteRegions.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
+      {{range $i, $b := $c.CarteRegions.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+    {{template "cartons" $c.CarteRegions.Cartons}}
+    {{end}}
+  </div>
+  <div class="bloc-carte">
+    <h3>Par département</h3>
+    {{if $c.CarteDepts.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+    {{$c.CarteDepts.SVG}}
+    {{$t := $c.CarteDepts.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
+      {{range $i, $b := $c.CarteDepts.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+    {{template "cartons" $c.CarteDepts.Cartons}}
+    {{end}}
+  </div>
+  <div class="bloc-carte">
+    <h3>Par intercommunalité à fiscalité propre</h3>
+    {{if $c.CarteEPCI.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+    {{$c.CarteEPCI.SVG}}
+    {{$t := $c.CarteEPCI.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
+      {{range $i, $b := $c.CarteEPCI.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+    {{if gt (len $c.CarteEPCI.Cartons) 8}}
+    <details class="plus">
+      <summary>Outre-mer&nbsp;: {{len $c.CarteEPCI.Cartons}} intercommunalités</summary>
+      <div class="dedans">{{template "cartons" $c.CarteEPCI.Cartons}}</div>
+    </details>
+    {{else}}{{template "cartons" $c.CarteEPCI.Cartons}}{{end}}
+    {{end}}
+  </div>
+</div>
+<p class="attr-osm">Contours régions/départements&nbsp;: © les contributeurs OpenStreetMap, sous
+ODbL&nbsp;1.0. Contours des {{nb $c.NbEPCISurCarte}} intercommunalités&nbsp;: IGN Admin Express COG
+CARTO, millésime {{$c.MillesimeEPCI}}, Licence Ouverte&nbsp;— un tracé par groupement, union de ses
+communes membres publiée directement par l'IGN, jamais recalculée ici.
+{{if $c.HorsCarte}}Absents de la carte départementale, parce qu'ils n'ont pas de contour propre à ce
+niveau&nbsp;: {{range $i, $h := $c.HorsCarte}}{{if $i}}, {{end}}{{$h}}{{end}}. Leurs chiffres sont
+dans le tableau.{{end}}</p>
+<p class="note">La carte des intercommunalités n'existait pas avant l'arrivée de cette table IGN
+dans la base&nbsp;: <code>core.epci_membre</code> donnait l'appartenance de chaque commune à son
+groupement, mais aucune table ne portait de tracé communal pour en déduire un contour de groupement.
+<code>geo.contour_cog</code> le fait désormais, millésime par millésime, et cette carte en est la
+première utilisation.</p>
+
+<h2>Qui dépense quoi, en {{$c.Exercice}}</h2>
+<p class="q">Totaux par niveau, en milliards d'euros, avec le nombre de collectivités concernées.</p>
+<p class="note abs"><strong>N'additionnez pas les quatre barres.</strong> Chaque niveau est totalisé
+séparément, et les transferts entre niveaux — une subvention du département à une commune,
+l'attribution de compensation qu'une intercommunalité reverse à ses communes — sont comptés chez
+celui qui verse <em>et</em> chez celui qui dépense. La somme des quatre dépasse donc la dépense
+réelle des collectivités. Les barres se comparent entre elles&nbsp;; elles ne se cumulent pas.</p>
+{{range .Barres}}
+<h3>{{.Titre}}</h3>
+{{.Graphe}}
+{{end}}
+<p class="note"><strong>Les 34 772 communes ne dépensent pas le plus.</strong> En fonctionnement
+elles restent devant, mais en investissement les trois autres niveaux réunis font plus qu'elles, et
+en dette les régions — dix-sept collectivités — portent presque autant que les 1 262
+intercommunalités à fiscalité propre.</p>
+
+<h2>Les {{len $c.Regions}} régions</h2>
+<div class="scroll"><table>
+<thead><tr><th>Région</th><th>Président du conseil régional</th><th class="n">Habitants</th>
+  <th class="n">Conseillers</th>
+  {{range .Ind}}<th class="n">{{.Court}}</th>{{end}}</tr></thead>
+<tbody>{{range $c.Regions}}<tr>
+  <td><a href="{{$.Root}}/collectivites/region/{{.Slug}}/">{{.Nom}}</a></td>
+  <td class="small">{{if .President}}{{if .President.Fiche}}<a href="{{$.Root}}/depute/{{.President.Slug}}/">{{.President.Nom}}</a>{{else}}{{.President.Nom}}{{end}}
+    <span class="z">depuis le {{.President.Depuis}}</span>{{else}}<span class="z">non publié</span>{{end}}</td>
+  <td class="n">{{nb .Population}}</td>
+  <td class="n z">{{if .Conseillers}}{{.Conseillers}}{{else}}—{{end}}</td>
+  {{$r := .}}{{range $.Ind}}<td class="n">{{eurHab (index $r.ParHab .Code)}}</td>{{end}}
+</tr>{{end}}</tbody></table></div>
+
+<h2>Les {{len $c.Departements}} départements</h2>
+<p class="q">{{sub (len $c.Departements) 6}} ont leur propre budget départemental. Six territoires
+réels — Corse, Alsace, Martinique, Guyane — n'en ont plus depuis une fusion de collectivités&nbsp;;
+ils restent dans le tableau, avec où regarder à la place.</p>
+<div class="scroll"><table>
+<thead><tr><th>N°</th><th>Département</th><th>Président du conseil départemental</th><th class="n">Habitants</th>
+  <th class="n">Conseillers</th>
+  {{range .Ind}}<th class="n">{{.Court}}</th>{{end}}</tr></thead>
+<tbody>{{range $c.Departements}}<tr{{if .SansBudgetPropre}} class="fusion"{{end}}>
+  <td class="code">{{.Code}}</td>
+  {{if .SansBudgetPropre}}
+  <td>{{.Nom}}</td>
+  <td class="small z" colspan="{{add 2 (len $.Ind)}}">Pas de budget départemental propre depuis la
+    fusion en <a href="{{$.Root}}/collectivites/{{if eq .FusionNiveau "REGION"}}region/{{.FusionSlug}}{{else}}departement/{{.FusionCode}}{{end}}/">{{.FusionLibelle}}</a>.</td>
+  {{else}}
+  <td><a href="{{$.Root}}/collectivites/departement/{{.Code}}/">{{.Nom}}</a></td>
+  <td class="small">{{if .President}}{{if .President.Fiche}}<a href="{{$.Root}}/depute/{{.President.Slug}}/">{{.President.Nom}}</a>{{else}}{{.President.Nom}}{{end}}{{else}}<span class="z">non publié</span>{{end}}</td>
+  <td class="n">{{nb .Population}}</td>
+  <td class="n z">{{if .Conseillers}}{{.Conseillers}}{{else}}—{{end}}</td>
+  {{$d := .}}{{range $.Ind}}<td class="n">{{eurHab (index $d.ParHab .Code)}}</td>{{end}}
+  {{end}}
+</tr>{{end}}</tbody></table></div>
+
+<h2>Les {{nb $c.NbEPCI}} groupements de communes</h2>
+<p class="q">Toutes formes confondues, syndicats techniques compris. Seules les six premières lignes
+lèvent l'impôt et exercent des compétences en propre&nbsp;; les syndicats sont des outils financés
+par leurs membres.</p>
+<div class="scroll"><table>
+<thead><tr><th>Forme juridique</th><th class="n">Nombre</th><th class="n">Habitants couverts</th>
+  <th class="n">Président connu</th><th>Fiscalité propre</th></tr></thead>
+<tbody>{{range $c.Natures}}<tr>
+  <td>{{.Libelle}} <code class="small">{{.Code}}</code></td>
+  <td class="n">{{nb .Nombre}}</td>
+  <td class="n z">{{nb64 .Population}}</td>
+  <td class="n z">{{nb .AvecPresident}}</td>
+  <td class="small">{{if .Fiscalite}}oui{{else}}<span class="z">non — syndicat</span>{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note abs"><strong>La somme des habitants couverts dépasse largement la population
+française</strong>, et ce n'est pas une erreur&nbsp;: une même commune adhère à plusieurs syndicats
+à la fois — un pour l'eau, un pour les déchets, un pour l'électricité. Ce total compte donc des
+habitants autant de fois qu'ils sont couverts.</p>
+
+<h2>Ce que les intercommunalités exercent</h2>
+<p class="q">Les vingt compétences les plus répandues, comptées en nombre de groupements qui les
+déclarent.</p>
+<div class="scroll"><table>
+<thead><tr><th>Compétence</th><th class="n">Groupements</th></tr></thead>
+<tbody>{{range $c.Competences}}<tr><td class="small">{{.Libelle}}</td>
+  <td class="n">{{nb .Nombre}}</td></tr>{{end}}</tbody></table></div>
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Les niveaux ne sont pas comparables entre eux.</strong> Une région gère
+    les lycées et les trains régionaux, un département l'action sociale et les collèges, une
+    intercommunalité l'eau et les déchets. Un euro par habitant ne mesure pas la même chose d'une
+    ligne à l'autre du tableau&nbsp;: c'est un ordre de grandeur, pas un classement de gestion.</p>
+    <p class="note"><strong>Aucun président n'est rattaché à un parti ici.</strong> Le répertoire
+    national des élus ne publie pas de nuance politique pour les exécutifs locaux, et ce site n'en
+    déduit pas.</p>
+    <p class="note"><strong>Les mandats affichés sont ceux que le RNE dit en cours.</strong> Un
+    exécutif qui change entre deux versions du répertoire met du temps à apparaître&nbsp;; la date
+    d'arrêté des données est au pied de la page.</p>
+  </div>
+</details>
+{{end}}
