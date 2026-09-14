@@ -1,0 +1,99 @@
+{{define "content"}}
+{{$g := .G}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Gouvernement</span></p>
+<span class="sur">Exécutif · Journal officiel, {{$g.PremierDecret}} → {{$g.DernierDecret}}</span>
+<h1>Le Gouvernement</h1>
+<p class="lede">Les présidents de la V<sup>e</sup> République, la succession des Premiers ministres,
+et les décrets de composition tels qu'ils ont paru — un par un, sans reconstitution.</p>
+
+<p class="note abs"><strong>Cette page n'affiche pas «&nbsp;le gouvernement actuel&nbsp;», et c'est
+délibéré.</strong> Un décret nomme&nbsp;; il ne dit pas jusqu'à quand. Reconstituer une composition
+à une date donnée demande une règle de clôture des mandats qui n'est pas encore écrite dans la
+base. Afficher une liste «&nbsp;au jour d'aujourd'hui&nbsp;» reviendrait à inventer les dates de
+fin. Le dernier décret publié est en tête ci-dessous&nbsp;; à vous de le lire.
+Code de non-couverture&nbsp;: <code>GOUVERNEMENT_PERIODES_NON_DEDUITES</code>.</p>
+
+<h2>Les mandats présidentiels</h2>
+<p class="q">Une ligne par <strong>élection</strong>, pas par personne&nbsp;: quatre présidents ont
+été élus deux fois, et la seconde élection ne ressemble pas toujours à la première. Résultats du
+second tour tels que proclamés par le Conseil constitutionnel.</p>
+<div class="scroll"><table>
+<thead><tr><th>Élection</th><th>Élu</th><th class="n">Voix</th><th class="n">% exprimés</th>
+  <th class="n">% inscrits</th>
+  <th>Face à</th><th class="n">Voix</th><th class="n">% exprimés</th>
+  <th class="n">Inscrits</th><th>Proclamation</th></tr></thead>
+<tbody>{{range $g.Mandats}}<tr>
+  <td><strong>{{.Annee}}</strong></td>
+  <td>{{if .Fiche}}<a href="{{$.Root}}/depute/{{.Slug}}/">{{.Elu}}</a>{{else}}{{.Elu}}{{end}}</td>
+  {{if .SuffrageUniversel}}
+  <td class="n">{{nb64 .VoixElu}}</td>
+  <td class="n">{{dec .PctElu 1}} %</td>
+  <td class="n">{{dec .PctEluInscrits 1}} %</td>
+  <td>{{.Adversaire}}</td>
+  <td class="n">{{nb64 .VoixAdversaire}}</td>
+  <td class="n">{{dec .PctAdversaire 1}} %</td>
+  <td class="n z">{{nb64 .Inscrits}}</td>
+  <td class="small"><a href="{{.DecisionURL}}" target="_blank" rel="noopener">{{.Decision}}</a>
+    <span class="z">{{.Debut}}</span></td>
+  {{else}}
+  <td colspan="8" class="small z">Élu le {{.Debut}} par un collège de quelque 80 000 grands électeurs,
+    pas au suffrage universel direct — instauré par la révision constitutionnelle de 1962.</td>
+  {{end}}
+</tr>{{end}}</tbody></table></div>
+<p class="note">Les intérims d'Alain Poher, président du Sénat, en 1969 et 1974 ne sont pas des
+mandats&nbsp;: ils ne figurent pas dans ce tableau. Deux pourcentages pour l'élu&nbsp;: la part des suffrages
+<strong>exprimés</strong> — ni blancs, ni nuls —, qui est la règle constitutionnelle de proclamation,
+et la part des <strong>inscrits</strong>, qui compte aussi les abstentionnistes, les blancs et les nuls.
+Le second dit quelle fraction du corps électoral a voté pour le président au second tour&nbsp;; il ne
+change rien à la validité de l'élection.
+<a href="{{.Root}}/frise/">Les chiffres datés sous chaque présidence</a> sont sur la frise.</p>
+
+<h2>Les Premiers ministres depuis {{(index $g.PremiersMin (sub (len $g.PremiersMin) 1)).Debut}}</h2>
+<p class="q">Reconstitués depuis les décrets du <em>Journal officiel</em>. Une seule déduction est
+faite ici, et le droit la porte&nbsp;: <strong>un Premier ministre reste en fonction jusqu'à la
+nomination du suivant</strong>. Sans elle, le décret qui nomme <em>ses</em> ministres — et qui ne le
+reprend pas — lui donnerait un mandat de quarante-huit heures.</p>
+<div class="scroll"><table>
+<thead><tr><th>Premier ministre</th><th>Nommé le</th><th>Jusqu'au</th>
+  <th>Reconduit par décret</th></tr></thead>
+<tbody>{{range $g.PremiersMin}}<tr>
+  <td><strong>{{if .Fiche}}<a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a>{{else}}{{.Nom}}{{end}}</strong></td>
+  <td class="small z">{{.Debut}}</td>
+  <td class="small z">{{if .EnCours}}en fonction{{else}}{{.Fin}}{{end}}</td>
+  <td class="small z">{{if .Reconductions}}{{range $i, $d := .Reconductions}}{{if $i}}, {{end}}{{$d}}{{end}}{{else}}—{{end}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note">Une reconduction est un décret qui renomme la même personne après un
+remaniement&nbsp;: elle ouvre un nouveau gouvernement, pas un nouveau Premier ministre. Les compter
+comme des mandats distincts aurait donné trois «&nbsp;François Fillon&nbsp;» et un Dominique de
+Villepin nommé et remplacé le même jour.</p>
+
+<h2>Les décrets de composition</h2>
+<p class="q">{{nb $g.NbCitations}} citations tirées de {{$g.NbDecrets}} décrets, du
+{{$g.PremierDecret}} au {{$g.DernierDecret}}. Chaque décret est affiché tel qu'il a paru&nbsp;:
+un remaniement partiel montre ses quelques lignes, pas une composition complète. Les
+{{len $g.Decrets}} plus récents sont ci-dessous&nbsp;;
+<a href="{{.Root}}/gouvernement/decrets/">les {{sub $g.NbDecrets (len $g.Decrets)}} autres, jusqu'à
+{{$g.PremierDecret}}, sont sur leur propre page →</a></p>
+
+{{template "decrets" (dict "Root" $.Root "Decrets" $g.Decrets)}}
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Un nom n'est pas une personne.</strong> {{nb $g.Candidats}} citations
+    n'ont qu'un homonyme possible dans la base, {{nb $g.Ambigus}} en ont plusieurs, {{nb $g.Absents}}
+    n'en ont aucun — et <strong>aucune n'est vérifiée par un humain</strong>. Un décret ne porte pas
+    de date de naissance&nbsp;; 41,9 % des élus de la base ont un homonyme exact. C'est pourquoi la
+    colonne dit «&nbsp;un seul homonyme&nbsp;» et non «&nbsp;c'est lui&nbsp;».</p>
+    <p class="note"><strong>Avant 1990, la DILA ne publie que les métadonnées.</strong> Les décrets
+    antérieurs sont en base avec leur titre et leur date, sans texte&nbsp;: leur contenu n'existe pas
+    en données ouvertes.</p>
+    <p class="note"><strong>Les mandats ministériels affichés sur les fiches de personnes viennent
+    d'ailleurs</strong> — de l'open data de l'Assemblée, qui compte {{nb $g.MandatsAMO}} lignes
+    <code>MINISTRE</code> dont <strong>{{nb $g.MandatsEnMissio}} «&nbsp;en mission&nbsp;»</strong>,
+    c'est-à-dire des parlementaires en mission temporaire qui ne sont pas membres du Gouvernement.
+    Les deux sources ne sont pas encore réconciliées.
+    <a href="{{.Root}}/comprendre/gouvernement-donnees/">Le détail, source par source</a>.</p>
+  </div>
+</details>
+{{end}}

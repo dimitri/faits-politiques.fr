@@ -1,6 +1,10 @@
 # Onglet GOUVERNEMENT : ce que l'open data fournit, et ce qu'il ne fournit pas
 
-Étude et intégration du 2026-09-12. La demande portait sur une frise depuis
+> Étude du 12 septembre 2026 ; chiffres de la base relevés le 13 septembre 2026.
+> Là où l'étude et la base divergent, c'est la base qui fait foi : les tableaux
+> de la section 1.4 ont été recomptés.
+
+La demande portait sur une frise depuis
 Chirac — présidences, gouvernements, ministères — accompagnée des grands
 chiffres : dette, dépenses par pôle, recettes fiscales, chômage, RSA, pauvreté,
 dividendes et impôt sur les sociétés du CAC 40. Plus, séparément, les
@@ -64,8 +68,13 @@ Les présidences sont chargées (D-026) avec les intérims.
 
 Les **gouvernements** viennent de `data/gouvernements.csv`, transcrit du jeu
 officiel des services du Premier ministre — qui **s'arrête en 2014**. Dernière
-mise à jour du jeu : 18 juin 2014, et aucun successeur au catalogue. Notre base
-a cru Manuel Valls Premier ministre jusqu'en septembre 2026.
+mise à jour du jeu : 18 juin 2014, et aucun successeur au catalogue.
+
+C'est toujours l'état de `core.gouvernement` au 13 septembre 2026 : 36 lignes,
+de janvier 1959 à mars 2014. Le chargement du *Journal officiel* décrit en 1.4
+n'a pas été reversé dans cette table ; il vit dans `core.acte_jo` et
+`core.gouvernement_membre`. La table des gouvernements croit donc encore Manuel
+Valls Premier ministre.
 
 ### 1.4 Les ministres : quatre sources essayées, une seule tient
 
@@ -104,15 +113,45 @@ prénom, et un décret ne porte aucune date de naissance pour trancher. Le
 rapprochement porte donc son statut — `CANDIDAT`, `AMBIGU` ou `ABSENT` — et rien
 de `CANDIDAT` ne doit être publié comme un fait sans le dire.
 
-#### Ce qui est en base
+#### Ce qui est en base — relevé du 13 septembre 2026
+
+Les nombres ci-dessous sont comptés dans la base, pas repris de l'étude
+initiale. Là où ils s'en écartent, c'est la base qui a raison.
 
 | | |
 |---|---|
-| Décrets retenus | **231**, dont 204 de composition ou de nomination du Premier ministre |
-| Décrets porteurs d'un texte | **162**, couvrant **1990 → 2026** sans trou |
-| Citations de membres | **1 382** (2 décrets muets : un rectificatif et une modification de libellé, tous deux sans nom) |
-| Mandats déduits | **1 262** — 576 ministres, 384 secrétaires d'État, 263 ministres délégués, 25 Premiers ministres, 11 ministres d'État, 3 hauts-commissaires |
-| Rapprochement | 972 `CANDIDAT`, 154 `AMBIGU`, 245 `ABSENT` |
+| Actes du *Journal officiel* chargés | **4 821**, du 2 juillet 1901 au 13 septembre 2026, dont **1 025** nominatifs |
+| Décrets de composition retenus | **160**, porteurs de texte, couvrant **18 juillet 1990 → 26 février 2026** |
+| Citations de membres | **1 371** — 1 274 nominations, 97 cessations de fonctions |
+| Par fonction | 636 ministres, 409 secrétaires d'État, 279 ministres délégués, 27 Premiers ministres, 16 ministres d'État, 4 hauts-commissaires |
+| Rapprochement avec `core.person` | 972 `CANDIDAT`, 154 `AMBIGU`, 245 `ABSENT` |
+| Mentions nominatives des autres actes | 3 266 — 259 `CANDIDAT`, 150 `AMBIGU`, 2 857 `ABSENT` |
+
+**Aucun rapprochement n'est `CONFIRME`.** Le statut `CANDIDAT` signifie « un seul
+homonyme possible », pas « vérifié par un humain ». Le site ne doit donc pas
+présenter ces 972 lignes comme des mandats attestés d'une personne nommée sans
+écrire à côté d'où vient l'appariement.
+
+#### Ce qui n'est pas encore fait, et se voit sur le site
+
+Trois écarts subsistent entre ce document et ce que les pages affichent. Les
+noter ici vaut mieux que les découvrir en lisant une fiche.
+
+1. **`core.gouvernement` n'a pas bougé.** Elle compte toujours **36 lignes,
+   1959 → 2014**, avec 21 Premiers ministres rattachés à une personne. La
+   succession reconstituée à partir du *Journal officiel* — celle du tableau
+   ci-dessous — n'y a pas été versée. Une requête posée à cette table croit donc
+   encore Manuel Valls Premier ministre.
+2. **`derived.mandat_ministeriel` n'existe pas.** Les trois règles de déduction
+   décrites plus bas sont écrites, pas exécutées : aucune table de `derived` ne
+   les porte.
+3. **Les mandats ministériels affichés viennent encore d'AMO30**, la source que
+   ce document disqualifie deux pages plus haut. `core.mandate` compte 1 103
+   lignes de type `MINISTRE`, pour 550 personnes, du 24 décembre 2002 à
+   aujourd'hui — dont **398 « en mission »**, c'est-à-dire des parlementaires en
+   mission temporaire, qui ne sont pas membres du Gouvernement. Tant que la
+   déduction JORF n'est pas matérialisée, une fiche de député peut afficher
+   « MINISTRE · en mission » pour quelqu'un qui n'a jamais été ministre.
 
 Avant 1990, la DILA ne publie que les métadonnées : les 42 décrets antérieurs
 sont en base avec leur titre et leur date, sans texte. Leur contenu n'existe pas

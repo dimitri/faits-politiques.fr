@@ -1,0 +1,16 @@
+{{define "content"}}
+{{$g := .G}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/gouvernement/">Gouvernement</a> › <span>Tous les décrets</span></p>
+<span class="sur">Journal officiel · {{$g.PremierDecret}} → {{$g.DernierDecret}}</span>
+<h1>Les {{$g.NbDecrets}} décrets de composition</h1>
+<p class="lede">Du plus récent au plus ancien, tels qu'ils ont paru. {{nb $g.NbCitations}}
+citations de membres du Gouvernement, aucune reconstitution.</p>
+
+<p class="note abs"><strong>Avant 1990, la DILA ne publie que les métadonnées.</strong> Les décrets
+antérieurs sont en base avec leur titre et leur date, sans texte&nbsp;: leur contenu n'existe pas en
+données ouvertes, et ils n'apparaissent donc pas ici. <code>data/gouvernements.csv</code>, transcrit
+du document officiel 1959-2014, reste la source pour cette période.</p>
+
+{{template "decrets" (dict "Root" $.Root "Decrets" $g.Decrets)}}
+{{end}}
