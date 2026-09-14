@@ -69,7 +69,23 @@ RUN install -d /usr/share/postgresql-common/pgdg && \
         > /etc/apt/sources.list.d/pgdg.list
 
 ENV PG_MAJOR=${POSTGRES_VERSION}
-ENV PATH=$PATH:/usr/lib/postgresql/${PG_MAJOR}/bin
+# Les binaires de la version EN TÊTE du PATH, pas en queue.
+#
+# En queue, `pg_isready`, `psql` ou `pg_dump` se résolvent en /usr/bin, c'est-à-
+# dire vers le pg_wrapper de Debian, qui ne lance pas le binaire demandé : il
+# cherche d'abord un « cluster » Debian dans /etc/postgresql et en adopte le
+# port. Le premier démarrage de cette image l'a montré : le contrôle de santé
+# interrogeait le port 5433 pendant que le serveur écoutait sur 5432, et le
+# conteneur restait « unhealthy » en fonctionnant parfaitement.
+ENV PATH=/usr/lib/postgresql/${PG_MAJOR}/bin:$PATH
+
+# Et pas de cluster Debian du tout. Le paquet postgresql-$PG_MAJOR en crée un
+# par défaut à l'installation (/etc/postgresql/$PG_MAJOR/main, port 5433 ici),
+# qui ne sert à rien dans cette image — le serveur est lancé par
+# docker-entrypoint.sh sur $PGDATA — et dont la seule présence égare les outils.
+# C'est le réglage de l'image officielle, posé AVANT l'installation.
+RUN mkdir -p /etc/postgresql-common/createcluster.d && \
+    echo 'create_main_cluster = false' > /etc/postgresql-common/createcluster.d/00-pas-de-cluster.conf
 
 # Le serveur et les extensions.
 #
@@ -125,6 +141,10 @@ RUN set -eux; \
         test -f "/usr/share/postgresql/${PG_MAJOR}/extension/${ext}.control" \
             || { echo "extension manquante : ${ext}" >&2; exit 1; }; \
     done; \
+    test ! -d /etc/postgresql/${PG_MAJOR} \
+        || { echo "un cluster Debian a été créé malgré create_main_cluster = false" >&2; exit 1; }; \
+    test "$(command -v pg_isready)" = "/usr/lib/postgresql/${PG_MAJOR}/bin/pg_isready" \
+        || { echo "pg_isready passe par le pg_wrapper de Debian" >&2; exit 1; }; \
     for f in fr_fr.dict fr_fr.affix french.stop; do \
         test -s "/usr/share/postgresql/${PG_MAJOR}/tsearch_data/${f}" \
             || { echo "fichier de recherche manquant : ${f}" >&2; exit 1; }; \

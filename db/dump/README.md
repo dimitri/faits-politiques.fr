@@ -34,7 +34,18 @@ Mesuré sur la base complète (16 Go, dump de 1,26 Go) :
 |---|---|
 | `pg_dump -Fc` | 321 s |
 | `pg_restore -j 4`, vecteur en colonne générée | 2 078 s |
-| `pg_restore -j 4`, vecteur en vue matérialisée | **1 269 s** |
+| `pg_restore -j 4`, vecteur en vue matérialisée | 1 269 s |
+
+Et lors de la bascule réelle vers l'image Debian, le 14 septembre 2026, sur une
+base passée entre-temps à 20 Go :
+
+| | Mesure |
+|---|---|
+| `pg_dump -Fc` | 325 s, 1 388 775 797 octets |
+| relecture intégrale de l'archive | 34 s |
+| `make db-restore` | **1 045 s**, code 0 |
+| décomptes exacts des 199 tables et vues | **identiques** |
+| taille de la base restaurée | 13 Go, contre 20 Go avant — tables et index reconstruits sans leur gonflement |
 
 `pg_restore -j` parallélise la restauration, et il a besoin d'un **fichier** —
 il ne sait pas paralléliser depuis un tube. D'où le montage en lecture seule du

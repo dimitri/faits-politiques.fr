@@ -35,7 +35,12 @@ db-image:         ## construit l'image PostgreSQL du projet
 # lisible par le pg_restore de la version cible.
 db-dump: db-up    ## sauvegarde la base (format custom) dans db/dump/
 	mkdir -p db/dump
-	time docker compose exec -T db pg_dump -Fc -U fp -d fp > db/dump/fp.dump
+	@# Pas de `time` : c'est un mot-clé de bash, et make lance ses recettes avec
+	@# /bin/sh — dash sous Debian — où il n'existe pas. La durée est mesurée à la
+	@# main, sur une seule ligne, chaque ligne de recette ayant son propre shell.
+	@debut=$$(date +%s); \
+	docker compose exec -T db pg_dump -Fc -U fp -d fp > db/dump/fp.dump && \
+	echo "dump : $$(( $$(date +%s) - debut )) s"
 	@ls -lh db/dump/fp.dump
 
 # -j : la restauration se parallélise, à la différence du dump en format
@@ -52,7 +57,9 @@ db-dump: db-up    ## sauvegarde la base (format custom) dans db/dump/
 db-restore: db-up ## restaure db/dump/fp.dump dans la base courante
 	docker compose exec -T db psql -U fp -d postgres -c "DROP DATABASE IF EXISTS fp WITH (FORCE)"
 	docker compose exec -T db psql -U fp -d postgres -c "CREATE DATABASE fp OWNER fp"
-	time docker compose exec -T db pg_restore -U fp -d fp -j 4 --no-owner /dump/fp.dump
+	@debut=$$(date +%s); \
+	docker compose exec -T db pg_restore -U fp -d fp -j 4 --no-owner /dump/fp.dump; \
+	rc=$$?; echo "restauration : $$(( $$(date +%s) - debut )) s (code $$rc)"; exit $$rc
 	docker compose exec -T db psql -U fp -d fp -v ON_ERROR_STOP=1 \
 		-f /docker-entrypoint-initdb.d/01-extensions.sql
 

@@ -1758,3 +1758,49 @@ gigaoctets n'est pas un choix, c'est un oubli. Et un index GIN maintenu pendant
 l'insertion coûte 8 % de plus que le même construit à la fin : avec la vue
 matérialisée la question disparaît, les index ne portant plus sur les tables que
 `COPY` remplit.
+
+## D-054 — La bascule vers l'image Debian : trois défauts que seul un vrai démarrage montrait
+
+La base a été basculée le 14 septembre 2026 sur `faits-politiques/postgres:17`.
+Protocole, dans cet ordre :
+
+1. décompte exact des 200 tables et vues avant toute opération ;
+2. `pg_dump -Fc` par le `pg_dump` 17 du conteneur d'origine — 325 s, 1,29 Go
+   pour une base de 20 Go ;
+3. relecture intégrale de l'archive (`pg_restore -f /dev/null`, 34 s) avant de
+   toucher au conteneur ;
+4. démarrage de l'image neuve sur un **volume neuf** ;
+5. restauration, puis comparaison des décomptes.
+
+**L'ancien volume n'est pas supprimé.** Il a été initialisé par une image musl ;
+ses index de texte sont rangés selon d'autres collations que celles de glibc.
+Démarrer l'image Debian dessus aurait fonctionné en apparence et rendu des
+résultats faux. Il reste sur le disque comme retour arrière, et sa suppression
+est une décision à prendre explicitement plus tard.
+
+### Trois défauts, aucun visible avant le démarrage réel
+
+**Le cluster fantôme.** Le paquet Debian `postgresql-17` crée à l'installation un
+« cluster » `/etc/postgresql/17/main`, ici sur le port 5433. Les binaires de la
+version étaient placés en **queue** de `PATH` : `pg_isready` se résolvait donc
+vers le `pg_wrapper` de Debian, qui adopte le port de ce cluster. Le contrôle de
+santé interrogeait 5433 pendant que le serveur écoutait sur 5432, et le conteneur
+restait « unhealthy » en fonctionnant parfaitement. Le même symptôme était apparu
+dans le conteneur d'essai, où je l'avais attribué à tort à une variable
+d'environnement de mon shell — une erreur d'interprétation qui a laissé passer le
+défaut. Corrigé à la racine : binaires en tête de `PATH`, `create_main_cluster =
+false` posé avant l'installation, et deux garde-fous qui font échouer la
+construction si l'un ou l'autre revient.
+
+**La période de grâce.** Le premier démarrage d'un volume neuf lance `initdb` puis
+crée dix extensions, PostGIS comprise : plus d'une minute. Le contrôle de santé
+abandonnait au bout de soixante secondes et `docker compose up --wait` déclarait
+le conteneur défaillant pendant qu'il s'initialisait normalement.
+`start_period: 180s`.
+
+**`time` dans le Makefile.** C'est un mot-clé de bash ; `make` lance ses recettes
+avec `/bin/sh`, dash sous Debian. `make db-restore` échouait après avoir supprimé
+et recréé la base — sans dommage ici, la base du volume neuf étant vide, mais une
+recette qui détruit avant d'échouer est exactement celle qu'il faut corriger avant
+qu'elle ne serve sur une base pleine. La durée est désormais mesurée à la main, et
+le code de retour de `pg_restore` est propagé plutôt qu'avalé.
