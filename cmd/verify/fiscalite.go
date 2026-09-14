@@ -1,7 +1,7 @@
 package main
 
-// Contrôles du bloc « la France est-elle un paradis fiscal ? »
-// (docs/paradis-fiscal-donnees.md).
+// Contrôles du dossier sur l'évasion fiscale des multinationales
+// (docs/evasion-fiscale-multinationales.md).
 func init() {
 	checks = append(checks, checksFiscalite...)
 }
@@ -104,12 +104,44 @@ var checksFiscalite = []check{
 		min:   1500,
 	},
 	{
-		name: "filiales : la sélection nommée a des comptes publiés pour 90 % des sociétés",
+		// Les sociétés étrangères immatriculées en France (catégories juridiques
+		// 31xx, 32xx) ne déposent pas de comptes sociaux français : hors du compte.
+		name: "filiales : la sélection nommée a des comptes publiés pour 90 % des sociétés de droit français",
 		query: `SELECT CASE WHEN count(*) FILTER (WHERE date_cloture IS NOT NULL) >= 0.9 * count(*) THEN 0 ELSE 1 END
-		          FROM derived.filiale_etrangere_comptes WHERE origine = 'SELECTION'`,
+		          FROM derived.filiale_etrangere_comptes d JOIN ref.unite_legale u USING (siren)
+		         WHERE d.origine = 'SELECTION' AND u.categorie_juridique !~ '^3[12]'`,
 	},
 	{
 		name:  "comptes : aucune filiale française n'est rattachée à une mère française",
 		query: `SELECT count(*) FROM core.filiale_groupe_etranger WHERE pays_groupe = 'FR'`,
+	},
+	{
+		name:  "marchés publics : des marchés sont rattachés aux groupes suivis, par SIREN et par objet",
+		query: `SELECT count(DISTINCT correspondance) FROM core.marche_public_cible`,
+		min:   3,
+	},
+	{
+		// Un rattachement par SIREN doit porter un SIREN de la table des filiales
+		// ou de la liste des partenaires suivis.
+		name: "marchés publics : tout rattachement par SIREN porte un SIREN connu",
+		query: `SELECT count(*) FROM core.marche_public_cible m
+		         WHERE m.correspondance = 'SIREN'
+		           AND NOT EXISTS (SELECT 1 FROM core.filiale_groupe_etranger f WHERE f.siren = m.siren)
+		           AND m.siren <> '953440591'`,
+	},
+	{
+		name:  "faits documentés : chargés, et tout fait officiel est scellé",
+		query: `SELECT count(*) FROM ref.fait_multinationale WHERE qualite <> 'OFFICIEL' OR document_id IS NOT NULL`,
+		min:   10,
+	},
+	{
+		// Une aide comptée pour deux écritures du même groupe serait comptée deux fois.
+		name: "aides aux filiales : chaque SIREN n'est rattaché qu'à un groupe dans la vue",
+		query: `SELECT count(*) FROM (SELECT source, sum(aides) n FROM derived.multinationale_aides GROUP BY source) v
+		          JOIN (SELECT a.source, count(*) n FROM core.aide_nominative a
+		                 LEFT JOIN derived.aide_montant_suspect s ON s.source = a.source AND s.reference = a.reference
+		                 WHERE s.reference IS NULL AND a.siren IN (SELECT siren FROM core.filiale_groupe_etranger)
+		                 GROUP BY a.source) t USING (source)
+		         WHERE v.n <> t.n`,
 	},
 }

@@ -1,9 +1,11 @@
-// Package fiscalite charge ce qui permet de répondre, données à l'appui, à
-// « la France est-elle un paradis fiscal ? » : les listes officielles de
-// juridictions non coopératives, les indicateurs fiscaux comparés de l'OCDE,
-// les déclarations pays par pays agrégées, les revenus des investissements
-// directs, et les comptes des filiales françaises de groupes étrangers.
-// Voir docs/paradis-fiscal-donnees.md.
+// Package fiscalite charge ce qui documente l'évasion fiscale des
+// multinationales et ce que la France en perçoit — ou non : les estimations du
+// transfert de bénéfices, les déclarations pays par pays agrégées, les revenus
+// des investissements directs, les comptes des filiales françaises de groupes
+// étrangers, les marchés publics et les faits établis (contrats, règlements
+// fiscaux, enquêtes parlementaires) qui les concernent ; et, pour situer la
+// France, les grilles officielles des paradis fiscaux.
+// Voir docs/evasion-fiscale-multinationales.md.
 package fiscalite
 
 import (
@@ -143,6 +145,7 @@ func lireCSV(path string) ([]map[string]string, error) {
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	for _, e := range []func(context.Context, *pgxpool.Pool, *archive.Archive) error{
 		IngestListes, IngestOCDEImpotSocietes, IngestOCDEIDE, IngestFATS, IngestTWZ, IngestFiliales,
+		IngestMarches, IngestFaits,
 	} {
 		if err := e(ctx, pool, arch); err != nil {
 			return err

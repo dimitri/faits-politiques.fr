@@ -7,7 +7,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 
 | Document | Ce qu'il contient |
 |---|---|
-| [decisions.md](decisions.md) | **Le journal des décisions, D-001 à D-060.** Toute affirmation de ce projet doit pouvoir s'y rattacher, y compris les erreurs corrigées. |
+| [decisions.md](decisions.md) | **Le journal des décisions, D-001 à D-061.** Toute affirmation de ce projet doit pouvoir s'y rattacher, y compris les erreurs corrigées. |
 | [perimetre.md](perimetre.md) | Ce que le projet couvre, la matrice des sources avec leurs licences, et ce qui est hors de portée. |
 | [architecture.md](architecture.md) | Le choix statique / dynamique et ses conséquences. |
 
@@ -23,7 +23,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [gouvernement-donnees.md](gouvernement-donnees.md) | Onglet GOUVERNEMENT : grandes séries nationales, comptes des sociétés, et ce qui n'existe pas (manifestations). |
 | [budget-donnees.md](budget-donnees.md) | Budget de l'État et budget de la Sécurité sociale : comment ils s'articulent, et quelles sources donnent le voté et l'exécuté par année. |
 | [dette-donnees.md](dette-donnees.md) | La dette publique : quatre définitions, qui la détient, taux de marché contre taux apparent, comparaison européenne, la Suisse ; à quoi sert l’emprunt (compte de capital), niches fiscales et exonérations en regard des dividendes. |
-| [paradis-fiscal-donnees.md](paradis-fiscal-donnees.md) | La France est-elle un paradis fiscal ? Les grilles officielles (OCDE 1998, liste UE, ETNC), taux légaux et effectifs, déclarations pays par pays, transfert de bénéfices, filiales de groupes étrangers et leurs comptes. |
+| [evasion-fiscale-multinationales.md](evasion-fiscale-multinationales.md) | Évasion fiscale des multinationales : l'impôt que la France ne perçoit pas (transfert de bénéfices, déclarations pays par pays, comptes des filiales), ce que l'État leur verse (marchés publics, aides, contrats documentés), et pourquoi la France n'est pas pour autant un paradis fiscal. |
 | [cotisations-et-droits.md](cotisations-et-droits.md) | Ce qu'une cotisation achète : répartition ou capitalisation, droit contributif ou non, et le poids de chacun ; un bulletin de paie 2026 suivi euro par euro jusqu'à chaque caisse et à son budget (État, Sécurité sociale, régimes paritaires, autres). Section « pour aller plus loin » sur un socle universel. |
 | [monnaie-et-inflation.md](monnaie-et-inflation.md) | Francs, euros, inflation : ce que `core` stocke, ce que `derived` calcule, et pourquoi une valeur déflatée n'est pas un fait. |
 | [entreprises-perimetre.md](entreprises-perimetre.md) | `core.entreprise` n'est pas le CAC 40 : trois populations d'entreprises à ne pas confondre, et la réserve à écrire sur les dividendes. |

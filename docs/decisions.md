@@ -2000,3 +2000,47 @@ il reste vide pour l'AGS, le Fnal et le fonds paritaire du dialogue social.
 est imputée sur la retraite complémentaire selon la règle officielle ; entre les
 caisses de l'URSSAF, faute de clé publiée, elle suit les taux. La CSG est rangée
 comme un seul destinataire, sa répartition légale entre caisses n'étant pas chargée.
+
+## D-061 — Le dossier devient « évasion fiscale des multinationales » ; ce que l'État leur verse est mis en regard, sans être compensé
+
+Migration 0087, `internal/fiscalite` (`-only=fiscalite-marches`, `-only=fiscalite-faits`),
+docs/evasion-fiscale-multinationales.md (renommée depuis paradis-fiscal-donnees.md).
+
+**Changement de question, pas de conclusion.** La réponse établie par D-059 tient :
+au sens de toutes les grilles officielles, la France n'est pas un paradis fiscal. À la
+demande du responsable du projet, le dossier porte désormais sur la question que ce
+constat ouvre : pourquoi l'impôt des multinationales échappe-t-il en partie à la France,
+et que leur verse l'État dans le même temps ? La grille « paradis fiscal » y devient une
+section. La migration 0082 et la décision D-059 gardent leur nom d'origine : le journal
+est daté.
+
+**Les mots.** Fraude (illégale, jugée ou transigée), évasion (contournement de l'esprit
+de la loi, que l'administration peut requalifier) et optimisation (usage de règles
+légales) ne sont pas synonymes. Le titre emploie « évasion fiscale » au sens large que
+lui donnent les estimations du transfert de bénéfices, qui ne distinguent pas ; chaque
+fait porte sa qualification juridique propre (convention judiciaire, constat d'enquête,
+contrat).
+
+**Mettre en regard n'est pas compenser.** Les marchés publics, les aides et les faits
+documentés sont présentés à côté des comptes et des impôts, jamais soustraits les uns
+des autres : un plafond d'accord-cadre n'est pas une dépense, un chiffre d'affaires
+n'est pas un bénéfice, et aucune donnée ne dit quel impôt une multinationale « devrait »
+payer en France.
+
+**Commande publique : rattacher prudemment.** Les données essentielles de la commande
+publique sont rattachées à un groupe par le SIREN du titulaire, par sa dénomination, ou
+par l'objet du marché (licences Microsoft achetées via un revendeur). Les trois modes ne
+sont jamais confondus ; les montants par objet englobent souvent d'autres produits. Les
+contrats antérieurs à l'obligation de publication (le contrat Microsoft de la Défense,
+2009-2021) ne viennent que des sources parlementaires.
+
+**Faits documentés : la qualité est une colonne.** Un fait OFFICIEL (Sénat, Assemblée,
+Conseil d'État, PNF, ministère) a sa page scellée et vérifiée ; un fait PRESSE ou
+ENTREPRISE est cité avec son lien et son statut, jamais présenté comme établi.
+
+**Ce qui n'est pas dans le dossier, et pourquoi.** Le crédit d'impôt recherche et les
+autres crédits d'impôt par entreprise sont couverts par le secret fiscal : seuls leurs
+totaux sont publics. L'affirmation « telle filiale ne paie pas d'impôt » n'est reprise
+que lorsqu'une source officielle l'établit (McKinsey) ; ailleurs, le dossier montre
+l'écart entre résultat avant impôt et résultat net, et l'endroit où le chiffre d'affaires
+français est facturé.

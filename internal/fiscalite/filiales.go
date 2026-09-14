@@ -2,6 +2,7 @@ package fiscalite
 
 import (
 	"archive/zip"
+	"bufio"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -28,11 +29,11 @@ var selectionFiliales = []struct {
 	sirens       []string
 	fondement    string
 }{
-	{"Alphabet Inc.", "US", []string{"443061841", "881721583"}, "Google France et Google Cloud France, filiales du groupe Alphabet"},
+	{"Alphabet Inc.", "US", []string{"443061841", "881721583", "799769161"}, "Google France et Google Cloud France, filiales du groupe Alphabet ; Google Ireland Limited, société irlandaise immatriculée en France, cocontractante des annonceurs français (convention judiciaire de 2019)"},
 	{"Apple Inc.", "US", []string{"322120916", "483209383"}, "Apple France et Apple Retail France, filiales du groupe Apple"},
 	{"Meta Platforms Inc.", "US", []string{"530085802"}, "Facebook France, filiale du groupe Meta"},
-	{"Amazon.com Inc.", "US", []string{"428785042", "790933329", "823244371", "809869043", "824031090", "907946404"}, "sociétés françaises du groupe Amazon (logistique, vente en ligne, transport, services, centres de données, numérique)"},
-	{"Microsoft Corporation", "US", []string{"327733184", "429600158", "519059281"}, "Microsoft France, Microsoft Engineering Center Paris et LinkedIn France (LinkedIn appartient à Microsoft depuis 2016)"},
+	{"Amazon.com Inc.", "US", []string{"428785042", "790933329", "823244371", "809869043", "824031090", "907946404", "831001334"}, "sociétés françaises du groupe Amazon (logistique, vente en ligne, transport, services, centres de données, numérique) ; Amazon Web Services EMEA SARL, société luxembourgeoise immatriculée en France"},
+	{"Microsoft Corporation", "US", []string{"327733184", "429600158", "519059281", "431920594", "352568091", "419423728"}, "Microsoft France, Microsoft Engineering Center Paris, Microsoft Research & Development France, Microsoft EMEA et LinkedIn France (LinkedIn appartient à Microsoft depuis 2016) ; Microsoft Ireland Operations Limited, société irlandaise immatriculée en France, cocontractante du ministère de la Défense (proposition de résolution du Sénat n° 27, 2017)"},
 	{"Netflix Inc.", "US", []string{"843655549"}, "Netflix Services France, filiale du groupe Netflix"},
 	{"The Walt Disney Company", "US", []string{"397471822", "388457004", "383850278"}, "Euro Disney Associés (exploitant de Disneyland Paris), Euro Disneyland Imagineering et Euro Disney Vacances, contrôlées à 100 % par Walt Disney depuis le retrait de la cote en 2017"},
 	{"Uber Technologies Inc.", "US", []string{"539454942"}, "Uber France, filiale du groupe Uber"},
@@ -40,6 +41,9 @@ var selectionFiliales = []struct {
 	{"Booking Holdings Inc.", "US", []string{"449620848"}, "Booking.com (France), filiale du groupe Booking Holdings"},
 	{"McDonald's Corporation", "US", []string{"722003936"}, "McDonald's France, filiale du groupe McDonald's"},
 	{"IBM", "US", []string{"552118465"}, "Compagnie IBM France, filiale du groupe IBM"},
+	{"McKinsey & Company", "US", []string{"539261404", "775758337", "799893227"}, "McKinsey & Company SAS et McKinsey & Company Inc. France (succursale), les deux entités françaises du cabinet identifiées par la commission d'enquête du Sénat (rapport n° 578, 2022) ; McKinsey Recovery & Transformation Services France"},
+	{"Palantir Technologies Inc.", "US", []string{"810492124"}, "Palantir Technologies France, filiale du groupe Palantir"},
+	{"Accenture plc", "IE", []string{"732075312", "445088057"}, "Accenture (SAS) et Accenture Technology Solutions, sociétés françaises du groupe Accenture, dont la société de tête est irlandaise"},
 	{"Oracle Corporation", "US", []string{"335092318"}, "Oracle France, filiale du groupe Oracle"},
 	{"Cisco Systems Inc.", "US", []string{"349166561"}, "Cisco Systems France, filiale du groupe Cisco"},
 	{"Salesforce Inc.", "US", []string{"483993226"}, "Salesforce.com France, filiale du groupe Salesforce"},
@@ -65,7 +69,7 @@ var selectionFiliales = []struct {
 	{"Koninklijke Philips N.V.", "NL", []string{"811847243"}, "Philips France, filiale du groupe Philips"},
 }
 
-// lireZipCSV ouvre le premier fichier CSV d'une archive et appelle f ligne à
+// lireZipCSV ouvre le seul fichier CSV d'une archive et appelle f ligne à
 // ligne avec l'index des colonnes.
 func lireZipCSV(path string, f func(col map[string]int, rec []string) error) error {
 	zr, err := zip.OpenReader(path)
@@ -81,8 +85,24 @@ func lireZipCSV(path string, f func(col map[string]int, rec []string) error) err
 		return err
 	}
 	defer rc.Close()
-	cr := csv.NewReader(rc)
+	return parcourirCSV(rc, f)
+}
+
+// lireCSVFlux lit un CSV trop gros pour être chargé en mémoire.
+func lireCSVFlux(path string, f func(col map[string]int, rec []string) error) error {
+	fh, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	defer fh.Close()
+	return parcourirCSV(bufio.NewReaderSize(fh, 1<<20), f)
+}
+
+func parcourirCSV(r io.Reader, f func(col map[string]int, rec []string) error) error {
+	cr := csv.NewReader(r)
 	cr.ReuseRecord = true
+	cr.FieldsPerRecord = -1
+	cr.LazyQuotes = true
 	entete, err := cr.Read()
 	if err != nil {
 		return err
@@ -91,6 +111,7 @@ func lireZipCSV(path string, f func(col map[string]int, rec []string) error) err
 	for i, c := range entete {
 		col[strings.TrimPrefix(c, "\uFEFF")] = i
 	}
+	n := len(entete)
 	for {
 		rec, err := cr.Read()
 		if err == io.EOF {
@@ -99,10 +120,37 @@ func lireZipCSV(path string, f func(col map[string]int, rec []string) error) err
 		if err != nil {
 			return err
 		}
+		if len(rec) < n {
+			return fmt.Errorf("ligne à %d colonnes pour %d en en-tête", len(rec), n)
+		}
 		if err := f(col, rec); err != nil {
 			return err
 		}
 	}
+}
+
+// ressourceDataGouv lit, dans la fiche d'un jeu de données data.gouv.fr, l'URL
+// de la ressource qui porte ce titre.
+func ressourceDataGouv(path, titre string) (string, error) {
+	b, err := os.ReadFile(path)
+	if err != nil {
+		return "", err
+	}
+	var d struct {
+		Resources []struct {
+			Title string `json:"title"`
+			URL   string `json:"url"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal(b, &d); err != nil {
+		return "", err
+	}
+	for _, r := range d.Resources {
+		if r.Title == titre {
+			return r.URL, nil
+		}
+	}
+	return "", fmt.Errorf("ressource %q absente du jeu de données", titre)
 }
 
 func exigerColonnes(col map[string]int, noms ...string) error {
