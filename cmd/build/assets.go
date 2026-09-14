@@ -31,6 +31,12 @@ func copierAssets(src, out string) (Assets, error) {
 		if err != nil {
 			return a, err
 		}
+		// Les masques d'icônes sont engendrés depuis icones.go : le tracé
+		// n'existe qu'à un seul endroit du dépôt, et il n'atterrit qu'une fois
+		// dans le site.
+		if f.nom == "style.css" {
+			b = append(b, []byte(IconesCSS())...)
+		}
 		sum := sha256.Sum256(b)
 		ext := filepath.Ext(f.nom)
 		nom := fmt.Sprintf("%s.%s%s", f.nom[:len(f.nom)-len(ext)],

@@ -4,7 +4,7 @@
   <div class="tete"><div><span class="sur">Échéance</span>
     <h2 class="h2">Présidentielle 2027</h2></div>
     <a class="plus" href="{{.Root}}/2027/">Les {{.Cov.Candidats}} candidats déclarés →</a></div>
-  <div class="cartes trois">
+  <div class="cartes quatre">
     <a class="carte" href="{{.Root}}/2027/"><span class="v">{{.Cov.Candidats}}</span>
       <span class="t">Candidats déclarés</span>
       <span class="d">Ce qu'ils ont voté, ce que leur parti déclare, où il présente des listes —
@@ -17,35 +17,11 @@
       <span class="t">Indicateurs de sécurité</span>
       <span class="d">Faits <em>enregistrés</em> par la police et la gendarmerie, commune par
         commune, sur dix ans.</span></a>
+    <a class="carte" href="{{.Root}}/frise/"><span class="v">1958&nbsp;→&nbsp;2026</span>
+      <span class="t">La V<sup>e</sup> République en chiffres</span>
+      <span class="d">Dette, chômage, pauvreté, dividendes, délinquance, année par année, datés
+        sous les présidents — et le bord où chaque statistique commence.</span></a>
   </div>
-</section>
-
-{{/* « Ce qui a été voté cette semaine » est la première question d'un soir de
-     débat. Le site n'y répondait nulle part : le flux passe donc devant. */}}
-<section class="bloc">
-  <div class="tete">
-    <div><span class="sur">Assemblée nationale</span>
-      <h2 class="h2">Derniers scrutins publics</h2></div>
-    <a class="plus" href="{{.Root}}/assemblee/">Les {{nb .Cov.Scrutins}} scrutins →</a>
-  </div>
-
-  <div class="flux">
-    {{range .Derniers}}<a class="ligne" href="{{$.Root}}/scrutin/{{.Slug}}/">
-      <span class="d">{{.Date}}</span>
-      <span class="o">{{.Objet}}{{if .TypeVote}}<em>{{.TypeVote}}</em>{{end}}</span>
-      <span class="mini" role="img" aria-label="{{.Pour}} pour, {{.Contre}} contre, {{.Abstentions}} abstentions">
-        <i style="width:{{pct .Pour .Exprimes}}%;background:var(--pour)"></i>
-        <i style="width:{{pct .Contre .Exprimes}}%;background:var(--contre)"></i>
-        <i style="width:{{pct .Abstentions .Exprimes}}%;background:var(--abst)"></i></span>
-      <span class="r">{{.Resultat}}</span>
-    </a>{{end}}
-  </div>
-
-  <p class="note abs">Ce flux ne couvre que les <strong>scrutins publics</strong>. La majorité
-  des votes ont lieu à main levée et ne laissent aucune trace nominative&nbsp;: ni cet outil ni
-  aucun autre ne peut dire qui a voté quoi sur ces textes. Un scrutin public est par ailleurs
-  demandé <em>stratégiquement</em>&nbsp;: le corpus n'est pas un échantillon neutre de l'activité
-  législative.</p>
 </section>
 
 <section class="bloc">
@@ -74,15 +50,82 @@
       <span class="v">{{.Cov.ThemesSenat}}</span><span class="t">Thèmes</span>
       <span class="d">Les thèmes officiels du Sénat, posés sur les lois et rattachés aux scrutins
         de l'Assemblée par la navette. Aucun n'est produit par ce site.</span></a>
-    <a class="carte" href="{{.Root}}/frise/">
-      <span class="v">1958</span><span class="t">La V<sup>e</sup> République en chiffres</span>
-      <span class="d">Dette, chômage, pauvreté, dividendes, délinquance — datés sous les présidents,
-        et le bord où les statistiques commencent.</span></a>
+    <a class="carte" href="{{.Root}}/gouvernement/">
+      <span class="v">Exécutif</span><span class="t">Gouvernement</span>
+      <span class="d">Présidents, Premiers ministres, et les décrets de composition du
+        <em>Journal officiel</em> tels qu'ils ont paru.</span></a>
+    <a class="carte" href="{{.Root}}/collectivites/">
+      <span class="v">Collectivités</span><span class="t">Régions, départements, intercommunalités</span>
+      <span class="d">L'échelon dont on parle le moins et qui dépense le plus après l'État. Leurs
+        exécutifs, leurs budgets, leurs compétences.</span></a>
+    <a class="carte" href="{{.Root}}/budget/">
+      <span class="v">Budget</span><span class="t">Budget de l'État</span>
+      <span class="d">Recettes, dépenses et solde cumulés mois par mois, tels que la DGFiP les
+        publie. Et, à part, les prestations de protection sociale depuis 1959.</span></a>
+    <a class="carte" href="{{.Root}}/agriculture/">
+      <span class="v">Agriculture</span><span class="t">Agriculture et alimentation</span>
+      <span class="d">Usage des sols depuis 1961, et le partage publié entre ce qui nourrit des
+        humains et ce qui nourrit du bétail.</span></a>
     <a class="carte" href="{{.Root}}/comprendre/">
       <span class="v">Méthode</span><span class="t">Comprendre</span>
       <span class="d">Périmètre, arbitrages, charte et architecture — les documents qui gouvernent
         ce site, rendus intégralement.</span></a>
   </div>
+</section>
+
+{{if .Une}}
+{{/* Une seule carte en une. Celle-ci parce qu'elle contredit une intuition
+     répandue, et qu'elle le fait avec la donnée la mieux couverte du site. */}}
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Carte</span>
+    <h2 class="h2">{{.Une.Question}}</h2></div>
+    <a class="plus" href="{{.Root}}/territoires/">Les {{len .Une.Page.Voisines | add 1}} cartes →</a></div>
+  <div class="une-carte">
+    <a href="{{.Root}}/territoires/{{.Une.Slug}}/">{{.Une.Apercu.SVG}}</a>
+    <div>
+      <p><strong>Non, très majoritairement.</strong> {{.Une.Titre}}, département par département,
+      aux municipales de 2026. Le ministère de l'Intérieur attribue une nuance à chaque liste&nbsp;;
+      <strong>82,7 % des sièges nuancés portent une nuance «&nbsp;divers&nbsp;»</strong>, qui ne
+      nomme aucun parti. Treize départements sont à zéro.</p>
+      {{$t := .Une.Apercu.Teintes}}<div class="echelle"><span class="u">{{.Une.Apercu.Unite}}</span>
+        {{range $i, $b := .Une.Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+      {{template "cartons" .Une.Apercu.Cartons}}
+      <p class="small muted">Source&nbsp;: {{.Une.Source}}. Contours&nbsp;: © les contributeurs
+      OpenStreetMap, ODbL&nbsp;1.0. <a href="{{.Root}}/territoires/{{.Une.Slug}}/">La carte en grand,
+      le classement des 96 départements et la méthode →</a></p>
+    </div>
+  </div>
+</section>
+{{.Defs}}
+{{end}}
+
+{{/* Le flux suit le plan de site : « où regarder » se décide avant « quoi de
+     neuf ». Il reste au-dessus de la méthode et de la couverture — c'est la
+     première question d'un soir de débat, mais pas la carte du site. */}}
+<section class="bloc">
+  <div class="tete">
+    <div><span class="sur">Assemblée nationale</span>
+      <h2 class="h2">Derniers scrutins publics</h2></div>
+    <a class="plus" href="{{.Root}}/assemblee/">Les {{nb .Cov.Scrutins}} scrutins →</a>
+  </div>
+
+  <div class="flux">
+    {{range .Derniers}}<a class="ligne" href="{{$.Root}}/scrutin/{{.Slug}}/">
+      <span class="d">{{.Date}}</span>
+      <span class="o">{{.Objet}}{{if .TypeVote}}<em>{{.TypeVote}}</em>{{end}}</span>
+      <span class="mini" role="img" aria-label="{{.Pour}} pour, {{.Contre}} contre, {{.Abstentions}} abstentions">
+        <i style="width:{{pct .Pour .Exprimes}}%;background:var(--pour)"></i>
+        <i style="width:{{pct .Contre .Exprimes}}%;background:var(--contre)"></i>
+        <i style="width:{{pct .Abstentions .Exprimes}}%;background:var(--abst)"></i></span>
+      <span class="r">{{.Resultat}}</span>
+    </a>{{end}}
+  </div>
+
+  <p class="note abs">Ce flux ne couvre que les <strong>scrutins publics</strong>. La majorité
+  des votes ont lieu à main levée et ne laissent aucune trace nominative&nbsp;: ni cet outil ni
+  aucun autre ne peut dire qui a voté quoi sur ces textes. Un scrutin public est par ailleurs
+  demandé <em>stratégiquement</em>&nbsp;: le corpus n'est pas un échantillon neutre de l'activité
+  législative.</p>
 </section>
 
 <section class="bloc">

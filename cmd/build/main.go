@@ -6,6 +6,7 @@
 package main
 
 import (
+	"bytes"
 	"context"
 	"flag"
 	"fmt"
@@ -59,6 +60,8 @@ type Mandat struct {
 	Type, Circo, Periode, Role, Portefeuille string
 	DebutISO, FinISO                         string
 	SousPresidence                           string
+	CommuneCode                              string
+	Lieux                                    []Lieu
 }
 type Affil struct{ Nom, Kind, Periode, Via string }
 
@@ -92,10 +95,46 @@ func main() {
 	maxScrutins := flag.Int("max-scrutins", 0, "limite de pages scrutin (0 = toutes)")
 	flag.Parse()
 
-	if err := run(*out, *tpl, *dataDir, *root, *maxScrutins); err != nil {
+	// Le site est construit À CÔTÉ, puis mis en place d'un coup.
+	//
+	// Construire directement dans le répertoire servi commençait par l'effacer :
+	// pendant les dix minutes de la construction, le serveur répondait 404 sur
+	// toutes les pages pas encore réécrites — une page de département « toute
+	// blanche » en pleine consultation. Le répertoire de construction est
+	// désormais distinct, et l'échange final ne laisse le site absent que le
+	// temps de deux renommages. Si la construction échoue, le site en ligne
+	// n'est pas touché.
+	chantier := strings.TrimRight(*out, "/") + ".construction"
+	if err := run(chantier, *tpl, *dataDir, *root, *maxScrutins); err != nil {
 		fmt.Fprintf(os.Stderr, "erreur : %v\n", err)
 		os.Exit(1)
 	}
+	if err := mettreEnPlace(chantier, *out); err != nil {
+		fmt.Fprintf(os.Stderr, "erreur à la mise en place : %v\n", err)
+		os.Exit(1)
+	}
+}
+
+// mettreEnPlace remplace le site servi par celui qui vient d'être construit.
+// L'ancien est renommé avant d'être effacé : le serveur ne voit jamais un
+// répertoire à moitié supprimé.
+func mettreEnPlace(chantier, out string) error {
+	ancien := strings.TrimRight(out, "/") + ".precedent"
+	if err := os.RemoveAll(ancien); err != nil {
+		return err
+	}
+	if _, err := os.Stat(out); err == nil {
+		if _, err := os.Stat(filepath.Join(out, marqueurSortie)); err != nil {
+			return fmt.Errorf("%s ne porte pas %s : refus de le remplacer", out, marqueurSortie)
+		}
+		if err := os.Rename(out, ancien); err != nil {
+			return err
+		}
+	}
+	if err := os.Rename(chantier, out); err != nil {
+		return err
+	}
+	return os.RemoveAll(ancien)
 }
 
 func run(out, tplDir, dataDir, root string, maxScrutins int) error {
@@ -110,10 +149,30 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	fns := template.FuncMap{"jauge": Jauge, "poleG": PoleGauche, "poleD": PoleDroit,
 		"lower": strings.ToLower, "nb": Nombre, "ico": Icone,
 		"marque": Marque, "grille": Grille, "pct": Pourcent, "nb64": Nombre64,
-		"add": func(a, b int) int { return a + b },
-		"sub": func(a, b int) int { return a - b },
-		"mul": func(a, b int) int { return a * b },
-		"odd": func(i int) bool { return i%2 == 1 }}
+		"mdEur": mdEur, "pctFr": pctFr, "dec": Decimal, "eurHab": eurHab, "montant": Montant,
+		"echelon": func(t string) string { return libelleEchelon[t] },
+		"risqueCouleur": func(code string) string {
+			if c := couleurRisque[code]; c != "" {
+				return c
+			}
+			return "#8A7F6B"
+		},
+		"libMandat": libelleMandat,
+		// dict : passer plusieurs valeurs à un sous-gabarit, qui n'en reçoit
+		// qu'une. Sert à transmettre Root avec la liste des décrets.
+		"dict": func(kv ...any) map[string]any {
+			m := map[string]any{}
+			for i := 0; i+1 < len(kv); i += 2 {
+				m[fmt.Sprint(kv[i])] = kv[i+1]
+			}
+			return m
+		},
+		"sub64": func(a, b float64) float64 { return a - b },
+		"int":   func(f float64) int { return int(f) },
+		"add":   func(a, b int) int { return a + b },
+		"sub":   func(a, b int) int { return a - b },
+		"mul":   func(a, b int) int { return a * b },
+		"odd":   func(i int) bool { return i%2 == 1 }}
 	base := template.Must(template.New("base.gohtml").Funcs(fns).
 		ParseFiles(filepath.Join(tplDir, "base.gohtml")))
 	page := func(name string) *template.Template {
@@ -129,7 +188,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	if err != nil {
 		return err
 	}
-	layout := Layout{Root: root, BuiltAt: time.Now().Format("2 January 2006 à 15:04"),
+	// La date de construction et celle des données appartiennent au pied de
+	// page, donc à TOUTES les pages : les poser sur la seule page d'accueil
+	// laissait « Données arrêtées au . » partout ailleurs.
+	layout := Layout{Root: root, BuiltAt: dateFr(time.Now()),
 		CSS: assets.CSS, JS: assets.JS}
 	if layout.Sources, err = sources(ctx, pool); err != nil {
 		return err
@@ -247,6 +309,11 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return CleTri(grpList[i].Nom) < CleTri(grpList[j].Nom)
 	})
 
+	terr, err := loadTerritoires(ctx, pool)
+	if err != nil {
+		return err
+	}
+
 	derniers, err := derniersScrutins(ctx, pool, 60)
 	if err != nil {
 		return err
@@ -261,23 +328,36 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	}
 
 	layout.Cov.Organisations = len(orgs)
+	_ = pool.QueryRow(ctx, `
+		SELECT coalesce(to_char(max(fetched_at),'DD/MM/YYYY'),'')
+		FROM raw.retrieval WHERE document_id IS NOT NULL`).Scan(&layout.DerniereIngestion)
 
 	l := layout
 	l.Title = "Accueil"
 	l.Hero = true
 	l.HeroTitre = "Ce qui a été voté, décidé, proposé — et d'où on le sait."
-	_ = pool.QueryRow(ctx, `
-		SELECT coalesce(to_char(max(fetched_at),'DD/MM/YYYY'),'')
-		FROM raw.retrieval WHERE document_id IS NOT NULL`).Scan(&l.DerniereIngestion)
 	// Se définir par une absence (« rien n'est commenté ») oblige le lecteur à
 	// deviner ce qu'il obtient. On dit les trois choses qu'il reçoit.
 	l.HeroLede = "Chaque chiffre remonte à un document officiel archivé et horodaté. " +
 		"Aucun verdict n'est rendu : vous obtenez le fait, sa source primaire, " +
 		"et ce qu'elle ne permet pas de conclure."
+	// La carte de une. Choix éditorial : celle qui répond à une intuition
+	// fausse plutôt que celle qui a la plus jolie donnée. « Les municipales
+	// sont-elles des élections de partis ? » — non, et la carte le montre sans
+	// une phrase de commentaire.
+	const carteUne = "part-partisane"
+	var une *CarteTerritoire
+	for i := range terr.Cartes {
+		if terr.Cartes[i].Slug == carteUne {
+			une = &terr.Cartes[i]
+		}
+	}
 	if err := write(page("accueil.gohtml"), filepath.Join(out, "index.html"), struct {
 		Layout
 		Derniers []FluxLigne
-	}{l, flux}); err != nil {
+		Une      *CarteTerritoire
+		Defs     template.HTML
+	}{l, flux, une, terr.Defs}); err != nil {
 		return err
 	}
 
@@ -391,10 +471,6 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	}
 
 	// --- territoires, sécurité, présidentielle 2027 : les nouvelles sections
-	terr, err := loadTerritoires(ctx, pool)
-	if err != nil {
-		return err
-	}
 	l = layout
 	l.Title = "Territoires"
 	if err := write(page("territoires.gohtml"), filepath.Join(out, "territoires", "index.html"),
@@ -403,6 +479,20 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 			T *StatsTerritoires
 		}{l, terr}); err != nil {
 		return err
+	}
+
+	// Une page par carte : tracé fin, classement complet, série annuelle.
+	tcd := page("carte-detail.gohtml")
+	for _, c := range terr.Cartes {
+		l = layout
+		l.Title = c.Titre
+		if err := write(tcd, filepath.Join(out, "territoires", c.Slug, "index.html"),
+			struct {
+				Layout
+				P PageCarte
+			}{l, c.Page}); err != nil {
+			return err
+		}
 	}
 
 	fr, err := loadFrise(ctx, pool, dataDir)
@@ -416,6 +506,48 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 			Layout
 			F *StatsFrise
 		}{l, fr}); err != nil {
+		return err
+	}
+
+	det, err := loadDette(ctx, pool)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "La dette publique"
+	if err := write(page("dette.gohtml"), filepath.Join(out, "dette", "index.html"),
+		struct {
+			Layout
+			D *StatsDette
+		}{l, det}); err != nil {
+		return err
+	}
+
+	chom, err := loadChomage(ctx, pool)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Le taux de chômage"
+	if err := write(page("chomage.gohtml"), filepath.Join(out, "chomage", "index.html"),
+		struct {
+			Layout
+			C *StatsChomage
+		}{l, chom}); err != nil {
+		return err
+	}
+
+	div, err := loadDividendes(ctx, pool)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Les dividendes versés"
+	if err := write(page("dividendes.gohtml"), filepath.Join(out, "dividendes", "index.html"),
+		struct {
+			Layout
+			D *StatsDividendes
+		}{l, div}); err != nil {
 		return err
 	}
 
@@ -433,6 +565,18 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return err
 	}
 
+	for _, ind := range sec.Indicateurs {
+		l = layout
+		l.Title = ind.Libelle
+		if err := write(tcd, filepath.Join(out, "securite", ind.Slug, "index.html"),
+			struct {
+				Layout
+				P PageCarte
+			}{l, ind.Page}); err != nil {
+			return err
+		}
+	}
+
 	e27, err := load2027(ctx, pool, candidats, dataDir)
 	if err != nil {
 		return err
@@ -447,18 +591,274 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return err
 	}
 
+	vues := map[string]bool{}
+	for _, k := range e27.Candidats {
+		if k.Page == nil || vues[k.Page.Slug] {
+			continue
+		}
+		vues[k.Page.Slug] = true
+		l = layout
+		l.Title = k.Page.Titre
+		if err := write(tcd, filepath.Join(out, "2027", k.Page.Slug, "index.html"),
+			struct {
+				Layout
+				P PageCarte
+			}{l, *k.Page}); err != nil {
+			return err
+		}
+	}
+
+	avecFiche := map[string]bool{}
+	for _, pp := range persons {
+		avecFiche[pp.Slug] = true
+	}
+	gouv, err := loadGouvernement(ctx, pool, dataDir, avecFiche)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Gouvernement"
+	if err := write(page("gouvernement.gohtml"),
+		filepath.Join(out, "gouvernement", "index.html"), struct {
+			Layout
+			G *StatsGouvernement
+		}{l, gouv}); err != nil {
+		return err
+	}
+
+	l = layout
+	l.Title = "Tous les décrets de composition"
+	tousDecrets := *gouv
+	tousDecrets.Decrets = gouv.Tous
+	if err := write(page("decrets.gohtml"),
+		filepath.Join(out, "gouvernement", "decrets", "index.html"), struct {
+			Layout
+			G *StatsGouvernement
+		}{l, &tousDecrets}); err != nil {
+		return err
+	}
+
+	col, err := loadCollectivites(ctx, pool)
+	if err != nil {
+		return err
+	}
+	// La carte d'index porte le fonctionnement : c'est le budget qui tourne
+	// chaque année, celui qui décrit le mieux ce que la collectivité fait.
+	relierFiches(col, avecFiche)
+	const indicCarte = "ofgl.fonctionnement_par_hab"
+	if err := cartesCollectivites(ctx, pool, col, indicCarte); err != nil {
+		return err
+	}
+	type barreNiveau struct {
+		Titre  string
+		Graphe template.HTML
+	}
+	var barres []barreNiveau
+	for _, ind := range indicsCollectivite {
+		barres = append(barres, barreNiveau{ind.Libelle, barresNiveaux(col.Poids, ind.Code)})
+	}
+	l = layout
+	l.Title = "Collectivités"
+	if err := write(page("collectivites.gohtml"),
+		filepath.Join(out, "collectivites", "index.html"), struct {
+			Layout
+			C            *StatsCollectivites
+			Ind          []IndicCollectivite
+			Barres       []barreNiveau
+			IndicLibelle string
+		}{l, col, indicsCollectivite, barres, "Dépenses de fonctionnement"}); err != nil {
+		return err
+	}
+
+	// --- les lieux : communes et intercommunalités, et la chaîne de lieux de
+	// chaque mandat affiché ailleurs sur le site.
+	lieux, err := chargerResolveur(ctx, pool, root, col)
+	if err != nil {
+		return err
+	}
+	for _, pp := range persons {
+		lieux.situerMandats(pp)
+	}
+	pagesCom, err := chargerPagesCommunes(ctx, pool, lieux, avecFiche)
+	if err != nil {
+		return err
+	}
+	tcom := page("commune.gohtml")
+	for code, pc := range pagesCom {
+		l = layout
+		l.Title = pc.Nom + " (" + pc.Dept.Code + ")"
+		if err := write(tcom, filepath.Join(out, "collectivites", "commune", code, "index.html"),
+			struct {
+				Layout
+				C *PageCommune
+			}{l, pc}); err != nil {
+			return err
+		}
+	}
+	pagesEPCI, err := chargerPagesEPCI(ctx, pool, lieux, col, avecFiche)
+	if err != nil {
+		return err
+	}
+	tepci := page("epci.gohtml")
+	for siren, pe := range pagesEPCI {
+		l = layout
+		l.Title = pe.Nom
+		if err := write(tepci, filepath.Join(out, "collectivites", "epci", siren, "index.html"),
+			struct {
+				Layout
+				E *PageEPCI
+			}{l, pe}); err != nil {
+			return err
+		}
+	}
+	fmt.Printf("  lieux : %d communes, %d intercommunalités\n", len(pagesCom), len(pagesEPCI))
+
+	// Les pages de région et de département, maintenant que le résolveur sait
+	// quels départements composent une région.
+	tcol := page("collectivite.gohtml")
+	pagesCol, err := pagesCollectivites(ctx, pool, col, lieux)
+	if err != nil {
+		return err
+	}
+	for _, pc := range pagesCol {
+		l = layout
+		l.Title = pc.Nom
+		if err := write(tcol, filepath.Join(out, "collectivites", pc.TypeURL, pc.Slug,
+			"index.html"), struct {
+			Layout
+			K PageCollectivite
+		}{l, pc}); err != nil {
+			return err
+		}
+	}
+
+	agri, err := loadAgriculture(ctx, pool, dataDir)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Agriculture et alimentation"
+	if err := write(page("agriculture.gohtml"), filepath.Join(out, "agriculture", "index.html"),
+		struct {
+			Layout
+			A *StatsAgri
+		}{l, agri}); err != nil {
+		return err
+	}
+
+	bud, err := loadBudget(ctx, pool)
+	if err != nil {
+		return err
+	}
+	sect, err := loadSecteurs(ctx, pool)
+	if err != nil {
+		return err
+	}
+	circuit, err := loadCircuitCanaux(ctx, pool, presidences)
+	if err != nil {
+		return err
+	}
+	if bud != nil {
+		l = layout
+		l.Title = "Budget de l'État"
+		if err := write(page("budget.gohtml"), filepath.Join(out, "budget", "index.html"),
+			struct {
+				Layout
+				B *StatsBudget
+				X *StatsSecteurs
+				K *CircuitCanaux
+			}{l, bud, sect, circuit}); err != nil {
+			return err
+		}
+	}
+	if circuit != nil {
+		tdisp := page("dispositif.gohtml")
+		for _, m := range circuit.GrandesMesures {
+			l = layout
+			l.Title = m.Libelle
+			if err := write(tdisp, filepath.Join(out, "budget", "dispositif", m.Code, "index.html"),
+				struct {
+					Layout
+					M MesureExoneration
+				}{l, m}); err != nil {
+				return err
+			}
+		}
+	}
+
+	soc, err := loadSocial(ctx, pool)
+	if err != nil {
+		return err
+	}
+	if soc != nil && soc.Total > 0 {
+		l = layout
+		l.Title = "Protection sociale"
+		if err := write(page("social.gohtml"), filepath.Join(out, "protection-sociale", "index.html"),
+			struct {
+				Layout
+				X *StatsSocial
+			}{l, soc}); err != nil {
+			return err
+		}
+	}
+
 	// --- comprendre : les documents de méthode, rendus en pages
 	docs, err := loadDocs("docs")
 	if err != nil {
 		return err
 	}
+	// Les schémas calculés depuis la base sont insérés dans les documents
+	// Markdown à l'endroit d'un marqueur : le texte reste un fichier relisible
+	// dans le dépôt, et le chiffre du schéma reste celui de la base.
+	for _, d := range docs {
+		if strings.Contains(string(d.Corps), "<!-- schema:canaux -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:canaux -->",
+				`<figure class="schema">`+string(circuit.SVG)+`<figcaption>`+
+					`Le faisceau des exonérations (Employeurs → État) est en largeurs `+
+					`<strong>proportionnelles</strong>&nbsp;: quatre catégories, même année, même `+
+					`source, qui se somment exactement au total. Les flèches simples, elles, ne le `+
+					`sont pas&nbsp;: les cinq canaux ne sont publiés chiffrés que dans un PDF. `+
+					`Exonérations&nbsp;: URSSAF, `+fmt.Sprint(circuit.AnneeExo)+`. Non-compensation `+
+					`et part de TVA&nbsp;: jaune budgétaire et LFSS 2026. `+
+					`<a href="`+root+`/budget/">La série annuelle des exonérations →</a></figcaption></figure>`))
+		}
+		if sect != nil && strings.Contains(string(d.Corps), "<!-- schema:s1311s1314 -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:s1311s1314 -->",
+				`<figure class="schema">`+string(sect.CourbeS1311S1314)+`<figcaption>`+
+					`Dépenses de l'administration centrale (S1311) contre la Sécurité sociale `+
+					`(S1314), `+fmt.Sprint(sect.Debut)+`–`+fmt.Sprint(sect.Annee)+`.`+
+					func() string {
+						if sect.AnneeCroisement1314 > 0 {
+							return ` La Sécurité sociale dépense plus que l'État à partir de ` +
+								fmt.Sprint(sect.AnneeCroisement1314) + `.`
+						}
+						return ""
+					}()+
+					` <a href="`+root+`/budget/">Le détail par sous-secteur →</a></figcaption></figure>`))
+		}
+		if sect != nil && strings.Contains(string(d.Corps), "<!-- schema:financement34ans -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:financement34ans -->",
+				`<figure class="schema">`+string(sect.EmpileesFinancement)+
+					`<div class="legende">`+
+					`<span><i class="f0"></i>Cotisations des employeurs</span>`+
+					`<span><i class="f1"></i>Cotisations des assurés</span>`+
+					`<span><i class="f2"></i>Recettes fiscales affectées</span>`+
+					`<span><i class="f3"></i>Recettes fiscales générales</span></div>`+
+					`<figcaption>Les 34 années, en 100&nbsp;% empilé — pas seulement `+
+					fmt.Sprint(sect.DebutFin)+` et `+fmt.Sprint(sect.AnnFin)+
+					`. Source&nbsp;: Eurostat ESSPROS, dataflow spr_rec_sumt. `+
+					`<a href="`+root+`/budget/">Le tableau des deux dates →</a></figcaption></figure>`))
+		}
+	}
+
 	l = layout
 	l.Title = "Comprendre"
 	if err := write(page("comprendre.gohtml"), filepath.Join(out, "comprendre", "index.html"),
 		struct {
 			Layout
-			Docs []*Doc
-		}{l, docs}); err != nil {
+			Docs    []*Doc
+			Groupes []GroupeDocs
+		}{l, docs, GrouperDocs(docs)}); err != nil {
 		return err
 	}
 	td := page("doc.gohtml")
@@ -492,6 +892,16 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	}
 
 	// --- fiches personnes (les candidats obtiennent en plus une URL dédiée)
+	locaux, err := loadMandatsLocaux(ctx, pool, dataDir+"/candidats-mandats-locaux.csv")
+	if err != nil {
+		return err
+	}
+	situerMandatsLocaux(locaux, lieux)
+	par2027 := map[string]*Candidat2027{}
+	for _, k := range e27.Candidats {
+		par2027[k.Slug] = k
+	}
+
 	tp := page("personne.gohtml")
 	byCand := map[string]*Candidat{}
 	for _, c := range candidats {
@@ -509,8 +919,17 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 			Layout
 			P             *Person
 			Cand          *Candidat
+			Local         *RapprochementRNE
+			K             *Candidat2027
+			Defs          template.HTML
 			TotalScrutins int
-		}{l, p, byCand[p.Slug], layout.Cov.Scrutins}
+		}{l, p, byCand[p.Slug], nil, nil, "", layout.Cov.Scrutins}
+		if c := byCand[p.Slug]; c != nil {
+			data.Local, data.K = locaux[c.Slug], par2027[c.Slug]
+			if data.K != nil && !data.K.Apercu.Vide {
+				data.Defs = e27.Defs
+			}
+		}
 		if err := write(tp, filepath.Join(out, "depute", p.Slug, "index.html"), data); err != nil {
 			return err
 		}
@@ -522,12 +941,20 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		if p == nil {
 			p = &Person{Slug: c.Slug, Prenom: c.Prenom, Nom: c.Nom}
 		}
+		k := par2027[c.Slug]
+		var defs template.HTML
+		if k != nil && !k.Apercu.Vide {
+			defs = e27.Defs
+		}
 		data := struct {
 			Layout
 			P             *Person
 			Cand          *Candidat
+			Local         *RapprochementRNE
+			K             *Candidat2027
+			Defs          template.HTML
 			TotalScrutins int
-		}{l, p, c, layout.Cov.Scrutins}
+		}{l, p, c, locaux[c.Slug], k, defs, layout.Cov.Scrutins}
 		if err := write(tp, filepath.Join(out, "candidat", c.Slug, "index.html"), data); err != nil {
 			return err
 		}
@@ -663,12 +1090,14 @@ func write(t *template.Template, path string, data any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	f, err := os.Create(path)
-	if err != nil {
+	// La page est rendue en mémoire puis relue pour la ponctuation française :
+	// c'est le seul point de passage commun aux gabarits, aux libellés venus de
+	// la base et aux documents Markdown de « Comprendre ».
+	var buf bytes.Buffer
+	if err := t.ExecuteTemplate(&buf, "base", data); err != nil {
 		return err
 	}
-	defer f.Close()
-	return t.ExecuteTemplate(f, "base", data)
+	return os.WriteFile(path, corrigerTypographie(buf.Bytes()), 0o644)
 }
 
 func sources(ctx context.Context, pool *pgxpool.Pool) ([]SourceInfo, error) {

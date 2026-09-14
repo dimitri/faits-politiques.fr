@@ -82,22 +82,29 @@ padding:.7rem 1.1rem;z-index:100;border-radius:0 0 var(--rayon-s) 0}
 header.top{background:var(--carte);border-bottom:1px solid var(--filet);position:relative;z-index:5}
 header.top .row{display:flex;align-items:center;gap:1.1rem;padding:.8rem 0}
 .marque{display:flex;align-items:center;gap:.6rem;text-decoration:none;color:inherit;flex:0 0 auto}
-.marque svg{display:block;flex:0 0 auto}
+.marque svg,.marque img{display:block;flex:0 0 auto}
 .marque .mot{font:600 1.06rem/1 var(--sans);letter-spacing:-.028em}
 .marque .mot i{font-style:normal;color:var(--attenue);font-weight:450}
-header.top nav{display:flex;gap:.05rem;flex-wrap:nowrap;margin-left:.3rem}
+/* Douze entrées ne tiennent pas sur une ligne à toutes les largeurs, et
+   masquer un libellé cacherait une section entière du site : la barre passe
+   donc sur deux lignes plutôt que d'amputer. */
+header.top nav{display:flex;gap:.05rem;flex-wrap:wrap;justify-content:flex-end;
+margin-left:.3rem}
 header.top nav a{font:500 .84rem/1 var(--sans);color:var(--attenue);text-decoration:none;
 padding:.5rem .48rem;border-radius:var(--rayon-s);display:inline-flex;align-items:center;
 gap:.34rem;white-space:nowrap}
 /* Huit entrées, une marque, une recherche et un sélecteur de thème ne tiennent
    pas sur une ligne à 1440 px : les icônes s'effacent d'abord, la recherche
    ensuite. Les libellés, eux, ne disparaissent jamais. */
-@media(max-width:92rem){header.top nav a .ico{display:none}}
-@media(max-width:78rem){button.rech.compact{max-width:2.6rem}
+header.top nav sup{font-size:.66em;line-height:0;vertical-align:.42em}
+@media(max-width:112rem){header.top nav a .ico{display:none}}
+@media(max-width:100rem){header.top nav a{padding-left:.42rem;padding-right:.42rem;
+  font-size:.8rem}}
+@media(max-width:88rem){button.rech.compact{max-width:2.6rem}
   button.rech.compact .txt,button.rech.compact kbd{display:none}}
 header.top nav a:hover{color:var(--encre);background:var(--papier2)}
 header.top nav a[aria-current]{color:var(--encre);background:var(--papier2)}
-.ico{width:16px;height:16px;flex:0 0 auto;opacity:.78}
+header.top nav a .ico{width:16px;height:16px;flex:0 0 auto;opacity:.78}
 header.top nav a:hover .ico,header.top nav a[aria-current] .ico{opacity:1}
 
 /* ── Sélecteur de thème ──────────────────────────────────────────────── */
@@ -233,7 +240,7 @@ color:var(--accent);display:block;margin-bottom:.5rem}
 .h2{font:500 1.55rem/1.2 var(--titre);letter-spacing:-.014em;text-wrap:balance}
 .bloc{padding:2.8rem 0}
 .bloc + .bloc{border-top:1px solid var(--filet)}
-.tete{display:flex;align-items:baseline;justify-content:space-between;gap:1rem;
+.tete{display:flex;align-items:center;justify-content:space-between;gap:1rem;
 flex-wrap:wrap;margin-bottom:1.3rem}
 .tete .plus{font:500 .86rem/1 var(--sans);text-decoration:none}
 
@@ -262,14 +269,25 @@ display:block;margin-top:.1rem}
 /* ── Cartes ──────────────────────────────────────────────────────────── */
 .cartes{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(16rem,1fr))}
 .cartes.trois{grid-template-columns:repeat(auto-fill,minmax(20rem,1fr))}
+.cartes.quatre{grid-template-columns:repeat(auto-fill,minmax(14.5rem,1fr))}
 .carte{background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);
 padding:1.15rem 1.2rem;text-decoration:none;color:inherit;display:flex;flex-direction:column;gap:.4rem}
 a.carte:hover{border-color:var(--accent)}
 .carte .v{font:600 1.6rem/1 var(--sans);letter-spacing:-.03em}
 .carte .t{font-weight:600;font-size:.98rem;text-wrap:balance}
 .carte .d{font-size:.855rem;color:var(--attenue);line-height:1.5;margin-top:auto}
+.sparkline{width:100%;height:1.9rem;display:block}
+.sparkline .ligne{stroke:var(--sp,var(--accent));stroke-width:1.6}
+.sparkline .pt{fill:var(--sp,var(--accent))}
 .carte.creuse{background:transparent;border-style:dashed}
 .carte.creuse .v{font:500 .95rem/1.3 var(--sans);color:var(--attenue);letter-spacing:0}
+.groupe-delinquance{margin:1.1rem 0}
+.groupe-delinquance .gt{display:flex;align-items:center;gap:.4rem;font:500 .78rem/1 var(--mono);
+letter-spacing:.06em;text-transform:uppercase;color:var(--attenue);margin-bottom:.6rem}
+.groupe-delinquance .gt i{width:9px;height:9px;border-radius:2px;display:block;flex:0 0 auto}
+.mini-delinq{padding:.85rem .9rem;gap:.3rem}
+.mini-delinq .t{font-size:.82rem;line-height:1.25}
+.mini-delinq .d{font-size:.72rem}
 .card{background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);
 padding:1.1rem 1.2rem;margin:1rem 0}
 .grid{display:grid;gap:.9rem;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}
@@ -290,7 +308,7 @@ table{border-collapse:collapse;width:100%;font-size:.9rem}
 th,td{text-align:left;padding:.55rem .7rem;border-bottom:1px solid var(--filet);vertical-align:top}
 th{font:500 .68rem/1.2 var(--mono);letter-spacing:.09em;text-transform:uppercase;
 color:var(--attenue);border-bottom:1px solid var(--attenue);vertical-align:bottom}
-td.n,th.n{text-align:right}
+td.n,th.n{text-align:right;white-space:nowrap}
 .num,td:has(+td){font-variant-numeric:tabular-nums}
 tbody tr:hover{background:var(--carte)}
 .z{color:var(--attenue);font-weight:400}
@@ -483,6 +501,10 @@ font-size:.8rem;max-width:none}
   table.pile tr:hover{background:transparent}
   table.pile td{border:0;padding:0}
   table.pile-1 tr{grid-template-columns:1fr;gap:.2rem}
+  table.pile.nomin td:nth-child(2)::before{content:"Groupe ";color:var(--attenue);
+    font:500 .68rem/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase}
+  table.pile.nomin td:nth-child(3)::before{content:"Position ";color:var(--attenue);
+    font:500 .68rem/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase}
   table.pile td[data-l]::before{content:attr(data-l) " ";
   font:500 .66rem/1 var(--mono);letter-spacing:.08em;text-transform:uppercase;
   color:var(--attenue);margin-right:.35rem}
@@ -495,25 +517,109 @@ font-size:.8rem;max-width:none}
    Rendues en SVG par la base, sans bibliothèque ni tuile. La couleur seule
    ne porte jamais l'information : chaque tracé a son <title>, et la légende
    donne les bornes réelles des classes, pas des nombres ronds inventés. */
-.carte{width:100%;height:auto;display:block}
-.carte path{stroke:var(--papier);stroke-width:1100;stroke-linejoin:round;
+/* .geo, et surtout PAS .carte : la feuille définit déjà .carte pour les cartes
+   au sens « fiche » (display:flex, colonne, gap). Les deux sens du mot se sont
+   effectivement percutés — le display:block du second effaçait la colonne du
+   premier, et sur l'accueil « 8 434 » se collait à « Assemblée nationale ». */
+.geo{width:100%;height:auto;display:block}
+.geo path{stroke:var(--papier);stroke-width:1100;stroke-linejoin:round;
 transition:opacity .12s}
-.carte:hover path{opacity:.55}
-.carte path:hover{opacity:1}
+.geo:hover path{opacity:.55}
+.geo path:hover{opacity:1}
 .echelle{display:flex;gap:.3rem .5rem;flex-wrap:wrap;align-items:center;margin-top:.7rem;
 font-size:.73rem;color:var(--attenue);line-height:1.3}
 .echelle .u{font:500 .66rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase}
 .echelle span{display:inline-flex;align-items:center;gap:.35rem}
 .echelle i{width:19px;height:10px;border-radius:2px;display:block;flex:0 0 auto}
+/* Les vignettes de l'index renvoient aux tracés d'un <defs> partagé : le même
+   contour sert quinze cartes au lieu d'être réécrit quinze fois. Le <use> ne
+   porte pas d'infobulle — le détail est à un clic. */
+.geo use{stroke:var(--papier);stroke-width:3000;stroke-linejoin:round}
+.geo.apercu{pointer-events:none}
+/* Carte maillée : aucune valeur n'y est encodée par couleur, donc ni rampe ni
+   légende — seule la mosaïque des communes et le contour de leurs
+   intercommunalités, pour se repérer dans le détail d'un territoire. */
+/* Sur la page d'un département ou d'une intercommunalité, la carte maillée
+   n'est qu'UNE section parmi d'autres — contrairement à /territoires/<slug>/,
+   où la carte EST le sujet de toute la page et remplit .carte-pleine (44rem).
+   Sans plafond, .geo{width:100%} l'étirait sur toute la largeur de l'article. */
+.geo.maille{max-width:26rem}
+.geo.maille:hover path{opacity:1}
+.geo.maille .maille-c path{fill:var(--carte);stroke:var(--filet);transition:fill .12s}
+.geo.maille .maille-c path:hover{fill:var(--accent-doux)}
+.geo.maille .maille-e path{fill:none;stroke:var(--accent);stroke-linejoin:round;
+stroke-opacity:.72;pointer-events:none}
 .cartes-grille{display:grid;gap:1.6rem 1.3rem;
 grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}
+/* Une ligne par carte, comme la carte « une » de l'accueil : la vignette a
+   besoin d'assez de largeur pour que sa rangée de cartons outre-mer tienne
+   sur une seule ligne — un carton de plus qu'une colonne de grille étroite. */
+.cartes-lignes{display:flex;flex-direction:column;gap:1.4rem}
+.cartes-lignes .bloc-carte.ligne{display:grid;grid-template-columns:minmax(0,18rem) minmax(0,1fr);
+gap:1.4rem;align-items:start;flex-direction:unset}
+.cartes-lignes .bloc-carte.ligne .q{min-height:0}
+@media(max-width:52rem){.cartes-lignes .bloc-carte.ligne{grid-template-columns:1fr}}
 .bloc-carte{background:var(--carte);border:1px solid var(--filet);
-border-radius:var(--rayon);padding:1.1rem 1.15rem}
+border-radius:var(--rayon);padding:1.1rem 1.15rem;display:flex;flex-direction:column;
+color:inherit;text-decoration:none;transition:border-color .12s,box-shadow .12s}
+a.bloc-carte:hover,a.bloc-carte:focus-visible{border-color:var(--accent);
+box-shadow:0 1px 12px rgba(0,0,0,.06)}
 .bloc-carte h3{margin:0 0 .2rem;font-size:.98rem}
-.bloc-carte .q{color:var(--attenue);font-size:.85rem;margin:0 0 .8rem;line-height:1.45}
-.bloc-carte .src{font:400 .7rem/1.4 var(--mono);color:var(--attenue);
+a.bloc-carte:hover h3{text-decoration:underline;text-underline-offset:3px}
+.bloc-carte .q{color:var(--attenue);font-size:.85rem;margin:0 0 .8rem;line-height:1.45;
+min-height:3.9em}
+.bloc-carte .echelle{margin-bottom:auto}
+.bloc-carte .src{display:block;font:400 .7rem/1.4 var(--mono);color:var(--attenue);
 margin-top:.7rem;padding-top:.6rem;border-top:1px solid var(--filet)}
+.bloc-carte .voir,.voir{display:block;font:500 .78rem/1.35 var(--sans);
+color:var(--accent);margin-top:.55rem}
 .attr-osm{font:400 .7rem/1.45 var(--mono);color:var(--attenue);margin-top:.5rem}
+
+/* ── Page d'une carte : tracé fin, classement complet, série ───────── */
+.carte-pleine{background:var(--carte);border:1px solid var(--filet);
+border-radius:var(--rayon);padding:1.2rem 1.3rem;margin:1.2rem 0 .6rem;
+max-width:44rem}
+.liens-cartes{list-style:none;padding:0;margin:.8rem 0 0;display:flex;
+flex-wrap:wrap;gap:.4rem .5rem}
+.liens-cartes a{display:inline-block;border:1px solid var(--filet);
+border-radius:100px;padding:.28rem .7rem;font-size:.82rem;text-decoration:none}
+.liens-cartes a:hover{border-color:var(--accent)}
+table.classement{width:100%;border-collapse:collapse;font-size:.88rem}
+table.classement th{font:500 .66rem/1 var(--mono);letter-spacing:.09em;
+text-transform:uppercase;color:var(--attenue);text-align:left;
+padding:.4rem .6rem;border-bottom:1px solid var(--filet)}
+table.classement td{padding:.32rem .6rem;border-bottom:1px solid var(--filet)}
+table.classement td.r,table.classement td.c{font:400 .78rem/1 var(--mono);
+color:var(--attenue)}
+table.classement td.n{text-align:right;font-variant-numeric:tabular-nums;
+white-space:nowrap}
+th.barre,td.barre{width:30%;min-width:5rem}
+td.barre span{display:block;height:9px;border-radius:2px;
+background:var(--accent);opacity:.5}
+
+/* Série annuelle : une seule échelle, ancrée à zéro, deux étiquettes. */
+.courbe{width:100%;height:auto;display:block;max-width:44rem;margin:.4rem 0 .2rem}
+.courbe .axe{stroke:var(--filet);stroke-width:1}
+.courbe .aire{fill:var(--accent);opacity:.10}
+.courbe .trait{fill:none;stroke:var(--accent);stroke-width:2;
+stroke-linejoin:round;stroke-linecap:round}
+.courbe .pt{fill:var(--accent);stroke:var(--carte);stroke-width:2}
+.courbe .et{font:600 .78rem/1 var(--sans);fill:var(--encre)}
+.courbe .an{font:400 .7rem/1 var(--mono);fill:var(--attenue)}
+.courbe .fin{text-anchor:end}
+
+/* Courbe à paliers : une série longue découpée en régimes datés. La bande
+   alternée sépare les régimes sans tracer de frontière — une ligne verticale
+   suggérerait une rupture nette là où il n'y a qu'un changement de pente. */
+.courbe.paliers .bande{fill:var(--papier2)}
+.courbe .pal{font:500 .72rem/1 var(--sans);fill:var(--attenue);text-anchor:middle}
+.courbe .pal.moy{font:600 .74rem/1 var(--sans);fill:var(--encre)}
+.courbe .et.haut{text-anchor:middle}
+
+/* Bandeau d'un candidat : portrait, organisation, nom. */
+.tete .qui{display:flex;gap:.9rem;align-items:center;min-width:0}
+.tete .qui .credit{display:block;font:400 .66rem/1.35 var(--mono);
+color:var(--attenue);margin-top:.25rem}
 
 /* ── Angles d'un candidat : ce qu'on sait, ce qu'on ne sait pas ────── */
 .angles{display:grid;gap:.5rem;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));
@@ -542,3 +648,254 @@ padding:.16rem 0;font-size:.84rem}
 .echelle i.r0{background:#DCE9EC}.echelle i.r1{background:#B0CFD5}
 .echelle i.r2{background:#7FB0BA}.echelle i.r3{background:#4A8894}
 .echelle i.r4{background:#1E5C69}
+
+/* ── Budget : courbes d'exercices et tableau hiérarchisé ──────────────
+   Les exercices sont ORDINAUX, pas des catégories : la rampe séquentielle du
+   site les encode du plus ancien (clair) au plus récent (foncé). Chaque trait
+   porte en plus son année dans la légende — la couleur n'est jamais seule. */
+.graphe{width:100%;height:auto;display:block;max-width:46rem;margin:.6rem 0 .2rem}
+.graphe .zero{stroke:var(--attenue);stroke-width:1}
+.graphe .an{font:400 .68rem/1 var(--mono);fill:var(--attenue)}
+.graphe .b{rx:1.5}
+.graphe .b.e0{fill:#7FB0BA}.graphe .b.e1{fill:#4A8894}.graphe .b.e2{fill:#1E5C69}
+.graphe .b:hover{opacity:.7}
+.legende{display:flex;flex-wrap:wrap;gap:.35rem 1.1rem;font-size:.8rem;
+color:var(--attenue);margin:.2rem 0 1rem}
+.legende span{display:inline-flex;align-items:center;gap:.4rem}
+.legende i{width:16px;height:3px;border-radius:2px;display:block;flex:0 0 auto}
+.legende i.e0{background:#7FB0BA}.legende i.e1{background:#4A8894}
+.legende i.e2{background:#1E5C69}
+.graphe .ligne-pib{fill:none;stroke:#B0763A;stroke-width:1.8}
+.graphe .pt-pib{fill:#B0763A}
+.graphe .et.pib{font:600 .72rem/1 var(--sans);fill:#B0763A;
+paint-order:stroke;stroke:var(--carte);stroke-width:3px;stroke-linejoin:round}
+.legende i.ligne-pib{background:none;border-top:2px solid #B0763A;height:0;width:16px}
+/* La hiérarchie des lignes est un fait de la source : un total et ses
+   composantes voisinent, et le retrait dit lequel est lequel. */
+tr.niv0 td,tr.niv1 td{font-weight:600}
+tr.niv2 td:nth-child(2){padding-left:1.5rem}
+tr.niv3 td:nth-child(2){padding-left:2.6rem}
+tr.niv4 td:nth-child(2){padding-left:3.7rem}
+
+.graphe .fin{stroke:var(--carte);stroke-width:2}
+.graphe .fin.e0{fill:#7FB0BA}.graphe .fin.e1{fill:#4A8894}.graphe .fin.e2{fill:#1E5C69}
+.graphe .et{font:600 .72rem/1 var(--sans);fill:var(--encre)}
+
+/* ── Poids des niveaux : barres horizontales, origine à zéro ──────────
+   Une barre par niveau, une échelle par indicateur. Les niveaux ne se
+   recouvrent pas : chaque euro n'est compté qu'une fois. */
+.barres{display:grid;gap:.4rem;margin:.5rem 0 1.4rem;max-width:46rem}
+.barres .ligne{display:grid;grid-template-columns:10rem 1fr 6rem 5rem;
+gap:.7rem;align-items:center;font-size:.88rem}
+.barres .n{font-weight:600}
+.barres .piste{display:block;height:14px;border-radius:3px;background:var(--filet2)}
+.barres .piste i{display:block;height:100%;border-radius:3px;background:var(--accent)}
+.barres .v{text-align:right;font-variant-numeric:tabular-nums;font-weight:600}
+.barres .c{text-align:right;font:400 .74rem/1 var(--mono);color:var(--attenue)}
+@media(max-width:40rem){.barres .ligne{grid-template-columns:1fr auto;gap:.2rem .6rem}
+  .barres .piste{grid-column:1/-1}.barres .c{display:none}}
+.deux-cartes{display:grid;gap:1.3rem;grid-template-columns:repeat(auto-fit,minmax(18rem,1fr));
+margin:1rem 0}
+/* Une carte par ligne, pleine largeur : à trois cartes nationales côte à
+   côte, chacune devenait trop étroite pour que ses cartons outre-mer restent
+   lisibles en une seule rangée — le même problème que .cartes-lignes. */
+.cartes-empilees{display:flex;flex-direction:column;gap:1.8rem;margin:1rem 0}
+.cartes-empilees .bloc-carte{max-width:40rem}
+
+/* Empilements à 100 % : deux dates, pas une série. Quatre teintes de la même
+   rampe séquentielle — les postes de financement s'ordonnent du plus ancien
+   (cotisations) au plus récent (impôt), ce qui est un ordre, pas une identité. */
+.empils{max-width:46rem;margin:.6rem 0 1rem}
+.empil{display:grid;grid-template-columns:3.4rem 1fr;gap:.7rem;align-items:center;
+margin-bottom:.4rem}
+.empil .an{font:400 .78rem/1 var(--mono);color:var(--attenue);text-align:right}
+.empil .pile{display:flex;height:26px;border-radius:3px;overflow:hidden;background:var(--filet2)}
+.empil .pile i{display:block;height:100%}
+.empils .legende{margin-top:.5rem;padding-left:4.1rem}
+.empils .legende i{width:14px;height:14px;border-radius:3px}
+i.f0{background:#1E5C69}i.f1{background:#4A8894}i.f2{background:#B0CFD5}i.f3{background:#DCE9EC}
+
+/* La carte de une : la vignette à gauche, ce qu'elle dit à droite. */
+.une-carte{display:grid;gap:1.4rem;grid-template-columns:minmax(0,22rem) minmax(0,1fr);
+align-items:start;margin-top:.6rem}
+.une-carte>a{display:block;border:1px solid var(--filet);border-radius:var(--rayon);
+padding:.9rem;background:var(--carte)}
+.une-carte>a:hover{border-color:var(--accent)}
+.une-carte p{margin:0 0 .7rem}
+@media(max-width:52rem){.une-carte{grid-template-columns:1fr}}
+
+/* Bloc cliquable : le lien principal s'étire sur toute la carte, les liens
+   intérieurs restent cliquables en repassant au-dessus. Pas de <a> imbriqué,
+   qui serait du HTML invalide et casserait la navigation au clavier. */
+.bloc.cliquable{position:relative;border-radius:var(--rayon);
+padding-left:1.1rem;padding-right:1.1rem;margin-left:-1.1rem;margin-right:-1.1rem;
+transition:background .12s}
+.bloc.cliquable:hover{background:var(--carte)}
+.bloc.cliquable .etire::after{content:"";position:absolute;inset:0;z-index:0}
+.bloc.cliquable:hover .etire{text-decoration:underline;text-underline-offset:3px}
+.bloc.cliquable a:not(.etire),.bloc.cliquable .angles,.bloc.cliquable .une-carte{
+position:relative;z-index:1}
+.bloc.cliquable .angles,.bloc.cliquable .une-carte{pointer-events:none}
+.bloc.cliquable .angles a,.bloc.cliquable .une-carte a{pointer-events:auto}
+
+/* ── Cartons d'outre-mer ──────────────────────────────────────────────
+   Chacun dans sa projection légale, donc à sa propre échelle : une boîte de
+   taille fixe, la forme s'y inscrit. La valeur est écrite sous le carton —
+   la couleur seule ne suffirait pas sur une forme de trois millimètres. */
+.cartons{display:flex;flex-wrap:wrap;gap:.9rem 1.1rem;align-items:flex-end;
+margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--filet)}
+.cartons>.t{font:500 .66rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase;
+color:var(--attenue);align-self:center}
+.cartons figure{margin:0;width:5.4rem;text-align:center}
+.cartons .geo.carton{width:100%;height:3.2rem;object-fit:contain}
+.cartons .geo.carton path{stroke:var(--papier);stroke-width:0;stroke-linejoin:round}
+.cartons figcaption{font-size:.7rem;line-height:1.25;margin-top:.25rem}
+.cartons figcaption span{display:block;color:var(--attenue);
+font:400 .68rem/1.2 var(--mono);font-variant-numeric:tabular-nums}
+.cartons figure.vide figcaption span{font-style:italic}
+.note-cartons{font:400 .72rem/1.45 var(--mono);color:var(--attenue);margin:.5rem 0 0}
+
+/* Séries annuelles en barres : une valeur par année, rien entre elles. La
+   dernière barre est un ton plus foncé — c'est celle qu'on vient lire. */
+.barres-an .b{fill:#7FB0BA}
+.barres-an .b.der{fill:#1E5C69}
+.barres-an .b:hover{fill:#4A8894}
+/* Dépenses et recettes : deux teintes d'une même rampe, la dépense foncée.
+   Ce n'est pas un code « bien / mal » : aucune couleur d'alerte. */
+.graphe .dep,.legende i.dep{fill:#1E5C69;background:#1E5C69}
+.graphe .rec,.legende i.rec{fill:#7FB0BA;background:#7FB0BA}
+.graphe .grille{stroke:var(--filet);stroke-width:1}
+
+/* ── Le circuit État ↔ Sécurité sociale ──────────────────────────────
+   Trois nœuds, quatre flux. La seule couleur d'alerte du schéma est réservée
+   au montant non compensé : c'est la ligne qu'on vient lire. */
+figure.schema{margin:1.2rem 0;max-width:48rem}
+figure.schema figcaption{font-size:.8rem;color:var(--attenue);line-height:1.5;margin-top:.5rem}
+.circuit{width:100%;height:auto;display:block}
+.circuit .noeud{fill:var(--carte);stroke:var(--filet);stroke-width:1.5}
+.circuit .noeud.etat{stroke:#4A8894}
+.circuit .noeud.secu{stroke:#1E5C69;stroke-width:2}
+.circuit .noeud.manque{fill:#FBEDEA;stroke:#B3412E;stroke-width:2}
+.circuit .nt{font:600 15px/1 var(--sans);fill:var(--encre)}
+.circuit .manque-t{font-size:24px;fill:#9A3322}
+.circuit .ns{font:400 11.5px/1 var(--sans);fill:var(--attenue)}
+.circuit .et{font:400 11.5px/1 var(--sans);fill:var(--attenue)}
+.circuit .et.fort{font-weight:600;fill:var(--encre);font-size:12.5px}
+.circuit .flux{fill:none;stroke-width:2.5;stroke:#7FB0BA}
+.circuit .flux.verse{stroke:#1E5C69}
+.circuit .flux.exo{stroke:#4A8894;stroke-dasharray:6 4}
+.circuit .flux.comp{stroke:#1E5C69}
+.circuit .flux.manque-f{stroke:#B3412E;stroke-dasharray:3 4}
+.circuit .pointe{fill:var(--attenue)}
+:root[data-theme="dark"] .circuit .noeud.manque{fill:#3a2320}
+:root[data-theme="dark"] .circuit .manque-t{fill:#F0A493}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .circuit .noeud.manque{fill:#3a2320}
+  :root:not([data-theme="light"]) .circuit .manque-t{fill:#F0A493}}
+
+/* ── Lieux d'un mandat ────────────────────────────────────────────────
+   « commune › intercommunalité › département » : l'échelon en petites
+   capitales grises, le nom en clair, lien quand une page existe. */
+.lieu{white-space:nowrap}
+.lieu .ech{font:500 .62rem/1 var(--mono);letter-spacing:.06em;text-transform:uppercase;
+color:var(--attenue)}
+.sep{color:var(--attenue)}
+ul.liens-communes{list-style:none;padding:0;margin:0;columns:14rem auto;column-gap:1.4rem;
+font-size:.84rem;line-height:1.7}
+ul.liens-communes li{break-inside:avoid}
+@media(max-width:40rem){.lieu{white-space:normal}}
+td.code{font:500 .82rem/1.3 var(--mono);font-variant-numeric:tabular-nums;
+color:var(--attenue);white-space:nowrap;width:3.5rem}
+
+/* Barres appariées : A foncé, B clair, même rampe. Aucune couleur d'alerte :
+   l'écart entre deux barres n'est ni bon ni mauvais par construction. */
+.graphe.apparie .pa,.legende i.pa{fill:#1E5C69;background:#1E5C69}
+.graphe.apparie .pb,.legende i.pb{fill:#7FB0BA;background:#7FB0BA}
+.deux-lignes .ligne{fill:none;stroke-width:2}
+.deux-lignes .ligne.l1,.deux-lignes .pt.l1,.legende i.l1{stroke:#1E5C69;fill:#1E5C69;background:#1E5C69}
+.deux-lignes .ligne.l2,.deux-lignes .pt.l2,.legende i.l2{stroke:#B0763A;fill:#B0763A;background:#B0763A}
+.deux-lignes .et{font:600 .72rem/1 var(--sans)}
+.deux-lignes .et.l1{fill:#1E5C69}.deux-lignes .et.l2{fill:#B0763A}
+.graphe.apparie rect:hover{opacity:.75}
+
+/* ── Barres + ligne à seconde échelle (ex. prestations / population) ───
+   La ligne est en ENCRE, pointillée, jamais dans la rampe des barres : les
+   deux échelles ne doivent jamais se confondre à l'œil. */
+.avec-ligne .ligne-population{stroke:var(--encre);stroke-width:1.6;stroke-dasharray:5 3}
+.avec-ligne .pt-population{fill:var(--papier);stroke:var(--encre);stroke-width:1.6}
+.avec-ligne .pt-hit{fill:transparent;stroke:none}
+.avec-ligne .et.droite{fill:var(--encre);font-style:italic}
+/* Les deux étiquettes de population sont à GAUCHE (voir cartepage.go) : la
+   règle générique .courbe .fin{text-anchor:end} les ferait déborder hors du
+   viewBox côté gauche, où le SVG les découpe silencieusement. */
+.avec-ligne .et.droite.fin{text-anchor:start}
+.legende i.b{background:#7FB0BA}
+.legende i.ligne-pop{background:none;border-top:2px dashed var(--encre);height:0;
+width:16px;border-radius:0}
+
+/* ── Anneau des six risques ──────────────────────────────────────────
+   Six teintes fixes par risque (donut.go), jamais une rampe cyclée : leur
+   identité ne bouge pas si le tri du tableau change. */
+.donut-bloc{display:flex;flex-wrap:wrap;gap:1.4rem;align-items:center;margin:.6rem 0}
+.donut-bloc>svg.donut{flex:0 0 auto;width:min(21rem,100%);height:auto}
+.donut-bloc .scroll{flex:1 1 22rem;min-width:0}
+.donut .tranche{transition:opacity .12s}
+.donut .tranche:hover{opacity:.82}
+.donut .tr-lib{font:600 .68rem/1.2 var(--sans);fill:var(--encre)}
+.donut .tr-val{font:400 .66rem/1 var(--mono);fill:var(--attenue)}
+.donut .don-total{font:600 1.15rem/1 var(--titre);fill:var(--encre)}
+.donut .don-total-l{font:400 .66rem/1 var(--mono);letter-spacing:.06em;
+text-transform:uppercase;fill:var(--attenue)}
+/* Flux (Sankey à une source, N destinations) : mêmes trois teintes fixes que
+   la légende du partage de la VA, jamais recalculées par valeur. */
+.donut-bloc>svg.flux-va{flex:0 0 auto;width:min(24rem,100%);height:auto}
+.flux-va .fva-source{fill:var(--carte);stroke:var(--filet);stroke-width:1.5}
+.flux-va .fva-dest{stroke:var(--filet);stroke-width:1}
+.flux-va .fva-dest.r0{fill:#DCE9EC}.flux-va .fva-dest.r1{fill:#F1E3D1}
+.flux-va .fva-dest.r2{fill:#DCE9EC}
+.flux-va .fva-ruban{opacity:.85;transition:opacity .12s}
+.flux-va .fva-ruban:hover{opacity:1}
+.flux-va .fva-ruban.r0{fill:#4A8894}.flux-va .fva-ruban.r1{fill:#B0763A}
+.flux-va .fva-ruban.r2{fill:#1E5C69}
+.flux-va .fva-pointe{fill:var(--attenue)}
+.flux-va .fva-t{font:600 15px/1 var(--sans);fill:var(--encre)}
+.flux-va .fva-src-t{font:600 1.2rem/1 var(--titre)}
+.flux-va .fva-s{font:400 10.5px/1 var(--mono);letter-spacing:.04em;
+text-transform:uppercase;fill:var(--attenue)}
+.flux-va .fva-dt{font:600 11.5px/1.2 var(--sans);fill:var(--encre)}
+.flux-va .fva-ds{font:400 10px/1 var(--mono);fill:var(--attenue)}
+.flux-va .fva-etroit{text-anchor:start}
+.pastille-risque{display:inline-block;width:9px;height:9px;border-radius:2px;
+margin-right:.4rem;vertical-align:middle}
+
+/* ── Faisceau proportionnel des exonérations ──────────────────────────
+   Seule portion du circuit dessinée en largeurs proportionnelles : quatre
+   catégories, même année, même source, qui se somment exactement au total.
+   Teintes fixes, distinctes de la rampe des cartes et des couleurs de vote. */
+.circuit .ruban{opacity:.88;transition:opacity .12s}
+.circuit .ruban:hover{opacity:1}
+.circuit .ruban.r0{fill:#1E5C69}
+.circuit .ruban.r1{fill:#B0763A}
+.circuit .ruban.r2{fill:#6B5CA5}
+.circuit .ruban.r3{fill:#A34F86}
+.circuit .ruban.r4{fill:#3D6FA0}
+.circuit .ruban.r5{fill:#4A8894}
+.circuit .ruban.versee{fill:#7FB0BA;opacity:.88;transition:opacity .12s}
+.circuit .ruban.versee:hover{opacity:1}
+.ruban-legende i.r0{background:#1E5C69}
+.ruban-legende i.r1{background:#B0763A}
+.ruban-legende i.r2{background:#6B5CA5}
+.ruban-legende i.r3{background:#A34F86}
+.ruban-legende i.r4{background:#3D6FA0}
+.ruban-legende i.r5{background:#4A8894}
+
+/* ── Barres empilées annuelles (ex. capacités excédentaires du travail) ─
+   Quatre teintes fixes, d'un même dégradé pour marquer un ordre (du plus
+   proche du marché du travail au plus éloigné), jamais recalculées par
+   valeur : la catégorie garde sa couleur d'une année à l'autre. */
+.empilees .seg{transition:opacity .12s}
+.empilees .seg:hover{opacity:.8}
+
+/* Barres d'ordre de grandeur : chaque ligne montre sa propre source, pour
+   qu'on ne les prenne jamais pour trois mesures d'une même chose. */
+.barres-og .n{display:flex;flex-direction:column;gap:.1rem}
+.barres-og .src-ligne{font:400 .68rem/1.3 var(--mono);color:var(--attenue);font-weight:400}
