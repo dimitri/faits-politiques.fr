@@ -15,6 +15,7 @@ import (
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/agriculture"
+	"github.com/faits-politiques/faits-politiques/internal/aides"
 	"github.com/faits-politiques/faits-politiques/internal/an"
 	"github.com/faits-politiques/faits-politiques/internal/archive"
 	"github.com/faits-politiques/faits-politiques/internal/associations"
@@ -40,7 +41,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | aides | aides-urssaf | sirene | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -379,6 +380,19 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "dette" {
 		fmt.Println("\ndette publique")
 		return dette.Ingest(ctx, pool, arch)
+	}
+	// Qui reçoit les aides : exonérations par taille d'entreprise (URSSAF) et
+	// catégorie d'entreprise de chaque personne morale (SIRENE, ~1 Go).
+	if only == "aides" {
+		fmt.Println("\naides aux entreprises : taille des bénéficiaires")
+		return aides.Ingest(ctx, pool, arch)
+	}
+	if only == "aides-urssaf" {
+		return aides.IngestUrssafTaille(ctx, pool, arch)
+	}
+	if only == "sirene" {
+		fmt.Println("\nrépertoire SIRENE")
+		return aides.IngestSirene(ctx, pool, arch)
 	}
 	if only == "" || only == "agriculture" {
 		fmt.Println("\nbilans alimentaires et appareil de production agricole")

@@ -486,40 +486,56 @@ transferts en capital 41,6.
 
 | Source | Millésime | Années chiffrées | Nature du bénéficiaire |
 |---|---|---|---|
-| Voies et moyens, tome II (classeur sur data.economie.gouv.fr) | PLF 2023 | 2021 exécuté ; 2022, 2023 prévus | **oui**, par mesure |
+| Voies et moyens, tome II (classeurs en pièces jointes sur data.economie.gouv.fr) | PLF 2020, 2021, 2022, 2023 | exécuté N−2 ; prévu N−1, N | **oui**, par mesure et par millésime |
 | Budget vert | PLF 2024, 2025, 2026 | exécuté N−2 ; prévu N−1, N | non |
 
 Tables `core.depense_fiscale` (un chiffrage par millésime, mesure et année) et
-`ref.depense_fiscale_beneficiaire` ; vue `derived.depense_fiscale_retenue`
-(exécution la plus récente, à défaut prévision la plus récente).
+`ref.depense_fiscale_beneficiaire` (clé millésime + mesure) ; vue
+`derived.depense_fiscale_retenue` : **pour chaque année, un seul millésime**, le plus
+récent qui publie une exécution de cette année. La nature retenue est celle du
+millésime le plus récent qui classe la mesure.
 
-| Année | Total | Entreprises | Ménages | Entreprises et ménages, autres |
-|---|---|---|---|---|
-| 2021 | 89,6 | 51,6 | 36,6 | 1,4 |
-| 2022 | 85,6 | 46,4 | 37,6 | 1,6 |
-| 2023 | 83,0 | 41,1 | 39,4 | 2,5 |
-| 2024 | 89,6 | 38,1 | 42,8 | 8,7 |
-| 2025 (prévu) | 91,9 | 39,4 | 45,0 | 7,5 |
+| Année (exécution) | Millésime | Total | Entreprises | … dont CICE | Ménages | Entreprises et ménages, autres |
+|---|---|---|---|---|---|---|
+| 2018 | PLF 2020 | 99,0 | 58,5 | 19,4 | 39,1 | 1,4 |
+| 2019 | PLF 2021 | 99,9 | 59,9 | 19,2 | 38,8 | 1,2 |
+| 2020 | PLF 2022 | 92,7 | 50,4 | 8,7 | 41,2 | 1,2 |
+| 2021 | PLF 2023 | 89,6 | 51,6 | 6,9 | 36,6 | 1,4 |
+| 2022 | PLF 2024 | 85,6 | 46,4 | 5,5 | 37,6 | 1,6 |
+| 2023 | PLF 2025 | 82,9 | 41,0 | 1,0 | 39,4 | 2,5 |
+| 2024 | PLF 2026 | 89,4 | 38,0 | 0,2 | 42,8 | 8,6 |
 
 Md€. **Les pièges** :
 
-1. **Le budget vert découpe une même mesure en plusieurs lignes**, une par cotation
+1. **Un total annuel ne mêle jamais deux millésimes.** Une première version de la vue
+   choisissait le meilleur chiffrage mesure par mesure : une mesure renumérotée d'une
+   annexe à l'autre était comptée sous ses deux numéros (2019 : 103,0 Md€ au lieu des
+   99,9 exécutés). Contrôlé par `cmd/verify`.
+2. **Le budget vert découpe une même mesure en plusieurs lignes**, une par cotation
    environnementale, chacune avec une quote-part : additionner, ne pas dédoublonner
    (2024 : 483 lignes, 457 mesures).
-2. **« ε », « nc », « - » ne sont pas des zéros.** Des dizaines de mesures ne sont pas
+3. **« ε », « nc », « - » ne sont pas des zéros.** Des dizaines de mesures ne sont pas
    chiffrées chaque année : les totaux sont des **minorants**.
-3. **Les révisions sont fortes** : 2024 prévu à 78,7 Md€ (PLF 2024), exécuté à
+4. **Les révisions sont fortes** : 2024 prévu à 78,7 Md€ (PLF 2024), exécuté à
    89,4 Md€ (PLF 2026). Ne jamais comparer une prévision d'un millésime à l'exécution
    d'un autre sans le dire.
-4. **La nature du bénéficiaire est celle que déclare l'administration**, pas
+5. **La nature du bénéficiaire est celle que déclare l'administration**, pas
    l'incidence économique : le taux de TVA à 10 % sur la restauration est rangé
    « entreprises », mais le client paie moins cher. Les mesures créées après le PLF
    2023 sont « non classées » (0,3 Md€ en 2024 ; contrôle : moins de 5 %).
-5. **Aucune ventilation par taille d'entreprise.** « Grandes entreprises » n'est
-   mesurable par aucune de ces sources.
-6. Les millésimes antérieurs de l'annexe sont sur budget.gouv.fr, derrière une
-   protection anti-robot (Incapsula) : non chargés. Le jeu PLF 2024 de
-   data.economie.gouv.fr ne contient que les libellés, sans montants.
+6. **Aucune ventilation par taille d'entreprise** dans les dépenses fiscales. Pour les
+   exonérations de cotisations, l'URSSAF la publie : voir § 14.
+7. **Les classeurs des PLF 2024 à 2026** ne sont publiés que sur une page de
+   budget.gouv.fr protégée par un défi anti-robot (Incapsula), non contourné. Le jeu
+   « PLF 2024 VM tome 2 » de data.economie.gouv.fr ne contient que les libellés. Les
+   fichiers de budget.gouv.fr (`/documentation/file-download/…`) sont en revanche
+   servis sans défi à un client qui s'identifie : une adresse connue se récupère, on
+   n'énumère pas les identifiants. Les PDF de l'annexe existent aussi sur le site de
+   l'Assemblée nationale.
+8. **Le classeur du PLF 2020 n'a pas de ligne d'années** (déduites : N−2, N−1, N),
+   écrit « Menages » sans accent, et laisse des cases réduites à une espace.
+9. **La nature change parfois d'un millésime à l'autre** : les exonérations de taxe
+   foncière passent de « ménages » ou « entreprises » à « locaux » en 2022.
 
 ### 13.3 Pourquoi les aides ne s'additionnent pas : le CICE compté trois fois
 
@@ -558,3 +574,125 @@ Autres réserves, à écrire à côté de toute juxtaposition :
   chaque sous-secteur ;
 - dépenses fiscales : quatre millésimes chargés ; totaux exécutés entre 60 et
   130 Md€ ; moins de 5 % du montant sans nature de bénéficiaire.
+
+---
+
+## 14. Qui reçoit les aides : la taille des entreprises
+
+> Ajouté le 14 septembre 2026 (migration 0077, paquet `internal/aides`,
+> `go run ./cmd/ingest -only=aides`). Objet : examiner le premier maillon de l'argument
+> « les aides profitent aux grandes entreprises » avec des données, et préparer le
+> croisement avec des aides publiées bénéficiaire par bénéficiaire.
+
+### 14.1 Trois notions de taille, qui ne se convertissent pas
+
+| Notion | Unité | Source | Où |
+|---|---|---|---|
+| **Tranche d'effectif de l'entreprise** (0-9 … 2 000 et plus) | la société (SIREN), effectifs moyens de l'année, base Sequoia | URSSAF | `core.exoneration_tranche`, `core.emploi_prive_tranche` |
+| **Catégorie d'entreprise** (PME, ETI, GE ; loi LME, décret 2008-1354) | l'entreprise profilée, **le groupe** | INSEE, SIRENE | `ref.unite_legale.categorie_entreprise` |
+| **Nature du bénéficiaire** d'une niche (entreprises, ménages) | la mesure | Direction du budget | `ref.depense_fiscale_beneficiaire` |
+
+Une filiale de 300 salariés d'un groupe du CAC 40 est « 250 à 499 » pour l'URSSAF et
+« GE » pour l'INSEE. Aucune table de passage n'est construite (D-057).
+
+### 14.2 Les exonérations par taille (URSSAF)
+
+Vue `derived.exoneration_par_taille` : part des exonérations, part de la masse
+salariale, taux d'exonération (exonérations ÷ masse salariale). Le total par taille
+égale le total par mesure chaque année (contrôle).
+
+| 2024 | Entreprises | Exonérations | Part | Part de la masse salariale | Taux |
+|---|---|---|---|---|---|
+| 0 à 9 | 1 302 504 | 17,3 Md€ | 21,4 % | 14,3 % | 16,7 % |
+| 10 à 19 | 133 567 | 8,7 | 10,8 % | 8,0 % | 15,1 % |
+| 20 à 49 | 82 092 | 11,6 | 14,3 % | 11,9 % | 13,3 % |
+| 50 à 99 | 25 373 | 7,4 | 9,2 % | 8,5 % | 12,0 % |
+| 100 à 249 | 14 547 | 9,0 | 11,2 % | 11,7 % | 10,6 % |
+| 250 à 499 | 4 519 | 5,7 | 7,1 % | 8,5 % | 9,3 % |
+| 500 à 1 999 | 2 967 | 8,6 | 10,7 % | 15,0 % | 7,9 % |
+| **2 000 et plus** | **640** | **12,3** | **15,2 %** | **22,0 %** | **7,7 %** |
+
+**Lecture.** Les plus grandes sociétés reçoivent moins que leur part des salaires :
+les allègements généraux (77,4 des 80,6 Md€) sont dégressifs avec le salaire, et les
+bas salaires sont plus fréquents dans les petites entreprises. Le CICE, proportionnel
+à la masse salariale jusqu'à 2,5 SMIC, a fait exception : 21,7 % du CICE en 2017 pour
+les 2 000 salariés et plus, qui versaient 23,3 % des salaires ; leur part des
+exonérations est montée de 12,7 % (2012) à 18,0 % (2017), puis redescendue à 15,2 %.
+
+**Pièges.**
+1. **Société, pas groupe** : la part des grands groupes est minorée (§ 14.1).
+2. **ODbL** : partage à l'identique de toute base dérivée incorporant ces données.
+3. **Champ** : secteur privé du régime général, hors agriculture et Mayotte ; la
+   masse salariale 2025 n'est pas encore publiée (exonérations 2025 sans dénominateur).
+4. **Révision du 24 juillet 2026** (alternants réintégrés dans les mesures 151 et
+   161) : les montants antérieurs ne sont pas comparables à des extractions plus
+   anciennes du même jeu.
+
+### 14.3 La catégorie d'entreprise (SIRENE)
+
+`ref.unite_legale` : une ligne par **personne morale** du stock SIRENE (catégorie
+juridique ≠ 1000), avec la catégorie d'entreprise et son année, la tranche
+d'effectif de l'unité légale, l'activité (NAF), l'état administratif. Rechargée
+entière à chaque exécution (`-only=sirene`), depuis le fichier stock mensuel de
+data.gouv.fr (≈ 975 Mo), sans compte : c'est l'API Sirene qui en demande un.
+
+**Pourquoi exclure les entrepreneurs individuels.** Leur SIREN désigne une personne
+physique. Aucune source d'aides envisagée ne demande de les identifier, et la
+minimisation des données personnelles l'emporte.
+
+**Ce que contient le stock du 1er septembre 2026.** 30 020 346 unités légales lues,
+13 068 047 personnes morales chargées (11 min, dont l'essentiel en vérification des
+clés étrangères en fin de copie ; 1,9 Go en base). Catégorie millésimée 2023.
+
+| Personnes morales actives | Unités légales | … avec salariés |
+|---|---|---|
+| Grande entreprise (GE) | 37 504 | 16 498 |
+| Entreprise de taille intermédiaire (ETI) | 95 371 | 54 536 |
+| PME | 3 597 920 | 1 346 853 |
+| Non catégorisée | 5 224 142 | 72 063 |
+
+**Pièges.**
+1. **La catégorie est celle du groupe** : 24 729 unités légales actives classées GE ont
+   moins de 10 salariés ou aucun (holdings, sociétés immobilières, filiales). LVMH Moët Hennessy
+   Louis Vuitton, la société cotée, a une tranche d'effectif de 20 à 49 salariés
+   (code 12) et la catégorie GE.
+2. **« Non catégorisée » n'est pas « petite »** : 5,2 millions d'unités actives, presque
+   toutes sans salarié (sociétés civiles, associations immatriculées…).
+3. **`caractereEmployeurUniteLegale` est vide dans tout le stock** : la présence de
+   salariés se lit dans la tranche d'effectif (`NN` = non employeuse ou inconnue).
+4. **Catégorie millésimée** : 2023 dans ce stock ; croiser une aide de 2018 avec une
+   catégorie 2023 suppose que l'entreprise n'a pas changé de périmètre.
+
+### 14.4 Les aides nominatives : ce qui existe (étude du 14 septembre 2026)
+
+Aucune n'est chargée. [V] = vérifié par requête ou lecture d'un échantillon ; [D] =
+déclaré par une page.
+
+| Source | Identifiant | Champ | Volume | Accès | Verdict |
+|---|---|---|---|---|---|
+| **Registre européen de transparence des aides d'État (TAM)**, Commission | SIREN / SIRET (≈ 98 % bien formés sur 2016-2020) | aides d'État de plus de 500 k€ (100 k€ depuis la révision de 2023 [D] ; encadrements Covid et Ukraine : 100 k€), toutes autorités | 6 777 aides France 2016-2020, 17 Md€ d'ESB (export republié par un paquet R, licence MIT) [V] | recherche par formulaire POST avec jeton CSRF, **pas d'API** ni de fichier en masse [V] ; extrait complet obtenable par demande d'accès à la DG COMP [D] | **la source décisive** pour les grosses aides ; accès à décider |
+| **Aides financières de l'ADEME** (format SCDL) | SIRET [V] | tous dossiers engagés depuis 2021, sans seuil | 39 577 dossiers, 11,2 Md€ [V] | API data-fair ouverte, mise à jour quotidienne, Licence Ouverte [V] | **exploitable tout de suite** |
+| **Registre public des aides de minimis** (DGE, décret 2025-1361) | SIREN à 99,9 % [V] | aides de minimis octroyées depuis le 1er janvier 2026, toutes autorités (Douanes, DGFiP, Bpifrance, Régions) | 16 618 aides, 161,6 M€ d'ESB au 8 septembre 2026 [V] | API data.economie.gouv.fr, quotidienne ; licence non renseignée [V] | exploitable ; plafond de 300 k€ sur 3 ans : mesure le **nombre** de bénéficiaires, pas la concentration des montants |
+| CORDIS Horizon Europe | TVA → SIREN, indicateur PME [V] | fonds européens de recherche | fichier en masse de 36,7 Mo [V] | ouvert ; licence non vérifiée | complément, hors aides françaises |
+| Liste nationale des opérations FEDER / FSE+ / FTJ | **nom seul** [V] | 16 625 opérations 2021-2027, 7,9 Md€ UE [V] | xlsx | ouvert | non croisable (rapprochement par nom interdit, D-025) |
+| Kohesio (Commission) | URI, nom [V] | fonds de cohésion | 19 585 bénéficiaires France [V] | API non documentée | non croisable |
+| Aides PAC (transparence) | nom, commune [D] | aides agricoles | — | application MicroStrategy en JavaScript, conservation 2 ans [D] | non croisable, surtout des personnes physiques |
+| Plan de relance, projets industriels | SIREN, type d'entreprise [V] | 3 080 projets | **sans montant** [V] | ouvert, figé en 2022 | inutile pour les montants |
+| France Num | identifiant pseudonymisé [V] | 284 124 lignes | — | ouvert | non croisable |
+| Crédit d'impôt recherche | — | — | — | secret fiscal : aucune donnée par entreprise [D] | agrégats seulement |
+| Marchés publics (DECP) | SIRET [V] | 702 092 marchés | — | ouvert | **pas des aides** : ne pas mélanger |
+
+**Pièges déjà constatés.**
+1. **Le type « PME » déclaré au TAM est inutilisable tel quel** : sur les quatre plus
+   grosses aides marquées « SME » en 2016-2020, trois vont à des ETI ou GE selon
+   l'INSEE (dont Storengy France, GE) [V]. C'est précisément ce que
+   `ref.unite_legale` permet de corriger.
+2. **ADEME** : montants engagés, pas versés ; des intermédiaires (l'ASP reçoit
+   730,6 M€ en deux dossiers, reversés à d'autres) et des organismes publics
+   (2,4 Md€) à écarter avant toute répartition [V].
+3. **TAM** : montant nominal vide dans 5 380 lignes sur 6 777, seul l'ESB est
+   complet ; quelques fourchettes au lieu de montants [V].
+
+**Ordre de chargement proposé** : ADEME et registre de minimis (API ouvertes, sans
+décision préalable), puis le TAM selon la voie retenue (soumission automatisée du
+formulaire public, à autoriser explicitement, ou demande d'extrait à la DG COMP).

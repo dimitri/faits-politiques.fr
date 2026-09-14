@@ -158,9 +158,10 @@ var checksDette = []check{
 		        WHERE te IS NOT NULL AND abs(somme - te) > 2e6`,
 	},
 	{
-		name:  "dépenses fiscales : les quatre millésimes sont chargés",
+		// PLF 2020 à 2023 (Voies et moyens) et 2024 à 2026 (budgets verts).
+		name:  "dépenses fiscales : les sept millésimes sont chargés",
 		query: `SELECT count(DISTINCT millesime) FROM core.depense_fiscale`,
-		min:   4,
+		min:   7,
 	},
 	{
 		// Un total annuel exécuté hors de 60-130 Md€ trahirait une erreur
@@ -180,6 +181,49 @@ var checksDette = []check{
 		                                  sum(montant_eur) t
 		                           FROM derived.depense_fiscale_retenue GROUP BY annee) x
 		        WHERE coalesce(nc, 0) > 0.05 * t`,
+	},
+	{
+		// La nature du bénéficiaire vient des quatre classeurs Voies et moyens :
+		// chacun en déclare plus de 400. Moins signalerait une feuille mal lue.
+		name: "dépenses fiscales : chaque millésime Voies et moyens déclare ses bénéficiaires",
+		query: `SELECT count(*) FROM (SELECT millesime FROM ref.depense_fiscale_beneficiaire
+		                           GROUP BY millesime HAVING count(*) >= 400) x`,
+		min: 4,
+	},
+	{
+		// Un total annuel de niches ne doit venir que d'un millésime : un
+		// mélange compterait deux fois une mesure renumérotée.
+		name: "dépenses fiscales : chaque année retenue provient d'un seul millésime",
+		query: `SELECT count(*) FROM (SELECT annee FROM derived.depense_fiscale_retenue
+		                           GROUP BY annee HAVING count(DISTINCT millesime) > 1) x`,
+	},
+	{
+		// Deux jeux de l'URSSAF, deux découpes (par mesure, par taille) : le
+		// total annuel doit être le même, au million près.
+		name: "exonérations : le total par taille d'entreprise égale le total par mesure",
+		query: `SELECT count(*) FROM (SELECT annee, sum(montant_eur) t FROM core.exoneration_tranche GROUP BY annee) a
+		         JOIN (SELECT annee, sum(montant_eur) t FROM core.exoneration_cotisation GROUP BY annee) b USING (annee)
+		        WHERE abs(a.t - b.t) > 1e6`,
+	},
+	{
+		name: "exonérations par taille : huit tranches et une masse salariale chaque année d'emploi publiée",
+		query: `SELECT count(*) FROM (SELECT annee, count(*) n, count(masse_salariale_eur) m
+		                           FROM derived.exoneration_par_taille WHERE annee IN (SELECT annee FROM core.emploi_prive_tranche)
+		                           GROUP BY annee) x WHERE n <> 8 OR m <> 8`,
+	},
+	{
+		// Les personnes morales du répertoire : plusieurs millions. La
+		// catégorie d'entreprise n'est calculée que pour les unités actives
+		// profilées ; sans aucune grande entreprise, la colonne serait mal lue.
+		name:  "SIRENE : les personnes morales sont chargées",
+		query: `SELECT count(*) FROM ref.unite_legale`,
+		min:   3000000,
+	},
+	{
+		name: "SIRENE : les trois catégories d'entreprise sont présentes",
+		query: `SELECT count(DISTINCT categorie_entreprise) FROM ref.unite_legale
+		         WHERE etat_administratif = 'A' AND categorie_entreprise IS NOT NULL`,
+		min: 3,
 	},
 	{
 		// Les séries révisées les plus suivies doivent être fraîches : la

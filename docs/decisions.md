@@ -1868,3 +1868,28 @@ ménages et endettent le pays » est examiné maillon par maillon, sans verdict 
 source ne ventile les aides par taille d'entreprise, l'incidence d'un impôt relève
 d'un modèle et non d'une donnée, et « sans ces aides le déficit aurait été moindre »
 est un contrefactuel.
+
+## D-057 — La taille des bénéficiaires : trois sources, trois notions de « grande entreprise »
+
+Trois ajouts (migration 0077, paquet `internal/aides`) pour dire qui reçoit les aides :
+
+- **Quatre millésimes de l'annexe Voies et moyens** (PLF 2020 à 2023), trouvés en
+  pièces jointes des jeux de la Direction du budget sur data.economie.gouv.fr, alors
+  que budget.gouv.fr les tient derrière un défi anti-robot. Les niches fiscales
+  exécutées remontent à 2018, avec la nature du bénéficiaire. La vue retenue prend
+  **un seul millésime par année** : la première version choisissait mesure par
+  mesure et comptait deux fois les mesures renumérotées (2019 : 103,0 Md€ au lieu de
+  99,9). L'erreur a été vue en rapprochant le total de l'exécution publiée.
+- **Les exonérations de cotisations et la masse salariale par tranche d'effectif**
+  (URSSAF). La tranche est celle de la **société**, pas du groupe : la part des grands
+  groupes est minorée, dans une proportion que la source ne permet pas de mesurer.
+  C'est écrit sur la page, pas en note.
+- **La catégorie d'entreprise de l'INSEE** (PME, ETI, GE) pour chaque personne morale
+  de SIRENE, calculée au niveau du **groupe** : la bonne notion pour « grandes
+  entreprises », chargée en attendant une source d'aides nominatives à croiser. Les
+  entrepreneurs individuels (catégorie juridique 1000) ne sont pas chargés : leur
+  SIREN désigne une personne physique, et aucun usage du projet ne le demande.
+
+Les trois notions ne se convertissent pas l'une dans l'autre. Aucune table de
+passage « tranche d'effectif → PME/ETI/GE » n'est construite : elle donnerait une
+précision que les données n'ont pas.

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/url"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -16,25 +17,28 @@ import (
 // lieu d'une dépense qu'on verserait. Deux sources ouvertes, et deux seulement,
 // les chiffrent mesure par mesure :
 //
-//   - l'annexe Voies et moyens, tome II, du PLF 2023, publiée en classeur sur
-//     data.economie.gouv.fr : la seule qui déclare aussi la NATURE du
+//   - l'annexe Voies et moyens, tome II, des PLF 2020 à 2023, publiée en
+//     classeurs sur data.economie.gouv.fr (pièces jointes des jeux de la
+//     Direction du budget) : la seule qui déclare aussi la NATURE du
 //     bénéficiaire (entreprises, ménages) ;
 //   - le « budget vert » des PLF 2024, 2025 et 2026, qui reprend chaque
 //     dépense fiscale avec son chiffrage pour trois années.
 //
-// Les autres millésimes de l'annexe sont sur budget.gouv.fr, derrière une
-// protection anti-robot (Incapsula) qu'on ne contourne pas.
+// Les classeurs des PLF 2024 à 2026 ne sont publiés que sur une page de
+// budget.gouv.fr derrière une protection anti-robot (Incapsula), qu'on ne
+// contourne pas.
 var SourceVoiesEtMoyens = archive.Source{
-	Slug: "plf2023-voies-et-moyens-t2", Label: "PLF 2023 — Évaluation des voies et moyens, tome II (dépenses fiscales)",
+	Slug: "voies-et-moyens-t2", Label: "PLF 2020 à 2023 — Évaluation des voies et moyens, tome II (dépenses fiscales)",
 	Publisher: "Direction du budget", Tier: "PRIMARY_OFFICIAL",
 	Licence:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
-	Attribution: "Source : annexe au PLF 2023, Évaluation des voies et moyens, tome II",
-	Cadence:     "annuelle (octobre), un seul millésime en données ouvertes",
-	Notes: "Chiffrages en millions d'euros : 2021 exécuté, 2022 et 2023 en prévision. « ε » = moins " +
-		"de 0,5 M€, « nc » = non chiffré, « - » = sans objet : jamais des zéros. 223 mesures sur " +
-		"467 non chiffrées en 2021 : le total sous-estime le coût réel. Nature du bénéficiaire " +
-		"déclarée par l'administration, pas vérifiée.",
+	Attribution: "Source : annexes aux PLF 2020 à 2023, Évaluation des voies et moyens, tome II",
+	Cadence:     "annuelle (octobre) ; quatre millésimes en données ouvertes",
+	Notes: "Chiffrages en millions d'euros : exécution N-2, prévisions N-1 et N. « ε » = moins " +
+		"de 0,5 M€, « nc » = non chiffré, « - » = sans objet : jamais des zéros. Des dizaines de " +
+		"mesures non chiffrées chaque année : les totaux sont des minorants. Nature du bénéficiaire " +
+		"déclarée par l'administration, pas vérifiée. Le classeur du PLF 2020 n'a pas de ligne " +
+		"d'années : elles sont déduites du millésime.",
 }
 
 var SourceBudgetVert = archive.Source{
@@ -52,7 +56,17 @@ var SourceBudgetVert = archive.Source{
 
 const odsEconomie = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/"
 
-const vmt2023URL = "https://data.economie.gouv.fr/api/v2/catalog/datasets/plf2023_voies_et_moyens_t2_liste_des_depenses_fiscales/attachments/plf2023_voies_et_moyens_t2_liste_des_depenses_fiscales_xlsx"
+// Les classeurs, un par millésime : des pièces jointes aux jeux de la Direction
+// du budget, dont les noms ne suivent aucune règle.
+var classeursVMT = []struct {
+	millesime int
+	url       string
+}{
+	{2020, odsEconomie + "projet-de-loi-de-finances-pour-2020-plf-2020-donnees-du-plf-et-des-annexes-proje/attachments/plf_2020_liste_des_depenses_fiscales_xlsx"},
+	{2021, odsEconomie + "projet-de-loi-de-finances-pour-2021-plf-2021-donnees-du-plf-et-des-annexes-proje/attachments/plf_2021_liste_des_depenses_fiscales_xlsx"},
+	{2022, odsEconomie + "projet-de-loi-de-finances-pour-2022-plf-2022-donnees-du-plf-et-des-annexes-proje/attachments/plf_2022_liste_depenses_fiscales_xlsx"},
+	{2023, "https://data.economie.gouv.fr/api/v2/catalog/datasets/plf2023_voies_et_moyens_t2_liste_des_depenses_fiscales/attachments/plf2023_voies_et_moyens_t2_liste_des_depenses_fiscales_xlsx"},
+}
 
 type ligneDF struct {
 	millesime, annee int
@@ -78,7 +92,7 @@ var budgetsVerts = []struct {
 }
 
 func IngestDepensesFiscales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := chargerDF(ctx, pool, arch, SourceVoiesEtMoyens, lireVMT2023); err != nil {
+	if err := chargerDF(ctx, pool, arch, SourceVoiesEtMoyens, lireVoiesEtMoyens); err != nil {
 		return err
 	}
 	return chargerDF(ctx, pool, arch, SourceBudgetVert, lireBudgetsVerts)
@@ -156,8 +170,28 @@ func numeroDF(s string) string {
 	return s
 }
 
-func lireVMT2023(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([]ligneDF, [][]any, error) {
-	f, err := arch.Fetch(ctx, srcID, runID, vmt2023URL, ".xlsx")
+func lireVoiesEtMoyens(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([]ligneDF, [][]any, error) {
+	var lignes []ligneDF
+	var bens [][]any
+	for _, c := range classeursVMT {
+		l, b, err := lireClasseurVMT(ctx, arch, srcID, runID, c.millesime, c.url)
+		if err != nil {
+			return nil, nil, fmt.Errorf("PLF %d : %w", c.millesime, err)
+		}
+		lignes = append(lignes, l...)
+		bens = append(bens, b...)
+	}
+	return lignes, bens, nil
+}
+
+// mentionVMT normalise une cellule de chiffrage : « ε », « nc », « - » sont
+// des mentions ; une cellule vide ou réduite à une espace n'est rien.
+func mentionVMT(v string) string {
+	return strings.TrimSpace(strings.ReplaceAll(v, "\u00a0", " "))
+}
+
+func lireClasseurVMT(ctx context.Context, arch *archive.Archive, srcID, runID int64, millesime int, u string) ([]ligneDF, [][]any, error) {
+	f, err := arch.Fetch(ctx, srcID, runID, u, ".xlsx")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -171,19 +205,20 @@ func lireVMT2023(ctx context.Context, arch *archive.Archive, srcID, runID int64)
 	if err != nil {
 		return nil, nil, err
 	}
-	// L'en-tête tient sur deux lignes : le stade (« Réalisation »,
-	// « Prévision ») puis l'année. L'unité est écrite en première ligne.
-	if !strings.Contains(chiffrages[0]["A"], "millions") {
-		return nil, nil, fmt.Errorf("unité des chiffrages introuvable : %q", chiffrages[0]["A"])
+	if len(chiffrages) == 0 || !strings.Contains(chiffrages[0]["A"], "millions") {
+		return nil, nil, fmt.Errorf("unité des chiffrages introuvable")
 	}
-	iStade, iAnnee := -1, -1
+	// L'en-tête porte le stade (« Réalisation », « Prévision ») ; la ligne
+	// suivante porte les années, sauf dans le classeur du PLF 2020 où elles
+	// manquent : ce sont alors N-2, N-1 et N, par construction de l'annexe.
+	iStade := -1
 	for i, r := range chiffrages {
 		if r["F"] == "Réalisation" {
-			iStade, iAnnee = i, i+1
+			iStade = i
 			break
 		}
 	}
-	if iStade < 0 {
+	if iStade < 0 || iStade+1 >= len(chiffrages) {
 		return nil, nil, fmt.Errorf("en-tête des chiffrages introuvable")
 	}
 	type col struct {
@@ -191,10 +226,13 @@ func lireVMT2023(ctx context.Context, arch *archive.Archive, srcID, runID int64)
 		annee         int
 	}
 	var cols []col
-	for _, c := range []string{"F", "G", "H"} {
-		a, err := strconv.Atoi(chiffrages[iAnnee][c])
+	debut := iStade + 1
+	for i, c := range []string{"F", "G", "H"} {
+		a, err := strconv.Atoi(chiffrages[iStade+1][c])
 		if err != nil {
-			return nil, nil, fmt.Errorf("année de la colonne %s illisible : %q", c, chiffrages[iAnnee][c])
+			a = millesime - 2 + i
+		} else {
+			debut = iStade + 2
 		}
 		st := "PREVISION"
 		if chiffrages[iStade][c] == "Réalisation" {
@@ -202,11 +240,14 @@ func lireVMT2023(ctx context.Context, arch *archive.Archive, srcID, runID int64)
 		}
 		cols = append(cols, col{c, st, a})
 	}
+	if cols[0].annee != millesime-2 || cols[2].annee != millesime {
+		return nil, nil, fmt.Errorf("années %d-%d inattendues pour le PLF %d", cols[0].annee, cols[2].annee, millesime)
+	}
 	var lignes []ligneDF
 	vus := map[string]bool{}
-	for _, r := range chiffrages[iAnnee+1:] {
+	for _, r := range chiffrages[debut:] {
 		num := numeroDF(r["D"])
-		if num == "" {
+		if !reNumeroDF.MatchString(num) {
 			continue
 		}
 		if vus[num] {
@@ -214,8 +255,9 @@ func lireVMT2023(ctx context.Context, arch *archive.Archive, srcID, runID int64)
 		}
 		vus[num] = true
 		for _, c := range cols {
-			l := ligneDF{millesime: 2023, annee: c.annee, numero: num, libelle: r["E"], impot: r["A"], stade: c.stade, document: f.DocumentID}
-			switch v := strings.TrimSpace(r[c.lettre]); v {
+			l := ligneDF{millesime: millesime, annee: c.annee, numero: num, libelle: r["E"], impot: r["A"],
+				stade: c.stade, document: f.DocumentID}
+			switch v := mentionVMT(r[c.lettre]); v {
 			case "":
 				continue // cellule vide : rien de déclaré
 			case "ε", "nc", "-":
@@ -236,32 +278,38 @@ func lireVMT2023(ctx context.Context, arch *archive.Archive, srcID, runID int64)
 	if err != nil {
 		return nil, nil, err
 	}
+	// Les classeurs écrivent « Ménages » ou « Menages » selon l'année.
 	natures := map[string]string{
-		"Entreprises": "ENTREPRISES", "Ménages": "MENAGES", "Entreprises et ménages": "ENTREPRISES_ET_MENAGES",
-		"Locaux": "LOCAUX", "Parcelles": "PARCELLES",
+		"entreprises": "ENTREPRISES", "menages": "MENAGES", "entreprises et menages": "ENTREPRISES_ET_MENAGES",
+		"locaux": "LOCAUX", "parcelles": "PARCELLES",
 	}
 	var bens [][]any
+	vusB := map[string]bool{}
 	for _, r := range benef {
 		num := numeroDF(r["D"])
-		if !vus[num] {
-			continue // lignes d'en-tête, ou mesure absente des chiffrages
+		if !vus[num] || vusB[num] {
+			continue // en-têtes, mesure absente des chiffrages, ou doublon
 		}
-		brut := strings.Join(strings.Fields(strings.ReplaceAll(r["F"], " ", " ")), " ")
+		brut := strings.ToLower(strings.Join(strings.Fields(strings.ReplaceAll(r["F"], "\u00a0", " ")), " "))
+		brut = strings.ReplaceAll(brut, "é", "e")
 		if brut == "" {
 			continue
 		}
 		nat, ok := natures[brut]
 		if !ok {
-			return nil, nil, fmt.Errorf("%s : nature de bénéficiaire inattendue %q", num, brut)
+			return nil, nil, fmt.Errorf("%s : nature de bénéficiaire inattendue %q", num, r["F"])
 		}
+		vusB[num] = true
 		var nombre any
 		if n, err := strconv.ParseFloat(r["G"], 64); err == nil {
 			nombre = int64(n)
 		}
-		bens = append(bens, []any{num, nat, nombre, 2023, srcID, f.DocumentID})
+		bens = append(bens, []any{num, nat, nombre, millesime, srcID, f.DocumentID})
 	}
 	return lignes, bens, nil
 }
+
+var reNumeroDF = regexp.MustCompile(`^[0-9]{5,6}$`)
 
 func lireBudgetsVerts(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([]ligneDF, [][]any, error) {
 	var lignes []ligneDF
