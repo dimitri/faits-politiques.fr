@@ -293,6 +293,35 @@ func series() []serie {
 		})
 	}
 
+	// ESSPROS : la DÉPENSE par fonction, pas seulement le financement — la
+	// ligne que docs/budget-donnees.md § 4.5 signalait « non chargée à ce
+	// jour ». Deux fonctions seulement, celles qui pèsent le plus dans les
+	// notes docs/chomage-donnees.md et docs/retraite-donnees.md : chômage et
+	// vieillesse. spdep=SPR (prestations de protection sociale, la ligne la
+	// plus large de la nomenclature) et spdepm=TOTAL (moyens-testées et non
+	// moyens-testées réunies) évitent d'avoir à sommer des sous-catégories
+	// dont l'emboîtement n'est pas garanti la même façon pour toutes les
+	// fonctions.
+	depenseFonction := []struct{ code, spr, label, definition string }{
+		{"protection.depense.chomage", "spr_exp_fun", "Dépense de la fonction chômage",
+			"Prestations de protection sociale versées au titre du risque chômage : " +
+				"indemnisation, insertion, retraite anticipée pour raison de marché du " +
+				"travail — pas seulement l'assurance chômage au sens de l'Unédic."},
+		{"protection.depense.vieillesse", "spr_exp_fol", "Dépense de la fonction vieillesse",
+			"Prestations de protection sociale versées au titre du risque vieillesse : " +
+				"pensions de retraite, y compris anticipées et partielles, allocations " +
+				"dépendance liées à l'âge."},
+	}
+	for _, d := range depenseFonction {
+		out = append(out, serie{
+			Code: d.code, Label: d.label, Unite: "MEUR", Famille: "PROTECTION_SOCIALE",
+			Definition: d.definition + " Source ESSPROS (Eurostat), champ PROTECTION SOCIALE — " +
+				"plus large que la loi de financement de la sécurité sociale (assurance " +
+				"chômage et retraites complémentaires comprises).",
+			Requete: d.spr + "?format=JSON&lang=FR&geo=FR&spdep=SPR&spdepm=TOTAL&unit=MIO_EUR",
+		})
+	}
+
 	for _, c := range cofog {
 		out = append(out, serie{
 			Code: "depense." + c.code, Label: "Dépense publique — " + c.label,

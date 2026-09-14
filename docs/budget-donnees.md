@@ -197,7 +197,7 @@ documenté en données ouvertes.
 | **[DREES — Les comptes de la protection sociale](https://data.drees.solidarites-sante.gouv.fr/explore/dataset/305_les-comptes-de-la-protection-sociale)** | dépenses et recettes par **risque** et par **régime** | **15 654 lignes, séries depuis 1959**, maj 18 décembre 2025 | Opendatasoft, **Licence Ouverte v2.0** | **chargé** → `core.protection_sociale`. Périmètre **protection sociale**, plus large que la LFSS (chômage et retraites complémentaires compris) |
 | **Rapports de la commission des comptes de la sécurité sociale (CCSS)** | comptes détaillés, deux fois par an (printemps, automne) | depuis 1979 | **PDF** | la référence de place, illisible par machine |
 | **LACSS** (depuis 2023) | comptes du dernier exercice clos, approuvés par le Parlement | annuel | texte de loi | nouveauté de la LOLFSS 2022 |
-| **[URSSAF — encaissements annuels](https://open.urssaf.fr/explore/dataset/encaissements-annuels-des-urssaf)** | cotisations et contributions encaissées | 525 lignes, **dernière maj 5 juillet 2023** | **ODbL** | **dormant** — à ne pas présenter comme à jour |
+| **[URSSAF — encaissements annuels](https://open.urssaf.fr/explore/dataset/encaissements-annuels-des-urssaf)** | cotisations et contributions encaissées, par région | 525 lignes, **dernière maj 5 juillet 2023** | **ODbL** | **chargé** → `core.encaissement_urssaf` : 2020-2022 seulement, dormant depuis — maille RÉGION, pas de niveau plus fin publié |
 | **[URSSAF — exonérations par mesure](https://open.urssaf.fr/explore/dataset/exos-secteur-prive-france-entiere-par-mesures)** | montant des exonérations, **mesure par mesure** | 890 lignes, maj 24 juillet 2026 | **ODbL** | **chargé** → `core.exoneration_cotisation` : la matière du canal n° 2 du § 1.3 |
 | **Cour des comptes** — RALFSS, certification des comptes | exécution, fiabilité, réserves par branche | annuel | PDF | contrôle |
 
@@ -216,7 +216,7 @@ sa source.
 | **[URSSAF — exonérations par mesure](https://open.urssaf.fr/explore/dataset/exos-secteur-prive-france-entiere-par-mesures)** | ce que l'État décide d'alléger | 890 lignes, maj 24 juillet 2026 | ODbL | **chargé** → `core.exoneration_cotisation`, canal n° 2 du § 1.3 |
 | **[URSSAF — masse salariale du secteur privé](https://open.urssaf.fr/explore/dataset/masse-salariale-du-secteur-prive-france-entiere)** | l'assiette des cotisations | 118 lignes, maj **28 août 2026** | ODbL | **chargé** → `core.masse_salariale`, le dénominateur de tout le reste |
 | **URSSAF — restes à recouvrer**, contrôle, travail illégal | l'efficacité du recouvrement | maj août 2026 et juillet 2025 | ODbL | rare : la plupart des systèmes ne publient pas leur taux de recouvrement |
-| **[URSSAF — encaissements annuels](https://open.urssaf.fr/explore/dataset/encaissements-annuels-des-urssaf)** | l'argent effectivement encaissé | 525 lignes, **maj 5 juillet 2023** | ODbL | **dormant depuis trois ans** |
+| **[URSSAF — encaissements annuels](https://open.urssaf.fr/explore/dataset/encaissements-annuels-des-urssaf)** | l'argent effectivement encaissé, par région et catégorie | 525 lignes, **maj 5 juillet 2023** | ODbL | **chargé** → `core.encaissement_urssaf` — dormant depuis trois ans, mais c'est la SEULE source qui donne un montant exact de cotisations versées PAR LES ENTREPRISES (301,3 Md€ en 2022, filtrable sur `categorie_entreprise`) |
 | **[CNAM — data.ameli.fr](https://data.ameli.fr)** | ce que la branche maladie rembourse | 51 jeux, dont `depenses` (24 800 lignes, maj juillet 2026) | ODbL | **dépenses par pathologie**, pas comptes de branche |
 | **CADES** | amortissement de la dette | rapports financiers annuels | **PDF** | 387,7 Md€ repris depuis 1996 ; **121,7 Md€ restant fin 2025** |
 | **COR** — rapport annuel retraites | projections du système de retraite | XLSX **joints aux rapports** sur cor-retraites.fr | XLSX derrière un PDF | le [jeu data.gouv.fr](https://www.data.gouv.fr/datasets/evolutions-et-perspectives-des-retraites-en-france-rapport-annuel) est **abandonné depuis 2016 et son organisation supprimée** |
@@ -354,6 +354,7 @@ pour les trois jeux Opendatasoft et `-only=macro` pour les séries Eurostat.
 | **5** | Soldes votés, LFI et LFSS | **liste semée, chiffres non chargés** | `ref.loi_financiere` (2 lois) / `core.solde_vote` (vide) | voir ci-dessous |
 | **6** | Eurostat ESSPROS `spr_rec_sumt` | **chargé** | `ref.macro_serie` / `core.macro_value` | 5 séries × 34 ans (1990 → 2023) |
 | **7** | URSSAF, masse salariale du secteur privé | **chargé** | `core.masse_salariale` | 118 trimestres (1997 → 2026) |
+| **8** | URSSAF, encaissements annuels par région | **chargé** (14 septembre 2026) | `core.encaissement_urssaf` | 525 lignes, 3 millésimes (2020 → 2022), dormant depuis — voir § 9 |
 
 Le point 5 n'est pas un oubli, c'est le patron de `ref.pdr_proclamation` appliqué :
 la **liste** des textes est semée et relue pièce par pièce, les **chiffres** viennent
@@ -438,3 +439,164 @@ colonnes, des contraintes ou des vues.
 4. **L'ONDAM est un objectif, pas un plafond.** Un dépassement n'est pas une
    irrégularité, et une page qui affiche « objectif tenu » sans le dire induit en erreur.
 5. **Un transfert n'est pas une économie.** Le § 1.3 en donne la formulation.
+
+## 9. Quelle précision géographique sur ce que versent les entreprises ?
+
+Question posée directement, réponse en deux temps — parce que la précision
+dépend de ce qu'on demande : le montant réellement versé, ou son assiette.
+
+**Le montant exact (core.encaissement_urssaf) : la région, trois années.**
+L'URSSAF publie, par caisse régionale (y compris les CGSS d'outre-mer), le
+montant encaissé chaque année pour six catégories, dont deux répondent à
+« les entreprises » — secteur privé hors grandes entreprises nationales, et
+grandes entreprises nationales elles-mêmes. Filtrées sur ces deux catégories :
+**301,3 Md€ versés par les entreprises en 2022**, sur un total encaissé de
+421,1 Md€ toutes catégories confondues (secteur public, indépendants,
+particuliers employeurs et revenus de remplacement compris). Aucun jeu URSSAF
+ne descend au département pour ce montant, et le jeu s'arrête en 2022 — dernière
+mise à jour le 5 juillet 2023, sans explication publiée de l'arrêt.
+
+**L'assiette (core.masse_salariale et la famille de jeux qui l'entoure) : bien
+plus fin, et à jour.** La masse salariale — la base sur laquelle les
+cotisations se calculent, pas les cotisations elles-mêmes — est publiée
+**jusqu'à l'EPCI** (34 668 lignes) et au **département** (77 700 lignes),
+**trimestriellement**, avec une mise à jour de quelques semaines (28 août 2026
+au moment de l'écriture). Elle ne dit pas combien a été versé à la Sécurité
+sociale, seulement sur quelle masse de salaires le calcul se fait — une
+grandeur utile, mais différente.
+
+**La conséquence à retenir : le chiffre exact et le chiffre fin ne sont
+jamais le même chiffre.** Vouloir un montant de cotisations versées précis au
+département suppose d'appliquer un taux de cotisation à la masse salariale
+départementale — une ESTIMATION, pas une donnée observée, et qui plus est
+sujette aux mêmes exonérations et allégements que le § 1.3 documente. Aucun
+connecteur de ce projet ne le fait : ce serait présenter un calcul comme un
+fait mesuré.
+
+## Glossaire
+
+Les termes de ce document, dans l'ordre alphabétique. Chaque définition dit ce que le mot
+**désigne** dans les sources, pas ce qu'il devrait désigner. Quand un même mot a deux sens selon la
+comptabilité, les deux sont donnés.
+
+**ACOSS / URSSAF.** L'Agence centrale des organismes de sécurité sociale est la «&nbsp;banque&nbsp;»
+de la Sécurité sociale&nbsp;: elle centralise la trésorerie des branches. Le réseau des URSSAF
+collecte les cotisations et la CSG. Depuis 2021, l'ACOSS s'appelle «&nbsp;URSSAF Caisse
+nationale&nbsp;».
+
+**Administrations publiques (APU, S13).** En comptabilité nationale, l'ensemble des unités
+financées majoritairement par des prélèvements obligatoires. Elles se divisent en trois
+sous-secteurs&nbsp;: administration centrale (S1311), administrations publiques locales (S1313),
+administrations de sécurité sociale (S1314). C'est leur somme qui fait «&nbsp;le déficit
+public&nbsp;» et «&nbsp;la dette publique&nbsp;».
+
+**Allégements généraux.** Les exonérations de cotisations patronales qui s'appliquent à tous les
+employeurs sur les bas salaires, sans condition de secteur ni de territoire. Ils représentent
+l'essentiel des exonérations mesurées par l'URSSAF.
+
+**Autorisation d'engagement (AE) / crédit de paiement (CP).** Comptabilité budgétaire de l'État.
+L'AE autorise à signer un engagement — un marché, une convention — éventuellement pluriannuel&nbsp;;
+le CP autorise à payer dans l'année. Une loi de finances vote les deux, qui ne coïncident pas.
+
+**CADES.** Caisse d'amortissement de la dette sociale, créée en 1996. Elle reprend la dette de la
+Sécurité sociale et la rembourse grâce à des recettes affectées, principalement la CRDS et une part
+de CSG. Sa dette n'apparaît pas dans le solde annuel de la Sécurité sociale, mais bien dans la dette
+publique.
+
+**Charge de la dette.** Les intérêts payés dans l'année sur la dette. Ce n'est pas un
+remboursement du capital&nbsp;: une dette dont la charge baisse peut continuer de croître.
+
+**Comptabilité budgétaire.** Enregistre les encaissements et décaissements de l'année, et les
+autorisations votées. C'est celle des lois de finances et des situations mensuelles de l'État.
+
+**Comptabilité générale.** Enregistre les droits et obligations au moment où ils naissent, avec un
+bilan&nbsp;: ce que l'État possède et ce qu'il doit. C'est celle du compte général de l'État certifié
+par la Cour des comptes.
+
+**Comptabilité nationale (SEC 2010).** Le système européen de comptes, commun à tous les États
+membres. Droits constatés, périmètre consolidé des administrations publiques. C'est la seule qui
+permette les comparaisons européennes, et la seule qui définisse le déficit et la dette «&nbsp;au
+sens de Maastricht&nbsp;».
+
+**Compensation.** Le versement par lequel l'État rembourse à la Sécurité sociale les cotisations
+qu'il a lui-même décidé d'exonérer. Obligation posée par la loi Veil de 1994 (article L. 131-7 du
+code de la sécurité sociale), à laquelle une loi de financement peut déroger.
+
+**COFOG.** Classification internationale des fonctions des administrations publiques, en dix
+fonctions — protection sociale, santé, enseignement, défense… — publiée par Eurostat. Elle répond à
+«&nbsp;à quoi sert la dépense&nbsp;», que les budgets votés, organisés par ministère, ne disent pas.
+
+**CRDS.** Contribution au remboursement de la dette sociale, 0,5 % sur la plupart des revenus,
+affectée à la CADES.
+
+**CSG.** Contribution sociale généralisée, créée en 1991. Un impôt, et non une cotisation&nbsp;: elle
+porte sur presque tous les revenus — activité, remplacement, patrimoine, placements — et elle
+finance la Sécurité sociale. Sa montée en puissance est la première raison du recul de la part des
+cotisations dans le financement social.
+
+**Déficit public (au sens de Maastricht).** Le besoin de financement de l'ensemble des
+administrations publiques en comptabilité nationale, exprimé en part du PIB. Ce n'est ni le solde
+budgétaire de l'État ni le déficit de la Sécurité sociale&nbsp;: c'est leur somme consolidée, avec
+les collectivités.
+
+**Dette publique (au sens de Maastricht).** La dette brute consolidée des administrations
+publiques, en valeur nominale. Un stock au 31 décembre, qu'on ne compare pas à un déficit, qui est
+un flux.
+
+**Épargne brute.** Pour une collectivité, l'excédent des recettes de fonctionnement sur les dépenses
+de fonctionnement. C'est ce qui reste pour investir et rembourser la dette&nbsp;; une épargne brute
+négative signale un fonctionnement déficitaire.
+
+**Exonération de cotisations.** Une réduction, décidée par la loi, des cotisations sociales dues
+par un employeur ou un travailleur. Elle diminue les recettes de la Sécurité sociale, sauf si
+l'État la compense.
+
+**FSV.** Fonds de solidarité vieillesse. Finance les avantages vieillesse non contributifs — le
+minimum vieillesse notamment — à partir de recettes fiscales.
+
+**Jaune budgétaire.** Annexe informative au projet de loi de finances, imprimée sur papier jaune à
+l'origine. Celui qui porte sur la protection sociale est le seul document qui chiffre les flux entre
+l'État et la Sécurité sociale&nbsp;; il est publié en PDF.
+
+**LACSS.** Loi d'approbation des comptes de la sécurité sociale. Créée par la loi organique du
+14 mars 2022, déposée avant le 1<sup>er</sup> juin, elle approuve les comptes de l'année écoulée, sur
+le modèle de la loi de règlement de l'État.
+
+**LFI / LFR.** Loi de finances initiale, votée en fin d'année pour l'année suivante&nbsp;; loi de
+finances rectificative, qui la modifie en cours d'exercice.
+
+**LFSS / LFRSS.** Loi de financement de la sécurité sociale, et sa version rectificative. Créée par
+la révision constitutionnelle de 1996. Elle ne vote pas un budget au sens strict mais des objectifs
+de dépenses et des prévisions de recettes.
+
+**Loi de règlement.** Loi qui arrête les comptes définitifs d'un exercice de l'État. Depuis 2023,
+«&nbsp;loi relative aux résultats de la gestion et portant approbation des comptes&nbsp;».
+
+**Loi Veil (1994).** Loi n° 94-637 du 25 juillet 1994 relative à la sécurité sociale. Elle sépare
+les branches de la Sécurité sociale et pose le principe de compensation par l'État des exonérations
+de cotisations qu'il décide. Distincte de la loi Veil de 1975 sur l'interruption volontaire de
+grossesse.
+
+**ONDAM.** Objectif national de dépenses d'assurance maladie, voté chaque année en LFSS. Un
+objectif, pas un plafond&nbsp;: il peut être dépassé, et l'a souvent été.
+
+**PLF / PLFSS.** Projet de loi de finances et projet de loi de financement de la sécurité sociale&nbsp;:
+les textes que le Gouvernement dépose, avant leur vote. Un chiffre «&nbsp;du PLF&nbsp;» est une
+intention, pas une décision.
+
+**Prélèvement sur recettes (PSR).** Une somme que l'État retire de ses recettes avant de les
+compter, au profit de l'Union européenne ou des collectivités. Elle n'apparaît pas en dépense du
+budget général, ce qui fait paraître celui-ci plus petit qu'il n'est.
+
+**Protection sociale / Sécurité sociale.** La protection sociale est l'ensemble des mécanismes
+couvrant les risques sociaux — dont l'assurance chômage, les retraites complémentaires, l'action
+sociale des départements, les mutuelles. La Sécurité sociale en est une partie&nbsp;: les régimes
+obligatoires de base, dans le périmètre de la LFSS.
+
+**Solde budgétaire.** La différence entre recettes et dépenses de l'État en comptabilité
+budgétaire. Il ne couvre ni les collectivités ni la Sécurité sociale, et ne se compare pas au
+déficit public.
+
+**TVA affectée.** La fraction du produit de la TVA que la loi attribue à la Sécurité sociale au lieu
+de l'État&nbsp;: 29,05 % en 2026. Changer ce pourcentage déplace des milliards d'un budget à l'autre
+sans qu'aucun contribuable ne paie davantage.

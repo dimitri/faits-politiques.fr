@@ -26,6 +26,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/europe"
 	"github.com/faits-politiques/faits-politiques/internal/geo"
 	"github.com/faits-politiques/faits-politiques/internal/hatvp"
+	"github.com/faits-politiques/faits-politiques/internal/immigration"
 	"github.com/faits-politiques/faits-politiques/internal/jorf"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
@@ -38,7 +39,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -298,6 +299,9 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		if err := macro.IngestRecettesFiscales(ctx, pool, arch); err != nil {
 			return err
 		}
+		if err := macro.IngestMinimaSociaux(ctx, pool, arch); err != nil {
+			return err
+		}
 		if err := prefets.Ingest(ctx, pool, arch); err != nil {
 			return err
 		}
@@ -328,7 +332,7 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	// (docs/revenu-universel-microsimulation.md) : hors chaîne par défaut, ce
 	// n'est pas un fait constaté mais l'instruction d'une hypothèse chiffrée.
 	if only == "socle" {
-		fmt.Println("\nsocle universel : seuil, ménages, pensions, chômage")
+		fmt.Println("\nsocle universel : seuil, ménages, pensions, chômage, déciles")
 		if err := macro.IngestPauvrete(ctx, pool, arch); err != nil {
 			return err
 		}
@@ -341,7 +345,17 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		if err := macro.IngestPensionsEIR(ctx, pool, arch); err != nil {
 			return err
 		}
-		return macro.IngestChomageUnedic(ctx, pool, arch)
+		if err := macro.IngestChomageUnedic(ctx, pool, arch); err != nil {
+			return err
+		}
+		return macro.IngestFilosofiDeciles(ctx, pool, arch)
+	}
+	// La population immigrée et la population étrangère : deux notions
+	// distinctes, voir docs/immigration-donnees.md. Hors chaîne par défaut,
+	// comme les autres blocs thématiques ajoutés au fil des demandes.
+	if only == "immigration" {
+		fmt.Println("\nimmigration et nationalité")
+		return immigration.Ingest(ctx, pool, arch)
 	}
 	if only == "" || only == "agriculture" {
 		fmt.Println("\nbilans alimentaires et appareil de production agricole")

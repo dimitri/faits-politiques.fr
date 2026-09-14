@@ -589,6 +589,122 @@ var checks = []check{
 		                            WHERE e.type_menage = d.type_menage AND e.annee = d.annee)`,
 	},
 	{
+		// Les neuf déciles nationaux du niveau de vie (docs/revenu-universel-
+		// microsimulation.md § 6) doivent être strictement croissants : un
+		// décile qui redescend dirait qu'une mesure a été lue à la mauvaise
+		// ligne du classeur Filosofi.
+		name: "les déciles nationaux du niveau de vie sont strictement croissants",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, decile, niveau_vie_mensuel,
+		                 lag(niveau_vie_mensuel) OVER (PARTITION BY annee ORDER BY decile) AS precedent
+		            FROM core.filosofi_decile_national
+		        ) x WHERE precedent IS NOT NULL AND niveau_vie_mensuel <= precedent`,
+	},
+	{
+		// La reprise de la version 2 (method_version socle-uc-v2-reprise-
+		// mediane-plancher) ne doit jamais faire perdre un ménage net : c'est
+		// la propriété que le plancher est censé garantir structurellement.
+		name: "la version 2 de la reprise du socle ne fait jamais perdre un ménage net",
+		query: `SELECT count(*) FROM derived.socle_universel_simulation WHERE delta_mensuel_menage < 0`,
+	},
+	{
+		// Immigré + non-immigré, et étranger + français, doivent chacun
+		// reconstituer le total publié — sinon une des deux catégories a été
+		// mal reconnue (docs/immigration-donnees.md).
+		name: "population immigrée + non-immigrée reconstitue le total, à chaque croisement d'âge, sexe et emploi",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sexe, age_tranche, statut_emploi,
+		                 sum(population) FILTER (WHERE categorie IN ('IMMIGRE','NON_IMMIGRE')) AS somme,
+		                 max(population) FILTER (WHERE categorie = 'TOTAL') AS total
+		            FROM core.population_statut_migratoire WHERE classification = 'IMMIGRATION'
+		           GROUP BY 1,2,3,4
+		        ) x WHERE total IS NOT NULL AND abs(somme - total) > 1`,
+	},
+	{
+		name: "population étrangère + française reconstitue le total, à chaque croisement d'âge, sexe et emploi",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sexe, age_tranche, statut_emploi,
+		                 sum(population) FILTER (WHERE categorie IN ('ETRANGER','FRANCAIS')) AS somme,
+		                 max(population) FILTER (WHERE categorie = 'TOTAL') AS total
+		            FROM core.population_statut_migratoire WHERE classification = 'NATIONALITE'
+		           GROUP BY 1,2,3,4
+		        ) x WHERE total IS NOT NULL AND abs(somme - total) > 1`,
+	},
+	{
+		name: "les pays de naissance des immigrés se somment au total, par année, sexe et âge",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sexe, age_tranche,
+		                 sum(population) FILTER (WHERE pays_code <> '_T') AS somme,
+		                 max(population) FILTER (WHERE pays_code = '_T') AS total
+		            FROM core.population_immigree_origine
+		           GROUP BY 1,2,3
+		        ) x WHERE total IS NOT NULL AND abs(somme - total) > 1`,
+	},
+	{
+		// Eurostat ne publie la décomposition national/UE27/hors UE27 de
+		// façon complète qu'à partir de 2015 pour la France — avant, seul le
+		// total est fiable. Le contrôle se limite donc à 2015 et après ; ce
+		// n'est pas une tolérance de confort, c'est ce que la source permet.
+		name: "national + UE27 + hors UE27 reconstitue le total Eurostat, par dimension et par année depuis 2015",
+		query: `SELECT count(*) FROM (
+		          SELECT dimension, annee,
+		                 sum(population) FILTER (WHERE categorie IN ('NATIONAL','UE27_AUTRE','HORS_UE27')) AS somme,
+		                 max(population) FILTER (WHERE categorie = 'TOTAL') AS total
+		            FROM core.eurostat_population_migratoire
+		           WHERE annee >= 2015
+		           GROUP BY 1,2
+		        ) x WHERE total IS NOT NULL AND abs(somme - total) > 1`,
+	},
+	{
+		name:  "le stock de titres de séjour couvre au moins dix ans",
+		query: `SELECT count(DISTINCT annee) FROM core.titre_sejour_stock`,
+		min:   10,
+	},
+	{
+		// Chaque immigré a un pays de naissance connu (34 % ont la
+		// nationalité française, mais TOUS ont un pays de naissance) : c'est
+		// le fait qui distingue « immigré » d'« étranger » au § 1 de
+		// docs/immigration-donnees.md, et il doit rester vrai en base.
+		name: "tout immigré recensé a un pays de naissance dans la ventilation par origine",
+		query: `SELECT count(*) FROM (
+		          SELECT 1 WHERE
+		            (SELECT population FROM core.population_statut_migratoire
+		              WHERE classification='IMMIGRATION' AND categorie='IMMIGRE'
+		                AND age_tranche='TOUS_AGES' AND sexe='TOTAL' AND statut_emploi='TOTAL')
+		            <>
+		            (SELECT population FROM core.population_immigree_origine
+		              WHERE pays_code='_T' AND age_tranche='TOUS_AGES' AND sexe='TOTAL')
+		        ) x`,
+	},
+	{
+		// La continuité RMI → RSA (docs/chomage-donnees.md) : le RMI doit
+		// être résiduel ou nul à partir de 2010, sans quoi la bascule de
+		// juin 2009 a été mal reconnue par le connecteur.
+		name: "le RMI est résiduel ou nul à partir de 2010, après la bascule vers le RSA",
+		query: `SELECT count(*) FROM core.minima_sociaux_effectif
+		         WHERE dispositif_code = 'RMI' AND annee >= 2010 AND effectif > 10000`,
+	},
+	{
+		// L'« Ensemble » publié par la Drees doit rester supérieur ou très
+		// proche de la somme des dispositifs qu'elle recense (elle compte des
+		// allocations, pas des allocataires dédupliqués — voir le commentaire
+		// de la table). Une marge de 200 couvre les arrondis indépendants de
+		// chaque dispositif (observés jusqu'à 100 certaines années) ; un écart
+		// plus grand dirait qu'un dispositif a été compté deux fois.
+		name: "l'ensemble des minima sociaux n'est jamais inférieur à la somme des dispositifs nommés, à 200 près",
+		query: `SELECT count(*) FROM (
+		          SELECT annee,
+		                 sum(effectif) FILTER (WHERE dispositif_code <> 'ENSEMBLE') AS somme,
+		                 max(effectif) FILTER (WHERE dispositif_code = 'ENSEMBLE') AS ensemble
+		            FROM core.minima_sociaux_effectif GROUP BY annee
+		        ) x WHERE ensemble IS NOT NULL AND somme > ensemble + 200`,
+	},
+	{
+		name:  "les effectifs de minima sociaux couvrent au moins trente ans",
+		query: `SELECT count(DISTINCT annee) FROM core.minima_sociaux_effectif`,
+		min:   30,
+	},
+	{
 		// Une tranche de pension ou de chômage manquante décale silencieusement
 		// tout calcul de reprise fiscale fondé sur la distribution plutôt que sur
 		// la moyenne (docs/revenu-universel-microsimulation.md §3).
@@ -878,6 +994,29 @@ var checks = []check{
 		name:  "la masse salariale couvre au moins cent trimestres",
 		query: `SELECT count(*) FROM core.masse_salariale`,
 		min:   100,
+	},
+	{
+		// Volontairement PAS dans la sonde de fraîcheur ci-dessous : ce jeu est
+		// connu comme dormant depuis juillet 2023 (docs/budget-donnees.md § 4.2)
+		// et publié comme tel, pas comme une série à jour. Le seul risque à
+		// couvrir est une régression du connecteur, pas l'âge de la source.
+		name:  "les encaissements URSSAF couvrent les trois millésimes publiés",
+		query: `SELECT count(DISTINCT annee) FROM core.encaissement_urssaf`,
+		min:   3,
+	},
+	{
+		// La catégorisation « entreprise » (secteur privé hors GEN + GEN) doit
+		// rester une SOUS-PARTIE stricte du total encaissé — sinon le filtre
+		// double-compte ou classe une catégorie non-entreprise comme entreprise.
+		name: "les encaissements « entreprises » ne dépassent jamais le total encaissé, par région et année",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, organisme,
+		                 sum(montant_eur) FILTER (WHERE categorie_entreprise) AS entreprises,
+		                 sum(montant_eur) AS total
+		            FROM core.encaissement_urssaf
+		           GROUP BY annee, organisme
+		          HAVING sum(montant_eur) FILTER (WHERE categorie_entreprise) > sum(montant_eur)
+		        ) x`,
 	},
 	{
 		// Fraîcheur. C'est le contrôle qui aurait attrapé les encaissements

@@ -1,6 +1,6 @@
 # Le seuil de pauvreté se lit par ménage : ce que cela change pour un revenu universel
 
-> Note de méthode. Version 1 — 14 septembre 2026.
+> Note de méthode. Version 2 — 14 septembre 2026.
 > **Cette note chiffre une hypothèse de politique publique, comme
 > [docs/cotisations-et-droits.md](cotisations-et-droits.md) §7 dont elle prend la
 > suite.** Elle n'est pas un constat et ne relève pas du périmètre factuel du
@@ -14,6 +14,14 @@
 > se calcule **par unité de consommation d'un ménage**. Cette note en tire les
 > conséquences, puis micro-simule le financement par une reprise fiscale ciblée
 > sur le socle versé aux ménages aisés — pas par un impôt distinct.
+>
+> **Ce que change cette version 2, par rapport à la version publiée initialement :**
+> le §6 corrige à la hausse le coût net de l'architecture du §2 (≈ 217 Md€/an, pas
+> 25-26 Md€) en le recalculant sur les déciles nationaux de niveau de vie plutôt
+> que sur des moyennes par type de ménage ; le §7 redessine le barème de reprise
+> pour qu'il ne prenne jamais rien à un ménage sous le niveau de vie médian et ne
+> retire jamais net d'argent à personne — au prix, chiffré, d'environ 400 à
+> 480 Md€/an.
 
 ---
 
@@ -235,18 +243,26 @@ marqué (facteur 16, contre facteur 2,5 pour les pensions) : la distribution des
 indemnités chômage est plus resserrée près du seuil, précisément la zone où la
 non-linéarité de la reprise pèse le plus.
 
-### 3.3 Conséquence pour le chiffrage du §2
+### 3.3 Conséquence pour le chiffrage du §2 — corrigée au §6
 
 Le tableau du §2.3 traite chaque type de ménage comme homogène, alors qu'il ne
 l'est pas — un « couple sans enfant » recouvre aussi bien un couple de deux
-smicards qu'un couple de deux cadres. **Le biais mesuré aux §3.1 et 3.2 va
-systématiquement dans le même sens : le calcul sur moyenne SOUS-ESTIME la
-reprise véritable**, et donc SURESTIME le coût net du socle. Le chiffre de
-25-26 Md€/an du §2.3 est, par construction, un plafond — pas une estimation
-centrale. Une micro-simulation menée sur des données individuelles (comme
-Ines, le modèle de micro-simulation socio-fiscale de la Drees et de l'Insee)
-donnerait un chiffre plus bas, dans une proportion que cette note ne peut pas
-établir sans accès à ces données individuelles.
+smicards qu'un couple de deux cadres. Le biais mesuré aux §3.1 et 3.2, pour les
+retraités et les allocataires du chômage pris isolément, va dans un sens
+précis : le calcul sur la seule moyenne sous-estime la reprise pour CES deux
+populations.
+
+> **Correction (ajoutée à la version 1 de cette note).** Cette section
+> affirmait que le chiffre de 25-26 Md€/an du §2.3 était, de ce fait, « un
+> plafond ». **C'est faux, et le §6 le montre avec une distribution nationale
+> plus fine que les neuf types de ménage** : un calcul sur les déciles de
+> niveau de vie donne un coût net proche de 217 Md€/an pour la même
+> architecture — bien AU-DESSUS de 25-26 Md€, pas en dessous. La raison n'est
+> pas celle avancée ici : le découpage par TYPE de ménage et le découpage par
+> DÉCILE de revenu sont deux partitions différentes de la même population, et
+> rien ne garantit qu'elles s'accordent. Ici, elles ne s'accordent pas, d'un
+> ordre de grandeur. Voir le §6 pour le calcul et pourquoi le résultat par
+> décile est le plus fiable des deux.
 
 ---
 
@@ -267,6 +283,281 @@ donnerait un chiffre plus bas, dans une proportion que cette note ne peut pas
 - **Elle ne dit pas si cette réforme est souhaitable.** Comme le rappelle
   [docs/perimetre.md](perimetre.md) §2.1, ce projet ne rend pas de verdict.
 
+---
+
+## 5. Une variante « complément » : fusionner RSA, minimum vieillesse et ASS sans autre condition que le revenu
+
+Le socle des sections 1 et 2 est UNIVERSEL : il est versé à tout le monde, puis
+repris chez les plus aisés. Une question différente se pose : peut-on, sans
+verser un euro à qui n'en a pas besoin, fusionner en une seule allocation le
+RSA, le minimum vieillesse (ASPA) et l'allocation de solidarité spécifique
+(ASS, le plancher de l'assurance chômage pour qui a épuisé ses droits), avec
+pour seule condition d'ouverture le niveau de revenu actuel du foyer — sans
+condition d'âge, sans obligation de recherche d'emploi, sans recours sur
+succession ?
+
+### 5.1 Le mécanisme, et pourquoi il n'est PAS le même calcul que le socle
+
+Ici, l'allocation d'un ménage vaut `max(0, seuil × UC − revenu initial)` : rien
+pour un ménage déjà au-dessus du seuil, un COMPLÉMENT exact pour amener
+au seuil celui qui est en dessous. C'est l'architecture « différentielle » de
+[docs/cotisations-et-droits.md](cotisations-et-droits.md) §7.2, mais appliquée
+au revenu total du ménage plutôt qu'à chaque droit contributif séparément.
+
+**Ce calcul est IMPOSSIBLE à faire sérieusement avec les moyennes par type de
+ménage du §2** — et c'est instructif de voir pourquoi. Les neuf ratios
+revenu-initial-par-UC-sur-seuil du tableau du §2.3 sont TOUS supérieurs à 1
+(de 1,05 pour les familles monoparentales de deux enfants ou plus à 2,70 pour
+les couples sans enfant) : au niveau de la MOYENNE de chaque type, aucun
+ménage n'est sous le seuil, et le complément calculé ainsi vaudrait
+rigoureusement zéro. C'est absurde — 15,4 % de la population est pourtant sous
+ce seuil — et cela illustre en clair la limite déjà nommée au §3 : une
+allocation qui cible spécifiquement la queue basse d'une distribution ne peut
+pas se calculer sur la moyenne de cette distribution, la moyenne étant par
+construction plus haute que ce qu'elle est censée mesurer.
+
+### 5.2 Un ordre de grandeur, à partir des statistiques de pauvreté elles-mêmes
+
+Faute de distribution fine du revenu par ménage dans la base, l'ordre de
+grandeur se lit dans deux séries que l'Insee publie déjà pour caractériser
+LA POPULATION PAUVRE ELLE-MÊME — chargées dans `core.pauvrete_seuil_annuel`
+(§2.2) :
+
+- le **taux de pauvreté** à 60 % de la médiane : 15,4 % en 2023, soit
+  9,792 millions de personnes ;
+- l'**intensité de la pauvreté** : l'écart relatif entre le niveau de vie
+  MÉDIAN des personnes pauvres et le seuil, 19,2 % en 2023 — soit un écart de
+  **247 € par UC et par mois** (1 288 × 19,2 %).
+
+En rapportant le nombre de personnes pauvres au nombre d'UC total de la
+population (§1.2 : environ 45,1 millions d'UC pour 63,6 millions de résidents
+dans le champ de l'enquête, soit 0,71 UC par personne en moyenne), la
+population pauvre représente environ **6,9 millions d'UC**. Combler leur écart
+au seuil coûterait environ :
+
+**6,9 millions d'UC × 247 €/mois × 12 ≈ 20,6 Md€ par an.**
+
+Ce que cette allocation remplacerait, aux montants annuels les plus récents
+publiés (Cnaf, Cnav, Unédic/DREES) :
+
+| allocation remplacée | dépense actuelle |
+|---|---:|
+| RSA (Cnaf, 2024) | 11,9 Md€ |
+| Minimum vieillesse — ASPA et 1er étage (Cnav, 2023) | 4,3 Md€ |
+| ASS, plancher de l'assurance chômage (DREES, 2023) | 1,7 Md€ |
+| **Total actuel** | **17,9 Md€** |
+
+**Coût net supplémentaire, à ces ordres de grandeur : environ 3 Md€ par an** —
+un montant sans commune mesure avec les 25 Md€ du socle universel du §2, et
+sans aucune mesure avec les centaines de milliards que l'intuition pourrait
+prêter à une promesse aussi large que « personne sous le seuil de pauvreté ».
+C'est cohérent : cette variante ne fait rien pour les 84,6 % de la population
+déjà au-dessus du seuil, alors que le socle universel touche tout le monde
+avant de reprendre chez les plus aisés.
+
+**Deux réserves sur ce chiffre, dans des sens opposés :**
+
+- **Il minore probablement le coût réel**, parce que l'intensité de la
+  pauvreté est calculée sur la MÉDIANE des revenus des personnes pauvres, pas
+  sur leur MOYENNE — et combler un écart coûte la moyenne des écarts, pas
+  l'écart au revenu médian. Si la distribution des revenus des pauvres a une
+  frange à revenu très faible (personnes sans aucune ressource), la moyenne
+  des écarts est plus grande que 247 €, et le coût réel dépasse 20,6 Md€.
+- **Il ne majore PAS artificiellement le montant actuellement dépensé** : le
+  taux de non-recours au RSA est documenté et significatif (de l'ordre du
+  tiers des foyers éligibles, selon la Cnaf), et le recours-sur-succession de
+  l'ASPA est identifié comme un frein à son recours par les personnes âgées.
+  Les 17,9 Md€ actuels ne couvrent donc pas tous les foyers qui seraient
+  éligibles à la variante « complément », alors que les 20,6 Md€ ci-dessus,
+  fondés sur la pauvreté RÉELLEMENT mesurée (pas sur les demandes déposées),
+  couvrent par construction tout le monde. Une partie de l'écart de 3 Md€ est
+  donc simplement ce que le non-recours actuel ne fait pas apparaître dans la
+  dépense publiée.
+
+### 5.3 Le compromis que ce chiffrage ne doit pas faire oublier
+
+Une allocation qui vaut exactement `seuil − revenu` en dessous du seuil et
+zéro au-dessus crée, PILE au niveau du seuil, un taux marginal de **100 %** :
+le premier euro gagné au-delà de ce que l'on a déjà fait perdre un euro
+d'allocation. C'est la critique classique, déjà nommée en
+[docs/cotisations-et-droits.md](cotisations-et-droits.md) §7.2, des dispositifs
+d'assistance à seuil dur — et la raison d'être du barème étalé (une à deux fois
+le seuil) retenu pour le socle universel du §2, qui dilue ce taux marginal sur
+une plage plus large au prix d'un coût plus élevé.
+
+**La variante « complément » est donc moins chère et plus simple à faire
+adopter (une seule allocation, un seul critère), mais elle ne résout PAS le
+problème du taux marginal au seuil — elle le concentre même davantage, en un
+point unique et net, là où le socle universel l'étale.** Les deux variantes
+répondent à deux priorités différentes, pas à la même question : combler la
+pauvreté au moindre coût (le complément), ou garantir un revenu à tous en
+lissant les effets de seuil (le socle universel). Le choix entre les deux — ou
+un compromis entre les deux barèmes — est, ici encore, hors du constat que ce
+projet peut établir seul.
+
+---
+
+## 6. Vers une estimation sur données individuelles : les déciles nationaux du niveau de vie
+
+### 6.1 Pourquoi pas Ines, directement
+
+Le modèle de micro-simulation socio-fiscale de la Drees et de l'Insee, Ines,
+tourne sur l'enquête ERFS **individuelle**, pas sur ses tableaux publiés. Cette
+enquête, comme le panel de l'Échantillon démographique permanent ou les
+extractions fiscales du Fichier localisé social et fiscal, n'est accessible
+qu'**au Centre d'accès sécurisé aux données (CASD)**, sous convention de
+recherche — jamais en téléchargement libre. Aucun connecteur de ce projet ne
+peut donc reproduire Ines : ce que cette section fait est le meilleur
+**succédané** que l'open data permette, pas Ines lui-même, et le mot n'est pas
+choisi par coquetterie.
+
+### 6.2 Ce qui est chargé : neuf points d'une vraie distribution nationale
+
+L'Insee publie, dans son fichier Filosofi (`core.filosofi_decile_national`),
+les neuf déciles du niveau de vie national — D1 à D9, y compris la médiane
+(D5). Convertis en euros mensuels par UC, 2023 :
+
+| décile | D1 | D2 | D3 | D4 | D5 (médiane) | D6 | D7 | D8 | D9 |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| €/mois/UC | 1 100 | 1 418 | 1 692 | 1 933 | **2 160** | 2 405 | 2 698 | 3 115 | 3 875 |
+
+Neuf points ne sont pas des données individuelles. Mais ils découpent la
+population en **dix tranches de 10 % chacune**, une résolution bien plus fine
+que les neuf types de ménage du §2 (dont les effectifs vont de 335 000 à
+12 millions de ménages) — et surtout, une résolution qui suit directement le
+REVENU, l'axe sur lequel la reprise fiscale opère, plutôt que la composition
+familiale, qui lui est orthogonale.
+
+**Méthode d'estimation par tranche**, appliquée à chacune des dix tranches de
+10 % de la population : un revenu représentatif, pris au MILIEU de la tranche
+pour les huit tranches intérieures (D1-D2, D2-D3, … D8-D9), et une hypothèse
+explicite pour les deux tranches ouvertes — 0,75 × D1 pour les 10 % les plus
+modestes, 1,8 × D9 pour les 10 % les plus aisés. **Ces deux coefficients sont
+des conventions, pas des mesures** : ils bornent une queue de distribution que
+la source ne détaille pas plus finement en open data. La fonction de reprise
+est ensuite appliquée à chacun des dix revenus représentatifs, et la moyenne
+des dix résultats — chaque tranche pesant 10 % — donne le taux de reprise
+moyen sur l'ensemble de la population.
+
+### 6.3 Le résultat, et pourquoi il contredit le §3.3 de la version 1
+
+Appliqué à l'architecture du §2 (reprise entre une et deux fois le SEUIL DE
+PAUVRETÉ, 1 288 à 2 576 €/UC) :
+
+| | taux de reprise moyen | coût brut | récupéré | net, avant retrait des prestations remplacées | **net** |
+|---|---:|---:|---:|---:|---:|
+| Neuf types de ménage (§2.3) | 0,313 | 676,5 Md€ | 586,4 Md€ | — | **25,2 Md€** |
+| Dix tranches de revenu (ici) | 0,596 | 697,1 Md€ | 415,2 Md€ | 281,9 Md€ | **≈ 217 Md€** |
+
+**Les deux méthodes ne s'accordent pas, et de loin.** Le calcul par tranche de
+revenu récupère MOINS (415 Md€ contre 586 Md€) parce que la moitié de la
+population reste, par construction, sous le seuil de reprise (les cinq
+premières tranches ont un taux de reprise nul ou quasi nul) — alors que le
+calcul par type de ménage, en faisant porter la reprise sur des MOYENNES de
+groupes entiers (« couple sans enfant » pris comme un seul point à 2,70 fois
+le seuil), place artificiellement plus de poids dans la zone de reprise
+maximale. **Le découpage par décile suit directement l'axe sur lequel la
+règle est écrite (le revenu) ; le découpage par type de ménage suit un axe
+orthogonal (la composition familiale) qui ne capture la position dans la
+distribution des revenus qu'indirectement, par la moyenne du groupe.** C'est
+pour cela que le résultat par décile doit être tenu pour le plus fiable des
+deux, et que **le chiffre à retenir pour le §2 est environ 217 Md€ net par
+an, pas 25 Md€.**
+
+Ce n'est pas un ajustement à la marge : c'est une division par presque neuf
+de l'estimation initiale. **La leçon méthodologique dépasse ce chiffrage
+précis** : deux partitions raisonnables d'une même population, appliquées à
+la même règle, peuvent donner des résultats qui ne se recoupent pas d'un
+ordre de grandeur. Aucune des deux n'est «&nbsp;fausse&nbsp;» en soi ; c'est
+le choix de la partition qui doit suivre l'axe de la règle qu'on applique.
+
+---
+
+## 7. Version 2 du barème de reprise : ancré sur le niveau de vie médian, avec un plancher
+
+La version 1 de la reprise (§2.1) démarrait à une fois le SEUIL DE PAUVRETÉ
+(1 288 €/UC) — un niveau **inférieur au niveau de vie médian** (2 160 €/UC en
+2023). Elle commençait donc à reprendre le socle à des ménages qui n'ont rien
+d'aisé : la moitié la plus modeste du pays gagne, par définition, moins que la
+médiane, et une partie d'entre elle se trouvait déjà dans la zone de reprise.
+C'est ce défaut, et le fait que certains types de ménage y perdaient
+concrètement de l'argent (§2.3, couples avec un ou deux enfants), qui motive
+cette seconde version.
+
+### 7.1 Ce qui change
+
+1. **Les deux anses de la reprise sont déplacées au niveau de vie médian et à
+   son double** — 2 160 € et 4 320 €/UC en 2023 — au lieu d'une et deux fois
+   le seuil de pauvreté. Le double du niveau de vie médian est la définition
+   la plus citée du seuil de richesse en France (Observatoire des
+   inégalités) : ce n'est plus un multiple arbitraire, c'est une convention
+   reconnue et déjà utilisée pour désigner « les plus aisés ». **Personne en
+   dessous de la médiane — la moitié du pays — ne subit désormais la moindre
+   reprise.**
+2. **Un plancher interdit toute perte nette.** Le socle net d'un ménage ne
+   peut jamais descendre sous ses prestations non contributives actuelles
+   (`GREATEST(socle_net_calculé, prestations_actuelles)` dans
+   `derived.socle_universel_simulation`, method_version
+   `socle-uc-v2-reprise-mediane-plancher`). Un ménage entièrement repris ne
+   perd donc plus jamais deux fois — le socle ET ses anciennes prestations —
+   il échange au pire l'un contre l'autre, à montant égal.
+
+### 7.2 Résultat, par type de ménage — plus personne ne perd
+
+| type de ménage | ratio revenu initial / médiane | reprise | socle net | ancienne prestation | delta mensuel | Md€/an |
+|---|---:|---:|---:|---:|---:|---:|
+| Personne seule | 1,14 | 14 % | 1 111 € | 104 € | **+1 007 €** | +144,4 |
+| Couple sans enfant | 1,61 | 61 % | 750 € | 46 € | **+704 €** | +66,8 |
+| Couple, 2 enfants | 1,35 | 35 % | 1 896 € | 272 € | **+1 624 €** | +53,7 |
+| Couple, 1 enfant | 1,49 | 49 % | 1 249 € | 163 € | **+1 086 €** | +33,6 |
+| Couple, 3 enfants | 1,08 | 8 % | 3 150 € | 623 € | **+2 527 €** | +29,0 |
+| Monoparentale, 1 enfant | 0,90 | 0 % (plancher) | 1 855 € | 359 € | **+1 496 €** | +24,4 |
+| Monoparentale, 2 enfants ou plus | 0,63 | 0 % (plancher) | 2 644 € | 843 € | **+1 801 €** | +22,6 |
+| Ménage complexe sans enfant | 1,05 | 5 % | 2 152 € | 383 € | **+1 769 €** | +14,1 |
+| Couple, 4 enfants ou plus | 0,66 | 0 % (plancher) | 4 085 € | 1 210 € | **+2 875 €** | +11,6 |
+| **Total (9 types, 29,5 M ménages)** | | | | | | **+400,1** |
+
+**Plus aucun type de ménage ne perd** — le résultat que le §2.3 n'obtenait
+pas. Même le couple sans enfant, qui touchait le taux de reprise le plus
+élevé de la version 1 et perdait 46 €/mois, gagne désormais 704 €/mois : au
+niveau médian, aucun ménage ordinaire n'est plus dans la zone de reprise
+forte.
+
+### 7.3 Le prix de cette garantie
+
+**Coût net : environ 400 Md€/an sur les neuf types de ménage (§7.2),
+confirmé à environ 479 Md€/an par le calcul en dix tranches de revenu du §6**
+(153,5 Md€ récupérés sur 697,1 Md€ de socle brut, moins 64,8 Md€ de
+prestations remplacées). Les deux méthodes, qui divergeaient d'un facteur
+neuf pour la version 1 (§6.3), se rapprochent ici à moins de 20 % l'une de
+l'autre — signe que l'essentiel de leur désaccord précédent venait de la
+zone de reprise partielle entre une et deux fois le SEUIL DE PAUVRETÉ, une
+zone que la version 2 déplace largement hors de portée des types de ménage
+ordinaires.
+
+**Ce prix doit être dit sans détour : protéger la moitié la plus modeste du
+pays de toute reprise, et garantir qu'aucun ménage ne perde net, coûte de
+l'ordre de 400 à 480 Md€ par an** — environ le double du chiffrage corrigé de
+la version 1 (217 Md€, §6.3), et seize à dix-neuf fois le chiffre erroné
+(25 Md€) que la première version de cette note avançait avant la correction
+du §6. Ce n'est pas un artefact de méthode : c'est le
+coût réel d'un principe — « ne jamais retirer d'argent à un foyer modeste » —
+appliqué à une reprise qui, pour rester une reprise et non un nouvel impôt
+général, ne peut s'exercer que sur les plus aisés — par construction une
+minorité de la population, puisque la médiane, par définition, en laisse la
+moitié en dessous.
+
+**Ce que cela implique pour le financement.** Un socle universel qui ne
+retire jamais rien à personne sous la médiane coûte, net, plus que le budget
+actuel de l'ensemble des prestations familiales, de l'assurance chômage et
+des minima sociaux réunis. Le comparer à la variante « complément » du §5
+(coût net de l'ordre de 3 Md€/an, §5.2) mesure exactement le prix de
+l'universalité : verser le socle À TOUT LE MONDE, y compris à qui n'en a pas
+besoin avant reprise, coûte infiniment plus cher en trésorerie brute et en
+mécanique de reprise que ne le fait cibler l'aide sur ceux qui en ont
+besoin — même quand les deux visent, in fine, le même objectif de ne priver
+personne sous le seuil de pauvreté.
+
 ## Sources
 
 - Insee, *Niveau de vie et pauvreté en 2023*, Insee Première n° 2063, et
@@ -281,3 +572,14 @@ donnerait un chiffre plus bas, dans une proportion que cette note ne peut pas
 - Insee, recensement de la population 2023, jeux de données
   `DS_RP_TD_FAMILLE_NBENF_COMP` et `DS_RP_TD_MENAGES_TPH_COMP`, diffusion API
   Melodi.
+- Cnaf, *RSA conjoncture*, dépense annuelle 2024 (non chargée en base — citée
+  au §5.2 pour son seul ordre de grandeur).
+- Drees, *Minima sociaux et prestations sociales*, fiches sur les dépenses du
+  minimum vieillesse et de l'allocation de solidarité spécifique, édition 2023
+  (non chargées en base — mêmes réserves).
+- Insee, Filosofi (Fichier localisé social et fiscal), *Revenus et pauvreté des
+  ménages — tous les niveaux géographiques*, jeu de données n° 8984752, champ
+  France, 2023 — `core.filosofi_decile_national` (§6).
+- Drees, présentation du Centre d'accès sécurisé aux données (CASD) et du
+  modèle Ines — pour ce que ce projet ne peut pas reproduire en open data
+  (§6.1).
