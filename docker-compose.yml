@@ -1,17 +1,42 @@
 services:
   db:
-    # PostGIS, et non postgres nu : les contours administratifs (geo.contour)
+    # Notre propre image, parce qu'aucune image publiée ne réunit les quatre
+    # extensions dont ce projet a besoin : postgis (les contours administratifs
     # sont dessinés par la base elle-même, en SVG, sans bibliothèque de carto ni
-    # serveur de tuiles. Même base Alpine et même version majeure que l'image
-    # précédente : le volume de données reste valable.
-    image: postgis/postgis:17-3.5-alpine
+    # serveur de tuiles), vector (recherche par voisinage dans le corpus du
+    # Journal officiel), rum (recherche de phrase et classement avec les
+    # positions dans l'index) et unaccent (la configuration de recherche `fr`).
+    # postgis/postgis n'a ni pgvector ni rum ; pgvector/pgvector n'a pas PostGIS.
+    # Voir docker/postgres.Dockerfile.
+    #
+    # ATTENTION AU VOLUME. L'image précédente était Alpine, donc musl ; celle-ci
+    # est Debian, donc glibc. Les collations diffèrent, donc l'ORDRE DES INDEX
+    # diffère : le répertoire de données de l'une n'est pas valable pour
+    # l'autre. Le passage se fait par `make db-dump` puis `make db-restore`,
+    # jamais en réutilisant le volume.
+    image: faits-politiques/postgres:17
+    build:
+      context: .
+      dockerfile: docker/postgres.Dockerfile
+      args:
+        POSTGRES_VERSION: "17"
+    # pg_stat_statements doit être préchargé au démarrage du serveur : c'est la
+    # seule façon d'observer la charge réelle d'une base qu'on interroge en
+    # plein texte sur un corpus d'un million d'actes.
+    command: postgres -c shared_preload_libraries=pg_stat_statements
     container_name: fp_db
     environment:
       POSTGRES_USER: fp
       POSTGRES_PASSWORD: fp
       POSTGRES_DB: fp
     ports: ["55432:5432"]
-    volumes: ["fp_pgdata:/var/lib/postgresql/data"]
+    volumes:
+      - "fp_pgdata:/var/lib/postgresql/data"
+      # Les sauvegardes sont montées en lecture seule plutôt que recopiées dans
+      # le conteneur : `pg_restore -j` a besoin d'un FICHIER — il ne sait pas
+      # paralléliser depuis un tube — et recopier 1,3 Go pour le lire une fois
+      # est du temps perdu.
+      - "./db/dump:/dump:ro"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U fp -d fp"]
       interval: 2s
