@@ -2,7 +2,8 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"html/template"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -14,7 +15,9 @@ import (
 // d'un changement d'enregistrement. Le SSMSI le dit lui-même, et le site aussi.
 type IndicSecurite struct {
 	Code, Libelle, Question string
-	Carte                   Carte
+	Slug                    string
+	Apercu                  Carte
+	Page                    PageCarte
 	Serie                   []PointAnnee
 	National                float64
 	Diffuses, Masques       int
@@ -27,6 +30,7 @@ type PointAnnee struct {
 
 type StatsSecurite struct {
 	Indicateurs  []IndicSecurite
+	Defs         template.HTML
 	Annee, Debut int
 	Communes     int
 }
@@ -45,19 +49,24 @@ var libelleSecurite = map[string][2]string{
 	"destructions_et_degradations_volontaires":       {"Destructions et dégradations", ""},
 	"trafic_de_stupefiants":                          {"Trafic de stupéfiants", "Mesure d'abord l'activité des services : sans plainte de victime, un fait n'est enregistré que s'il est constaté."},
 	"usage_de_stupefiants":                           {"Usage de stupéfiants", "Même réserve : c'est une mesure de l'action publique autant que de l'usage."},
+	"usage_de_stupefiants_afd":                       {"Usage de stupéfiants — amendes forfaitaires", "Faits d'usage traités par amende forfaitaire délictuelle, que le SSMSI publie sur une ligne distincte."},
 	"escroqueries_et_fraudes_aux_moyens_de_paiement": {"Escroqueries et fraudes", ""},
 }
 
 func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, error) {
-	contours, _, vb, err := contoursDept(ctx, pool, 0.006)
+	vign, err := jeuContours(ctx, pool, "DEPARTEMENT", tolApercu)
 	if err != nil {
 		return nil, err
 	}
-	st := &StatsSecurite{Annee: 2025, Debut: 2016}
+	fin, err := jeuContours(ctx, pool, "DEPARTEMENT", tolPleine)
+	if err != nil {
+		return nil, err
+	}
+	st := &StatsSecurite{Annee: 2025, Debut: 2016, Defs: vign.Defs}
 	_ = pool.QueryRow(ctx, `SELECT count(DISTINCT commune_code) FROM core.commune_delinquance`).
 		Scan(&st.Communes)
 
-	tx := func(v float64) string { return fmt.Sprintf("%.1f ‰", v) }
+	tx := func(v float64) string { return Decimal(v, 1) + " ‰" }
 
 	for code, lib := range libelleSecurite {
 		// Taux pour 1 000 habitants, agrégé au département : on additionne les
@@ -91,7 +100,16 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 		rows.Close()
 
 		ind := IndicSecurite{Code: code, Libelle: lib[0], Question: lib[1],
-			Carte: choroplethe(contours, vb, cases, "faits pour 1 000 habitants", tx)}
+			Slug:   strings.ReplaceAll(code, "_", "-"),
+			Apercu: apercu(vign, cases, "faits pour 1 000 habitants", tx)}
+		ind.Page = PageCarte{
+			Slug: ind.Slug, Titre: lib[0], Question: lib[1],
+			Source:     "SSMSI, bases communales de la délinquance enregistrée",
+			Section:    "Sécurité",
+			SectionURL: "securite",
+			Carte:      pleine(fin, cases, "faits pour 1 000 habitants", tx),
+			Classement: classement(cases, vign.Noms, tx),
+		}
 
 		srows, err := pool.Query(ctx, `
 			SELECT annee, 1000.0*sum(nombre)/nullif(sum(population),0)
@@ -114,6 +132,9 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 		srows.Close()
 		if n := len(ind.Serie); n > 0 {
 			ind.National = ind.Serie[n-1].Valeur
+			ind.Page.Serie = ind.Serie
+			ind.Page.SerieLegende = "Taux national, faits pour 1 000 habitants"
+			ind.Page.Courbe = courbe(ind.Serie, tx)
 		}
 		_ = pool.QueryRow(ctx, `
 			SELECT count(*) FILTER (WHERE NOT diffuse), count(*)
@@ -126,6 +147,18 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 		for j := i + 1; j < len(st.Indicateurs); j++ {
 			if st.Indicateurs[j].National > st.Indicateurs[i].National {
 				st.Indicateurs[i], st.Indicateurs[j] = st.Indicateurs[j], st.Indicateurs[i]
+			}
+		}
+	}
+	for i := range st.Indicateurs {
+		ind := &st.Indicateurs[i]
+		ind.Page.Note = "Les communes dont le SSMSI ne diffuse pas la valeur sont " +
+			"exclues du calcul, jamais comptées comme zéro : sous un certain " +
+			"nombre de faits, publier reviendrait à identifier les personnes."
+		for _, autre := range st.Indicateurs {
+			if autre.Slug != ind.Slug {
+				ind.Page.Voisines = append(ind.Page.Voisines,
+					LienCarte{Slug: autre.Slug, Titre: autre.Libelle})
 			}
 		}
 	}

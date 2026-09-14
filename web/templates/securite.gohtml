@@ -16,20 +16,23 @@ personnes. Ces communes sont exclues du calcul, pas comptées comme zéro.</p>
 
 <div class="cartes-grille">
 {{range .S.Indicateurs}}
-  <div class="bloc-carte">
+  <a class="bloc-carte" href="{{$.Root}}/securite/{{.Slug}}/">
     <h3>{{.Libelle}}</h3>
     <p class="q">{{if .Question}}{{.Question}}{{end}}</p>
-    {{if .Carte.Vide}}<p class="nodata">Aucune donnée diffusée.</p>{{else}}
-    {{.Carte.SVG}}
-    {{$t := .Carte.Teintes}}<div class="echelle"><span class="u">‰ habitants</span>
-      {{range $i, $b := .Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
-    </div>
+    {{if .Apercu.Vide}}<p class="nodata">Aucune donnée diffusée.</p>{{else}}
+    {{.Apercu.SVG}}
+    {{$t := .Apercu.Teintes}}<span class="echelle"><span class="u">‰ habitants</span>
+      {{range $i, $b := .Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+    </span>
     {{end}}
-    <p class="src">{{.National | printf "%.1f"}} ‰ au niveau national en {{$.S.Annee}}
-      {{if .Masques}} · {{nb .Masques}} communes masquées{{end}}</p>
-  </div>
+    {{template "cartons" .Apercu.Cartons}}
+    <span class="src">{{dec .National 1}} ‰ au niveau national en {{$.S.Annee}}
+      {{if .Masques}} · {{nb .Masques}} communes masquées{{end}}</span>
+    <span class="voir">Voir la carte, l'évolution et le classement →</span>
+  </a>
 {{end}}
 </div>
+{{.S.Defs}}
 
 <p class="attr-osm">Contours&nbsp;: © les contributeurs OpenStreetMap, sous ODbL&nbsp;1.0 ·
 Faits&nbsp;: SSMSI, bases communales de la délinquance enregistrée.</p>
