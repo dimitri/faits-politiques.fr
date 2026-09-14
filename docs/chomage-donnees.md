@@ -1,11 +1,15 @@
 # Le chômage en France : évolution, minima sociaux, financement
 
-> Note de synthèse. Version 1 — 14 septembre 2026.
+> Note de synthèse. Version 2 — 14 septembre 2026.
 > Trois questions : comment le taux de chômage a évolué depuis un demi-siècle,
 > ce que couvre la continuité RMI → RSA, et **d'où vient l'argent** qui finance
 > l'indemnisation et les minima sociaux — qui paie, et comment il est
 > redistribué. Comme le reste du projet, cette note établit des faits chiffrés
 > et leurs sources ; elle ne prend pas position sur les politiques de l'emploi.
+>
+> **Version 2** ajoute les demandeurs d'emploi inscrits à France Travail
+> (§ 1.2), la mesure la plus citée dans le débat public et distincte du taux
+> BIT du § 1.
 
 ---
 
@@ -47,6 +51,31 @@ cherchant un emploi mais indisponibles. Ensemble (`chomage.halo_total`), elles
 mesurent une capacité d'emploi inutilisée plus large que le seul chômage au
 sens strict — utile pour ne pas confondre « le taux baisse » et « il y a moins
 de gens sans emploi qu'ils ne le voudraient ».
+
+### 1.2 Les demandeurs d'emploi inscrits : la mesure la plus citée, et pourtant différente
+
+`core.demandeur_emploi_categorie` (Dares/France Travail, CVS-CJO, France,
+depuis février 1996) porte la statistique administrative que la presse cite le
+plus souvent — « X millions de demandeurs d'emploi » — et qui n'est PAS le
+taux BIT du § 1 : c'est un décompte d'inscriptions, catégorie par catégorie
+(A : sans aucune activité ; B, C : activité réduite courte ou longue).
+
+| | catégorie A | catégorie A+B+C |
+|---|---:|---:|
+| Avril 1996 | 3 329 200 | 3 979 600 |
+| Avril 2008 | 2 157 500 | 3 245 500 |
+| Avril 2015 | 3 804 800 | 5 654 800 |
+| Avril 2020 | 4 553 700 | 6 062 600 |
+| **Juillet 2026** | — | **5 835 800** |
+
+**La catégorie A seule (2,2 millions en 2008) est déjà très inférieure à
+l'ensemble ABC (3,2 millions la même année)** : une bonne partie de l'écart
+entre « le chômage recule » et « les chiffres du chômage restent élevés »
+dans le débat public tient à la catégorie retenue, pas seulement à la
+réalité économique. Category A seule se rapproche le plus du chômage BIT par
+construction (aucune activité), mais les deux ne coïncident pas : l'un est
+une enquête sur un échantillon, l'autre un dénombrement administratif de
+toutes les inscriptions.
 
 ## 2. RMI puis RSA : trente-cinq ans d'un même filet, sous deux noms
 
@@ -177,6 +206,7 @@ tranche de montant perçu — le dernier maillon de cette chaîne, chiffré.
 | 6 | Eurostat ESSPROS, dépense fonction chômage | `core.macro_value` (`protection.depense.chomage`) | 34 ans, 1990-2023 |
 | 7 | Unédic, répartition par tranche d'indemnisation | `core.chomage_tranche_unedic` | 45 trimestres, 2014-2025 |
 | 8 | URSSAF, exonérations et encaissements | `core.exoneration_cotisation`, `core.encaissement_urssaf` | déjà chargés, cf. docs/budget-donnees.md |
+| 9 | Dares/France Travail, demandeurs d'emploi inscrits par catégorie | `core.demandeur_emploi_categorie` | 10 527 lignes, depuis février 1996 |
 
 **Non chargé, et pourquoi :**
 
@@ -185,6 +215,13 @@ tranche de montant perçu — le dernier maillon de cette chaîne, chiffré.
 - **Comptes financiers de l'Unédic** (dette, recettes, dépenses par nature) —
   publiés en PDF deux à trois fois par an, non structurés (déjà documenté en
   [docs/budget-donnees.md](budget-donnees.md) § 4.4).
+- **Prime d'activité** (a remplacé le RSA activité en 2016) : le même jeu de
+  données Drees que les minima sociaux (n° 336) porte un fichier « RSA et
+  prime d'activité — données nationales » distinct de celui déjà chargé,
+  identifié mais pas encore intégré.
+- **Détail des demandeurs d'emploi par âge, région ou ancienneté** : la même
+  source Dares le publie (54 567 lignes au total contre 10 527 chargées) ;
+  seul le total agrégé par catégorie a été retenu ici.
 
 ## Sources
 
@@ -198,6 +235,8 @@ tranche de montant perçu — le dernier maillon de cette chaîne, chiffré.
 - Cnaf, données nationales du RSA.
 - Unédic, *Montant d'allocation chômage et salaires de référence des
   allocataires de l'Assurance chômage*, data.gouv.fr.
+- Dares, *Inscrits à France Travail — Stock — France (mensuelles, CVS-CJO)*,
+  data.dares.travail-emploi.gouv.fr.
 - [docs/cotisations-et-droits.md](cotisations-et-droits.md) et
   [docs/budget-donnees.md](budget-donnees.md), pour le cadre général du
   financement de la protection sociale dans lequel s'inscrit cette note.

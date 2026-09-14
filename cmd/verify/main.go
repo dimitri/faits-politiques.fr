@@ -705,6 +705,58 @@ var checks = []check{
 		min:   30,
 	},
 	{
+		name:  "la population immigrée et étrangère couvre au moins un siècle",
+		query: `SELECT max(annee) - min(annee) FROM core.population_historique_nationalite`,
+		min:   100,
+	},
+	{
+		// Français de naissance + par acquisition + étrangers doit
+		// reconstituer la population totale, chaque millésime — sinon une
+		// colonne du classeur Insee a été mal repérée.
+		name: "français de naissance + par acquisition + étrangers reconstitue la population totale, à 1 % près",
+		query: `SELECT count(*) FROM core.population_historique_nationalite
+		         WHERE abs(francais_naissance_milliers + francais_acquisition_milliers + etrangers_milliers
+		                    - population_totale_milliers) > population_totale_milliers * 0.01`,
+	},
+	{
+		name:  "les flux migratoires (immigration et naturalisation) couvrent au moins quinze ans chacun",
+		query: `SELECT min(n) FROM (SELECT type_flux, count(*) AS n FROM core.flux_migratoire GROUP BY type_flux) x`,
+		min:   15,
+	},
+	{
+		name:  "l'âge de départ à la retraite couvre au moins quinze ans",
+		query: `SELECT count(DISTINCT annee) FROM core.age_depart_retraite`,
+		min:   15,
+	},
+	{
+		// L'âge de départ conjoncturel n'a, historiquement, jamais dépassé 65
+		// ans ni été inférieur à 55 : un chiffre hors de ces bornes dirait une
+		// colonne décalée (âge des femmes pris pour celui des hommes, etc.).
+		name: "l'âge de départ à la retraite reste entre 55 et 65 ans",
+		query: `SELECT count(*) FROM core.age_depart_retraite
+		         WHERE age_femmes NOT BETWEEN 55 AND 65 OR age_hommes NOT BETWEEN 55 AND 65`,
+	},
+	{
+		name:  "les demandeurs d'emploi inscrits couvrent au moins vingt ans",
+		query: `SELECT count(DISTINCT date_mois) FROM core.demandeur_emploi_categorie`,
+		min:   240,
+	},
+	{
+		// La catégorie ABC doit être proche de A+B+C : proche, pas égale,
+		// parce que la Dares publie ces quatre séries indépendamment (chacune
+		// CVS-CJO séparément), avec un arrondi propre à chacune.
+		name: "la catégorie ABC des demandeurs d'emploi est proche de A + B + C, à 1 % près",
+		query: `SELECT count(*) FROM (
+		          SELECT date_mois, champ,
+		                 max(effectif) FILTER (WHERE categorie = 'ABC') AS abc,
+		                 sum(effectif) FILTER (WHERE categorie IN ('A','B','C')) AS somme
+		            FROM core.demandeur_emploi_categorie
+		           WHERE categorie IN ('A','B','C','ABC')
+		           GROUP BY date_mois, champ
+		        ) x WHERE abc IS NOT NULL AND somme IS NOT NULL
+		              AND abs(abc - somme) > abc * 0.01`,
+	},
+	{
 		// Une tranche de pension ou de chômage manquante décale silencieusement
 		// tout calcul de reprise fiscale fondé sur la distribution plutôt que sur
 		// la moyenne (docs/revenu-universel-microsimulation.md §3).

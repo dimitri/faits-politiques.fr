@@ -1,6 +1,6 @@
 # La retraite en France : dépense, pensions, minimum vieillesse
 
-> Note de synthèse. Version 1 — 14 septembre 2026.
+> Note de synthèse. Version 2 — 14 septembre 2026.
 > Trois questions, sur le modèle des notes voisines : combien coûte le système
 > de retraite et comment ce coût a évolué, comment les pensions se distribuent
 > réellement (pas seulement en moyenne), et ce que le minimum vieillesse
@@ -8,6 +8,9 @@
 > financement par cotisations et son évolution récente sont traités en détail
 > dans [docs/cotisations-et-droits.md](cotisations-et-droits.md) — cette note
 > ne les répète pas, elle s'appuie dessus.
+>
+> **Version 2** ajoute l'âge de départ à la retraite depuis 2004 (§ 3), la
+> trace la plus directe des réformes successives.
 
 ---
 
@@ -71,7 +74,32 @@ source) est documentée dans
 moyenne des femmes (1 306 € bruts) est déjà sous le seuil de pauvreté à elle
 seule.
 
-## 3. Le minimum vieillesse (ASV puis ASPA) : une trajectoire en U
+## 3. L'âge de départ : ce que les réformes changent, visible année par année
+
+`core.age_depart_retraite` (Drees, âge CONJONCTUREL moyen de départ — calculé
+sur les seuls départs d'une année donnée, comme un indice conjoncturel de
+fécondité, pas l'âge réel d'une génération) :
+
+| année | femmes | hommes | ensemble |
+|---|---:|---:|---:|
+| 2004 | 61,12 | 60,06 | 60,59 |
+| **2010** | **60,83** | **60,15** | **60,49** *(plus bas de la série)* |
+| 2022 | 63,00 | 62,33 | 62,68 |
+
+**L'âge de départ a d'abord légèrement BAISSÉ entre 2004 et 2010** (les
+dispositifs de carrière longue introduits en 2003 ont permis des départs
+anticipés), **avant de remonter fortement à partir de 2011** — l'effet direct
+de la réforme de 2010, qui relève progressivement l'âge légal de 60 à 62 ans.
+En douze ans (2010-2022), l'âge conjoncturel moyen a gagné plus de deux ans,
+la hausse la plus rapide et la plus continue de la série chargée.
+
+**Les femmes partent systématiquement plus tard que les hommes sur toute la
+série** — un écart qui se réduit dans le temps (1,06 an en 2004, 0,67 an en
+2022) mais ne s'annule pas : conséquence de carrières en moyenne plus courtes
+ou plus hachées, qui obligent à attendre l'âge d'annulation de la décote pour
+partir sans pension réduite.
+
+## 4. Le minimum vieillesse (ASV puis ASPA) : une trajectoire en U
 
 `core.minima_sociaux_effectif`, dispositif `ASV_ASPA` (Allocation
 supplémentaire vieillesse jusqu'en 2006, Allocation de solidarité aux
@@ -103,7 +131,7 @@ celle des effectifs (+34 % sur la même période, 2009 : 517 000 → 2024 :
 693 200), qui traduit une revalorisation réelle du montant individuel de
 l'Aspa, pas seulement davantage de bénéficiaires.
 
-## 4. Ce qui est hors de portée de l'open data
+## 5. Ce qui est hors de portée de l'open data
 
 - **La distribution des pensions par décile ou par CSP** au-delà des 46
   tranches de l'EIR 2020 (le prochain échantillon, EIR 2024, n'était pas
@@ -119,17 +147,26 @@ l'Aspa, pas seulement davantage de bénéficiaires.
   `.xlsx`) qui changent d'une année à l'autre, sans schéma commun exploitable
   par un connecteur unique — la même limite que le détail des titres de
   séjour par motif en
-  [docs/immigration-donnees.md](immigration-donnees.md) § 7.
+  [docs/immigration-donnees.md](immigration-donnees.md) § 7. Un extrait plus
+  étroit mais stable de ce même sujet — le seul âge de départ, sans les
+  effectifs ni les montants — existe séparément et EST chargé (§ 3).
+- **Le ratio cotisants / retraités**, la mesure la plus directement liée à la
+  pression démographique sur un système par répartition : identifié dans les
+  rapports du COR, pas dans un jeu de données ouvert et stable.
+- **AGIRC-ARRCO** (retraite complémentaire, hors LFSS mais dans les
+  administrations de sécurité sociale au sens comptable) : pas de portail
+  d'open data identifié à ce jour, distinct de la publication PDF de ses
+  comptes annuels.
+- **Le taux de remplacement** (part du revenu d'avant retraite que la pension
+  remplace) : la Drees publie un jeu de données dédié
+  (« Répartition des taux de remplacement… », 4 806 lignes), identifié mais
+  pas encore exploré pour son schéma.
 - **La cotisation retraite isolée** dans les encaissements URSSAF : même
   limite que la cotisation chômage, voir
   [docs/chomage-donnees.md](chomage-donnees.md) § 4.2 — l'URSSAF ne publie pas
   ses comptes par branche.
 
-## 5. Ce qui est chargé
-
-Rien de nouveau n'a été ajouté spécifiquement pour cette note : elle s'appuie
-entièrement sur des tables déjà chargées pour d'autres besoins, preuve que les
-sujets de ce projet se recoupent plus qu'ils ne s'empilent.
+## 6. Ce qui est chargé
 
 | # | Source | Table | Chargée pour |
 |---|---|---|---|
@@ -138,9 +175,11 @@ sujets de ce projet se recoupent plus qu'ils ne s'empilent.
 | 3 | Drees, Échantillon interrégimes de retraités 2020 | `core.pension_tranche_eir` | docs/revenu-universel-microsimulation.md |
 | 4 | Drees, minima sociaux — dispositif ASV/ASPA | `core.minima_sociaux_effectif`, `core.minima_sociaux_depense` | docs/chomage-donnees.md |
 | 5 | Insee, population par âge | `core.population_age` | docs/revenu-universel-microsimulation.md |
+| 6 | Drees, âge conjoncturel moyen de départ à la retraite | `core.age_depart_retraite` | cette note |
 
-La ligne 2 (`protection.depense.vieillesse`) est la seule série chargée
-spécifiquement pour cette note ; les quatre autres existaient déjà.
+Les lignes 2 et 6 sont les deux séries chargées spécifiquement pour cette
+note ; les quatre autres existaient déjà — la preuve que les sujets de ce
+projet se recoupent plus qu'ils ne s'empilent.
 
 ## Sources
 
@@ -150,5 +189,6 @@ spécifiquement pour cette note ; les quatre autres existaient déjà.
   retraités 2020 (jeu de données n° 4178).
 - Drees, *Minima sociaux, RSA et prime d'activité* (jeu de données n° 336),
   dispositif ASV/ASPA.
+- Drees, *Âge conjoncturel moyen de départ à la retraite selon le sexe*.
 - [docs/cotisations-et-droits.md](cotisations-et-droits.md), pour le
   financement par répartition et la distinction contributif/non contributif.

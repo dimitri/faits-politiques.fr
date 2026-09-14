@@ -1,11 +1,15 @@
 # L'immigration en France : ce que les données permettent de dire
 
-> Note de synthèse. Version 1 — 14 septembre 2026.
+> Note de synthèse. Version 2 — 14 septembre 2026.
 > Cette note répond à une question d'inventaire : quels chiffres existent sur
 > l'immigration en France, avec quelle précision, et où s'arrête l'open data
 > pour laisser place à des rapports de recherche ou à des trous documentés.
 > Comme le reste du projet, elle ne rend pas de verdict sur l'immigration —
 > elle établit ce qui est mesuré, par qui, et ce qui ne l'est pas.
+>
+> **Version 2** ajoute la profondeur historique qui manquait à la version 1 :
+> un siècle de recensements (§ 8) et les flux annuels d'immigration et de
+> naturalisation (§ 8.1), pas seulement des stocks récents.
 
 ---
 
@@ -235,7 +239,72 @@ consulté : aucune édition plus récente n'y figure.
 
 ---
 
-## 8. Ce qui est chargé
+## 8. L'évolution historique : un siècle de recensements
+
+Toutes les sections précédentes portent sur un ou deux millésimes récents. Ce
+que l'Insee publie de plus long, chargé dans
+`core.population_historique_nationalite` — trente-deux recensements ou
+estimations, 1921 à 2025 :
+
+| année | immigrés (%) | étrangers (%) | Français par acquisition (milliers) |
+|---|---:|---:|---:|
+| 1921 | 3,7 | 3,9 | 254 |
+| 1931 | 6,6 | 6,6 | 361 |
+| 1946 | 5,0 | 4,4 | 853 |
+| 1975 | 7,4 | 6,5 | 1 392 |
+| 1999 | 7,3 | 5,5 | 2 376 |
+| 2010 | 8,5 | 5,9 | 2 822 |
+| 2020 | 10,2 | 7,6 | 3 057 |
+| **2025 (p)** | **11,6** | **9,1** | **3 336** |
+
+**Trois faits que le seul millésime 2023 ne montre pas :**
+
+- **La part d'immigrés n'a jamais été stable dans le temps, et la hausse
+  récente n'est pas sans précédent.** Elle double presque entre 1921 (3,7 %)
+  et 1931 (6,6 %) — l'immigration de l'entre-deux-guerres, moins présente dans
+  la mémoire collective que celle des Trente Glorieuses — puis reflue jusqu'à
+  1946 (guerre, expulsions), avant de remonter pour se stabiliser autour de
+  7,3-7,4 % de 1975 à 1999. **La croissance continue de 1999 à 2025 (7,3 % →
+  11,6 %) est donc la plus longue de la série, mais son AMPLEUR sur vingt-cinq
+  ans reste comparable à celle du seul début des années 1920.**
+- **La part d'étrangers augmente moins vite que celle d'immigrés**, et
+  l'écart entre les deux se creuse continûment depuis 1999 (1,8 point d'écart
+  en 1999, 2,5 points en 2025) : c'est la trace directe des naturalisations
+  (§ 8.1) — une part croissante des immigrés devient française sans cesser
+  d'être immigrée.
+- **Le nombre de Français par acquisition a été multiplié par treize depuis
+  1921** (254 000 → 3 336 000), pas par un simple effet mécanique de la hausse
+  de l'immigration : c'est un STOCK qui s'accumule tant que les personnes
+  naturalisées restent en vie, contrairement au flux annuel du § 8.1.
+
+*Réserves posées par la source elle-même : le champ change en 1990 (métropole
+→ hors Mayotte) et 2014 (Mayotte incluse), et une rupture de série affecte
+2024-2025 (protocole de collecte du recensement revu) — `cmd/verify` compare
+chaque millésime à lui-même, pas à un lissage qui masquerait ces ruptures.*
+
+### 8.1 Les flux, pas seulement le stock
+
+`core.flux_migratoire` (Eurostat, France) donne, année par année, ce que le
+tableau ci-dessus ne peut pas montrer : **combien de personnes entrent, et
+combien acquièrent la nationalité, chaque année** — deux flux, pas des stocks :
+
+| | 2010 | 2024 |
+|---|---:|---:|
+| Immigration (entrées) | 307 111 | 438 626 |
+| Naturalisations | 143 261 | 103 661 |
+
+**Les deux séries évoluent en sens contraire sur la période récente** :
+l'immigration augmente (+43 % entre 2010 et 2024, avec un pic à 490 655 en
+2022), les naturalisations reculent (−28 %). Un stock d'immigrés qui augmente
+peut donc coexister avec un flux de naturalisations en baisse : ce sont deux
+mécanismes indépendants, et aucun des deux ne se déduit de l'autre. Ce constat
+est un fait démographique, pas une explication : cette note n'attribue le
+recul des naturalisations à aucune cause précise, faute de données sur les
+motifs des refus ou des non-demandes.
+
+---
+
+## 9. Ce qui est chargé
 
 Migration `0071_immigration.sql`, connecteur `internal/immigration/`, commande
 `go run ./cmd/ingest -only=immigration`.
@@ -247,6 +316,8 @@ Migration `0071_immigration.sql`, connecteur `internal/immigration/`, commande
 | 3 | Insee, recensement, `DS_RP_TD_IMMI_AGESEX_PAYSNAISS_R_PRINC` (Melodi) | `core.population_immigree_origine` | 180 lignes |
 | 4 | Eurostat `migr_pop1ctz` + `migr_pop3ctb` | `core.eurostat_population_migratoire` | 123 lignes, France, 1999-2025 |
 | 5 | DGEF/MIOM, stock de titres de séjour | `core.titre_sejour_stock` | 33 lignes, 2013-2023 |
+| 6 | Insee, population immigrée et étrangère depuis 1921 | `core.population_historique_nationalite` | 32 millésimes, 1921-2025 |
+| 7 | Eurostat `migr_imm1ctz` + `migr_acq` | `core.flux_migratoire` | 19 + 27 ans |
 
 **Non chargé, et pourquoi :**
 
@@ -256,6 +327,9 @@ Migration `0071_immigration.sql`, connecteur `internal/immigration/`, commande
   instable (§ 7).
 - Travaux de recherche (CAE, France Stratégie, OCDE) — synthèses, pas des
   jeux de données (§ 6).
+- Demandes d'asile (OFPRA) : identifiées, pas encore explorées pour leur
+  format — un flux administratif distinct des titres de séjour et de
+  l'immigration au sens du recensement, qui compléterait le § 8.1.
 
 **Prolongement documenté, non réalisé** : les mêmes jeux Melodi publient la
 population immigrée jusqu'au département et à l'EPCI (population ≥ 50 000
@@ -283,3 +357,6 @@ descendre à cette maille si un besoin géographique se précise.
 - OCDE, *International Migration Outlook*, édition annuelle.
 - Ministère de l'Intérieur, Direction générale des étrangers en France,
   *Titres de séjour, publication du 27 juin 2024*, data.gouv.fr.
+- Insee, *Population immigrée et étrangère en France*, série 1921-2025.
+- Eurostat, `migr_imm1ctz` (immigration par citoyenneté) et `migr_acq`
+  (acquisitions de la nationalité par ancienne citoyenneté).
