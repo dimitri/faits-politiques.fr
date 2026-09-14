@@ -126,6 +126,9 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	type membre struct{ siren, commune, categorie string }
 	var membres []membre
 	sansInsee := map[string]bool{}
+	communesSirenInconnu := map[string]bool{}
+	communesHorsCOG := map[string]bool{}
+	var lignesMembre, rejetCommune, rejetNonCommune int
 
 	var entetes []string
 	err = parcourirXLSX(fExp.Path, func(n int, row map[int]string) error {
@@ -178,11 +181,26 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		if ms == "" {
 			return nil
 		}
+		lignesMembre++
 		insee, ok := sirenVersInsee[ms]
 		if !ok || !connues[insee] {
-			// Membre qui n'est pas une commune : un autre groupement, un
-			// département, une région. On ne l'invente pas en commune.
-			sansInsee[ms] = true
+			// Deux situations que l'ancien code confondait. Un membre qui
+			// n'est pas une commune — autre groupement, département — est
+			// légitimement écarté. Une COMMUNE dont le SIREN est introuvable
+			// est une perte : c'est ce qui vidait 97 communes de leur
+			// intercommunalité sans lever la moindre erreur. BANATIC dit
+			// lui-même quelle nature a le membre.
+			if strings.EqualFold(strings.TrimSpace(row[colCategorie]), "commune") {
+				if !ok {
+					communesSirenInconnu[ms] = true
+				} else {
+					communesHorsCOG[ms] = true
+				}
+				rejetCommune++
+			} else {
+				sansInsee[ms] = true
+				rejetNonCommune++
+			}
 			return nil
 		}
 		membres = append(membres, membre{siren, insee, strings.TrimSpace(row[colCategorie])})
@@ -241,9 +259,11 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 
 	vus := map[string]bool{}
 	var lignesM [][]any
+	var rejetDoublon int
 	for _, m := range membres {
 		k := m.siren + "|" + m.commune
 		if vus[k] {
+			rejetDoublon++
 			continue
 		}
 		vus[k] = true
@@ -262,22 +282,43 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
+	// Convention de complétude lue par cmd/verify : toute ligne d'adhésion lue
+	// est chargée ou rejetée sous un motif nommé.
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"groupements": len(lignesE), "adhesions": len(lignesM),
-		"competences_exercees": len(lignesC), "membres_non_communes": len(sansInsee)}, "")
+		"lignes_recues":             lignesMembre,
+		"lignes_chargees":           len(lignesM),
+		"rejet_membre_non_commune":  rejetNonCommune,
+		"rejet_commune_non_resolue": rejetCommune,
+		"rejet_doublon":             rejetDoublon,
+		"groupements":               len(lignesE),
+		"competences_exercees":      len(lignesC),
+		"communes_siren_inconnu":    len(communesSirenInconnu),
+		"communes_hors_cog":         len(communesHorsCOG),
+	}, "")
 	fmt.Printf("  BANATIC : %d groupements, %d adhésions de communes, %d compétences exercées\n",
 		len(lignesE), len(lignesM), len(lignesC))
 	fmt.Printf("  %d membres qui ne sont pas des communes (autres groupements, départements) : ignorés\n",
 		len(sansInsee))
+	if n := len(communesSirenInconnu) + len(communesHorsCOG); n > 0 {
+		fmt.Printf("  ATTENTION : %d communes membres non résolues (%d SIREN inconnus, %d hors COG %d)\n",
+			n, len(communesSirenInconnu), len(communesHorsCOG), COGMillesime)
+	}
 	return nil
 }
 
 // correspondanceSiren construit SIREN -> code INSEE à partir de l'OFGL, qui
 // publie les deux identifiants sur la même ligne.
 func correspondanceSiren(ctx context.Context, arch *archive.Archive, srcID, runID int64) (map[string]string, error) {
+	// Tous les exercices, pas le seul dernier. La correspondance lisait
+	// autrefois l'exercice 2025 seul : or les comptes d'une année ne sont
+	// complets que tard l'année suivante, et en septembre 2026 environ deux
+	// cents communes n'avaient pas encore de compte 2025 publié. Elles
+	// n'avaient donc pas de SIREN, et disparaissaient en silence de leur
+	// intercommunalité — 97 des 101 communes « sans EPCI » venaient de là.
+	// L'agrégat ne sert qu'à obtenir une ligne par commune et par exercice.
 	url := "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/" + ofglDataset +
-		"/exports/csv?delimiter=%3B&select=com_code,siren&where=" +
-		"exer%3Ddate%272025%27%20AND%20agregat%3D%22Encours%20de%20dette%22"
+		"/exports/csv?delimiter=%3B&select=com_code,siren,exer&where=" +
+		"agregat%3D%22Encours%20de%20dette%22"
 	f, err := arch.Fetch(ctx, srcID, runID, url, ".csv")
 	if err != nil {
 		return nil, err
@@ -286,10 +327,18 @@ func correspondanceSiren(ctx context.Context, arch *archive.Archive, srcID, runI
 	if err != nil {
 		return nil, err
 	}
+	// Un SIREN peut, rarement, avoir désigné deux codes INSEE au fil des
+	// fusions : on retient l'exercice le plus récent. Les dates ISO se comparent
+	// comme des chaînes.
 	out := make(map[string]string, len(recs))
+	annee := make(map[string]string, len(recs))
 	for _, r := range recs {
-		if r["siren"] != "" && r["com_code"] != "" {
-			out[r["siren"]] = r["com_code"]
+		s, c, e := r["siren"], r["com_code"], r["exer"]
+		if s == "" || c == "" {
+			continue
+		}
+		if prev, ok := annee[s]; !ok || e > prev {
+			out[s], annee[s] = c, e
 		}
 	}
 	return out, nil

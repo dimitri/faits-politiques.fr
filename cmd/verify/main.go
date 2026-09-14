@@ -481,6 +481,25 @@ var checks = []check{
 		                            WHERE key LIKE 'rejet\_%'), 0))`,
 	},
 	{
+		// Toute commune appartient à exactement un EPCI à fiscalité propre —
+		// sauf les quatre îles mono-communales que la loi dispense d'adhérer
+		// (Île-de-Bréhat, Île-de-Sein, Ouessant, L'Île-d'Yeu).
+		//
+		// Cette sonde aurait attrapé la perte de 97 communes : la correspondance
+		// SIREN → INSEE ne lisait que l'exercice 2025, incomplet en septembre
+		// 2026, et les communes sans compte publié quittaient leur
+		// intercommunalité sans erreur. Sur une carte, ç'aurait été 97 trous
+		// blancs présentés comme des communes isolées.
+		name: "toute commune est dans un seul EPCI à fiscalité propre, sauf les quatre îles exemptées",
+		query: `SELECT count(*) FROM ref.commune c
+		         WHERE c.cog_millesime = (SELECT max(cog_millesime) FROM ref.commune)
+		           AND c.code_insee NOT IN ('22016','29083','29155','85113')
+		           AND (SELECT count(*) FROM core.epci_membre m
+		                  JOIN core.epci e ON e.siren = m.epci_siren
+		                 WHERE m.commune_code = c.code_insee
+		                   AND e.nature_juridique IN ('CC','CA','CU','METRO','MET69')) <> 1`,
+	},
+	{
 		name:  "les onze proclamations présidentielles sont chargées",
 		query: `SELECT count(*) FROM core.pdr_resultat`,
 		min:   11,
