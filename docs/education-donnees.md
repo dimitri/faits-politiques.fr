@@ -1,11 +1,15 @@
 # L'Éducation nationale : budget, effectifs, et trois idées reçues vérifiées
 
-> Note de synthèse. Version 1 — 14 septembre 2026.
+> Note de synthèse. Version 2 — 14 septembre 2026.
 > Le budget de la mission Enseignement scolaire s'appuie sur
 > `core.budget_programme`, la même table que
 > [docs/securite-police-donnees.md](securite-police-donnees.md) et
 > [docs/defense-donnees.md](defense-donnees.md) — un seul chargement PLF
 > couvre déjà cette mission, rien à recharger.
+>
+> **Version 2** documente précisément, après une recherche dédiée, pourquoi
+> les effectifs d'AESH restent hors de portée en jeu de données ouvert
+> (§ 6) — sans rien changer aux données déjà chargées.
 
 ---
 
@@ -132,9 +136,18 @@ publique.
 
 **Non chargé, et pourquoi :**
 
-- Les AESH (accompagnants d'élèves en situation de handicap) comme catégorie
-  distincte : aucun jeu de données ouvert identifié qui les isole du reste des
-  « personnels de vie scolaire » (§ 6, `internal/education/effectifs.go`).
+- **Les AESH (accompagnants d'élèves en situation de handicap) : recherche
+  refaite, toujours aucun jeu de données ouvert structuré identifié.** Ils
+  sont mêlés, dans les jeux Depp chargés (§ 2), aux « personnels de vie
+  scolaire » sans être isolés — confirmé explicitement par la documentation
+  du jeu de données lui-même (« les ETP des personnels de vie scolaire sont
+  renseignés en nc [non concerné] » pour le secteur privé sous contrat,
+  puisque ces personnels n'y sont pas payés par l'État). Le chiffre le plus
+  cité — **86 502 ETP en 2024, 90 502 ETP en 2025** — vient du rapport de la
+  Cour des comptes de septembre 2024 et de reprises parlementaires, pas d'un
+  jeu de données consultable : cette note le cite comme un ordre de grandeur
+  sourcé, pas comme une série chargée en base, faute d'un fichier à
+  télécharger et à vérifier ligne à ligne.
 - La dépense par élève (souvent citée : environ 8 450 €/an en primaire,
   11 320 €/an dans le secondaire) : chiffre publié par la Depp dans ses
   publications (RERS, « L'état de l'École ») mais aucun jeu de données ouvert
@@ -155,4 +168,6 @@ publique.
   *Les personnels dans les établissements du premier degré* et *du second
   degré*, data.education.gouv.fr.
 - Légifrance, Code de l'éducation, articles D. 422-5 à D. 422-11.
+- Cour des comptes, rapport sur les AESH, septembre 2024 (ordre de grandeur
+  cité § 6, non chargé en base).
 - [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.

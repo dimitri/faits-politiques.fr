@@ -876,6 +876,45 @@ var checks = []check{
 		        ) x`,
 	},
 	{
+		name:  "les sept bassins hydrographiques métropolitains sont chargés",
+		query: `SELECT count(*) FROM geo.contour_bassin`,
+		min:   7,
+	},
+	{
+		name:  "tous les contours de bassin sont des géométries valides",
+		query: `SELECT count(*) FROM geo.contour_bassin WHERE NOT ST_IsValid(geom)`,
+	},
+	{
+		// La somme des 7 bassins doit rester dans l'ordre de grandeur de la
+		// superficie de la France métropolitaine (543 940 km²) — un écart
+		// large signalerait une reprojection Lambert-93/WGS84 ratée.
+		name: "la surface totale des bassins reste dans l'ordre de grandeur de la métropole",
+		query: `SELECT count(*) FROM (
+		          SELECT sum(ST_Area(geom::geography)) / 1e6 AS km2 FROM geo.contour_bassin
+		        ) x WHERE km2 NOT BETWEEN 450000 AND 650000`,
+	},
+	{
+		name:  "le personnel SAE couvre au moins 3 000 établissements",
+		query: `SELECT count(*) FROM core.sae_personnel_fonction`,
+		min:   3000,
+	},
+	{
+		// Un établissement ne doit apparaître qu'une fois : le fichier source
+		// publie une ligne par discipline PLUS un total (discipline 9999) —
+		// seul ce total est chargé (internal/sante/sae.go). Un doublon
+		// signalerait qu'une ligne de détail s'est glissée à côté du total.
+		name:  "chaque établissement SAE n'apparaît qu'une fois",
+		query: `SELECT count(*) FROM (SELECT nofinesset FROM core.sae_personnel_fonction GROUP BY 1 HAVING count(*) > 1) x`,
+	},
+	{
+		// Le total national de personnel non médical hospitalier est de
+		// l'ordre du million — un multiple de ce nombre signalerait le retour
+		// du bug de double comptage par discipline déjà rencontré une fois.
+		name: "le total national de personnel SAE reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (SELECT sum(etp_total_pnm) AS t FROM core.sae_personnel_fonction) x
+		         WHERE t NOT BETWEEN 700000 AND 1500000`,
+	},
+	{
 		// Une tranche de pension ou de chômage manquante décale silencieusement
 		// tout calcul de reprise fiscale fondé sur la distribution plutôt que sur
 		// la moyenne (docs/revenu-universel-microsimulation.md §3).

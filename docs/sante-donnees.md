@@ -1,15 +1,22 @@
 # La santé : FINESS comme clé pivot, et comment les médecins sont payés
 
-> Note de synthèse. Version 1 — 14 septembre 2026.
+> Note de synthèse. Version 2 — 14 septembre 2026.
 > Le système de santé français est le domaine le plus éclaté en sources que
-> ce projet ait chargé : FINESS (établissements), SAE (activité), PMSI
-> (séjours hospitaliers), SNDS/Open Damir (remboursements), RPPS
+> ce projet ait chargé : FINESS (établissements), SAE (activité, personnel),
+> PMSI (séjours hospitaliers), SNDS/Open Damir (remboursements), RPPS
 > (professionnels), HAS (qualité) répondent chacune à une question
 > différente, sans identifiant commun garanti d'un jeu à l'autre — sauf
 > FINESS, précisément pourquoi cette note commence par lui plutôt que par un
-> sujet. **Ce premier chargement couvre le référentiel des établissements et
-> la rémunération des médecins par secteur conventionnel — les autres
-> sources restent à charger, explicitement, § 4.**
+> sujet.
+>
+> **Version 2** ajoute le personnel hospitalier par fonction (SAE, § 1.1),
+> rendu possible par l'installation de 7-zip sur la machine de build — la
+> compression de l'archive source n'était plus, depuis la version 1, un
+> obstacle technique mais une dépendance à assumer. Documente aussi
+> précisément la suite de FINESS (ANS, § 1.2, remplace le jeu utilisé en § 1)
+> et l'accès PMSI/RPPS (§ 4), après une recherche dédiée à chacun. Les
+> effectifs AESH, un sujet Éducation nationale et non Santé, sont documentés
+> dans [docs/education-donnees.md](education-donnees.md), pas ici.
 
 ---
 
@@ -49,6 +56,53 @@ sans dupliquer l'identification d'un établissement — le même rôle que
 commune FINESS concaténés par ce connecteur, à ne pas confondre avec un code
 INSEE publié tel quel par la source) prépare une jointure géographique
 future.
+
+### 1.1 Le personnel hospitalier par fonction (SAE)
+
+`core.sae_personnel_fonction`, 3 808 établissements, 2024. Source : Drees,
+SAE (Statistique annuelle des établissements de santé) — publiée sous forme
+d'une archive `.7z` contenant une cinquantaine de bordereaux thématiques
+(lits, activité par discipline, équipements, personnel), pas d'un jeu
+tabulaire directement interrogeable. Chargeable depuis que 7-zip est
+installé sur la machine de build ; `internal/sante/sae.go` est le seul
+connecteur de ce dépôt qui invoque un binaire externe plutôt que du Go pur.
+
+**Un bug de comptage trouvé et corrigé avant publication** : le fichier
+source (bordereau Q24) publie, par établissement, une ligne par discipline
+médicale **plus** une ligne portant le code 9999, déjà la somme des
+précédentes (vérifié : établissement 010000024, disciplines 1000 + 2000 =
+ligne 9999, à l'ETP près). Une première version de ce chargement additionnait
+toutes les lignes et obtenait 3,01 millions d'ETP nationaux — trois fois le
+chiffre plausible. Seule la ligne 9999 (le total déjà calculé par la Drees)
+est retenue :
+
+| | ETP |
+|---|---:|
+| Infirmiers (avec et sans spécialisation) | 328 700 |
+| Aides-soignants | 235 496 |
+| Administratifs et techniques | 284 577 |
+| **Total personnel non médical, tous établissements SAE** | **1 088 252** |
+
+**Ce total ne couvre que les 3 808 établissements répondant à la SAE**
+(essentiellement les établissements de santé au sens strict), pas les
+103 022 établissements de `ref.finess_etablissement`, dont la majorité sont
+médico-sociaux et hors du champ de cette enquête.
+
+### 1.2 FINESS change de format : ce que la suite (ANS) publie déjà
+
+Au moment de l'écriture, l'Agence du numérique en santé publie déjà les
+deux jeux qui remplaceront `etalab_cs1100502` (§ 1) : **`finess-structures-1`**
+et **`finess-activites-1`**, en JSON quotidien et mensuel
+(`finess-structures-mensuel-202608.json.gz`, etc.), sur data.gouv.fr.
+**Non repris dans cette version** : le nouveau format n'est pas une évolution
+mineure du fichier plat actuel — c'est un modèle imbriqué (`pmej` : personne
+morale/entité juridique, 98 193 entrées dans l'édition consultée ;
+`ege` : établissement géographique, imbriqué par `pmej` ; `gco`/`gcc` :
+groupements de coopération) qui distingue explicitement l'entité juridique du
+site géographique, là où le fichier actuel les juxtapose sur une seule ligne.
+Migrer vers ce format demande de modéliser cette hiérarchie proprement,
+plutôt que de la forcer dans le schéma plat de `ref.finess_etablissement` —
+un chantier à part, pas une mise à jour d'URL.
 
 ## 2. Comment les médecins sont rémunérés : le secteur conventionnel
 
@@ -100,32 +154,31 @@ significatif, secret statistique sur petit effectif) mêlée à des valeurs
 numériques dans la même colonne — un traitement plus délicat que le
 chargement fait ici, laissé à une prochaine itération plutôt que bâclé.
 
-## 4. Ce qui est chargé, et ce qui reste identifié mais non chargé
+## 4. PMSI, RPPS : identifiés précisément, non chargés
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | ANS, référentiel FINESS des établissements | `ref.finess_etablissement` | 103 022 lignes |
-| 2 | Cnam, démographie par secteur conventionnel | `core.medecin_secteur_effectif` | 177 720 lignes, 2010-2024 |
+Recherche dédiée faite cette version, avec un résultat concret pour chacun
+plutôt qu'une simple mention :
 
-**Identifié, non chargé — et pourquoi, sujet par sujet :**
-
-- **SAE** (Statistique annuelle des établissements — lits, personnel,
-  activité) : publiée sur `data.drees.solidarites-sante.gouv.fr`
-  (`708_bases-statistiques-sae`), mais sous forme d'une quarantaine de
-  fichiers `.7z` compressés (bases SAS/CSV par bordereau thématique), pas
-  d'un jeu tabulaire directement interrogeable — la compression `.7z` n'est
-  prise en charge par aucun outil de ce dépôt à ce jour.
-- **PMSI** (activité hospitalière détaillée par séjour) : nécessite un accès
-  spécifique (ATIH), non résolu à ce stade.
+- **PMSI** (activité hospitalière par séjour, MCO/SMR/HAD/psychiatrie) :
+  l'ATIH publie des fichiers agrégés (établissement, région, France) sur son
+  portail **ScanSanté** (`scansante.fr/opendata`, notamment
+  `/opendata/pmsi-mco/ccam` pour l'activité par acte CCAM) — pas de séjour
+  individuel, conformément au secret statistique. **Non chargé** : la page ne
+  publie pas d'URL de fichier stable directement accessible, seulement une
+  application interactive de consultation — trouver l'URL de téléchargement
+  réelle (probablement via l'API interne de l'application) reste à faire
+  avant de pouvoir écrire un connecteur.
+- **RPPS** (identification des professionnels de santé) : l'Annuaire Santé
+  publie une extraction en libre accès,
+  *Annuaire Santé — Extractions des données en libre accès des professionnels
+  intervenant dans le système de Santé (RPPS)*, sous l'organisation ANS sur
+  data.gouv.fr — identifiée précisément cette fois, mais pas encore explorée
+  pour son schéma de champs.
 - **SNDS / Open Damir** (remboursements) : au-delà du secteur conventionnel
   chargé au § 2, les montants remboursés par pathologie ou par acte
   demandent le Système national des données de santé, à accès restreint pour
   le détail individuel — la version ouverte agrégée (Open Damir) reste à
   localiser précisément.
-- **RPPS** (identification des professionnels, hors comptage global) :
-  l'Annuaire Santé publie des extractions en libre accès
-  (`annuaire.sante.fr`), identifiées mais pas encore explorées pour leur
-  schéma exact.
 - **HAS** (indicateurs qualité par établissement) : identifiée dans le
   catalogue data.gouv.fr de la Haute Autorité de Santé, pas encore chargée.
 - **DECP** pour les fournisseurs des établissements publics de santé : même
@@ -135,10 +188,23 @@ chargement fait ici, laissé à une prochaine itération plutôt que bâclé.
 - **Honoraires et dépassements en euros** (§ 3) : jeu identifié, traitement
   du champ « NS » non encore fait proprement.
 
+## 5. Ce qui est chargé
+
+| # | Source | Table | Volume |
+|---|---|---|---|
+| 1 | ANS, référentiel FINESS des établissements | `ref.finess_etablissement` | 103 022 lignes |
+| 2 | Drees, SAE, bordereau Q24 (personnel par fonction) | `core.sae_personnel_fonction` | 3 808 lignes, 2024 |
+| 3 | Cnam, démographie par secteur conventionnel | `core.medecin_secteur_effectif` | 177 720 lignes, 2010-2024 |
+
 ## Sources
 
 - ANS (Agence du numérique en santé), *FINESS — extraction du fichier des
-  établissements*, data.gouv.fr.
+  établissements*, data.gouv.fr ; *FINESS — Structures* et
+  *FINESS — Activités* (nouveau format, § 1.2).
+- Drees, *SAE — bases statistiques*, data.drees.solidarites-sante.gouv.fr.
 - Cnam (Caisse nationale de l'Assurance Maladie), *Démographie des
   professionnels de santé libéraux par secteur conventionnel*,
   data.ameli.fr.
+- ATIH, ScanSanté (`scansante.fr/opendata`), pour le PMSI (§ 4).
+- ANS, *Annuaire Santé — extractions RPPS en libre accès*, data.gouv.fr
+  (§ 4).
