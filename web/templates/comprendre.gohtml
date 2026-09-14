@@ -10,6 +10,9 @@ les réservait à qui sait le cloner.</p>
 Markdown du dépôt, à chaque construction. Elles ne sont ni résumées ni réécrites&nbsp;: ce que
 vous lisez ici est le texte que relit un contributeur.</p>
 
+{{range .Groupes}}
+<h2>{{.Famille}}</h2>
+{{if .Intro}}<p class="q">{{.Intro}}</p>{{end}}
 <div class="cartes trois">
 {{range .Docs}}
   <a class="carte" href="{{$.Root}}/comprendre/{{.Slug}}/">
@@ -20,6 +23,7 @@ vous lisez ici est le texte que relit un contributeur.</p>
   </a>
 {{end}}
 </div>
+{{end}}
 
 <h2>Les quatre règles</h2>
 <p class="lede">Elles gouvernent tout le reste, et sont traduites en contraintes de base de données

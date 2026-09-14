@@ -803,6 +803,79 @@ var checks = []check{
 		            OR taux_q50 > taux_q75 OR taux_q75 > taux_q90`,
 	},
 	{
+		name:  "le budget par mission (PLF) couvre au moins deux exercices",
+		query: `SELECT count(DISTINCT exercice) FROM core.budget_programme`,
+		min:   2,
+	},
+	{
+		// Les quatre programmes de la mission Défense (144, 146, 178, 212)
+		// doivent être présents à chaque exercice chargé — un programme absent
+		// signalerait un export PLF partiel plutôt qu'un choix éditorial.
+		name: "la mission Défense a ses quatre programmes à chaque exercice chargé",
+		query: `SELECT count(*) FROM (
+		          SELECT exercice, count(DISTINCT programme_libelle) AS n
+		            FROM core.budget_programme WHERE mission_libelle = 'Défense'
+		           GROUP BY exercice
+		        ) x WHERE n <> 4`,
+	},
+	{
+		// Police nationale et Gendarmerie nationale doivent apparaître ensemble
+		// à chaque exercice de la mission Sécurités — les deux budgets ne se
+		// substituent jamais l'un à l'autre (docs/securite-police-donnees.md).
+		name: "la mission Sécurités porte Police nationale et Gendarmerie nationale à chaque exercice",
+		query: `SELECT count(*) FROM (
+		          SELECT exercice,
+		                 bool_or(programme_libelle = 'Police nationale') AS a_police,
+		                 bool_or(programme_libelle = 'Gendarmerie nationale') AS a_gendarmerie
+		            FROM core.budget_programme WHERE mission_libelle = 'Sécurités'
+		           GROUP BY exercice
+		        ) x WHERE NOT (a_police AND a_gendarmerie)`,
+	},
+	{
+		name:  "les personnels du premier degré couvrent au moins deux rentrées scolaires",
+		query: `SELECT count(DISTINCT annee) FROM core.education_personnel_etablissement WHERE degre = 'PREMIER'`,
+		min:   2,
+	},
+	{
+		// Le total d'ETP d'un établissement ne peut pas être inférieur à ses
+		// seuls enseignants — sinon une colonne a été lue à la mauvaise place
+		// (déjà arrivé cette session sur d'autres connecteurs DEPP/DREES).
+		name: "aucun établissement n'a moins d'enseignants que d'ETP total (second degré)",
+		query: `SELECT count(*) FROM core.education_personnel_etablissement
+		         WHERE degre = 'SECOND' AND etp_total IS NOT NULL AND etp_enseignants IS NOT NULL
+		           AND etp_total < etp_enseignants - 0.5`,
+	},
+	{
+		name:  "le référentiel FINESS couvre au moins 100 000 établissements",
+		query: `SELECT count(*) FROM ref.finess_etablissement`,
+		min:   100000,
+	},
+	{
+		// nofinesset suit le motif [0-9][0-9A-Z][0-9]{7} de la spécification
+		// etalab_cs1100502 — un identifiant hors motif signale un décalage de
+		// colonnes dans le fichier plat sans en-tête.
+		name:  "tous les identifiants FINESS suivent le format attendu",
+		query: `SELECT count(*) FROM ref.finess_etablissement WHERE nofinesset !~ '^[0-9][0-9A-Z][0-9]{7}$'`,
+	},
+	{
+		name:  "les secteurs conventionnels couvrent au moins dix ans",
+		query: `SELECT count(DISTINCT annee) FROM core.medecin_secteur_effectif`,
+		min:   10,
+	},
+	{
+		// L'agrégat national (région "FRANCE") doit être présent pour "Ensemble
+		// des médecins" à chaque millésime — sinon le calcul du § 3 de
+		// docs/sante-donnees.md n'a plus de dénominateur national. Trois
+		// secteurs avant 2013 (l'Optam n'existait pas), quatre depuis : moins
+		// de trois signalerait une vraie lacune, pas la rupture de série connue.
+		name: "l'agrégat national des médecins par secteur est présent à chaque exercice",
+		query: `SELECT count(*) FROM (
+		          SELECT annee FROM core.medecin_secteur_effectif
+		           WHERE profession_sante = 'Ensemble des médecins' AND libelle_region = 'FRANCE'
+		          GROUP BY annee HAVING count(DISTINCT secteur_code) < 3
+		        ) x`,
+	},
+	{
 		// Une tranche de pension ou de chômage manquante décale silencieusement
 		// tout calcul de reprise fiscale fondé sur la distribution plutôt que sur
 		// la moyenne (docs/revenu-universel-microsimulation.md §3).
