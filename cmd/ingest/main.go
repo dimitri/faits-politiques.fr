@@ -23,6 +23,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/carto"
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/entreprises"
+	"github.com/faits-politiques/faits-politiques/internal/dette"
 	"github.com/faits-politiques/faits-politiques/internal/europe"
 	"github.com/faits-politiques/faits-politiques/internal/geo"
 	"github.com/faits-politiques/faits-politiques/internal/hatvp"
@@ -39,7 +40,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -362,6 +363,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "immigration" {
 		fmt.Println("\nimmigration et nationalité")
 		return immigration.Ingest(ctx, pool, arch)
+	}
+	// La dette : encours, détenteurs, coût, comparaisons européenne et
+	// suisse. Voir docs/dette-donnees.md. La détention (Banque de France)
+	// demande WEBSTAT_API_KEY dans l'environnement.
+	if only == "dette" {
+		fmt.Println("\ndette publique")
+		return dette.Ingest(ctx, pool, arch)
 	}
 	if only == "" || only == "agriculture" {
 		fmt.Println("\nbilans alimentaires et appareil de production agricole")

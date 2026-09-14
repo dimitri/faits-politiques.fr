@@ -66,9 +66,18 @@ type Fetched struct {
 // récupération est enregistrée : elle atteste que le document était encore en
 // ligne à cette date.
 func (a *Archive) Fetch(ctx context.Context, sourceID int64, runID int64, url, ext string) (*Fetched, error) {
+	return a.FetchEntetes(ctx, sourceID, runID, url, ext, nil)
+}
+
+// FetchEntetes est Fetch avec des en-têtes HTTP supplémentaires — pour les
+// API qui exigent une clé (Banque de France Webstat). La clé passe dans un
+// en-tête et JAMAIS dans l'URL : raw.retrieval conserve l'URL telle quelle,
+// et une clé qui y figurerait serait publiée avec la provenance. Les en-têtes
+// ne sont pas archivés ; seule compte l'empreinte des octets reçus.
+func (a *Archive) FetchEntetes(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header) (*Fetched, error) {
 	var last error
 	for attempt := 1; attempt <= 3; attempt++ {
-		f, err := a.fetchOnce(ctx, sourceID, runID, url, ext)
+		f, err := a.fetchOnce(ctx, sourceID, runID, url, ext, entetes)
 		if err == nil {
 			return f, nil
 		}
@@ -82,7 +91,7 @@ func (a *Archive) Fetch(ctx context.Context, sourceID int64, runID int64, url, e
 	return nil, last
 }
 
-func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, url, ext string) (*Fetched, error) {
+func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header) (*Fetched, error) {
 	tmp, err := os.CreateTemp(a.Root, ".dl-*")
 	if err != nil {
 		return nil, err
@@ -90,6 +99,11 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	defer os.Remove(tmp.Name())
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	for k, vs := range entetes {
+		for _, v := range vs {
+			req.Header.Add(k, v)
+		}
+	}
 	req.Header.Set("User-Agent", "faits-politiques.fr (ingestion open data)")
 	client := &http.Client{Timeout: 10 * time.Minute}
 	resp, err := client.Do(req)

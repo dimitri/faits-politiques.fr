@@ -3,3 +3,4 @@
 /bin/
 /site-v1-*/
 /db/dump/
+/.env

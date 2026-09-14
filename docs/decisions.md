@@ -1804,3 +1804,67 @@ et recréé la base — sans dommage ici, la base du volume neuf étant vide, ma
 recette qui détruit avant d'échouer est exactement celle qu'il faut corriger avant
 qu'elle ne serve sur une base pleine. La durée est désormais mesurée à la main, et
 le code de retour de `pg_restore` est propagé plutôt qu'avalé.
+
+## D-055 — La dette : un modèle long, et trois accès choisis plutôt que forcés
+
+Le bloc dette (`docs/dette-donnees.md`, migration 0073, paquet `internal/dette`)
+charge sept sources dans **un seul modèle long** : `ref.dette_serie` porte les
+dimensions (définition, détenteur, échéance, instrument), `core.dette_observation`
+les valeurs à l'unité. Une table par source aurait été plus simple ; elle aurait
+interdit les contrôles croisés qui ont justement trouvé deux défauts réels des
+sources (§ 9 de la note) : en octobre 2017, une ventilation de la dette négociable
+reprend le total du mois précédent (+23,7 Md€) ; avant 1998, l'INSEE et Eurostat
+divergent de plusieurs milliards. Les deux sont laissés en base tels que publiés,
+et exclus **nommément** des contrôles — une tolérance élargie les aurait cachés.
+
+**Trois accès, aucun contournement.**
+
+- **L'Agence France Trésor** ferme tout son site derrière une protection
+  anti-robot. Ses chiffres mensuels sont pris chez l'INSEE, qui les republie sous
+  licence ouverte en citant l'AFT ; la détention chez la Banque de France, qui la
+  produit ; la performance des émissions dans le rapport au Parlement
+  (programme 117). Ce qui n'existe qu'à l'AFT — l'échéancier titre par titre — n'est
+  pas chargé, et la note le dit.
+- **Le DataMapper du FMI** renvoie 403 à un client qui s'identifie honnêtement ;
+  il répond à un User-Agent de navigateur. Se déguiser aurait fonctionné et aurait
+  été un contournement. L'API SDMX du FMI accepte le client tel qu'il est, et
+  apporte ce que le DataMapper n'a pas : la dernière année **observée** de chaque
+  pays. Les projections du FMI, que le DataMapper mêle aux données sans les
+  distinguer, restent ainsi hors de la base.
+- **La Banque de France** exige une clé d'API. Elle vit dans `.env`, non versionné,
+  et passe dans un **en-tête** (`archive.FetchEntetes`), jamais dans l'URL :
+  `raw.retrieval` conserve les URL, et une clé qui y figurerait serait publiée avec
+  la provenance. Vérifié après chargement : aucune URL archivée ne la contient.
+
+**La valeur de marché n'est pas le nominal.** La détention publiée par la Banque de
+France est en valeur de marché (2 602 Md€ au T1 2026), la dette négociable de l'AFT
+en nominal (2 824 Md€ en mars 2026) ; en 2019, l'écart était de sens inverse. Toute
+comparaison entre les deux se fait en **parts**, jamais en montants.
+
+## D-056 — « À quoi sert la dette » : une identité comptable, et des aides juxtaposées, jamais additionnées
+
+La question « à quoi sert la dette » est traitée par le **compte de capital** des
+administrations publiques (`derived.dette_compte_capital`) : le besoin de financement
+se décompose exactement en épargne brute négative, investissement et transferts en
+capital nets. C'est une identité, vérifiée au million près, pas une affectation :
+l'argent public est fongible, et la page le dit avant de montrer le chiffre. Les deux
+conventions — brute et nette de l'usure des équipements — donnent des lectures
+opposées certaines années ; les deux sont publiées, chacune nommée.
+
+Les aides sont **juxtaposées** dans `derived.dette_aides_dividendes`, jamais sommées,
+parce que les données elles-mêmes l'interdisent : le CICE apparaît à la fois dans les
+exonérations de l'URSSAF (2013-2018), dans les subventions de la comptabilité
+nationale et dans les dépenses fiscales. Un total « aides aux entreprises » construit
+par addition l'aurait compté trois fois.
+
+La nature du bénéficiaire des dépenses fiscales (entreprises, ménages) n'existe en
+données ouvertes que pour le PLF 2023 ; elle est appliquée aux autres millésimes par
+numéro de mesure, et la part non classée est contrôlée (moins de 5 %). Les autres
+annexes Voies et moyens sont sur budget.gouv.fr, derrière une protection Incapsula :
+non contournée, non chargées.
+
+L'argument politique « les aides aux grandes entreprises sont financées par les
+ménages et endettent le pays » est examiné maillon par maillon, sans verdict : aucune
+source ne ventile les aides par taille d'entreprise, l'incidence d'un impôt relève
+d'un modèle et non d'une donnée, et « sans ces aides le déficit aurait été moindre »
+est un contrefactuel.
