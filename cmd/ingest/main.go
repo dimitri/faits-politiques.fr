@@ -26,6 +26,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/entreprises"
 	"github.com/faits-politiques/faits-politiques/internal/dette"
 	"github.com/faits-politiques/faits-politiques/internal/europe"
+	"github.com/faits-politiques/faits-politiques/internal/fiscalite"
 	"github.com/faits-politiques/faits-politiques/internal/geo"
 	"github.com/faits-politiques/faits-politiques/internal/hatvp"
 	"github.com/faits-politiques/faits-politiques/internal/immigration"
@@ -41,7 +42,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -409,6 +410,23 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	}
 	if only == "minimis" {
 		return aides.IngestMinimis(ctx, pool, arch)
+	}
+	// « La France est-elle un paradis fiscal ? » : listes officielles, OCDE,
+	// Eurostat, estimations académiques, filiales de groupes étrangers
+	// (SIRENE requis). Le répertoire GLEIF pèse ~500 Mo.
+	if only == "fiscalite" {
+		fmt.Println("\nfiscalité comparée et filiales de groupes étrangers")
+		return fiscalite.Ingest(ctx, pool, arch)
+	}
+	for nom, f := range map[string]func(context.Context, *pgxpool.Pool, *archive.Archive) error{
+		"fiscalite-listes": fiscalite.IngestListes, "fiscalite-ocde": fiscalite.IngestOCDEImpotSocietes,
+		"fiscalite-ide": fiscalite.IngestOCDEIDE, "fiscalite-fats": fiscalite.IngestFATS,
+		"fiscalite-twz": fiscalite.IngestTWZ, "fiscalite-filiales": fiscalite.IngestFiliales,
+		"fiscalite-comptes": fiscalite.IngestComptes,
+	} {
+		if only == nom {
+			return f(ctx, pool, arch)
+		}
 	}
 	if only == "sirene" {
 		fmt.Println("\nrépertoire SIRENE")

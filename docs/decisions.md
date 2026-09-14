@@ -1930,3 +1930,40 @@ l'INSEE sans jamais le réécrire.
 
 **Les sources se recouvrent** (une aide de l'ADEME notifiée figure au TAM) : aucune
 vue ne les additionne.
+
+## D-059 — « La France est-elle un paradis fiscal ? » : trois grilles officielles, une mesure, et des filiales nommées sans « impôt payé »
+
+Migration 0082, `internal/fiscalite` (`-only=fiscalite`), docs/paradis-fiscal-donnees.md.
+
+**Aucune définition unique n'est imposée.** Le projet ne tranche pas « paradis
+fiscal : oui / non ». Il confronte la France à chacune des grilles officielles
+existantes — facteurs de l'OCDE (1998), critères du Conseil de l'UE (2017), liste
+française des ETNC — et à la mesure économique du transfert de bénéfices. Chaque
+grille est présentée avec son angle mort : la liste européenne n'examine par
+construction aucun État membre.
+
+**Tax Justice Network : cité, pas chargé.** Le responsable du projet a autorisé
+explicitement, le 14 septembre 2026, l'usage des indices du TJN (licence non
+commerciale, compatible avec le projet). Leurs données détaillées ne sont
+téléchargeables qu'après création d'un compte, ce que le projet ne fait pas ; les
+pages publiques sont rendues par script. Les indices sont donc cités avec lien,
+aucun chiffre du TJN n'est publié sans source primaire consultée.
+
+**Tørsløv-Wier-Zucman : RESTRICTED.** Les classeurs de réplication ne déclarent
+aucune licence. Ils sont chargés pour être cités avec attribution (quelques
+agrégats par pays), pas redistribués.
+
+**Les filiales : deux origines jamais confondues.** Le repérage systématique vient
+de GLEIF (licence CC0), déclaratif et partiel. La sélection nommée (GAFAM, Disney,
+et une trentaine d'autres groupes) est écrite dans le code avec, pour chaque SIREN,
+le fondement du rattachement ; un SIREN absent de SIRENE fait échouer le chargement.
+
+**Jamais « l'impôt payé » d'une filiale.** Le seul jeu ouvert de comptes sociaux
+(ratios INPI/BCE) ne publie pas l'impôt sur les sociétés. L'écart entre résultat
+courant avant impôt et résultat net est publié sous ce nom, avec ses composantes
+possibles. Les régularisations connues (Google 2019, McDonald's 2022) sont citées
+depuis leurs sources officielles, hors base.
+
+**CbCR : on ne somme pas les sièges.** Les comparaisons de juridictions se font à
+siège constant (groupes américains, groupes français) ; les parts sont calculées
+sur le « reste du monde » publié par le siège.
