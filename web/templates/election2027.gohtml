@@ -26,11 +26,22 @@ s'est déroulée hors du périmètre couvert — mairie, région, entreprise, so
 vide décrit <em>ce site</em>, pas la personne.</p>
 
 {{range .E.Candidats}}
-<section class="bloc">
-  <div class="tete"><div>
-    <span class="sur">{{if .Org}}{{.Organisation}}{{else}}sans organisation rattachée{{end}}</span>
-    <h2 class="h2" style="margin:0">{{.Prenom}} {{.Nom}}</h2>
-  </div><a class="plus" href="{{$.Root}}/candidat/{{.Slug}}/">Fiche complète →</a></div>
+<section class="bloc cliquable">
+  <div class="tete">
+    <div class="qui">
+      {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.Fichier}}" alt=""
+        width="72" height="72" loading="lazy" class="portrait">
+      {{else}}<div class="portrait vide" style="width:72px;height:72px"></div>{{end}}
+      <div>
+        <span class="sur">{{if .Org}}{{.Organisation}}{{else}}sans organisation rattachée{{end}}</span>
+        <h2 class="h2" style="margin:0">{{.Prenom}} {{.Nom}}</h2>
+        {{if .Portrait}}<span class="credit">Portrait&nbsp;: {{.Portrait.Licence}}{{if .Portrait.Auteur}},
+          {{.Portrait.Auteur}}{{end}} — Wikimedia Commons</span>{{end}}
+      </div>
+    </div>
+    {{/* Le lien s'étire sur tout le bloc : la ligne entière est cliquable, et
+         les liens intérieurs — la carte en grand — repassent devant. */}}
+    <a class="plus etire" href="{{$.Root}}/candidat/{{.Slug}}/">Fiche complète →</a></div>
 
   <div class="angles">
     {{if .Votes.Present}}
@@ -65,12 +76,14 @@ vide décrit <em>ce site</em>, pas la personne.</p>
       <div class="v">{{.Interets.Raison}}</div></div>{{end}}
   </div>
 
-  {{if and .Terrain.Present (not .Carte.Vide)}}
-  <div style="display:grid;gap:1.4rem;grid-template-columns:minmax(0,15rem) minmax(0,1fr);
-    align-items:start;margin-top:1rem">
-    <div>{{.Carte.SVG}}
-      {{$t := .Carte.Teintes}}<div class="echelle"><span class="u">part des voix</span>
-        {{range $i, $b := .Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+  {{if and .Terrain.Present (not .Apercu.Vide)}}
+  <div class="une-carte" style="margin-top:1rem">
+    <div>{{.Apercu.SVG}}
+      {{$t := .Apercu.Teintes}}<div class="echelle"><span class="u">part des voix</span>
+        {{range $i, $b := .Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+      {{template "cartons" .Apercu.Cartons}}
+      {{if .Page}}<a class="voir" href="{{$.Root}}/2027/{{.Page.Slug}}/">Carte en grand et
+        classement des départements →</a>{{end}}
     </div>
     <p class="note" style="margin:0">Part des voix obtenues par les listes <code>{{.NuanceCode}}</code>
     au premier tour des municipales 2026, <strong>rapportée aux seules listes nuancées</strong> —
@@ -83,6 +96,8 @@ vide décrit <em>ce site</em>, pas la personne.</p>
   {{end}}
 </section>
 {{end}}
+
+{{.E.Defs}}
 
 <details class="plus" open>
   <summary>Ce que cette page ne dit pas</summary>

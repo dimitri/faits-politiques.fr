@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/csv"
+	"html/template"
 	"os"
 	"strings"
 
@@ -44,11 +45,13 @@ type Candidat2027 struct {
 	DerniereAnnee                      int
 	TotalCharges                       float64
 	NbInterets                         int
-	Carte                              Carte
+	Apercu                             Carte
+	Page                               *PageCarte
 }
 
 type Stats2027 struct {
 	Candidats    []*Candidat2027
+	Defs         template.HTML
 	AvecVotes    int
 	AvecTerrain  int
 	AvecComptes  int
@@ -85,11 +88,15 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 	if err != nil {
 		return nil, err
 	}
-	contours, _, vb, err := contoursDept(ctx, pool, 0.012)
+	vign, err := jeuContours(ctx, pool, "DEPARTEMENT", tolApercu)
 	if err != nil {
 		return nil, err
 	}
-	st := &Stats2027{}
+	fin, err := jeuContours(ctx, pool, "DEPARTEMENT", tolPleine)
+	if err != nil {
+		return nil, err
+	}
+	st := &Stats2027{Defs: vign.Defs}
 
 	for _, c := range candidats {
 		k := &Candidat2027{Candidat: c}
@@ -158,8 +165,23 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 						cases = append(cases, cc)
 					}
 					rows.Close()
-					k.Carte = choroplethe(contours, vb, cases, "part des voix nuancées",
-						func(v float64) string { return Pourcent(int(v*10), 1000) + " %" })
+					fmtPct := func(v float64) string { return Decimal(v, 1) + " %" }
+					k.Apercu = apercu(vign, cases, "part des voix nuancées", fmtPct)
+					k.Page = &PageCarte{
+						Slug:  strings.ToLower(nu[0]),
+						Titre: "Municipales 2026 — voix de la nuance " + nu[0],
+						Question: "Où les listes que le ministère de l'Intérieur range sous " +
+							"cette nuance ont-elles recueilli des voix ?",
+						Source: "Ministère de l'Intérieur, municipales 2026, premier tour",
+						Note: "Une nuance n'est pas une adhésion : c'est un rangement " +
+							"administratif décidé par la préfecture, liste par liste. " +
+							"82,7 % des sièges nuancés portent d'ailleurs une nuance " +
+							"« divers », qui ne nomme aucun parti.",
+						Section:    "Présidentielle 2027",
+						SectionURL: "2027",
+						Carte:      pleine(fin, cases, "part des voix nuancées", fmtPct),
+						Classement: classement(cases, vign.Noms, fmtPct),
+					}
 				}
 			}
 		}
