@@ -2044,3 +2044,28 @@ totaux sont publics. L'affirmation « telle filiale ne paie pas d'impôt » n'es
 que lorsqu'une source officielle l'établit (McKinsey) ; ailleurs, le dossier montre
 l'écart entre résultat avant impôt et résultat net, et l'endroit où le chiffre d'affaires
 français est facturé.
+
+## D-062 — AWS, Google et Capgemini dans le dossier ; une correction sur le marché Microsoft de l'Éducation nationale
+
+Extension de D-061 (`internal/fiscalite`, marchés et faits documentés).
+
+**Correction.** Le dossier présentait l'accord-cadre de l'Éducation nationale comme
+« conclu avec Microsoft », sur la foi de la réponse du ministère à l'Assemblée. Le
+rapport n° 830 de la commission d'enquête du Sénat sur la commande publique (juillet
+2025) en donne les titulaires : le revendeur Crayon France et Open SAS, pour 74,72 M€
+estimés et 152 M€ au plus. Les deux sources sont citées ; le fait qui nomme les
+titulaires l'emporte pour dire qui a signé.
+
+**Capgemini est suivi, mais comme groupe français.** Sa société de tête est à Paris et
+il est imposé en France : il n'entre ni dans la table des filiales de groupes étrangers
+ni dans les agrégats sur l'évasion. Il figure dans les marchés publics et les faits
+parce qu'il est, de loin, le plus présent des groupes suivis dans ces données et un acteur des
+offres « cloud de confiance » bâties sur des technologies américaines (Bleu). S3NS
+(Thales et Google Cloud) est suivi de la même façon que Bleu.
+
+**AWS n'apparaît presque pas dans les données essentielles**, et ce n'est pas une
+absence de dépense : ses services passent par le marché cloud de l'UGAP, dont le
+titulaire est un distributeur, ou par des contrats hors publication. Les montants
+viennent du Sénat. Le rattachement par nom et par objet exige désormais la
+dénomination d'une société du groupe : « AWS » désigne aussi Avenue Web Systèmes,
+éditeur de plateformes de marchés publics.

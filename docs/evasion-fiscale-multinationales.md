@@ -70,35 +70,59 @@ le SIREN du titulaire, sa dénomination, ou l'objet du marché. Au chargement du
 
 | groupe | rattachement | marchés | acheteurs publics | montants publiés dédoublonnés |
 |---|---|---:|---:|---:|
-| Microsoft | objet (licences, souvent via revendeur) | 751 | 358 | jusqu'à 756 M€ |
+| Microsoft | objet (licences, souvent via revendeur) | 745 | 357 | jusqu'à 713 M€ |
 | Microsoft | SIREN (Microsoft France, LinkedIn France) | 12 | 9 | 1,7 M€ |
 | Accenture | SIREN | 166 | 45 | jusqu'à 949 M€ |
 | Oracle | SIREN (Oracle France) | 66 | 41 | jusqu'à 373 M€, dont 300 M€ d'accord de support avec le Service des achats de l'État (2023) |
 | Apple | objet (iPad, Mac) | 195 | 81 | jusqu'à 254 M€ |
 | IBM | SIREN | 34 | 18 | jusqu'à 105 M€ |
 | Cisco | nom et objet | 129 | 75 | jusqu'à 200 M€ |
+| Google | objet (Google Workspace, via intégrateurs) | 35 | 19 | jusqu'à 21 M€ |
+| Amazon | SIREN et nom | 2 | 2 | 0,1 M€ |
+| **Capgemini** (groupe **français**) | SIREN | 653 | 134 | jusqu'à 3,3 Md€ |
+| **Capgemini** (groupe **français**) | nom (autres sociétés du groupe, Sogeti) | 334 | 171 | jusqu'à 98 M€ |
 
 « Jusqu'à » : ces montants additionnent des **maxima d'accords-cadres**. Les licences
 Microsoft passent presque toujours par des revendeurs (SCC, Crayon, Computacenter,
 Econocom) : le titulaire n'est pas Microsoft, et le montant couvre souvent d'autres
 produits.
 
-**Le marché Microsoft de l'Éducation nationale n'apparaît pas tel quel.** Le ministère
-a confirmé à l'Assemblée un accord-cadre de 152 M€ HT sur quatre ans conclu avec
-Microsoft (mars 2025) ; les données essentielles publiées montrent, à la même date, des
-marchés de droits d'usage « de solutions de type Microsoft » attribués au revendeur
-Crayon (7,4 M€ et 6,0 M€). Les deux ne se rapprochent pas avec les données disponibles.
+**Amazon Web Services est presque absent des données essentielles**, alors que le
+Sénat chiffre ses ventes à l'État : les services d'hébergement passent par le marché
+cloud de l'UGAP, dont le titulaire est un distributeur (Crayon, après Capgemini), ou par
+des contrats hors obligation de publication (Bpifrance). Les deux lignes rattachées ne
+concernent pas le cloud (logistique, casiers de retrait).
+
+**Capgemini n'est pas une multinationale étrangère** : sa société de tête est à Paris et
+il est imposé en France. Il est suivi parce qu'il est, de loin, le plus présent des groupes suivis dans ces données, qu'il a été titulaire du premier marché cloud de l'UGAP (2020) et qu'il
+porte, avec Orange, l'offre Bleu bâtie sur les technologies de Microsoft.
+
+**Le marché Microsoft de l'Éducation nationale.** Le ministère le présente à l'Assemblée
+comme un accord-cadre « avec Microsoft » plafonné à 152 M€ HT (2025). La commission
+d'enquête du Sénat en donne les titulaires : le revendeur Crayon France pour les
+licences (64 M€ et 6 M€ estimés) et Open SAS pour le support (4,72 M€), soit 74,72 M€
+estimés sur quatre ans. Les données essentielles publiées ne portent, pour ce marché,
+que des montants partiels attribués à Crayon.
 
 ### 4.2 Faits documentés (`ref.fait_multinationale`)
 
 | groupe | fait | montant | établi par |
 |---|---|---|---|
 | Microsoft | Défense : droits d'usage des logiciels, procédure négociée sans mise en concurrence, cocontractant irlandais (2009-2021) | 82 M€ (2009-2013, presse) ; 120 M€ (2013-2017, repris par le Sénat) | Sénat (proposition de résolution, 2017 ; réponse ministérielle, 2020) |
-| Microsoft | Éducation nationale et Enseignement supérieur : accord-cadre 2025-2029 | plafond 152 M€ HT | Assemblée nationale (réponse ministérielle, 2025) |
-| Microsoft | Plateforme des données de santé hébergée sur Azure | — | Conseil d'État (2020) |
-| Bleu (Orange-Capgemini) | « cloud de confiance » pour l'État bâti sur Microsoft 365 et Azure, sous licence | non public | communiqué des entreprises |
-| Palantir | renouvellement pour trois ans du contrat de la DGSI | non public | Sénat (question écrite, 2025) |
+| Microsoft | Éducation nationale et Enseignement supérieur : accord-cadre 2025-2029, titulaires Crayon France et Open SAS | plafond 152 M€ HT ; 74,72 M€ estimés | Assemblée nationale (réponse ministérielle, 2025) ; Sénat (rapport n° 830, 2025) |
+| Microsoft | ventes de produits Microsoft par l'UGAP en 2024 | environ 230 M€ | Sénat (rapport n° 830) |
+| Microsoft | audition sous serment : Microsoft France « ne peut pas garantir » que les données ne seront pas transmises à des autorités étrangères | — | Sénat (rapport n° 830) |
+| Microsoft | plateforme des données de santé hébergée sur Azure | — | Conseil d'État (2020) |
+| Oracle | ventes de produits Oracle par l'UGAP en 2024 | environ 100 M€ | Sénat (rapport n° 830) |
+| Amazon (AWS) | marché cloud de l'UGAP, oct. 2020 - mai 2025 : 8 % des 146 M€ de commandes tous fournisseurs (Microsoft 19 %, OVHcloud 37 %) ; 2,2 M€ en 2024 | — | Sénat (rapport n° 830) |
+| Amazon (AWS) | Bpifrance : plateforme des prêts garantis par l'État sur AWS, sans appel d'offres | non publié | Assemblée nationale (réponse ministérielle, 2022) |
+| Amazon (AWS) | Doctolib, hébergé par AWS, pour les rendez-vous de vaccination : pas de suspension | — | Conseil d'État (2021) |
+| Google | Éducation nationale : arrêt du déploiement de Google Workspace et d'Office 365 dans les établissements, contraires au RGPD | — | Assemblée nationale (réponse ministérielle, 2022) |
 | Google | convention judiciaire : 500 M€ d'amende, 465 M€ d'impôts | 965 M€ | PNF, Agence française anticorruption (2019) |
+| S3NS (Thales-Google Cloud) | qualification SecNumCloud de l'offre bâtie sur Google Cloud (déc. 2025) | — | communiqué de l'entreprise |
+| Bleu (Orange-Capgemini) | « cloud de confiance » pour l'État bâti sur Microsoft 365 et Azure, sous licence | non public | communiqué des entreprises |
+| Capgemini (français) | appui à la préfiguration de la plateforme des données de santé (2018-2019), finalement hébergée sur Azure | — | Sénat (rapport n° 830) |
+| Palantir | renouvellement pour trois ans du contrat de la DGSI | non public | Sénat (question écrite, 2025) |
 | McDonald's | convention judiciaire : 508 M€ d'amende, 737 M€ d'impôt | 1,245 Md€ | ministère de l'Économie (2022) |
 | McKinsey | aucun impôt sur les sociétés en France de 2011 à 2020 | CA 2020 : 329 M€ | Sénat (commission d'enquête, 2022) |
 
@@ -168,7 +192,7 @@ chargés** (D-059).
 | GLEIF Golden Copy | `gleif-lei-niveau2` | CC0 | sociétés françaises (SIREN) déclarant une mère ultime étrangère |
 | Ratios INPI/BCE | `inpi-bce-ratios-financiers` | Licence ouverte | CA, EBE, résultat courant avant impôt (reconstitué), résultat net |
 | Données essentielles de la commande publique, consolidées (decp.info) | `decp-consolidees` | Licence ouverte | marchés dont le titulaire ou l'objet se rattache à un groupe suivi, dernière version de chaque marché |
-| Sénat, Assemblée nationale, Conseil d'État, AFA, ministère de l'Économie ; presse et entreprises, signalées | `faits-multinationales` | ATTRIBUTION | 14 faits : contrats, règlements fiscaux, constats d'enquête, chacun avec sa qualité (officiel, presse, entreprise) |
+| Sénat (dont le rapport n° 830 de 2025 sur la commande publique), Assemblée nationale, Conseil d'État, AFA, ministère de l'Économie ; presse et entreprises, signalées | `faits-multinationales` | ATTRIBUTION | 24 faits : contrats, ventes via l'UGAP, règlements fiscaux, constats d'enquête, chacun avec sa qualité (officiel, presse, entreprise) |
 
 ## 8. Pièges
 
@@ -242,7 +266,11 @@ chargés** (D-059).
     Google Ireland, Amazon Web Services EMEA, catégories juridiques 31xx et 32xx) : elles
     ont un SIREN, peuvent être titulaires de marchés, mais ne déposent pas de comptes
     sociaux français.
-16. **Faits de presse.** Le montant du contrat Microsoft de la Défense n'a jamais été
+16. **« AWS » et « Amazon » dans les noms et les objets.** « AWS » désigne aussi Avenue
+    Web Systèmes, éditeur de plateformes de marchés publics, et « Amazon » des sociétés
+    guyanaises : le rattachement exige la dénomination d'une société du groupe
+    (Amazon Web Services, Amazon EU…).
+17. **Faits de presse.** Le montant du contrat Microsoft de la Défense n'a jamais été
     publié par le ministère ; il vient de la presse et de parlementaires qui la citent.
     Il est présenté comme tel.
 
@@ -270,6 +298,7 @@ chargés** (D-059).
   étrangers, 2024 : 37,6 Md€ (Luxembourg 22,8 %, Pays-Bas 16,0 %, Suisse 12,5 %,
   Allemagne 12,1 %) ; reçus par les investisseurs français de leurs filiales à
   l'étranger : 111,4 Md€.
-- Commande publique : 751 marchés dont l'objet nomme Microsoft, chez 358 acheteurs
+- Commande publique : 745 marchés dont l'objet nomme Microsoft, chez 357 acheteurs
   publics distincts ; 12 marchés seulement ont pour titulaire une société française
-  du groupe.
+  du groupe. UGAP, 2024 : environ 230 M€ de ventes Microsoft, 100 M€ Oracle ; marché
+  cloud : 146 M€ cumulés d'octobre 2020 à mai 2025, dont 8 % pour AWS.

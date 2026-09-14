@@ -31,6 +31,8 @@ type fait struct {
 	montant, nature, qualite, constat, url                            string
 }
 
+const urlSenat830 = "https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf"
+
 var faits = []fait{
 	{"microsoft-defense-ppr-2017", "Microsoft Corporation", "CONTRAT", "2017-10-16", "2009-2021", "Microsoft Ireland Operations Limited", "Ministère de la Défense",
 		"Accord-cadre de droits d'usage des logiciels Microsoft, dit « open bar »", "120000000", "ESTIME", "OFFICIEL",
@@ -44,10 +46,50 @@ var faits = []fait{
 		"Premier contrat Microsoft du ministère de la Défense", "82000000", "PAYE", "PRESSE",
 		"82 M€ dépensés sur la première période, selon les documents révélés par la presse spécialisée ; montant non confirmé par le ministère.",
 		"https://www.silicon.fr/Thematique/actualites-1367/Breves/Contrat-Microsoft-Defense-l-Open-Bar-passe-de-82-a-439321.htm"},
-	{"microsoft-education-2025", "Microsoft Corporation", "CONTRAT", "2025-03-14", "2025-2029", "Microsoft", "Ministères de l'Éducation nationale et de l'Enseignement supérieur",
-		"Accord-cadre de solutions Microsoft pour les services centraux, déconcentrés, universités et organismes de recherche", "152000000", "PLAFOND", "OFFICIEL",
-		"Le ministère confirme un accord-cadre de quatre ans avec Microsoft, plafonné à 152 M€ HT, couvrant environ un million de postes et serveurs, et s'engage à déployer des alternatives libres pour la messagerie d'ici mi-2026.",
+	{"microsoft-education-2025", "Microsoft Corporation", "CONTRAT", "", "2025-2029", "", "Ministères de l'Éducation nationale et de l'Enseignement supérieur",
+		"Accord-cadre de solutions Microsoft, présenté par le ministère comme passé « avec Microsoft »", "152000000", "PLAFOND", "OFFICIEL",
+		"Le ministère décrit un accord-cadre de quatre ans avec Microsoft, sans minimum d'achat, plafonné à 152 M€ HT, couvrant près d'un million de postes et serveurs, et annonce une messagerie libre pour mi-2026.",
 		"https://www.assemblee-nationale.fr/dyn/17/questions/QANR5L17QE5312"},
+	{"microsoft-education-2025-titulaires", "Microsoft Corporation", "CONTRAT", "2025-03-14", "2025-2029", "Crayon France (lots 1 et 2), Open SAS (lot 3)", "Ministères de l'Éducation nationale et de l'Enseignement supérieur",
+		"Titulaires et montant estimé du même accord-cadre", "74720000", "ESTIME", "OFFICIEL",
+		"La commission d'enquête du Sénat précise que les licences Microsoft sont fournies par le revendeur Crayon France (64 M€ et 6 M€ estimés) et le support par Open SAS (4,72 M€), pour 74,72 M€ HT estimés sur quatre ans (rapport n° 830, p. 253-254).",
+		urlSenat830},
+	{"microsoft-ugap-2024", "Microsoft Corporation", "CONTRAT", "", "2024", "", "Union des groupements d'achats publics (UGAP)",
+		"Ventes de produits Microsoft par la centrale d'achat publique", "230000000", "PAYE", "OFFICIEL",
+		"Environ 230 M€ de ventes de produits Microsoft par l'UGAP en 2024 (100 M€ pour Oracle) ; au premier trimestre 2025, sept des dix prestations de services les plus vendues par l'UGAP concernaient des produits Microsoft (rapport n° 830, p. 266).",
+		urlSenat830},
+	{"microsoft-audition-senat-2025", "Microsoft Corporation", "CONTROVERSE", "2025-06-10", "", "Microsoft France", "Sénat",
+		"Microsoft France ne peut pas garantir que les données ne seront pas transmises à des autorités étrangères", "", "", "OFFICIEL",
+		"Auditionné sous serment, le directeur des affaires publiques et juridiques de Microsoft France répond « Non, je ne peux pas le garantir » à la question de la transmission de données de citoyens français à des autorités étrangères sans accord des autorités françaises (rapport n° 830, p. 242).",
+		urlSenat830},
+	{"oracle-ugap-2024", "Oracle Corporation", "CONTRAT", "", "2024", "", "Union des groupements d'achats publics (UGAP)",
+		"Ventes de produits Oracle par la centrale d'achat publique", "100000000", "PAYE", "OFFICIEL",
+		"Environ 100 M€ de ventes de produits Oracle par l'UGAP en 2024 (rapport n° 830, p. 266).",
+		urlSenat830},
+	{"aws-ugap-cloud-2020-2025", "Amazon.com Inc.", "CONTRAT", "", "2020-2025", "Crayon (distributeur), auparavant Capgemini", "État et opérateurs, via l'UGAP",
+		"Marché d'hébergement en nuage de l'UGAP : part d'Amazon Web Services", "", "", "OFFICIEL",
+		"146 M€ de commandes cumulées d'octobre 2020 à mai 2025 sur le marché cloud de l'UGAP, dont 8 % pour AWS, 19 % pour Microsoft et 37 % pour OVHcloud ; en 2024, 2,2 M€ pour AWS et 8,1 M€ pour Microsoft sur 44 M€. Le montant, qui couvre tous les fournisseurs, n'inclut ni le logiciel en ligne ni les achats hors UGAP (rapport n° 830, p. 266-267).",
+		urlSenat830},
+	{"aws-bpifrance-2022", "Amazon.com Inc.", "CONTRAT", "2022-03-22", "2020", "Amazon Web Services", "Bpifrance",
+		"Plateforme des prêts garantis par l'État hébergée sur Amazon Web Services, sans appel d'offres", "", "", "OFFICIEL",
+		"Le Gouvernement confirme que Bpifrance a recouru à Amazon Web Services pour la plateforme des attestations de prêts garantis par l'État, montée en moins de cinq jours, au motif que l'offre « n'avait pas d'équivalent » parmi ses hébergeurs référencés (Amazon, Microsoft, OVH) ; montant non publié.",
+		"https://www.assemblee-nationale.fr/dyn/15/questions/QANR5L15QE36407"},
+	{"aws-doctolib-2021", "Amazon.com Inc.", "CONTROVERSE", "2021-03-12", "", "AWS (hébergeur de Doctolib)", "Ministère de la Santé",
+		"Rendez-vous de vaccination contre la covid-19 gérés par Doctolib, hébergé par AWS", "", "", "OFFICIEL",
+		"Le juge des référés du Conseil d'État refuse de suspendre le partenariat : pas de données de santé, conservation limitée, chiffrement par un tiers de confiance établi en France.",
+		"https://conseil-etat.fr/actualites/le-juge-des-referes-ne-suspend-pas-le-partenariat-entre-le-ministere-de-la-sante-et-doctolib-pour-la-gestion-des-rendez-vous-de-vaccination-contre"},
+	{"google-education-2022", "Alphabet Inc.", "CONTROVERSE", "2022-11-15", "", "Google", "Ministère de l'Éducation nationale",
+		"Arrêt du déploiement de Google Workspace et d'Office 365 dans les établissements", "", "", "OFFICIEL",
+		"Le ministère indique avoir demandé aux recteurs, dès octobre 2021, d'arrêter tout déploiement d'Office 365 « ainsi que celle de Google, qui seraient contraires au RGPD ».",
+		"https://www.assemblee-nationale.fr/dyn/16/questions/QANR5L16QE971"},
+	{"s3ns-secnumcloud-2025", "S3NS (Thales-Google Cloud)", "CONTROVERSE", "2025-12-17", "", "S3NS", "Organismes publics et privés",
+		"Qualification SecNumCloud de l'offre de S3NS, bâtie sur Google Cloud", "", "", "ENTREPRISE",
+		"Coentreprise de Thales et de Google Cloud, S3NS annonce la qualification SecNumCloud de son offre PREMI3NS ; en juillet 2025, le Sénat relevait que Bleu et S3NS étaient encore en cours de qualification (rapport n° 830, p. 249).",
+		"https://www.s3ns.io/en/news/premi3ns-secnumcloud-qualification"},
+	{"capgemini-health-data-hub", "Capgemini SE (groupe français)", "CONTRAT", "", "2018-2019", "Capgemini", "Direction de la recherche, des études, de l'évaluation et des statistiques (Drees)",
+		"Appui à la préfiguration de la plateforme des données de santé, finalement hébergée sur Microsoft Azure", "", "", "OFFICIEL",
+		"La phase de préfiguration de la plateforme des données de santé a été menée sous l'égide de la Drees avec l'appui du cabinet Capgemini ; la commission d'enquête n'a pas eu accès à des éléments attestant d'une réelle consultation d'autres hébergeurs (rapport n° 830, p. 165).",
+		urlSenat830},
 	{"microsoft-health-data-hub-2020", "Microsoft Corporation", "CONTROVERSE", "", "2020", "Microsoft", "Plateforme des données de santé (Health Data Hub)",
 		"Hébergement des données de santé sur Microsoft Azure", "", "", "OFFICIEL",
 		"Le Conseil d'État refuse de suspendre l'hébergement par Microsoft mais demande des précautions dans l'attente d'une solution pérenne, en raison du risque de transfert de données vers les États-Unis.",
@@ -113,7 +155,11 @@ func IngestFaits(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 				docs[f.url] = nil // cité, pas archivé
 				continue
 			}
-			d, err := arch.Fetch(ctx, srcID, runID, f.url, ".html")
+			ext := ".html"
+			if strings.HasSuffix(f.url, ".pdf") {
+				ext = ".pdf" // scellé sans relecture : pas de lecteur PDF dans le projet
+			}
+			d, err := arch.Fetch(ctx, srcID, runID, f.url, ext)
 			if err != nil {
 				if f.qualite == "OFFICIEL" {
 					return nil, fmt.Errorf("%s : %w", f.id, err)

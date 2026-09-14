@@ -40,7 +40,10 @@ var groupesMarches = []struct {
 }{
 	{"Microsoft Corporation", `\bmicrosoft\b`, `\bmicrosoft\b|\bazure\b|office ?365|\bm365\b`, nil},
 	{"Alphabet Inc.", `\bgoogle\b`, `\bgoogle\b`, nil},
-	{"Amazon.com Inc.", `\bamazon\b`, `amazon web services|\baws\b`, nil},
+	// « AWS » seul désigne aussi Avenue Web Systèmes, éditeur de plateformes de
+	// marchés publics, et « Amazon » seul des sociétés guyanaises nommées
+	// d'après le fleuve : on exige la dénomination d'une société du groupe.
+	{"Amazon.com Inc.", `\bamazon (web services|eu|france|online|data services|digital)\b`, `amazon web services|\bamazon (eu|business)\b`, nil},
 	{"Oracle Corporation", `\boracle\b`, `\boracle\b`, nil},
 	{"IBM", `\bibm\b|international business machines`, `\bibm\b`, nil},
 	{"Salesforce Inc.", `\bsalesforce\b`, `\bsalesforce\b`, nil},
@@ -53,6 +56,13 @@ var groupesMarches = []struct {
 	// Capgemini qui exploite sous licence les technologies de Microsoft. Suivie
 	// à part, jamais agrégée à Microsoft.
 	{"Bleu (Orange-Capgemini, technologies Microsoft)", "", "", []string{"953440591"}},
+	// Capgemini est un groupe FRANÇAIS (société de tête à Paris) : suivi pour ses
+	// marchés publics et son rôle dans les offres « cloud de confiance », jamais
+	// compté parmi les groupes étrangers.
+	{"Capgemini SE (groupe français)", `\bcapgemini\b|\bsogeti\b`, `\bcapgemini\b`,
+		[]string{"330703844", "328781786", "479766842", "479766800", "444495774", "652025792", "434325973", "487607574"}},
+	// S3NS : coentreprise de Thales et de Google Cloud, même logique que Bleu.
+	{"S3NS (Thales-Google Cloud)", `\bs3ns\b`, `\bs3ns\b`, nil},
 }
 
 func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {

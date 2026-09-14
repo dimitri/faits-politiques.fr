@@ -121,13 +121,14 @@ var checksFiscalite = []check{
 		min:   3,
 	},
 	{
-		// Un rattachement par SIREN doit porter un SIREN de la table des filiales
-		// ou de la liste des partenaires suivis.
+		// Un rattachement par SIREN doit porter un SIREN de la table des filiales,
+		// sauf pour les groupes français suivis à part (Bleu, Capgemini), dont les
+		// SIREN sont listés dans le connecteur.
 		name: "marchés publics : tout rattachement par SIREN porte un SIREN connu",
 		query: `SELECT count(*) FROM core.marche_public_cible m
 		         WHERE m.correspondance = 'SIREN'
 		           AND NOT EXISTS (SELECT 1 FROM core.filiale_groupe_etranger f WHERE f.siren = m.siren)
-		           AND m.siren <> '953440591'`,
+		           AND m.groupe NOT IN ('Bleu (Orange-Capgemini, technologies Microsoft)', 'Capgemini SE (groupe français)')`,
 	},
 	{
 		name:  "faits documentés : chargés, et tout fait officiel est scellé",
