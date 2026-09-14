@@ -1,0 +1,87 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <a href="{{.Root}}/budget/">Budget</a> ›
+  <span>Protection sociale</span></p>
+<span class="sur">Comptes de la protection sociale · {{.X.Debut}}–{{.X.Annee}}</span>
+<h1>Les prestations de protection sociale</h1>
+<p class="lede">{{mdEur .X.Total}} versés en {{.X.Annee}}, tous régimes confondus, répartis en six
+risques. C'est le premier budget du pays — nettement devant celui de l'État.</p>
+
+<p class="note proc"><strong>«&nbsp;Protection sociale&nbsp;» est plus large que «&nbsp;Sécurité
+sociale&nbsp;».</strong> Le compte réunit {{.X.NbRegimes}} régimes&nbsp;: le régime général, mais
+aussi l'assurance chômage, les retraites complémentaires, l'État, les départements, les mutuelles
+et les institutions de prévoyance. Un chiffre de «&nbsp;la Sécu&nbsp;» au sens de la loi de
+financement en couvre une partie seulement.</p>
+
+<h2>Les six risques, en {{.X.Annee}}</h2>
+<div class="donut-bloc">
+  {{.X.Donut}}
+  <div class="scroll"><table>
+  <thead><tr><th>Risque</th><th class="n">Prestations</th><th class="n">Part</th><th class="barre"></th></tr></thead>
+  <tbody>{{range .X.Risques}}<tr>
+    <td><i class="pastille-risque" style="background:{{risqueCouleur .Code}}"></i>{{.Libelle}}</td>
+    <td class="n">{{mdEur .Montant}}</td>
+    <td class="n">{{dec .Part 1}} %</td>
+    <td class="barre"><span style="width:{{printf "%.1f" .Part}}%;background:{{risqueCouleur .Code}}"></span></td>
+  </tr>{{end}}</tbody></table></div>
+</div>
+<p class="note">Les six risques se somment exactement au total&nbsp;: {{mdEur .X.Total}}. C'est
+pourquoi ils sont affichés seuls — mélanger deux niveaux de la nomenclature ferait compter deux
+fois les mêmes prestations. L'anneau reprend les mêmes teintes que le tableau&nbsp;; les valeurs
+exactes restent dans les colonnes, pas dans le dessin.</p>
+
+<h2>Le détail par sous-risque</h2>
+<div class="scroll"><table>
+<thead><tr><th>Sous-risque</th><th class="n">Prestations</th><th class="n">Part du total</th></tr></thead>
+<tbody>{{range .X.SousRisques}}<tr>
+  <td>{{.Libelle}}</td><td class="n">{{mdEur .Montant}}</td>
+  <td class="n z">{{dec .Part 1}} %</td>
+</tr>{{end}}</tbody></table></div>
+
+<h2>L'évolution depuis {{.X.Debut}}</h2>
+<p class="q">Prestations versées, tous risques et tous régimes, en euros courants — une barre par
+année, puisqu'il s'agit d'un total d'exercice. La ligne superpose la population, sur sa <strong>propre
+échelle</strong> à droite&nbsp;: elle ne se lit pas sur les mêmes graduations que les barres.</p>
+{{.X.CourbeAvecPop}}
+<div class="legende">
+  <span><i class="b"></i>Prestations (échelle de gauche)</span>
+  <span><i class="ligne-pop"></i>Population (échelle de droite)</span>
+</div>
+{{if .X.Rupture}}<p class="note"><strong>Changement de périmètre en {{.X.Rupture}}.</strong> Avant
+cette date, la DREES publie le total sous le libellé «&nbsp;tous secteurs institutionnels&nbsp;»,
+ensuite «&nbsp;total tous régimes&nbsp;». Les deux se raccordent sans saut apparent, mais ce sont deux
+présentations du compte&nbsp;: comparer une année d'avant à une année d'après demande de le savoir.</p>{{end}}
+<p class="note abs"><strong>Les barres montent bien plus vite que la population.</strong> Ce n'est
+donc pas la seule explication&nbsp;: les prix ont été multipliés par plus de dix depuis {{.X.Debut}},
+la structure par âge a changé — la population a aussi <em>vieilli</em>, ce qu'une courbe de population
+totale ne montre pas — et les droits ont évolué. En euros courants, une hausse ne dit rien à elle
+seule d'une hausse de la générosité du système. Aucun déflateur n'est en base&nbsp;:
+<a href="{{.Root}}/comprendre/monnaie-et-inflation/">la note de méthode</a> explique pourquoi le
+site ne convertit pas.</p>
+
+<h3>La population a aussi vieilli</h3>
+<p class="q">Part des moins de 20 ans et des 65 ans et plus dans la population, France
+métropolitaine&nbsp;: les deux sur le même axe, donc directement comparables.
+{{if .X.AnneeCroisement}}Les 65 ans et plus dépassent les moins de 20 ans à partir de
+{{.X.AnneeCroisement}}.{{end}}</p>
+{{.X.CourbeAges}}
+<p class="note">Ce n'est pas la seule structure qui a changé, mais c'est la seule que la base
+permette de montrer directement&nbsp;: une population plus âgée pèse mécaniquement plus sur les
+risques vieillesse et santé, sans qu'aucune décision de générosité n'entre en jeu.</p>
+
+<p class="src">Source&nbsp;: DREES, comptes de la protection sociale.</p>
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Ce sont des prestations versées, pas le coût complet.</strong> Les
+    comptes de la protection sociale comprennent aussi des frais de gestion et des transferts que
+    cette page n'affiche pas&nbsp;; le total des <em>emplois</em> est supérieur au total des
+    prestations.</p>
+    <p class="note"><strong>Rien ici n'est un solde.</strong> Les prestations sont une dépense&nbsp;;
+    ni les cotisations, ni la CSG, ni le déficit de la Sécurité sociale ne figurent sur cette page.</p>
+    <p class="note"><strong>Aucun régime n'est comparé à un autre.</strong> Les {{.X.NbRegimes}}
+    régimes couvrent des populations, des risques et des règles différents&nbsp;: mettre leurs
+    montants côte à côte comme un classement n'aurait pas de sens.</p>
+  </div>
+</details>
+{{end}}
