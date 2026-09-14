@@ -21,6 +21,19 @@ type Dossier struct {
 	Textes          []TexteLigne
 	Initiateurs     []Initiateur
 	Gouvernement    bool
+	// Promulgation : la loi qui est sortie de ce dossier, par égalité EXACTE de
+	// référence NOR entre le flux de l'Assemblée et le Journal officiel — voir
+	// internal/an/promulgation.go. Nil si ce dossier n'a jamais été promulgué
+	// (rejeté, retiré, encore en discussion).
+	Promulgation *Promulgation
+}
+
+// Promulgation : ce qu'une loi devient au Journal officiel. TexteURL est
+// renseigné seulement quand le texte a été retrouvé dans le corpus JORF
+// chargé — voir la colonne jo_texte_id, nullable par construction.
+type Promulgation struct {
+	CodeLoi, DateJO, DatePromulgation, URLLegifrance string
+	TexteURL                                         string
 }
 
 var kindFr = map[string]string{
@@ -32,10 +45,11 @@ var kindFr = map[string]string{
 // loadDossiers charge, pour chaque scrutin qui en référence un, le dossier
 // législatif et les textes qui le composent.
 //
-// L'open data de l'Assemblée ne publie PAS les exposés des motifs : seuls les
-// titres, les auteurs, les dates et les étapes y figurent. Ce bloc dit donc ce
-// qui a été déposé et par qui — ce qui est un fait — et ne prétend pas résumer
-// le contenu du texte, ce qui demanderait une rédaction humaine relue.
+// L'open data de l'Assemblée ne publie pas nativement les exposés des motifs
+// dans ce flux — ils viennent d'un point d'accès séparé (internal/an/exposes.go,
+// core.texte_expose, chargé sur cmd/build/scrutins.go). Ce bloc-ci dit ce qui
+// a été déposé, par qui, et — via Promulgation — ce qu'il est devenu au
+// Journal officiel : trois faits, jamais un résumé du contenu rédigé ici.
 func loadDossiers(ctx context.Context, pool *pgxpool.Pool) (map[int64]*Dossier, error) {
 	dossiers := map[int64]*Dossier{} // indexé par core.dossier.id
 	rows, err := pool.Query(ctx, `
@@ -160,6 +174,38 @@ func loadDossiers(ctx context.Context, pool *pgxpool.Pool) (map[int64]*Dossier, 
 		if len(t.Auteurs) < 8 {
 			t.Auteurs = append(t.Auteurs, nom)
 		}
+	}
+
+	// La loi promulguée, quand ce dossier en a produit une — par égalité EXACTE
+	// de référence NOR (core.dossier_promulgation), jamais un rapprochement de
+	// titres. jo_texte_id peut être NULL : le dossier porte sa propre référence
+	// même quand le texte promulgué n'est pas (encore) dans le corpus JORF chargé.
+	prows, err := pool.Query(ctx, `
+		SELECT dp.dossier_id, dp.code_loi,
+		       coalesce(to_char(dp.date_jo,'DD/MM/YYYY'),''),
+		       coalesce(to_char(dp.date_promulgation,'DD/MM/YYYY'),''),
+		       dp.jo_texte_id
+		FROM core.dossier_promulgation dp WHERE dp.dossier_id = ANY($1)`, keys(dossiers))
+	if err != nil {
+		return nil, err
+	}
+	defer prows.Close()
+	for prows.Next() {
+		var did int64
+		var p Promulgation
+		var joID *string
+		if err := prows.Scan(&did, &p.CodeLoi, &p.DateJO, &p.DatePromulgation, &joID); err != nil {
+			return nil, err
+		}
+		if joID != nil {
+			p.TexteURL = "https://www.legifrance.gouv.fr/jorf/id/" + *joID
+		}
+		if d, ok := dossiers[did]; ok {
+			d.Promulgation = &p
+		}
+	}
+	if err := prows.Err(); err != nil {
+		return nil, err
 	}
 	return dossiers, nil
 }

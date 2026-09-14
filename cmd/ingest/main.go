@@ -25,6 +25,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/entreprises"
 	"github.com/faits-politiques/faits-politiques/internal/dette"
+	"github.com/faits-politiques/faits-politiques/internal/education"
 	"github.com/faits-politiques/faits-politiques/internal/europe"
 	"github.com/faits-politiques/faits-politiques/internal/fiscalite"
 	"github.com/faits-politiques/faits-politiques/internal/geo"
@@ -37,13 +38,14 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/paie"
 	"github.com/faits-politiques/faits-politiques/internal/prefets"
 	"github.com/faits-politiques/faits-politiques/internal/presidentielle"
+	"github.com/faits-politiques/faits-politiques/internal/sante"
 	"github.com/faits-politiques/faits-politiques/internal/senat"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | education | sante | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -303,6 +305,9 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		if err := macro.IngestRecettesFiscales(ctx, pool, arch); err != nil {
 			return err
 		}
+		if err := macro.IngestChomageINSEE(ctx, pool, arch); err != nil {
+			return err
+		}
 		if err := macro.IngestMinimaSociaux(ctx, pool, arch); err != nil {
 			return err
 		}
@@ -375,6 +380,20 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "immigration" {
 		fmt.Println("\nimmigration et nationalité")
 		return immigration.Ingest(ctx, pool, arch)
+	}
+	// Effectifs et statuts des personnels de l'Éducation nationale, par
+	// établissement. Voir docs/education-donnees.md. Hors chaîne par défaut,
+	// comme les autres blocs thématiques ajoutés au fil des demandes.
+	if only == "education" {
+		fmt.Println("\néducation nationale")
+		return education.Ingest(ctx, pool, arch)
+	}
+	// FINESS et secteurs conventionnels : voir docs/sante-donnees.md. Hors
+	// chaîne par défaut, comme les autres blocs thématiques ajoutés au fil
+	// des demandes.
+	if only == "sante" {
+		fmt.Println("\nsanté : FINESS et secteurs conventionnels")
+		return sante.Ingest(ctx, pool, arch)
 	}
 	// La dette : encours, détenteurs, coût, comparaisons européenne et
 	// suisse. Voir docs/dette-donnees.md. La détention (Banque de France)
@@ -543,6 +562,11 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		return an.IngestExposes(ctx, pool, arch)
 	}
 
+	if only == "promulgation" {
+		fmt.Println("\nrattachement des dossiers à la loi promulguée")
+		return an.PromulgationDossiers(ctx, pool)
+	}
+
 	if only == "entreprises" {
 		fmt.Println("\ncomptes déposés des grandes sociétés")
 		return entreprises.Ingest(ctx, pool, arch)
@@ -579,6 +603,12 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		}
 		fmt.Println("\nactes nominatifs du Journal officiel")
 		if err := jorf.Ingest(ctx, pool, arch, 60); err != nil {
+			return err
+		}
+		// Après jorf.Ingest, jamais avant : le rattachement compare la référence
+		// NOR publiée par l'Assemblée à jo.texte.nor, qui vient d'être rempli.
+		fmt.Println("\nrattachement des dossiers à la loi promulguée")
+		if err := an.PromulgationDossiers(ctx, pool); err != nil {
 			return err
 		}
 	}

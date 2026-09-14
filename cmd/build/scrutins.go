@@ -12,9 +12,14 @@ import (
 )
 
 type Scrutin struct {
-	ID          int64
-	DossierID   *int64
-	Dossier     *Dossier
+	ID        int64
+	DossierID *int64
+	Dossier   *Dossier
+	TexteID   *int64
+	// Expose : l'exposé des motifs du texte sur lequel porte ce scrutin, quand
+	// l'Assemblée en publie un — voir internal/an/exposes.go. Ce n'est pas un
+	// résumé neutre : l'auteur y défend son texte, et il est cité comme tel.
+	Expose      *ExposeMotif
 	Institution string
 	EstEuropeen bool
 	EstSenat    bool
@@ -52,6 +57,14 @@ type Scrutin struct {
 // à repasser par une liste pour lire le scrutin suivant.
 type ScrutinLien struct{ Slug, Objet string }
 
+// ExposeMotif : l'exposé des motifs d'un texte, verbatim. Chapeau est un
+// extrait (les premiers paragraphes jusqu'à une fin de phrase) ; Integral est
+// le texte complet, affiché derrière un <details> pour ne pas noyer la page.
+type ExposeMotif struct {
+	Chapeau, Integral, URL string
+	NCaracteres            int
+}
+
 type GroupeLigne struct {
 	Nom, Slug                        string
 	Pour, Contre, Abstention, Absent int
@@ -79,7 +92,7 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 		limit = fmt.Sprint(max)
 	}
 	rows, err := pool.Query(ctx, `
-		SELECT id, dossier_id, slug, coalesce(numero,''), objet, to_char(date_seance,'DD/MM/YYYY'),
+		SELECT id, dossier_id, texte_id, slug, coalesce(numero,''), objet, to_char(date_seance,'DD/MM/YYYY'),
 		       institution::text,
 		       coalesce(type_vote,''), coalesce(resultat,''), source_uid,
 		       coalesce(nb_pour,0), coalesce(nb_contre,0), coalesce(nb_abstentions,0)
@@ -90,7 +103,7 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 	var all []Scrutin
 	for rows.Next() {
 		var s Scrutin
-		if err := rows.Scan(&s.ID, &s.DossierID, &s.Slug, &s.Numero, &s.Objet, &s.Date, &s.Institution, &s.TypeVote,
+		if err := rows.Scan(&s.ID, &s.DossierID, &s.TexteID, &s.Slug, &s.Numero, &s.Objet, &s.Date, &s.Institution, &s.TypeVote,
 			&s.Resultat, &s.SourceUID, &s.Pour, &s.Contre, &s.Abstentions); err != nil {
 			return 0, err
 		}
@@ -130,6 +143,16 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 	for i := range all {
 		if all[i].DossierID != nil {
 			all[i].Dossier = dossiers[*all[i].DossierID]
+		}
+	}
+
+	exposes, err := chargerExposes(ctx, pool)
+	if err != nil {
+		return 0, err
+	}
+	for i := range all {
+		if all[i].DossierID != nil {
+			all[i].Expose = exposes[*all[i].DossierID]
 		}
 	}
 
@@ -186,6 +209,37 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 		}
 	}
 	return len(all), nil
+}
+
+// chargerExposes charge un exposé des motifs par DOSSIER, pas par texte : un
+// scrutin porte le texte_id de la LECTURE sur laquelle il vote, alors que
+// l'exposé n'est publié que sur le texte du DÉPÔT initial — deux texte_id
+// différents du même dossier. Sans ce détour, aucun scrutin ne rejoint
+// jamais son exposé (vérifié : 0 correspondance directe par texte_id, 1830
+// par dossier_id). Quand un dossier a déposé plusieurs textes avec exposé
+// (rare — texte retiré puis redéposé), le plus ancien est gardé : c'est la
+// première intention déclarée, avant qu'un texte ne soit retravaillé.
+func chargerExposes(ctx context.Context, pool *pgxpool.Pool) (map[int64]*ExposeMotif, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT DISTINCT ON (t.dossier_id)
+		       t.dossier_id, e.chapeau, e.integral, e.url, e.n_caracteres
+		FROM core.texte_expose e
+		JOIN core.texte t ON t.id = e.texte_id
+		ORDER BY t.dossier_id, t.date_depot NULLS LAST, t.id`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[int64]*ExposeMotif{}
+	for rows.Next() {
+		var id int64
+		var e ExposeMotif
+		if err := rows.Scan(&id, &e.Chapeau, &e.Integral, &e.URL, &e.NCaracteres); err != nil {
+			return nil, err
+		}
+		out[id] = &e
+	}
+	return out, rows.Err()
 }
 
 func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool) (map[int64][]GroupeLigne, error) {

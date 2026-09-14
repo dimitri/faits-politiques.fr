@@ -3,4 +3,10 @@
 /bin/
 /site-v1-*/
 /db/dump/
+/site.construction/
+/site.precedent/
 /.env
+
+/ingest
+/verify
+/inventaire

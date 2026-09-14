@@ -71,10 +71,12 @@ lettre en capitale</em>. Aucun mot n'y a été ajouté, aucun n'a été remplac�
   </div>
   {{end}}
 
-  <p class="note"><strong>Le résultat est en encre, pas en couleur.</strong>
-  «&nbsp;Adopté&nbsp;» et «&nbsp;rejeté&nbsp;» ne sont pas des positions de vote&nbsp;: les
-  colorer en vert et en rouge reviendrait à dire qu'adopter est bien et rejeter est mal. Les
-  quatre couleurs restent réservées aux quatre positions.</p>
+  <p class="note"><strong>Les couleurs de la barre sont celles des positions, pas du résultat.</strong>
+  Le vert compte les votes <em>pour</em>, le rouge les votes <em>contre</em>, l'ocre les
+  abstentions&nbsp;; la barre montre comment les voix se sont réparties.{{if .S.Resultat}} Le
+  résultat, «&nbsp;{{.S.Resultat}}&nbsp;», reste en noir&nbsp;: un texte adopté n'est pas
+  «&nbsp;vert&nbsp;» ni un texte rejeté «&nbsp;rouge&nbsp;», et le colorer reviendrait à dire
+  qu'adopter est bien et rejeter est mal.{{end}}</p>
 </div>
 
 {{if .S.EstEuropeen}}
@@ -119,6 +121,11 @@ Codes de non-couverture&nbsp;: <code>SENAT_SANS_RESULTAT</code>, <code>SENAT_SAN
 {{if .S.Dossier.URLAN}}<a href="{{.S.Dossier.URLAN}}" target="_blank" rel="noopener">Assemblée nationale</a>{{end}}{{if and .S.Dossier.URLAN .S.Dossier.URLSenat}} · {{end}}{{if .S.Dossier.URLSenat}}<a href="{{.S.Dossier.URLSenat}}" target="_blank" rel="noopener">Sénat</a>{{end}}
 <span class="muted">— texte intégral, exposé des motifs, rapports et comptes rendus</span></p>
 {{end}}
+{{if .S.Dossier.Promulgation}}
+<p class="small"><strong>Promulguée&nbsp;:</strong> loi n°&nbsp;{{.S.Dossier.Promulgation.CodeLoi}}
+{{if .S.Dossier.Promulgation.DatePromulgation}}du {{.S.Dossier.Promulgation.DatePromulgation}}{{end}}
+{{if .S.Dossier.Promulgation.TexteURL}}— <a href="{{.S.Dossier.Promulgation.TexteURL}}" target="_blank" rel="noopener">texte intégral au Journal officiel ↗</a>{{else}}<span class="muted">— identifiée par sa référence NOR, texte non retrouvé dans le corpus JORF chargé par ce site</span>{{end}}</p>
+{{end}}
 {{if .S.Dossier.Textes}}
 <div class="scroll"><table class="pile">
 <thead><tr><th>Nature</th><th>Intitulé</th><th>Déposé le</th><th>Origine</th></tr></thead>
@@ -129,15 +136,35 @@ Codes de non-couverture&nbsp;: <code>SENAT_SANS_RESULTAT</code>, <code>SENAT_SAN
 <td class="small z" data-l="Origine">{{if .Gouvernement}}Gouvernement{{else if .Auteurs}}{{range $i,$a := .Auteurs}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}voir l'initiative du dossier{{end}}</td>
 </tr>{{end}}</tbody></table></div>
 {{end}}
+{{if .S.Expose}}
+<h3>L'exposé des motifs</h3>
+<p class="q">Ce que l'auteur du texte a écrit pour le défendre — cité verbatim, jamais résumé par
+ce site.</p>
+<blockquote class="expose">{{.S.Expose.Chapeau}}</blockquote>
+{{if gt .S.Expose.NCaracteres (len .S.Expose.Chapeau)}}
+<details class="plus">
+  <summary>Lire l'exposé des motifs en entier ({{nb .S.Expose.NCaracteres}} caractères)</summary>
+  <div class="dedans"><blockquote class="expose">{{.S.Expose.Integral}}</blockquote></div>
+</details>
+{{end}}
+<p class="src">Source&nbsp;: <a href="{{.S.Expose.URL}}" target="_blank" rel="noopener">Assemblée
+nationale, textes déposés</a>.</p>
+{{end}}
 <details class="plus">
   <summary>Ce que ce bloc n'est pas</summary>
   <div class="dedans">
     <p class="note"><strong>Ce n'est pas un résumé du texte.</strong> L'open data de l'Assemblée
-    publie les intitulés, les auteurs, les dates et les étapes&nbsp;; il ne publie pas les exposés
-    des motifs. Ce qui est affiché ici est donc <em>ce qui a été déposé et par qui</em> — un fait —
-    et non ce que le texte contient. <strong>Aucun résumé n'existe en open data</strong>&nbsp;: ni
-    l'Assemblée ni le «&nbsp;Panorama des lois&nbsp;» de vie-publique.fr n'en publient. D'où le lien
-    vers le dossier officiel, qui porte l'exposé des motifs et les rapports. Un résumé rédigé ici
+    publie les intitulés, les auteurs, les dates et les étapes. {{if .S.Expose}}Il publie aussi,
+    pour les textes déposés depuis le début de la législature en cours, l'exposé des
+    motifs&nbsp;: c'est lui qui est cité ci-dessus, verbatim — l'auteur y défend son texte, ce
+    n'est pas une description neutre.{{else}}Pour ce texte, aucun exposé n'est publié en open
+    data&nbsp;: soit il a été transmis par le Sénat (qui ne porte pas cette information côté
+    Assemblée), soit il date d'avant la législature en cours, la seule que ce point d'accès
+    couvre.{{end}} Ce qui est affiché ici est donc <em>ce qui a été déposé, par qui, et — quand
+    la source le publie — pourquoi son auteur dit l'avoir déposé</em>&nbsp;; jamais un résumé
+    neutre rédigé par ce site. <strong>Aucun résumé neutre n'existe en open data</strong>&nbsp;:
+    ni l'Assemblée ni le «&nbsp;Panorama des lois&nbsp;» de vie-publique.fr n'en publient. D'où le
+    lien vers le dossier officiel, qui porte aussi les rapports. Un résumé rédigé ici
     demanderait une écriture humaine relue de façon contradictoire&nbsp;: le schéma la prévoit
     (<code>core.scrutin_resume</code>), aucune n'a encore été écrite.</p>
     <p class="note">La colonne «&nbsp;origine&nbsp;» répond à <em>qui a proposé</em>, question
@@ -227,12 +254,18 @@ ce scrutin.{{end}}</p>{{end}}
 <p class="small muted"><span data-compte>{{len .Votes}}</span> lignes affichées sur
   {{len .Votes}} positions enregistrées{{if gt .S.SansPosition 0}}, et {{nb .S.SansPosition}} sièges
   sans position{{end}}.</p>
-<div class="scroll"><table class="pile" id="nominatifs">
+{{/* Le sigle du groupe n'est plus un lien ligne à ligne : le tableau
+     « Positions par groupe », juste au-dessus, porte déjà le lien vers chacun.
+     Cinq cent soixante-dix fois la même adresse sur une page, trente-huit mille
+     pages — c'était près d'un giga-octet d'URL identiques. Les étiquettes de la
+     mise en page mobile (data-l) passent pour la même raison dans la feuille
+     de style : elles sont fixes, colonne par colonne. */}}
+<div class="scroll"><table class="pile nomin" id="nominatifs">
 <thead><tr><th>Député</th><th>Groupe</th><th>Position</th></tr></thead><tbody>
 {{range .Votes}}<tr data-g="{{.Groupe}}">
 <td><a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a></td>
-<td class="small z" data-l="Groupe">{{if .GroupeSlug}}<a href="{{$.Root}}/groupe/{{.GroupeSlug}}/">{{.Groupe}}</a>{{else}}{{.Groupe}}{{end}}</td>
-<td data-l="Position"><span class="pastille {{.Position}}">{{.PositionFr}}</span>{{if .Rectifiee}}
+<td class="small z">{{.Groupe}}</td>
+<td><span class="pastille {{.Position}}">{{.PositionFr}}</span>{{if .Rectifiee}}
   <span class="small muted">(mise au point)</span>{{end}}</td>
 </tr>{{end}}</tbody></table></div>
 {{else}}<p class="nodata">Ce scrutin ne fait pas l'objet d'une publication nominative.</p>{{end}}

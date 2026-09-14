@@ -135,6 +135,12 @@ padding-bottom:.35rem;border-bottom:1px solid var(--filet);scroll-margin-top:1.5
 .prose blockquote{margin:1.4rem 0;padding:.15rem 0 .15rem 1.1rem;
 border-left:2px solid var(--accent);color:var(--attenue)}
 .prose blockquote p{margin:.4rem 0}
+/* L'exposé des motifs : cité verbatim, jamais réécrit — la citation d'un
+   tiers se distingue visuellement d'une note du site (var(--attenue)) mais
+   ne prend ni le vert ni le rouge, réservés aux positions de vote. */
+blockquote.expose{margin:1rem 0;padding:.7rem 1rem;border-left:3px solid var(--filet);
+background:var(--papier2);border-radius:0 var(--rayon-s) var(--rayon-s) 0;
+white-space:pre-line;font-size:.92rem;line-height:1.6}
 .prose hr{border:0;border-top:1px solid var(--filet);margin:2.4rem 0}
 .prose table{margin:1.2rem 0;font-size:.875rem}
 .prose th{vertical-align:bottom}
