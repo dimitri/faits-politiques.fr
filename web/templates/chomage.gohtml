@@ -1,0 +1,72 @@
+{{define "content"}}
+{{$c := .C}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/frise/">V<sup>e</sup> République</a> › <span>Chômage</span></p>
+<span class="sur">INSEE · {{$c.Debut}}–{{$c.Fin}}</span>
+<h1>Le taux de chômage, trimestre par trimestre</h1>
+<p class="lede">{{dec $c.TauxFin 1}} % au {{$c.Fin}}, contre {{dec $c.TauxDebut 1}} % au {{$c.Debut}}.
+Taux de chômage au sens du Bureau international du travail (BIT), France hors Mayotte, données
+corrigées des variations saisonnières.</p>
+
+<p class="note proc"><strong>La source directe, pas une republication.</strong> Cette page lit la
+série trimestrielle que l'INSEE publie lui-même (identifiant 001688527), à chaque parution des
+comptes nationaux. <a href="{{.Root}}/frise/">La frise V<sup>e</sup> République</a> utilise une
+série voisine, mais annuelle et republiée par Eurostat avec un train de retard&nbsp;: les deux se
+ressemblent, mais ne sont pas la même donnée, et ne coïncident pas trimestre pour trimestre.</p>
+
+<h2>La série complète, {{$c.Debut}}–{{$c.Fin}}</h2>
+<p class="q">{{$c.NbTrimestres}} trimestres. Le plus haut, {{dec $c.TauxMax 1}} % au {{$c.TrimMax}}&nbsp;;
+le plus bas, {{dec $c.TauxMin 1}} % au {{$c.TrimMin}}.</p>
+{{$c.Serie}}
+<p class="note abs"><strong>Aucune présidence n'est indiquée sur ce graphe.</strong> Une courbe qui
+monte ou baisse sous un mandat ne dit rien de ce qui l'a causée&nbsp;: la conjoncture mondiale, les
+décisions antérieures et les chocs extérieurs ne demandent l'avis de personne. Pour situer cette
+série dans le temps présidentiel, <a href="{{.Root}}/frise/">voir la frise</a>, où les bandes sont un
+repère chronologique, jamais une imputation.</p>
+
+{{if $c.BarresComparaison}}
+<h2>La source directe contre la republication</h2>
+<p class="q">Moyenne des quatre trimestres INSEE de l'année, contre la valeur annuelle qu'Eurostat
+republie&nbsp;: {{$c.AnneeComparaisonDebut}}–{{$c.AnneeComparaisonFin}}.</p>
+{{$c.BarresComparaison}}
+<p class="note">Les deux se ressemblent d'assez près pour confirmer qu'il s'agit de la même mesure,
+et diffèrent assez pour montrer que ce n'est pas la même publication&nbsp;: Eurostat republie les
+données que l'INSEE lui transmet, avec ses propres arrondis et parfois un cycle de révision
+différent. Aucune des deux n'est «&nbsp;la bonne&nbsp;» contre l'autre&nbsp;: ce sont deux éditions
+de la même source primaire.</p>
+{{end}}
+
+{{if $c.Tranches}}
+<h2>Ce que les allocataires touchent vraiment</h2>
+<p class="q">Répartition des allocataires de l'Assurance chômage par tranche d'indemnisation
+mensuelle nette, au {{$c.DateTranches}}.</p>
+{{$c.Tranches}}
+<p class="note proc"><strong>Ce n'est pas la même population que le taux de chômage ci-dessus.</strong>
+Les allocataires de l'Assurance chômage sont indemnisés parce qu'ils ont cotisé&nbsp;; le chômage au
+sens du BIT est une mesure de l'enquête Emploi, sans lien avec une indemnisation. Les allocataires
+de la solidarité-État (ASS, ATS, AER) ne sont pas dans cette répartition&nbsp;: leur montant dépend
+des ressources, pas d'un salaire de référence.</p>
+{{end}}
+
+<p class="src">Source&nbsp;: INSEE, taux de chômage au sens du BIT, série 001688527 (Banque de
+données macro-économiques). Licence Ouverte.{{if $c.Tranches}} Répartition par tranche&nbsp;: Unédic,
+Fichier national des allocataires.{{end}}</p>
+
+<details class="plus" open>
+  <summary>Ce que cette page ne dit pas</summary>
+  <div class="dedans">
+    <p class="note"><strong>Ce n'est qu'une des mesures du manque de travail.</strong> Le halo
+    autour du chômage — personnes sous-employées à temps partiel, qui cherchent un emploi sans
+    pouvoir commencer tout de suite, ou qui seraient disponibles sans avoir cherché activement — n'
+    est pas dans cette série. <a href="{{.Root}}/frise/#chomage">Voir la mesure élargie sur la
+    frise →</a></p>
+    <p class="note"><strong>Ce n'est pas le nombre d'inscrits à France Travail.</strong> Le chômage
+    au sens du BIT vient d'une enquête auprès des ménages (l'enquête Emploi), pas d'un fichier
+    administratif&nbsp;: les deux mesures répondent à des définitions différentes et ne coïncident
+    pas.</p>
+    <p class="note"><strong>Rien par département ni par région.</strong> Cette série est nationale.
+    Un découpage territorial du chômage viendra d'une source différente, à un pas de temps
+    différent&nbsp;: elle n'est pas encore en base.</p>
+  </div>
+</details>
+{{end}}

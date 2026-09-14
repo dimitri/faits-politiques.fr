@@ -111,6 +111,46 @@ func series() []serie {
 			Definition: "Part des chômeurs au sens du BIT dans la population active.",
 			Requete:    "une_rt_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=PC_ACT",
 		},
+		// « Capacités excédentaires sur le marché du travail » (labour market
+		// slack) : la mesure qu'Eurostat construit précisément parce que le
+		// chômage au sens du BIT laisse dehors des gens qui, de l'avis même des
+		// offices statistiques, cherchent ou voudraient un emploi. Quatre
+		// composantes qui se somment exactement au total SLACK ci-dessous.
+		{
+			Code: "chomage.sous_emploi_temps_partiel", Label: "Personnes sous-employées à temps partiel",
+			Unite: "MILLIERS", Famille: "EMPLOI",
+			Definition: "Personnes en emploi à temps partiel qui voudraient travailler davantage " +
+				"et sont disponibles pour le faire. Elles ont un emploi : le chômage au sens du " +
+				"BIT ne les compte pas.",
+			Requete: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=UEMP_PT",
+		},
+		{
+			Code: "chomage.cherchent_indisponibles", Label: "Cherchent un emploi mais indisponibles",
+			Unite: "MILLIERS", Famille: "EMPLOI",
+			Definition: "Personnes qui cherchent activement un emploi mais ne peuvent pas commencer " +
+				"dans les deux semaines — une garde d'enfant à trouver, une formation en cours. Le " +
+				"critère de disponibilité immédiate du BIT les exclut du chômage.",
+			Requete: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=SEEK_NAVL",
+		},
+		{
+			Code: "chomage.disponibles_sans_recherche", Label: "Disponibles mais ne cherchant pas — le halo",
+			Unite: "MILLIERS", Famille: "EMPLOI",
+			Definition: "Personnes disponibles pour travailler mais qui n'ont pas cherché activement " +
+				"dans le mois — parce qu'elles pensent ne rien trouver, ou pour toute autre raison. " +
+				"L'INSEE et Eurostat nomment ce groupe le « halo autour du chômage ». Ni au chômage " +
+				"BIT, ni comptées comme actives.",
+			Requete: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=NSEEK_AVL",
+		},
+		{
+			Code: "chomage.halo_total", Label: "Capacités excédentaires sur le marché du travail",
+			Unite: "MILLIERS", Famille: "EMPLOI",
+			Definition: "Somme du chômage au sens du BIT et des trois catégories ci-dessus " +
+				"(sous-emploi à temps partiel, recherche sans disponibilité immédiate, disponibilité " +
+				"sans recherche active). C'est la mesure la plus large qu'Eurostat publie du " +
+				"« manque de travail » — largement supérieure au seul chômage BIT, et c'est " +
+				"précisément pourquoi elle existe comme indicateur à part.",
+			Requete: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=SLACK",
+		},
 		{
 			Code: "pauvrete.nombre", Label: "Personnes sous le seuil de pauvreté", Unite: "MILLIERS", Famille: "PAUVRETE",
 			Definition: "Personnes vivant dans un ménage dont le revenu disponible par unité de " +
