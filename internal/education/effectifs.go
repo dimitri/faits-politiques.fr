@@ -201,5 +201,8 @@ func normaliserSecteur(s string) (string, error) {
 }
 
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return IngestEffectifsPersonnel(ctx, pool, arch)
+	if err := IngestEffectifsPersonnel(ctx, pool, arch); err != nil {
+		return err
+	}
+	return IngestEffectifsEleves(ctx, pool, arch)
 }

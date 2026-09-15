@@ -925,6 +925,27 @@ var checks = []check{
 		min:   2,
 	},
 	{
+		name:  "les effectifs d'élèves du premier degré couvrent au moins quinze rentrées scolaires",
+		query: `SELECT count(DISTINCT annee) FROM core.education_effectif_eleves`,
+		min:   15,
+	},
+	{
+		// Un secteur qui perd des écoles doit aussi perdre des élèves — sinon
+		// une colonne a été échangée avec une autre (déjà arrivé cette session
+		// sur d'autres connecteurs DEPP/DREES).
+		name: "les effectifs d'élèves suivent le nombre d'écoles, secteur par secteur",
+		query: `SELECT count(*) FROM (
+		          SELECT secteur,
+		                 (max(nombre_ecoles) FILTER (WHERE annee = (SELECT max(annee) FROM core.education_effectif_eleves))
+		                    < max(nombre_ecoles) FILTER (WHERE annee = (SELECT min(annee) FROM core.education_effectif_eleves))) AS moins_ecoles,
+		                 (max(nombre_eleves) FILTER (WHERE annee = (SELECT max(annee) FROM core.education_effectif_eleves))
+		                    < max(nombre_eleves) FILTER (WHERE annee = (SELECT min(annee) FROM core.education_effectif_eleves))) AS moins_eleves
+		            FROM core.education_effectif_eleves
+		           WHERE secteur IN ('PUBLIC','PRIVE SOUS CONTRAT')
+		           GROUP BY secteur
+		        ) x WHERE moins_ecoles AND NOT moins_eleves`,
+	},
+	{
 		// Le total d'ETP d'un établissement ne peut pas être inférieur à ses
 		// seuls enseignants — sinon une colonne a été lue à la mauvaise place
 		// (déjà arrivé cette session sur d'autres connecteurs DEPP/DREES).

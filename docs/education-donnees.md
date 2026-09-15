@@ -1,6 +1,6 @@
 # L'Éducation nationale : budget, effectifs, organisation
 
-> **Dossier** · version 3 · 15 septembre 2026
+> **Dossier** · version 4 · 15 septembre 2026
 >
 > Que coûte l'enseignement scolaire, combien de personnes y travaillent par
 > établissement, et comment l'autorité et la rémunération des enseignants sont-elles
@@ -123,9 +123,15 @@ le premier degré publie les rentrées 2024 et 2025, le second degré seulement
 | Privé, 2025 | 37 543 | — |
 
 **Le premier degré recule légèrement d'une rentrée à l'autre** (279 173 →
-277 148 ETP dans le public, −0,7 %) — cohérent avec la baisse démographique
-scolaire déjà documentée par ailleurs, mais cette note ne l'établit pas ici,
-faute d'avoir chargé les effectifs d'élèves en regard.
+277 148 ETP dans le public, −0,73 %). **Les effectifs d'élèves reculent plus
+vite que les ETP enseignants, pas au même rythme** : dans le public,
+5 462 329 → 5 365 524 élèves, soit −1,77 %, plus du double de la baisse d'ETP.
+Le nombre d'élèves par enseignant en résulte légèrement à la baisse (19,57 →
+19,36) — la réduction du nombre de postes ne suit donc pas mécaniquement la
+démographie scolaire, elle est deux fois moins rapide qu'elle (Depp,
+`fr-en-ecoles-effectifs-nb_classes`, premier degré seulement). Le même
+mouvement, de moindre ampleur, s'observe dans le privé sous contrat
+(862 368 → 851 294 élèves, −1,28 %, contre −0,45 % d'ETP).
 
 ### 3. Le coût de structure : ce que le personnel hors enseignement révèle — et ce qu'il cache
 
@@ -173,6 +179,8 @@ l'annexe technique (§ 6) le détaille source par source.
 - Depp (Direction de l'évaluation, de la prospective et de la performance),
   *Les personnels dans les établissements du premier degré* et *du second
   degré*, data.education.gouv.fr.
+- Depp, *Effectifs et nombre de classes des écoles publiques et privées*
+  (`fr-en-ecoles-effectifs-nb_classes`), data.education.gouv.fr.
 - Légifrance, Code de l'éducation, articles D. 422-5 à D. 422-11.
 - Cour des comptes, rapport sur les AESH, septembre 2024 (ordre de grandeur
   cité § 6, non chargé en base).
@@ -187,6 +195,7 @@ l'annexe technique (§ 6) le détaille source par source.
 | 1 | Direction du budget, PLF, mission Enseignement scolaire | `core.budget_programme` | 6 programmes, 2024-2025 (table partagée, voir § 1) |
 | 2 | Depp, personnels des établissements du premier degré | `core.education_personnel_etablissement` | 94 584 lignes, 2024-2025 |
 | 3 | Depp, personnels des établissements du second degré | `core.education_personnel_etablissement` | 10 697 lignes, 2024 |
+| 4 | Depp, effectifs d'élèves des écoles (premier degré) | `core.education_effectif_eleves` | 35 lignes, agrégat national par secteur, 2009-2025 |
 
 **Non chargé, et pourquoi :**
 
@@ -204,15 +213,19 @@ l'annexe technique (§ 6) le détaille source par source.
 - La dépense par élève (environ 8 450 €/an en primaire, 11 320 €/an dans le secondaire selon les publications de la Depp) : chiffre publié par la Depp dans ses
   publications (RERS, « L'état de l'École ») mais aucun jeu de données ouvert
   structuré retrouvé au moment de l'écriture — seulement des documents PDF.
-- Effectifs d'élèves par école : jeu identifié
-  (`fr-en-ecoles-effectifs-nb_classes`) mais pas encore chargé, ce qui
-  empêcherait de confirmer si la baisse d'ETP enseignants du § 2 suit la
-  démographie scolaire ou s'en écarte.
-- Séries historiques longues (jusqu'aux années 1980, que la RERS publie) :
-  les jeux Depp chargés ici ne remontent pas au-delà de 2024 ; les éditions
-  RERS antérieures existent en PDF, pas en jeu de données structuré comparable.
+- Effectifs d'élèves des collèges et lycées (second degré) : le jeu chargé
+  au § 4 ne couvre que le premier degré (écoles) ; un jeu Depp équivalent
+  pour le second degré n'a pas encore été identifié précisément.
+- Séries historiques longues (jusqu'aux années 1980, que la RERS publie
+  en PDF) : les effectifs d'élèves du § 4 remontent à 2009, une amélioration
+  réelle mais qui reste loin des années 1980 ; les personnels enseignants
+  (§ 2) ne remontent toujours pas au-delà de 2024.
 
 ## Versions
 
+- **Version 4** (15 septembre 2026) : effectifs d'élèves du premier degré
+  chargés (Depp, 2009-2025) — la baisse d'ETP enseignants du § 2 est deux
+  fois moins rapide que la baisse d'effectifs, une question laissée ouverte
+  en version 3 et désormais tranchée par la donnée.
 - **Version 3** (15 septembre 2026) : plan commun des dossiers (D-066) ; les §§ 4 et 5, écrits comme des réponses à des questions, décrivent désormais l'organisation ; cadre et contrôle du Sénat sourcés.
 - **Version 2** (14 septembre 2026) : pourquoi les effectifs d'AESH restent hors de portée en données ouvertes.
