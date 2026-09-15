@@ -1203,6 +1203,17 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return err
 	}
 
+	// Plan du site et robots.txt : en dernier, une fois que out/ porte
+	// exactement l'arborescence publiée — voir cmd/build/sitemap.go.
+	nSitemap, err := ecrireSitemap(out, layout.CanonicalBase)
+	if err != nil {
+		return err
+	}
+	if err := ecrireRobots(out, layout.CanonicalBase); err != nil {
+		return err
+	}
+	fmt.Printf("  plan du site : %d URL, %s\n", nSitemap, layout.CanonicalBase+"/sitemap.xml")
+
 	fmt.Printf("site généré dans %s/ : %d députés, %d candidats, %d organisations, %d groupes, %d scrutins (%s)\n",
 		out, len(persons), len(candidats), len(orgs), len(groupes), n, time.Since(start).Round(time.Millisecond))
 	return nil
