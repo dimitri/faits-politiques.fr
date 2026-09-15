@@ -1384,6 +1384,8 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	if !exclu("scrutin") && maxScrutins == 0 && scrutinsInchanges {
 		n = ancienCache.Sections["scrutin"].N
+		etatScrutins.N = n
+		nouveauCache.Sections["scrutin"] = etatScrutins
 		fmt.Printf("    scrutins : données et gabarits inchangés, recopiés depuis le site précédent (%d)\n", n)
 		if err := copierRepertoire(filepath.Join(siteActuel, "scrutin"), filepath.Join(out, "scrutin")); err != nil {
 			return err
