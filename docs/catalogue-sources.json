@@ -1,8 +1,8 @@
 {
-  "genere_le": "2026-09-14T22:26:22Z",
+  "genere_le": "2026-09-15T01:01:15Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
-  "nombre_sources": 94,
+  "nombre_sources": 104,
   "sources": [
     {
       "slug": "ademe-aides-financieres",
@@ -132,9 +132,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Toutes les professions de santé libérales sont chargées, pas seulement les médecins — même nomenclature de secteur pour toutes. Contient des lignes d'agrégat (région « FRANCE », département « 999 — Tout département ») mêlées aux lignes de détail : ne jamais sommer sans filtrer, voir le commentaire de la table.",
-      "derniere_ingestion_reussie": "2026-09-14T20:48:56",
+      "derniere_ingestion_reussie": "2026-09-15T00:06:31",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 1,
+      "nombre_runs": 2,
       "connecteur_derniere_version": "sante-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -152,7 +152,7 @@
           "table": "medecin_secteur_effectif",
           "lignes_totales_estimees": 177720,
           "lignes_pour_cette_source": 177720,
-          "taille_octets": 48635904,
+          "taille_octets": 87277568,
           "annee_min": 2010,
           "annee_max": 2024,
           "colonne_historique": "annee"
@@ -6060,6 +6060,32 @@
       "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
     },
     {
+      "slug": "anssi-catalogue-qualifications",
+      "label": "ANSSI — catalogue des produits et services certifiés, qualifiés et agréés",
+      "publisher": "Agence nationale de la sécurité des systèmes d'information",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Document public de l'ANSSI, cité avec lien",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "mise à jour continue (date imprimée sur le catalogue)",
+      "notes": "Seule la section 3.3.1 (services d'informatique en nuage qualifiés SecNumCloud) est lue. Une qualification porte sur un service nommé, pour trois ans ; les offres en cours d'évaluation n'y figurent pas.",
+      "derniere_ingestion_reussie": "2026-09-15T00:47:35",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 2,
+      "connecteur_derniere_version": "numerique-v1",
+      "format_detecte": "format non reconnu automatiquement",
+      "urls_origine": [
+        "https://messervices.cyber.gouv.fr/visas/catalogue-produits-services-profils-de-protection-sites-certifies-qualifies-agrees-anssi.pdf"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 3691961,
+      "chemins_locaux": [
+        "2026/09/15/1d15610d6013f3366b6d82f94763347caf318a154acacac67d56c48f84020455.pdf"
+      ],
+      "cle_s3": null,
+      "tables": [],
+      "ingestion_incrementale": "connecteur non retrouvé automatiquement — à vérifier manuellement"
+    },
+    {
       "slug": "banatic",
       "label": "BANATIC — intercommunalités et compétences",
       "publisher": "Direction générale des collectivités locales",
@@ -6068,9 +6094,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "en continu, arrêtés préfectoraux",
       "notes": "L'export national est un tableau dénormalisé : une ligne par couple (groupement, membre), 125 colonnes de compétences en OUI/NON.",
-      "derniere_ingestion_reussie": "2026-09-14T01:06:47",
+      "derniere_ingestion_reussie": "2026-09-15T00:23:29",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 5,
+      "nombre_runs": 6,
       "connecteur_derniere_version": "communes-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -6079,14 +6105,15 @@
         "https://www.banatic.interieur.gouv.fr/consultation/api/export/pregenere/telecharger/France",
         "https://www.banatic.interieur.gouv.fr/consultation/api/referentiel/competence/all"
       ],
-      "nombre_documents": 5,
-      "taille_locale_octets": 165057208,
+      "nombre_documents": 6,
+      "taille_locale_octets": 241714881,
       "chemins_locaux": [
         "2026/09/12/0dd17f8b689900de17fbd28df0b98c44506dd805c3b1569313ff7cd616dc8439.json",
         "2026/09/12/a64c6ec931e3f7c9c6243c06523193436455580ff6af135b78bc8ad9efb1eb73.xlsx",
         "2026/09/12/e467cf57f07ab200089845d1b15bf8028a50fa45234eb79d5d5834a2d54557d2.csv",
         "2026/09/14/4dc4900ef3a85d76b4310d48b9f35dabc46358caf13306331ed0031b7c315e85.xlsx",
-        "2026/09/14/8674057633fb6dfb970fad272493d6bae15b04774033599555f7b91f83090561.csv"
+        "2026/09/14/8674057633fb6dfb970fad272493d6bae15b04774033599555f7b91f83090561.csv",
+        "2026/09/15/8d8adf2d43f9701184514ddf26d2bd965fe7abff6816caf70121d9ca29963fb4.xlsx"
       ],
       "cle_s3": null,
       "tables": [
@@ -6095,7 +6122,7 @@
           "table": "epci",
           "lignes_totales_estimees": 9282,
           "lignes_pour_cette_source": 9282,
-          "taille_octets": 1949696,
+          "taille_octets": 3858432,
           "annee_min": null,
           "annee_max": null
         }
@@ -6282,6 +6309,42 @@
         }
       ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "cbcr-publics-groupes",
+      "label": "Déclarations pays par pays publiées par les groupes (directive (UE) 2021/2101)",
+      "publisher": "Les groupes concernés",
+      "tier": "DECLARATIVE",
+      "licence": "Publication légale obligatoire, reprise avec attribution",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "annuelle, dans les 12 mois suivant la clôture",
+      "notes": "Premiers rapports pour les exercices ouverts à compter du 22 juin 2024 : publiés à partir de mi-2026 (fin 2026 pour les exercices calendaires). Toutes les entités d'une juridiction agrégées ; chiffre d'affaires intragroupe compris ; l'impôt payé peut être négatif (remboursement). Transcrits du document scellé, contrôlés contre le bénéfice du groupe déposé à la SEC.",
+      "derniere_ingestion_reussie": "2026-09-14T23:58:30",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "fiscalite-v1",
+      "format_detecte": "format non reconnu automatiquement",
+      "urls_origine": [
+        "https://cdn-dynmedia-1.microsoft.com/is/content/microsoftcorp/microsoft/msc/documents/presentations/CSR/FY25-Microsoft-EU-Directive-2021-2101-Report.pdf"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 513836,
+      "chemins_locaux": [
+        "2026/09/14/aa0369caf18b33a2410210247b0bf14544c0d3c6e3e91c0ea77c32a188c99514.pdf"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "cbcr_public",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 33,
+          "taille_octets": 32768,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
+      "ingestion_incrementale": "mixte — DELETE et ON CONFLICT présents dans le même fichier, à vérifier lequel s'applique à cette table"
     },
     {
       "slug": "cc-proclamation-pdr",
@@ -6543,6 +6606,32 @@
       "ingestion_incrementale": "oui — upsert (ON CONFLICT) sans purge préalable"
     },
     {
+      "slug": "cnil-sanctions",
+      "label": "CNIL — liste des sanctions prononcées",
+      "publisher": "Commission nationale de l'informatique et des libertés",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Page publique de la CNIL, citée avec lien",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "au fil des décisions",
+      "notes": "Tableaux annuels de 2011 à l'année en cours. L'organisme est désigné par sa catégorie : la publicité nominative d'une sanction est limitée dans le temps et la CNIL retire le nom à son expiration. Ce projet ne ré-identifie pas les organismes (D-065). Le jeu data.gouv de la CNIL ne donne que des agrégats annuels.",
+      "derniere_ingestion_reussie": "2026-09-15T00:47:34",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 3,
+      "connecteur_derniere_version": "numerique-v1",
+      "format_detecte": "format non reconnu automatiquement",
+      "urls_origine": [
+        "https://www.cnil.fr/fr/les-sanctions-prononcees-par-la-cnil"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 278988,
+      "chemins_locaux": [
+        "2026/09/15/ff930206b4f59a56ef08dc7965a433b9a357c0b6512b8bf942379a4b4ee4e2e9.html"
+      ],
+      "cle_s3": null,
+      "tables": [],
+      "ingestion_incrementale": "connecteur non retrouvé automatiquement — à vérifier manuellement"
+    },
+    {
       "slug": "dares-defm-categorie",
       "label": "Dares — demandeurs d'emploi inscrits par catégorie",
       "publisher": "Direction de l'animation de la recherche, des études et des statistiques",
@@ -6587,10 +6676,10 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "quotidienne",
       "notes": "Données déclarées par chaque acheteur au moment de l'attribution ; consolidation de plusieurs flux (plus exhaustive que le fichier du ministère des Finances). Obligation de publication depuis 2019, variable selon les acheteurs : les marchés antérieurs et une partie des marchés de défense et de sécurité n'y figurent pas. Le montant d'un accord-cadre est son MAXIMUM ; un marché à plusieurs titulaires répète son montant sur chaque ligne. Seule la dernière version de chaque marché (donneesActuelles) est lue.",
-      "derniere_ingestion_reussie": "2026-09-14T22:19:21",
+      "derniere_ingestion_reussie": "2026-09-15T00:50:40",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
-      "connecteur_derniere_version": "fiscalite-v1",
+      "nombre_runs": 4,
+      "connecteur_derniere_version": "numerique-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
         "https://static.data.gouv.fr/resources/donnees-essentielles-de-la-commande-publique-consolidees-format-tabulaire/20260914-051720/decp.csv",
@@ -6793,6 +6882,43 @@
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
+      "slug": "drees-aide-alimentaire",
+      "label": "Drees — dispositif de suivi de l'aide alimentaire en France",
+      "publisher": "Direction de la recherche, des études, de l'évaluation et des statistiques",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte v2.0",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "trimestrielle (au moment de la collecte)",
+      "notes": "Dernière édition publiée par la Drees : juillet 2021, données arrêtées en 2021 (2020 pour la Fédération française des banques alimentaires, 2020-2021 seulement pour le Secours populaire) — la série ne semble pas avoir été reconduite depuis, signalé explicitement plutôt que présenté comme actuel. Six réseaux aux indicateurs hétérogènes (colis, repas, tonnes ou euros selon le réseau) : voir le commentaire de core.aide_alimentaire pour le format long qui les rassemble sans les confondre.",
+      "derniere_ingestion_reussie": "2026-09-15T00:32:57",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 4,
+      "connecteur_derniere_version": "macro-v1",
+      "format_detecte": "Fichier XLSX",
+      "urls_origine": [
+        "https://data.drees.solidarites-sante.gouv.fr/api/explore/v2.1/catalog/datasets/laide-alimentaire-en-france-depuis-2019/attachments/l_aide_alimentaire_en_france_depuis_2019_xlsx"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 37602,
+      "chemins_locaux": [
+        "2026/09/15/cb197268c1e1638c57451c7a30b687818540e88803ea0d632f163e9e932b4dc8.xlsx"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "aide_alimentaire",
+          "lignes_totales_estimees": 326,
+          "lignes_pour_cette_source": 326,
+          "taille_octets": 237568,
+          "annee_min": 2019,
+          "annee_max": 2021,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
       "slug": "drees-composition-revenu-menages",
       "label": "DREES — composition du revenu des ménages",
       "publisher": "Direction de la recherche, des études, de l'évaluation et des statistiques",
@@ -6801,9 +6927,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Champ : France métropolitaine, ménages vivant dans un logement ordinaire, dont le revenu déclaré est positif ou nul et dont la personne de référence n'est pas étudiante — un univers plus étroit que le recensement.",
-      "derniere_ingestion_reussie": "2026-09-14T13:59:51",
+      "derniere_ingestion_reussie": "2026-09-15T00:32:58",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 5,
+      "nombre_runs": 7,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -6821,7 +6947,7 @@
           "table": "menage_type_drees",
           "lignes_totales_estimees": 11,
           "lignes_pour_cette_source": 11,
-          "taille_octets": 32768,
+          "taille_octets": 65536,
           "annee_min": 2023,
           "annee_max": 2023,
           "colonne_historique": "annee"
@@ -6875,9 +7001,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "quadriennale",
       "notes": "Champ : bénéficiaires d'un avantage principal de droit direct d'un régime de base, nés en France ou à l'étranger, résidant en France ou à l'étranger, vivants au 31 décembre 2020.",
-      "derniere_ingestion_reussie": "2026-09-14T13:59:51",
+      "derniere_ingestion_reussie": "2026-09-15T00:32:59",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 5,
+      "nombre_runs": 7,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -6895,7 +7021,7 @@
           "table": "pension_tranche_eir",
           "lignes_totales_estimees": 46,
           "lignes_pour_cette_source": 46,
-          "taille_octets": 65536,
+          "taille_octets": 73728,
           "annee_min": 2020,
           "annee_max": 2020,
           "colonne_historique": "annee"
@@ -7244,6 +7370,43 @@
       "ingestion_incrementale": "mixte — DELETE et ON CONFLICT présents dans le même fichier, à vérifier lequel s'applique à cette table"
     },
     {
+      "slug": "eurostat-depense-environnementale",
+      "label": "Eurostat — dépense de protection de l'environnement (CEP)",
+      "publisher": "Eurostat",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Creative Commons Attribution 4.0 (CC BY 4.0)",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "annuelle",
+      "notes": "Classification CEP (anciennement CEPA/CReMA jusqu'en 2024, transition Eurostat vers CEP à partir de la collecte 2025). Le total (purpose_code=TOT_CEP_EP) et le total économie (secteur_code=S1) sont déjà des sommes de leurs sous-catégories — voir le commentaire de core.depense_environnementale.",
+      "derniere_ingestion_reussie": "2026-09-14T23:59:38",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "ecologie-v1",
+      "format_detecte": "API Eurostat (JSON-stat)",
+      "urls_origine": [
+        "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/env_epea_neep?geo=FR\u0026format=JSON\u0026lang=en"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 23442,
+      "chemins_locaux": [
+        "2026/09/14/ccf806ef8f636d0cc62d533d906ec1097089d0f53248315bbaaa2cc3b569c7d4.json"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "depense_environnementale",
+          "lignes_totales_estimees": 1503,
+          "lignes_pour_cette_source": 1503,
+          "taille_octets": 409600,
+          "annee_min": 2014,
+          "annee_max": 2023,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
       "slug": "eurostat-dette",
       "label": "Eurostat — dette, déficit, intérêts et taux longs des États européens",
       "publisher": "Eurostat",
@@ -7404,6 +7567,43 @@
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
+      "slug": "eurostat-taux-pauvrete",
+      "label": "Eurostat — taux de risque de pauvreté par pays (tps00184)",
+      "publisher": "Eurostat",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Creative Commons Attribution 4.0 (CC BY 4.0)",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "annuelle",
+      "notes": "Seuil à 60 % du revenu médian équivalent, population totale (sexe=T). Ne couvre que les pays européens (UE, AELE, candidats et Royaume-Uni) — ni les États-Unis, ni le Japon, ni le Canada, absents de la nomenclature géographique Eurostat. Une comparaison avec ces pays doit passer par l'OCDE (seuil à 50 %, non directement comparable) — voir docs/pauvrete-donnees.md § 5.",
+      "derniere_ingestion_reussie": "2026-09-15T00:32:58",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "macro-v1",
+      "format_detecte": "API Eurostat (JSON-stat)",
+      "urls_origine": [
+        "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/tps00184?format=JSON\u0026lang=FR\u0026sex=T"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 11162,
+      "chemins_locaux": [
+        "2026/09/15/69f9e14640634022d0f9a5588dfda97e8e6292847609d2aa11a46ce216e7499c.json"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "pauvrete_taux_eu",
+          "lignes_totales_estimees": 441,
+          "lignes_pour_cette_source": 441,
+          "taille_octets": 98304,
+          "annee_min": 2014,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
       "slug": "faits-multinationales",
       "label": "Contrats publics, règlements fiscaux et constats d'enquête concernant des multinationales",
       "publisher": "Sénat, Assemblée nationale, Conseil d'État, Agence française anticorruption, ministère de l'Économie ; presse et communiqués d'entreprise, signalés comme tels",
@@ -7412,9 +7612,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "au fil des faits",
       "notes": "Faits établis hors données ouvertes, transcrits un par un. La qualité dit qui établit le fait : OFFICIEL (texte ou réponse d'une institution, page scellée), PRESSE (révélation d'un média, non confirmée officiellement, page non archivée), ENTREPRISE (communiqué du groupe). Les montants portent leur nature : un plafond d'accord-cadre n'est pas une dépense.",
-      "derniere_ingestion_reussie": "2026-09-14T22:10:37",
+      "derniere_ingestion_reussie": "2026-09-14T23:34:36",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 2,
+      "nombre_runs": 5,
       "connecteur_derniere_version": "fiscalite-v1",
       "format_detecte": "format non reconnu automatiquement",
       "urls_origine": [
@@ -7425,33 +7625,42 @@
         "https://www.assemblee-nationale.fr/dyn/16/questions/QANR5L16QE971",
         "https://www.assemblee-nationale.fr/dyn/17/questions/QANR5L17QE5312",
         "https://www.capgemini.com/fr-fr/actualites/communiques-de-presse/capgemini-et-orange-annoncent-le-lancement-des-activites-commerciales-de-bleu-leur-future-plateforme-de-cloud-de-confiance/",
+        "https://www.ccomptes.fr/sites/default/files/2023-10/20190528-rapport-investissements-informatiques-DGFiP-DGDDI_0.pdf",
         "https://www.conseil-etat.fr/actualites/health-data-hub-et-protection-de-donnees-personnelles-des-precautions-doivent-etre-prises-dans-l-attente-d-une-solution-perenne",
         "https://www.s3ns.io/en/news/premi3ns-secnumcloud-qualification",
         "https://www.senat.fr/leg/ppr17-027.html",
+        "https://www.senat.fr/questions/base/2019/qSEQ190711376.html",
         "https://www.senat.fr/questions/base/2019/qSEQ191012547.html",
         "https://www.senat.fr/questions/base/2025/qSEQ251207120.html",
+        "https://www.senat.fr/rap/r21-578-1/r21-578-11.pdf",
         "https://www.senat.fr/rap/r21-578-1/r21-578-121.html",
         "https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf",
         "https://www.senat.fr/salle-de-presse/communiques-de-presse/presse/cp20220325.html"
       ],
-      "nombre_documents": 16,
-      "taille_locale_octets": 9881689,
+      "nombre_documents": 22,
+      "taille_locale_octets": 23942203,
       "chemins_locaux": [
         "2026/09/14/0fb7cb51d6098349d6f2099b850c33570efdb879284301716069d2556734f774.html",
         "2026/09/14/30ceb3bff5f46207322f0d47e6a372bd3d5d15f29ecf4f06d26cd94d21263828.html",
         "2026/09/14/34ccbee61bff695fca89ba881a7ffa4be8cd3f0165c98893150e7708ee60c45f.html",
         "2026/09/14/387e65d6cb1e623df02e4f2c718e2ebae3ece8e8be7b7f413c95e54ba49aeb22.html",
         "2026/09/14/3884732072eef885feb153e0fe806f0a59093c4ffbf3f16488bc987354c038f7.html",
+        "2026/09/14/5f96467d94e6a38a987c974f913aa1348308c6a9531faa62f24f1763521c1613.html",
         "2026/09/14/68a201c1b3de54b24880d63ff49ea2eda8cbb9d19de4a101a45b1a7e6e10552c.html",
         "2026/09/14/6e4d96346983d4739571e14b325a0311c126f5c951b29dc2ae9878eb3c8f37c5.html",
         "2026/09/14/6efcccb3c02577aa6a398ef5ecd789119fb4403f13cdb2f72e86e11ee2f9a257.html",
+        "2026/09/14/7016ef7453da6bcadcff92ef79d49d84f7027e08e61425d5e870c0a3bf1b0fcb.pdf",
         "2026/09/14/7760df56828dc1a66b030bf6e03a3b05dccf2d56d588d69528dcb6bb342571ea.pdf",
         "2026/09/14/898fd521cf0c80cfef17e591d01bda2b09b182563c8fbc4803d89dbddae7fbc5.html",
         "2026/09/14/a46ae01971a526212ef68c94a2ae4c105819720c44240caeec7fb56c5f16e811.html",
+        "2026/09/14/acc98f066fae45970da5d8943fd65ddc60919400f645958d3a1ad291d5658cbc.html",
         "2026/09/14/ae8c83abd84aecfcf4985d04629eb5843a11a0317640b4ec2e8d82ec8afc49bb.html",
         "2026/09/14/af77ce97eb10b446f071133e9c88b2ed0fbda90529439deaf1f6136fea214e02.html",
         "2026/09/14/b3ff8c5a4ab1c7e9870c3c7e4721e4e47d33db7a5cb2f8d5f02e93680f75b577.html",
+        "2026/09/14/cc8c428b7b965ce09febfd07a47c21c33c31f01f45426f0c027e4bf97db6e64c.pdf",
         "2026/09/14/cfc74010fb0ede94dbf1eed2f298a1e2c92a1150a9ccf43461e31d63f4123fd9.html",
+        "2026/09/14/e106a57e3413b72b57f072797c346241858e2d2f4b7823c8aa6847cdc0827c67.html",
+        "2026/09/14/ee0e39d57a519909d4827d961d0d7831b97104c68525c20ae799576a239b62c7.html",
         "2026/09/14/f228f9742ae529a114707d6c84d0df32a3f01141243b3e29a4318cce34987cd3.html"
       ],
       "cle_s3": null,
@@ -7459,14 +7668,66 @@
         {
           "schema": "ref",
           "table": "fait_multinationale",
-          "lignes_totales_estimees": 24,
-          "lignes_pour_cette_source": 24,
-          "taille_octets": 73728,
+          "lignes_totales_estimees": 32,
+          "lignes_pour_cette_source": 32,
+          "taille_octets": 139264,
           "annee_min": null,
           "annee_max": null
         }
       ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "faits-souverainete-numerique",
+      "label": "Souveraineté numérique : textes, jurisprudence et constats d'enquête",
+      "publisher": "Sénat (commission d'enquête sur la commande publique), DINUM, Journal officiel, Cour de justice et Tribunal de l'Union européenne, Congrès des États-Unis, autorités de protection des données",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Documents publics des institutions, cités avec lien et page",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "au fil des faits",
+      "notes": "Faits transcrits un par un ; chaque document est scellé et relu : la phrase attendue doit y figurer. OFFICIEL : établi par l'institution. DECLARATIF : propos d'une partie (entreprise, association, responsable d'achat) rapporté par l'institution — il est établi que le propos a été tenu, pas qu'il est exact.",
+      "derniere_ingestion_reussie": "2026-09-15T00:46:49",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "numerique-v1",
+      "format_detecte": "format non reconnu automatiquement",
+      "urls_origine": [
+        "https://curia.europa.eu/jcms/upload/docs/application/pdf/2025-09/cp250106fr.pdf",
+        "https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32023D1795",
+        "https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:62018CJ0311",
+        "https://www.cnil.fr/fr/publicites-inserees-entre-les-courriels-et-cookies-la-cnil-sanctionne-google-dune-amende-de-325",
+        "https://www.dataprotection.ie/en/news-media/press-releases/Data-Protection-Commission-announces-conclusion-of-inquiry-into-Meta-Ireland",
+        "https://www.govinfo.gov/content/pkg/PLAW-115publ141/html/PLAW-115publ141.htm",
+        "https://www.govinfo.gov/content/pkg/USCODE-2023-title50/html/USCODE-2023-title50-chap36-subchapVI-sec1881a.htm",
+        "https://www.numerique.gouv.fr/services/cloud/doctrine/",
+        "https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf"
+      ],
+      "nombre_documents": 9,
+      "taille_locale_octets": 13269720,
+      "chemins_locaux": [
+        "2026/09/14/7760df56828dc1a66b030bf6e03a3b05dccf2d56d588d69528dcb6bb342571ea.pdf",
+        "2026/09/15/10dc2d3402de9b0f5c413ed7da2bfec5e5bf7d006f2180a9fc7740e5e855e7b7.html",
+        "2026/09/15/12b165f1b76f830aa5e5a0e9fd3cd1d2921314830efa7f7a2af6b0e5ab58d762.html",
+        "2026/09/15/25a816b8312c397b736337aba5b743d8633b53e2321d5e900ed818d246395cbc.html",
+        "2026/09/15/26ee6f37b94045250fcc5c4779f891da0e47a37cb87c3237103108d059df33a2.html",
+        "2026/09/15/b62251ad7ded189ad05706f6d841e668b11a4e8766da57a7668b17b133012685.html",
+        "2026/09/15/b9688775e0bc15533abac47ed43d9c3a16b6dd5e9049f1ad0d8c1067787a85c8.pdf",
+        "2026/09/15/c66eda36215664bb5f9f7214472b96732840b2ac0d8bceb7546d96cabae84c59.html",
+        "2026/09/15/c76c591b07545ab7c88cb0be9279c95650e423e073800c45760904655c586ac8.html"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "ref",
+          "table": "fait_souverainete",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 28,
+          "taille_octets": 73728,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
+      "ingestion_incrementale": "connecteur non retrouvé automatiquement — à vérifier manuellement"
     },
     {
       "slug": "faostat",
@@ -7528,9 +7789,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annoncée mensuelle ; en pratique irrégulière",
       "notes": "Le jeu data.gouv.fr historique (etalab_cs1100502) est signalé « remplacé » par de nouveaux flux quotidiens de l'ANS depuis le 20 juillet 2026, mais reste publié et à jour au moment du chargement (édition du 12 mai 2026) — utilisé faute d'avoir confirmé et documenté l'URL stable du nouveau flux ANS. Fichier plat sans en-tête, une ligne de commentaire, puis des lignes préfixées « structureet », séparateur point-virgule, ordre des champs fixé par la spécification etalab_cs1100502 (32 positions).",
-      "derniere_ingestion_reussie": "2026-09-14T20:48:39",
+      "derniere_ingestion_reussie": "2026-09-15T00:06:11",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 1,
+      "nombre_runs": 2,
       "connecteur_derniere_version": "sante-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
@@ -7548,7 +7809,7 @@
           "table": "finess_etablissement",
           "lignes_totales_estimees": 103022,
           "lignes_pour_cette_source": 103022,
-          "taille_octets": 40493056,
+          "taille_octets": 79806464,
           "annee_min": null,
           "annee_max": null
         }
@@ -7654,6 +7915,56 @@
         }
       ],
       "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
+    },
+    {
+      "slug": "has-certification-etablissements",
+      "label": "HAS — certification des établissements de santé (6e cycle)",
+      "publisher": "Haute Autorité de Santé",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte v2.0",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "continue (au fil des visites de certification)",
+      "notes": "Seul le 6e cycle (référentiel 2025-) est chargé, pas les cycles antérieurs (publiés séparément, référentiel différent, non comparable terme à terme).",
+      "derniere_ingestion_reussie": "2026-09-15T00:06:31",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "sante-v1",
+      "format_detecte": "Fichier CSV",
+      "urls_origine": [
+        "https://minio.data.has-sante.fr/etl-certification/data/prod/tables/demarche.csv",
+        "https://minio.data.has-sante.fr/etl-certification/data/prod/tables/etablissement_geo.csv",
+        "https://minio.data.has-sante.fr/etl-certification/data/prod/tables/resultat_chapitre.csv"
+      ],
+      "nombre_documents": 3,
+      "taille_locale_octets": 168642,
+      "chemins_locaux": [
+        "2026/09/15/0bf68649a0d3f66cbac9d19264df9e604ff36932708fde4f4e186ad0b4a1ce9f.csv",
+        "2026/09/15/7a3e56f82f7b54c77c957a77b1f564aac30770ab1007c86ea3e83ffd801d8558.csv",
+        "2026/09/15/aa7e26d3c0b694c7e706f61234c8a7f7e5e6226f0795dcfe96498248d2dbdc4a.csv"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "certification_has_chapitre",
+          "lignes_totales_estimees": 981,
+          "lignes_pour_cette_source": 981,
+          "taille_octets": 172032,
+          "annee_min": null,
+          "annee_max": null
+        },
+        {
+          "schema": "core",
+          "table": "certification_has_demarche",
+          "lignes_totales_estimees": 422,
+          "lignes_pour_cette_source": 422,
+          "taille_octets": 163840,
+          "annee_min": 2025,
+          "annee_max": 2028,
+          "colonne_historique": "annee_visite"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
       "slug": "hatvp",
@@ -8651,9 +8962,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle, au 1er janvier",
       "notes": "Le millésime est structurant : un code commune ne vaut que pour un millésime donné. Le fichier des mouvements permet de suivre fusions et scissions.",
-      "derniere_ingestion_reussie": "2026-09-14T01:21:37",
+      "derniere_ingestion_reussie": "2026-09-15T00:05:44",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 11,
+      "nombre_runs": 17,
       "connecteur_derniere_version": "communes-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
@@ -8766,9 +9077,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Le fichier couvre commune, EPCI, département, région et France ; seule la ligne GEO_OBJECT=FRANCE est retenue ici. Refonte méthodologique 2023 (Filosofi 2) : non comparable terme à terme aux éditions 2012-2021.",
-      "derniere_ingestion_reussie": "2026-09-14T13:59:56",
+      "derniere_ingestion_reussie": "2026-09-15T00:33:03",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 1,
+      "nombre_runs": 3,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "format non reconnu automatiquement",
       "urls_origine": [
@@ -8803,9 +9114,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Refonte de l'enquête ERFS en 2021 : les niveaux publiés depuis ne sont pas directement comparables à ceux d'avant. Rien n'est publié pour 2020.",
-      "derniere_ingestion_reussie": "2026-09-14T13:59:51",
+      "derniere_ingestion_reussie": "2026-09-15T00:32:57",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 6,
+      "nombre_runs": 10,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -8979,9 +9290,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Univers du recensement (tous les ménages), pas celui de l'enquête ERFS utilisée par core.menage_type_drees (qui exclut les revenus déclarés négatifs et les ménages étudiants) : les deux ne coïncident pas exactement.",
-      "derniere_ingestion_reussie": "2026-09-14T13:59:51",
+      "derniere_ingestion_reussie": "2026-09-15T00:32:59",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 5,
+      "nombre_runs": 7,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "API Insee Melodi (JSON)",
       "urls_origine": [
@@ -9001,7 +9312,7 @@
           "table": "menage_type_effectif",
           "lignes_totales_estimees": 9,
           "lignes_pour_cette_source": 9,
-          "taille_octets": 32768,
+          "taille_octets": 65536,
           "annee_min": 2023,
           "annee_max": 2023,
           "colonne_historique": "annee"
@@ -9263,9 +9574,9 @@
       "reuse_class": "RESTRICTED",
       "cadence_attendue": "par scrutin",
       "notes": "Licence non spécifiée : réutilisation autorisée par décision explicite du responsable du projet, à ne pas reverser dans un export ouvert. Seules les communes de 1 000 habitants et plus sont couvertes : en deçà, le scrutin n'est pas de liste.",
-      "derniere_ingestion_reussie": "2026-09-12T15:42:32",
+      "derniere_ingestion_reussie": "2026-09-15T00:24:58",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 2,
+      "nombre_runs": 3,
       "connecteur_derniere_version": "communes-v1",
       "format_detecte": "format non reconnu automatiquement",
       "urls_origine": [
@@ -9285,7 +9596,7 @@
           "table": "municipal_list",
           "lignes_totales_estimees": 73557,
           "lignes_pour_cette_source": 19664,
-          "taille_octets": 16629760,
+          "taille_octets": 30031872,
           "annee_min": 2020,
           "annee_max": 2026,
           "colonne_historique": "scrutin_annee"
@@ -9302,9 +9613,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "par scrutin",
       "notes": "La nuance qualifie une liste, pas une personne, et n'est attribuée qu'au-dessus d'un seuil de population : 9,4 % des communes seulement. Les fichiers 2020 sont publiés sans licence explicite et ne sont pas ingérés.",
-      "derniere_ingestion_reussie": "2026-09-12T15:27:40",
+      "derniere_ingestion_reussie": "2026-09-15T00:12:34",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 4,
+      "nombre_runs": 7,
       "connecteur_derniere_version": "communes-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
@@ -9324,7 +9635,7 @@
           "table": "municipal_list",
           "lignes_totales_estimees": 73557,
           "lignes_pour_cette_source": 53893,
-          "taille_octets": 16629760,
+          "taille_octets": 30031872,
           "annee_min": 2020,
           "annee_max": 2026,
           "colonne_historique": "scrutin_annee"
@@ -9401,65 +9712,104 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Budget principal uniquement. Un montant communal ne mesure une politique municipale que si la compétence n'a pas été transférée à l'intercommunalité : croiser avec BANATIC avant toute comparaison.",
-      "derniere_ingestion_reussie": "2026-09-12T22:21:00",
+      "derniere_ingestion_reussie": "2026-09-15T00:25:18",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 5,
+      "nombre_runs": 8,
       "connecteur_derniere_version": "communes-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272020%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272020%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272020%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272020%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272021%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272021%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272021%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272021%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272022%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272022%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272022%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272022%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272023%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272023%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272023%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272023%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272024%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272024%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272024%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272024%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272025%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272025%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-communes/exports/csv?delimiter=%3B\u0026select=exer,com_code,agregat,euros_par_habitant,ptot\u0026where=exer%3Ddate%272025%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272018%27+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272018%27+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272019%27+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272019%27+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272020%27+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272020%27+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272021%27+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272021%27+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272022%27+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272022%27+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272023%27+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272023%27+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272024%27+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272024%27+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272025%27+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-departements-consolidee/exports/csv?delimiter=%3B\u0026select=dep_code%2Cdep_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272025%27+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272020%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272020%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272021%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272021%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272022%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272022%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272023%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272023%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272024%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272024%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272025%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-gfp/exports/csv?delimiter=%3B\u0026select=epci_code%2Cepci_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272025%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272018%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272019%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272020%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272020%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272020%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272021%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272021%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272021%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272022%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272022%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272022%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272023%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272023%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272023%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272024%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272024%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272024%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272025%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%29",
+        "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272025%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22D%C3%A9penses+de+fonctionnement%22%2C%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Dotation+globale+de+fonctionnement%22%2C%22Recettes+totales%22%2C%22Imp%C3%B4ts+et+taxes%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%29",
         "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/ofgl-base-regions/exports/csv?delimiter=%3B\u0026select=reg_code%2Creg_name%2Cagregat%2Cmontant%2Ceuros_par_habitant%2Cptot\u0026where=exer%3Ddate%272025%27+AND+type_de_budget%3D%22Budget+principal%22+AND+agregat+IN+%28%22Frais+de+personnel%22%2C%22Epargne+brute%22%2C%22Encours+de+dette%22%2C%22D%C3%A9penses+d%27investissement%22%2C%22D%C3%A9penses+de+fonctionnement%22%29"
       ],
-      "nombre_documents": 32,
-      "taille_locale_octets": 83328719,
+      "nombre_documents": 64,
+      "taille_locale_octets": 218216318,
       "chemins_locaux": [
         "2026/09/12/0416a887f6c943f658d1283adcc80a3449d919372c4f0349c5379f6ea2e564bc.csv",
         "2026/09/12/0a3092887655757737aa2f3049ca089903022ac9ed87ed17311050cdefb32bc7.csv",
@@ -9492,25 +9842,57 @@
         "2026/09/12/d86a4c3c12b4e45be17563268b6a7d2c6fc41a6437fd23428f6a58bff19ae755.csv",
         "2026/09/12/dd1cfda23938387f96ac02ccb15112b20ba602c28ff8b9333dc27879b566fa9f.csv",
         "2026/09/12/f51969f0f1b6aa62ea85677e41b2b266bbc165296813cfe92681587ff3d68945.csv",
-        "2026/09/12/fe3e6ab1eff4ac85c4673789dd80e3d5f76e4ee450250f8516869c9cb24aa396.csv"
+        "2026/09/12/fe3e6ab1eff4ac85c4673789dd80e3d5f76e4ee450250f8516869c9cb24aa396.csv",
+        "2026/09/14/3251475200164b20c9aa439b21798739ef96f5f0f989e4b138f9e15f461c5f92.csv",
+        "2026/09/14/44ee1cb6d89fed3159af8b613db9f43bb623f4d6581ffcc0f76111c97f27332d.csv",
+        "2026/09/14/4bae5a5c3bf7e4c225184b006190f48710c6bf574ad8699788ce22be1d65234b.csv",
+        "2026/09/14/5143f12b5e98edf998cadf8f60b5101fc37fb752663546f150a50ae833f32d3e.csv",
+        "2026/09/14/699f1406d6971f035da95458612b27fd2193eb78fe559457bb56dd21d17f71f2.csv",
+        "2026/09/14/ed6633edede888da3ba02b422bfdb5d16847d56e5fed401e30f470d3873859d9.csv",
+        "2026/09/15/106f3f35ead6f09fd7add6f1409187da4002adccdaff9e72c085d98ed6af218e.csv",
+        "2026/09/15/287fca635fa2c9104bc8fddb7502a3b03f83a0d1d982fb591e322ca21a638183.csv",
+        "2026/09/15/2ec7ce6063ab4b3c26f91ef90393892ba40a51da648702c39e116ecdde91f957.csv",
+        "2026/09/15/366399f39994545a747a968e7fbd6b7429f6a9d84647de56f3e5b9210658343e.csv",
+        "2026/09/15/372fb3562ac24832f0e74157a7af1415283efad89d5866b4f2b3653a81d99097.csv",
+        "2026/09/15/3ce8b07fac4cef002d25c71685ec597d54687073122e857ed94cf40ed88f4ca4.csv",
+        "2026/09/15/4624aa98d6945030d57491add6ae2b79771b183174f7f4aedbb223d63a23c94d.csv",
+        "2026/09/15/4aef9d60884f2c41e81dea22cb803425ff4bfdc622d712bd7b2cb017bce1c0a0.csv",
+        "2026/09/15/4dcdd8041414c6cce2f94d1b1fee49bbb64fc170ffe28c1a5c87e2bfc878916a.csv",
+        "2026/09/15/5be0982926f1b68f51945b953b5938d15fa35538a309ac09a8e06de2e05319bd.csv",
+        "2026/09/15/650dbf1c68b05816419bbfc58bb6f7a17b491da9f8e3ce41fbdcf225aa63096a.csv",
+        "2026/09/15/658dc762eb810626093aeacc96f0b9b039ed264f3366dba8d35e8e88609efc71.csv",
+        "2026/09/15/72ed8b3407eb838ba4326325193426bcd94b9e41b6b2edded2765c201e90e394.csv",
+        "2026/09/15/7d3ced6b0b906c8fe1430d82da0ea54f90a462f9caac8171bea61c54e38953c6.csv",
+        "2026/09/15/86cb77d026150fa71e9f365993bc4e3eec783738bda3bb3df37453155d36ad5f.csv",
+        "2026/09/15/881f428fe6971ec19794f03513ba69b7ef84427ad02056152b319e68fad8b7c3.csv",
+        "2026/09/15/8a0799068a574de4182066ed01eed2ac76bf68bfc964d12d06bc21c7c1db62f3.csv",
+        "2026/09/15/92674c719b4ef33ae41aad2f3dc9c06a81d5c92ff5d3d16f859fd05971de22f1.csv",
+        "2026/09/15/9b896edb8c2332f94987f6560ace4a82ca96e052e2df93bb346138b610adea49.csv",
+        "2026/09/15/b2b9da51d7d62ab94588e356c8cd65f256603c346b6200e18d9dba3bad311ec7.csv",
+        "2026/09/15/c52acb241bf7fe5a51678caa01151be99eaa4a80f4e4278a42942c8a5f001440.csv",
+        "2026/09/15/d1ff75256866f6b2a89f4c5a58b14c361eee30c1d87a87e26ebfd4b48ae50168.csv",
+        "2026/09/15/e513ea1351aff5c0519315bb97060958e6a85f041b94354c228d209f760eaad2.csv",
+        "2026/09/15/eee67bbcd432bcf3c2140d0e60ed4da0d16e50ec8eef3d945100a326554e5e77.csv",
+        "2026/09/15/f51ad6ef6a58ed868ff95b4bf11e9e826fcadc70aae306b958cd84af13a7aa18.csv",
+        "2026/09/15/f7e5f261de95bb06f0ced7fcd0c3322026163f0870c9db56840a3d804219e723.csv"
       ],
       "cle_s3": null,
       "tables": [
         {
           "schema": "core",
           "table": "collectivite_budget",
-          "lignes_totales_estimees": 55110,
-          "lignes_pour_cette_source": 55110,
-          "taille_octets": 14721024,
+          "lignes_totales_estimees": 87993,
+          "lignes_pour_cette_source": 87993,
+          "taille_octets": 39755776,
           "annee_min": null,
           "annee_max": null
         },
         {
           "schema": "core",
           "table": "commune_indicator",
-          "lignes_totales_estimees": 1672878,
-          "lignes_pour_cette_source": 1672878,
-          "taille_octets": 395329536,
+          "lignes_totales_estimees": 2501644,
+          "lignes_pour_cette_source": 2505896,
+          "taille_octets": 1113702400,
           "annee_min": null,
           "annee_max": null
         }
@@ -9561,6 +9943,42 @@
         }
       ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "parametres-impot-societes",
+      "label": "Impôt sur les sociétés : taux normal, contribution sociale, contribution exceptionnelle 2025",
+      "publisher": "Direction générale des finances publiques (BOFiP)",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Contenu public de l'administration fiscale, cité avec lien",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "à chaque loi de finances",
+      "notes": "Taux du droit commun, sans régimes particuliers (PME, plus-values à long terme, régime mère-fille). La contribution exceptionnelle s'applique au premier exercice clos à compter du 31 décembre 2025, pour un chiffre d'affaires rattaché aux bénéfices imposables en France d'au moins 1 Md€ ; le seuil s'apprécie au niveau du groupe fiscalement intégré.",
+      "derniere_ingestion_reussie": "2026-09-14T23:58:30",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "fiscalite-v1",
+      "format_detecte": "format non reconnu automatiquement",
+      "urls_origine": [
+        "https://bofip.impots.gouv.fr/bofip/14609-PGP.html/ACTU-2025-00035"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 45588,
+      "chemins_locaux": [
+        "2026/09/14/a90f6fa1389fd3da663b266d98cdd3adf3418c5b9dada15337bb07c35f91d288.html"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "ref",
+          "table": "parametre_is",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 7,
+          "taille_octets": 32768,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
+      "ingestion_incrementale": "mixte — DELETE et ON CONFLICT présents dans le même fichier, à vérifier lequel s'applique à cette table"
     },
     {
       "slug": "plf2023-voies-et-moyens-t2",
@@ -9744,9 +10162,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "trimestrielle",
       "notes": "Ne contient AUCUNE nuance politique. Ne porte que la mandature en cours : aucune profondeur historique.",
-      "derniere_ingestion_reussie": "2026-09-14T01:10:08",
+      "derniere_ingestion_reussie": "2026-09-15T00:09:11",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 7,
+      "nombre_runs": 10,
       "connecteur_derniere_version": "communes-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
@@ -9828,6 +10246,80 @@
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
+      "slug": "sec-xbrl-companyfacts",
+      "label": "SEC EDGAR — données XBRL des rapports annuels (10-K) des groupes cotés aux États-Unis",
+      "publisher": "U.S. Securities and Exchange Commission",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Domaine public (données du gouvernement fédéral américain)",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "à chaque dépôt",
+      "notes": "Les rapports annuels américains ne ventilent pas l'impôt par pays : ils séparent le bénéfice avant impôt « domestique » (États-Unis) et « étranger », et l'impôt courant étranger. Accès limité à dix requêtes par seconde.",
+      "derniere_ingestion_reussie": "2026-09-14T23:58:46",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "fiscalite-v1",
+      "format_detecte": "Fichier JSON",
+      "urls_origine": [
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000050863.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000051143.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000059478.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000063908.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000077476.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000078003.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000080424.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000310158.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000789019.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0000858877.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001018724.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001065280.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001075531.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001103982.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001108524.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001321655.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001326801.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001341439.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001413329.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001467373.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001543151.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001559720.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001652044.json",
+        "https://data.sec.gov/api/xbrl/companyfacts/CIK0001744489.json"
+      ],
+      "nombre_documents": 25,
+      "taille_locale_octets": 96397008,
+      "chemins_locaux": [
+        "2026/09/14/00f3449073d90dfa3aec4e384de24b70d92d897f90c67d6bca61f23e33d38634.json",
+        "2026/09/14/0394e814d75510be107679b026e2df6e5d02d4f2029166911aa4924f9556681f.json",
+        "2026/09/14/0d7b72e393501d13b2d61b2d6663689e14b9abf83427315bc0820cd2802c43f7.json",
+        "2026/09/14/1660477fa5713e5749c3038cf22b3c776414acfc6e1e721d1772c91101dc5e5c.json",
+        "2026/09/14/3344df347f78eef6b760f2a9160190d35dd225079775f573d341b94e9b82e783.json",
+        "2026/09/14/3fe29099e6efaef9acac95711c271de1a644602939ea18487e29708310985942.json",
+        "2026/09/14/43014a2e04fa2784dd669d337a65c9eac9374ea638dacb292ecf19905408651f.json",
+        "2026/09/14/5388c14226952dd9d1f0d193f5915164425afa76ff09b69203e3b66b609026bc.json",
+        "2026/09/14/606ad7056b611e91cfab9f7568b747404405772add188600efa5ccda5824f3d8.json",
+        "2026/09/14/70056711b8b04d3a27e4a42b6d86e26f85ddaa3d59e480039d66ccfb353eb0b8.json",
+        "2026/09/14/73a86c6aedc31f77cac2ea4df5f80f0b3bd7e6eb58bb4e01444fbedf3afb9c43.json",
+        "2026/09/14/7518e76d6dac2d016e1a3d1dec1cc55ff9ea3bdd58a151b16fcaa067a6c9d94e.json",
+        "2026/09/14/7549fb68446eee40e1f50a166fa06b2d2ee6349e07c8553a4828757e032d3cd4.json",
+        "2026/09/14/7694c322779ef273d15b3791729e5f2d261ce6ed1839be8ff014a33f537375be.json",
+        "2026/09/14/86979df28e9390d23997206029e608296c823a806980453bde2915719a38b2fc.json",
+        "2026/09/14/98e804db35b92010096d3eccc692cf3bda5082ca8648bbf2f55d0b7be0f3830f.json",
+        "2026/09/14/a017f26ee88cb4a639d1c1ddb06d53b4afe22f0ac89cabec7cd67c88919fe1c5.json",
+        "2026/09/14/bd072131f9dcf001f22e843fded5910c2c7fc178e2a739ce0c58b1934e84d566.json",
+        "2026/09/14/c36bddafd22061dfe573fa22199074d882196f6667cf641eb30c8cec5a340ae5.json",
+        "2026/09/14/c66054b213ead15f0a177910e8d265dc12e917fa82b51c99c2eb5b20c6acf8df.json",
+        "2026/09/14/de2e92301923703e6aee247c42c0cf2f1b741118ebca221fbaa5dc0e47644bd7.json",
+        "2026/09/14/e4f4e13340718de01f6c966cc4c4ab09f037826023b7f20b9e969eb3ef7cb76c.json",
+        "2026/09/14/f737e2272b6fb76cda801a8a5d493621a917ad4f73e0752b4ab14ffda694a57b.json",
+        "2026/09/14/f8aae2965b20ad0df44bdf7ccbedf797d275b6b8dc030154a7a311361bb7246f.json",
+        "2026/09/14/f9f6cfb3c04bb8102552f121868831471a474165074ccc7c539f6f80f19d1b99.json"
+      ],
+      "cle_s3": null,
+      "tables": [],
+      "ingestion_incrementale": "mixte — DELETE et ON CONFLICT présents dans le même fichier, à vérifier lequel s'applique à cette table"
+    },
+    {
       "slug": "senat-dosleg",
       "label": "Sénat — base Dosleg (dossiers législatifs, scrutins, votes)",
       "publisher": "Sénat",
@@ -9900,9 +10392,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Faits enregistrés, non faits commis. Secret statistique sur les effectifs faibles : « non diffusé » n'est pas « zéro ».",
-      "derniere_ingestion_reussie": "2026-09-12T15:58:32",
-      "dernier_statut_run": "FAILED",
-      "nombre_runs": 3,
+      "derniere_ingestion_reussie": "2026-09-15T00:34:32",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 4,
       "connecteur_derniere_version": "communes-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
@@ -9918,9 +10410,9 @@
         {
           "schema": "core",
           "table": "commune_delinquance",
-          "lignes_totales_estimees": 5231423,
+          "lignes_totales_estimees": 5242382,
           "lignes_pour_cette_source": 5231250,
-          "taille_octets": 995393536,
+          "taille_octets": 1988493312,
           "annee_min": 2016,
           "annee_max": 2025,
           "colonne_historique": "annee"
@@ -10492,9 +10984,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "trimestrielle",
       "notes": "Allocataires de la solidarité-État (ASS, ATS, AER) exclus : leur montant dépend des ressources, pas d'un salaire de référence, la source ne les inclut pas. Colonne « Ensemble Assurance chômage » (ARE, AREF, CSP, et ADM à partir de la publication qui l'introduit).",
-      "derniere_ingestion_reussie": "2026-09-14T13:59:52",
+      "derniere_ingestion_reussie": "2026-09-15T00:33:00",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 5,
+      "nombre_runs": 7,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -10512,7 +11004,7 @@
           "table": "chomage_tranche_unedic",
           "lignes_totales_estimees": 540,
           "lignes_pour_cette_source": 540,
-          "taille_octets": 139264,
+          "taille_octets": 221184,
           "annee_min": null,
           "annee_max": null
         }
