@@ -33,6 +33,21 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [scrutins-et-bulletins.md](scrutins-et-bulletins.md) | Le modèle des scrutins et des votes nominatifs. |
 | [contributions-utilisateurs.md](contributions-utilisateurs.md) | Cartographies alternatives sans compte utilisateur. |
 | [charte-graphique.md](charte-graphique.md) | Palette, contrastes, typographie. |
+| [immigration-donnees.md](immigration-donnees.md) | L'immigration en séries longues : demandes d'asile, titres de séjour, recensement — ruptures de nomenclature signalées, pas lissées. |
+| [chomage-donnees.md](chomage-donnees.md) | Le taux de chômage au sens BIT, ses ruptures de série, et ce qu'il ne mesure pas (halo, sous-emploi). |
+| [retraite-donnees.md](retraite-donnees.md) | Âges de départ, taux de remplacement, régimes — ce qui se compare d'une génération à l'autre et ce qui ne se compare pas. |
+| [securite-sociale-donnees.md](securite-sociale-donnees.md) | Note-chapeau : le périmètre LFSS contre la protection sociale au sens large, et le renvoi vers chômage/retraite/cotisations déjà chargés. |
+| [securite-police-donnees.md](securite-police-donnees.md) | Le budget de la police nationale (mission Sécurités) : 87 % de personnel, ce qui manque encore (effectifs, police municipale). |
+| [defense-donnees.md](defense-donnees.md) | Le budget de la Défense face à la trajectoire LPM — pourquoi les deux chiffres cités ne coïncident pas. |
+| [education-donnees.md](education-donnees.md) | Budget, effectifs par établissement, effectifs d'élèves : ce qu'ils disent ensemble de la démographie scolaire. |
+| [ecologie-donnees.md](ecologie-donnees.md) | Cinq notions que le débat public confond : budget vert, dépense environnementale, investissement climat, fiscalité écologique, résultats physiques. |
+| [bassins-versants-donnees.md](bassins-versants-donnees.md) | La gouvernance de l'eau : agences de bassin, compétence GEMAPI, ce qui existe déjà avant toute carte. |
+| [collectivites-donnees.md](collectivites-donnees.md) | D'où vient l'argent des collectivités : fiscalité propre contre dotation de l'État (DGF), et le cas particulier des régions. |
+| [pouvoirs-publics-donnees.md](pouvoirs-publics-donnees.md) | Le budget de la mission Pouvoirs publics (Présidence, Assemblée, Sénat…) et ce qu'il ne permet jamais d'isoler. |
+| [pauvrete-donnees.md](pauvrete-donnees.md) | Le seuil de pauvreté contre les « foyers modestes » : deux notions à ne pas confondre, l'aide alimentaire, la France en contexte européen. |
+| [international-donnees.md](international-donnees.md) | La France comparée à l'Europe, au G8 et au monde : salaire minimum, PIB face à l'épuisement des ressources, et les sujets encore hors de portée. |
+| [commande-publique-donnees.md](commande-publique-donnees.md) | Les DECP : qui achète, à qui, pour combien — 2,1 millions de marchés, 2018-2026. |
+| [sante-donnees.md](sante-donnees.md) | FINESS, RPPS, PMSI, Open Damir : la santé vue par cinq sources qui ne se recoupent pas, et les déserts médicaux au-delà de la seule densité. |
 
 ## Dossiers verticaux
 
