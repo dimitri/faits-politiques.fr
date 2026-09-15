@@ -1,8 +1,8 @@
 {
-  "genere_le": "2026-09-15T20:13:15Z",
+  "genere_le": "2026-09-15T20:21:40Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
-  "nombre_sources": 122,
+  "nombre_sources": 123,
   "sources": [
     {
       "slug": "acteurs-numeriques-francais",
@@ -7059,6 +7059,42 @@
         }
       ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "depp-inserjeunes-apprentissage",
+      "label": "DEPP — InserJeunes, insertion des apprentis par CFA",
+      "publisher": "Direction de l'évaluation, de la prospective et de la performance (DEPP)",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "annuelle",
+      "notes": "Six promotions cumulées (2018-2019 à 2023-2024), par CFA et niveau de formation. Aucun effectif publié par CFA : ne permet pas de calculer un taux national pondéré, seulement des statistiques descriptives sur les taux eux-mêmes.",
+      "derniere_ingestion_reussie": "2026-09-15T20:19:36",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "vieillesse-v1",
+      "format_detecte": "API Opendatasoft (export JSON)",
+      "urls_origine": [
+        "https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-inserjeunes-cfa-niveau_formation/exports/json?limit=-1"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 13391967,
+      "chemins_locaux": [
+        "2026/09/15/50187ed4d11989d8b21279e4ec4c0cf82c0d6ad7dcff45211a1004148c08779a.json"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "insertion_apprentissage",
+          "lignes_totales_estimees": 32953,
+          "lignes_pour_cette_source": 32953,
+          "taille_octets": 9224192,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
+      "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
     },
     {
       "slug": "depp-personnels-etablissements",

@@ -1762,6 +1762,15 @@ var checks = []check{
 		          SELECT annee, sum(depenses_total_eur) AS total FROM core.apa_domicile GROUP BY annee
 		        ) x WHERE total NOT BETWEEN 1e9 AND 5e9`,
 	},
+	{
+		name:  "InserJeunes couvre au moins six promotions",
+		query: `SELECT count(DISTINCT annee_cumul) FROM core.insertion_apprentissage`,
+		min:   6,
+	},
+	{
+		name:  "les taux InserJeunes restent des pourcentages valides",
+		query: `SELECT count(*) FROM core.insertion_apprentissage WHERE taux_emploi_6_mois NOT BETWEEN 0 AND 100`,
+	},
 }
 
 func main() {
