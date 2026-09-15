@@ -465,6 +465,7 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		"fiscalite-twz": fiscalite.IngestTWZ, "fiscalite-filiales": fiscalite.IngestFiliales,
 		"fiscalite-comptes": fiscalite.IngestComptes,
 		"fiscalite-marches": fiscalite.IngestMarches, "fiscalite-faits": fiscalite.IngestFaits,
+		"fiscalite-transparence": fiscalite.IngestTransparence,
 	} {
 		if only == nom {
 			return f(ctx, pool, arch)

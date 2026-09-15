@@ -145,4 +145,42 @@ var checksFiscalite = []check{
 		                 GROUP BY a.source) t USING (source)
 		         WHERE v.n <> t.n`,
 	},
+	{
+		// Une déclaration pays par pays transcrite à la main : la somme des
+		// bénéfices de toutes les juridictions doit retrouver, à 0,5 % près, le
+		// bénéfice avant impôt du groupe déposé à la SEC pour le même exercice.
+		name: "déclarations pays par pays publiques : la somme des juridictions retrouve le bénéfice du 10-K",
+		query: `SELECT count(*) FROM (SELECT groupe, exercice_fin, sum(benefice_avant_impot) b FROM core.cbcr_public GROUP BY 1, 2) c
+		          JOIN core.groupe_resultat_sec s ON s.groupe = c.groupe AND s.exercice_fin = c.exercice_fin
+		                                         AND s.concept = 'BENEFICE_AVANT_IMPOT'
+		         WHERE abs(c.b - s.valeur) > 0.005 * abs(s.valeur)`,
+	},
+	{
+		name: "déclarations pays par pays publiques : chaque rapport a son contrôle SEC",
+		query: `SELECT count(*) FROM (SELECT DISTINCT groupe, exercice_fin FROM core.cbcr_public) c
+		         WHERE NOT EXISTS (SELECT 1 FROM core.groupe_resultat_sec s WHERE s.groupe = c.groupe
+		                             AND s.exercice_fin = c.exercice_fin AND s.concept = 'BENEFICE_AVANT_IMPOT')`,
+	},
+	{
+		name:  "SEC : l'impôt annuel est chargé pour les groupes suivis",
+		query: `SELECT count(DISTINCT groupe) FROM core.groupe_resultat_sec WHERE concept = 'IMPOT'`,
+		min:   20,
+	},
+	{
+		// Un statut qui accuse doit reposer sur un fait officiel existant.
+		name: "statuts fiscaux : tout statut établi repose sur des faits officiels chargés",
+		query: `SELECT count(*) FROM ref.groupe_statut_fiscal s
+		         WHERE s.statut NOT IN ('AUCUN_CONSTAT_PUBLIC','GROUPE_FRANCAIS')
+		           AND (cardinality(s.faits) = 0 OR EXISTS (
+		                 SELECT 1 FROM unnest(s.faits) f
+		                  WHERE NOT EXISTS (SELECT 1 FROM ref.fait_multinationale m WHERE m.id = f AND m.qualite = 'OFFICIEL')))`,
+	},
+	{
+		name:  "statuts fiscaux : chaque groupe de la sélection a un statut",
+		query: `SELECT count(DISTINCT f.groupe) FROM core.filiale_groupe_etranger f LEFT JOIN ref.groupe_statut_fiscal s USING (groupe) WHERE f.origine = 'SELECTION' AND s.groupe IS NULL`,
+	},
+	{
+		name:  "impôt théorique : jamais négatif, et calculé pour les filiales bénéficiaires",
+		query: `SELECT count(*) FROM derived.filiale_impot_theorique WHERE impot_theorique < 0 OR (resultat_courant_ai > 0 AND impot_theorique = 0)`,
+	},
 }

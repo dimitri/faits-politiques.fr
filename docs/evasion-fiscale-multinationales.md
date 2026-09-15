@@ -87,6 +87,14 @@ Microsoft passent presque toujours par des revendeurs (SCC, Crayon, Computacente
 Econocom) : le titulaire n'est pas Microsoft, et le montant couvre souvent d'autres
 produits.
 
+**Les marchés les plus élevés des éditeurs et intégrateurs** (titulaire du groupe, montants
+maximaux ou estimés, montants suspects exclus) : Oracle France, 300 M€ de support et
+maintenance avec le Service des achats de l'État (2023) et 35 M€ de support pour la DGFiP
+(2024-2027) ; Compagnie IBM France, 36 M€ de mainframe pour la CNAV (2025) et 21,9 M€ de
+licences et support z/OS pour la DGFiP (2024) ; Accenture, 200 M€ d'accord-cadre
+« intelligence de la donnée » avec l'UGAP (2023). **Palantir n'apparaît pas** : les marchés
+de renseignement échappent à l'obligation de publication.
+
 **Amazon Web Services est presque absent des données essentielles**, alors que le
 Sénat chiffre ses ventes à l'État : les services d'hébergement passent par le marché
 cloud de l'UGAP, dont le titulaire est un distributeur (Crayon, après Capgemini), ou par
@@ -122,7 +130,15 @@ que des montants partiels attribués à Crayon.
 | S3NS (Thales-Google Cloud) | qualification SecNumCloud de l'offre bâtie sur Google Cloud (déc. 2025) | — | communiqué de l'entreprise |
 | Bleu (Orange-Capgemini) | « cloud de confiance » pour l'État bâti sur Microsoft 365 et Azure, sous licence | non public | communiqué des entreprises |
 | Capgemini (français) | appui à la préfiguration de la plateforme des données de santé (2018-2019), finalement hébergée sur Azure | — | Sénat (rapport n° 830) |
+| Palantir | premier contrat de la DGSI après les attentats de 2015 (2016) | environ 10 M€ | presse |
 | Palantir | renouvellement pour trois ans du contrat de la DGSI | non public | Sénat (question écrite, 2025) |
+| Palantir | annonce du remplacement par le français ChapsVision, bascule prévue en 2027 (juin 2026) | — | presse |
+| Accenture | crise sanitaire : 16 commandes de conseil, 16,1 % des 41,05 M€ commandés, troisième cabinet | 5,34 M€ commandés | Sénat (rapport n° 578, 2022) |
+| Accenture | architecte des SI de la vaccination et du passe sanitaire ; spécifications rédigées par le cabinet, État « en situation de dépendance » | 5,2 M€ commandés | Sénat (rapport n° 578) |
+| Accenture | 18 commandes de la DGS au groupement McKinsey-Accenture sur l'accord-cadre de conseil, sans remise en concurrence | 16,21 M€ commandés | Sénat (rapport n° 578) |
+| IBM | grands serveurs IBM z/OS au cœur du SI de la DGFiP, dont la paie des fonctionnaires | — | Sénat (réponse ministérielle, 2021) |
+| IBM | plate-forme IBM z/OS de la DGFiP financée par le fonds de modernisation (2018) | 2,3 M€ | Cour des comptes (2019) |
+| Oracle | logiciels Oracle : 8,5 M€ par an à la DGFiP, 1,2 M€ par an à l'Éducation nationale hors bases de données (2026) | 8,5 M€ par an | auditions parlementaires rapportées par la presse |
 | McDonald's | convention judiciaire : 508 M€ d'amende, 737 M€ d'impôt | 1,245 Md€ | ministère de l'Économie (2022) |
 | McKinsey | aucun impôt sur les sociétés en France de 2011 à 2020 | CA 2020 : 329 M€ | Sénat (commission d'enquête, 2022) |
 
@@ -140,6 +156,92 @@ hydrogène) ; IBM a reçu 6,6 M€ au titre de la recherche.
 crédits d'impôt sont couverts par le secret fiscal entreprise par entreprise : seuls
 leurs totaux sont publics. Aucune donnée ouverte ne dit ce qu'une multinationale en a
 obtenu.
+
+## 4 bis. L'impôt payé en France : ce qu'on sait, groupe par groupe
+
+Avoir des marchés publics n'est pas un indice d'évasion. Le dossier distingue donc,
+pour chaque groupe suivi, ce que les sources officielles établissent
+(`ref.groupe_statut_fiscal`, vue `derived.fiche_impot_groupe`) :
+
+| statut | groupes | fondement |
+|---|---|---|
+| fraude transigée | Google, McDonald's | conventions judiciaires d'intérêt public (2019, 2022) |
+| impôt nul constaté | McKinsey | commission d'enquête du Sénat (2022) |
+| facturation depuis une société étrangère établie | Microsoft | contrat de la Défense conclu avec la société irlandaise (Sénat, 2017) |
+| groupe français | Capgemini | société de tête à Paris |
+| aucun constat public | Oracle, IBM, Accenture, Palantir, Amazon, Apple, Meta, Netflix, Disney et les autres groupes suivis | aucune source officielle ne documente de fraude, de facturation depuis l'étranger ni d'impôt nul |
+
+Un statut autre que « aucun constat public » ne peut exister sans fait officiel chargé
+(contrôle dans `cmd/verify`).
+
+### Trois sources, trois échelles
+
+**1. Les comptes des filiales françaises** (INPI-BCE, `derived.filiale_impot_theorique`).
+L'écart entre résultat courant avant impôt et résultat net est comparé à l'impôt
+**théorique** : taux normal de 25 %, contribution sociale de 3,3 % de l'impôt au-delà de
+763 000 €, et, pour les exercices clos à compter du 31 décembre 2025, contribution
+exceptionnelle de 20,6 % ou 41,2 % de l'impôt pour un chiffre d'affaires d'au moins 1 ou
+3 Md€ (loi de finances pour 2025, art. 48 ; BOFiP).
+
+| filiale (dernier exercice) | résultat courant | écart publié | impôt théorique |
+|---|---:|---:|---:|
+| Microsoft France (juin 2025) | 424 M€ | 144 M€ | 109 M€ |
+| Google France (2024) | 103 M€ | 39 M€ | 26 M€ |
+| Amazon France Logistique (2025) | 105 M€ | 46 M€ | 33 M€ |
+| Accenture (août 2025) | 110 M€ | 48 M€ | 28 M€ |
+| Compagnie IBM France (2025) | 40 M€ | 36 M€ | 12 M€ |
+| Oracle France (mai 2025) | 37 M€ | 8 M€ | 9 M€ |
+| Palantir Technologies France (2024) | 8 M€ | 5 M€ | 2 M€ |
+
+**Lecture : sur le bénéfice qu'elles déclarent en France, les filiales supportent un
+écart au moins égal à l'impôt théorique.** L'écart dépasse souvent l'impôt parce qu'il
+contient aussi la participation des salariés et les éléments exceptionnels. Ce constat
+ne dit rien du bénéfice qui n'est pas déclaré en France : c'est là que se situe la
+question.
+
+**2. Les déclarations pays par pays publiques** (`core.cbcr_public`). La directive (UE)
+2021/2101 oblige les groupes de plus de 750 M€ de chiffre d'affaires à publier, pour
+chaque État membre, chiffre d'affaires, bénéfice avant impôt, impôt dû et payé, salariés.
+Premiers rapports : exercices ouverts à compter du 22 juin 2024, publiés dans les douze
+mois suivant la clôture — donc à partir de mi-2026, fin 2026 pour les exercices
+calendaires. **Au 15 septembre 2026, seul Microsoft est chargé** (exercice juillet 2024 -
+juin 2025) :
+
+| juridiction | chiffre d'affaires | bénéfice avant impôt | impôt dû | salariés | bénéfice par salarié |
+|---|---:|---:|---:|---:|---:|
+| France | 6,67 Md$ | 487 M$ | 131 M$ (27,0 %) | 2 568 | 189 k$ |
+| Allemagne | 11,69 Md$ | 661 M$ | 221 M$ (33,4 %) | 3 471 | 191 k$ |
+| Irlande | 196,03 Md$ | 47 083 M$ | 6 646 M$ (14,1 %) | 6 654 | 7 076 k$ |
+| Luxembourg | 0,20 Md$ | 283 M$ | 9 M$ (3,3 %) | 34 | 8 334 k$ |
+| hors UE (agrégat) | 279,17 Md$ | 74 618 M$ | 26 244 M$ (35,2 %) | 198 843 | 375 k$ |
+
+En France, Microsoft déclare une marge de 7,3 % de son chiffre d'affaires ; en Irlande,
+24 %, sur un chiffre d'affaires qui comprend les ventes aux clients européens facturées
+depuis Dublin et des flux intragroupe. L'impôt **payé** en France est négatif
+(−96 M$) : le groupe l'explique par le remboursement d'un trop-versé antérieur. Contrôle :
+la somme des juridictions (123,6 Md$) retrouve le bénéfice avant impôt du groupe déposé à
+la SEC pour le même exercice, à 0,5 % près.
+
+**3. Les rapports déposés en bourse** (`core.groupe_resultat_sec`, API XBRL de la SEC,
+25 groupes). Les rapports annuels américains (10-K) sont publics et structurés, mais **ne
+ventilent pas l'impôt par pays** : ils séparent bénéfice « domestique » (États-Unis) et
+« étranger », et impôt courant étranger. Ils donnent le taux effectif du groupe et la
+part de son bénéfice réalisée hors des États-Unis, pas la France. Les rapports des
+groupes cotés en Europe (format ESEF) ne ventilent pas davantage par pays. Les comptes
+des sociétés irlandaises (Microsoft Ireland Operations, Google Ireland) sont déposés au
+registre irlandais, dont les copies sont payantes : ils ne sont pas chargés.
+
+### Ce qui manque encore
+
+- Les déclarations pays par pays des autres groupes : Alphabet, Amazon, IBM, Palantir,
+  Apple, Meta (exercices calendaires 2025, attendues au plus tard fin 2026), Oracle
+  (exercice juin 2025 - mai 2026, attendue au plus tard en mai 2027) ; Accenture (exercice
+  septembre 2024 - août 2025) pourrait déjà l'avoir publié : le rapport n'a pas été trouvé
+  en ligne, le dépôt pouvant n'être accessible qu'au registre d'un État membre.
+- Les rapports publiés en Roumanie depuis 2024 (application anticipée de la directive) ne
+  contiennent que la ligne roumaine : ils ne renseignent pas la France.
+- L'impôt effectivement acquitté par une filiale française reste couvert par le secret
+  fiscal ; seule la déclaration publique du groupe le donne, toutes entités confondues.
 
 ## 5. Pourquoi un marché public ne peut pas exiger l'impôt payé en France
 
@@ -191,8 +293,11 @@ chargés** (D-059).
 | missingprofits.world | `missing-profits-twz-wz` | RESTRICTED | WZ2022 Table A (2015-2019), TWZ2022 Table 3 (2015) |
 | GLEIF Golden Copy | `gleif-lei-niveau2` | CC0 | sociétés françaises (SIREN) déclarant une mère ultime étrangère |
 | Ratios INPI/BCE | `inpi-bce-ratios-financiers` | Licence ouverte | CA, EBE, résultat courant avant impôt (reconstitué), résultat net |
+| BOFiP, code général des impôts | `parametres-impot-societes` | ATTRIBUTION | taux normal, contribution sociale, contribution exceptionnelle 2025 |
+| Rapports publics pays par pays des groupes (directive (UE) 2021/2101) | `cbcr-publics-groupes` | ATTRIBUTION | Microsoft, exercice 2025, toutes juridictions |
+| SEC EDGAR, API XBRL | `sec-xbrl-companyfacts` | OPEN (domaine public) | impôt, bénéfice avant impôt (total, domestique, étranger), impôt courant étranger, chiffre d'affaires, 25 groupes, exercices clos depuis 2020 |
 | Données essentielles de la commande publique, consolidées (decp.info) | `decp-consolidees` | Licence ouverte | marchés dont le titulaire ou l'objet se rattache à un groupe suivi, dernière version de chaque marché |
-| Sénat (dont le rapport n° 830 de 2025 sur la commande publique), Assemblée nationale, Conseil d'État, AFA, ministère de l'Économie ; presse et entreprises, signalées | `faits-multinationales` | ATTRIBUTION | 24 faits : contrats, ventes via l'UGAP, règlements fiscaux, constats d'enquête, chacun avec sa qualité (officiel, presse, entreprise) |
+| Sénat (dont les rapports n° 578 de 2022 sur les cabinets de conseil et n° 830 de 2025 sur la commande publique), Cour des comptes, Assemblée nationale, Conseil d'État, AFA, ministère de l'Économie ; presse et entreprises, signalées | `faits-multinationales` | ATTRIBUTION | 32 faits : contrats, ventes via l'UGAP, règlements fiscaux, constats d'enquête, chacun avec sa qualité (officiel, presse, entreprise) |
 
 ## 8. Pièges
 
@@ -270,7 +375,17 @@ chargés** (D-059).
     Web Systèmes, éditeur de plateformes de marchés publics, et « Amazon » des sociétés
     guyanaises : le rattachement exige la dénomination d'une société du groupe
     (Amazon Web Services, Amazon EU…).
-17. **Faits de presse.** Le montant du contrat Microsoft de la Défense n'a jamais été
+17. **Impôt théorique ≠ impôt dû.** Le résultat fiscal diffère du résultat courant
+    (réintégrations, déficits reportés, régimes particuliers) et les crédits d'impôt, dont
+    le crédit d'impôt recherche, réduisent l'impôt sans apparaître dans les ratios. Le
+    seuil de la contribution exceptionnelle est apprécié ici société par société, alors
+    que la loi le mesure au niveau du groupe fiscalement intégré : l'impôt théorique des
+    filiales d'un même groupe intégré est sous-estimé.
+18. **Déclaration pays par pays ≠ comptes de la filiale.** Le rapport public agrège
+    toutes les entités du groupe dans le pays et suit l'exercice du groupe ; le chiffre
+    d'affaires y inclut les ventes intragroupe. Impôt payé et impôt dû diffèrent
+    (acomptes, remboursements).
+19. **Faits de presse.** Le montant du contrat Microsoft de la Défense n'a jamais été
     publié par le ministère ; il vient de la presse et de parlementaires qui la citent.
     Il est présenté comme tel.
 

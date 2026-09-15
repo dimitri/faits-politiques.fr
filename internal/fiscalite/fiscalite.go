@@ -145,7 +145,7 @@ func lireCSV(path string) ([]map[string]string, error) {
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	for _, e := range []func(context.Context, *pgxpool.Pool, *archive.Archive) error{
 		IngestListes, IngestOCDEImpotSocietes, IngestOCDEIDE, IngestFATS, IngestTWZ, IngestFiliales,
-		IngestMarches, IngestFaits,
+		IngestMarches, IngestFaits, IngestTransparence,
 	} {
 		if err := e(ctx, pool, arch); err != nil {
 			return err

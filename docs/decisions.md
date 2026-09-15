@@ -2069,3 +2069,54 @@ titulaire est un distributeur, ou par des contrats hors publication. Les montant
 viennent du Sénat. Le rattachement par nom et par objet exige désormais la
 dénomination d'une société du groupe : « AWS » désigne aussi Avenue Web Systèmes,
 éditeur de plateformes de marchés publics.
+
+## D-063 — Palantir, Oracle, IBM et Accenture ; les montants « commandés »
+
+Migration 0090, `internal/fiscalite/dossier.go` (`-only=fiscalite-faits`).
+
+**Une nature de montant de plus : COMMANDE.** Le rapport n° 578 du Sénat sur les
+cabinets de conseil chiffre des commandes émises sur des accords-cadres (5,34 M€ pour
+Accenture pendant la crise sanitaire, 16,21 M€ au groupement McKinsey-Accenture). Ce ne
+sont ni des plafonds de marché ni des paiements constatés ; les ranger sous l'une ou
+l'autre étiquette aurait trompé le lecteur.
+
+**Palantir : deux faits de presse, signalés comme tels.** Le montant du premier contrat
+de la DGSI (environ 10 M€, 2016) et l'annonce de son remplacement par ChapsVision (juin
+2026) ne viennent que de la presse ; la seule source officielle chargée reste la question
+écrite de 2025. Les marchés de renseignement échappent à la publication : l'absence de
+Palantir dans les données essentielles n'est pas une absence de dépense.
+
+**Oracle et IBM : les données essentielles portent l'essentiel.** Les plus gros marchés
+(300 M€ de support Oracle avec le Service des achats de l'État, licences et mainframes
+IBM de la DGFiP et de la CNAV) viennent directement de la commande publique ; les faits
+ajoutés situent ces technologies dans le système d'information de l'État (réponse
+ministérielle de 2021, Cour des comptes 2019) et, pour Oracle, des dépenses annuelles
+rapportées par la presse depuis des auditions parlementaires.
+
+## D-064 — L'impôt payé en France : un statut fondé par groupe, un impôt théorique, les déclarations pays par pays publiques
+
+Migration 0092, `internal/fiscalite/transparence.go` (`-only=fiscalite-transparence`),
+docs/evasion-fiscale-multinationales.md § 4 bis.
+
+**Contrats publics et évasion ne se confondent pas.** Chaque groupe suivi porte un statut
+(`ref.groupe_statut_fiscal`) : fraude transigée, impôt nul constaté, facturation depuis
+une société étrangère établie, groupe français, ou aucun constat public. Les trois
+premiers exigent un fait OFFICIEL chargé ; le connecteur refuse tout autre fondement.
+Oracle, IBM, Accenture et Palantir, dont les marchés publics figurent au dossier, sont
+« aucun constat public » : la présentation doit le dire à côté de leurs contrats.
+
+**L'impôt théorique est un point de comparaison, pas une estimation de l'impôt dû.** Il
+applique au résultat courant avant impôt de chaque filiale le taux normal, la
+contribution sociale et la contribution exceptionnelle de 2025, à partir de paramètres
+sourcés (`ref.parametre_is`, BOFiP). Le constat qu'il permet — l'écart publié couvre au
+moins l'impôt théorique — porte sur le bénéfice déclaré en France, jamais sur celui qui
+ne l'est pas.
+
+**La bourse ne donne pas la France ; la directive européenne, si.** Les rapports 10-K de
+la SEC (API XBRL, domaine public) sont chargés pour le taux effectif des groupes et leur
+part de bénéfice étranger ; ils ne ventilent pas par pays. Les déclarations pays par pays
+publiques (directive (UE) 2021/2101) sont la seule source ouverte d'impôt dû en France
+par groupe ; elles paraissent depuis mi-2026. Chaque rapport est transcrit du document
+scellé et contrôlé contre le bénéfice du groupe déposé à la SEC. Les rapports roumains
+anticipés ne portent que sur la Roumanie. Les comptes irlandais, payants, ne sont pas
+chargés.

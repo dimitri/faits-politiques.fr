@@ -31,7 +31,10 @@ type fait struct {
 	montant, nature, qualite, constat, url                            string
 }
 
-const urlSenat830 = "https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf"
+const (
+	urlSenat830 = "https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf"
+	urlSenat578 = "https://www.senat.fr/rap/r21-578-1/r21-578-11.pdf"
+)
 
 var faits = []fait{
 	{"microsoft-defense-ppr-2017", "Microsoft Corporation", "CONTRAT", "2017-10-16", "2009-2021", "Microsoft Ireland Operations Limited", "Ministère de la Défense",
@@ -98,6 +101,38 @@ var faits = []fait{
 		"Lancement commercial de Bleu, « cloud de confiance » bâti sur Microsoft 365 et Azure", "", "", "ENTREPRISE",
 		"Coentreprise d'Orange et de Capgemini, Bleu exploite sous licence les services Microsoft 365 et Azure pour l'État et les organismes publics, en visant la qualification SecNumCloud ; Microsoft est rémunéré par les licences, dont le montant n'est pas public.",
 		"https://www.capgemini.com/fr-fr/actualites/communiques-de-presse/capgemini-et-orange-annoncent-le-lancement-des-activites-commerciales-de-bleu-leur-future-plateforme-de-cloud-de-confiance/"},
+	{"accenture-crise-sanitaire", "Accenture plc", "CONTRAT", "", "2020-2022", "Accenture", "Ministère des Solidarités et de la Santé et autres administrations (hors Santé publique France)",
+		"Commandes de conseil pendant la crise sanitaire", "5337086", "COMMANDE", "OFFICIEL",
+		"Accenture a reçu 16 commandes pour 5,34 M€, soit 16,1 % des 41,05 M€ de conseil commandés pendant la crise, troisième cabinet après McKinsey (37,2 %) et Citwell (20,5 %) (commission d'enquête du Sénat sur les cabinets de conseil, rapport n° 578, p. 236).",
+		urlSenat578},
+	{"accenture-vac-si-passe-sanitaire", "Accenture plc", "CONTROVERSE", "", "2020-2022", "Accenture", "Direction générale de la santé",
+		"Architecte des systèmes d'information de la vaccination et du passe sanitaire", "5200000", "COMMANDE", "OFFICIEL",
+		"3,3 M€ pour le système d'information de la vaccination (11 commandes) et 1,9 M€ pour le passe sanitaire (4 commandes) ; les spécifications techniques, rédigées par Accenture, sont restées maîtrisées par le cabinet pendant de longs mois, plaçant l'État « dans une situation de dépendance » (rapport n° 578, p. 95).",
+		urlSenat578},
+	{"accenture-mckinsey-dgs-commandes", "Accenture plc", "CONTRAT", "", "2020-2021", "Groupement McKinsey et Accenture", "Direction générale de la santé",
+		"18 commandes au même groupement sur l'accord-cadre de conseil de l'État", "16210000", "COMMANDE", "OFFICIEL",
+		"Le groupement McKinsey-Accenture a reçu 18 commandes pour 16,21 M€ sur trois besoins distincts, par une lecture extensive du « droit de suite », pendant que d'autres attributaires de l'accord-cadre n'en recevaient aucune ; la DGS a aussi passé par l'UGAP pour garder Accenture sans nouvelle mise en concurrence (rapport n° 578, p. 67 et 239).",
+		urlSenat578},
+	{"ibm-dgfip-mainframes", "IBM", "CONTRAT", "2021-09-23", "", "IBM", "Direction générale des finances publiques",
+		"Grands serveurs IBM z/OS au cœur du système d'information de la DGFiP", "", "", "OFFICIEL",
+		"Le ministère indique que les grands serveurs Bull et IBM z/OS abritent 40 applications indispensables de la DGFiP, dont la paie des fonctionnaires en cours de migration, avec un « coût de possession » élevé (maintenance, matériel, licences).",
+		"https://www.senat.fr/questions/base/2019/qSEQ190711376.html"},
+	{"ibm-dgfip-plateforme-2018", "IBM", "CONTRAT", "", "2018", "IBM", "Direction générale des finances publiques",
+		"Plate-forme IBM z/OS financée par le fonds de modernisation du ministère", "2300000", "PAYE", "OFFICIEL",
+		"2,3 M€ attribués en 2018 à la plate-forme IBM z/OS de la DGFiP, sur 8,6 M€ de projets financés par le fonds de modernisation du secrétariat général (Cour des comptes, Les systèmes d'information de la DGFiP et de la DGDDI, 2019, p. 92).",
+		"https://www.ccomptes.fr/sites/default/files/2023-10/20190528-rapport-investissements-informatiques-DGFiP-DGDDI_0.pdf"},
+	{"oracle-dgfip-education-2026", "Oracle Corporation", "CONTRAT", "", "2026", "Oracle", "DGFiP ; ministère de l'Éducation nationale",
+		"Dépenses annuelles de logiciels Oracle de la DGFiP et de l'Éducation nationale", "8500000", "PAYE", "PRESSE",
+		"Selon des auditions parlementaires rapportées par la presse spécialisée : 8,5 M€ par an de logiciels Oracle à la DGFiP, 1,2 M€ par an à l'Éducation nationale hors bases de données ; migrations engagées vers des logiciels libres dans plusieurs administrations.",
+		"https://www.silicon.fr/business-1367/oracle-secteur-public-dependance-227950/amp"},
+	{"palantir-dgsi-2016", "Palantir Technologies Inc.", "CONTRAT", "", "2016", "Palantir Technologies", "Direction générale de la sécurité intérieure",
+		"Premier contrat de la DGSI avec Palantir, après les attentats de 2015", "10000000", "ESTIME", "PRESSE",
+		"Contrat d'environ 10 M€ conclu à l'été 2016 selon la presse, présenté par la DGSI comme une solution transitoire ; montant jamais publié officiellement.",
+		"https://www.portail-ie.fr/univers/defense-industrie-de-larmement-et-renseignement/2017/contrat-palantir-dgsi-et-apres/"},
+	{"palantir-chapsvision-2026", "Palantir Technologies Inc.", "CONTROVERSE", "2026-06-16", "", "Palantir Technologies", "Direction générale de la sécurité intérieure",
+		"Annonce du remplacement de Palantir par le français ChapsVision", "", "", "PRESSE",
+		"Le Premier ministre annonce que la DGSI remplacera Palantir par la plateforme du français ChapsVision, bascule prévue en 2027 selon la presse, alors que le contrat avait été renouvelé pour trois ans en décembre 2025.",
+		"https://www.maddyness.com/2026/06/16/chapsvision-remplace-le-geant-americain-palantir-aupres-de-la-dgsi/"},
 	{"google-cjip-2019-amende", "Alphabet Inc.", "REGULARISATION", "", "2019 (faits 2005-2018)", "Google France et Google Ireland Limited", "Parquet national financier",
 		"Convention judiciaire d'intérêt public : amende", "500000000", "AMENDE", "OFFICIEL",
 		"Amende d'intérêt public de 500 M€ pour clore les poursuites pour fraude fiscale aggravée ; l'administration soutenait que Google Ireland exerçait en France une activité imposable.",
