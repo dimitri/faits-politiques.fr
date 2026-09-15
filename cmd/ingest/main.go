@@ -12,6 +12,7 @@ import (
 	"os"
 	"os/signal"
 	"path/filepath"
+	"sort"
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/agriculture"
@@ -22,6 +23,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/budget"
 	"github.com/faits-politiques/faits-politiques/internal/campagne"
 	"github.com/faits-politiques/faits-politiques/internal/carto"
+	"github.com/faits-politiques/faits-politiques/internal/checksum"
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/damir"
 	"github.com/faits-politiques/faits-politiques/internal/decp"
@@ -54,7 +56,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | sae | rpps | hydro | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | sae | rpps | hydro | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media | checksums")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -681,6 +683,10 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		return entreprises.Ingest(ctx, pool, arch)
 	}
 
+	if only == "checksums" {
+		return recalculerEmpreintes(ctx, pool)
+	}
+
 	// Investissement et dividendes des sociétés non financières, et le tissu
 	// productif par catégorie d'entreprise : le point de départ du chantier
 	// sur ce que finance réellement l'argent des entreprises, et où. Hors
@@ -741,7 +747,44 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		return err
 	}
 
+	// En dernier, quel que soit -only : bon marché (quelques secondes,
+	// mesuré), et une exécution partielle (-only=exposes, par exemple) peut
+	// très bien avoir touché une table dont dépend une section du cache de
+	// cmd/build (core.texte_expose fait partie de la section « scrutin »).
+	if err := recalculerEmpreintes(ctx, pool); err != nil {
+		return err
+	}
+
 	fmt.Printf("\nterminé en %s\n", time.Since(start).Round(time.Second))
+	return nil
+}
+
+// recalculerEmpreintes met à jour core.section_checksum pour chaque section
+// que cmd/build sait recopier plutôt que reconstruire (checksum.Sections).
+// Ne décide de rien côté construction — seulement ce que cmd/build lira pour
+// décider, lui, si les données d'une section ont changé.
+func recalculerEmpreintes(ctx context.Context, pool *pgxpool.Pool) error {
+	fmt.Println("\nempreintes des sections (cache de construction)")
+	noms := make([]string, 0, len(checksum.Sections))
+	for section := range checksum.Sections {
+		noms = append(noms, section)
+	}
+	sort.Strings(noms)
+	for _, section := range noms {
+		h, err := checksum.Section(ctx, pool, checksum.Sections[section])
+		if err != nil {
+			return err
+		}
+		if _, err := pool.Exec(ctx, `
+			INSERT INTO core.section_checksum (section, data_hash, updated_at)
+			VALUES ($1, $2, now())
+			ON CONFLICT (section) DO UPDATE
+			SET data_hash = excluded.data_hash, updated_at = excluded.updated_at`,
+			section, h); err != nil {
+			return err
+		}
+		fmt.Printf("  %s : %s\n", section, h[:12])
+	}
 	return nil
 }
 

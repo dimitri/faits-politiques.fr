@@ -18,15 +18,29 @@ func DSN() string {
 	return "postgres://fp:fp@localhost:55432/fp?sslmode=disable"
 }
 
-// Open ouvre un pool. MaxConns est délibérément bas : en conteneur serverless,
-// chaque instance a son propre pool et un scale-up saturerait la base managée
-// (cf. docs/decisions.md D-012).
+// Open ouvre un pool à 4 connexions au plus — le défaut partagé par les
+// commandes qui parlent à la base ponctuellement (ingest, verify). Il est
+// délibérément bas dans l'hypothèse d'un hébergement serverless, où chaque
+// instance aurait son propre pool et un scale-up saturerait une base managée
+// partagée (cf. docs/decisions.md D-012). Cette hypothèse ne tient plus pour
+// le déploiement réel (une seule machine, sa propre Postgres) mais rien ne
+// prouve encore qu'elle ne tiendra jamais : OpenWithMaxConns existe pour les
+// commandes qui, comme cmd/build, ont un besoin ponctuel et mesuré de plus de
+// parallélisme, sans changer ce défaut pour tout le monde.
 func Open(ctx context.Context) (*pgxpool.Pool, error) {
+	return OpenWithMaxConns(ctx, 4)
+}
+
+// OpenWithMaxConns : comme Open, avec un nombre de connexions choisi par
+// l'appelant. cmd/build s'en sert pour paralléliser plusieurs requêtes
+// indépendantes (cmd/build/lieux_pages.go) — un connecteur d'ingestion
+// ordinaire n'a pas cette raison de s'écarter du défaut.
+func OpenWithMaxConns(ctx context.Context, maxConns int32) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(DSN())
 	if err != nil {
 		return nil, err
 	}
-	cfg.MaxConns = 4
+	cfg.MaxConns = maxConns
 	cfg.MaxConnLifetime = time.Hour
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)

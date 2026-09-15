@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
 )
 
 // Strates de population : une médiane de dette par habitant « toutes communes »
@@ -61,219 +62,254 @@ func chargerPagesCommunes(ctx context.Context, pool *pgxpool.Pool, r *Resolveur,
 		pages[code] = p
 	}
 
-	// 1. Le conseil municipal en cours.
-	rows, err := pool.Query(ctx, `
-		SELECT m.commune_code, p.given_name||' '||p.family_name, p.slug,
-		       m.mandate_type::text, coalesce(m.role,''),
-		       to_char(lower(m.validity),'DD/MM/YYYY')
-		FROM core.mandate m JOIN core.person p ON p.id=m.person_id
-		WHERE m.mandate_type IN ('MAIRE','CONSEILLER_MUNICIPAL')
-		  AND m.commune_code IS NOT NULL AND upper(m.validity) IS NULL`)
-	if err != nil {
-		return nil, err
-	}
-	for rows.Next() {
-		var com, nom, slug, typ, role, depuis string
-		if err := rows.Scan(&com, &nom, &slug, &typ, &role, &depuis); err != nil {
-			rows.Close()
-			return nil, err
-		}
-		p := pages[com]
-		if p == nil {
-			continue
-		}
-		e := EluCommune{Nom: NomPropre(nom), Slug: slug, Depuis: depuis, Fiche: avecFiche[slug]}
-		if typ == "MAIRE" {
-			e.Fonction, e.Ordre = "Maire", 0
-			m := e
-			p.Maire = &m
-			continue // le maire figure aussi comme conseiller : une seule ligne
-		}
-		e.Fonction = role
-		e.Ordre = rangFonction(role)
-		if strings.EqualFold(role, "maire") {
-			continue
-		}
-		p.Elus = append(p.Elus, e)
-	}
-	rows.Close()
-	for _, p := range pages {
-		p.NbConseillers = len(p.Elus)
-		if p.Maire != nil {
-			p.NbConseillers++
-		}
-		trierElus(p.Elus)
-	}
+	// Cinq requêtes indépendantes : chacune ne lit que sa propre ligne de
+	// résultat et n'écrit que ses propres champs de *PageCommune (Maire/Elus,
+	// Finances, Securite, Listes, Associations — jamais les mêmes que sa
+	// voisine). pages lui-même n'est plus modifié après la boucle ci-dessus
+	// (aucune clé ajoutée ou retirée) : des lectures concurrentes de pages[com]
+	// depuis cinq buts sont donc sûres, et cinq allers-retours à Postgres qui
+	// n'ont aucune raison d'attendre l'un après l'autre se recouvrent.
+	g, gctx := errgroup.WithContext(ctx)
 
-	// 2. Finances : la dernière année publiée, indicateur par indicateur.
-	frows, err := pool.Query(ctx, `
-		SELECT DISTINCT ON (commune_code, indicator_code)
-		       commune_code, indicator_code, period_year, value::float8
-		FROM core.commune_indicator
-		WHERE indicator_code LIKE 'ofgl.%\_par\_hab'
-		ORDER BY commune_code, indicator_code, period_year DESC`)
-	if err != nil {
-		return nil, err
-	}
-	valeurs := map[string]map[string]float64{}
-	parStrate := map[int]map[string][]float64{}
-	for frows.Next() {
-		var com, ind string
-		var an int
-		var v float64
-		if err := frows.Scan(&com, &ind, &an, &v); err != nil {
-			frows.Close()
-			return nil, err
+	// 1. Le conseil municipal en cours.
+	g.Go(func() error {
+		rows, err := pool.Query(gctx, `
+			SELECT m.commune_code, p.given_name||' '||p.family_name, p.slug,
+			       m.mandate_type::text, coalesce(m.role,''),
+			       to_char(lower(m.validity),'DD/MM/YYYY')
+			FROM core.mandate m JOIN core.person p ON p.id=m.person_id
+			WHERE m.mandate_type IN ('MAIRE','CONSEILLER_MUNICIPAL')
+			  AND m.commune_code IS NOT NULL AND upper(m.validity) IS NULL`)
+		if err != nil {
+			return err
 		}
-		p := pages[com]
-		if p == nil {
-			continue
-		}
-		if an > p.AnneeFinances {
-			p.AnneeFinances = an
-		}
-		if valeurs[com] == nil {
-			valeurs[com] = map[string]float64{}
-		}
-		valeurs[com][ind] = v
-		s := strate(p.Population)
-		if parStrate[s] == nil {
-			parStrate[s] = map[string][]float64{}
-		}
-		parStrate[s][ind] = append(parStrate[s][ind], v)
-	}
-	frows.Close()
-	medianes := map[int]map[string]float64{}
-	for s, m := range parStrate {
-		medianes[s] = map[string]float64{}
-		for ind, vs := range m {
-			sort.Float64s(vs)
-			medianes[s][ind] = vs[len(vs)/2]
-		}
-	}
-	for com, vals := range valeurs {
-		p := pages[com]
-		s := strate(p.Population)
-		for _, ind := range indicsCommune {
-			v, ok := vals[ind.code]
-			if !ok {
+		defer rows.Close()
+		for rows.Next() {
+			var com, nom, slug, typ, role, depuis string
+			if err := rows.Scan(&com, &nom, &slug, &typ, &role, &depuis); err != nil {
+				return err
+			}
+			p := pages[com]
+			if p == nil {
 				continue
 			}
-			p.Finances = append(p.Finances, IndicCommune{
-				Libelle: ind.lib, Valeur: eurHab(v), Mediane: eurHab(medianes[s][ind.code]),
-				Brut: v, BrutMediane: medianes[s][ind.code],
-			})
+			e := EluCommune{Nom: NomPropre(nom), Slug: slug, Depuis: depuis, Fiche: avecFiche[slug]}
+			if typ == "MAIRE" {
+				e.Fonction, e.Ordre = "Maire", 0
+				m := e
+				p.Maire = &m
+				continue // le maire figure aussi comme conseiller : une seule ligne
+			}
+			e.Fonction = role
+			e.Ordre = rangFonction(role)
+			if strings.EqualFold(role, "maire") {
+				continue
+			}
+			p.Elus = append(p.Elus, e)
 		}
-	}
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, p := range pages {
+			p.NbConseillers = len(p.Elus)
+			if p.Maire != nil {
+				p.NbConseillers++
+			}
+			trierElus(p.Elus)
+		}
+		return nil
+	})
+
+	// 2. Finances : la dernière année publiée, indicateur par indicateur.
+	g.Go(func() error {
+		frows, err := pool.Query(gctx, `
+			SELECT DISTINCT ON (commune_code, indicator_code)
+			       commune_code, indicator_code, period_year, value::float8
+			FROM core.commune_indicator
+			WHERE indicator_code LIKE 'ofgl.%\_par\_hab'
+			ORDER BY commune_code, indicator_code, period_year DESC`)
+		if err != nil {
+			return err
+		}
+		defer frows.Close()
+		valeurs := map[string]map[string]float64{}
+		parStrate := map[int]map[string][]float64{}
+		for frows.Next() {
+			var com, ind string
+			var an int
+			var v float64
+			if err := frows.Scan(&com, &ind, &an, &v); err != nil {
+				return err
+			}
+			p := pages[com]
+			if p == nil {
+				continue
+			}
+			if an > p.AnneeFinances {
+				p.AnneeFinances = an
+			}
+			if valeurs[com] == nil {
+				valeurs[com] = map[string]float64{}
+			}
+			valeurs[com][ind] = v
+			s := strate(p.Population)
+			if parStrate[s] == nil {
+				parStrate[s] = map[string][]float64{}
+			}
+			parStrate[s][ind] = append(parStrate[s][ind], v)
+		}
+		if err := frows.Err(); err != nil {
+			return err
+		}
+		medianes := map[int]map[string]float64{}
+		for s, m := range parStrate {
+			medianes[s] = map[string]float64{}
+			for ind, vs := range m {
+				sort.Float64s(vs)
+				medianes[s][ind] = vs[len(vs)/2]
+			}
+		}
+		for com, vals := range valeurs {
+			p := pages[com]
+			s := strate(p.Population)
+			for _, ind := range indicsCommune {
+				v, ok := vals[ind.code]
+				if !ok {
+					continue
+				}
+				p.Finances = append(p.Finances, IndicCommune{
+					Libelle: ind.lib, Valeur: eurHab(v), Mediane: eurHab(medianes[s][ind.code]),
+					Brut: v, BrutMediane: medianes[s][ind.code],
+				})
+			}
+		}
+		return nil
+	})
 
 	// 3. Sécurité : la dernière année, les quinze indicateurs.
-	srows, err := pool.Query(ctx, `
-		SELECT commune_code, annee, indicateur_code, coalesce(nombre,0),
-		       coalesce(taux_pour_mille,0)::float8, diffuse
-		FROM core.commune_delinquance
-		WHERE annee=(SELECT max(annee) FROM core.commune_delinquance)`)
-	if err != nil {
-		return nil, err
-	}
-	for srows.Next() {
-		var com, ind string
-		var an, n int
-		var taux float64
-		var diff bool
-		if err := srows.Scan(&com, &an, &ind, &n, &taux, &diff); err != nil {
-			srows.Close()
-			return nil, err
+	g.Go(func() error {
+		srows, err := pool.Query(gctx, `
+			SELECT commune_code, annee, indicateur_code, coalesce(nombre,0),
+			       coalesce(taux_pour_mille,0)::float8, diffuse
+			FROM core.commune_delinquance
+			WHERE annee=(SELECT max(annee) FROM core.commune_delinquance)`)
+		if err != nil {
+			return err
 		}
-		p := pages[com]
-		if p == nil {
-			continue
+		defer srows.Close()
+		for srows.Next() {
+			var com, ind string
+			var an, n int
+			var taux float64
+			var diff bool
+			if err := srows.Scan(&com, &an, &ind, &n, &taux, &diff); err != nil {
+				return err
+			}
+			p := pages[com]
+			if p == nil {
+				continue
+			}
+			p.AnneeSecurite = an
+			lib := libelleSecurite[ind][0]
+			if lib == "" {
+				lib = ind
+			}
+			sc := SecuriteCommune{Libelle: lib, Masque: !diff}
+			if diff {
+				sc.Taux, sc.Nombre = Decimal(taux, 1)+" ‰", Nombre(n)
+			}
+			p.Securite = append(p.Securite, sc)
 		}
-		p.AnneeSecurite = an
-		lib := libelleSecurite[ind][0]
-		if lib == "" {
-			lib = ind
+		if err := srows.Err(); err != nil {
+			return err
 		}
-		sc := SecuriteCommune{Libelle: lib, Masque: !diff}
-		if diff {
-			sc.Taux, sc.Nombre = Decimal(taux, 1)+" ‰", Nombre(n)
+		for _, p := range pages {
+			sort.Slice(p.Securite, func(i, j int) bool {
+				return CleTri(p.Securite[i].Libelle) < CleTri(p.Securite[j].Libelle)
+			})
 		}
-		p.Securite = append(p.Securite, sc)
-	}
-	srows.Close()
-	for _, p := range pages {
-		sort.Slice(p.Securite, func(i, j int) bool {
-			return CleTri(p.Securite[i].Libelle) < CleTri(p.Securite[j].Libelle)
-		})
-	}
+		return nil
+	})
 
 	// 4. Municipales : le tour décisif, avec ses sièges, et le premier tour à
 	// part quand il y en a eu deux. Les sièges ne sont publiés que sur la ligne
 	// du tour qui les attribue : afficher le premier tour seul donnait « 0 siège »
 	// à la liste élue.
-	lrows, err := pool.Query(ctx, `
-		WITH d AS (SELECT max(scrutin_annee) a FROM core.municipal_list)
-		SELECT l.commune_code, l.tour, l.libelle, coalesce(l.nuance_code,''),
-		       coalesce(l.voix,0), coalesce(l.sieges_cm,0),
-		       100.0*coalesce(l.voix,0)/nullif(sum(l.voix) OVER (PARTITION BY l.commune_code, l.tour),0)
-		FROM core.municipal_list l, d
-		WHERE l.scrutin_annee=d.a`)
-	if err != nil {
-		return nil, err
-	}
-	parTour := map[string]map[int][]ListeMunicipale{}
-	for lrows.Next() {
-		var com string
-		var tour int
-		var lm ListeMunicipale
-		var pct *float64
-		if err := lrows.Scan(&com, &tour, &lm.Libelle, &lm.Nuance, &lm.Voix, &lm.Sieges, &pct); err != nil {
-			lrows.Close()
-			return nil, err
+	g.Go(func() error {
+		lrows, err := pool.Query(gctx, `
+			WITH d AS (SELECT max(scrutin_annee) a FROM core.municipal_list)
+			SELECT l.commune_code, l.tour, l.libelle, coalesce(l.nuance_code,''),
+			       coalesce(l.voix,0), coalesce(l.sieges_cm,0),
+			       100.0*coalesce(l.voix,0)/nullif(sum(l.voix) OVER (PARTITION BY l.commune_code, l.tour),0)
+			FROM core.municipal_list l, d
+			WHERE l.scrutin_annee=d.a`)
+		if err != nil {
+			return err
 		}
-		if pct != nil {
-			lm.Pct = *pct
+		defer lrows.Close()
+		parTour := map[string]map[int][]ListeMunicipale{}
+		for lrows.Next() {
+			var com string
+			var tour int
+			var lm ListeMunicipale
+			var pct *float64
+			if err := lrows.Scan(&com, &tour, &lm.Libelle, &lm.Nuance, &lm.Voix, &lm.Sieges, &pct); err != nil {
+				return err
+			}
+			if pct != nil {
+				lm.Pct = *pct
+			}
+			if parTour[com] == nil {
+				parTour[com] = map[int][]ListeMunicipale{}
+			}
+			parTour[com][tour] = append(parTour[com][tour], lm)
 		}
-		if parTour[com] == nil {
-			parTour[com] = map[int][]ListeMunicipale{}
+		if err := lrows.Err(); err != nil {
+			return err
 		}
-		parTour[com][tour] = append(parTour[com][tour], lm)
-	}
-	lrows.Close()
-	for com, tours := range parTour {
-		p := pages[com]
-		if p == nil {
-			continue
+		for com, tours := range parTour {
+			p := pages[com]
+			if p == nil {
+				continue
+			}
+			final := 1
+			if len(tours[2]) > 0 {
+				final = 2
+				p.ListesT1 = tours[1]
+				sort.Slice(p.ListesT1, func(i, j int) bool { return p.ListesT1[i].Voix > p.ListesT1[j].Voix })
+			}
+			p.TourFinal = final
+			p.Listes = tours[final]
+			sort.Slice(p.Listes, func(i, j int) bool { return p.Listes[i].Voix > p.Listes[j].Voix })
 		}
-		final := 1
-		if len(tours[2]) > 0 {
-			final = 2
-			p.ListesT1 = tours[1]
-			sort.Slice(p.ListesT1, func(i, j int) bool { return p.ListesT1[i].Voix > p.ListesT1[j].Voix })
-		}
-		p.TourFinal = final
-		p.Listes = tours[final]
-		sort.Slice(p.Listes, func(i, j int) bool { return p.Listes[i].Voix > p.Listes[j].Voix })
-	}
+		return nil
+	})
 
 	// 5. Associations déclarées.
-	arows, err := pool.Query(ctx, `
-		SELECT commune_code, count(*) FROM core.association
-		WHERE commune_code IS NOT NULL GROUP BY 1`)
-	if err != nil {
+	g.Go(func() error {
+		arows, err := pool.Query(gctx, `
+			SELECT commune_code, count(*) FROM core.association
+			WHERE commune_code IS NOT NULL GROUP BY 1`)
+		if err != nil {
+			return err
+		}
+		defer arows.Close()
+		for arows.Next() {
+			var com string
+			var n int
+			if err := arows.Scan(&com, &n); err != nil {
+				return err
+			}
+			if p := pages[com]; p != nil {
+				p.Associations = n
+			}
+		}
+		return arows.Err()
+	})
+
+	if err := g.Wait(); err != nil {
 		return nil, err
 	}
-	for arows.Next() {
-		var com string
-		var n int
-		if err := arows.Scan(&com, &n); err != nil {
-			arows.Close()
-			return nil, err
-		}
-		if p := pages[com]; p != nil {
-			p.Associations = n
-		}
-	}
-	arows.Close()
 	return pages, nil
 }
 

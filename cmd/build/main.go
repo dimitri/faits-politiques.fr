@@ -187,11 +187,24 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		return only != "" && !strings.Contains(","+only+",", ","+section+",")
 	}
 	ctx := context.Background()
-	pool, err := store.Open(ctx)
+	// 8, pas le défaut de 4 : plusieurs requêtes indépendantes tournent
+	// désormais de front (cmd/build/lieux_pages.go) sur une machine qui a sa
+	// propre Postgres, pas une base managée partagée entre instances — voir
+	// internal/store.OpenWithMaxConns.
+	pool, err := store.OpenWithMaxConns(ctx, 8)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
+
+	// Cache de construction (cmd/build/cache.go) : ancien est ce que la
+	// construction précédente a produit, lu dans le site actuellement publié
+	// (out est le chantier, pas encore mis en place) ; nouveau est réécrit à
+	// la fin, quoi qu'il arrive, pour que la prochaine construction ait
+	// quelque chose à comparer même si tout a été refait cette fois.
+	siteActuel := strings.TrimSuffix(out, ".construction")
+	ancienCache := chargerManifeste(siteActuel)
+	nouveauCache := manifesteCache{Sections: map[string]etatSection{}}
 
 	fns := template.FuncMap{"jauge": Jauge, "poleG": PoleGauche, "poleD": PoleDroit,
 		"lower": strings.ToLower, "nb": Nombre, "ico": Icone,
@@ -842,6 +855,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 
 	// --- les lieux : communes et intercommunalités, et la chaîne de lieux de
 	// chaque mandat affiché ailleurs sur le site.
+	fmt.Printf("    avant le résolveur de lieux : %s écoulées\n", time.Since(start).Round(time.Second))
 	lieux, err := chargerResolveur(ctx, pool, root, col)
 	if err != nil {
 		return err
@@ -849,14 +863,12 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	for _, pp := range persons {
 		lieux.situerMandats(pp)
 	}
-	pagesCom, err := chargerPagesCommunes(ctx, pool, lieux, avecFiche)
-	if err != nil {
-		return err
-	}
+	fmt.Printf("    résolveur de lieux : %s écoulées\n", time.Since(start).Round(time.Second))
 	// Les cartes de situation : un fond commun écrit une fois, un calque par page.
 	// Sur la carte de situation, chaque département mène à sa page ; un
 	// département fusionné (Alsace, Corse, Martinique, Guyane) mène à la
-	// collectivité qui tient son budget.
+	// collectivité qui tient son budget. Mandataire pour d'autres sections
+	// (région, département) : chargé qu'importe si « communes » est recopiée.
 	lienDept := func(code string) string {
 		u := lieux.urlDept(code)
 		if f, ok := fusionConnue[code]; ok && u == "" {
@@ -872,10 +884,32 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
-	for code, pc := range pagesCom {
-		pc.Situation = fond.pourCommune(code, pc.Nom)
+	fmt.Printf("    fond de situation chargé : %s écoulées\n", time.Since(start).Round(time.Second))
+
+	communesInchangees, etatCommunes, err := sectionInchangee(ctx, pool, ancienCache, "communes")
+	if err != nil {
+		return err
 	}
-	if !exclu("communes") {
+	nouveauCache.Sections["communes"] = etatCommunes
+	if !exclu("communes") && communesInchangees {
+		fmt.Println("    communes : données et gabarits inchangés, recopiées depuis le site précédent")
+		if err := copierRepertoire(filepath.Join(siteActuel, "collectivites", "commune"),
+			filepath.Join(out, "collectivites", "commune")); err != nil {
+			return err
+		}
+		if err := copierRepertoire(filepath.Join(siteActuel, "collectivites", "epci"),
+			filepath.Join(out, "collectivites", "epci")); err != nil {
+			return err
+		}
+	} else if !exclu("communes") {
+		pagesCom, err := chargerPagesCommunes(ctx, pool, lieux, avecFiche)
+		if err != nil {
+			return err
+		}
+		fmt.Printf("    pages communes chargées : %s écoulées\n", time.Since(start).Round(time.Second))
+		for code, pc := range pagesCom {
+			pc.Situation = fond.pourCommune(code, pc.Nom)
+		}
 		tcom := page("commune.gohtml")
 		// Même raisonnement que pour les scrutins (scrutins.go) : chaque
 		// commune ne lit que sa propre entrée de pagesCom et n'écrit que son
@@ -896,15 +930,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		if err := g.Wait(); err != nil {
 			return err
 		}
-	}
-	pagesEPCI, err := chargerPagesEPCI(ctx, pool, lieux, col, avecFiche)
-	if err != nil {
-		return err
-	}
-	for siren, pe := range pagesEPCI {
-		pe.Situation = fond.pourEPCI(siren, pe.Nom, pe.Finances)
-	}
-	if !exclu("communes") {
+		fmt.Printf("    pages communes écrites : %s écoulées\n", time.Since(start).Round(time.Second))
+		pagesEPCI, err := chargerPagesEPCI(ctx, pool, lieux, col, avecFiche)
+		if err != nil {
+			return err
+		}
+		for siren, pe := range pagesEPCI {
+			pe.Situation = fond.pourEPCI(siren, pe.Nom, pe.Finances)
+		}
 		tepci := page("epci.gohtml")
 		for siren, pe := range pagesEPCI {
 			l = layout
@@ -919,11 +952,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		}
 	}
 	ecart := ""
-	if exclu("communes") {
+	switch {
+	case exclu("communes"):
 		ecart = " — pages non écrites (-only)"
+	case communesInchangees:
+		ecart = " — recopiées, données et gabarits inchangés"
 	}
 	fmt.Printf("  lieux : %d communes, %d intercommunalités%s (%s écoulées)\n",
-		len(pagesCom), len(pagesEPCI), ecart, time.Since(start).Round(time.Second))
+		len(lieux.communes), len(lieux.epci), ecart, time.Since(start).Round(time.Second))
 
 	// Les pages de région et de département, maintenant que le résolveur sait
 	// quels départements composent une région.
@@ -1334,10 +1370,32 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	fmt.Printf("  avant les scrutins : %s écoulées\n", time.Since(start).Round(time.Second))
 	var n int
-	if !exclu("scrutin") {
+	// maxScrutins tronque volontairement (itération locale, voir -max-scrutins) :
+	// une construction tronquée ne doit jamais être prise pour la construction
+	// complète à laquelle un lancement futur, sans troncature, se comparerait.
+	scrutinsInchanges, etatScrutins, err := sectionInchangee(ctx, pool, ancienCache, "scrutin")
+	if err != nil {
+		return err
+	}
+	if maxScrutins == 0 {
+		nouveauCache.Sections["scrutin"] = etatScrutins
+	} else if prec, ok := ancienCache.Sections["scrutin"]; ok {
+		nouveauCache.Sections["scrutin"] = prec // inchangé : ne pas écraser par un état tronqué
+	}
+	if !exclu("scrutin") && maxScrutins == 0 && scrutinsInchanges {
+		n = ancienCache.Sections["scrutin"].N
+		fmt.Printf("    scrutins : données et gabarits inchangés, recopiés depuis le site précédent (%d)\n", n)
+		if err := copierRepertoire(filepath.Join(siteActuel, "scrutin"), filepath.Join(out, "scrutin")); err != nil {
+			return err
+		}
+	} else if !exclu("scrutin") {
 		if n, err = buildScrutins(ctx, pool, page("scrutin.gohtml"), layout, out, maxScrutins,
 			seuils, srcScrutins); err != nil {
 			return err
+		}
+		if maxScrutins == 0 {
+			etatScrutins.N = n
+			nouveauCache.Sections["scrutin"] = etatScrutins
 		}
 	}
 
@@ -1364,6 +1422,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 
 	fmt.Printf("site généré dans %s/ : %d députés, %d candidats, %d organisations, %d groupes, %d scrutins (%s)\n",
 		out, len(persons), len(candidats), len(orgs), len(groupes), n, time.Since(start).Round(time.Millisecond))
+
+	// Écrit quoi qu'il arrive, y compris pour une section refaite cette fois :
+	// c'est cet état-ci, celui que ce chantier vient de produire, auquel la
+	// prochaine construction devra se comparer une fois mis en place.
+	if err := nouveauCache.ecrire(out); err != nil {
+		return err
+	}
 	return nil
 }
 
