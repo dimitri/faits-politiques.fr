@@ -1,14 +1,14 @@
 # La France en contexte : Europe, G8, monde
 
-> **Dossier** · version 5 · 15 septembre 2026
+> **Dossier** · version 6 · 15 septembre 2026
 >
 > Comment la France se situe-t-elle en Europe, au sein du G8 et dans le monde, sur des sujets
 > qui ont chacun leur source, leur définition et souvent une couverture géographique incomplète ?
-> Le dossier charge quatre volets — le salaire minimum, le PIB et sa lecture au regard de
-> l'épuisement des ressources, la dette publique hors Union, l'espérance de vie — et documente
-> pourquoi chacun des sept autres reste bloqué, avec sa raison vérifiée plutôt que supposée, plus
-> un exploré puis écarté (heures travaillées, données trop anciennes pour être présentées comme
-> actuelles).
+> Le dossier charge sept volets — salaire minimum, PIB et épuisement des ressources, dette hors
+> Union, espérance de vie et dépense de santé, effort de défense, participation électorale — et
+> documente pourquoi chacun des six autres reste bloqué, avec sa raison vérifiée plutôt que
+> supposée, plus un exploré puis écarté (heures travaillées, données trop anciennes pour être
+> présentées comme actuelles).
 
 ---
 
@@ -204,43 +204,132 @@ budgétaire à elle seule transposable ; la dette élevée du Japon se finance
 à des taux structurellement bas depuis des décennies, une situation que la
 France ne connaît pas (`docs/dette-donnees.md` § 2).
 
-### 5. La santé comparée : l'espérance de vie, un premier chiffre
+### 5. La santé comparée : espérance de vie et dépense par habitant
 
 Le terrain français est déjà largement couvert par le chantier santé
-(`docs/sante-donnees.md`) ; ce dossier n'ajoute qu'un seul chiffre pour
-l'instant, celui qui permet la comparaison internationale : l'espérance de
-vie à la naissance (OCDE, `core.indicateur_mondial`), 2024 ou dernière
-année publiée :
+(`docs/sante-donnees.md`) ; ce dossier ajoute les deux chiffres qui
+permettent la comparaison internationale : l'espérance de vie à la
+naissance et la dépense de santé courante par habitant (OCDE,
+`core.indicateur_mondial`), 2024-2025 ou dernière année publiée :
 
-| Pays | Espérance de vie à la naissance |
-|---|---:|
-| Japon | 84,1 ans |
-| Italie | 83,7 ans |
-| France | 83,0 ans |
-| Canada | 82,2 ans |
-| Royaume-Uni | 81,3 ans |
-| Allemagne | 81,2 ans |
-| États-Unis | 79,0 ans |
-| Chine | 78,0 ans |
-| Russie | 73,3 ans (2023) |
+| Pays | Espérance de vie à la naissance | Dépense de santé par habitant (USD PPA) |
+|---|---:|---:|
+| Japon | 84,1 ans | 5 873 |
+| Italie | 83,7 ans | 5 336 |
+| France | 83,0 ans | 7 522 |
+| Canada | 82,2 ans | 7 506 |
+| Royaume-Uni | 81,3 ans | 7 328 |
+| Allemagne | 81,2 ans | 10 116 |
+| États-Unis | 79,0 ans | 15 843 |
+| Chine | 78,0 ans | 1 519 (2023) |
+| Russie | 73,3 ans (2023) | *(non couvert, § 1 règle 2)* |
 
-**L'Arabie saoudite est absente de cette série** — l'OCDE ne la couvre pas
-pour cet indicateur (ni membre, ni partenaire clé pour cette mesure
-précise), une absence documentée plutôt que devinée ou remplie par une
+**L'Arabie saoudite est absente des deux séries, la Russie de la seconde**
+— l'OCDE ne les couvre pas pour ces indicateurs (ni membre, ni partenaire
+clé), une absence documentée plutôt que devinée ou remplie par une
 estimation (§ 1, règle 2).
 
-**Ce chiffre ne dit rien du système de santé à lui seul** : l'espérance de
-vie agrège des facteurs sans rapport avec l'offre de soins (alimentation,
-tabac, accidents, criminalité, structure d'âge...) — un écart entre deux
-pays ne se lit jamais comme un verdict sur leur système de santé respectif
-sans le détail par cause de décès, non chargé ici. La dépense de santé par
-habitant (OCDE, *Health expenditure and financing*, `DSD_SHA@DF_SHA`,
-identifiée mais pas encore chargée) donnerait le complément naturel de ce
-chiffre — un chantier suivant, pas celui-ci.
+**Rapprocher les deux colonnes ne dit toujours pas qui « soigne mieux »**
+(§ 1, règle 3) : les États-Unis dépensent plus du double de la France par
+habitant pour une espérance de vie inférieure de quatre ans — un écart qui
+mélange l'efficience du système de santé avec des facteurs sans rapport
+avec l'offre de soins (alimentation, accidents, criminalité, structure
+d'âge, part de la population sans couverture). Le détail par cause de
+décès, qui permettrait de départager ces facteurs, n'est pas chargé ici.
+Dollars PPA (pouvoir d'achat comparable), pas un simple change — voir le
+commentaire de `core.indicateur_mondial`.
+
+### 6. L'effort de défense : SIPRI, la seule base qui remonte à 1949
+
+SIPRI est la source la plus complète identifiée pour ce sujet — la seule
+qui couvre les dix pays de comparaison de ce dossier, Arabie saoudite
+comprise (absente de la dette FMI hors zone euro pour d'autres raisons,
+`docs/dette-donnees.md` § 5), sur une série qui remonte à 1949. Part du
+PIB, pas un montant en devise (`core.indicateur_mondial`, feuille « Share
+of GDP » du classeur officiel) :
+
+| Pays | Dépense militaire (% du PIB, 2025) |
+|---|---:|
+| Russie | 7,50 |
+| Arabie saoudite | 6,48 |
+| États-Unis | 3,12 |
+| Royaume-Uni | 2,35 |
+| Allemagne | 2,27 |
+| France | 2,03 |
+| Italie | 1,89 |
+| Chine | 1,72 |
+| Canada | 1,63 |
+| Japon | 1,41 |
+
+**Ce tableau ne dit pas qui se défend le mieux** (§ 1, règle 3) : la part
+élevée de la Russie reflète un effort de guerre en cours, celle de
+l'Arabie saoudite un contexte régional distinct — deux situations qui
+n'ont rien de comparable entre elles au-delà du seul chiffre affiché.
+
+**Licence non commerciale, avec attribution** : les conditions de SIPRI
+autorisent la réutilisation à des fins non commerciales avec mention de la
+source — ce site n'a pas de vocation commerciale, la condition est remplie
+sans réserve à poser.
+
+**Ce que SIPRI ne donne pas : à qui la France vend des armes.** SIPRI
+publie une seconde base, les *Arms Transfers* (le registre des transferts
+bilatéraux, fournisseur → destinataire), qui répondrait précisément à cette
+question — mais son interface est une application entièrement dynamique
+(JavaScript), sans point d'export accessible par une simple requête : l'un
+des deux points d'entrée jadis documentés (`armstrade.sipri.org`) est
+décommissionné, l'autre (`armstransfers.sipri.org/ArmsTransfer/CSVResult`)
+ne renvoie que la coquille de l'application, jamais les données, à une
+requête directe. Le rapport français officiel sur ce même sujet (*Rapport
+au Parlement sur les exportations d'armement de la France*, publié chaque
+année par le ministère des Armées) n'a pas de version structurée ouverte
+non plus : uniquement un PDF. Les deux sources existent, aucune des deux
+n'est chargeable en l'état — un sujet à rouvrir si SIPRI publie un export
+statique, ou si un jeu structuré accompagne un futur rapport au Parlement.
+
+### 7. Représentativité des dirigeants : la participation, pas encore le mode de scrutin
+
+International IDEA publie un export statique (pas une API documentée) qui
+donne la participation électorale par pays et par élection — une part du
+sujet, pas sa totalité : la part du vainqueur et le mode de scrutin
+resteraient à compiler à la main, élection par élection, hors de portée
+d'un chargement automatisé (`core.participation_electorale`) :
+
+| Pays | Dernière élection législative | Participation (% des inscrits) | Vote obligatoire |
+|---|---|---:|---|
+| Allemagne | 2025-02-23 | 82,5 | Non |
+| Canada | 2025-04-28 | 68,7 | Non |
+| États-Unis | 2024-11-05 | 64,5 | Non |
+| France | 2024-07-07 | 66,6 | Non |
+| Italie | 2022 | 63,8 | Non |
+| Royaume-Uni | 2024-07-04 | 59,8 | Non |
+| Russie | 2021 | 51,6 | Non |
+| Japon | 2026-02-08 | 56,3 | Non |
+
+**La Chine et l'Arabie saoudite sont absentes par construction** : IDEA ne
+recense que les élections législatives et présidentielles au suffrage
+direct, qu'aucun des deux pays ne tient dans ce sens — une absence qui est
+elle-même un fait sur le système politique, pas un trou de données (§ 1,
+règle 2, encore, et sans qu'il s'agisse cette fois d'un jugement : ce
+dossier ne conclut rien sur la valeur de ces deux systèmes, il constate
+qu'ils n'organisent pas ce type de scrutin).
+
+**Taux sur les inscrits contre taux sur la population en âge de voter
+(VAP)** : les deux mesures répondent à des questions différentes. Un pays
+à enregistrement automatique (la plupart des pays européens) et un pays à
+enregistrement volontaire (les États-Unis, notamment) ne se comparent pas
+sur le seul taux d'inscrits sans le taux VAP à côté — l'un mesure la
+mobilisation des inscrits, l'autre la mobilisation de la population en âge
+de voter dans son ensemble, inscription comprise.
+
+**La date exacte du scrutin n'est pas toujours publiée** : pour l'Italie
+(29 dates sur 30) et le Japon (27 sur 30), la source ne porte que l'année,
+au 1ᵉʳ janvier par convention — quand l'Allemagne et les États-Unis ont
+systématiquement le jour exact. Ce dossier affiche l'année seule plutôt que
+de laisser croire à une précision que la source n'a pas.
 
 ## Ce que les données ne disent pas
 
-### 6. Un sujet exploré et écarté : les heures travaillées
+### 8. Un sujet exploré et écarté : les heures travaillées
 
 **L'OCDE publie bien un jeu « heures travaillées par an », mais sa
 couverture s'est révélée trop incohérente pour être chargée.** Le connecteur
@@ -262,22 +351,20 @@ dix à vingt-cinq ans pour un état présent — exactement ce que
 publication plus récente de l'OCDE sous un autre identifiant de flux,
 non retrouvée à ce stade) resterait à identifier avant de rouvrir ce sujet.
 
-### 7. Sept autres sujets : chacun testé, chacun bloqué pour une raison précise
+### 9. Six autres sujets : chacun testé, chacun bloqué pour une raison précise
 
-Contrairement aux versions précédentes de ce dossier, les sept sujets
-suivants ne sont plus seulement « à explorer » : chacun a été
-concrètement interrogé (téléchargement tenté, API requêtée, page de
-licence lue) et bloque sur un obstacle vérifié, pas supposé :
+Chacun des six sujets suivants a été concrètement interrogé (téléchargement
+tenté, API requêtée, page de licence lue, parfois un compte créé) et
+bloque sur un obstacle vérifié, pas supposé :
 
 | Sujet | Source candidate | Ce qui bloque, vérifié |
 |---|---|---|
-| Régime politique | V-Dem Institute | **Licence confirmée** (CC BY-SA), mais **aucune URL de fichier statique** : la page de téléchargement ne contient qu'un formulaire qui déclenche la génération du fichier côté serveur, sans lien direct exploitable par un connecteur qui ne fait que des requêtes GET (le principe de tous les connecteurs de ce dépôt) — confirmé en lisant le HTML de la page, pas supposé depuis son ergonomie |
-| Liberté de la presse | Reporters sans frontières, classement mondial | Export CSV trouvé et accessible en 2026, mais l'ancienne page de mentions légales renvoie une erreur 404 et aucune page de licence n'est exposée dans le HTML statique du site (vérifié directement, pas seulement « non trouvée en cherchant ») — une absence de licence n'est pas une autorisation (`docs/README.md`, règle 4) |
-| Mouvements sociaux | ILOSTAT, *Days not worked due to strikes and lockouts* | **L'API répond** (identifiants de flux réels : `DF_STR_DAYS_ECO_RT` et trois autres, trouvés dans le catalogue complet des flux ILOSTAT) — mais la couverture est trop inégale pour comparer (Japon, Italie et Chine : aucune année ; les autres pays ne partagent aucune année commune récente), et chaque pays mesure avec sa **propre méthodologie nationale** (seuils de taille d'établissement et secteurs exclus différents d'un pays à l'autre, indiqué par la source elle-même) — un manquement direct à la règle 1 du § 1, pas seulement un trou de données |
-| Représentativité des dirigeants | International IDEA (participation électorale) | Page accessible, contenu non exploré en détail — part du vainqueur et mode de scrutin resteraient de toute façon à compiler pays par pays, hors de portée d'un chargement automatisé |
+| Régime politique | V-Dem, Polity5, Freedom House — les trois testées | **V-Dem** : licence confirmée (CC BY-SA), mais aucune URL de fichier statique, un formulaire déclenche la génération côté serveur. **Polity5** : un fichier Excel existe bien, mais ses conditions d'usage interdisent explicitement « toute reproduction ou redistribution... sans autorisation écrite préalable » — un chargement public romprait cette condition. **Freedom House** : ne publie plus de fichier en libre téléchargement, l'accès passe par une demande par courriel avec justification d'usage, une étape humaine, pas une URL |
+| Liberté de la presse | Reporters sans frontières, classement mondial | Export CSV accessible, mais les conditions générales du site (`rsf.org/fr/cgu`) l'interdisent explicitement : « toute extraction et toute réutilisation par transfert permanent ou temporaire de la totalité ou d'une partie du contenu d'une base de données [...] sont strictement interdites » — une interdiction directe, pas une simple absence de licence, et qui ne distingue pas l'usage commercial du non commercial |
+| Mouvements sociaux | ILOSTAT (jours de grève), ACLED (événements) | **ILOSTAT** : l'API répond (flux réels trouvés dans son catalogue complet), mais la couverture est trop inégale pour comparer (Japon, Italie, Chine : aucune année) et chaque pays mesure avec sa propre méthodologie nationale — un manquement à la règle 1 du § 1. **ACLED** : licence confirmée non commerciale avec attribution, authentification testée avec un compte réel (jeton obtenu avec succès), mais la lecture des données renvoie « Access denied » — un compte personnel reçoit un accès public par défaut qui ne couvre pas l'API tant que les conditions d'utilisation n'ont pas été acceptées sur le site, une étape que seul le titulaire du compte peut faire |
 | Âge de départ à la retraite | OCDE *Pensions at a Glance* | Introuvable dans les catalogues de flux SDMX interrogés (santé, emploi) — cohérent avec une publication biennale en tableaux, pas en série statistique continue diffusée par API |
-| Liens économiques avec des pays en guerre | Douanes françaises + UCDP (conflits) | Non testé — croisement délicat, prudence éditoriale maximale requise avant tout chargement (§ 1, règle 3) |
-| OTAN / opérations de maintien de la paix | OTAN (*Defence Expenditure of NATO Countries*), ONU (*Troop and Police Contributors*) | **Confirmé PDF uniquement pour les deux sources** — le rapport OTAN est un PDF annuel, la page de contributeurs de l'ONU ne publie que des rapports mensuels en PDF, aucune des deux sans export CSV/API |
+| À qui la France vend des armes | SIPRI *Arms Transfers* (bilatéral), *Rapport au Parlement* français | **SIPRI** : l'ancien point d'accès (`armstrade.sipri.org`) est décommissionné, le nouveau (`armstransfers.sipri.org`) est une application JavaScript sans export accessible à une requête directe. **Rapport officiel** : publié chaque année par le ministère des Armées, uniquement en PDF, aucune version structurée trouvée. Contrairement aux autres lignes de ce tableau, l'effort de défense global (§ 6, SIPRI) est déjà chargé — seul le détail bilatéral (qui vend à qui) manque |
+| Opérations de maintien de la paix de l'ONU | ONU, *Troop and Police Contributors* | **Confirmé PDF uniquement** — rapports mensuels, aucun export CSV/API. La dépense de défense de l'OTAN, qui figurait ici dans une version antérieure de ce dossier, est désormais couverte plus largement par SIPRI (§ 6, dix pays au lieu des seuls membres de l'OTAN) |
 
 ## Sources
 
@@ -287,8 +374,12 @@ licence lue) et bloque sur un obstacle vérifié, pas supposé :
   naturelles).
 - FMI, World Economic Outlook (API SDMX, `internal/dette/fmi.go`) — dette
   brute des administrations publiques (§ 4).
-- OCDE, *Statistiques de la santé* (API SDMX, `DSD_HEALTH_STAT@DF_LE`) —
-  espérance de vie à la naissance (§ 5).
+- OCDE, *Statistiques de la santé* (API SDMX, `DSD_HEALTH_STAT@DF_LE`,
+  `DSD_SHA@DF_SHA`) — espérance de vie et dépense de santé (§ 5).
+- SIPRI, *Military Expenditure Database* (classeur officiel) — effort de
+  défense (§ 6).
+- International IDEA, *Voter Turnout Database* (export statique) —
+  participation électorale (§ 7).
 - [docs/dette-donnees.md](dette-donnees.md), pour la comparaison européenne
   de la dette déjà chargée.
 - [docs/pauvrete-donnees.md](pauvrete-donnees.md), pour la même méthode
@@ -298,17 +389,36 @@ licence lue) et bloque sur un obstacle vérifié, pas supposé :
 
 ## Annexe technique
 
-### 8. Ce qui est chargé
+### 10. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
 | 1 | Eurostat, `earn_mw_cur` | `core.salaire_minimum` | 4 573 lignes, 31 pays, 1999-2026 |
 | 2 | Banque mondiale, *World Development Indicators* | `core.indicateur_mondial` | 682 lignes, 10 pays, 3 indicateurs, 2000-2024 |
 | 3 | FMI, *World Economic Outlook* (dette brute, 17 pays dont G8 hors zone euro, Chine, Russie, Arabie saoudite) | `core.dette_observation` (`serie` `fmi:GGXWDG_NGDP:*`) | 17 séries, jusqu'à 46 années chacune |
-| 4 | OCDE, *Statistiques de la santé* (espérance de vie à la naissance) | `core.indicateur_mondial` (`indicateur` `OCDE_ESPERANCE_VIE_NAISSANCE`) | 89 lignes, 9 pays |
+| 4 | OCDE, *Statistiques de la santé* (espérance de vie) | `core.indicateur_mondial` (`indicateur` `OCDE_ESPERANCE_VIE_NAISSANCE`) | 89 lignes, 9 pays |
+| 5 | OCDE, *Comptes de la santé* (dépense par habitant) | `core.indicateur_mondial` (`indicateur` `OCDE_DEPENSE_SANTE_HABITANT`) | 86 lignes, 8 pays |
+| 6 | SIPRI, *Military Expenditure Database* (part du PIB) | `core.indicateur_mondial` (`indicateur` `SIPRI_DEPENSE_MILITAIRE_PIB`) | 657 lignes, 10 pays, 1949-2025 |
+| 7 | International IDEA, *Voter Turnout Database* | `core.participation_electorale` | 293 lignes, 8 pays |
 
 ## Versions
 
+- **Version 6** (15 septembre 2026) : dépense de santé par habitant (§ 5),
+  effort de défense SIPRI (§ 6, dix pays, 1949-2025) et participation
+  électorale IDEA (§ 7, huit pays) chargés. Trois recherches menées à leur
+  terme sans aboutir à un chargement, chacune avec une raison plus précise
+  qu'avant : régime politique (V-Dem sans URL statique, **Polity5 dont les
+  conditions interdisent explicitement la redistribution**, Freedom House
+  qui ne publie plus qu'sur demande par courriel) ; liberté de la presse
+  (**RSF interdit explicitement l'extraction de sa base dans ses propres
+  conditions générales**, `rsf.org/fr/cgu` — pas une absence de licence,
+  une interdiction) ; mouvements sociaux (ACLED : licence confirmée,
+  authentification réussie avec un compte réel, mais l'API refuse la
+  lecture tant que les conditions n'ont pas été acceptées sur le site).
+  « À qui la France vend des armes », demandé explicitement pour ce
+  dossier, reste bloqué : ni SIPRI (base bilatérale entièrement
+  JavaScript) ni le rapport officiel français (PDF seul) n'offrent
+  d'export structuré.
 - **Version 5** (15 septembre 2026) : espérance de vie à la naissance
   chargée (§ 5, OCDE, neuf pays — l'Arabie saoudite n'est pas couverte par
   cette série) dans `core.indicateur_mondial`, sans nouvelle table (le

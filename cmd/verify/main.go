@@ -1702,6 +1702,37 @@ var checks = []check{
 		name:  "l'espérance de vie OCDE reste dans un intervalle plausible",
 		query: `SELECT count(*) FROM core.indicateur_mondial WHERE indicateur = 'OCDE_ESPERANCE_VIE_NAISSANCE' AND valeur NOT BETWEEN 65 AND 95`,
 	},
+	{
+		name:  "la dépense de santé OCDE couvre au moins huit pays",
+		query: `SELECT count(DISTINCT pays_code) FROM core.indicateur_mondial WHERE indicateur = 'OCDE_DEPENSE_SANTE_HABITANT'`,
+		min:   8,
+	},
+	{
+		name:  "la dépense militaire SIPRI couvre les dix pays de comparaison",
+		query: `SELECT count(DISTINCT pays_code) FROM core.indicateur_mondial WHERE indicateur = 'SIPRI_DEPENSE_MILITAIRE_PIB'`,
+		min:   10,
+	},
+	{
+		// Un mélange de fraction brute et de pourcentage déjà mis en forme
+		// coexiste dans le classeur SIPRI (internal/international/sipri.go) :
+		// une valeur hors de [0, 20] signalerait que l'un des deux formats a
+		// été mal détecté (facteur 100 appliqué ou non par erreur).
+		name:  "la dépense militaire SIPRI reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM core.indicateur_mondial WHERE indicateur = 'SIPRI_DEPENSE_MILITAIRE_PIB' AND valeur NOT BETWEEN 0 AND 20`,
+	},
+	{
+		name:  "la participation électorale IDEA couvre au moins huit pays",
+		query: `SELECT count(DISTINCT pays_iso3) FROM core.participation_electorale`,
+		min:   8,
+	},
+	{
+		// Un taux hors de [0, 100] signalerait une colonne mal alignée
+		// (l'export IDEA a été lu par position d'en-tête, pas par index fixe,
+		// mais un changement de nom de colonne romprait silencieusement le
+		// mappage sans cette sonde).
+		name:  "la participation électorale IDEA reste un pourcentage valide",
+		query: `SELECT count(*) FROM core.participation_electorale WHERE taux_participation_inscrits NOT BETWEEN 0 AND 100`,
+	},
 }
 
 func main() {

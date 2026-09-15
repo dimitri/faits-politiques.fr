@@ -110,7 +110,16 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err := IngestPIBEpargneNette(ctx, pool, arch); err != nil {
 		return err
 	}
-	return IngestSanteOCDE(ctx, pool, arch)
+	if err := IngestSanteOCDE(ctx, pool, arch); err != nil {
+		return err
+	}
+	if err := IngestDepenseSanteOCDE(ctx, pool, arch); err != nil {
+		return err
+	}
+	if err := IngestSIPRIMilex(ctx, pool, arch); err != nil {
+		return err
+	}
+	return IngestIDEA(ctx, pool, arch)
 }
 
 type jsonStatSMIC struct {

@@ -1,8 +1,8 @@
 {
-  "genere_le": "2026-09-15T18:47:36Z",
+  "genere_le": "2026-09-15T19:50:09Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
-  "nombre_sources": 117,
+  "nombre_sources": 121,
   "sources": [
     {
       "slug": "acteurs-numeriques-francais",
@@ -6413,9 +6413,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "annuelle",
       "notes": "Dix pays de comparaison (G8 historique, Chine, Arabie saoudite). NY.ADJ.SVNG.GN.ZS (épargne nette ajustée) et NY.ADJ.DRES.GN.ZS (épuisement des ressources naturelles) sont des pourcentages du revenu national brut, jamais des montants — ne pas les comparer en valeur absolue au PIB (NY.GDP.MKTP.CD, en dollars courants).",
-      "derniere_ingestion_reussie": "2026-09-15T18:42:33",
+      "derniere_ingestion_reussie": "2026-09-15T19:42:43",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 7,
       "connecteur_derniere_version": "international-v1",
       "format_detecte": "Fichier JSON",
       "urls_origine": [
@@ -6435,11 +6435,11 @@
         {
           "schema": "core",
           "table": "indicateur_mondial",
-          "lignes_totales_estimees": 771,
+          "lignes_totales_estimees": 1514,
           "lignes_pour_cette_source": 682,
-          "taille_octets": 262144,
-          "annee_min": 2000,
-          "annee_max": 2024,
+          "taille_octets": 425984,
+          "annee_min": 1949,
+          "annee_max": 2025,
           "colonne_historique": "annee"
         }
       ],
@@ -7940,9 +7940,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "semestrielle",
       "notes": "Couvre les pays européens et les États-Unis, mais ni le Japon ni le Canada (minimum fixé par État ou province, pas de minimum fédéral unique dans les deux cas). L'absence d'un pays pour un semestre signale l'absence de salaire minimum légal (Allemagne avant 2015, pays nordiques à négociation collective) — jamais une valeur nulle.",
-      "derniere_ingestion_reussie": "2026-09-15T18:42:33",
+      "derniere_ingestion_reussie": "2026-09-15T19:42:42",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 7,
       "connecteur_derniere_version": "international-v1",
       "format_detecte": "API Eurostat (JSON-stat)",
       "urls_origine": [
@@ -8576,6 +8576,42 @@
       "cle_s3": null,
       "tables": [],
       "ingestion_incrementale": "mixte — DELETE et ON CONFLICT présents dans le même fichier, à vérifier lequel s'applique à cette table"
+    },
+    {
+      "slug": "idea-participation-electorale",
+      "label": "International IDEA — participation électorale",
+      "publisher": "International Institute for Democracy and Electoral Assistance (International IDEA)",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Usage non commercial avec attribution (conditions IDEA) — ce site n'a pas de vocation commerciale",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "mise à jour continue, au fil des élections",
+      "notes": "Export statique du site (pas une API documentée). Chine et Arabie saoudite absentes par construction : IDEA ne recense que les élections législatives et présidentielles au suffrage direct, qu'aucun des deux pays ne tient dans ce sens.",
+      "derniere_ingestion_reussie": "2026-09-15T19:42:49",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "international-v1",
+      "format_detecte": "Fichier XLSX",
+      "urls_origine": [
+        "https://www.idea.int/data-tools/export?type=region_only\u0026themeId=293\u0026world=all\u0026loc=home"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 514291,
+      "chemins_locaux": [
+        "2026/09/15/ad47a4470da3920ecce2cb304514edc4896c90ef75ac03cb958660bc01592aa5.xlsx"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "participation_electorale",
+          "lignes_totales_estimees": 293,
+          "lignes_pour_cette_source": 293,
+          "taille_octets": 81920,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
+      "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
     },
     {
       "slug": "idea-voter-turnout",
@@ -9491,6 +9527,64 @@
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
+      "slug": "insee-circonscriptions-legislatives",
+      "label": "Insee — portraits des circonscriptions législatives",
+      "publisher": "INSEE",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte v2.0",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "au redécoupage ou à chaque élection législative",
+      "notes": "Fond cartographique du 3 mai 2022 (558 circonscriptions de métropole et des DROM, géométrie simplifiée, WGS84) ; correspondance communes → circonscriptions en géographie au 1er janvier 2021, une commune pouvant relever de plusieurs circonscriptions ; indicateurs : population légale 2019 et 2013, inscrits au 11 avril 2022, recensement 2018, Filosofi 2019, BPE 2020. Aucune donnée pour les onze circonscriptions des Français établis hors de France.",
+      "derniere_ingestion_reussie": "2026-09-15T19:14:35",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 3,
+      "connecteur_derniere_version": "geo-circonscriptions-v1",
+      "format_detecte": "Fichier XLSX",
+      "urls_origine": [
+        "https://www.insee.fr/fr/statistiques/fichier/6436476/circo_composition.xlsx",
+        "https://www.insee.fr/fr/statistiques/fichier/6436476/indic-stat-circonscriptions-legislatives-2022.xlsx",
+        "https://www.insee.fr/fr/statistiques/fichier/6441661/contours_circonscriptions_legislatives_03052022.zip"
+      ],
+      "nombre_documents": 3,
+      "taille_locale_octets": 7853641,
+      "chemins_locaux": [
+        "2026/09/15/a5b00c7b9c1d27565692e2dba712ca005e1b348f055483d34a29a713dcdc6e3c.xlsx",
+        "2026/09/15/bd16cb3c822a03fd5343d628edd37efa719bb129141fdfbd2b814c9da2ddb0df.zip",
+        "2026/09/15/fac4d0adf79ae5f28405f0aac2ef7e05c8389b54b2316b92fb86cd84f895d4b9.xlsx"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "circonscription_indicateur",
+          "lignes_totales_estimees": 68460,
+          "lignes_pour_cette_source": 68460,
+          "taille_octets": 8380416,
+          "annee_min": null,
+          "annee_max": null
+        },
+        {
+          "schema": "ref",
+          "table": "circonscription_commune",
+          "lignes_totales_estimees": 35232,
+          "lignes_pour_cette_source": 35232,
+          "taille_octets": 5316608,
+          "annee_min": null,
+          "annee_max": null
+        },
+        {
+          "schema": "ref",
+          "table": "circonscription_legislative",
+          "lignes_totales_estimees": 566,
+          "lignes_pour_cette_source": 566,
+          "taille_octets": 114688,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
       "slug": "insee-cog",
       "label": "Code officiel géographique",
       "publisher": "INSEE",
@@ -10183,6 +10277,43 @@
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
+      "slug": "ocde-depense-sante",
+      "label": "OCDE — dépense de santé courante par habitant",
+      "publisher": "OCDE",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Creative Commons Attribution 4.0 (CC BY 4.0)",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "annuelle",
+      "notes": "Dollars PPA (pouvoir d'achat comparable, pas un simple change), prix courants. La Russie n'est pas couverte par cette série OCDE (vérifié : aucune ligne, quelle que soit la dimension interrogée), la Chine s'arrête en 2023 — deux absences documentées, jamais complétées par une estimation.",
+      "derniere_ingestion_reussie": "2026-09-15T19:42:43",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 4,
+      "connecteur_derniere_version": "international-v1",
+      "format_detecte": "Fichier CSV",
+      "urls_origine": [
+        "https://sdmx.oecd.org/public/rest/data/OECD.ELS.HD,DSD_SHA@DF_SHA,1.1/FRA+USA+JPN+DEU+GBR+ITA+CAN+CHN.A.EXP_HEALTH.USD_PPP_PS._T._Z._T._T._T._Z._Z.V?format=csv\u0026startPeriod=2015"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 9453,
+      "chemins_locaux": [
+        "2026/09/15/2fb77ba3ef085562173b2aa51fa0748a4e4ce83cf191ff20ed9307972c40dc7f.csv"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "indicateur_mondial",
+          "lignes_totales_estimees": 1514,
+          "lignes_pour_cette_source": 86,
+          "taille_octets": 425984,
+          "annee_min": 1949,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
       "slug": "ocde-esperance-vie",
       "label": "OCDE — espérance de vie à la naissance",
       "publisher": "OCDE",
@@ -10191,9 +10322,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "annuelle",
       "notes": "Neuf des dix pays de comparaison de ce dossier (core.indicateur_mondial) : l'Arabie saoudite n'est pas couverte par cette série OCDE (ni membre ni partenaire clé pour cet indicateur précis) — absence documentée, jamais complétée par une estimation.",
-      "derniere_ingestion_reussie": "2026-09-15T18:42:34",
+      "derniere_ingestion_reussie": "2026-09-15T19:42:43",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 1,
+      "nombre_runs": 5,
       "connecteur_derniere_version": "international-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
@@ -10209,11 +10340,11 @@
         {
           "schema": "core",
           "table": "indicateur_mondial",
-          "lignes_totales_estimees": 771,
+          "lignes_totales_estimees": 1514,
           "lignes_pour_cette_source": 89,
-          "taille_octets": 262144,
-          "annee_min": 2000,
-          "annee_max": 2024,
+          "taille_octets": 425984,
+          "annee_min": 1949,
+          "annee_max": 2025,
           "colonne_historique": "annee"
         }
       ],
@@ -11078,6 +11209,43 @@
       ],
       "cle_s3": null,
       "tables": [],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "sipri-milex",
+      "label": "SIPRI — dépense militaire, part du PIB",
+      "publisher": "Stockholm International Peace Research Institute (SIPRI)",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Usage non commercial avec attribution (conditions SIPRI) — ce site n'a pas de vocation commerciale",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "annuelle",
+      "notes": "Feuille « Share of GDP » du classeur officiel, 1949-2025. Les valeurs marquées « xxx » (pays non indépendant) ou « . . » (donnée indisponible) dans la source ne deviennent pas des zéros : ces années sont simplement absentes de la table plutôt que complétées par une estimation.",
+      "derniere_ingestion_reussie": "2026-09-15T19:42:44",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 4,
+      "connecteur_derniere_version": "international-v1",
+      "format_detecte": "Fichier XLSX",
+      "urls_origine": [
+        "https://www.sipri.org/sites/default/files/SIPRI-Milex-data-1949-2025_v1.2.xlsx"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 922552,
+      "chemins_locaux": [
+        "2026/09/15/6cc3a30b1064f9f02e60236667eef82e08cad42910ce630909d004ad2c398a9d.xlsx"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "indicateur_mondial",
+          "lignes_totales_estimees": 1514,
+          "lignes_pour_cette_source": 657,
+          "taille_octets": 425984,
+          "annee_min": 1949,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        }
+      ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
