@@ -68,7 +68,7 @@ var familles = []*Famille{
 	{ID: "protection-sociale-sante", Nom: "Protection sociale et santé", Base: "sujets",
 		Intro: "Retraites, maladie, chômage, famille, pauvreté : plus de la moitié de la dépense publique.",
 		Cofog: []string{"GF10", "GF07"}, Sujets: []*Sujet{
-			{ID: "retraites", Nom: "Retraites", Doc: "retraite-donnees"},
+			{ID: "retraites", Nom: "Retraites", Doc: "retraite-donnees", Pages: []LienPage{{"La vieillesse au-delà des retraites : dépendance, APA", "vieillesse/"}}},
 			{ID: "sante", Nom: "Santé et hôpitaux", Doc: "sante-donnees"},
 			{ID: "chomage", Nom: "Chômage", Doc: "chomage-donnees", Pages: []LienPage{{"Chômage et minima sociaux, en graphiques", "chomage/"}}},
 			{ID: "pauvrete", Nom: "Pauvreté", Doc: "pauvrete-donnees"},
@@ -87,7 +87,7 @@ var familles = []*Famille{
 	{ID: "ecole-recherche-culture", Nom: "École, recherche et culture", Base: "sujets",
 		Intro: "L'enseignement scolaire, les universités et la recherche, la culture, le sport.",
 		Cofog: []string{"GF09", "GF08"}, Sujets: []*Sujet{
-			{ID: "education", Nom: "Éducation nationale", Doc: "education-donnees"},
+			{ID: "education", Nom: "Éducation nationale", Doc: "education-donnees", Pages: []LienPage{{"La jeunesse : études supérieures, apprentissage, premiers emplois", "jeunesse/"}}},
 			{ID: "recherche", Nom: "Recherche et universités", Doc: "recherche-enseignement-superieur-donnees"},
 			{ID: "culture", Nom: "Culture et audiovisuel public", Doc: "culture-donnees"},
 			{ID: "sport", Nom: "Sport et vie associative", Doc: "sport-vie-associative-donnees"},
