@@ -658,16 +658,23 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	for _, ind := range indicsCollectivite {
 		barres = append(barres, barreNiveau{ind.Libelle, barresNiveaux(col.Poids, ind.Code)})
 	}
+	var barresRecette []barreNiveau
+	for _, ind := range indicsRecette {
+		barresRecette = append(barresRecette, barreNiveau{ind.Libelle, barresNiveaux(col.Poids, ind.Code)})
+	}
+	parts := partsRecettes(col.Poids)
 	l = layout
 	l.Title = "Collectivités"
 	if err := write(page("collectivites.gohtml"),
 		filepath.Join(out, "collectivites", "index.html"), struct {
 			Layout
-			C            *StatsCollectivites
-			Ind          []IndicCollectivite
-			Barres       []barreNiveau
-			IndicLibelle string
-		}{l, col, indicsCollectivite, barres, "Dépenses de fonctionnement"}); err != nil {
+			C             *StatsCollectivites
+			Ind           []IndicCollectivite
+			Barres        []barreNiveau
+			BarresRecette []barreNiveau
+			Parts         []PartRecette
+			IndicLibelle  string
+		}{l, col, indicsCollectivite, barres, barresRecette, parts, "Dépenses de fonctionnement"}); err != nil {
 		return err
 	}
 

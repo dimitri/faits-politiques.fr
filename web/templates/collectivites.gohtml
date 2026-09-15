@@ -80,6 +80,34 @@ elles restent devant, mais en investissement les trois autres niveaux réunis fo
 en dette les régions — dix-sept collectivités — portent presque autant que les 1 262
 intercommunalités à fiscalité propre.</p>
 
+<h2>D'où vient l'argent</h2>
+<p class="q">Deux origines à ne pas confondre&nbsp;: la fiscalité que la collectivité vote elle-même
+(« Impôts et taxes »), et la dotation globale de fonctionnement (DGF) que l'État lui verse chaque
+année. Le reste des recettes totales — subventions diverses, produits des services, autres
+dotations — n'est pas détaillé par cette seule agrégation.</p>
+<p class="note abs"><strong>N'additionnez pas non plus ces barres-là entre elles</strong>&nbsp;: comme
+pour les dépenses ci-dessus, chaque niveau est totalisé séparément et les transferts entre niveaux
+sont comptés plusieurs fois dans la somme.</p>
+{{range .BarresRecette}}
+<h3>{{.Titre}}</h3>
+{{.Graphe}}
+{{end}}
+<div class="scroll"><table>
+<thead><tr><th>Niveau</th><th class="n">Recettes totales</th><th class="n">dont DGF</th>
+  <th class="n">dont impôts et taxes</th></tr></thead>
+<tbody>{{range .Parts}}<tr>
+  <td>{{.Libelle}}</td>
+  <td class="n">{{dec .Recettes 1}}&nbsp;Md€</td>
+  <td class="n">{{dec .DGFPct 0}}&nbsp;%</td>
+  <td class="n">{{dec .ImpotsPct 0}}&nbsp;%</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note"><strong>La DGF quasi nulle des régions ne signifie pas qu'elles reçoivent peu de
+l'État.</strong> Depuis la loi de finances 2018, la DGF des régions a été remplacée par une fraction
+du produit de la TVA. Leur part d'« impôts et taxes » reste pourtant comparable à celle des autres
+niveaux&nbsp;: cette recette de substitution semble comptée dans cette catégorie par l'OFGL, bien que
+la région n'en vote pas le taux — une hypothèse de lecture cohérente avec les chiffres, que cette
+note ne peut pas confirmer faute d'avoir ouvert la méthodologie détaillée de l'OFGL.</p>
+
 <h2>Les {{len $c.Regions}} régions</h2>
 <div class="scroll"><table>
 <thead><tr><th>Région</th><th>Président du conseil régional</th><th class="n">Habitants</th>

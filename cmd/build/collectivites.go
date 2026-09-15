@@ -127,6 +127,47 @@ var indicsCollectivite = []IndicCollectivite{
 	{"ofgl.masse_salariale_par_hab", "Charges de personnel", "personnel"},
 }
 
+// Les trois indicateurs de recette, pour la section « d'où vient l'argent » —
+// distincts des cinq indicateurs de dépense ci-dessus : mélanger recette et
+// dépense dans les mêmes barres ferait perdre le sens de la mise en garde
+// « n'additionnez pas les barres » qui s'applique à chacun des deux groupes
+// séparément, pas à leur réunion.
+var indicsRecette = []IndicCollectivite{
+	{"ofgl.recettes_totales_par_hab", "Recettes totales", "recettes"},
+	{"ofgl.dgf_par_hab", "Dotation globale de fonctionnement", "DGF"},
+	{"ofgl.impots_taxes_par_hab", "Impôts et taxes", "impôts"},
+}
+
+// PartRecette : la part de la DGF et celle des impôts et taxes dans les
+// recettes totales, par niveau — ce qui distingue « financé par l'État » de
+// « financé par la fiscalité que la collectivité vote elle-même ». Calculé ici
+// plutôt qu'écrit en dur dans le modèle de page, pour rester exact quand
+// l'exercice change.
+type PartRecette struct {
+	Niveau, Libelle             string
+	Recettes, DGF, Impots       float64 // milliards d'euros, pour l'ordre de grandeur
+	DGFPct, ImpotsPct, AutrePct float64
+}
+
+func partsRecettes(poids []NiveauPoids) []PartRecette {
+	var out []PartRecette
+	for _, p := range poids {
+		rec := p.Totaux["ofgl.recettes_totales_par_hab"]
+		if rec <= 0 {
+			continue
+		}
+		dgf := p.Totaux["ofgl.dgf_par_hab"]
+		imp := p.Totaux["ofgl.impots_taxes_par_hab"]
+		out = append(out, PartRecette{
+			Niveau: p.Niveau, Libelle: p.Libelle,
+			Recettes: rec / 1e9, DGF: dgf / 1e9, Impots: imp / 1e9,
+			DGFPct: 100 * dgf / rec, ImpotsPct: 100 * imp / rec,
+			AutrePct: 100 * (rec - dgf - imp) / rec,
+		})
+	}
+	return out
+}
+
 var libelleNature = map[string]string{
 	"CC": "Communauté de communes", "CA": "Communauté d'agglomération",
 	"CU": "Communauté urbaine", "METRO": "Métropole",
