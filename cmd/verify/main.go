@@ -832,6 +832,74 @@ var checks = []check{
 		        ) x WHERE NOT (a_police AND a_gendarmerie)`,
 	},
 	{
+		// L'Assemblée nationale et le Sénat doivent apparaître ensemble à
+		// chaque exercice de la mission Pouvoirs publics — voir
+		// docs/pouvoirs-publics-donnees.md.
+		name: "la mission Pouvoirs publics porte l'Assemblée nationale et le Sénat à chaque exercice",
+		query: `SELECT count(*) FROM (
+		          SELECT exercice,
+		                 bool_or(programme_libelle = 'Assemblée nationale') AS a_an,
+		                 bool_or(programme_libelle = 'Sénat') AS a_senat
+		            FROM core.budget_programme WHERE mission_libelle = 'Pouvoirs publics'
+		           GROUP BY exercice
+		        ) x WHERE NOT (a_an AND a_senat)`,
+	},
+	{
+		name:  "la dépense environnementale couvre au moins dix ans",
+		query: `SELECT count(DISTINCT annee) FROM core.depense_environnementale WHERE purpose_code='TOT_CEP_EP' AND secteur_code='S1'`,
+		min:   10,
+	},
+	{
+		// Le secteur S1 (total économie) doit toujours être au moins aussi
+		// grand que le plus grand de ses sous-secteurs — sinon la hiérarchie
+		// purpose/secteur documentée dans core.depense_environnementale a été
+		// mal lue (même piège que SAE Q24, voir docs/sante-donnees.md § 1.1).
+		name: "le total économie de la dépense environnementale domine chaque sous-secteur",
+		query: `SELECT count(*) FROM (
+		          SELECT annee,
+		                 max(valeur) FILTER (WHERE secteur_code='S1') AS total,
+		                 max(valeur) FILTER (WHERE secteur_code<>'S1') AS sous_secteur
+		            FROM core.depense_environnementale
+		           WHERE purpose_code='TOT_CEP_EP' AND unite='MIO_EUR'
+		           GROUP BY annee
+		        ) x WHERE total IS NOT NULL AND sous_secteur IS NOT NULL AND sous_secteur > total`,
+	},
+	{
+		name:  "la certification HAS couvre au moins 300 démarches",
+		query: `SELECT count(*) FROM core.certification_has_demarche`,
+		min:   300,
+	},
+	{
+		// Un score de chapitre est une moyenne sur 100 — hors bornes, une
+		// colonne a été mal lue (virgule décimale, ou pourcentage x100 en trop).
+		name:  "les scores de certification HAS restent entre 0 et 100",
+		query: `SELECT count(*) FROM core.certification_has_chapitre WHERE score IS NOT NULL AND (score < 0 OR score > 100)`,
+	},
+	{
+		name:  "le taux de pauvreté européen couvre la France sur au moins dix ans",
+		query: `SELECT count(DISTINCT annee) FROM core.pauvrete_taux_eu WHERE geo_code = 'FR'`,
+		min:   10,
+	},
+	{
+		// Un taux de risque de pauvreté est un pourcentage de population :
+		// hors de cette fourchette, une colonne a été mal lue.
+		name:  "le taux de pauvreté européen reste une proportion plausible",
+		query: `SELECT count(*) FROM core.pauvrete_taux_eu WHERE taux_pct <= 0 OR taux_pct > 50`,
+	},
+	{
+		name:  "l'aide alimentaire couvre les six réseaux du dispositif Insee-Drees",
+		query: `SELECT count(DISTINCT association) FROM core.aide_alimentaire`,
+		min:   6,
+	},
+	{
+		// Chaque réseau doit porter periode_libelle si et seulement s'il est en
+		// CAMPAGNE (Restos du Cœur) — sinon le format de période a été mal
+		// reconnu à l'ingestion (voir internal/macro/aide_alimentaire.go).
+		name: "periode_libelle n'est renseigné que pour les lignes CAMPAGNE de l'aide alimentaire",
+		query: `SELECT count(*) FROM core.aide_alimentaire
+		          WHERE (periode_type = 'CAMPAGNE') <> (periode_libelle IS NOT NULL)`,
+	},
+	{
 		name:  "les personnels du premier degré couvrent au moins deux rentrées scolaires",
 		query: `SELECT count(DISTINCT annee) FROM core.education_personnel_etablissement WHERE degre = 'PREMIER'`,
 		min:   2,
