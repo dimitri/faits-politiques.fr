@@ -501,7 +501,7 @@ le contraste.
 
 | # | Chantier | Dépend de | Note |
 |---|---|---|---|
-| 1 | Cartes des territoires | rien | Géométrie chargée, couverture quasi totale, chaîne prouvée. |
+| 1 | ~~Cartes des territoires~~ | rien | **✅ Fait (15/09/2026)** — fusionné dans Collectivités plutôt que publié comme section séparée : voir `docs/decisions.md`, commit « Chantier 3 : fusionne Territoire dans Collectivités ». Les cartes vivent sous `/collectivites/carte/`. |
 | 2 | Agriculture et alimentation | rien | La donnée la mieux couverte du site. |
 | 3 | Fiche individuelle enrichie | rien | Le plus gros gain pour le lecteur ; couverture inégale, donc absences typées. |
 | 4 | Accueil, menu, navigation | rien | Six entrées par question ; la frise en colonne vertébrale. |
@@ -512,6 +512,13 @@ le contraste.
 | 9 | Pont nuance → parti | **décision éditoriale** | Ne débloquerait que 7,7 % des sièges : à faire pour la complétude, pas pour la carte. |
 | 10 | Résultats détaillés Intérieur (présidentielle, législatives, par commune) | ingestion | Débloquerait les cartes de score pour les deux élections nationales. Aujourd'hui seules les municipales sont cartographiables. |
 | 11 | Communes en géométrie | ingestion lourde | 34 875 polygones, par département, après les cartes départementales. |
+
+**Ce plan date du 13 septembre 2026** et prédate le pivot vers les onze
+chantiers budgétaires (`/home/dim/.claude/plans/twinkly-waddling-aho.md`) et
+le gabarit commun des dossiers (D-066) : les chiffres du § 1 et la
+navigation du § 7 ne reflètent plus l'état actuel de la base sur ces points
+précis. Les chantiers non cochés ci-dessus restent des pistes valides, pas
+nécessairement des priorités actuelles.
 
 **La règle qui les ordonne** : publier d'abord ce dont la couverture est bonne.
 Les territoires et l'agriculture sont mieux couverts que la politique — c'est
