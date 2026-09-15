@@ -759,9 +759,46 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	if err != nil {
 		return err
 	}
+
+	// Les circonscriptions législatives, avec la même carte de situation.
+	circos, err := chargerCirconscriptions(ctx, pool, lieux, persons)
+	if err != nil {
+		return err
+	}
+	if err := fond.chargerCirconscriptions(ctx, pool); err != nil {
+		return err
+	}
+	popFrance := 0
+	for _, pc := range circos {
+		popFrance += pc.Population
+	}
+	tcirco := page("circonscription.gohtml")
+	circosDept := map[string][]Lieu{}
+	for code, pc := range circos {
+		pc.Situation = fond.pourCirconscription(pc, popFrance)
+		l = layout
+		l.Title = pc.Titre
+		if err := write(tcirco, filepath.Join(out, "circonscription", code, "index.html"),
+			struct {
+				Layout
+				C *PageCirco
+			}{l, pc}); err != nil {
+			return err
+		}
+		circosDept[pc.Dept.Code] = append(circosDept[pc.Dept.Code], Lieu{Type: "CIRCONSCRIPTION",
+			Code: code, Nom: pc.Ordinal + " circonscription", URL: root + "/circonscription/" + code + "/"})
+	}
+	for _, ls := range circosDept {
+		sort.Slice(ls, func(i, j int) bool { return ls[i].Code < ls[j].Code })
+	}
+	fmt.Printf("  circonscriptions : %d pages\n", len(circos))
+
 	for _, pc := range pagesCol {
 		if pc.TypeURL == "departement" {
 			pc.Situation = fond.pourDepartement(pc.Code, pc.Nom, pc.Lignes)
+			for _, d := range codesCOGDe(pc.Code) {
+				pc.Circonscriptions = append(pc.Circonscriptions, circosDept[d]...)
+			}
 		} else {
 			pc.Situation = fond.pourRegion(pc.Code, pc.Nom, pc.Lignes)
 		}

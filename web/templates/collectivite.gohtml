@@ -80,6 +80,13 @@ ce département. Le président est celui que publie la base nationale des interc
 </details>
 {{end}}
 
+{{if $k.Circonscriptions}}
+<h2>Les {{len $k.Circonscriptions}} circonscriptions législatives</h2>
+<p class="q">Chacune élit un député. Leur page les situe dans la France entière, avec leurs
+communes et leurs députés depuis 2012.</p>
+<ul class="liens-cartes">{{range $k.Circonscriptions}}<li><a href="{{.URL}}">{{.Nom}}</a></li>{{end}}</ul>
+{{end}}
+
 {{if $k.Departements}}
 <h2>Les {{len $k.Departements}} départements de la région</h2>
 <ul class="liens-cartes">{{range $k.Departements}}<li>{{if .URL}}<a href="{{.URL}}">{{.Nom}}</a>{{else}}{{.Nom}}{{end}} <span class="z small">{{.Code}}</span></li>{{end}}</ul>

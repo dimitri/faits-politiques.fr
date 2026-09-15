@@ -682,6 +682,8 @@ type PageCollectivite struct {
 	NbCommunesCarte int
 	// Carte de situation dans la France entière (carte_situation.go).
 	Situation *Situation
+	// Pour un département, ses circonscriptions législatives (circonscriptions.go).
+	Circonscriptions []Lieu
 }
 
 // pagesCollectivites fabrique une page par région et par département. Le rang

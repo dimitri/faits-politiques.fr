@@ -1,0 +1,56 @@
+{{define "content"}}
+{{$c := .C}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/assemblee/">Assemblée nationale</a>
+  {{if $c.Region.Nom}} › {{if $c.Region.URL}}<a href="{{$c.Region.URL}}">{{$c.Region.Nom}}</a>{{else}}{{$c.Region.Nom}}{{end}}{{end}}
+  › {{if $c.Dept.URL}}<a href="{{$c.Dept.URL}}">{{$c.Dept.Nom}}</a>{{else}}{{$c.Dept.Nom}}{{end}}
+  › <span>{{$c.Ordinal}} circonscription</span></p>
+<span class="sur">Circonscription législative · code {{$c.Code}}</span>
+<h1>{{$c.Titre}}</h1>
+<p class="lede">{{if $c.Population}}{{nb $c.Population}} habitants en 2019, {{end}}{{if $c.Inscrits}}{{nb $c.Inscrits}} électeurs
+inscrits en avril 2022, {{end}}{{$c.PhraseCommunes}}. Elle élit un député à l'Assemblée nationale.</p>
+
+{{if $c.Situation}}{{template "situation" $c.Situation}}{{else}}
+<p class="nodata">L'Insee ne publie pas de contour pour les circonscriptions des collectivités
+d'outre-mer&nbsp;: pas de carte de situation pour celle-ci.</p>
+{{end}}
+
+<h2>À l'Assemblée nationale depuis 2012</h2>
+{{if $c.Deputes}}
+<div class="scroll"><table class="pile">
+<thead><tr><th>Député</th><th>Mandat</th></tr></thead>
+<tbody>{{range $c.Deputes}}<tr>
+  <td><a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a>{{if .EnCours}} <span class="small z">· en fonction</span>{{end}}</td>
+  <td class="small z" data-l="Mandat">{{.Periode}}</td>
+</tr>{{end}}</tbody></table></div>
+{{else}}
+<p class="nodata">Aucun mandat de député rattaché à cette circonscription depuis juin 2012 dans les
+sources chargées.</p>
+{{end}}
+<p class="note">Le découpage actuel date de l'ordonnance du 29 juillet 2009, ratifiée par la loi du
+23 février 2010, et s'applique depuis les législatives de juin 2012. Avant cette date, le même numéro
+pouvait désigner un territoire différent&nbsp;: les députés élus auparavant ne sont pas listés ici.</p>
+
+{{if $c.Portrait}}
+<h2>Portrait statistique</h2>
+<div class="scroll"><table>
+<thead><tr><th>Indicateur</th><th class="n">Circonscription</th><th class="n">France</th></tr></thead>
+<tbody>{{range $c.Portrait}}<tr>
+  <td>{{.Libelle}}</td><td class="n">{{.Valeur}}</td><td class="n z">{{.France}}</td>
+</tr>{{end}}</tbody></table></div>
+<p class="note">Recensement de la population 2018, Filosofi 2019 (niveau de vie et pauvreté), base
+permanente des équipements 2020. La colonne « France » est la référence publiée par l'Insee&nbsp;:
+France hors Mayotte pour le recensement, France métropolitaine pour le niveau de vie et la pauvreté.
+Un écart avec la moyenne décrit le territoire&nbsp;; il ne dit rien du député qui le représente.</p>
+{{end}}
+
+<h2>Les {{len $c.Communes}} commune{{if gt (len $c.Communes) 1}}s{{end}}</h2>
+{{if $c.NbPartielles}}<p class="q">Une commune marquée «&nbsp;en partie&nbsp;» est découpée entre
+plusieurs circonscriptions, selon ses cantons ou ses bureaux de vote.</p>{{end}}
+<ul class="liens-cartes">{{range $c.Communes}}<li>{{if .URL}}<a href="{{.URL}}">{{.Nom}}</a>{{else}}{{.Nom}}{{end}}{{if .Partielle}} <span class="small z">(en partie)</span>{{end}}</li>{{end}}</ul>
+
+<p class="src">Circonscriptions, communes, population et portrait&nbsp;: Insee, portraits des
+circonscriptions législatives (fond cartographique du 3 mai 2022, communes en géographie au
+1<sup>er</sup> janvier 2021). Inscrits&nbsp;: ministère de l'Intérieur, 11 avril 2022. Mandats&nbsp;:
+Assemblée nationale et répertoire national des élus.</p>
+{{end}}

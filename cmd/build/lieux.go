@@ -55,6 +55,8 @@ type Resolveur struct {
 	epci      map[string]epciRef
 	epciDeCom map[string]string // commune → SIREN du groupement à fiscalité propre
 	nomsDept  map[string]string // nom normalisé → code, pour « Gers, 1e circonscription »
+	circos    map[string]bool   // circonscriptions législatives connues de l'Insee (code)
+	deptCirco map[string]string // clé cleCirco du département → code, outre-mer compris
 }
 
 func chargerResolveur(ctx context.Context, pool *pgxpool.Pool, root string,
@@ -65,6 +67,7 @@ func chargerResolveur(ctx context.Context, pool *pgxpool.Pool, root string,
 		deptPage: map[string]bool{}, regions: map[string]string{},
 		regSlug: map[string]string{}, epci: map[string]epciRef{},
 		epciDeCom: map[string]string{}, nomsDept: map[string]string{},
+		circos: map[string]bool{}, deptCirco: map[string]string{},
 	}
 
 	rows, err := pool.Query(ctx, `
@@ -114,6 +117,28 @@ func chargerResolveur(ctx context.Context, pool *pgxpool.Pool, root string,
 		}
 	}
 	grows.Close()
+	for nom, code := range r.nomsDept {
+		r.deptCirco[cleCirco(nom)] = code
+	}
+	// Les circonscriptions : leur libellé Insee donne aussi le nom des
+	// collectivités d'outre-mer, absentes des contours départementaux.
+	crows, err := pool.Query(ctx, `SELECT code, nom, code_departement FROM ref.circonscription_legislative`)
+	if err != nil {
+		return nil, err
+	}
+	for crows.Next() {
+		var code, nom, dep string
+		if err := crows.Scan(&code, &nom, &dep); err != nil {
+			crows.Close()
+			return nil, err
+		}
+		r.circos[code] = true
+		d, _, _ := strings.Cut(nom, " - ")
+		if k := cleCirco(d); r.deptCirco[k] == "" {
+			r.deptCirco[k] = dep
+		}
+	}
+	crows.Close()
 	for _, d := range col.Departements {
 		r.deptPage[d.Code] = true
 		if r.depts[d.Code] == "" {
@@ -271,13 +296,24 @@ func (r *Resolveur) Mandat(typeMandat, communeCode, circo string) []Lieu {
 	case "DEPUTE":
 		// Deux formats coexistent : l'Assemblée publie « Gers, 1e circonscription »,
 		// le RNE « 3701 1Ère Circonscription ».
+		// Une circonscription connue de l'Insee a sa page ; situerMandats retire
+		// le lien des mandats antérieurs au découpage de 2012.
+		code := r.codeCirco(circo)
+		if code != "" {
+			out = append(out, Lieu{Type: "CIRCONSCRIPTION", Code: code, Nom: ordinalCirco(code) + " circonscription",
+				URL: r.root + "/circonscription/" + code + "/"})
+		}
 		if m := reCircoAN.FindStringSubmatch(circo); m != nil {
-			out = append(out, Lieu{Type: "CIRCONSCRIPTION", Nom: m[2] + "e circonscription"})
-			if code := r.nomsDept[CleTri(m[1])]; code != "" {
-				ajouterDept(code)
+			if code == "" {
+				out = append(out, Lieu{Type: "CIRCONSCRIPTION", Nom: m[2] + "e circonscription"})
+			}
+			if dep := r.deptCirco[cleCirco(m[1])]; dep != "" {
+				ajouterDept(dep)
 			}
 		} else if m := reCodeLibelle.FindStringSubmatch(circo); m != nil {
-			out = append(out, Lieu{Type: "CIRCONSCRIPTION", Nom: strings.ToLower(m[2])})
+			if code == "" {
+				out = append(out, Lieu{Type: "CIRCONSCRIPTION", Nom: strings.ToLower(m[2])})
+			}
 			if !strings.HasPrefix(m[1], "ZZ") {
 				ajouterDept(deptDeCode(m[1]))
 			}
@@ -408,6 +444,13 @@ func (r *Resolveur) situerMandats(p *Person) {
 			continue
 		}
 		m.Lieux = r.Mandat(m.Type, m.CommuneCode, m.Circo)
+		if m.Type == "DEPUTE" && m.DebutISO < debutDecoupage2012 {
+			for i := range m.Lieux {
+				if m.Lieux[i].Type == "CIRCONSCRIPTION" {
+					m.Lieux[i].URL = ""
+				}
+			}
+		}
 		gardes = append(gardes, m)
 	}
 	p.Mandats = gardes

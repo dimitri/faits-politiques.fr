@@ -2350,3 +2350,41 @@ d'œil où il se trouve ni ce qu'il pèse.
 - **Poids** : le fond national et les cartons d'outre-mer sont des images partagées
   (`media/situation-*.svg`) ; chaque page n'embarque que le calque de son territoire
   (+4 Ko par page de commune).
+
+## D-071 — Une page par circonscription législative, située dans la France entière
+
+`internal/geo/circonscriptions.go`, `db/migrations/0110_circonscription_legislative.sql`,
+`cmd/build/circonscriptions.go`, `circonscription.gohtml` ; `go run ./cmd/ingest -only=circonscriptions`.
+
+**Pourquoi.** Une circonscription n'apparaissait que comme une étiquette sans lien dans les
+mandats des députés : ni carte, ni population, ni communes. La carte de situation (D-070) lui
+manquait.
+
+**Décidé.**
+
+- **Source unique, officielle : l'Insee**, publication « Portraits des circonscriptions
+  législatives ». Le fond cartographique du 3 mai 2022 (558 circonscriptions de métropole et
+  des DROM, géométrie simplifiée), la correspondance communes → circonscriptions (géographie
+  communale 2021) et les indicateurs (population légale 2019 et 2013, inscrits d'avril 2022,
+  recensement 2018, Filosofi 2019, BPE 2020). Les contours plus précis reconstitués à partir des
+  bureaux de vote, publiés sur data.gouv.fr sous un compte personnel et non par un producteur
+  public, ne sont pas retenus.
+- **566 pages** `/circonscription/<code Insee>/` : métropole, DROM et collectivités
+  d'outre-mer. Les 8 circonscriptions des collectivités d'outre-mer n'ont pas de contour Insee :
+  la page le dit, sans carte. Les 11 circonscriptions des Français établis hors de France ne
+  sont décrites par aucun fichier : pas de page, l'étiquette reste sans lien.
+- **Carte et légende de situation** : population légale et évolution annuelle, superficie,
+  communes (dont celles partagées entre circonscriptions), inscrits, député en fonction, et
+  « budget : aucun » — une circonscription n'administre rien. La superficie est cadastrale
+  (IGN) quand la circonscription est faite de communes entières, sinon l'aire du contour Insee
+  simplifié, précédée de « ≈ ».
+- **Députés depuis juin 2012 seulement.** Le découpage de l'ordonnance du 29 juillet 2009
+  s'applique depuis les législatives de 2012 ; avant, le même numéro pouvait désigner un autre
+  territoire. Un mandat antérieur garde son étiquette, sans lien. Les deux formats de libellé
+  (Assemblée « Gers, 1e circonscription », répertoire des élus « 3203 3Ème Circonscription »)
+  se rattachent au code Insee ; un libellé non rattaché est signalé à la construction.
+- **Portrait statistique** : quinze variables Insee face à la référence nationale publiée par
+  l'Insee. Les parts d'actifs en emploi, de chômeurs et de retraités se rapportent à la
+  population totale (les six catégories somment à 100 %) : le libellé le dit, là où celui de
+  l'Insee (« part de la population active au chômage ») laisse croire à un taux de chômage.
+- Les pages de département listent leurs circonscriptions.

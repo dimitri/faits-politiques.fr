@@ -59,6 +59,7 @@ type fondSituation struct {
 	deps, regs  *JeuContours
 	communes    map[string]*geomSituation
 	epci        map[string]*geomSituation
+	circos      map[string]*geomSituation // circonscriptions législatives (circonscriptions.go)
 	natureEPCI  map[string]string
 	domDept     map[string]contourSeul // code département d'outre-mer → carton
 	domOrdre    []string
