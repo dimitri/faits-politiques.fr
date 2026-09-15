@@ -48,6 +48,8 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [international-donnees.md](international-donnees.md) | La France comparée à l'Europe, au G8 et au monde : salaire minimum, PIB face à l'épuisement des ressources, et les sujets encore hors de portée. |
 | [commande-publique-donnees.md](commande-publique-donnees.md) | Les DECP : qui achète, à qui, pour combien — 2,1 millions de marchés, 2018-2026. |
 | [sante-donnees.md](sante-donnees.md) | FINESS, RPPS, PMSI, Open Damir : la santé vue par cinq sources qui ne se recoupent pas, et les déserts médicaux au-delà de la seule densité. |
+| [vieillesse-donnees.md](vieillesse-donnees.md) | Combien la vieillesse pèse dans la dépense publique, qui la finance (État ou Sécu), et l'APA à domicile, premier chiffre chargé de la branche autonomie. |
+| [jeunesse-donnees.md](jeunesse-donnees.md) | Études supérieures, apprentissage (InserJeunes), Contrat d'engagement jeune — trois circuits de financement à ne jamais additionner sans le dire. |
 
 ## Dossiers verticaux
 
