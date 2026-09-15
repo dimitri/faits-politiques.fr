@@ -1,8 +1,8 @@
 {
-  "genere_le": "2026-09-15T18:02:41Z",
+  "genere_le": "2026-09-15T18:19:46Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
-  "nombre_sources": 114,
+  "nombre_sources": 115,
   "sources": [
     {
       "slug": "acteurs-numeriques-francais",
@@ -176,9 +176,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Toutes les professions de santé libérales sont chargées, pas seulement les médecins — même nomenclature de secteur pour toutes. Contient des lignes d'agrégat (région « FRANCE », département « 999 — Tout département ») mêlées aux lignes de détail : ne jamais sommer sans filtrer, voir le commentaire de la table.",
-      "derniere_ingestion_reussie": "2026-09-15T14:42:30",
+      "derniere_ingestion_reussie": "2026-09-15T18:14:45",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 7,
       "connecteur_derniere_version": "sante-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -196,7 +196,7 @@
           "table": "medecin_secteur_effectif",
           "lignes_totales_estimees": 177720,
           "lignes_pour_cette_source": 177720,
-          "taille_octets": 61997056,
+          "taille_octets": 62013440,
           "annee_min": 2010,
           "annee_max": 2024,
           "colonne_historique": "annee"
@@ -6174,9 +6174,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "annuelle",
       "notes": "Trois jeux distincts (national par type d'hospitalisation, par établissement, par patient), chacun avec sa propre grille de croisement — voir les commentaires des trois tables pour ce qui se somme et ce qui ne se somme pas. ScanSante (scansante.fr), le portail habituellement cité pour le PMSI, est une interface interactive sans export stable trouvé ; data-essentiel.atih.sante.fr, moins connu, publie les mêmes familles de chiffres en JSON/CSV sous ODbL.",
-      "derniere_ingestion_reussie": "2026-09-15T14:42:32",
+      "derniere_ingestion_reussie": "2026-09-15T18:14:47",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 1,
+      "nombre_runs": 5,
       "connecteur_derniere_version": "sante-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -6196,9 +6196,9 @@
         {
           "schema": "core",
           "table": "pmsi_mco_national",
-          "lignes_totales_estimees": -1,
+          "lignes_totales_estimees": 15,
           "lignes_pour_cette_source": 15,
-          "taille_octets": 32768,
+          "taille_octets": 65536,
           "annee_min": 2021,
           "annee_max": 2025,
           "colonne_historique": "annee"
@@ -6208,7 +6208,7 @@
           "table": "pmsi_mco_par_etablissement",
           "lignes_totales_estimees": 245,
           "lignes_pour_cette_source": 245,
-          "taille_octets": 106496,
+          "taille_octets": 131072,
           "annee_min": 2021,
           "annee_max": 2025,
           "colonne_historique": "annee"
@@ -6218,7 +6218,104 @@
           "table": "pmsi_mco_par_patient",
           "lignes_totales_estimees": 1400,
           "lignes_pour_cette_source": 1400,
-          "taille_octets": 319488,
+          "taille_octets": 376832,
+          "annee_min": 2021,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "atih-pmsi-smr-had",
+      "label": "ATIH — PMSI-SMR et PMSI-HAD (data-essentiel)",
+      "publisher": "Agence technique de l'information sur l'hospitalisation (ATIH)",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Open Database License (ODbL) 1.0",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "annuelle",
+      "notes": "Six jeux (trois par champ). SMR distingue HC/HP (hospitalisation complète/partielle) et publie une durée de PRISE EN CHARGE distincte de la durée de séjour ; HP n'a pas de séjour au sens statistique (nb_sejours et duree_moy_sejour valent NULL dans la source elle-même). HAD n'a aucune sous-catégorie d'hospitalisation. Aucun des deux ne publie de ligne 'Tous' par âge/sexe dans son jeu par patient, à la différence du MCO.",
+      "derniere_ingestion_reussie": "2026-09-15T18:14:50",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 4,
+      "connecteur_derniere_version": "sante-v1",
+      "format_detecte": "API Opendatasoft (export JSON)",
+      "urls_origine": [
+        "https://data-essentiel.atih.sante.fr/api/explore/v2.1/catalog/datasets/had-age-patients/exports/json",
+        "https://data-essentiel.atih.sante.fr/api/explore/v2.1/catalog/datasets/had-chiffres-cles/exports/json",
+        "https://data-essentiel.atih.sante.fr/api/explore/v2.1/catalog/datasets/had-type-etab/exports/json",
+        "https://data-essentiel.atih.sante.fr/api/explore/v2.1/catalog/datasets/smr-age-patients/exports/json",
+        "https://data-essentiel.atih.sante.fr/api/explore/v2.1/catalog/datasets/smr-chiffres-cles/exports/json",
+        "https://data-essentiel.atih.sante.fr/api/explore/v2.1/catalog/datasets/smr-etab/exports/json"
+      ],
+      "nombre_documents": 6,
+      "taille_locale_octets": 196208,
+      "chemins_locaux": [
+        "2026/09/15/87933a1c89d2001e8e3c6a6565a3313f89647d8f7af65f0f010f564e677332f7.json",
+        "2026/09/15/a0eeacf706452f72bef5aa1508972b8a95ea29620566dec779693797da300d4b.json",
+        "2026/09/15/a1f30e5b5191a2b7da036c29f13cdac6c72da319c7ceba745e7e6fae544ad8b3.json",
+        "2026/09/15/b9d7bbecd095b0f005b870a04cb12238ef01a236535a70ab52348992b75feb8d.json",
+        "2026/09/15/bbffec1130f13387eaf5dce05322772598c82469ac20b896c2a4a9eefef425e1.json",
+        "2026/09/15/ff4d93004ccd1d029880a0082c75c9281369f682e449cdb253278b16af86997f.json"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "pmsi_had_par_etablissement",
+          "lignes_totales_estimees": 233,
+          "lignes_pour_cette_source": 233,
+          "taille_octets": 106496,
+          "annee_min": 2021,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        },
+        {
+          "schema": "core",
+          "table": "pmsi_had_par_patient",
+          "lignes_totales_estimees": 100,
+          "lignes_pour_cette_source": 100,
+          "taille_octets": 32768,
+          "annee_min": 2021,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        },
+        {
+          "schema": "core",
+          "table": "pmsi_had_regional",
+          "lignes_totales_estimees": 94,
+          "lignes_pour_cette_source": 94,
+          "taille_octets": 65536,
+          "annee_min": 2021,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        },
+        {
+          "schema": "core",
+          "table": "pmsi_smr_par_etablissement",
+          "lignes_totales_estimees": 246,
+          "lignes_pour_cette_source": 246,
+          "taille_octets": 122880,
+          "annee_min": 2021,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        },
+        {
+          "schema": "core",
+          "table": "pmsi_smr_par_patient",
+          "lignes_totales_estimees": 300,
+          "lignes_pour_cette_source": 300,
+          "taille_octets": 106496,
+          "annee_min": 2021,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        },
+        {
+          "schema": "core",
+          "table": "pmsi_smr_regional",
+          "lignes_totales_estimees": 200,
+          "lignes_pour_cette_source": 200,
+          "taille_octets": 73728,
           "annee_min": 2021,
           "annee_max": 2025,
           "colonne_historique": "annee"
@@ -8190,9 +8287,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annoncée mensuelle ; en pratique irrégulière",
       "notes": "Le jeu data.gouv.fr historique (etalab_cs1100502) est signalé « remplacé » par de nouveaux flux quotidiens de l'ANS depuis le 20 juillet 2026, mais reste publié et à jour au moment du chargement (édition du 12 mai 2026) — utilisé faute d'avoir confirmé et documenté l'URL stable du nouveau flux ANS. Fichier plat sans en-tête, une ligne de commentaire, puis des lignes préfixées « structureet », séparateur point-virgule, ordre des champs fixé par la spécification etalab_cs1100502 (32 positions).",
-      "derniere_ingestion_reussie": "2026-09-15T14:42:07",
+      "derniere_ingestion_reussie": "2026-09-15T18:14:35",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 7,
       "connecteur_derniere_version": "sante-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
@@ -8210,7 +8307,7 @@
           "table": "finess_etablissement",
           "lignes_totales_estimees": 103022,
           "lignes_pour_cette_source": 103022,
-          "taille_octets": 81371136,
+          "taille_octets": 82386944,
           "annee_min": null,
           "annee_max": null
         }
@@ -8328,9 +8425,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "continue (au fil des visites de certification)",
       "notes": "Seul le 6e cycle (référentiel 2025-) est chargé, pas les cycles antérieurs (publiés séparément, référentiel différent, non comparable terme à terme).",
-      "derniere_ingestion_reussie": "2026-09-15T14:42:30",
+      "derniere_ingestion_reussie": "2026-09-15T18:14:45",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 2,
+      "nombre_runs": 6,
       "connecteur_derniere_version": "sante-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [

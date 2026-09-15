@@ -997,6 +997,31 @@ var checks = []check{
 		        ) x WHERE tous IS NOT NULL AND max_region IS NOT NULL AND max_region > tous`,
 	},
 	{
+		name:  "le PMSI-SMR couvre au moins cinq exercices",
+		query: `SELECT count(DISTINCT annee) FROM core.pmsi_smr_regional`,
+		min:   5,
+	},
+	{
+		// Vérifié aussi à l'ingestion (internal/sante/pmsi_smr_had.go) ; sonde
+		// redondante à dessein, comme pour le MCO. Ignore les (année, région)
+		// où seule la ligne 'Tous' est publiée, sans détail HC/HP — une
+		// lacune connue de la source à cette maille, pas une anomalie.
+		name: "le PMSI-SMR : nb_jours Tous égale HC plus HP quand le détail existe",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, region,
+		                 max(nb_jours) FILTER (WHERE type_hosp = 'Tous') AS tous,
+		                 sum(nb_jours) FILTER (WHERE type_hosp <> 'Tous') AS somme,
+		                 count(*) FILTER (WHERE type_hosp IN ('HC','HP')) AS nb_detail
+		            FROM core.pmsi_smr_regional
+		           GROUP BY annee, region
+		        ) x WHERE nb_detail = 2 AND tous <> somme`,
+	},
+	{
+		name:  "le PMSI-HAD couvre au moins cinq exercices",
+		query: `SELECT count(DISTINCT annee) FROM core.pmsi_had_regional`,
+		min:   5,
+	},
+	{
 		name:  "les DECP couvrent au moins deux millions de lignes de marché",
 		query: `SELECT count(*) FROM core.public_contract`,
 		min:   2000000,

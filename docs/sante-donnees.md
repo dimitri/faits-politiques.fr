@@ -1,6 +1,6 @@
 # La santé : FINESS comme clé pivot, la rémunération des médecins et les déserts médicaux
 
-> **Dossier** · version 8 · 15 septembre 2026
+> **Dossier** · version 9 · 15 septembre 2026
 >
 > Comment le système de santé est-il décrit par les données publiques, comment les
 > médecins sont-ils rémunérés, et que disent les données sur les déserts médicaux au-delà
@@ -247,7 +247,7 @@ un bug de jointure : une caractéristique du fichier RPPS lui-même, qui a
 conduit à préférer la démographie Cnam par secteur conventionnel (§ 2) pour
 la carte de densité — voir § 1.7.
 
-#### 1.5 PMSI-MCO : l'activité hospitalière, sur le bon portail
+#### 1.5 PMSI : l'activité hospitalière, sur le bon portail — MCO, SMR et HAD
 
 **ScanSanté (`scansante.fr/opendata`), longtemps cité comme l'unique porte
 d'entrée du PMSI, est une application interactive sans export de fichier à
@@ -256,10 +256,8 @@ familles de chiffres est un second portail, moins connu :
 **data-essentiel.atih.sante.fr**, un Opendatasoft comme celui de la Depp ou
 de la Drees déjà utilisés ailleurs dans ce dépôt, sous licence ODbL.
 
-`core.pmsi_mco_national`, `core.pmsi_mco_par_etablissement` et
-`core.pmsi_mco_par_patient` (champ Médecine-Chirurgie-Obstétrique
-seulement — pas SMR, HAD ni psychiatrie, publiés séparément et non chargés
-ici) :
+**MCO (Médecine-Chirurgie-Obstétrique)** — `core.pmsi_mco_national`,
+`core.pmsi_mco_par_etablissement` et `core.pmsi_mco_par_patient` :
 
 | Année | Séjours (Tous) | dont hospitalisation complète | dont ambulatoire | Durée moyenne (Tous) |
 |---|---:|---:|---:|---:|
@@ -280,6 +278,45 @@ France et l'Auvergne-Rhône-Alpes concentrent les plus gros volumes de
 séjours en établissement public — cohérent avec leur poids démographique,
 que cette note ne rapporte pas ici faute d'avoir chargé une population de
 référence par région dans ce même chargement.
+
+**SMR (Soins médicaux et de réadaptation)** — `core.pmsi_smr_regional`,
+`core.pmsi_smr_par_etablissement`, `core.pmsi_smr_par_patient`, 2021-2025.
+Un champ dont le vocabulaire ne se transpose pas de MCO : SMR distingue
+HC/HP (hospitalisation complète/partielle), pas complète/ambulatoire, et
+publie une **durée moyenne de PRISE EN CHARGE** distincte de la durée de
+séjour :
+
+| Année | Journées (Tous) | dont HC | dont HP | Durée moy. de séjour | Durée moy. de prise en charge |
+|---|---:|---:|---:|---:|---:|
+| 2025 | 36 736 655 | 30 485 083 | 6 251 572 | 40,4 j | 35,5 j |
+
+**HP n'a pas de notion de « séjour »** : `nb_sejours` et la durée de séjour
+valent NULL pour HP dans la source elle-même (vérifié : la Tous égale
+exactement HC, aucune contribution de HP) — pas une valeur manquante à
+l'ingestion. **Le nombre de patients ne s'additionne pas HC+HP=Tous** (à la
+différence des journées, qui s'additionnent exactement) : un même patient
+peut cumuler les deux formes de prise en charge dans l'année, compté une
+fois dans le total mais dans chacune des deux sous-catégories — 1 034 852
+patients en 2025 contre 732 823 (HC) + 371 219 (HP) = 1 104 042 si on les
+additionnait à tort. **Certaines années/régions ne publient que la ligne
+Tous, sans détail HC/HP** (2021/Normandie, entre autres) : une lacune de la
+source à cette maille précise, que le contrôle d'ingestion ignore
+explicitement plutôt que de la signaler comme une anomalie.
+
+**HAD (Hospitalisation à domicile)** — `core.pmsi_had_regional`,
+`core.pmsi_had_par_etablissement`, `core.pmsi_had_par_patient`, 2021-2025.
+La plus simple des trois : aucune sous-catégorie d'hospitalisation, et
+aucune durée publiée au niveau patient (âge × sexe) :
+
+| Année | Séjours (Tous) | Patients (Tous) | Durée moyenne de séjour |
+|---|---:|---:|---:|
+| 2025 | 343 867 | 201 404 | 23,3 j |
+
+**Non chargé, et pourquoi** : la psychiatrie (RIM-P) n'a aucun jeu sur
+`data-essentiel.atih.sante.fr` — le catalogue des 48 jeux du portail ne
+compte aucun dataset « psy » (vérifié par l'inventaire complet du
+catalogue), à la différence de MCO/SMR/HAD qui y sont tous les trois. Une
+source distincte resterait à identifier plutôt qu'à deviner.
 
 #### 1.6 Open Damir : les remboursements de l'Assurance Maladie, agrégés en flux
 
@@ -408,8 +445,10 @@ chargement fait ici, laissé à une prochaine itération plutôt que bâclé.
 
 Une limite plus courte :
 
-- **PMSI, autres champs** (SMR, HAD, psychiatrie) : publiés séparément par
-  l'ATIH sur le même portail que le MCO chargé au § 1.5, non explorés.
+- **PMSI, psychiatrie (RIM-P)** : la seule des quatre familles PMSI absente
+  de `data-essentiel.atih.sante.fr` (MCO, SMR et HAD y sont, § 1.5) — aucun
+  jeu du portail n'en porte le nom, vérifié sur les 48 jeux du catalogue.
+  Une source distincte resterait à identifier.
 
 **DECP, désormais chargées (transversalement, pas seulement pour la santé)** :
 `core.public_contract` — vide au moment de la version précédente de ce
@@ -443,8 +482,11 @@ région×prestation n'a pas de nomenclature de décodage chargée.
 - ANS, *Annuaire Santé — extractions RPPS en libre accès*, data.gouv.fr
   (§ 1.4).
 - ATIH, *MCO — Chiffres clés*, *Activité par type d'établissement*,
-  *Caractéristique des patients hospitalisés*, data-essentiel.atih.sante.fr
-  (§ 1.5).
+  *Caractéristique des patients hospitalisés*, *SMR — Chiffres clés*,
+  *SMR — Activité par type d'établissement*, *SMR — Caractéristique des
+  patients hospitalisés*, *HAD — Chiffres clés*, *HAD — Activité par type
+  d'établissement*, *HAD — Caractéristique des patients hospitalisés*,
+  data-essentiel.atih.sante.fr (§ 1.5).
 - CNAM, *Open Damir : base complète sur les dépenses d'assurance maladie
   interrégimes*, `open-data-assurance-maladie.ameli.fr` (§ 1.6).
 
@@ -462,9 +504,20 @@ région×prestation n'a pas de nomenclature de décodage chargée.
 | 6 | ATIH, PMSI-MCO (data-essentiel) | `core.pmsi_mco_national`, `core.pmsi_mco_par_etablissement`, `core.pmsi_mco_par_patient` | 15 + 245 + 1 400 lignes, 2021-2025 |
 | 7 | Cnam, Open Damir (remboursements interrégimes, agrégés en flux) | `core.remboursement_national`, `core.remboursement_region_prestation` | 12 lignes + 101 980 lignes, 2025 |
 | 8 | Cnam, lexique Open Damir (nomenclature BEN_RES_REG) | `ref.damir_region` | 14 lignes |
+| 9 | ATIH, PMSI-SMR et PMSI-HAD (data-essentiel) | `core.pmsi_smr_regional`, `core.pmsi_smr_par_etablissement`, `core.pmsi_smr_par_patient`, `core.pmsi_had_regional`, `core.pmsi_had_par_etablissement`, `core.pmsi_had_par_patient` | 200+246+300 lignes SMR, 94+233+100 lignes HAD, 2021-2025 |
 
 ## Versions
 
+- **Version 9** (15 septembre 2026) : PMSI-SMR et PMSI-HAD chargés (§ 1.5)
+  sur le même portail que le MCO — seule la psychiatrie (RIM-P) en reste
+  absente, vérifié sur les 48 jeux du catalogue. Aucun des deux nouveaux
+  champs ne partage le schéma du MCO : SMR distingue HC/HP (pas
+  complète/ambulatoire) et publie une durée de prise en charge distincte de
+  la durée de séjour ; HAD n'a aucune sous-catégorie. Deux bugs réels
+  trouvés et corrigés avant publication : un contrôle Tous=HC+HP qui
+  comparait par erreur des années différentes (clé de regroupement
+  incomplète), et une valeur « NA » non numérique dans `nb_sej` que
+  `strconv.Atoi` ne décode pas nativement.
 - **Version 8** (15 septembre 2026) : nomenclature des régions Open Damir
   décodée (§ 1.6, `ref.damir_region`, migration 0107) depuis le lexique des
   variables publié par la Cnam plutôt que devinée — deux écarts réels
