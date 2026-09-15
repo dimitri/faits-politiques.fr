@@ -20,7 +20,7 @@ import (
 // mesure de qualité normalisée publiée en open data, par établissement.
 // Trois fichiers CSV normalisés, tous petits (quelques centaines de Ko) —
 // sans commune mesure avec la complexité de SAE ou de FINESS. Voir
-// docs/sante-donnees.md § 4.
+// docs/sante-donnees.md § 1.3.
 var SourceCertificationHAS = archive.Source{
 	Slug: "has-certification-etablissements", Label: "HAS — certification des établissements de santé (6e cycle)",
 	Publisher: "Haute Autorité de Santé", Tier: "PRIMARY_OFFICIAL",

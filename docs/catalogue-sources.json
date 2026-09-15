@@ -1,8 +1,8 @@
 {
-  "genere_le": "2026-09-15T15:33:44Z",
+  "genere_le": "2026-09-15T17:10:00Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
-  "nombre_sources": 113,
+  "nombre_sources": 114,
   "sources": [
     {
       "slug": "acteurs-numeriques-francais",
@@ -10370,6 +10370,75 @@
         }
       ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "open-damir",
+      "label": "Open Damir — dépenses d'assurance maladie interrégimes (SNDS)",
+      "publisher": "Caisse nationale de l'Assurance Maladie (CNAM)",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "mensuelle",
+      "notes": "Chaque fichier mensuel (~970 Mo compressés, 36,6 millions de lignes en janvier 2025) est agrégé en flux à l'ingestion — jamais chargé ligne à ligne. Agrégation par mois de TRAITEMENT (FLX_ANN_MOI), pas de soins (SOI_ANN/SOI_MOI) : un fichier mensuel contient des soins de centaines de mois différents (remboursements tardifs), qu'un agrégat par mois de soins laisserait incomplet tant que les fichiers postérieurs ne sont pas relus. Filtré sur PRS_REM_TYP=0, le filtre que le descriptif des variables CNAM documente explicitement pour éviter de compter deux fois le dénombrement.",
+      "derniere_ingestion_reussie": "2026-09-15T17:03:50",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "damir-v1",
+      "format_detecte": "Fichier CSV",
+      "urls_origine": [
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202501.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202502.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202503.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202504.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202505.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202506.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202507.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202508.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202509.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202510.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202511.csv.gz",
+        "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=331c37adf96e9c6b4ada81139a823beb\u0026file=Open_DAMIR/A202512.csv.gz"
+      ],
+      "nombre_documents": 12,
+      "taille_locale_octets": 11012228990,
+      "chemins_locaux": [
+        "2026/09/15/1640bb4abb87114ed2f97f9f04cfa55dec5f78720c8577356d1e247886a66a95.csv.gz",
+        "2026/09/15/1a1f4d44253a8834c758d9e5bbf0b6e537e1baadddce48151a6c85a6d63bd8de.csv.gz",
+        "2026/09/15/3d28be961014f9bd846e41302e7ce6fff625bf2ccccf1148a51403e9a72efe0f.csv.gz",
+        "2026/09/15/4b40dd64726a0c747eed93f3527420725ce50a3d42292c06f1b5f341cc539f97.csv.gz",
+        "2026/09/15/4e04a1562299277dc5583289b5e89e0189b14ac0b223f9136f433598352363fb.csv.gz",
+        "2026/09/15/797f7000fba61f17a417a3311502d34750d4eec5cc0e2bad1fe5c590da9386a5.csv.gz",
+        "2026/09/15/88e45884cd5a79e16eec9a431dc5d1e04f197b2d2eddff2fbcdefb2ed34014c9.csv.gz",
+        "2026/09/15/914b016fbfd089acb37cafb0a7bfd44deb5e5496fb64e4cf2cc8bacdf2a2a05a.csv.gz",
+        "2026/09/15/bae408296fb2213ba55f9bb545c21ebdc1ae939c8d0592f130102de754a5aab8.csv.gz",
+        "2026/09/15/ca88350016c15f8e5714fb94768eeab34ad52e06f187ad27c64c645051b02d22.csv.gz",
+        "2026/09/15/d47000448430b3100bd14b10ca1e568145388175963ae71249fa851a13b68151.csv.gz",
+        "2026/09/15/efad34d0f6329390649fedbb21d5491ef05b53ab598fc16371d62034be438686.csv.gz"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "remboursement_national",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 12,
+          "taille_octets": 32768,
+          "annee_min": 2025,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        },
+        {
+          "schema": "core",
+          "table": "remboursement_region_prestation",
+          "lignes_totales_estimees": 101980,
+          "lignes_pour_cette_source": 101980,
+          "taille_octets": 11796480,
+          "annee_min": 2025,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
     },
     {
       "slug": "parametres-impot-societes",

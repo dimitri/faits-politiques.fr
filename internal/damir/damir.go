@@ -1,5 +1,5 @@
 // Package damir charge Open Damir (extraction ouverte du SNDS,
-// remboursements de l'Assurance Maladie) — voir docs/sante-donnees.md § 4 et
+// remboursements de l'Assurance Maladie) — voir docs/sante-donnees.md § 1.6 et
 // le commentaire de core.remboursement_national.
 package damir
 

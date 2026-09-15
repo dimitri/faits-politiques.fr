@@ -1,9 +1,10 @@
-# La santé : FINESS comme clé pivot, et comment les médecins sont payés
+# La santé : FINESS comme clé pivot, la rémunération des médecins et les déserts médicaux
 
-> **Dossier** · version 6 · 15 septembre 2026
+> **Dossier** · version 7 · 15 septembre 2026
 >
-> Comment le système de santé est-il décrit par les données publiques, et comment les
-> médecins sont-ils rémunérés ? Les sources sont les plus éclatées du projet — établissements,
+> Comment le système de santé est-il décrit par les données publiques, comment les
+> médecins sont-ils rémunérés, et que disent les données sur les déserts médicaux au-delà
+> de la seule densité ? Les sources sont les plus éclatées du projet — établissements,
 > activité, séjours, remboursements, professionnels, qualité — sans identifiant commun garanti
 > sauf le répertoire FINESS, par lequel le dossier commence.
 
@@ -235,6 +236,17 @@ très probablement à l'exercice libéral hors structure (cabinet individuel),
 qui n'a pas de numéro FINESS par construction — pas une donnée manquante à
 corriger.
 
+**Une lacune géographique réelle, trouvée en construisant la carte des
+généralistes (§ 1.7)** : le champ « code département » de la structure
+d'exercice est vide sur la quasi-totalité des lignes, et la commune
+d'exercice elle-même n'est renseignée que pour 61,7 % des généralistes
+(94 149 sur 152 598) — les remplaçants sans structure fixe, notamment, n'en
+ont pas. Une fois jointe au millésime courant du code officiel géographique,
+la couverture retombe encore à 91 654 généralistes localisables (56 %). Pas
+un bug de jointure : une caractéristique du fichier RPPS lui-même, qui a
+conduit à préférer la démographie Cnam par secteur conventionnel (§ 2) pour
+la carte de densité — voir § 1.7.
+
 #### 1.5 PMSI-MCO : l'activité hospitalière, sur le bon portail
 
 **ScanSanté (`scansante.fr/opendata`), longtemps cité comme l'unique porte
@@ -269,6 +281,93 @@ séjours en établissement public — cohérent avec leur poids démographique,
 que cette note ne rapporte pas ici faute d'avoir chargé une population de
 référence par région dans ce même chargement.
 
+#### 1.6 Open Damir : les remboursements de l'Assurance Maladie, agrégés en flux
+
+Chargé depuis la version précédente de ce dossier (qui l'avait localisé et
+écarté pour sa taille — 970 Mo compressés par mois, plus de 10 Go par année).
+`core.remboursement_national` et `core.remboursement_region_prestation`
+(Cnam, Open Damir, licence Ouverte, `data.gouv.fr`) : **147,1 Md€ remboursés
+en 2025, 10,74 milliards d'actes** (12 mois, 101 980 lignes région×prestation).
+
+**Jamais chargé ligne à ligne** : chaque fichier mensuel (36,6 millions de
+lignes en janvier 2025) est agrégé en flux à l'ingestion
+(`internal/damir/damir.go`) — seuls les totaux mensuels et les croisements
+région×prestation sont écrits en base, jamais les lignes brutes.
+
+| Mois 2025 | Md€ remboursés | Actes |
+|---|---:|---:|
+| Janvier | 12,1 | 1 021 523 048 |
+| Juin | 12,6 | 881 056 449 |
+| Décembre | 13,5 | 944 000 290 |
+| **Total 12 mois** | **147,1** | **10 737 880 752** |
+
+**Deux choix de méthode, documentés dans la table plutôt que découverts par
+un chiffre qui ne colle pas** :
+
+- **Filtré sur `PRS_REM_TYP = 0`** — le filtre que le descriptif des
+  variables de la Cnam documente explicitement, sans quoi chaque
+  remboursement serait compté deux fois.
+- **Agrégé par mois de traitement (`FLX_ANN_MOI`), pas par mois de soins**
+  (`SOI_ANN`/`SOI_MOI`) : un fichier mensuel contient des soins de centaines
+  de mois différents (remboursements tardifs), qu'un agrégat par mois de
+  soins laisserait incomplet tant que les fichiers postérieurs ne sont pas
+  relus. Le total mesure donc un flux de paiement, pas la consommation de
+  soins du mois calendaire correspondant.
+
+**Ce que ce total ne dit pas, et qu'il ne faut pas lui faire dire** : 147,1
+Md€ est loin des 267,5 Md€ votés pour l'ensemble de la branche maladie 2026
+(Enjeux, ci-dessus) — les deux chiffres ne sont **pas comparables tels
+quels**. Open Damir recense des remboursements itemisés acte par acte (soins
+de ville, actes techniques, pharmacie, dispositifs) ; il ne capte pas les
+dotations forfaitaires versées aux établissements de santé (budget global
+hospitalier — DAF, MIGAC — une part importante de l'ONDAM), qui ne
+transitent pas acte par acte dans ce système. Ce chiffre est une donnée
+mesurée, pas une vérification de l'ONDAM : le rapprochement précis des deux
+périmètres reste à faire, pas à deviner.
+
+**Le détail région×prestation reste un chantier ouvert, pas une carte** : la
+zone de résidence du bénéficiaire (`BEN_RES_REG`, 14 valeurs distinctes) et
+la nature de prestation (`PRS_NAT`, 937 codes distincts observés) sont
+conservées telles que la Cnam les code, sans nomenclature de décodage
+chargée ici — 14 zones ne correspond pas aux 18 régions administratives
+(la Cnam y ajoute au moins un code de regroupement hors métropole/étranger,
+qui porte à lui seul le plus gros montant, signe qu'il n'est pas une région
+géographique ordinaire). Publier une carte des remboursements par région
+demanderait de décoder cette nomenclature d'abord — non fait, plutôt que
+deviné.
+
+#### 1.7 Déserts médicaux : la densité mesurée, pas la disponibilité
+
+Trois sources de ce dossier éclairent chacune une face différente du même
+débat (333 mentions à l'Assemblée depuis juillet 2024, Contexte ci-dessus),
+sans qu'aucune ne le résume à elle seule :
+
+- **Où sont les généralistes** : la carte « Médecins généralistes pour
+  100 000 habitants » (`/collectivites/`) s'appuie sur la démographie Cnam
+  par secteur conventionnel (§ 2), pas sur le RPPS (§ 1.4) — trouvaille faite
+  en construisant cette carte. Le RPPS ne situe géographiquement que 56 % des
+  généralistes (§ 1.4) ; la source Cnam couvre les 101 départements sans
+  exception, par construction administrative (un médecin conventionné est
+  rattaché à une caisse départementale), au prix d'un champ plus étroit
+  (55 546 généralistes libéraux conventionnés en 2024 — ni les salariés
+  hospitaliers, ni les 0,8 % non conventionnés).
+- **Où se fait l'activité hospitalière** : le PMSI-MCO (§ 1.5) mesure des
+  séjours hospitaliers par région, une population de patients différente de
+  celle qui consulte un généraliste en ville — à ne jamais additionner à la
+  carte de densité pour prétendre mesurer « l'offre de soins » globale d'un
+  territoire.
+- **Où va l'argent remboursé** : Open Damir (§ 1.6) le dirait à l'échelle
+  région×prestation, mais la nomenclature de région n'est pas encore décodée
+  (§ 1.6) — cet angle reste ouvert.
+
+**Ce que la carte de densité ne mesure pas** : un décompte de présence, pas
+une disponibilité. Un département dense en généralistes recensés peut avoir
+des cabinets qui n'ouvrent plus de nouveaux dossiers de patientèle ; un
+département moins dense peut être bien desservi si sa patientèle est plus
+jeune, en meilleure santé, ou mieux couverte par la télémédecine — aucune de
+ces dimensions n'est mesurée par les sources chargées ici. La densité situe
+un débat, elle ne le tranche pas.
+
 ## Ce que les données ne disent pas
 
 ### 3. Ce que ce dossier ne couvre pas encore
@@ -296,55 +395,14 @@ française, établissements de santé compris ; voir
 (`ref.finess_etablissement.siret`) donnerait leurs fournisseurs — une
 jointure encore à écrire, pas encore un tableau de ce dossier.
 
-### 4. SNDS/Open Damir : localisé précisément, écarté pour sa taille
+### 4. SNDS/Open Damir : chargé depuis la version 7 — voir § 1.6
 
-**Open Damir (l'extraction ouverte du Système national des données de
-santé) est trouvé, accessible, sous Licence Ouverte — et délibérément non
-chargé.** Chaque mois se télécharge en un fichier CSV compressé d'environ
-**970 Mo** (vérifié sur janvier 2025), soit plus de 10 Go par année
-complète ; le dépôt couvre 2009 à 2025. Le contenu, inspecté directement,
-n'est pas un agrégat léger malgré la limitation à 9 puis 13 zones
-géographiques annoncée pour préserver l'anonymat : chaque ligne croise déjà
-mois, zone, âge, régime, nature de prestation et une **cinquantaine de
-colonnes** de codes et de montants — une granularité comparable à celle des
-DECP (2,5 Go), déjà écartées pour la même raison
-(`docs/perimetre.md` § 4.4). Charger ne serait-ce qu'une année demanderait
-un agrégat calculé en amont, pas un chargement direct — un chantier à part,
-pas une extension de celui-ci.
-
-**Ce que ce dossier a maintenant, contre ce qu'Open Damir aurait ajouté** :
-le secteur conventionnel (§ 2, déjà chargé) donne la RÉPARTITION des
-médecins par régime tarifaire ; Open Damir aurait donné les MONTANTS
-remboursés par prestation. Les deux questions restent disjointes tant que
-ce second chargement n'est pas fait.
-
-**À quoi Open Damir (pré-agrégé) servirait concrètement, une fois ce
-chantier fait** — quatre usages précis, pas un chargement pour lui-même :
-
-1. **Vérifier l'ONDAM plutôt que le citer.** Chaque automne, le débat
-   budgétaire sur la Sécurité sociale (`docs/securite-sociale-donnees.md`,
-   D-048 : « la Sécurité sociale ne publie pas ses comptes ») porte sur des
-   montants de dépense annoncés sans qu'aucune donnée ouverte ne permette de
-   les reconstituer indépendamment. Open Damir agrégé EST cette donnée brute
-   — la seule identifiée à ce jour qui permettrait une vérification mesurée
-   plutôt qu'une reprise déclarative.
-2. **Donner une dimension monétaire au secteur conventionnel (§ 2).** On
-   sait aujourd'hui la répartition des médecins par secteur tarifaire ; on
-   ne sait pas ce que chaque secteur coûte réellement à l'Assurance Maladie
-   (base de remboursement contre dépassements). Les deux jeux partagent une
-   nomenclature de prestation qui permettrait de les croiser.
-3. **Ajouter la dépense à l'activité déjà chargée (PMSI, § 1.5).** Le PMSI
-   dit combien de séjours, par région ; Open Damir dirait combien ils
-   coûtent, par région. Les deux mesures répondent à des questions
-   différentes (activité contre remboursement) qui se complètent sans se
-   déduire l'une de l'autre.
-4. **Élargir le débat sur les déserts médicaux au-delà de la densité.**
-   RPPS (§ 1.4) dit où sont les médecins ; Open Damir dirait où va l'argent
-   remboursé — un angle distinct du même débat récurrent, l'un mesurant une
-   présence, l'autre un flux.
-
-Ces quatre usages supposent un agrégat pré-calculé (§ ci-dessus) : aucun
-n'est réalisable avec le fichier brut tel qu'il est distribué aujourd'hui.
+Les versions 5 et 6 de ce dossier localisaient Open Damir sans le charger,
+pour sa taille (970 Mo compressés par mois). L'agrégation en flux décrite au
+§ 1.6 lève cette limite : 147,1 Md€ remboursés et 10,74 milliards d'actes
+pour 2025, avec les deux réserves qui restent ouvertes — le rapprochement
+avec l'ONDAM total n'est pas fait (périmètres différents), et le détail
+région×prestation n'a pas de nomenclature de décodage chargée.
 
 ## Sources
 
@@ -363,7 +421,7 @@ n'est réalisable avec le fichier brut tel qu'il est distribué aujourd'hui.
   *Caractéristique des patients hospitalisés*, data-essentiel.atih.sante.fr
   (§ 1.5).
 - CNAM, *Open Damir : base complète sur les dépenses d'assurance maladie
-  interrégimes*, data.gouv.fr (§ 4, non chargé).
+  interrégimes*, `open-data-assurance-maladie.ameli.fr` (§ 1.6).
 
 ## Annexe technique
 
@@ -377,10 +435,17 @@ n'est réalisable avec le fichier brut tel qu'il est distribué aujourd'hui.
 | 4 | HAS, certification des établissements (6ᵉ cycle) | `core.certification_has_demarche`, `core.certification_has_chapitre` | 422 démarches, 981 résultats |
 | 5 | ANS, Annuaire Santé (RPPS) | `core.rpps_professionnel_activite` | 2 286 272 lignes, 1 912 833 professionnels distincts |
 | 6 | ATIH, PMSI-MCO (data-essentiel) | `core.pmsi_mco_national`, `core.pmsi_mco_par_etablissement`, `core.pmsi_mco_par_patient` | 15 + 245 + 1 400 lignes, 2021-2025 |
+| 7 | Cnam, Open Damir (remboursements interrégimes, agrégés en flux) | `core.remboursement_national`, `core.remboursement_region_prestation` | 12 lignes + 101 980 lignes, 2025 |
 
 ## Versions
 
-- **Version 6** (15 septembre 2026) : DECP chargées (§ 4,
+- **Version 7** (15 septembre 2026) : Open Damir chargé (§ 1.6, 147,1 Md€
+  et 10,74 milliards d'actes sur 2025, agrégé en flux — jamais ligne à
+  ligne) ; carte des généralistes reconstruite sur la démographie Cnam par
+  secteur conventionnel plutôt que le RPPS, qui ne situait que 56 % d'entre
+  eux (§ 1.4, § 1.7) ; nouvelle section déserts médicaux (§ 1.7) croisant
+  densité, activité hospitalière et remboursements sans les confondre.
+- **Version 6** (15 septembre 2026) : DECP chargées (§ 3,
   [docs/commande-publique-donnees.md](commande-publique-donnees.md)) — la
   limite « aucun connecteur ne l'alimente » citée en version 5 ne tient
   plus ; quatre usages concrets d'Open Damir explicités plutôt qu'une

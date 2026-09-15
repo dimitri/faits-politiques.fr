@@ -14,7 +14,7 @@ import (
 
 // « Comment les médecins sont rémunérés » commence ici : le secteur
 // conventionnel (1, 2, 2 Optam, non conventionné) détermine si le tarif est
-// fixé par l'Assurance Maladie ou libre. Voir docs/sante-donnees.md § 3.
+// fixé par l'Assurance Maladie ou libre. Voir docs/sante-donnees.md § 2.
 var SourceSecteurConventionnel = archive.Source{
 	Slug: "ameli-secteurs-conventionnels", Label: "Ameli — professionnels de santé libéraux par secteur conventionnel",
 	Publisher: "Caisse nationale de l'Assurance Maladie (Cnam)",

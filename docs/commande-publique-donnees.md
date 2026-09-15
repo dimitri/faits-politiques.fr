@@ -96,7 +96,7 @@ l'argent, à ne jamais confondre l'un pour l'autre.
 `acheteur_siret` permet de joindre ce jeu à toute entité publique déjà
 identifiée par son SIRET dans ce dépôt — notamment
 `ref.finess_etablissement.siret` pour les fournisseurs des établissements de
-santé (`docs/sante-donnees.md` § 4). Cette jointure n'est pas encore
+santé (`docs/sante-donnees.md` § 3). Cette jointure n'est pas encore
 écrite : ce dossier documente la clé, pas encore le résultat.
 
 ## 7. Ce qui est chargé
@@ -118,5 +118,5 @@ santé (`docs/sante-donnees.md` § 4). Cette jointure n'est pas encore
 - DECP consolidées, projet *decp-processing* (Colin Maudry), data.gouv.fr.
 - [docs/perimetre.md](perimetre.md) § 4.4, pour le contexte de cette table
   avant son chargement.
-- [docs/sante-donnees.md](sante-donnees.md) § 4, pour un premier usage
+- [docs/sante-donnees.md](sante-donnees.md) § 3, pour un premier usage
   envisagé (fournisseurs des établissements de santé).
