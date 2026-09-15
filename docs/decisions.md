@@ -2297,3 +2297,31 @@ chiffres concrets.
 il situe, il ne s'additionne pas. Les trois budgets ne s'additionnent pas non plus, à
 cause des transferts entre administrations. La page de sujet reprend le dossier tel quel :
 elle hérite de son niveau de détail technique, en attendant un gabarit « en bref » propre.
+
+## D-069 — La page de sujet se lit en couches ; le hero montre un chiffre ; les candidatures aux primaires comptent à part
+
+`cmd/build/sujet_page.go`, `sujet.gohtml`, `heroMille`, `data/candidats.csv`.
+
+**Pourquoi.** Les notes de travail illustrées (frises, barres, chiffres clés) étaient
+produites hors du site ; la page de sujet rendait le dossier Markdown brut, et les
+graphiques existants restaient sur les pages de données, seulement liées. Résultat : des
+pages denses et difficiles à lire. L'accueil, lui, n'offrait au premier écran qu'un titre et
+un texte.
+
+**Décidé.**
+
+- **La page de sujet se construit en couches** : « En bref » (chiffres clés datés et
+  sourcés, lus dans la base, choisis par sujet), « Les chiffres » (le contenu de la page de
+  données du sujet, cartes et graphiques compris, repris tel quel), puis le dossier section
+  par section — faits en frise avec leur qualité, crédits par programme et mentions en
+  séance en barres à l'échelle, « Ce que les données ne disent pas » et « Pièges » en
+  encart, glossaire, sources, annexe et versions repliés.
+- **Le hero de l'accueil montre « sur 1 000 € de dépense publique »** à côté du titre sur
+  ordinateur, sous le titre sur mobile (six premières fonctions) ; chaque ligne mène à sa
+  famille de sujets.
+- **Cartes « en ligne »** sur la page 2027 (vignette, légende, cartons d'outre-mer, source).
+- **Carte des intercommunalités** : frontières des départements et des régions tracées
+  par-dessus. Les communes restent dessinées département par département (cartes maillées) :
+  35 000 contours à l'échelle nationale alourdiraient la page de plusieurs mégaoctets.
+- **Candidats** : liste complétée au 15 septembre 2026, statut `PRIMAIRE` distinct de
+  `DECLARE` ; les personnalités seulement pressenties n'y figurent pas.

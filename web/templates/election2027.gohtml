@@ -42,7 +42,7 @@ vide décrit <em>ce site</em>, pas la personne.</p>
         width="72" height="72" loading="lazy" class="portrait">
       {{else}}<div class="portrait vide" style="width:72px;height:72px"></div>{{end}}
       <div>
-        <span class="sur">{{if .Org}}{{.Organisation}}{{else}}sans organisation rattachée{{end}}</span>
+        <span class="sur">{{if .Organisation}}{{.Organisation}}{{else}}sans organisation rattachée{{end}}{{if eq .Statut "PRIMAIRE"}} · candidature à une primaire{{end}}{{if .DateDeclaration}} · annoncée {{.DateDeclaration}}{{end}}</span>
         <h2 class="h2" style="margin:0">{{.Prenom}} {{.Nom}}</h2>
         {{if .Portrait}}<span class="credit">Portrait&nbsp;: {{.Portrait.Licence}}{{if .Portrait.Auteur}},
           {{.Portrait.Auteur}}{{end}} — Wikimedia Commons</span>{{end}}
@@ -86,22 +86,26 @@ vide décrit <em>ce site</em>, pas la personne.</p>
   </div>
 
   {{if and .Terrain.Present (not .Apercu.Vide)}}
-  <div class="une-carte" style="margin-top:1rem">
-    <div>{{.Apercu.SVG}}
-      {{$t := .Apercu.Teintes}}<div class="echelle"><span class="u">part des voix</span>
-        {{range $i, $b := .Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
-      {{template "cartons" .Apercu.Cartons}}
-      {{if .Page}}<a class="voir" href="{{$.Root}}/2027/{{.Page.Slug}}/">Carte en grand et
-        classement des départements →</a>{{end}}
-    </div>
-    <p class="note" style="margin:0">Part des voix obtenues par les listes <code>{{.NuanceCode}}</code>
-    au premier tour des municipales 2026, <strong>rapportée aux seules listes nuancées</strong> —
-    soit 64,6&nbsp;% des voix exprimées. Le gris signale les départements où
-    <strong>aucune liste de cette nuance ne s'est présentée</strong>&nbsp;: ce n'est pas un score
-    de zéro. Une nuance est attribuée par le ministère de l'Intérieur à une <em>liste</em>&nbsp;;
-    le rattachement au parti est une décision de ce site, consignée dans
-    <code>data/nuance-partis.csv</code>.</p>
+  {{/* Affichage « en ligne », comme les cartes départementales : vignette à
+       gauche, légende, cartons d'outre-mer et source à droite. */}}
+  <div class="cartes-lignes" style="margin-top:1rem">
+    {{if .Page}}<a class="bloc-carte ligne" href="{{$.Root}}/2027/{{.Page.Slug}}/">{{else}}<div class="bloc-carte ligne">{{end}}
+      {{.Apercu.SVG}}
+      <div>
+        <h3>Municipales 2026&nbsp;: part des voix des listes <code>{{.NuanceCode}}</code></h3>
+        <p class="q">Premier tour, rapportée aux seules listes nuancées — 64,6&nbsp;% des voix exprimées.
+        Le gris signale les départements sans liste de cette nuance&nbsp;: ce n'est pas un score de zéro.</p>
+        {{$t := .Apercu.Teintes}}<span class="echelle"><span class="u">part des voix</span>
+          {{range $i, $b := .Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</span>
+        {{template "cartons" .Apercu.Cartons}}
+        <span class="src">Ministère de l'Intérieur, résultats des municipales 2026 ; rattachement nuance → parti&nbsp;: <code>data/nuance-partis.csv</code></span>
+        {{if .Page}}<span class="voir">Carte en grand et classement des départements →</span>{{end}}
+      </div>
+    {{if .Page}}</a>{{else}}</div>{{end}}
   </div>
+  <p class="note" style="margin-top:.6rem">Une nuance est attribuée par le ministère de l'Intérieur
+  à une <em>liste</em>&nbsp;; le rattachement au parti est une décision de ce site. Le score municipal
+  d'un parti n'est pas une intention de vote pour 2027.</p>
   {{end}}
 </section>
 {{end}}

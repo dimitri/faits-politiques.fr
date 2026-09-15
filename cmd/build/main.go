@@ -32,6 +32,7 @@ type Coverage struct {
 	Scrutins, Ballots, Deputes, Orgs int
 	Dossiers                         int
 	Candidats, CandidatsAvecBilan    int
+	CandidatsPrimaire                int
 	Organisations                    int
 	Documents                        int64
 	ScrutinsPE, Themes               int
@@ -46,9 +47,11 @@ type Layout struct {
 	CSS, JS             string
 	Hero                bool
 	HeroTitre, HeroLede string
-	DerniereIngestion   string
-	Sources             []SourceInfo
-	Cov                 Coverage
+	// HeroVisuel : un graphique à côté du titre (accueil), sous le titre sur mobile.
+	HeroVisuel        template.HTML
+	DerniereIngestion string
+	Sources           []SourceInfo
+	Cov               Coverage
 }
 
 type Vote struct {
@@ -284,6 +287,11 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	for _, c := range candidats {
 		if c.Person != nil && c.Person.HasVotes {
 			layout.Cov.CandidatsAvecBilan++
+		}
+		// Une candidature à une primaire n'est pas encore une candidature à
+		// l'élection : les pages les comptent à part.
+		if c.Statut == "PRIMAIRE" {
+			layout.Cov.CandidatsPrimaire++
 		}
 	}
 
@@ -573,10 +581,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	l.HeroTitre = "Présidentielle 2027 : les sujets de campagne et le budget réel de la France"
 	// Le titre place la campagne en tête ; le chapeau dit ce que le lecteur
 	// reçoit pour chaque sujet, et à quoi cela lui sert.
-	l.HeroLede = "Retraites, santé, école, sécurité, immigration, dette : les candidats parlent " +
-		"des mêmes sujets. Pour chacun, ce site montre ce que dépensent l'État, la Sécurité sociale " +
-		"et les collectivités, d'où vient l'argent, quelles règles s'appliquent et ce qu'ont constaté " +
-		"les institutions de contrôle. De quoi suivre les débats et se faire son opinion, chiffres en main."
+	l.HeroLede = "Retraites, santé, école, sécurité, immigration, dette : pour chaque sujet dont " +
+		"parlent les candidats, ce que dépense l'argent public, d'où il vient, les règles et les " +
+		"contrôles. De quoi suivre les débats et se faire son opinion, chiffres en main."
+	l.HeroVisuel = heroMille(acc, root)
 	if err := write(page("accueil.gohtml"), filepath.Join(out, "index.html"), struct {
 		Layout
 		A *DonneesAccueil
@@ -880,6 +888,9 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return err
 	}
 	reecrireLiensDocs(docs, root)
+	if err := preparerSujets(ctx, pool, out, root, acc); err != nil {
+		return err
+	}
 	l = layout
 	l.Title = "Sujets de campagne"
 	if err := write(page("sujets.gohtml"), filepath.Join(out, "sujets", "index.html"), struct {

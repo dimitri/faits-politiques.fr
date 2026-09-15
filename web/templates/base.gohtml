@@ -42,10 +42,11 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
   </nav>
 </div></div></header>
 
-{{if .Hero}}<section class="hero">
+{{if .Hero}}<section class="hero{{if .HeroVisuel}} avec-visuel{{end}}">
   <div class="champ" aria-hidden="true"></div>
-  <div class="wrap">
+  <div class="wrap hero-grille">
     <h1>{{.HeroTitre}}</h1>
+    {{if .HeroVisuel}}<div class="h-visuel">{{.HeroVisuel}}</div>{{end}}
     <p class="lede">{{.HeroLede}}</p>
     <div class="outil">
       <button type="button" class="rech grand" data-rech hidden>

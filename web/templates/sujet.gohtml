@@ -4,26 +4,51 @@
   {{if eq $s.Famille.Base "argent-public"}}<a href="{{.Root}}/argent-public/">Argent public</a>{{else}}<a href="{{.Root}}/sujets/">Sujets</a> ›
   <a href="{{.Root}}/sujets/#{{$s.Famille.ID}}">{{$s.Famille.Nom}}</a>{{end}} › <span>{{$s.Nom}}</span></p>
 
-<div class="sujet-tete">
+<header class="sujet-tete">
   <span class="sur">{{$s.Famille.Nom}}{{if $s.Famille.ParMille}} · {{$s.Famille.ParMille}}&nbsp;€ sur 1&nbsp;000 de dépense publique{{end}}</span>
-  {{if $s.Pages}}<ul class="liens-cartes">{{range $s.Pages}}<li><a href="{{$.Root}}/{{.URL}}">{{.Titre}} →</a></li>{{end}}</ul>{{end}}
-</div>
+  <h1>{{$s.D.Titre}}</h1>
+  {{if $s.Chapeau}}<p class="lede">{{$s.Chapeau}}</p>{{end}}
+</header>
 
-<div class="doc-page">
-  <article class="prose">
-    {{$s.D.Corps}}
-    <p class="note abs" style="margin-top:2.5rem">Rendu intégralement depuis le dossier
-    <code>docs/{{$s.D.Fichier}}</code> à la construction du site&nbsp;; les sections tirées de la base
-    (faits, crédits, mentions en séance) y sont régénérées depuis les données chargées.</p>
-  </article>
-
-  <nav class="doc-toc" aria-label="Sommaire">
-    {{if gt (len $s.D.Sections) 2}}
-    <p class="lb">Sommaire</p>
-    <ul>{{range $s.D.Sections}}<li><a href="#{{.ID}}">{{.Titre}}</a></li>{{end}}</ul>
-    {{end}}
-    <p class="lb" style="margin-top:1.2rem">{{$s.Famille.Nom}}</p>
-    <ul>{{range $s.Famille.Sujets}}{{if ne .ID $s.ID}}{{if .D}}<li><a href="{{$.Root}}/{{.URL}}">{{.Nom}}</a></li>{{end}}{{end}}{{end}}</ul>
+<section class="en-bref" aria-label="En bref">
+  <span class="sur">En bref</span>
+  {{if $s.EnBref}}<div class="chiffres-cles">
+    {{range $s.EnBref}}<div><b>{{.Valeur}}</b><span>{{.Libelle}}</span><em>{{.Source}}</em></div>{{end}}
+  </div>{{end}}
+  <p class="compte">{{if $s.NbCadre}}{{$s.NbCadre}} texte{{if gt $s.NbCadre 1}}s{{end}} de cadre{{end}}{{if and $s.NbCadre $s.NbControle}} · {{end}}{{if $s.NbControle}}{{$s.NbControle}} constat{{if gt $s.NbControle 1}}s{{end}} d'institutions de contrôle{{end}}{{if or $s.NbCadre $s.NbControle}}, chacun relu dans sa source.{{end}}</p>
+  <nav class="aller" aria-label="Aller à">
+    {{if $s.Donnees}}<a href="#les-chiffres">Les chiffres</a>{{end}}
+    {{range $s.Sections}}{{if not .Replie}}<a href="#{{.ID}}">{{.Titre}}</a>{{end}}{{end}}
+    {{range $s.Pages}}<a class="ext" href="{{$.Root}}/{{.URL}}">{{.Titre}} →</a>{{end}}
   </nav>
+</section>
+
+{{if $s.Donnees}}
+<section class="donnees-sujet" id="les-chiffres">
+  <span class="sur">Les chiffres</span>
+  {{$s.Donnees}}
+</section>
+{{end}}
+
+<div class="dossier-sujet">
+  {{range $s.Sections}}
+  {{if .Replie}}
+  <details class="plus" id="{{.ID}}">
+    <summary>{{.Titre}}</summary>
+    <div class="dedans prose">{{.HTML}}</div>
+  </details>
+  {{else}}
+  <section class="section-sujet{{if .Encart}} encart{{end}}" id="{{.ID}}">
+    <h2>{{.Titre}}</h2>
+    <div class="prose">{{.HTML}}</div>
+  </section>
+  {{end}}
+  {{end}}
 </div>
+
+<p class="note abs" style="margin-top:2.5rem">Page construite depuis le dossier
+<code>docs/{{$s.D.Fichier}}</code>{{if $s.Version}} ({{$s.Version}}){{end}} et depuis la base : les faits, les
+crédits et les mentions en séance sont relus à chaque construction du site.
+{{if gt (len $s.Famille.Sujets) 1}}Dans la même famille&nbsp;:
+{{range $i, $o := $s.Famille.Sujets}}{{if ne $o.ID $s.ID}}{{if $o.D}} <a href="{{$.Root}}/{{$o.URL}}">{{$o.Nom}}</a>{{end}}{{end}}{{end}}.{{end}}</p>
 {{end}}

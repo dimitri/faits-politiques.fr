@@ -19,7 +19,7 @@ officielle avant la publication des parrainages par le Conseil constitutionnel, 
     <h3><a href="{{$.Root}}/candidat/{{.Slug}}/">{{.Prenom}} {{.Nom}}</a></h3>
     <div class="small muted">
       {{if .Org}}<a href="{{$.Root}}/organisation/{{.Org.Slug}}/">{{.Organisation}}</a>{{else}}{{.Organisation}}{{end}}
-      {{if .DateDeclaration}} · déclaré {{.DateDeclaration}}{{end}}
+      {{if eq .Statut "PRIMAIRE"}} · candidature à une primaire{{if .DateDeclaration}}, annoncée {{.DateDeclaration}}{{end}}{{else if .DateDeclaration}} · déclaré {{.DateDeclaration}}{{end}}
     </div></div>
   </header>
 

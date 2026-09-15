@@ -603,6 +603,20 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 		}
 		st.NbEPCISurCarte = len(epci.Codes) + len(epci.outremer)
 		st.CarteEPCI = pleine(epci, casesE, "€ par habitant", eur)
+		// Les frontières des départements et des régions, tracées par-dessus
+		// les intercommunalités : la même boîte Lambert-93, donc le même
+		// repère. Un trait fin pour le département, épais pour la région —
+		// on lit d'un coup où un groupement franchit (ou non) une limite.
+		var fr strings.Builder
+		fr.WriteString(`<g class="frontieres" aria-hidden="true">`)
+		for _, c := range dep.Codes {
+			fmt.Fprintf(&fr, `<path class="dep" d="%s"/>`, dep.traces[c])
+		}
+		for _, c := range reg.Codes {
+			fmt.Fprintf(&fr, `<path class="reg" d="%s"/>`, reg.traces[c])
+		}
+		fr.WriteString(`</g>`)
+		st.CarteEPCI.SVG = template.HTML(strings.Replace(string(st.CarteEPCI.SVG), "</svg>", fr.String()+"</svg>", 1))
 	}
 	return nil
 }

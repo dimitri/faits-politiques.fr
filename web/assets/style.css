@@ -997,3 +997,116 @@ outline:2px solid var(--accent);outline-offset:2px}
   .mille .b{grid-column:1 / 3}
   .mille .md{display:none}
 }
+
+/* ── Page de sujet : en bref, chiffres, dossier redessiné ────────────────
+   Le dossier est un document de travail dense : la page le met en couches.
+   Chiffres clés d'abord, graphiques ensuite, faits en frise, sections
+   techniques repliées. */
+.sujet-tete{margin:.4rem 0 1.2rem}
+.sujet-tete h1{font:500 clamp(1.9rem,4vw,2.7rem)/1.1 var(--titre);letter-spacing:-.02em;margin:.2rem 0 .8rem;max-width:26ch;text-wrap:balance}
+.sujet-tete .lede{font-size:1.1rem;max-width:44rem}
+.en-bref{background:var(--papier2);border:1px solid var(--filet);border-radius:var(--rayon);padding:1.2rem 1.3rem 1rem;margin:0 0 2.2rem}
+.chiffres-cles{display:grid;gap:1rem 1.6rem;grid-template-columns:repeat(auto-fit,minmax(13rem,1fr));margin:.4rem 0 .9rem}
+.chiffres-cles div{border-top:2px solid var(--encre);padding-top:.55rem}
+.chiffres-cles b{display:block;font:500 1.75rem/1.1 var(--titre);letter-spacing:-.01em}
+.chiffres-cles span{display:block;font-size:.9rem;line-height:1.4;margin-top:.2rem}
+.chiffres-cles em{display:block;font:400 .7rem/1.4 var(--mono);font-style:normal;color:var(--attenue);margin-top:.3rem}
+.en-bref .compte{font-size:.86rem;color:var(--attenue);margin:.2rem 0 .7rem}
+.en-bref .aller{display:flex;flex-wrap:wrap;gap:.35rem;border-top:1px solid var(--filet);padding-top:.8rem}
+.en-bref .aller a{font:500 .8rem/1 var(--sans);text-decoration:none;border:1px solid var(--filet);background:var(--carte);
+color:var(--encre);padding:.38rem .6rem;border-radius:999px}
+.en-bref .aller a:hover{border-color:var(--accent);color:var(--accent)}
+.en-bref .aller a.ext{color:var(--accent)}
+.donnees-sujet{border-top:2px solid var(--encre);padding-top:1rem;margin:0 0 2.5rem}
+.donnees-sujet > .sur{display:block;margin-bottom:.6rem}
+.dossier-sujet{max-width:52rem}
+.section-sujet{padding:1.8rem 0 .4rem;border-top:1px solid var(--filet)}
+.section-sujet > h2{font:500 1.6rem/1.2 var(--titre);margin:0 0 .9rem}
+.section-sujet .prose{max-width:none}
+.section-sujet .prose h3{font:500 1.2rem/1.3 var(--titre);margin:1.8rem 0 .5rem}
+.section-sujet.encart{background:var(--carte);border:1px solid var(--filet);border-left:3px solid var(--attenue);
+border-radius:var(--rayon);padding:1.2rem 1.3rem;margin:1.8rem 0}
+.section-sujet.encart > h2{font-size:1.25rem}
+.dossier-sujet details.plus .dedans{display:block}
+
+ol.faits-frise{list-style:none;padding:0;margin:.6rem 0 1.4rem}
+ol.faits-frise li{display:grid;grid-template-columns:4.2rem minmax(0,1fr);gap:1rem;padding:.85rem 0;border-top:1px solid var(--filet)}
+ol.faits-frise li:first-child{border-top:0}
+ol.faits-frise .f-date{font:500 .82rem/1.5 var(--mono);color:var(--attenue)}
+ol.faits-frise p{margin:0}
+ol.faits-frise .f-t{font-weight:600;line-height:1.4;margin-bottom:.25rem}
+ol.faits-frise .f-c{font-size:.93rem;line-height:1.55;color:var(--encre)}
+ol.faits-frise .f-src{font-size:.78rem;color:var(--attenue);margin-top:.35rem}
+.qual{display:inline-block;font:500 .64rem/1 var(--mono);letter-spacing:.05em;text-transform:uppercase;
+padding:.2rem .38rem;border:1px solid var(--attenue);border-radius:3px;vertical-align:.08em}
+.qual.q-off{background:var(--encre);color:var(--papier);border-color:var(--encre)}
+.qual.q-decl{background:var(--papier2);color:var(--encre)}
+.qual.q-presse{background:transparent;color:var(--attenue);border-style:dashed}
+@media(max-width:44rem){ol.faits-frise li{grid-template-columns:1fr;gap:.2rem}}
+
+.intro-mentions{color:var(--attenue);font-size:.9rem;margin:0 0 .6rem;max-width:44rem}
+figure.credits{margin:1rem 0 1.4rem}
+figure.credits figcaption{font-size:.95rem;margin-bottom:.6rem}
+figure.credits .evol{color:var(--attenue)}
+.barres-h{display:grid}
+.barres-h .barre{display:grid;grid-template-columns:minmax(9rem,18rem) minmax(0,1fr) 5.5rem 4.5rem;gap:.8rem;align-items:center;
+padding:.38rem 0;border-top:1px solid var(--filet2)}
+.barres-h .l{font-size:.88rem;line-height:1.3}
+.barres-h .b{height:.8rem;background:var(--papier2);display:block}
+.barres-h .b i{display:block;height:100%;background:var(--attenue)}
+.barres-h .barre:first-child .b i{background:var(--encre)}
+.barres-h .v{font:500 .85rem/1 var(--mono);text-align:right;white-space:nowrap}
+.barres-h .e{font:400 .74rem/1 var(--mono);color:var(--attenue);text-align:right;white-space:nowrap}
+@media(max-width:44rem){
+  .barres-h .barre{grid-template-columns:1fr auto;gap:.2rem .6rem}
+  .barres-h .b{grid-column:1 / 3;grid-row:2}
+  .barres-h .e{display:none}
+}
+
+/* Frontières administratives par-dessus la carte des intercommunalités. */
+.geo .frontieres path{fill:none;pointer-events:none;vector-effect:non-scaling-stroke;opacity:1}
+.geo .frontieres .dep{stroke:var(--encre);stroke-width:.7px;stroke-opacity:.5}
+.geo .frontieres .reg{stroke:var(--encre);stroke-width:1.8px;stroke-opacity:.85}
+.geo:hover .frontieres path{opacity:1}
+
+/* ── Hero de l'accueil : le titre et « sur 1 000 € » côte à côte ─────────
+   Le premier écran doit montrer un chiffre, pas seulement une promesse.
+   Sur mobile, le graphique passe juste sous le titre, avant le chapeau. */
+.hero.avec-visuel .hero-grille{display:grid;column-gap:3.2rem;
+grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);
+grid-template-areas:"titre visuel" "lede visuel" "outil visuel" "ancrage ancrage"}
+.hero.avec-visuel h1{grid-area:titre;align-self:end;max-width:17ch}
+.hero.avec-visuel .lede{grid-area:lede;margin-bottom:1.4rem}
+.hero.avec-visuel .outil{grid-area:outil}
+.hero.avec-visuel .ancrage{grid-area:ancrage}
+.hero.avec-visuel .h-visuel{grid-area:visuel;align-self:center}
+.hero-mille{margin:0;background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);
+padding:1rem 1.1rem .8rem;box-shadow:0 1px 18px rgba(0,0,0,.05)}
+.hero-mille figcaption{margin-bottom:.5rem}
+.hero-mille figcaption .sur{display:block;margin-bottom:.35rem}
+.hero-mille figcaption strong{font:500 1.3rem/1.2 var(--titre)}
+.hero-mille ol{list-style:none;margin:0;padding:0}
+.hero-mille li a{display:grid;grid-template-columns:minmax(8.5rem,13rem) minmax(0,1fr) 3.6rem;gap:.7rem;align-items:center;
+padding:.28rem .2rem;text-decoration:none;color:var(--encre);border-top:1px solid var(--filet2)}
+.hero-mille li:first-child a{border-top:0}
+.hero-mille li a:hover{background:var(--papier2)}
+.hero-mille .l{font-size:.86rem;line-height:1.25}
+.hero-mille .b{height:.72rem;background:var(--papier2);display:block}
+.hero-mille .b i{display:block;height:100%;background:#9A958A}
+.hero-mille li.etalon .b i{background:var(--encre)}
+.hero-mille li a:hover .b i{background:var(--accent)}
+.hero-mille .v{font:500 .86rem/1 var(--mono);text-align:right;white-space:nowrap}
+.hero-mille .pied-mille{font:400 .7rem/1.45 var(--mono);color:var(--attenue);margin:.6rem 0 0}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]) .hero-mille .b i{background:#6F6C66}}
+[data-theme=dark] .hero-mille .b i{background:#6F6C66}
+.hero-mille li.etalon .b i{background:var(--encre)}
+@media(max-width:64rem){.hero.avec-visuel .hero-grille{column-gap:2rem}}
+@media(max-width:52rem){
+  .hero.avec-visuel .hero-grille{grid-template-columns:1fr;grid-template-areas:"titre" "visuel" "lede" "outil" "ancrage"}
+  .hero.avec-visuel h1{margin-bottom:1rem}
+  .hero.avec-visuel .h-visuel{margin:0 0 1.2rem}
+  .hero-mille li a{grid-template-columns:minmax(0,1fr) 3.2rem;gap:.15rem .5rem;padding:.3rem 0}
+  .hero-mille .b{grid-column:1 / 3;grid-row:2}
+  .hero-mille li:nth-child(n+7){display:none}
+  .hero-mille .pied-mille a::before{content:"et 4 autres fonctions · "}
+}

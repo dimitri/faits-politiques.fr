@@ -30,6 +30,14 @@ type Sujet struct {
 	Pages        []LienPage
 	Famille      *Famille
 	D            *Doc
+
+	// Rempli par preparerSujets (sujet_page.go).
+	Chapeau             template.HTML
+	Version             string
+	EnBref              []ChiffreCle
+	Donnees             template.HTML
+	Sections            []SectionSujet
+	NbCadre, NbControle int
 }
 
 // URL : chemin du sujet sous la racine du site, sans préfixe.
@@ -414,4 +422,43 @@ func reecrireLiensDocs(docs []*Doc, root string) {
 			return `href="` + cible + g[2] + `"`
 		}))
 	}
+}
+
+// heroMille : le graphique d'ouverture de l'accueil. Ce qui frappe à la
+// première seconde et donne envie de creuser : sur 1 000 € de dépense publique,
+// 415 vont à la protection sociale, 31 à la police et à la justice. Chaque
+// ligne mène à la famille de sujets correspondante. Barres à l'échelle de la
+// plus grande, en gris ; la première en encre, parce qu'elle sert d'étalon.
+func heroMille(a *DonneesAccueil, root string) template.HTML {
+	if a == nil || len(a.Fonctions) == 0 {
+		return ""
+	}
+	courts := map[string]string{
+		"GF10": "Protection sociale", "GF07": "Santé", "GF01": "Services généraux et dette",
+		"GF04": "Économie, transports, agriculture", "GF09": "École et université", "GF02": "Défense",
+		"GF03": "Police, justice, prisons", "GF08": "Culture, sport, loisirs", "GF06": "Logement, équipements",
+		"GF05": "Environnement",
+	}
+	var b strings.Builder
+	fmt.Fprintf(&b, `<figure class="hero-mille"><figcaption><span class="sur">Le budget réel · %d</span>`+
+		`<strong>Sur 1&nbsp;000&nbsp;€ de dépense publique</strong></figcaption><ol>`, a.Annee)
+	for i, f := range a.Fonctions {
+		lien := root + "/argent-public/"
+		if f.Famille != nil && f.Famille.Base == "sujets" {
+			lien = root + "/sujets/#" + f.Famille.ID
+		}
+		nom := courts[f.Code]
+		if nom == "" {
+			nom = f.Libelle
+		}
+		cl := ""
+		if i == 0 {
+			cl = ` class="etalon"`
+		}
+		fmt.Fprintf(&b, `<li%s><a href="%s"><span class="l">%s</span><span class="b" aria-hidden="true"><i style="width:%.1f%%"></i></span><span class="v">%d&nbsp;€</span></a></li>`,
+			cl, lien, template.HTMLEscapeString(nom), f.Largeur, f.ParMille)
+	}
+	fmt.Fprintf(&b, `</ol><p class="pied-mille">Dépense constatée de l'État, de la Sécurité sociale et des collectivités&nbsp;: %s&nbsp;Md€. Eurostat / Insee. <a href="%s/argent-public/">Le détail →</a></p></figure>`,
+		Decimal(a.TotalMilliards, 1), root)
+	return template.HTML(b.String())
 }

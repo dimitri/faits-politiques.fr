@@ -6,24 +6,10 @@
      les institutions, les sources. Le flux des derniers scrutins a quitté la
      première page : il reste en tête de la page Assemblée nationale. */}}
 
-<section class="bloc" style="padding-top:2.4rem">
-  <div class="tete"><div><span class="sur">Le budget réel</span>
-    <h2 class="h2">Ce que pèse chaque sujet&nbsp;: sur 1&nbsp;000&nbsp;€ de dépense publique en {{$a.Annee}}</h2></div>
-    <a class="plus" href="{{.Root}}/argent-public/">Où va l'argent public →</a></div>
-  <div class="mille">
-    {{range $i, $f := $a.Fonctions}}<a href="{{$.Root}}/{{if $f.Famille}}{{if eq $f.Famille.Base "argent-public"}}argent-public/{{else}}sujets/#{{$f.Famille.ID}}{{end}}{{else}}argent-public/{{end}}"{{if eq $i 0}} class="etalon"{{end}}>
-      <span class="l">{{$f.Libelle}}{{if $f.Detail}}<small>{{$f.Detail}}</small>{{end}}</span>
-      <span class="v">{{$f.ParMille}}&nbsp;€</span>
-      <span class="b" aria-hidden="true"><i style="width:{{printf "%.1f" $f.Largeur}}%"></i></span>
-    </a>{{end}}
-  </div>
-  <p class="src-bloc">Source&nbsp;: Eurostat / Insee, dépenses des administrations publiques par fonction
-  (nomenclature COFOG), {{$a.Annee}}&nbsp;: {{dec $a.TotalMilliards 1}}&nbsp;Md€, toutes administrations
-  (État, Sécurité sociale, collectivités). Arrondis à l'euro. Dépense <strong>constatée</strong>, pas
-  crédits votés.</p>
-</section>
+{{/* « Sur 1 000 € de dépense publique » est dans le hero, à côté du titre
+     (base.gohtml, HeroVisuel) : c'est ce que le lecteur voit en premier. */}}
 
-<section class="bloc">
+<section class="bloc" style="padding-top:2.4rem">
   <div class="tete"><div><span class="sur">Sujets de campagne</span>
     <h2 class="h2">Les sujets dont parlent les candidats</h2></div>
     <a class="plus" href="{{.Root}}/sujets/">Tous les sujets →</a></div>
@@ -100,7 +86,7 @@
 <section class="bloc">
   <div class="tete"><div><span class="sur">2027</span>
     <h2 class="h2">Les candidats déclarés</h2></div>
-    <a class="plus" href="{{.Root}}/2027/">Les {{.Cov.Candidats}} candidats →</a></div>
+    <a class="plus" href="{{.Root}}/2027/">{{sub .Cov.Candidats .Cov.CandidatsPrimaire}} candidatures, {{.Cov.CandidatsPrimaire}} candidats à une primaire →</a></div>
   <div class="quatre-points">
     <div><b>Parcours et mandats</b><span>Les fonctions exercées, datées, sous les présidences successives.</span></div>
     <div><b>Ce qu'ils ont voté</b><span>Pour {{.Cov.CandidatsAvecBilan}} d'entre eux, les votes d'une assemblée couverte par le site.</span></div>
