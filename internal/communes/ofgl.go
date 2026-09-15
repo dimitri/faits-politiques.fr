@@ -48,11 +48,14 @@ const (
 // Agrégat publié par l'OFGL -> code d'indicateur de ref.indicator. La valeur
 // retenue est le montant PAR HABITANT, qui est ce que les libellés annoncent.
 var ofglAgregats = map[string]string{
-	"Encours de dette":           "ofgl.dette_par_hab",
-	"Dépenses d'investissement":  "ofgl.investissement_par_hab",
-	"Dépenses de fonctionnement": "ofgl.fonctionnement_par_hab",
-	"Frais de personnel":         "ofgl.masse_salariale_par_hab",
-	"Epargne brute":              "ofgl.epargne_brute_par_hab",
+	"Encours de dette":                   "ofgl.dette_par_hab",
+	"Dépenses d'investissement":          "ofgl.investissement_par_hab",
+	"Dépenses de fonctionnement":         "ofgl.fonctionnement_par_hab",
+	"Frais de personnel":                 "ofgl.masse_salariale_par_hab",
+	"Epargne brute":                      "ofgl.epargne_brute_par_hab",
+	"Dotation globale de fonctionnement": "ofgl.dgf_par_hab",
+	"Recettes totales":                   "ofgl.recettes_totales_par_hab",
+	"Impôts et taxes":                    "ofgl.impots_taxes_par_hab",
 }
 
 func ofglURL(exercice int) string {
