@@ -5,10 +5,12 @@ import (
 	"fmt"
 	"html/template"
 	"path/filepath"
+	"runtime"
 	"sort"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
 )
 
 type Scrutin struct {
@@ -167,46 +169,61 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 
 	// all est trié par date décroissante : le « précédent » chronologique est
 	// donc l'élément suivant dans la tranche.
+	//
+	// Écrit en parallèle, borné au nombre de cœurs : à partir d'ici, chaque
+	// itération ne lit plus que des données déjà rassemblées en mémoire
+	// (all, groupes, votes) et n'écrit que son propre fichier — rien de
+	// partagé entre deux scrutins. C'est le rendu du gabarit et la passe de
+	// ponctuation française (write, dans main.go) qui dominent le temps de
+	// cette section à 38 000 pages, pas une attente réseau ; les répartir sur
+	// plusieurs cœurs raccourcit directement le mur d'horloge, là où une
+	// requête SQL supplémentaire par page ne l'aurait fait qu'à condition
+	// d'attendre le réseau plutôt que le CPU.
+	g := new(errgroup.Group)
+	g.SetLimit(runtime.NumCPU())
 	for i, s := range all {
-		gs := groupes[s.ID]
-		maxG := 0
-		for _, g := range gs {
-			if g.Total > maxG {
-				maxG = g.Total
+		g.Go(func() error {
+			gs := groupes[s.ID]
+			maxG := 0
+			for _, gr := range gs {
+				if gr.Total > maxG {
+					maxG = gr.Total
+				}
+				s.NonVotants += gr.Absent
 			}
-			s.NonVotants += g.Absent
-		}
-		// « Sans position enregistrée » n'est calculé que lorsqu'une base
-		// certaine existe (data/seuils.csv). Ailleurs, l'effectif de référence
-		// n'est pas une donnée : on ne le devine pas.
-		if s.Base > 0 {
-			if n := s.Base - len(votes[s.ID]); n > 0 {
-				s.SansPosition = n
+			// « Sans position enregistrée » n'est calculé que lorsqu'une base
+			// certaine existe (data/seuils.csv). Ailleurs, l'effectif de
+			// référence n'est pas une donnée : on ne le devine pas.
+			if s.Base > 0 {
+				if n := s.Base - len(votes[s.ID]); n > 0 {
+					s.SansPosition = n
+				}
 			}
-		}
 
-		var prec, suiv *ScrutinLien
-		if i+1 < len(all) {
-			prec = &ScrutinLien{all[i+1].Slug, all[i+1].TitreCourt}
-		}
-		if i > 0 {
-			suiv = &ScrutinLien{all[i-1].Slug, all[i-1].TitreCourt}
-		}
+			var prec, suiv *ScrutinLien
+			if i+1 < len(all) {
+				prec = &ScrutinLien{all[i+1].Slug, all[i+1].TitreCourt}
+			}
+			if i > 0 {
+				suiv = &ScrutinLien{all[i-1].Slug, all[i-1].TitreCourt}
+			}
 
-		l := layout
-		l.Title = "Scrutin n° " + s.Numero
-		data := struct {
-			Layout
-			S          Scrutin
-			Groupes    []GroupeLigne
-			Votes      []VoteLigne
-			MaxGroupe  int
-			Prec, Suiv *ScrutinLien
-			Src        SourceInfo
-		}{l, s, gs, votes[s.ID], maxG, prec, suiv, src}
-		if err := write(tpl, filepath.Join(out, "scrutin", s.Slug, "index.html"), data); err != nil {
-			return 0, err
-		}
+			l := layout
+			l.Title = "Scrutin n° " + s.Numero
+			data := struct {
+				Layout
+				S          Scrutin
+				Groupes    []GroupeLigne
+				Votes      []VoteLigne
+				MaxGroupe  int
+				Prec, Suiv *ScrutinLien
+				Src        SourceInfo
+			}{l, s, gs, votes[s.ID], maxG, prec, suiv, src}
+			return write(tpl, filepath.Join(out, "scrutin", s.Slug, "index.html"), data)
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return 0, err
 	}
 	return len(all), nil
 }

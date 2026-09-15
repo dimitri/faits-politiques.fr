@@ -13,12 +13,15 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"runtime"
+	"runtime/pprof"
 	"sort"
 	"strings"
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
 )
 
 var positionFr = map[string]string{
@@ -105,7 +108,24 @@ func main() {
 	dataDir := flag.String("data", "data", "décisions éditoriales")
 	root := flag.String("root", "", "préfixe d'URL")
 	maxScrutins := flag.Int("max-scrutins", 0, "limite de pages scrutin (0 = toutes)")
+	only := flag.String("only", "", "limite les sections coûteuses reconstruites : scrutin | communes | scrutin,communes (vide = tout). "+
+		"À réserver à l'itération locale — un site construit avec -only est incomplet et ne doit jamais être mis en place tel quel.")
+	cpuProfile := flag.String("cpuprofile", "", "écrit un profil CPU pprof à ce chemin (diagnostic, pas d'usage courant)")
 	flag.Parse()
+
+	if *cpuProfile != "" {
+		f, err := os.Create(*cpuProfile)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "erreur : %v\n", err)
+			os.Exit(1)
+		}
+		defer f.Close()
+		if err := pprof.StartCPUProfile(f); err != nil {
+			fmt.Fprintf(os.Stderr, "erreur : %v\n", err)
+			os.Exit(1)
+		}
+		defer pprof.StopCPUProfile()
+	}
 
 	// Le site est construit À CÔTÉ, puis mis en place d'un coup.
 	//
@@ -117,9 +137,18 @@ func main() {
 	// temps de deux renommages. Si la construction échoue, le site en ligne
 	// n'est pas touché.
 	chantier := strings.TrimRight(*out, "/") + ".construction"
-	if err := run(chantier, *tpl, *dataDir, *root, *maxScrutins); err != nil {
+	if err := run(chantier, *tpl, *dataDir, *root, *maxScrutins, *only); err != nil {
 		fmt.Fprintf(os.Stderr, "erreur : %v\n", err)
 		os.Exit(1)
+	}
+	// -only produit un site DÉLIBÉRÉMENT incomplet — jamais ce que sert le
+	// domaine réel. Le refus est ici, pas seulement dans la documentation du
+	// drapeau : une commande tapée vite un jour de correctif ne doit pas
+	// pouvoir vider /collectivites/commune/ ou /scrutin/ en production.
+	if *only != "" {
+		fmt.Printf("-only=%s : site partiel conservé dans %s/, PAS mis en place. "+
+			"Inspectez-le, puis relancez sans -only pour publier.\n", *only, chantier)
+		return
 	}
 	if err := mettreEnPlace(chantier, *out); err != nil {
 		fmt.Fprintf(os.Stderr, "erreur à la mise en place : %v\n", err)
@@ -149,8 +178,14 @@ func mettreEnPlace(chantier, out string) error {
 	return os.RemoveAll(ancien)
 }
 
-func run(out, tplDir, dataDir, root string, maxScrutins int) error {
+func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error {
 	start := time.Now()
+	// exclu : true si -only laisse cette section de côté. Vide (par défaut)
+	// ne filtre rien — c'est la reconstruction complète que mettreEnPlace
+	// doit voir ; -only sert à l'itération locale, jamais au déploiement.
+	exclu := func(section string) bool {
+		return only != "" && !strings.Contains(","+only+",", ","+section+",")
+	}
 	ctx := context.Background()
 	pool, err := store.Open(ctx)
 	if err != nil {
@@ -219,6 +254,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	if layout.Cov, err = coverage(ctx, pool); err != nil {
 		return err
 	}
+	fmt.Printf("  chargement initial : %s écoulées\n", time.Since(start).Round(time.Second))
 
 	persons, err := loadPersons(ctx, pool, layout.Cov.Scrutins)
 	if err != nil {
@@ -670,12 +706,30 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		"parlent les candidats, ce que dépense l'argent public, d'où il vient, les règles et les " +
 		"contrôles. De quoi suivre les débats et se faire son opinion, chiffres en main."
 	l.HeroVisuel = heroMille(acc, root)
-	if err := write(page("accueil.gohtml"), filepath.Join(out, "index.html"), struct {
-		Layout
-		A *DonneesAccueil
-	}{l, acc}); err != nil {
+	layoutAccueil := l // le hero est prêt ; la page s'écrit plus bas, une fois
+	// les dossiers de sujet chargés (acc.Familles[].Sujets[].D), pour afficher
+	// le titre de chacun sur l'accueil sans le deviner en double.
+
+	// Une page par fonction de la dépense publique (COFOG) : chaque ligne du
+	// tableau « sur 1 000 € » de l'accueil y mène.
+	pagesFonctions, err := chargerFonctions(ctx, pool, acc)
+	if err != nil {
 		return err
 	}
+	tf := page("fonction.gohtml")
+	for _, f := range acc.Fonctions {
+		pf := pagesFonctions[f.Code]
+		l = layout
+		l.Title = pf.Nom
+		if err := write(tf, filepath.Join(out, "fonction", f.Slug, "index.html"),
+			struct {
+				Layout
+				F *PageFonction
+			}{l, pf}); err != nil {
+			return err
+		}
+	}
+
 	l = layout
 	l.Title = "Qui décide"
 	if err := write(page("qui-decide.gohtml"), filepath.Join(out, "qui-decide", "index.html"), l); err != nil {
@@ -821,15 +875,25 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	for code, pc := range pagesCom {
 		pc.Situation = fond.pourCommune(code, pc.Nom)
 	}
-	tcom := page("commune.gohtml")
-	for code, pc := range pagesCom {
-		l = layout
-		l.Title = pc.Nom + " (" + pc.Dept.Code + ")"
-		if err := write(tcom, filepath.Join(out, "collectivites", "commune", code, "index.html"),
-			struct {
-				Layout
-				C *PageCommune
-			}{l, pc}); err != nil {
+	if !exclu("communes") {
+		tcom := page("commune.gohtml")
+		// Même raisonnement que pour les scrutins (scrutins.go) : chaque
+		// commune ne lit que sa propre entrée de pagesCom et n'écrit que son
+		// propre fichier, rien de partagé entre deux itérations.
+		g := new(errgroup.Group)
+		g.SetLimit(runtime.NumCPU())
+		for code, pc := range pagesCom {
+			g.Go(func() error {
+				lp := layout
+				lp.Title = pc.Nom + " (" + pc.Dept.Code + ")"
+				return write(tcom, filepath.Join(out, "collectivites", "commune", code, "index.html"),
+					struct {
+						Layout
+						C *PageCommune
+					}{lp, pc})
+			})
+		}
+		if err := g.Wait(); err != nil {
 			return err
 		}
 	}
@@ -840,19 +904,26 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	for siren, pe := range pagesEPCI {
 		pe.Situation = fond.pourEPCI(siren, pe.Nom, pe.Finances)
 	}
-	tepci := page("epci.gohtml")
-	for siren, pe := range pagesEPCI {
-		l = layout
-		l.Title = pe.Nom
-		if err := write(tepci, filepath.Join(out, "collectivites", "epci", siren, "index.html"),
-			struct {
-				Layout
-				E *PageEPCI
-			}{l, pe}); err != nil {
-			return err
+	if !exclu("communes") {
+		tepci := page("epci.gohtml")
+		for siren, pe := range pagesEPCI {
+			l = layout
+			l.Title = pe.Nom
+			if err := write(tepci, filepath.Join(out, "collectivites", "epci", siren, "index.html"),
+				struct {
+					Layout
+					E *PageEPCI
+				}{l, pe}); err != nil {
+				return err
+			}
 		}
 	}
-	fmt.Printf("  lieux : %d communes, %d intercommunalités\n", len(pagesCom), len(pagesEPCI))
+	ecart := ""
+	if exclu("communes") {
+		ecart = " — pages non écrites (-only)"
+	}
+	fmt.Printf("  lieux : %d communes, %d intercommunalités%s (%s écoulées)\n",
+		len(pagesCom), len(pagesEPCI), ecart, time.Since(start).Round(time.Second))
 
 	// Les pages de région et de département, maintenant que le résolveur sait
 	// quels départements composent une région.
@@ -1046,6 +1117,12 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	if err := preparerSujets(ctx, pool, out, root, acc); err != nil {
 		return err
 	}
+	if err := write(page("accueil.gohtml"), filepath.Join(out, "index.html"), struct {
+		Layout
+		A *DonneesAccueil
+	}{layoutAccueil, acc}); err != nil {
+		return err
+	}
 	l = layout
 	l.Title = "Sujets de campagne"
 	if err := write(page("sujets.gohtml"), filepath.Join(out, "sujets", "index.html"), struct {
@@ -1142,10 +1219,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 			byCand[c.Person.Slug] = c
 		}
 	}
+	if err := loadVotesBulk(ctx, pool, persons, 60); err != nil {
+		return err
+	}
 	for _, p := range persons {
-		if err := loadVotes(ctx, pool, p, 60); err != nil {
-			return err
-		}
 		l := layout
 		l.Title = p.Prenom + " " + p.Nom
 		data := struct {
@@ -1255,10 +1332,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 			break
 		}
 	}
-	n, err := buildScrutins(ctx, pool, page("scrutin.gohtml"), layout, out, maxScrutins,
-		seuils, srcScrutins)
-	if err != nil {
-		return err
+	fmt.Printf("  avant les scrutins : %s écoulées\n", time.Since(start).Round(time.Second))
+	var n int
+	if !exclu("scrutin") {
+		if n, err = buildScrutins(ctx, pool, page("scrutin.gohtml"), layout, out, maxScrutins,
+			seuils, srcScrutins); err != nil {
+			return err
+		}
 	}
 
 	// Plan du site et robots.txt : en dernier, une fois que out/ porte

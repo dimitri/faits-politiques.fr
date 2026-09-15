@@ -190,30 +190,47 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	return persons, nil
 }
 
-// loadVotes charge les derniers votes d'une personne. La liste est bornée :
-// une fiche n'a pas vocation à reproduire 8 000 lignes, et le total exprimé
-// est affiché à côté pour que la troncature soit visible.
-func loadVotes(ctx context.Context, pool *pgxpool.Pool, p *Person, limit int) error {
-	if !p.HasVotes {
+// loadVotesBulk charge les derniers votes de TOUTES les personnes en une
+// seule requête (fenêtrage SQL, une partition par personne), au lieu d'une
+// requête par personne. Sur 3 400+ députés et candidats, l'ancienne version
+// — une requête par fiche — dominait le temps de construction de cette
+// section à elle seule ; le fenêtrage fait le même travail à la source, en un
+// aller-retour. La liste par personne reste bornée : une fiche n'a pas
+// vocation à reproduire 8 000 lignes, et le total exprimé est affiché à côté
+// pour que la troncature soit visible.
+func loadVotesBulk(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Person, limit int) error {
+	var ids []int64
+	byID := map[int64]*Person{}
+	for _, p := range persons {
+		if p.HasVotes {
+			ids = append(ids, p.ID)
+			byID[p.ID] = p
+		}
+	}
+	if len(ids) == 0 {
 		return nil
 	}
 	rows, err := pool.Query(ctx, `
-		SELECT s.slug, s.objet, to_char(s.date_seance,'DD/MM/YYYY'),
-		       coalesce(b.position_rectifiee, b.position)::text,
-		       b.position_rectifiee IS NOT NULL,
-		       coalesce(s.resultat,'')
-		FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
-		WHERE b.person_id = $1
-		ORDER BY s.date_seance DESC, s.numero DESC
-		LIMIT $2`, p.ID, limit)
+		SELECT person_id, slug, objet, date_txt, position, rectifiee, resultat FROM (
+			SELECT b.person_id, s.slug, s.objet,
+			       to_char(s.date_seance,'DD/MM/YYYY') AS date_txt,
+			       coalesce(b.position_rectifiee, b.position)::text AS position,
+			       b.position_rectifiee IS NOT NULL AS rectifiee,
+			       coalesce(s.resultat,'') AS resultat,
+			       row_number() OVER (PARTITION BY b.person_id
+			                          ORDER BY s.date_seance DESC, s.numero DESC) AS rang
+			FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
+			WHERE b.person_id = ANY($1)
+		) t WHERE rang <= $2
+		ORDER BY person_id, rang`, ids, limit)
 	if err != nil {
 		return err
 	}
 	defer rows.Close()
-	p.Votes = nil
 	for rows.Next() {
+		var pid int64
 		var v Vote
-		if err := rows.Scan(&v.Slug, &v.Objet, &v.Date, &v.Position, &v.Rectifiee, &v.Resultat); err != nil {
+		if err := rows.Scan(&pid, &v.Slug, &v.Objet, &v.Date, &v.Position, &v.Rectifiee, &v.Resultat); err != nil {
 			return err
 		}
 		v.PositionFr = positionFr[v.Position]
@@ -223,10 +240,15 @@ func loadVotes(ctx context.Context, pool *pgxpool.Pool, p *Person, limit int) er
 		v.Resultat = map[string]string{
 			"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié",
 		}[v.Resultat]
-		p.Votes = append(p.Votes, v)
+		byID[pid].Votes = append(byID[pid].Votes, v)
 	}
-	p.VotesShown = len(p.Votes)
-	return rows.Err()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, p := range byID {
+		p.VotesShown = len(p.Votes)
+	}
+	return nil
 }
 
 // loadCandidats lit la décision éditoriale et la rapproche des personnes
