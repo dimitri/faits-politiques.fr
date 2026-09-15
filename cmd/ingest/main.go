@@ -362,6 +362,12 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		if err := macro.IngestPauvrete(ctx, pool, arch); err != nil {
 			return err
 		}
+		if err := macro.IngestAideAlimentaire(ctx, pool, arch); err != nil {
+			return err
+		}
+		if err := macro.IngestPauvreteTauxEU(ctx, pool, arch); err != nil {
+			return err
+		}
 		if err := macro.IngestMenagesDREES(ctx, pool, arch); err != nil {
 			return err
 		}
