@@ -415,28 +415,40 @@ func rattacherDocs(docs []*Doc) error {
 	return nil
 }
 
-var reLienMD = regexp.MustCompile(`href="(?:\.\./)?(?:docs/)?([A-Za-z0-9_-]+)\.md(#[^"]*)?"`)
+var reLienMD = regexp.MustCompile(`<a href="(?:\.\./)?(?:docs/)?([A-Za-z0-9_-]+)\.md(#[^"]*)?">([^<]*)</a>`)
 
 // reecrireLiensDocs : dans le dépôt, un dossier renvoie à un autre par son
-// fichier (« cotisations-et-droits.md »). Sur le site, ce lien doit mener à la
-// page : celle du sujet pour un dossier, celle de /comprendre/ sinon. Un
-// fichier absent de docs/ garde son lien tel quel, pour que l'erreur se voie.
+// fichier (« cotisations-et-droits.md », parfois « docs/cotisations-et-droits.md »
+// — la convention même du texte du lien, jamais un titre). Sur le site, ce
+// lien doit mener à la page : celle du sujet pour un dossier, celle de
+// /comprendre/ sinon. Le texte visible, quand il n'est que ce nom de fichier,
+// devient le vrai titre du dossier visé (§ 1 de sa propre note) — un lecteur
+// ne sait pas ce que « cotisations-et-droits.md » désigne, alors que le
+// dépôt, lui, connaît déjà le titre en question. Un texte de lien déjà écrit
+// à la main (« D-012 », « Onglet Gouvernement »…) n'est pas ce nom de
+// fichier : il reste intact. Un fichier absent de docs/ garde son lien tel
+// quel, pour que l'erreur se voie.
 func reecrireLiensDocs(docs []*Doc, root string) {
-	connus := map[string]bool{}
+	titres := map[string]string{}
 	for _, d := range docs {
-		connus[d.Slug] = true
+		titres[d.Slug] = d.Titre
 	}
 	for _, d := range docs {
 		d.Corps = template.HTML(reLienMD.ReplaceAllStringFunc(string(d.Corps), func(m string) string {
 			g := reLienMD.FindStringSubmatch(m)
-			if !connus[g[1]] {
+			slug, fragment, texte := g[1], g[2], g[3]
+			titre, connu := titres[slug]
+			if !connu {
 				return m
 			}
-			cible := root + "/comprendre/" + g[1] + "/"
-			if s := sujetDuDoc(g[1]); s != nil {
+			cible := root + "/comprendre/" + slug + "/"
+			if s := sujetDuDoc(slug); s != nil {
 				cible = root + "/" + s.URL()
 			}
-			return `href="` + cible + g[2] + `"`
+			if texte == slug+".md" || texte == "docs/"+slug+".md" {
+				texte = titre
+			}
+			return `<a href="` + cible + fragment + `">` + texte + `</a>`
 		}))
 	}
 }

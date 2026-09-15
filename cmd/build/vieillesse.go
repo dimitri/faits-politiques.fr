@@ -123,21 +123,21 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 		return nil, err
 	}
 
-	// Carte : bénéficiaires de l'APA à domicile pour 100 000 habitants, par
-	// département — même construction que la carte des généralistes
-	// (cmd/build/territoires.go), CASE plutôt que lpad pour ne pas tronquer
-	// les codes DOM à trois chiffres.
+	// Carte : bénéficiaires de l'APA à domicile pour 100 habitants de 75 ans
+	// ou plus, par département — le dénominateur qui manquait (docs/
+	// vieillesse-donnees.md § 4, migration 0115) : rapporter à la population
+	// totale confondait un département dense en bénéficiaires avec un
+	// département simplement plus âgé. CASE plutôt que lpad pour ne pas
+	// tronquer les codes DOM à trois chiffres (cmd/build/territoires.go).
 	carteRows, err := pool.Query(ctx, `
 		SELECT m.dep, max(m.libelle_departement),
-		       100000.0*max(m.nb_beneficiaires)/nullif(max(pop.p),0)
+		       100.0*max(m.nb_beneficiaires)/nullif(max(pop.p),0)
 		FROM (SELECT *, CASE WHEN code_departement ~ '^[0-9]$'
 		                 THEN '0'||code_departement ELSE code_departement END AS dep
 		        FROM core.apa_domicile WHERE annee = 2024) m
-		JOIN (SELECT code_departement AS dep, sum(value) p
-		      FROM core.commune_indicator ci
-		      JOIN ref.commune rc ON rc.code_insee=ci.commune_code AND rc.cog_millesime=ci.cog_millesime
-		      WHERE ci.indicator_code='ofgl.population_totale' AND ci.period_year=2023
-		      GROUP BY 1) pop ON pop.dep = m.dep
+		JOIN (SELECT code_departement AS dep, population AS p
+		      FROM core.population_age_departement
+		      WHERE annee = 2024 AND tranche = '75_PLUS') pop ON pop.dep = m.dep
 		GROUP BY m.dep`)
 	if err != nil {
 		return nil, err
@@ -166,23 +166,22 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 		if err != nil {
 			return nil, err
 		}
-		format := func(v float64) string { return Decimal(v, 0) }
+		format := func(v float64) string { return Decimal(v, 1) }
+		titre := "Bénéficiaires de l'APA à domicile pour 100 personnes de 75 ans ou plus"
+		question := "Où l'allocation personnalisée d'autonomie à domicile couvre-t-elle la plus grande part des personnes de 75 ans ou plus ?"
+		source := "DREES, enquête Aide sociale, 2024 ; Insee, estimations de population 2024"
 		st.CarteAPA = CarteTerritoire{
-			Slug: "apa-domicile", Titre: "Bénéficiaires de l'APA à domicile pour 100 000 habitants",
-			Question: "Où l'allocation personnalisée d'autonomie à domicile compte-t-elle le plus de bénéficiaires ?",
-			Note: fmt.Sprintf("Compte une présence, pas un besoin couvert : un département dense en "+
-				"bénéficiaires peut aussi être un département où la population est plus âgée en proportion — "+
-				"cette carte ne rapporte pas à la population de 75 ans ou plus, faute de ce chiffre par "+
-				"département dans ce même chargement. %d bénéficiaires, %s Md€ de dépenses couvertes "+
+			Slug: "apa-domicile", Titre: titre, Question: question,
+			Note: fmt.Sprintf("Compte une présence, pas un besoin couvert : un taux élevé peut aussi "+
+				"tenir à des situations de dépendance plus fréquentes dans ce département, pas "+
+				"seulement à une couverture plus large. %d bénéficiaires, %s Md€ de dépenses couvertes "+
 				"(22 %% des lignes sans donnée, exclues du calcul plutôt que comptées à zéro).",
 				st.APABeneficiaires, Decimal(st.APADepenses, 2)),
-			Source: "DREES, enquête Aide sociale, 2024 ; OFGL, population 2023",
+			Source: source,
 			Page: PageCarte{
-				Slug: "apa-domicile", Titre: "Bénéficiaires de l'APA à domicile pour 100 000 habitants",
-				Question: "Où l'allocation personnalisée d'autonomie à domicile compte-t-elle le plus de bénéficiaires ?",
-				Source:   "DREES, enquête Aide sociale, 2024 ; OFGL, population 2023",
-				Section:  "Vieillesse", SectionURL: "vieillesse", SectionIndexURL: "vieillesse",
-				Carte:      pleine(fin, cases, "bénéficiaires pour 100 000 hab.", format),
+				Slug: "apa-domicile", Titre: titre, Question: question, Source: source,
+				Section: "Vieillesse", SectionURL: "vieillesse", SectionIndexURL: "vieillesse",
+				Carte:      pleine(fin, cases, "pour 100 personnes de 75 ans ou plus", format),
 				Classement: classement(cases, fin.Noms, format),
 			},
 		}

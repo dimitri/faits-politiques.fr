@@ -54,7 +54,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | sae | rpps | hydro | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | sae | rpps | hydro | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -422,6 +422,14 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "vieillesse" {
 		fmt.Println("\nvieillesse : branche autonomie")
 		return vieillesse.IngestAPA(ctx, pool, arch)
+	}
+	// Population par département et grande tranche d'âge (Insee) : le
+	// dénominateur des cartes de la vieillesse et de la dépendance. Hors
+	// chaîne par défaut, comme les autres blocs thématiques ajoutés au fil
+	// des demandes.
+	if only == "population-age" {
+		fmt.Println("\npopulation par département et âge")
+		return communes.IngestPopulationAgeDepartement(ctx, pool, arch)
 	}
 	// L'insertion des apprentis : voir docs/jeunesse-donnees.md. Hors chaîne
 	// par défaut, comme les autres blocs thématiques ajoutés au fil des

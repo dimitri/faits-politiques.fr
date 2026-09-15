@@ -1771,6 +1771,28 @@ var checks = []check{
 		name:  "les taux InserJeunes restent des pourcentages valides",
 		query: `SELECT count(*) FROM core.insertion_apprentissage WHERE taux_emploi_6_mois NOT BETWEEN 0 AND 100`,
 	},
+	{
+		name:  "la population par département et âge couvre au moins quatre-vingt-dix départements chaque année",
+		query: `SELECT count(*) FROM (SELECT annee, count(DISTINCT code_departement) AS nb FROM core.population_age_departement GROUP BY annee HAVING count(DISTINCT code_departement) < 90) x`,
+	},
+	{
+		// Bornes larges mais réelles : 2,66 millions en 1975, 7,3 millions en
+		// 2025 (vérifié). Hors de [2, 8] millions signalerait une colonne mal
+		// lue (décalage d'index, séparateur de milliers) plutôt qu'un vrai
+		// changement démographique.
+		name: "la population nationale de 75 ans ou plus reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sum(population) AS total FROM core.population_age_departement
+		          WHERE tranche = '75_PLUS' GROUP BY annee
+		        ) x WHERE total NOT BETWEEN 2e6 AND 8e6`,
+	},
+	{
+		name:  "chaque département porte exactement ses cinq tranches d'âge chaque année",
+		query: `SELECT count(*) FROM (
+		          SELECT code_departement, annee, count(*) AS nb
+		          FROM core.population_age_departement GROUP BY code_departement, annee
+		        ) x WHERE nb <> 5`,
+	},
 }
 
 func main() {

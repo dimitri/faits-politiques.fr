@@ -148,6 +148,17 @@ bénéficiaire** (326 €/mois) — un ordre de grandeur, pas un montant
 individuel : la table agrège des situations très différentes (aide
 ponctuelle, plan d'aide GIR 1 lourd) sous une même moyenne.
 
+**La carte départementale rapporte les bénéficiaires à la population de 75
+ans ou plus, pas à la population totale** — `core.population_age_departement`
+(Insee, estimations de population par département et grande classe d'âge,
+migration 0115) comble ce second vide : rapporter à la population totale
+confondait un département dense en bénéficiaires avec un département
+simplement plus âgé, deux choses différentes. **12,0 % des personnes de 75
+ans ou plus bénéficient de l'APA à domicile en France (2024)**, avec un
+écart réel entre départements (de 4,9 % à 32,0 % selon le classement de la
+carte) — un écart qui, rapporté à la bonne population, mesure enfin un
+taux de couverture plutôt qu'un simple effet de structure démographique.
+
 ## Ce que les données ne disent pas
 
 ### 5. Ce qui reste hors de portée
@@ -173,6 +184,8 @@ ponctuelle, plan d'aide GIR 1 lourd) sous une même moyenne.
   § 2).
 - Conseil d'orientation des retraites (COR), *Synthèse*, juin 2025 (§ 2).
 - DREES, enquête Aide sociale, *APA à domicile* (§ 4).
+- INSEE, estimations de population par département, sexe et grande classe
+  d'âge (§ 4, dénominateur de la carte).
 - Assemblée nationale / PLF, mission Pensions et mission Régimes sociaux
   et de retraite (§ 3).
 - [docs/retraite-donnees.md](retraite-donnees.md), pour le ratio
@@ -193,6 +206,7 @@ ponctuelle, plan d'aide GIR 1 lourd) sous une même moyenne.
 | 3 | DREES, APA à domicile | `core.apa_domicile` | 1 520 lignes, 2010-2024 |
 | 4 | COR, *Synthèse* 2025 (citation) | `ref.fait_dossier` | 1 fait |
 | 5 | Ratio cotisants/retraités, âge de départ | `core.cotisants_retraites_ratio`, `core.age_depart_retraite` | déjà chargés (`docs/retraite-donnees.md`) |
+| 6 | Insee, population par département et grande classe d'âge | `core.population_age_departement` | 25 260 lignes, 1975-2025 (5 tranches × ~99 départements), tranche 75 ans ou plus utilisée pour la carte |
 
 ## Versions
 
@@ -200,3 +214,8 @@ ponctuelle, plan d'aide GIR 1 lourd) sous une même moyenne.
   isolée, budget État (Pensions, régimes spéciaux) mis en regard du total
   COFOG et du chiffre COR, APA à domicile chargée pour la première fois
   (branche autonomie, angle mort jusqu'ici de ce dépôt).
+- **Version 2** (15 septembre 2026) : la carte de l'APA à domicile rapporte
+  désormais les bénéficiaires à la population de 75 ans ou plus
+  (`core.population_age_departement`, Insee) plutôt qu'à la population
+  totale — le taux de couverture réel remplace un indicateur qui mesurait
+  pour partie la structure d'âge du département plutôt que l'APA elle-même.
