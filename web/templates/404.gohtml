@@ -1,0 +1,17 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Page introuvable</span></p>
+<span class="sur">Erreur 404</span>
+<h1>Cette page n'existe pas, ou plus</h1>
+<p class="lede">L'adresse demandée ne correspond à aucune page publiée. Le site est régénéré
+intégralement à chaque construction&nbsp;: une page peut avoir été renommée ou déplacée
+quand un dossier change de forme.</p>
+
+<div class="cartes trois">
+  <a class="carte" href="{{.Root}}/"><span class="t">Accueil</span>
+    <span class="d">Les chiffres du moment, et l'ensemble des dossiers.</span></a>
+  <a class="carte" href="{{.Root}}/comprendre/"><span class="t">Comprendre</span>
+    <span class="d">Chaque dossier, avec sa méthode et ses réserves.</span></a>
+  <a class="carte" href="{{.Root}}/sources/"><span class="t">Sources</span>
+    <span class="d">D'où viennent les chiffres, avec leur licence.</span></a>
+</div>
+{{end}}

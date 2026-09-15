@@ -28,19 +28,25 @@ détail, § 3</a>.</p>
 {{end}}
 
 <h2>Où l'insertion est-elle la meilleure</h2>
-{{if $j.CarteInsertion.Apercu.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
-<a class="bloc-carte ligne" href="{{.Root}}/jeunesse/carte/{{$j.CarteInsertion.Slug}}/">
-  {{$j.CarteInsertion.Apercu.SVG}}
+{{if $j.CarteInsertion.Page.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+<div class="cartes-lignes carte-dossier">
+<div class="bloc-carte ligne">
+  <div>
+    {{$j.CarteInsertion.Page.Carte.SVG}}
+    {{template "cartons" $j.CarteInsertion.Page.Carte.Cartons}}
+  </div>
   <div>
     <h3>{{$j.CarteInsertion.Titre}}</h3>
     <p class="q">{{$j.CarteInsertion.Question}}</p>
-    {{$t := $j.CarteInsertion.Apercu.Teintes}}<span class="echelle"><span class="u">{{$j.CarteInsertion.Apercu.Unite}}</span>
-      {{range $i, $b := $j.CarteInsertion.Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
-    </span>
-    <span class="src">{{$j.CarteInsertion.Source}}</span>
-    <span class="voir">La carte, le classement des régions et la méthode →</span>
+    {{$t := $j.CarteInsertion.Page.Carte.Teintes}}<div class="echelle"><span class="u">{{$j.CarteInsertion.Page.Carte.Unite}}</span>
+      {{range $i, $b := $j.CarteInsertion.Page.Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+      {{if $j.CarteInsertion.Page.Carte.NbAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
+    </div>
+    <span class="src">{{$j.CarteInsertion.Source}} · {{$j.CarteInsertion.Page.Carte.Total}} régions renseignées{{if $j.CarteInsertion.Page.Carte.NbAbsents}}, {{$j.CarteInsertion.Page.Carte.NbAbsents}} sans donnée{{end}}</span>
+    <a class="voir" href="{{.Root}}/jeunesse/carte/{{$j.CarteInsertion.Slug}}/">Le classement des régions et la méthode →</a>
   </div>
-</a>
+</div>
+</div>
 {{end}}
 <p class="note abs">{{$j.CarteInsertion.Note}}</p>
 

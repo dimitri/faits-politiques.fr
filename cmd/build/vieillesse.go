@@ -25,6 +25,22 @@ type StatsVieillesse struct {
 	APABeneficiaires int
 	APADepenses      float64
 	CarteAPA         CarteTerritoire
+
+	// Qui paie : le budget de l'État ne porte qu'une fraction du total COFOG
+	// (docs/vieillesse-donnees.md § 3) — le reste vient de la Sécurité
+	// sociale, jamais de l'État.
+	TotalEtat float64
+	PartEtat  float64
+	EcartSecu float64
+
+	// Pression démographique et âge de départ (docs/retraite-donnees.md § 2,
+	// déjà chargés) — rappelés ici plutôt que rechargés.
+	RatioAnnee              int
+	RatioCotisantsRetraites float64
+	AgeAnnee                int
+	AgeEnsemble             float64
+	AgeFemmes               float64
+	AgeHommes               float64
 }
 
 func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, error) {
@@ -81,6 +97,24 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 	if totalPublic > 0 {
 		st.PartCofog = 100 * st.CofogTotal / totalPublic
 	}
+	st.TotalEtat = st.CasPensions + st.RegimesSpeciaux
+	if st.CofogTotal > 0 {
+		st.PartEtat = 100 * st.TotalEtat / st.CofogTotal
+		st.EcartSecu = st.CofogTotal - st.TotalEtat
+	}
+
+	if err := pool.QueryRow(ctx, `
+		SELECT annee, ratio_demographique FROM core.cotisants_retraites_ratio
+		ORDER BY annee DESC LIMIT 1`).
+		Scan(&st.RatioAnnee, &st.RatioCotisantsRetraites); err != nil {
+		return nil, err
+	}
+	if err := pool.QueryRow(ctx, `
+		SELECT annee, age_ensemble, age_femmes, age_hommes FROM core.age_depart_retraite
+		ORDER BY annee DESC LIMIT 1`).
+		Scan(&st.AgeAnnee, &st.AgeEnsemble, &st.AgeFemmes, &st.AgeHommes); err != nil {
+		return nil, err
+	}
 
 	if err := pool.QueryRow(ctx, `
 		SELECT sum(nb_beneficiaires), sum(depenses_total_eur)/1e9
@@ -128,10 +162,6 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 		return nil, err
 	}
 	if len(cases) > 0 {
-		vign, err := jeuContours(ctx, pool, "DEPARTEMENT", tolApercu)
-		if err != nil {
-			return nil, err
-		}
 		fin, err := jeuContours(ctx, pool, "DEPARTEMENT", tolPleine)
 		if err != nil {
 			return nil, err
@@ -147,14 +177,13 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 				"(22 %% des lignes sans donnée, exclues du calcul plutôt que comptées à zéro).",
 				st.APABeneficiaires, Decimal(st.APADepenses, 2)),
 			Source: "DREES, enquête Aide sociale, 2024 ; OFGL, population 2023",
-			Apercu: apercu(vign, cases, "bénéficiaires pour 100 000 hab.", format),
 			Page: PageCarte{
 				Slug: "apa-domicile", Titre: "Bénéficiaires de l'APA à domicile pour 100 000 habitants",
 				Question: "Où l'allocation personnalisée d'autonomie à domicile compte-t-elle le plus de bénéficiaires ?",
 				Source:   "DREES, enquête Aide sociale, 2024 ; OFGL, population 2023",
 				Section:  "Vieillesse", SectionURL: "vieillesse", SectionIndexURL: "vieillesse",
 				Carte:      pleine(fin, cases, "bénéficiaires pour 100 000 hab.", format),
-				Classement: classement(cases, vign.Noms, format),
+				Classement: classement(cases, fin.Noms, format),
 			},
 		}
 	}

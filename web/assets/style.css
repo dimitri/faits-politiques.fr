@@ -1006,6 +1006,16 @@ background:var(--encre);color:var(--papier);border-color:var(--encre)}
 outline:2px solid var(--accent);outline-offset:2px}
 @media(max-width:52rem){.onglets-carte .panneaux > .bloc-carte{grid-template-columns:1fr}}
 
+/* Même composant, pour les trois niveaux de collectivité (page de sujet
+   « Collectivités », D-075) : une carte pleine à la fois, pas un onglet vers
+   une prévisualisation qui renvoie ailleurs — le panneau EST la carte. */
+.onglets-carte .panneaux .bloc-carte{max-width:44rem}
+#ocn1:checked ~ .panneaux .p1,#ocn2:checked ~ .panneaux .p2,#ocn3:checked ~ .panneaux .p3{display:flex}
+#ocn1:checked ~ .etiquettes label[for=ocn1],#ocn2:checked ~ .etiquettes label[for=ocn2],
+#ocn3:checked ~ .etiquettes label[for=ocn3]{background:var(--encre);color:var(--papier);border-color:var(--encre)}
+#ocn1:focus-visible ~ .etiquettes label[for=ocn1],#ocn2:focus-visible ~ .etiquettes label[for=ocn2],
+#ocn3:focus-visible ~ .etiquettes label[for=ocn3]{outline:2px solid var(--accent);outline-offset:2px}
+
 .sujet-tete{margin:.4rem 0 .6rem}
 .sujet-tete .liens-cartes{margin-top:.4rem}
 @media(max-width:44rem){
@@ -1165,6 +1175,14 @@ padding:.28rem .2rem;text-decoration:none;color:var(--encre);border-top:1px soli
 .legende-situation dd>span{display:block;font-size:.8rem;color:var(--attenue);line-height:1.4}
 @media(max-width:52rem){.situation .bloc-carte.ligne{grid-template-columns:1fr}
   .legende-situation div{grid-template-columns:1fr;gap:.1rem}}
+
+/* Carte-dossier : même ligne carte+légende que .situation, mais pour une
+   carte choroplèthe (une valeur par département), pas un repère dans la
+   France entière — un dossier qui n'a qu'une seule mesure géographique
+   (vieillesse, jeunesse) montre le tracé fin directement, sans vignette
+   cliquable renvoyant à une page à part. */
+.carte-dossier .bloc-carte.ligne{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1.6rem}
+@media(max-width:52rem){.carte-dossier .bloc-carte.ligne{grid-template-columns:1fr}}
 
 /* Carte des intercommunalités ouverte depuis une page de territoire
    (?departement=29 ou ?region=53) : la carte prend toute la largeur, le

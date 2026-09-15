@@ -1341,6 +1341,16 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		}
 	}
 
+	// Page d'erreur 404 : un fichier à la racine (pas .../404/index.html),
+	// pour que le Caddyfile puisse la servir par un simple
+	// rewrite * /{http.error.status_code}.html dans un bloc handle_errors,
+	// sans connaître l'arborescence du site.
+	l = layout
+	l.Title = "Page introuvable"
+	if err := write(page("404.gohtml"), filepath.Join(out, "404.html"), l); err != nil {
+		return err
+	}
+
 	// Plan du site et robots.txt : en dernier, une fois que out/ porte
 	// exactement l'arborescence publiée — voir cmd/build/sitemap.go.
 	nSitemap, err := ecrireSitemap(out, layout.CanonicalBase)

@@ -176,7 +176,7 @@ func loadJeunesse(ctx context.Context, pool *pgxpool.Pool) (*StatsJeunesse, erro
 	if err != nil {
 		return nil, err
 	}
-	vign, err := jeuContours(ctx, pool, "REGION", tolApercu)
+	fin, err := jeuContours(ctx, pool, "REGION", tolPleine)
 	if err != nil {
 		carteRows.Close()
 		return nil, err
@@ -194,7 +194,7 @@ func loadJeunesse(ctx context.Context, pool *pgxpool.Pool) (*StatsJeunesse, erro
 			carteRows.Close()
 			return nil, fmt.Errorf("jeunesse : région InserJeunes inconnue %q — table codeRegionInserJeunes à compléter", nomSource)
 		}
-		cc := CaseCarte{Code: code, Nom: vign.Noms[code]}
+		cc := CaseCarte{Code: code, Nom: fin.Noms[code]}
 		if v == nil {
 			cc.Absent = true
 		} else {
@@ -207,10 +207,6 @@ func loadJeunesse(ctx context.Context, pool *pgxpool.Pool) (*StatsJeunesse, erro
 		return nil, err
 	}
 	if len(cases) > 0 {
-		fin, err := jeuContours(ctx, pool, "REGION", tolPleine)
-		if err != nil {
-			return nil, err
-		}
 		format := func(v float64) string { return Decimal(v, 0) + " %" }
 		st.CarteInsertion = CarteTerritoire{
 			Slug: "insertion-apprentissage", Titre: "Taux d'emploi médian à 6 mois après un contrat d'apprentissage",
@@ -219,14 +215,13 @@ func loadJeunesse(ctx context.Context, pool *pgxpool.Pool) (*StatsJeunesse, erro
 				"aucun effectif par CFA, une pondération par la taille réelle des établissements est " +
 				"donc hors de portée de cette source.",
 			Source: "DEPP, enquête InserJeunes, promotion la plus récente",
-			Apercu: apercu(vign, cases, "% médian", format),
 			Page: PageCarte{
 				Slug: "insertion-apprentissage", Titre: "Taux d'emploi médian à 6 mois après un contrat d'apprentissage",
 				Question: "Où l'insertion après l'apprentissage est-elle la meilleure ?",
 				Source:   "DEPP, enquête InserJeunes, promotion la plus récente",
 				Section:  "Jeunesse", SectionURL: "jeunesse", SectionIndexURL: "jeunesse",
 				Carte:      pleine(fin, cases, "% médian", format),
-				Classement: classement(cases, vign.Noms, format),
+				Classement: classement(cases, fin.Noms, format),
 			},
 		}
 	}
