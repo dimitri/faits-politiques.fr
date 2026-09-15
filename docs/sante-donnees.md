@@ -1,6 +1,6 @@
 # La santé : FINESS comme clé pivot, la rémunération des médecins et les déserts médicaux
 
-> **Dossier** · version 9 · 15 septembre 2026
+> **Dossier** · version 10 · 15 septembre 2026
 >
 > Comment le système de santé est-il décrit par les données publiques, comment les
 > médecins sont-ils rémunérés, et que disent les données sur les déserts médicaux au-delà
@@ -79,6 +79,42 @@ signaler une anomalie à chaque millésime antérieur à 2013.
 (118 133 → 112 159, soit −5,1 %) sur la période — un chiffre à mettre en
 regard, sans le faire ici, de la démographie et des capacités de formation,
 hors périmètre de cette note.
+
+**Combien, pas seulement dans quel système** — `core.medecin_honoraires`
+(Cnam, `data.ameli.fr`, jeu « montants des honoraires par territoire »),
+66 480 lignes, 38 professions, 2010-2024. Ce que le § 2 donnait comme
+RÉPARTITION par secteur, cette table le chiffre en euros. France entière,
+2024 :
+
+| Profession | Honoraires sans dépassement | Dépassements | Taux de dépassement secteur 2 (Optam / hors Optam) |
+|---|---:|---:|---|
+| Ensemble des médecins | 26,0 Md€ | 4,5 Md€ | 48,8 % (29,4 % / 75,7 %) |
+| Médecins généralistes | 9,3 Md€ | 0,14 Md€ | 34,3 % (22,1 % / 91,1 %) |
+
+**Confirme en euros ce que § 2 disait en effectifs** : l'Optam fait
+mécaniquement baisser le taux de dépassement (29,4 % contre 75,7 % hors
+Optam) — l'engagement de modération qui définit l'option se lit directement
+dans les montants, pas seulement dans son nom.
+
+**Deux valeurs sentinelles, deux raisons distinctes, jamais confondues avec
+un montant nul** : « NS » (non significatif, secret statistique sur petit
+effectif — 15 % des lignes de montant) et « NC » (non concerné, une
+profession sans effectif en secteur 2, sur les trois taux de dépassement —
+18 000 lignes). La source publie elle-même un champ compagnon qui remplace
+les deux par 0 ; ce dossier ne le reprend pas (`docs/README.md`, règle 3 —
+un montant non publié n'est pas un montant nul).
+
+**`code_departement` = « 999 » porte deux niveaux d'agrégat différents
+selon la région qui l'accompagne** — un total régional (« Tout
+département ») ou, pour la région « 99 », le total France — à exclure
+avant toute somme par département, comme pour Open Damir (§ 1.6) et la
+démographie par secteur (§ 2 ci-dessus). Cette table utilise d'ailleurs sa
+propre nomenclature régionale, une TROISIÈME distincte des deux déjà
+rencontrées dans ce dossier : chaque DOM y a son propre code (comme
+`core.medecin_secteur_effectif`), la Corse en a un séparé de PACA (à la
+différence d'Open Damir, § 1.6, qui les regroupe) — une illustration de
+plus que la nomenclature régionale ne se devine jamais d'un jeu Cnam à
+l'autre, même publiés par le même organisme.
 
 ## Contrôles et évaluations
 
@@ -434,17 +470,13 @@ un débat, elle ne le tranche pas.
 
 ### 3. Ce que ce dossier ne couvre pas encore
 
-Elle ne dit pas combien un médecin gagne en euros — seulement dans quel
-système de tarification il exerce. Le montant des dépassements et des
-honoraires perçus existe dans un jeu de données distinct identifié
-(`honoraires` sur `data.ameli.fr`), non chargé à ce stade : ses champs
-« moyens » codent l'absence de donnée par la valeur littérale « NS » (non
-significatif, secret statistique sur petit effectif) mêlée à des valeurs
-numériques dans la même colonne — un traitement plus délicat que le
-chargement fait ici, laissé à une prochaine itération plutôt que bâclé.
-
-Une limite plus courte :
-
+- **Le détail des honoraires par type d'acte** (`honoraires-detailles` sur
+  `data.ameli.fr`) reste non chargé, à la différence des montants globaux
+  (§ 2) : ce second jeu décompose chaque montant sur trois niveaux
+  hiérarchiques (`honoraires_ordre_niv_1/2/3`, actes cliniques/techniques,
+  prescriptions...) — le même risque de double compte total/parties déjà
+  rencontré plusieurs fois dans ce dossier (PMSI, RPPS), à traiter avec le
+  soin que ces trois niveaux demandent plutôt qu'une agrégation hâtive.
 - **PMSI, psychiatrie (RIM-P)** : la seule des quatre familles PMSI absente
   de `data-essentiel.atih.sante.fr` (MCO, SMR et HAD y sont, § 1.5) — aucun
   jeu du portail n'en porte le nom, vérifié sur les 48 jeux du catalogue.
@@ -475,8 +507,8 @@ région×prestation n'a pas de nomenclature de décodage chargée.
   *FINESS — Activités* (nouveau format, § 1.2).
 - Drees, *SAE — bases statistiques*, data.drees.solidarites-sante.gouv.fr.
 - Cnam (Caisse nationale de l'Assurance Maladie), *Démographie des
-  professionnels de santé libéraux par secteur conventionnel*,
-  data.ameli.fr.
+  professionnels de santé libéraux par secteur conventionnel*, *Montants
+  des honoraires par territoire* (§ 2), data.ameli.fr.
 - Haute Autorité de Santé, *Certification des établissements de santé pour la
   qualité des soins (6ᵉ cycle)*, data.gouv.fr.
 - ANS, *Annuaire Santé — extractions RPPS en libre accès*, data.gouv.fr
@@ -505,9 +537,20 @@ région×prestation n'a pas de nomenclature de décodage chargée.
 | 7 | Cnam, Open Damir (remboursements interrégimes, agrégés en flux) | `core.remboursement_national`, `core.remboursement_region_prestation` | 12 lignes + 101 980 lignes, 2025 |
 | 8 | Cnam, lexique Open Damir (nomenclature BEN_RES_REG) | `ref.damir_region` | 14 lignes |
 | 9 | ATIH, PMSI-SMR et PMSI-HAD (data-essentiel) | `core.pmsi_smr_regional`, `core.pmsi_smr_par_etablissement`, `core.pmsi_smr_par_patient`, `core.pmsi_had_regional`, `core.pmsi_had_par_etablissement`, `core.pmsi_had_par_patient` | 200+246+300 lignes SMR, 94+233+100 lignes HAD, 2021-2025 |
+| 10 | Cnam, montants des honoraires des médecins | `core.medecin_honoraires` | 66 480 lignes, 38 professions, 2010-2024 |
 
 ## Versions
 
+- **Version 10** (15 septembre 2026) : montants des honoraires chargés
+  (§ 2, `core.medecin_honoraires`) — la répartition par secteur du § 2 a
+  maintenant son pendant en euros (26,0 Md€ d'honoraires sans dépassement
+  et 4,5 Md€ de dépassements en 2024, taux de dépassement secteur 2 qui
+  confirme en euros ce que l'Optam faisait déjà voir en effectifs). Deux
+  sentinelles textuelles décodées en NULL plutôt qu'en 0 comme le fait la
+  source elle-même (« NS » secret statistique, « NC » non concerné) ; une
+  troisième nomenclature régionale Cnam rencontrée, distincte des deux
+  déjà vues dans ce dossier. Le détail par type d'acte
+  (`honoraires-detailles`) reste non chargé (§ 3).
 - **Version 9** (15 septembre 2026) : PMSI-SMR et PMSI-HAD chargés (§ 1.5)
   sur le même portail que le MCO — seule la psychiatrie (RIM-P) en reste
   absente, vérifié sur les 48 jeux du catalogue. Aucun des deux nouveaux

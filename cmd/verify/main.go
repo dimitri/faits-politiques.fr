@@ -1022,6 +1022,24 @@ var checks = []check{
 		min:   5,
 	},
 	{
+		name:  "les honoraires des médecins couvrent au moins dix exercices",
+		query: `SELECT count(DISTINCT annee) FROM core.medecin_honoraires`,
+		min:   10,
+	},
+	{
+		// 25 à 35 Md€ d'honoraires « Ensemble des médecins » au total national
+		// est l'ordre de grandeur connu (Cnam, comptes de la santé) — un
+		// exercice hors de cette fourchette signalerait un NS mal décodé (en
+		// 0 plutôt qu'en NULL) ou une confusion d'agrégat (code_departement
+		// '999' compté en double, voir le commentaire de la migration 0109).
+		name: "le total national des honoraires médecins reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, hono_sans_depassement_total + depassements_total AS total
+		            FROM core.medecin_honoraires
+		           WHERE code_region = '99' AND profession_sante = 'Ensemble des médecins'
+		        ) x WHERE total NOT BETWEEN 20e9 AND 40e9`,
+	},
+	{
 		name:  "les DECP couvrent au moins deux millions de lignes de marché",
 		query: `SELECT count(*) FROM core.public_contract`,
 		min:   2000000,
