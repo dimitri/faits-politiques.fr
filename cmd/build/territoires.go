@@ -207,10 +207,11 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 		st.Cartes = append(st.Cartes, poser(CarteTerritoire{
 			Slug: "medecins-generalistes", Titre: "Médecins généralistes pour 100 000 habitants",
 			Question: "Où l'offre de médecine générale est-elle la plus dense ?",
-			Note: "Compte les médecins inscrits au Répertoire partagé des professionnels de santé " +
-				"(RPPS) qui exercent la médecine générale, quel que soit leur mode d'exercice " +
-				"(libéral, salarié) — pas seulement ceux qui prennent de nouveaux patients, et pas " +
-				"les médecins retraités ayant cessé leur inscription. Une carte de présence, pas de " +
+			Note: "Ne compte que les généralistes dont le RPPS publie une commune d'exercice — 56 % " +
+				"des 152 598 généralistes inscrits au Répertoire partagé des professionnels de " +
+				"santé (RPPS), les autres n'ayant pas de commune renseignée dans cette extraction " +
+				"(remplaçants sans structure fixe, notamment). La carte compte une présence " +
+				"identifiable, pas l'ensemble des généralistes en exercice — et pas leur " +
 				"disponibilité réelle : un désert médical peut aussi être un territoire où les " +
 				"généralistes recensés n'ont plus de créneaux libres.",
 			Source: "ANS, Annuaire Santé (RPPS) ; OFGL, population 2023",
