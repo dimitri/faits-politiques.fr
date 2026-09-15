@@ -52,6 +52,15 @@ type Layout struct {
 	DerniereIngestion string
 	Sources           []SourceInfo
 	Cov               Coverage
+	// Partage social (og:*, twitter:*) — voir cmd/build/social.go.
+	// Description et Image sont vides par défaut ; base.gohtml retombe alors
+	// sur une description générique et sur og-defaut.png. CanonicalBase est le
+	// même pour toutes les pages : le domaine réel, jamais .Root (qui sert au
+	// préfixe de prévisualisation locale, pas à une URL absolue).
+	Description    string
+	Image          string
+	ImageW, ImageH int
+	CanonicalBase  string
 }
 
 type Vote struct {
@@ -196,7 +205,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	// page, donc à TOUTES les pages : les poser sur la seule page d'accueil
 	// laissait « Données arrêtées au . » partout ailleurs.
 	layout := Layout{Root: root, BuiltAt: dateFr(time.Now()),
-		CSS: assets.CSS, JS: assets.JS}
+		CSS: assets.CSS, JS: assets.JS,
+		// Le domaine réel : nécessaire pour og:image, dont la spécification
+		// exige une URL absolue même quand .Root est vide (déploiement à la
+		// racine, comme aujourd'hui). Pas un drapeau de ligne de commande —
+		// ce site n'a qu'un domaine, comme NonCompense ailleurs est une
+		// constante plutôt qu'un paramètre pour une valeur qui ne varie pas.
+		CanonicalBase: "https://faits-politiques.fr",
+		Image:         "/media/og-defaut.png", ImageW: 1200, ImageH: 630}
 	if layout.Sources, err = sources(ctx, pool); err != nil {
 		return err
 	}
@@ -456,6 +472,8 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	for _, c := range terr.Cartes {
 		l = layout
 		l.Title = c.Titre
+		l.Description = c.Page.Question
+		imageCarte(&l, out, "carte-"+c.Slug, c.Page.Carte.SVG)
 		if err := write(tcd, filepath.Join(out, "collectivites", "carte", c.Slug, "index.html"),
 			struct {
 				Layout
@@ -549,6 +567,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	}
 	l = layout
 	l.Title = "Sécurité"
+	// Pas de carte unique au niveau de l'index (chaque indicateur porte la
+	// sienne) : la première sert de vignette représentative. Page.Carte, pas
+	// Apercu — Apercu est la vignette miniature de la grille, trop petite
+	// (viewBox réduit) pour être agrandie proprement en image de partage.
+	if len(sec.Indicateurs) > 0 {
+		imageCarte(&l, out, "securite", sec.Indicateurs[0].Page.Carte.SVG)
+	}
 	if err := write(page("securite.gohtml"), filepath.Join(out, "securite", "index.html"),
 		struct {
 			Layout
@@ -560,6 +585,8 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	for _, ind := range sec.Indicateurs {
 		l = layout
 		l.Title = ind.Libelle
+		l.Description = ind.Page.Question
+		imageCarte(&l, out, "securite-"+ind.Slug, ind.Page.Carte.SVG)
 		if err := write(tcd, filepath.Join(out, "securite", ind.Slug, "index.html"),
 			struct {
 				Layout
@@ -619,6 +646,8 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		vues[k.Page.Slug] = true
 		l = layout
 		l.Title = k.Page.Titre
+		l.Description = k.Page.Question
+		imageCarte(&l, out, "2027-"+k.Page.Slug, k.Page.Carte.SVG)
 		if err := write(tcd, filepath.Join(out, "2027", k.Page.Slug, "index.html"),
 			struct {
 				Layout
@@ -684,6 +713,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	parts := partsRecettes(col.Poids)
 	l = layout
 	l.Title = "Collectivités"
+	imageCarte(&l, out, "collectivites", col.CarteDepts.SVG)
 	if err := write(page("collectivites.gohtml"),
 		filepath.Join(out, "collectivites", "index.html"), struct {
 			Layout
@@ -712,7 +742,21 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return err
 	}
 	// Les cartes de situation : un fond commun écrit une fois, un calque par page.
-	fond, err := chargerFondSituation(ctx, pool, out, root, col.Exercice)
+	// Sur la carte de situation, chaque département mène à sa page ; un
+	// département fusionné (Alsace, Corse, Martinique, Guyane) mène à la
+	// collectivité qui tient son budget.
+	lienDept := func(code string) string {
+		u := lieux.urlDept(code)
+		if f, ok := fusionConnue[code]; ok && u == "" {
+			if f.niveau == "DEPARTEMENT" {
+				u = lieux.urlDept(f.code)
+			} else {
+				u = lieux.urlRegion(f.code)
+			}
+		}
+		return strings.TrimPrefix(u, root+"/")
+	}
+	fond, err := chargerFondSituation(ctx, pool, out, root, col.Exercice, lienDept)
 	if err != nil {
 		return err
 	}

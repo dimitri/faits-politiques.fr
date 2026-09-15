@@ -2,7 +2,27 @@
 <html lang="fr"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <link rel="icon" href="{{.Root}}/media/logo-mark.svg" type="image/svg+xml">
+<link rel="icon" href="{{.Root}}/media/favicon.png" sizes="32x32">
+<link rel="apple-touch-icon" href="{{.Root}}/media/apple-touch-icon.png">
 <title>{{.Title}} — faits-politiques.fr</title>
+{{/* og:image exige une URL absolue même sans .Root (déploiement à la racine) :
+     CanonicalBase la fournit. .Description et .Image sont vides par défaut
+     — seule une poignée de pages avec une vraie carte ou un vrai portrait
+     les renseignent (cmd/build/social.go) ; les autres retombent sur la
+     description générale du site et sur la carte de partage par défaut. */}}
+{{$desc := .Description}}{{if not $desc}}{{$desc = "Ce qui a été voté, décidé, proposé — et d'où on le sait. Chaque chiffre remonte à un document officiel archivé ; aucun verdict n'est rendu."}}{{end}}
+<meta name="description" content="{{$desc}}">
+<meta property="og:site_name" content="faits-politiques.fr">
+<meta property="og:type" content="website">
+<meta property="og:title" content="{{.Title}} — faits-politiques.fr">
+<meta property="og:description" content="{{$desc}}">
+<meta property="og:image" content="{{.CanonicalBase}}{{.Image}}">
+<meta property="og:image:width" content="{{.ImageW}}">
+<meta property="og:image:height" content="{{.ImageH}}">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="{{.Title}} — faits-politiques.fr">
+<meta name="twitter:description" content="{{$desc}}">
+<meta name="twitter:image" content="{{.CanonicalBase}}{{.Image}}">
 <link rel="stylesheet" href="{{.Root}}/{{.CSS}}">
 <script>
 // Appliqué avant le premier rendu : sans cela la page clignote du thème
@@ -210,15 +230,15 @@ projection&nbsp;: les surfaces ne se comparent pas d'un carton à l'autre, ni à
   <div class="bloc-carte ligne">
     <div class="situation-cadre">
       <div class="situation-carte">
-        <img src="{{.Fond}}" alt="" width="{{.Largeur}}" height="{{.Hauteur}}">
+        <object data="{{.Fond}}" type="image/svg+xml" style="aspect-ratio:{{.Largeur}}/{{.Hauteur}}" aria-label="Carte des départements : chacun mène à sa page"><img src="{{.Fond}}" alt="" width="{{.Largeur}}" height="{{.Hauteur}}"></object>
         {{.Calque}}
       </div>
-      <div class="situation-cartons">{{range .Cartons}}<figure{{if .Actif}} class="actif"{{end}}><div class="carton-situation"><img src="{{.Fond}}" alt="" loading="lazy">{{.SVG}}</div><figcaption>{{.Nom}}</figcaption></figure>{{end}}</div>
+      <div class="situation-cartons">{{range .Cartons}}<figure{{if .Actif}} class="actif"{{end}}>{{if .URL}}<a href="{{.URL}}">{{end}}<div class="carton-situation"><img src="{{.Fond}}" alt="" loading="lazy">{{.SVG}}</div><figcaption>{{.Nom}}</figcaption>{{if .URL}}</a>{{end}}</figure>{{end}}</div>
     </div>
     <div>
       <h3>Dans la France entière</h3>
-      <dl class="legende-situation">{{range .Legende}}<div><dt>{{.Libelle}}</dt><dd><b>{{.Valeur}}</b>{{if .Detail}}<span>{{.Detail}}</span>{{end}}</dd></div>{{end}}</dl>
-      <span class="src">{{.Note}} Contours&nbsp;: IGN Admin Express COG CARTO (Licence Ouverte), © les contributeurs OpenStreetMap (ODbL). Superficie cadastrale et population&nbsp;: IGN, Insee. Budgets&nbsp;: OFGL / DGCL.</span>
+      <dl class="legende-situation">{{range .Legende}}<div><dt>{{.Libelle}}</dt><dd><b>{{if .URL}}<a href="{{.URL}}">{{.Valeur}} <span aria-hidden="true">→</span></a>{{else}}{{.Valeur}}{{end}}</b>{{if .Detail}}<span>{{.Detail}}</span>{{end}}</dd></div>{{end}}</dl>
+      <span class="src">{{.Note}} Contours&nbsp;: IGN Admin Express COG CARTO (Licence Ouverte), © les contributeurs OpenStreetMap (ODbL). Superficie cadastrale et population&nbsp;: IGN, Insee. Budgets&nbsp;: les comptes propres de chaque collectivité, publiés par l'OFGL — des chiffres locaux, pas une moyenne nationale répartie. Cliquer un département ouvre sa page.</span>
     </div>
   </div>
 </div>
