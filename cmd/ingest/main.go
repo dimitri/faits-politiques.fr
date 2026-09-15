@@ -24,6 +24,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/carto"
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/entreprises"
+	"github.com/faits-politiques/faits-politiques/internal/damir"
 	"github.com/faits-politiques/faits-politiques/internal/decp"
 	"github.com/faits-politiques/faits-politiques/internal/dette"
 	"github.com/faits-politiques/faits-politiques/internal/dossiers"
@@ -51,7 +52,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | education | sante | sae | rpps | hydro | ecologie | international | decp | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | education | sante | sae | rpps | hydro | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -448,6 +449,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "decp" {
 		fmt.Println("\nDECP : commande publique consolidée")
 		return decp.Ingest(ctx, pool, arch)
+	}
+	// Open Damir (remboursements Assurance Maladie) : à part, un seul
+	// exercice pèse ~11 Go en téléchargement (970 Mo × 12 mois) — voir
+	// internal/damir/damir.go et le commentaire de core.remboursement_national.
+	if only == "damir" {
+		fmt.Println("\nOpen Damir : remboursements de l'Assurance Maladie")
+		return damir.Ingest(ctx, pool, arch)
 	}
 	// La dette : encours, détenteurs, coût, comparaisons européenne et
 	// suisse. Voir docs/dette-donnees.md. La détention (Banque de France)
