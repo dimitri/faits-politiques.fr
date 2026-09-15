@@ -1,6 +1,6 @@
 # La santé : FINESS comme clé pivot, et comment les médecins sont payés
 
-> Note de synthèse. Version 2 — 14 septembre 2026.
+> Note de synthèse. Version 3 — 15 septembre 2026.
 > Le système de santé français est le domaine le plus éclaté en sources que
 > ce projet ait chargé : FINESS (établissements), SAE (activité, personnel),
 > PMSI (séjours hospitaliers), SNDS/Open Damir (remboursements), RPPS
@@ -17,6 +17,11 @@
 > et l'accès PMSI/RPPS (§ 4), après une recherche dédiée à chacun. Les
 > effectifs AESH, un sujet Éducation nationale et non Santé, sont documentés
 > dans [docs/education-donnees.md](education-donnees.md), pas ici.
+>
+> **Version 3** ajoute la certification HAS des établissements (§ 1.3),
+> retirée de la liste « non chargé » : trois fichiers CSV publiés directement
+> par la HAS, sans commune mesure avec la complexité rencontrée sur SAE ou
+> FINESS.
 
 ---
 
@@ -104,6 +109,33 @@ Migrer vers ce format demande de modéliser cette hiérarchie proprement,
 plutôt que de la forcer dans le schéma plat de `ref.finess_etablissement` —
 un chantier à part, pas une mise à jour d'URL.
 
+### 1.3 La certification HAS : la seule mesure de qualité comparable
+
+`core.certification_has_demarche` / `core.certification_has_chapitre`,
+422 démarches de certification (6ᵉ cycle, 2025-), 421 rejointes à
+`ref.finess_etablissement` par leur numéro FINESS. Source : Haute Autorité de
+Santé, trois fichiers CSV normalisés et légers (quelques centaines de Ko
+chacun) — sans commune mesure avec la complexité de SAE ou de FINESS lui-même.
+
+| Décision de certification | Démarches |
+|---|---:|
+| Certifié | 239 |
+| Certifié avec mention | 88 |
+| Certifié sous conditions | 68 |
+| Non certifié | 27 |
+
+Chaque démarche porte un score sur 100 par chapitre du référentiel :
+
+| Chapitre | Score moyen |
+|---|---:|
+| Le patient | 92,4 |
+| Les équipes de soins | 94,2 |
+| L'établissement | 91,6 |
+
+**Seul le 6ᵉ cycle est chargé** — les cycles antérieurs suivent un référentiel
+différent, publiés séparément, non comparables terme à terme sans un travail
+de correspondance non fait ici.
+
 ## 2. Comment les médecins sont rémunérés : le secteur conventionnel
 
 Source : Cnam (Assurance Maladie), `data.ameli.fr`, « Démographie secteurs
@@ -179,8 +211,6 @@ plutôt qu'une simple mention :
   demandent le Système national des données de santé, à accès restreint pour
   le détail individuel — la version ouverte agrégée (Open Damir) reste à
   localiser précisément.
-- **HAS** (indicateurs qualité par établissement) : identifiée dans le
-  catalogue data.gouv.fr de la Haute Autorité de Santé, pas encore chargée.
 - **DECP** pour les fournisseurs des établissements publics de santé : même
   limite que pour Éducation et Défense — la table `core.public_contract`
   existe (`docs/perimetre.md` § 4.4, priorité P2) mais aucun connecteur ne
@@ -195,6 +225,7 @@ plutôt qu'une simple mention :
 | 1 | ANS, référentiel FINESS des établissements | `ref.finess_etablissement` | 103 022 lignes |
 | 2 | Drees, SAE, bordereau Q24 (personnel par fonction) | `core.sae_personnel_fonction` | 3 808 lignes, 2024 |
 | 3 | Cnam, démographie par secteur conventionnel | `core.medecin_secteur_effectif` | 177 720 lignes, 2010-2024 |
+| 4 | HAS, certification des établissements (6ᵉ cycle) | `core.certification_has_demarche`, `core.certification_has_chapitre` | 422 démarches, 981 résultats |
 
 ## Sources
 
@@ -205,6 +236,8 @@ plutôt qu'une simple mention :
 - Cnam (Caisse nationale de l'Assurance Maladie), *Démographie des
   professionnels de santé libéraux par secteur conventionnel*,
   data.ameli.fr.
+- Haute Autorité de Santé, *Certification des établissements de santé pour la
+  qualité des soins (6ᵉ cycle)*, data.gouv.fr.
 - ATIH, ScanSanté (`scansante.fr/opendata`), pour le PMSI (§ 4).
 - ANS, *Annuaire Santé — extractions RPPS en libre accès*, data.gouv.fr
   (§ 4).
