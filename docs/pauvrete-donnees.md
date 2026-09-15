@@ -1,18 +1,46 @@
-# La pauvreté en France : un seuil précis, à ne pas confondre avec « les foyers modestes »
+# La pauvreté en France : le seuil statistique et les « foyers modestes »
 
-> Note de synthèse. Version 1 — 15 septembre 2026.
-> « Pauvreté » a une définition statistique fixe, la même depuis 1996 et
-> partagée avec le reste de l'Europe. « Foyers modestes » n'en a aucune : le
-> mot désigne, selon le dispositif qui l'emploie, des populations de tailles
-> très différentes. Cette note pose la distinction avant les chiffres, charge
-> l'aide alimentaire comme mesure complémentaire (elle éclaire une pauvreté
-> vécue que le seuil monétaire ne capte pas toujours), et situe la France
-> dans son contexte européen — pas au-delà, faute d'une mesure comparable
-> pour les pays hors Europe (§ 5).
+> **Dossier** · version 2 · 15 septembre 2026
+>
+> Que mesure le seuil de pauvreté, en quoi diffère-t-il des « foyers modestes » des
+> dispositifs publics, et comment la France se situe-t-elle en Europe ? Le dossier charge
+> aussi l'aide alimentaire, qui éclaire une pauvreté vécue que le seuil monétaire ne capte pas
+> toujours.
 
 ---
 
-## 1. Deux mots que le débat public confond
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| pauvreté | 487 | 207 | 1er octobre 2024 | 21 juillet 2026 |
+| aide alimentaire | 58 | 43 | 14 octobre 2024 | 11 juin 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Une mission budgétaire consacrée à la lutte contre la pauvreté** (20 novembre 2025). La mission « Solidarité, insertion et égalité des chances » rassemble les crédits de l'État destinés à lutter contre la pauvreté et à protéger les personnes vulnérables. — Sénat, commission des affaires sociales (avis sur la mission « Solidarité, insertion et égalité des chances », PLF 2026) · [source](https://www.senat.fr/rap/a25-142-5/a25-142-5-syn.pdf) · *officiel*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Le revenu de solidarité active et les politiques d'insertion** (1er décembre 2008). Loi qui généralise le RSA et réforme les politiques d'insertion. — Parlement (loi n° 2008-1249) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000019860428) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+### 1. Pauvreté et « foyers modestes » : deux définitions
 
 **La pauvreté monétaire a une définition arithmétique fixe** : un seuil
 exprimé en pourcentage du niveau de vie médian de la population — 60 % pour
@@ -49,7 +77,17 @@ ou cinquième décile selon le dispositif — mais, faute de seuil harmonisé
 (paragraphe précédent), cette note ne peut pas fixer une borne précise pour
 « modeste » comme elle le fait pour « pauvre ».
 
-## 2. Le seuil de pauvreté en France, 1996-2023
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Prime d'activité : 4,57 millions de foyers en 2025, un nombre stable pour la première fois** (20 novembre 2025). La commission relève que le nombre de foyers bénéficiaires de la prime d'activité est resté stable en 2025 (4,57 millions), et que la précarité alimentaire ne diminue pas malgré la stabilisation du financement des associations. — Sénat, commission des affaires sociales (avis sur la mission « Solidarité, insertion et égalité des chances », PLF 2026) · [source](https://www.senat.fr/rap/a25-142-5/a25-142-5-syn.pdf) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 2. Le seuil de pauvreté en France, 1996-2023
 
 `core.pauvrete_seuil_annuel` (Insee, enquêtes Revenus fiscaux et sociaux,
 déjà chargé) :
@@ -75,7 +113,7 @@ des pauvres et le seuil lui-même, ~19-20 % sur la période) mesure autre chose
 que le taux : elle dit à quel point ceux qui sont sous le seuil en sont
 éloignés, pas seulement combien ils sont.
 
-## 3. La France dans son contexte européen
+### 3. La France dans son contexte européen
 
 `core.pauvrete_taux_eu` (Eurostat, `tps00184`, seuil à 60 % du revenu médian
 équivalent — même définition que le § 2, ce qui rend la comparaison licite,
@@ -108,22 +146,7 @@ arbitrer.
   le pays — chaque comparaison doit vérifier l'année réellement disponible,
   pas supposer qu'elle est la même partout.
 
-## 4. Le G8 et le reste du monde : une limite à documenter, pas à contourner
-
-**Cette table ne couvre aucun pays hors Europe** — ni les États-Unis, ni le
-Japon, ni le Canada, absents de la nomenclature géographique Eurostat par
-construction (Eurostat mesure l'Europe). Pour ces pays, la source de
-référence est l'OCDE, qui publie un taux de pauvreté relative — mais **au
-seuil de 50 % du revenu médian**, pas 60 % : la définition n'est pas la même
-que celle utilisée aux § 2-3, et un chiffre OCDE ne peut donc pas être
-juxtaposé sans réserve à un chiffre Eurostat/Insee à 60 %. Cette note ne
-charge pas aujourd'hui de série OCDE — plutôt que d'improviser une
-comparaison entre deux définitions différentes, elle documente l'absence et
-la raison précise, conformément à la règle du projet : le non-vérifiable
-(ici, non chargé et méthodologiquement disjoint) est une réponse de plein
-droit, pas un chiffre à deviner ou à rapprocher de force.
-
-## 5. L'aide alimentaire : une pauvreté vécue, pas un doublon du seuil monétaire
+### 5. L'aide alimentaire : une pauvreté vécue, pas un doublon du seuil monétaire
 
 `core.aide_alimentaire` (dispositif de suivi Insee-Drees, six réseaux
 nationaux — ANDES, Croix-Rouge française, Fédération française des banques
@@ -179,7 +202,34 @@ lecture de ces chiffres doit donc se rappeler qu'ils décrivent 2019-2021 — y
 compris la crise sanitaire, période de forte hausse du recours à l'aide
 alimentaire — et non la situation actuelle.
 
-## 6. Ce qui est chargé
+## Ce que les données ne disent pas
+
+### 4. Le G8 et le reste du monde : une limite à documenter, pas à contourner
+
+**Cette table ne couvre aucun pays hors Europe** — ni les États-Unis, ni le
+Japon, ni le Canada, absents de la nomenclature géographique Eurostat par
+construction (Eurostat mesure l'Europe). Pour ces pays, la source de
+référence est l'OCDE, qui publie un taux de pauvreté relative — mais **au
+seuil de 50 % du revenu médian**, pas 60 % : la définition n'est pas la même
+que celle utilisée aux § 2-3, et un chiffre OCDE ne peut donc pas être
+juxtaposé sans réserve à un chiffre Eurostat/Insee à 60 %. Cette note ne
+charge pas aujourd'hui de série OCDE — plutôt que d'improviser une
+comparaison entre deux définitions différentes, elle documente l'absence et
+la raison précise, conformément à la règle du projet : le non-vérifiable
+(ici, non chargé et méthodologiquement disjoint) est une réponse de plein
+droit, pas un chiffre à deviner ou à rapprocher de force.
+
+## Sources
+
+- Insee, *Revenus et pauvreté des ménages*, fichier Insee Première n° 2063.
+- Eurostat, `tps00184` (taux de risque de pauvreté par pays, seuil à 60 %).
+- Drees-Insee, *Dispositif de suivi de l'aide alimentaire en France*,
+  data.drees.solidarites-sante.gouv.fr.
+- Insee-Filosofi, déciles nationaux du niveau de vie (2023).
+
+## Annexe technique
+
+### 6. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
@@ -199,10 +249,7 @@ alimentaire — et non la situation actuelle.
 - **Aide alimentaire au-delà de 2021** : aucune édition plus récente publiée
   par la Drees identifiée à ce jour.
 
-## Sources
+## Versions
 
-- Insee, *Revenus et pauvreté des ménages*, fichier Insee Première n° 2063.
-- Eurostat, `tps00184` (taux de risque de pauvreté par pays, seuil à 60 %).
-- Drees-Insee, *Dispositif de suivi de l'aide alimentaire en France*,
-  data.drees.solidarites-sante.gouv.fr.
-- Insee-Filosofi, déciles nationaux du niveau de vie (2023).
+- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi RSA) et contrôle du Sénat sur la mission Solidarité.
+- **Version 1** (15 septembre 2026) : seuil de pauvreté, comparaison européenne, aide alimentaire.

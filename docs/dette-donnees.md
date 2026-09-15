@@ -1,20 +1,49 @@
 # La dette publique : ce que les sources permettent d'établir
 
-> Document de conception. Version 1 — 14 septembre 2026.
-> Questions : **combien doit la France, et selon quelle définition** ; **à qui elle
-> emprunte** ; **ce que coûte l'emprunt, et pourquoi le taux à 10 ans n'est pas ce
-> taux** ; **comment se compare-t-elle à ses voisins** ; et **pourquoi la Suisse
-> passe pour « ne pas avoir de dette »**.
+> **Dossier** · version 2 · 15 septembre 2026
 >
-> Tous les chiffres de ce document sont lus dans la base après chargement (migration
-> 0073, `go run ./cmd/ingest -only=dette`), pas recopiés de publications. Les
-> identités comptables qu'ils vérifient sont dans `cmd/verify/dette.go`.
+> Combien la France doit-elle, selon quelle définition, à qui emprunte-t-elle, que coûte
+> l'emprunt, comment se compare-t-elle à ses voisins, et comment la Suisse encadre-t-elle sa
+> propre dette ? Tous les chiffres sont lus dans la base après chargement, pas recopiés de
+> publications.
 
 ---
 
-## 1. Le cadrage
+## Contexte
 
-### 1.1 Une question, quatre montants
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| dette publique | 151 | 82 | 1er octobre 2024 | 10 juin 2026 |
+| charge de la dette | 75 | 38 | 14 octobre 2024 | 7 juillet 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Le déficit rapporté au PIB le plus élevé de la zone euro, selon la Commission européenne** (10 décembre 2025). Le rapport cite un déficit public estimé par le Gouvernement à 5,4 points de PIB en 2025 (5,8 en 2024), qui serait selon la Commission européenne le plus élevé de la zone euro. — Sénat, commission des affaires sociales (rapport sur le PLFSS 2026) · [source](https://www.senat.fr/lessentiel/plfss2026.pdf) · *officiel*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La France sous procédure de déficit excessif depuis juillet 2024** (26 juillet 2024). La France est à nouveau sous procédure européenne de déficit excessif depuis juillet 2024 et s'est engagée à ramener son déficit public sous 3 points de PIB en 2029. — Sénat, commission des affaires sociales (rapport sur le PLFSS 2026) · [source](https://www.senat.fr/lessentiel/plfss2026.pdf) · *officiel*
+- **La loi de programmation des finances publiques 2023-2027** (18 décembre 2023). Trajectoire pluriannuelle de solde et de dette publics à laquelle le Haut Conseil des finances publiques compare chaque budget. — Parlement (loi n° 2023-1195) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000048581885) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+### 1. Les définitions : quatre montants de dette, trois grandeurs liées
+
+#### 1.1 Une question, quatre montants
 
 « La dette de la France » désigne au moins quatre grandeurs différentes, toutes
 officielles. Au premier trimestre 2026 :
@@ -36,7 +65,7 @@ La dette Maastricht se répartit ainsi (contributions consolidées, T1 2026) : �
 locales 276,5 Md€, administrations de sécurité sociale 301,2 Md€. Par instrument :
 titres 3 170,8 Md€, crédits 322,3 Md€, dépôts 42,9 Md€.
 
-### 1.2 Déficit, dette, intérêts : trois grandeurs liées, pas interchangeables
+#### 1.2 Déficit, dette, intérêts : trois grandeurs liées, pas interchangeables
 
 - Le **déficit** est un **flux** : ce qui manque dans l'année. 2025 : recettes
   publiques 1 561,6 Md€, dépenses 1 714,1 Md€, **besoin de financement 152,5 Md€
@@ -53,11 +82,19 @@ pendant la crise sanitaire) ; 2024, +202,8 Md€ pour 169,1 Md€ (+33,7 Md€) 
 +154,4 Md€ pour 152,5 Md€ (+1,9 Md€). Sur 1995-2025, la France n'a connu **aucune
 année d'excédent** dans la série d'Eurostat.
 
----
+## Contrôles et évaluations
 
-## 2. Le prix de l'emprunt : taux de marché et taux apparent
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-### 2.1 Deux taux qu'on confond
+- **Une dette à près de 118 points de PIB en 2026, une charge d'intérêts de 74 Md€** (9 octobre 2025). Selon le Haut Conseil, la dette publique passerait de plus de 113 points de PIB en 2024 à près de 118 en 2026, et la charge d'intérêts atteindrait 74 Md€, en hausse de plus de 13 Md€ en deux ans (prévision). — Haut Conseil des finances publiques (avis n° HCFP-2025-5) · [source](https://www.hcfp.fr/sites/default/files/2025-10/Avis%20HCFP%202025%20%E2%80%93%205%20PLF-PLFSS%202026_0.pdf) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 2. Le prix de l'emprunt : taux de marché et taux apparent
+
+#### 2.1 Taux de marché et taux apparent
 
 - **Le taux à 10 ans** (Eurostat `irt_lt_mcby`, rendement des emprunts d'État sur
   le marché secondaire) est le prix **d'un emprunt neuf**, aujourd'hui. France :
@@ -85,7 +122,7 @@ depuis 2023, il est en dessous et remonte (on remplace des titres à 0 % par des
 titres à 3 %). **Les deux phrases « la charge de la dette explose » et « la dette
 coûte moins de 2 % » sont vraies en même temps.**
 
-### 2.2 La dette indexée
+#### 2.2 La dette indexée
 
 312,8 Md€ de la dette négociable (juillet 2026, 10,8 %) sont **indexés sur
 l'inflation** (OATi sur l'inflation française, OAT€i sur celle de la zone euro) :
@@ -94,7 +131,7 @@ alourdi la charge sans aucune hausse de taux. L'INSEE en publie l'encours ; la
 revalorisation annuelle elle-même relève du programme 117 du budget (voir
 `budget-donnees.md`), non chargé ici.
 
-### 2.3 La demande des investisseurs : les adjudications
+#### 2.3 La demande des investisseurs : les adjudications
 
 L'AFT emprunte par **adjudication** : elle annonce un montant, les banques
 « spécialistes en valeurs du Trésor » font des offres, les meilleures sont servies.
@@ -103,11 +140,9 @@ programme 117) : **OAT 2,30 en 2023, 2,45 en 2024, 2,97 en 2025** ; BTF 2,67 →
 3,19 → 3,40. **Aucune adjudication non couverte** n'est rapportée. La dette
 française ne manque pas de preneurs ; la question est le prix qu'ils demandent.
 
----
+### 3. À qui la France emprunte
 
-## 3. À qui la France emprunte
-
-### 3.1 Les détenteurs des titres de l'État (Banque de France, T1 2026)
+#### 3.1 Les détenteurs des titres de l'État (Banque de France, T1 2026)
 
 Vue `derived.dette_detention_etat`, sur 2 602 Md€ de titres **en valeur de marché** :
 
@@ -143,7 +178,7 @@ Quand son résultat est positif, la Banque de France en reverse l'essentiel à l
 alors au budget. Ce circuit dépend de son résultat annuel, qui varie fortement avec
 les taux, et **n'est pas chiffré ici** (il demanderait ses comptes annuels).
 
-### 3.2 La même question en Europe (Eurostat, 2025, dette Maastricht)
+#### 3.2 La même question en Europe (Eurostat, 2025, dette Maastricht)
 
 Part de la dette détenue par des non-résidents : Grèce 70,8 %, Autriche 66,2 %,
 Belgique 63,4 %, Finlande 61,2 %, Irlande 55,0 %, **France 54,3 %**, Allemagne
@@ -155,9 +190,7 @@ mais davantage détenue en interne, dont 11,8 % par les ménages en direct.
 premier porte sur toute la dette Maastricht en valeur nominale (crédits et dette
 locale compris), le second sur les seuls titres de l'État en valeur de marché.
 
----
-
-## 4. Les échéances
+### 4. Les échéances
 
 Deux conventions incompatibles coexistent (colonne `base_echeance`) :
 
@@ -173,9 +206,7 @@ an » ; les tranches 1-5, 5-10, 10-30 ans existent pour d'autres pays. L'échéa
 titre par titre, et la durée de vie moyenne de la dette, sont publiés par l'AFT
 sur un site inaccessible aux robots (§ 7).
 
----
-
-## 5. La comparaison européenne (Eurostat, 2025)
+### 5. La comparaison européenne (Eurostat, 2025)
 
 | Pays | Dette (% PIB) | Solde (% PIB) | Intérêts (% PIB) |
 |---|---|---|---|
@@ -199,11 +230,9 @@ Pour les pays hors de l'Union, le FMI (dernière année observée, dette brute a
 du FMI, plus large que Maastricht) : Japon 214,5 % (2024), États-Unis 123,9 %,
 Royaume-Uni 102,3 %, Norvège 52,8 % (2024), **Suisse 39,4 %** (2025).
 
----
+### 6. La Suisse : sa dette et son frein à l'endettement
 
-## 6. La Suisse : la prémisse est fausse, le mécanisme est réel
-
-### 6.1 La Suisse a une dette
+#### 6.1 La Suisse a une dette
 
 **39,4 % du PIB en 2025** (FMI), 40,5 % en 2024. Elle culminait à 57,1 % en 2004.
 La Confédération seule porte 91,3 Md CHF d'engagements financiers (11,9 Md à court
@@ -211,7 +240,7 @@ terme, 79,4 Md à long terme, AFF 2025), contre 111,0 Md CHF en 2003. La questio
 juste n'est pas « pourquoi n'a-t-elle pas de dette », mais **« pourquoi sa dette
 baisse-t-elle en proportion quand celle de la France monte »**.
 
-### 6.2 Le frein à l'endettement
+#### 6.2 Le frein à l'endettement
 
 - **Article 126 de la Constitution fédérale**, adopté par votation populaire le
   **2 décembre 2001** (84,7 % de oui), appliqué au budget fédéral depuis 2003.
@@ -225,7 +254,7 @@ baisse-t-elle en proportion quand celle de la France monte »**.
 - La règle ne vaut **que pour la Confédération** : les cantons ont leurs propres
   freins, de rigueur inégale.
 
-### 6.3 Ce que montrent les données
+#### 6.3 Ce que montrent les données
 
 - **Solde des administrations publiques** (Eurostat `gov_10a_main`) : **17 années
   d'excédent sur 30** (1995-2024) en Suisse, dont 2006-2012 et 2015-2019 sans
@@ -238,7 +267,7 @@ baisse-t-elle en proportion quand celle de la France monte »**.
   47 % de leurs recettes fiscales (2024) ; assurances sociales **créancières
   nettes** (quotient négatif, −0,98 en 2025).
 
-### 6.4 Ce qu'il ne faut pas en conclure
+#### 6.4 Les limites de la comparaison
 
 Le frein explique la **trajectoire** de la dette fédérale, pas tout l'écart avec la
 France. Y contribuent aussi un taux d'intérêt structurellement bas (le franc est une
@@ -247,177 +276,7 @@ capitalisé hors du périmètre public, et le fédéralisme budgétaire. Aucune 
 causes ne se lit seule dans une série : **le site montre la règle et les courbes,
 il n'impute pas l'écart à la règle.**
 
----
-
-## 7. Les sources
-
-### 7.1 Chargées
-
-| Source | Accès | Licence (classe) | Cadence | Destination |
-|---|---|---|---|---|
-| **INSEE** — `DETTE-NEGOCIABLE-ETAT` (17 séries, AFT) | API SDMX BDM, ouverte | Licence Ouverte v2.0 (OPEN) | mensuelle | `concept = DETTE_NEGOCIABLE_ETAT` |
-| **INSEE** — `DETTE-TRIM-APU-2020` (21 séries) | API SDMX BDM | idem | trimestrielle | `DETTE_MAASTRICHT`, `DETTE_NETTE_APU`, `DETTE_BRUTE_FMI`, `ACTIFS_COTES_APU` |
-| **Banque de France** — `DET2` (305 séries) | Webstat (Opendatasoft), **clé d'API** | réutilisation avec mention (ATTRIBUTION) | trimestrielle | `DETENTION_TITRES_ETAT` |
-| **Eurostat** — `gov_10dd_edpt1`, `gov_10a_main`, `gov_10dd_ggd`, `irt_lt_mcby_a`/`_m` | API JSON-stat | CC BY 4.0 (ATTRIBUTION) | annuelle / mensuelle | dette, intérêts, solde, recettes, dépenses, détenteurs, taux |
-| **FMI** — WEO, 4 indicateurs × 14 pays | API SDMX `api.imf.org` | conditions du FMI (ATTRIBUTION, § 9) | semestrielle | `DETTE_BRUTE_FMI`, `DETTE_NETTE_FMI`, `SOLDE_PUBLIC`, `SOLDE_PRIMAIRE` |
-| **AFF** (Suisse) — bilans et indicateurs financiers | fichiers XLSX | OGD Suisse (ATTRIBUTION) | annuelle | `BILAN_APU_CH`, `INDICATEUR_AFF` |
-| **BNS** — `rendoblim` (10 ans) | CSV | mention de la source (ATTRIBUTION) | mensuelle, **figée depuis 07/2025** | `TAUX_LONG_TERME` (CH) |
-| **Programme 117** — RAP 2025, adjudications | API data.economie.gouv.fr | Licence Ouverte v2.0 (OPEN) | annuelle | `ADJUDICATIONS_AFT` |
-
-Volumes au 14 septembre 2026 : 1 186 séries, 53 171 observations.
-
-### 7.2 Intégrer les données de l'Agence France Trésor
-
-Le site `aft.gouv.fr` est **entièrement** derrière une protection anti-robot
-(Cloudflare), y compris ses fichiers de données. **On ne la contourne pas.** Trois
-voies légitimes couvrent l'essentiel :
-
-1. **L'encours mensuel de la dette négociable** : republié par l'INSEE, source
-   déclarée AFT, sous licence ouverte (`insee.go`). C'est la même donnée.
-2. **La détention par secteur** : produite par la Banque de France, dont l'AFT
-   reprend elle-même les chiffres dans son bulletin mensuel (`banque_de_france.go`).
-3. **La performance des émissions** : indicateurs du programme 117, que l'AFT
-   rapporte au Parlement (`aft.go`).
-
-**Restent inaccessibles** : l'échéancier titre par titre, la durée de vie moyenne,
-le programme d'émission annuel et le détail de chaque adjudication. Voie à
-explorer, non automatisable sans l'AFT : demander un accès aux fichiers ou leur
-dépôt sur data.gouv.fr.
-
-### 7.3 Écartées ou bloquées
-
-| Source | Motif |
-|---|---|
-| aft.gouv.fr | Protection anti-robot sur tout le domaine ; non contournée |
-| FMI DataMapper (`imf.org/external/datamapper`) | Répond 403 à un User-Agent qui s'identifie honnêtement (règle Akamai) ; on ne se fait pas passer pour un navigateur. L'API SDMX du FMI fournit les mêmes séries **et** la dernière année observée |
-| Séries Webstat « par jeu » (`det2-q-n-fr-…`) | Visibles au catalogue mais vides ; les valeurs sont dans le jeu restreint `observations` |
-| OCDE (SDMX) | Redondant avec Eurostat et le FMI pour ce besoin |
-
----
-
-## 8. Le modèle de données
-
-Migration `0073_dette.sql`.
-
-- **`ref.dette_serie`** — une série = une combinaison de dimensions fixée : `pays`,
-  `frequence` (A/Q/M), `unite` (EUR, CHF, PCT, PCT_PIB, RATIO, NOMBRE), `concept`,
-  `mesure` (ENCOURS, VARIATION_CUMULEE, FLUX, TAUX, PART, RATIO, NOMBRE),
-  `secteur_emetteur`, `zone_detenteur` (W0 monde, W1 non-résidents, W2 résidents),
-  `secteur_detenteur`, `echeance` + `base_echeance`, `instrument`,
-  `monnaie_emission`. Toute dimension non ventilée vaut `'_T'` : NULL y
-  signifierait « inconnu ». Code stable `'<producteur>:<code producteur>'`.
-- **`core.dette_observation`** — `(serie, periode)` unique ; `periode` au format
-  `AAAA`, `AAAA-Qn` ou `AAAA-MM`, `debut` pour trier et joindre ; `valeur` **à
-  l'unité** (multiplicateur du producteur appliqué) ; `statut` du producteur ;
-  `document_id` vers le document scellé. Pas de valeur, pas de ligne.
-- **Vues** (`derived`, avec `method_version`) : `dette_taux_apparent`
-  (`dette-taux-apparent-v1`), `dette_detention_etat` (`dette-detention-etat-v1`),
-  `dette_ajustement_stock_flux` (`dette-asf-v1`).
-
-Chaque source se recharge **entièrement** dans une transaction : les producteurs
-révisent (l'INSEE à chaque compte trimestriel, Eurostat à chaque notification), et
-compléter mêlerait deux millésimes.
-
-**Pourquoi un modèle long plutôt qu'une table par source.** Les sources ne
-partagent pas leurs dimensions (instrument pour l'AFT, secteur détenteur pour la
-Banque de France, échéance résiduelle pour Eurostat, compte de bilan pour l'AFF).
-Une table par source aurait été plus simple à écrire, mais aurait rendu impossibles
-les contrôles croisés qui font la valeur de l'ensemble.
-
-**Pourquoi pas `core.macro_value`.** Elle porte déjà la dette et le solde de la
-France (Eurostat, annuel) pour situer une présidence dans son époque ; elle n'a ni
-détenteur, ni échéance, ni pays. Les deux coexistent ; la concordance est vérifiable
-(mêmes requêtes Eurostat).
-
----
-
-## 9. Les pièges
-
-1. **UNIT_MULT.** L'INSEE publie la dette négociable en millions (6) et la dette
-   trimestrielle en milliards (9), la Banque de France en milliers (3), Eurostat en
-   millions. Oublier le multiplicateur produit un écart de mille, qui passe inaperçu
-   dans un ratio. Appliqué au chargement, vérifié par des sommes croisées.
-2. **La fréquence « T ».** L'INSEE code le trimestre `T`, pas `Q`.
-3. **Valeur de marché contre nominal.** DET2 (Banque de France) est en valeur de
-   marché : 2 602 Md€ au T1 2026 contre 2 824 Md€ de dette négociable nominale.
-   En 2019, avec des taux proches de zéro, c'était l'inverse (2 153 contre 1 823).
-   **Ne comparer que des parts.**
-4. **« OAT » contient les OAT indexées** dans DET2 : OAT = OAT fixes + OATi + OAT€i.
-   Additionner les trois compterait les indexées deux fois.
-5. **Les BTAN** (2 à 5 ans), émis jusqu'en 2013 : ni « long » ni « court » terme
-   chez la Banque de France, et non ventilés par secteur résident. D'où la catégorie
-   calculée `RESIDENTS_BTAN_NON_VENTILES`, nulle depuis 2017.
-6. **`S1` veut dire « tous secteurs de la zone »** dans les clés DET2 ; ramené à
-   `'_T'` au chargement.
-7. **Échéance initiale contre résiduelle** (§ 4).
-8. **Non-résident ≠ étranger** (§ 3.1).
-9. **Octobre 2017** : la ventilation « taux fixe + indexée » de la dette négociable
-   vaut exactement le total de **septembre** (1 703 850 M€), 23,7 Md€ de plus que le
-   total d'octobre. Défaut de la source, laissé tel quel en base et exclu nommément
-   du contrôle.
-10. **Avant 1998**, la dette trimestrielle de l'INSEE (base 2020) et la série annuelle
-    d'Eurostat divergent (−13,1 Md€ en 1995, +6,4 Md€ en 1997). Concordance à
-    0,1 Md€ près ensuite.
-11. **Projections du FMI.** Le WEO mêle observations et projections jusqu'en 2031.
-    Seules les années jusqu'à `LATEST_ACTUAL_ANNUAL_DATA`, publiée pays par pays,
-    sont chargées (France : 2024 ; Suisse : 2025).
-12. **Licence du FMI.** Le jeu SDMX affiche « All Rights Reserved » et renvoie aux
-    conditions générales, qui autorisent la réutilisation des données avec mention
-    de la source. **Usage commercial à confirmer** avant tout export ouvert.
-13. **Les « - » des RAP** ne sont pas chargés : zéro ou « sans objet », le tableau
-    ne permet pas de trancher. D'où l'absence de série « adjudications non
-    couvertes » alors que le RAP n'en rapporte aucune.
-14. **Le modèle SF de l'AFF n'est pas le SEC 2010** : les montants suisses ne se
-    comparent pas à la dette Maastricht. Pour comparer, le FMI.
-15. **Un null JSON-stat décodé dans un float donne 0.** Le décodeur l'écarte
-    explicitement.
-16. **La clé Webstat** passe dans un en-tête HTTP (`archive.FetchEntetes`), jamais
-    dans l'URL : `raw.retrieval` conserve les URL, et une clé qui y figurerait serait
-    publiée avec la provenance. Vérifié : aucune URL archivée ne la contient.
-
----
-
-## 10. Les contrôles (`cmd/verify/dette.go`)
-
-- chaque source a des séries ; au moins 40 000 observations ;
-- dette négociable : court terme + long terme + devises = total ; taux fixe + indexée
-  = total (sauf octobre 2017, § 9) ;
-- dette Maastricht trimestrielle : dépôts + titres + crédits = total ; les quatre
-  sous-secteurs = total ;
-- Maastricht France : INSEE (T4) = Eurostat (annuel) à 1 Md€ près, depuis 1998 ;
-- Eurostat : détention résidente + non résidente = total ;
-- Banque de France : secteurs résidents feuilles = total résident ; parts des
-  catégories = 100 % ; part non résidente recalculée = part publiée ;
-- taux apparent entre 0 et 15 % ;
-- fraîcheur : dette négociable (5 mois), détention et dette trimestrielle (10 mois).
-
----
-
-## 11. Exécution
-
-```bash
-set -a; . ./.env; set +a      # WEBSTAT_API_KEY, fichier non versionné
-go run ./cmd/ingest -only=migrate
-go run ./cmd/ingest -only=dette
-go run ./cmd/verify
-```
-
-Sans `WEBSTAT_API_KEY`, la détention est sautée avec un avertissement, et le
-contrôle « chaque source a des séries » bloque la publication — volontairement.
-
-## 12. Ce qui reste
-
-- L'échéancier et la durée de vie moyenne de la dette de l'État (AFT, § 7.2).
-- La charge budgétaire de la dette (programme 117 : crédits, provision pour
-  l'indexation), à rapprocher des intérêts en comptabilité nationale — les deux
-  diffèrent par construction (caisse contre droits constatés).
-- Le circuit Banque de France → État (dividende et impôt sur les bénéfices).
-- Les millésimes antérieurs des indicateurs du programme 117 (un jeu par RAP,
-  colonnes figées).
-
----
-
-## 13. À quoi sert la dette, et ce qu'on met en regard
+### 13. À quoi sert la dette, et ce qu'on met en regard
 
 > Ajouté le 14 septembre 2026 (migration 0075). Deux questions posées ensemble :
 > **à quoi sert la dette contractée** (fonctionnement, investissement, autre), et
@@ -425,7 +284,7 @@ contrôle « chaque source a des séries » bloque la publication — volontaire
 > examiner l'argument selon lequel les aides aux grandes entreprises seraient
 > financées par les ménages et endetteraient le pays.
 
-### 13.1 Ce que la comptabilité permet de dire
+#### 13.1 Ce que la comptabilité permet de dire
 
 **L'emprunt n'est affecté à aucune dépense.** L'argent public est fongible : aucune
 source ne peut dire « ces 100 Md€ empruntés ont payé ceci ». La question admet en
@@ -482,7 +341,7 @@ consommations intermédiaires 163,0 ; formation de capital 134,2 ; autres transf
 courants 94,0 ; revenus de la propriété (dont intérêts) 66,7 ; subventions 56,5 ;
 transferts en capital 41,6.
 
-### 13.2 Les dépenses fiscales (« niches »)
+#### 13.2 Les dépenses fiscales (« niches »)
 
 | Source | Millésime | Années chiffrées | Nature du bénéficiaire |
 |---|---|---|---|
@@ -537,7 +396,7 @@ Md€. **Les pièges** :
 9. **La nature change parfois d'un millésime à l'autre** : les exonérations de taxe
    foncière passent de « ménages » ou « entreprises » à « locaux » en 2022.
 
-### 13.3 Pourquoi les aides ne s'additionnent pas : le CICE compté trois fois
+#### 13.3 Pourquoi les aides ne s'additionnent pas : le CICE compté trois fois
 
 Vue `derived.dette_aides_dividendes` : une ligne par année, colonnes **juxtaposées**.
 
@@ -567,7 +426,7 @@ Autres réserves, à écrire à côté de toute juxtaposition :
   (D-026, D-037). « Sans ces aides, le déficit aurait été moindre » suppose des
   comportements inchangés — ce qu'aucune donnée n'établit.
 
-### 13.4 Contrôles ajoutés
+#### 13.4 Contrôles ajoutés
 
 - compte de capital : besoin de financement = somme des trois composantes, à 1,5 M€ ;
 - dépense par nature : somme des opérations = dépense totale, à 2 M€, chaque année et
@@ -575,16 +434,14 @@ Autres réserves, à écrire à côté de toute juxtaposition :
 - dépenses fiscales : quatre millésimes chargés ; totaux exécutés entre 60 et
   130 Md€ ; moins de 5 % du montant sans nature de bénéficiaire.
 
----
-
-## 14. Qui reçoit les aides : la taille des entreprises
+### 14. Qui reçoit les aides : la taille des entreprises
 
 > Ajouté le 14 septembre 2026 (migration 0077, paquet `internal/aides`,
 > `go run ./cmd/ingest -only=aides`). Objet : examiner le premier maillon de l'argument
 > « les aides profitent aux grandes entreprises » avec des données, et préparer le
 > croisement avec des aides publiées bénéficiaire par bénéficiaire.
 
-### 14.1 Trois notions de taille, qui ne se convertissent pas
+#### 14.1 Trois notions de taille, qui ne se convertissent pas
 
 | Notion | Unité | Source | Où |
 |---|---|---|---|
@@ -595,7 +452,7 @@ Autres réserves, à écrire à côté de toute juxtaposition :
 Une filiale de 300 salariés d'un groupe du CAC 40 est « 250 à 499 » pour l'URSSAF et
 « GE » pour l'INSEE. Aucune table de passage n'est construite (D-057).
 
-### 14.2 Les exonérations par taille (URSSAF)
+#### 14.2 Les exonérations par taille (URSSAF)
 
 Vue `derived.exoneration_par_taille` : part des exonérations, part de la masse
 salariale, taux d'exonération (exonérations ÷ masse salariale). Le total par taille
@@ -628,7 +485,7 @@ exonérations est montée de 12,7 % (2012) à 18,0 % (2017), puis redescendue à
    161) : les montants antérieurs ne sont pas comparables à des extractions plus
    anciennes du même jeu.
 
-### 14.3 La catégorie d'entreprise (SIRENE)
+#### 14.3 La catégorie d'entreprise (SIRENE)
 
 `ref.unite_legale` : une ligne par **personne morale** du stock SIRENE (catégorie
 juridique ≠ 1000), avec la catégorie d'entreprise et son année, la tranche
@@ -663,12 +520,12 @@ clés étrangères en fin de copie ; 1,9 Go en base). Catégorie millésimée 20
 4. **Catégorie millésimée** : 2023 dans ce stock ; croiser une aide de 2018 avec une
    catégorie 2023 suppose que l'entreprise n'a pas changé de périmètre.
 
-### 14.4 Les aides nominatives : ce qui existe (étude du 14 septembre 2026)
+#### 14.4 Les aides nominatives : ce qui existe (étude du 14 septembre 2026)
 
 Les trois premières sources du tableau sont désormais chargées : voir § 15. [V] = vérifié par requête ou lecture d'un échantillon ; [D] =
 déclaré par une page.
 
-| Source | Identifiant | Champ | Volume | Accès | Verdict |
+| Source | Identifiant | Champ | Volume | Accès | Retenue |
 |---|---|---|---|---|---|
 | **Registre européen de transparence des aides d'État (TAM)**, Commission | SIREN / SIRET (≈ 98 % bien formés sur 2016-2020) | aides d'État de plus de 500 k€ (100 k€ depuis la révision de 2023 [D] ; encadrements Covid et Ukraine : 100 k€), toutes autorités | 6 777 aides France 2016-2020, 17 Md€ d'ESB (export republié par un paquet R, licence MIT) [V] | recherche par formulaire POST avec jeton CSRF, **pas d'API** ni de fichier en masse [V] ; extrait complet obtenable par demande d'accès à la DG COMP [D] | **la source décisive** pour les grosses aides ; accès à décider |
 | **Aides financières de l'ADEME** (format SCDL) | SIRET [V] | tous dossiers engagés depuis 2021, sans seuil | 39 577 dossiers, 11,2 Md€ [V] | API data-fair ouverte, mise à jour quotidienne, Licence Ouverte [V] | **exploitable tout de suite** |
@@ -697,14 +554,12 @@ déclaré par une page.
 décision préalable), puis le TAM selon la voie retenue (soumission automatisée du
 formulaire public, à autoriser explicitement, ou demande d'extrait à la DG COMP).
 
----
-
-## 15. Les aides nominatives croisées avec la catégorie d'entreprise
+### 15. Les aides nominatives croisées avec la catégorie d'entreprise
 
 > Ajouté le 14 septembre 2026 (migration 0078, `internal/aides`,
 > `go run ./cmd/ingest -only=aides-nominatives`, SIRENE requis). D-058.
 
-### 15.1 Ce qui est chargé
+#### 15.1 Ce qui est chargé
 
 | Source | Aides | dont personnes morales de SIRENE | Montant retenu | Période |
 |---|---|---|---|---|
@@ -726,7 +581,7 @@ fois en cas de coupure. Les exports scellés depuis moins de deux jours sont ré
 ce qui rend le parcours reprenable. Durée : plusieurs dizaines de minutes à froid, 7 minutes
 en reprise complète.
 
-### 15.2 Ce que montrent les données (entreprises seulement)
+#### 15.2 Ce que montrent les données (entreprises seulement)
 
 Organismes publics (catégories juridiques 4 et 7), associations (92) et bénéficiaires
 qui ne sont pas des personnes morales du répertoire sont exclus.
@@ -751,7 +606,7 @@ semi-conducteurs, hydrogène, décarbonation) dont la taille suit celle des entr
 Plus grosses aides : ProLogium (1,37 Md€, gigafactory de batteries), STMicroelectronics
 Crolles (1,06 Md€ cumulés), Automotive Cells Company (0,73 Md€), Symbio (0,68 Md€).
 
-### 15.3 Pièges
+#### 15.3 Pièges
 
 1. **Le type « PME » déclaré au TAM est faux pour 43,7 % des montants** : sur 50,6 Md€
    déclarés « PME », 16,1 Md€ vont à des ETI et 6,0 Md€ à des grandes entreprises selon
@@ -777,3 +632,176 @@ Crolles (1,06 Md€ cumulés), Automotive Cells Company (0,73 Md€), Symbio (0,
 8. **Données personnelles** : nom et identifiant conservés pour les seules personnes
    morales ; 8 351 aides TAM, 1 891 aides ADEME et 5 070 aides de minimis restent sans
    bénéficiaire identifié.
+
+## Ce que les données ne disent pas
+
+Les données ne disent pas à quoi sert un euro emprunté (§ 13.1 : il n'a pas
+d'étiquette), ni qui détient individuellement les titres de l'État au-delà des catégories
+de la Banque de France. Le travail restant est listé dans l'annexe technique (§ 12).
+
+## Pièges de lecture
+
+### 9. Les pièges
+
+1. **UNIT_MULT.** L'INSEE publie la dette négociable en millions (6) et la dette
+   trimestrielle en milliards (9), la Banque de France en milliers (3), Eurostat en
+   millions. Oublier le multiplicateur produit un écart de mille, qui passe inaperçu
+   dans un ratio. Appliqué au chargement, vérifié par des sommes croisées.
+2. **La fréquence « T ».** L'INSEE code le trimestre `T`, pas `Q`.
+3. **Valeur de marché contre nominal.** DET2 (Banque de France) est en valeur de
+   marché : 2 602 Md€ au T1 2026 contre 2 824 Md€ de dette négociable nominale.
+   En 2019, avec des taux proches de zéro, c'était l'inverse (2 153 contre 1 823).
+   **Ne comparer que des parts.**
+4. **« OAT » contient les OAT indexées** dans DET2 : OAT = OAT fixes + OATi + OAT€i.
+   Additionner les trois compterait les indexées deux fois.
+5. **Les BTAN** (2 à 5 ans), émis jusqu'en 2013 : ni « long » ni « court » terme
+   chez la Banque de France, et non ventilés par secteur résident. D'où la catégorie
+   calculée `RESIDENTS_BTAN_NON_VENTILES`, nulle depuis 2017.
+6. **`S1` veut dire « tous secteurs de la zone »** dans les clés DET2 ; ramené à
+   `'_T'` au chargement.
+7. **Échéance initiale contre résiduelle** (§ 4).
+8. **Non-résident ≠ étranger** (§ 3.1).
+9. **Octobre 2017** : la ventilation « taux fixe + indexée » de la dette négociable
+   vaut exactement le total de **septembre** (1 703 850 M€), 23,7 Md€ de plus que le
+   total d'octobre. Défaut de la source, laissé tel quel en base et exclu nommément
+   du contrôle.
+10. **Avant 1998**, la dette trimestrielle de l'INSEE (base 2020) et la série annuelle
+    d'Eurostat divergent (−13,1 Md€ en 1995, +6,4 Md€ en 1997). Concordance à
+    0,1 Md€ près ensuite.
+11. **Projections du FMI.** Le WEO mêle observations et projections jusqu'en 2031.
+    Seules les années jusqu'à `LATEST_ACTUAL_ANNUAL_DATA`, publiée pays par pays,
+    sont chargées (France : 2024 ; Suisse : 2025).
+12. **Licence du FMI.** Le jeu SDMX affiche « All Rights Reserved » et renvoie aux
+    conditions générales, qui autorisent la réutilisation des données avec mention
+    de la source. **Usage commercial à confirmer** avant tout export ouvert.
+13. **Les « - » des RAP** ne sont pas chargés : zéro ou « sans objet », le tableau
+    ne permet pas de trancher. D'où l'absence de série « adjudications non
+    couvertes » alors que le RAP n'en rapporte aucune.
+14. **Le modèle SF de l'AFF n'est pas le SEC 2010** : les montants suisses ne se
+    comparent pas à la dette Maastricht. Pour comparer, le FMI.
+15. **Un null JSON-stat décodé dans un float donne 0.** Le décodeur l'écarte
+    explicitement.
+16. **La clé Webstat** passe dans un en-tête HTTP (`archive.FetchEntetes`), jamais
+    dans l'URL : `raw.retrieval` conserve les URL, et une clé qui y figurerait serait
+    publiée avec la provenance. Vérifié : aucune URL archivée ne la contient.
+
+## Sources
+
+### 7.1 Chargées
+
+| Source | Accès | Licence (classe) | Cadence | Destination |
+|---|---|---|---|---|
+| **INSEE** — `DETTE-NEGOCIABLE-ETAT` (17 séries, AFT) | API SDMX BDM, ouverte | Licence Ouverte v2.0 (OPEN) | mensuelle | `concept = DETTE_NEGOCIABLE_ETAT` |
+| **INSEE** — `DETTE-TRIM-APU-2020` (21 séries) | API SDMX BDM | idem | trimestrielle | `DETTE_MAASTRICHT`, `DETTE_NETTE_APU`, `DETTE_BRUTE_FMI`, `ACTIFS_COTES_APU` |
+| **Banque de France** — `DET2` (305 séries) | Webstat (Opendatasoft), **clé d'API** | réutilisation avec mention (ATTRIBUTION) | trimestrielle | `DETENTION_TITRES_ETAT` |
+| **Eurostat** — `gov_10dd_edpt1`, `gov_10a_main`, `gov_10dd_ggd`, `irt_lt_mcby_a`/`_m` | API JSON-stat | CC BY 4.0 (ATTRIBUTION) | annuelle / mensuelle | dette, intérêts, solde, recettes, dépenses, détenteurs, taux |
+| **FMI** — WEO, 4 indicateurs × 14 pays | API SDMX `api.imf.org` | conditions du FMI (ATTRIBUTION, § 9) | semestrielle | `DETTE_BRUTE_FMI`, `DETTE_NETTE_FMI`, `SOLDE_PUBLIC`, `SOLDE_PRIMAIRE` |
+| **AFF** (Suisse) — bilans et indicateurs financiers | fichiers XLSX | OGD Suisse (ATTRIBUTION) | annuelle | `BILAN_APU_CH`, `INDICATEUR_AFF` |
+| **BNS** — `rendoblim` (10 ans) | CSV | mention de la source (ATTRIBUTION) | mensuelle, **figée depuis 07/2025** | `TAUX_LONG_TERME` (CH) |
+| **Programme 117** — RAP 2025, adjudications | API data.economie.gouv.fr | Licence Ouverte v2.0 (OPEN) | annuelle | `ADJUDICATIONS_AFT` |
+
+Volumes au 14 septembre 2026 : 1 186 séries, 53 171 observations.
+
+### 7.2 Intégrer les données de l'Agence France Trésor
+
+Le site `aft.gouv.fr` est **entièrement** derrière une protection anti-robot
+(Cloudflare), y compris ses fichiers de données. **On ne la contourne pas.** Trois
+voies légitimes couvrent l'essentiel :
+
+1. **L'encours mensuel de la dette négociable** : republié par l'INSEE, source
+   déclarée AFT, sous licence ouverte (`insee.go`). C'est la même donnée.
+2. **La détention par secteur** : produite par la Banque de France, dont l'AFT
+   reprend elle-même les chiffres dans son bulletin mensuel (`banque_de_france.go`).
+3. **La performance des émissions** : indicateurs du programme 117, que l'AFT
+   rapporte au Parlement (`aft.go`).
+
+**Restent inaccessibles** : l'échéancier titre par titre, la durée de vie moyenne,
+le programme d'émission annuel et le détail de chaque adjudication. Voie à
+explorer, non automatisable sans l'AFT : demander un accès aux fichiers ou leur
+dépôt sur data.gouv.fr.
+
+### 7.3 Écartées ou bloquées
+
+| Source | Motif |
+|---|---|
+| aft.gouv.fr | Protection anti-robot sur tout le domaine ; non contournée |
+| FMI DataMapper (`imf.org/external/datamapper`) | Répond 403 à un User-Agent qui s'identifie honnêtement (règle Akamai) ; on ne se fait pas passer pour un navigateur. L'API SDMX du FMI fournit les mêmes séries **et** la dernière année observée |
+| Séries Webstat « par jeu » (`det2-q-n-fr-…`) | Visibles au catalogue mais vides ; les valeurs sont dans le jeu restreint `observations` |
+| OCDE (SDMX) | Redondant avec Eurostat et le FMI pour ce besoin |
+
+## Annexe technique
+
+### 8. Le modèle de données
+
+Migration `0073_dette.sql`.
+
+- **`ref.dette_serie`** — une série = une combinaison de dimensions fixée : `pays`,
+  `frequence` (A/Q/M), `unite` (EUR, CHF, PCT, PCT_PIB, RATIO, NOMBRE), `concept`,
+  `mesure` (ENCOURS, VARIATION_CUMULEE, FLUX, TAUX, PART, RATIO, NOMBRE),
+  `secteur_emetteur`, `zone_detenteur` (W0 monde, W1 non-résidents, W2 résidents),
+  `secteur_detenteur`, `echeance` + `base_echeance`, `instrument`,
+  `monnaie_emission`. Toute dimension non ventilée vaut `'_T'` : NULL y
+  signifierait « inconnu ». Code stable `'<producteur>:<code producteur>'`.
+- **`core.dette_observation`** — `(serie, periode)` unique ; `periode` au format
+  `AAAA`, `AAAA-Qn` ou `AAAA-MM`, `debut` pour trier et joindre ; `valeur` **à
+  l'unité** (multiplicateur du producteur appliqué) ; `statut` du producteur ;
+  `document_id` vers le document scellé. Pas de valeur, pas de ligne.
+- **Vues** (`derived`, avec `method_version`) : `dette_taux_apparent`
+  (`dette-taux-apparent-v1`), `dette_detention_etat` (`dette-detention-etat-v1`),
+  `dette_ajustement_stock_flux` (`dette-asf-v1`).
+
+Chaque source se recharge **entièrement** dans une transaction : les producteurs
+révisent (l'INSEE à chaque compte trimestriel, Eurostat à chaque notification), et
+compléter mêlerait deux millésimes.
+
+**Pourquoi un modèle long plutôt qu'une table par source.** Les sources ne
+partagent pas leurs dimensions (instrument pour l'AFT, secteur détenteur pour la
+Banque de France, échéance résiduelle pour Eurostat, compte de bilan pour l'AFF).
+Une table par source aurait été plus simple à écrire, mais aurait rendu impossibles
+les contrôles croisés qui font la valeur de l'ensemble.
+
+**Pourquoi pas `core.macro_value`.** Elle porte déjà la dette et le solde de la
+France (Eurostat, annuel) pour situer une présidence dans son époque ; elle n'a ni
+détenteur, ni échéance, ni pays. Les deux coexistent ; la concordance est vérifiable
+(mêmes requêtes Eurostat).
+
+### 10. Les vérifications de cohérence (`cmd/verify/dette.go`)
+
+- chaque source a des séries ; au moins 40 000 observations ;
+- dette négociable : court terme + long terme + devises = total ; taux fixe + indexée
+  = total (sauf octobre 2017, § 9) ;
+- dette Maastricht trimestrielle : dépôts + titres + crédits = total ; les quatre
+  sous-secteurs = total ;
+- Maastricht France : INSEE (T4) = Eurostat (annuel) à 1 Md€ près, depuis 1998 ;
+- Eurostat : détention résidente + non résidente = total ;
+- Banque de France : secteurs résidents feuilles = total résident ; parts des
+  catégories = 100 % ; part non résidente recalculée = part publiée ;
+- taux apparent entre 0 et 15 % ;
+- fraîcheur : dette négociable (5 mois), détention et dette trimestrielle (10 mois).
+
+### 11. Exécution
+
+```bash
+set -a; . ./.env; set +a      # WEBSTAT_API_KEY, fichier non versionné
+go run ./cmd/ingest -only=migrate
+go run ./cmd/ingest -only=dette
+go run ./cmd/verify
+```
+
+Sans `WEBSTAT_API_KEY`, la détention est sautée avec un avertissement, et le
+contrôle « chaque source a des séries » bloque la publication — volontairement.
+
+### 12. Ce qui reste
+
+- L'échéancier et la durée de vie moyenne de la dette de l'État (AFT, § 7.2).
+- La charge budgétaire de la dette (programme 117 : crédits, provision pour
+  l'indexation), à rapprocher des intérêts en comptabilité nationale — les deux
+  diffèrent par construction (caisse contre droits constatés).
+- Le circuit Banque de France → État (dividende et impôt sur les bénéfices).
+- Les millésimes antérieurs des indicateurs du programme 117 (un jeu par RAP,
+  colonnes figées).
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de programmation des finances publiques, procédure européenne) et contrôle du Haut Conseil des finances publiques ; le § 6 ne part plus d'une prémisse sur la Suisse.
+- **Version 1** (14 septembre 2026) : définitions, prix de l'emprunt, détenteurs, échéances, comparaison européenne, Suisse.

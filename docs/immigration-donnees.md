@@ -1,22 +1,46 @@
 # L'immigration en France : ce que les données permettent de dire
 
-> Note de synthèse. Version 3 — 14 septembre 2026.
-> Cette note répond à une question d'inventaire : quels chiffres existent sur
-> l'immigration en France, avec quelle précision, et où s'arrête l'open data
-> pour laisser place à des rapports de recherche ou à des trous documentés.
-> Comme le reste du projet, elle ne rend pas de verdict sur l'immigration —
-> elle établit ce qui est mesuré, par qui, et ce qui ne l'est pas.
+> **Dossier** · version 4 · 15 septembre 2026
 >
-> **Version 2** ajoute la profondeur historique qui manquait à la version 1 :
-> un siècle de recensements (§ 8) et les flux annuels d'immigration et de
-> naturalisation (§ 8.1), pas seulement des stocks récents.
->
-> **Version 3** ajoute les demandes d'asile déposées devant l'Ofpra (§ 7.1),
-> un flux administratif distinct des titres de séjour et du recensement.
+> Quels chiffres existent sur l'immigration en France, avec quelle précision, et où
+> s'arrêtent les données ouvertes pour laisser place à des rapports de recherche ou à des
+> absences documentées ? Le dossier établit ce qui est mesuré, par qui, et ce qui ne l'est
+> pas.
 
 ---
 
-## 1. La distinction qui commande tout le reste
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| immigration | 997 | 232 | 19 juillet 2024 | 21 juillet 2026 |
+| titres de séjour | 313 | 118 | 1er octobre 2024 | 9 juillet 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La hausse des crédits 2026 destinée surtout à la lutte contre l'immigration irrégulière** (20 novembre 2025). Le programme « Immigration et asile » capte toute l'augmentation des crédits de la mission pour 2026, largement destinée à la lutte contre l'immigration irrégulière (crédits demandés). — Sénat, commission des finances (rapport spécial sur la mission « Immigration, asile et intégration », PLF 2026) · [source](https://www.senat.fr/rap/l25-139-315/l25-139-315_mono.html) · *officiel*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La loi pour contrôler l'immigration, améliorer l'intégration** (26 janvier 2024). Dernière loi d'ensemble sur l'entrée, le séjour et l'éloignement des étrangers chargée dans le corpus. — Parlement (loi n° 2024-42) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000049040245) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+### 1. Immigré, étranger : les définitions
 
 Deux mots, deux populations qui se recoupent **partiellement** :
 
@@ -46,7 +70,17 @@ les deux nombres ne sont substituables dans aucune phrase.
 immigrés sur 66 165 815 résidents, soit **10,7 %** de la population — cohérent
 avec le chiffre publié par l'Insee (7,2 millions hors Mayotte, 10,6 %).
 
-## 2. Origines géographiques
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **7,82 Md€ : le coût estimé de la politique de l'immigration et de l'intégration en 2026** (20 novembre 2025). Le coût estimé de la politique française de l'immigration et de l'intégration, toutes missions confondues, est de 7,82 Md€ en 2026, contre 7,74 Md€ en 2025 (document de politique transversale, cité par le rapport). — Sénat, commission des finances (rapport spécial sur la mission « Immigration, asile et intégration », PLF 2026) · [source](https://www.senat.fr/rap/l25-139-315/l25-139-315_mono.html) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 2. Origines géographiques
 
 Population immigrée par pays ou zone de naissance, France entière, 2023
 (`core.population_immigree_origine`, regroupement Insee — pas la liste
@@ -72,7 +106,7 @@ Les trois pays du Maghreb réunis (Algérie, Maroc, Tunisie) représentent
 mais pas une majorité : « le reste du monde » et « autres pays d'Afrique »,
 deux catégories fourre-tout, pèsent ensemble davantage (34,3 %).
 
-## 3. Emploi et catégorie socioprofessionnelle
+### 3. Emploi et catégorie socioprofessionnelle
 
 Statut d'emploi des immigrés de 15 ans ou plus, France entière, 2023 :
 
@@ -105,38 +139,7 @@ nettement différente de celle des non-immigrés, dans les deux sens. Aucune
 lecture unique (« les immigrés font les métiers que personne ne veut faire »,
 « les immigrés sont cadres comme les autres ») ne couvre ce tableau en entier.
 
-## 4. Prestations sociales et impôts : ce qui manque, et pourquoi
-
-**Aucune administration ne publie, en open data répétable, le montant des
-prestations sociales versées ou des impôts payés en fonction du statut
-migratoire ou de la nationalité du bénéficiaire.** Ce n'est pas un oubli de ce
-projet, c'est une limite documentée des sources elles-mêmes :
-
-- **Impôts.** Le droit fiscal français impose sur la **résidence fiscale**,
-  pas la nationalité. La DGFiP ne trace ni nationalité ni pays de naissance
-  dans ses statistiques publiques (fichier POTE, données ouvertes
-  impots.gouv.fr). Un montant « payé par les immigrés » ou « par les
-  étrangers » n'existe dans aucune source administrative — quiconque
-  l'affirme calcule, il ne cite pas.
-- **TVA.** Impôt sur la dépense, jamais imputable à une personne précise,
-  quel que soit son statut : aucune administration, nulle part, ne peut
-  produire ce chiffre par construction.
-- **Prestations sociales.** La Cnaf publie une part agrégée (fin 2022, 11 %
-  des foyers allocataires toutes prestations confondues sont de nationalité
-  étrangère, pour environ 13 % de la masse versée) — un chiffre cité dans la
-  presse et par des associations de vérification, **pas un jeu de données
-  ouvert et répétable**, donc non chargé ici. La Cnav, qui gère l'essentiel de
-  l'Aspa (minimum vieillesse), compte ses bénéficiaires par **pays de
-  naissance**, pas par nationalité — un changement de classification au
-  milieu du sujet qui rend toute comparaison directe avec les chiffres Cnaf
-  trompeuse.
-
-**La conséquence pour ce projet : les seuls chiffres de coût ou de
-contribution nette qui suivent (§ 6) viennent de la littérature de recherche,
-pas de comptes administratifs.** C'est une différence de nature, pas de degré,
-avec les tableaux des sections 1 à 3.
-
-## 5. Comparaison européenne (Eurostat)
+### 5. Comparaison européenne (Eurostat)
 
 Eurostat publie la même distinction sous un autre nom — **citoyenneté**
 (l'équivalent européen d'« étranger ») et **pays de naissance** (l'équivalent
@@ -165,7 +168,7 @@ citer un seul chiffre comme s'il allait de soi.
 pour la France, dans la source Eurostat, qu'à partir de 2015 — avant, seul le
 total est fiable (`cmd/verify` le contrôle).*
 
-## 6. Ce que dit la recherche sur la contribution nette aux finances publiques
+### 6. Ce que dit la recherche sur la contribution nette aux finances publiques
 
 Trois méthodes coexistent dans la littérature économique (résumées par le CAE,
 voir ci-dessous) : l'hypothèse de l'« aimant social » (test d'une dépendance
@@ -211,7 +214,7 @@ de recherche et d'évaluation parlementaire, cités avec leur lien, jamais
 chargés en base — il n'y a rien à y charger, ce sont des synthèses, pas des
 tableaux de séries.
 
-## 7. Flux administratifs : titres de séjour (DGEF)
+### 7. Flux administratifs : titres de séjour (DGEF)
 
 `core.titre_sejour_stock` : stock de titres et documents de séjour valides au
 31 décembre, ressortissants de pays tiers hors Britanniques (suivis à part
@@ -240,7 +243,7 @@ directement sur
 **La publication elle-même s'est arrêtée après juin 2024** dans le catalogue
 consulté : aucune édition plus récente n'y figure.
 
-### 7.1 Les demandes d'asile (Ofpra), un flux distinct
+#### 7.1 Les demandes d'asile (Ofpra), un flux distinct
 
 `core.demande_asile_ofpra` : demandes déposées devant l'Office français de
 protection des réfugiés et apatrides, 2021-2025 (2020 absent : la ressource
@@ -272,9 +275,7 @@ l'Afrique concentre 46 % des premières demandes (59 706 sur 130 029), devant
 l'Asie et l'Europe (30 582 et 30 575) ; l'Afghanistan est la première
 nationalité (12 378), suivie de l'Ukraine (11 814).
 
----
-
-## 8. L'évolution historique : un siècle de recensements
+### 8. L'évolution historique : un siècle de recensements
 
 Toutes les sections précédentes portent sur un ou deux millésimes récents. Ce
 que l'Insee publie de plus long, chargé dans
@@ -317,7 +318,7 @@ estimations, 1921 à 2025 :
 2024-2025 (protocole de collecte du recensement revu) — `cmd/verify` compare
 chaque millésime à lui-même, pas à un lissage qui masquerait ces ruptures.*
 
-### 8.1 Les flux, pas seulement le stock
+#### 8.1 Les flux, pas seulement le stock
 
 `core.flux_migratoire` (Eurostat, France) donne, année par année, ce que le
 tableau ci-dessus ne peut pas montrer : **combien de personnes entrent, et
@@ -337,9 +338,68 @@ est un fait démographique, pas une explication : cette note n'attribue le
 recul des naturalisations à aucune cause précise, faute de données sur les
 motifs des refus ou des non-demandes.
 
----
+## Ce que les données ne disent pas
 
-## 9. Ce qui est chargé
+### 4. Prestations sociales et impôts : ce qui manque, et pourquoi
+
+**Aucune administration ne publie, en open data répétable, le montant des
+prestations sociales versées ou des impôts payés en fonction du statut
+migratoire ou de la nationalité du bénéficiaire.** Ce n'est pas un oubli de ce
+projet, c'est une limite documentée des sources elles-mêmes :
+
+- **Impôts.** Le droit fiscal français impose sur la **résidence fiscale**,
+  pas la nationalité. La DGFiP ne trace ni nationalité ni pays de naissance
+  dans ses statistiques publiques (fichier POTE, données ouvertes
+  impots.gouv.fr). Un montant « payé par les immigrés » ou « par les
+  étrangers » n'existe dans aucune source administrative — quiconque
+  l'affirme calcule, il ne cite pas.
+- **TVA.** Impôt sur la dépense, jamais imputable à une personne précise,
+  quel que soit son statut : aucune administration, nulle part, ne peut
+  produire ce chiffre par construction.
+- **Prestations sociales.** La Cnaf publie une part agrégée (fin 2022, 11 %
+  des foyers allocataires toutes prestations confondues sont de nationalité
+  étrangère, pour environ 13 % de la masse versée) — un chiffre cité dans la
+  presse et par des associations de vérification, **pas un jeu de données
+  ouvert et répétable**, donc non chargé ici. La Cnav, qui gère l'essentiel de
+  l'Aspa (minimum vieillesse), compte ses bénéficiaires par **pays de
+  naissance**, pas par nationalité — un changement de classification au
+  milieu du sujet qui rend toute comparaison directe avec les chiffres Cnaf
+  trompeuse.
+
+**La conséquence pour ce projet : les seuls chiffres de coût ou de
+contribution nette qui suivent (§ 6) viennent de la littérature de recherche,
+pas de comptes administratifs.** C'est une différence de nature, pas de degré,
+avec les tableaux des sections 1 à 3.
+
+## Sources
+
+- Insee, *Immigrés et descendants d'immigrés en France*, Insee Références,
+  édition 2023.
+- Insee, *Entre 2006 et 2023, le nombre d'immigrés entrés en France augmente
+  et leur niveau de diplôme s'améliore*, Insee Première n° 2051 (2024).
+- Insee, recensement de la population, diffusion API Melodi (`api.insee.fr/melodi`),
+  jeux de données cités au § 8.
+- Eurostat, `migr_pop1ctz` (population par citoyenneté) et `migr_pop3ctb`
+  (population par pays de naissance).
+- Conseil d'analyse économique, *Focus* n° 072-2021, *Immigration et finances
+  publiques* (Lionel Ragot, novembre 2021).
+- France Stratégie, *L'impact de l'immigration sur le marché du travail, les
+  finances publiques et la croissance* (juillet 2019).
+- Assemblée nationale, Comité d'évaluation et de contrôle des politiques
+  publiques, *Évaluation des coûts et bénéfices de l'immigration en matière
+  économique et sociale* (janvier 2024).
+- OCDE, *International Migration Outlook*, édition annuelle.
+- Ministère de l'Intérieur, Direction générale des étrangers en France,
+  *Titres de séjour, publication du 27 juin 2024*, data.gouv.fr.
+- Insee, *Population immigrée et étrangère en France*, série 1921-2025.
+- Eurostat, `migr_imm1ctz` (immigration par citoyenneté) et `migr_acq`
+  (acquisitions de la nationalité par ancienne citoyenneté).
+- Ofpra, *Demandes d'asile et de statut d'apatride déposées devant l'Ofpra*,
+  data.gouv.fr, éditions annuelles 2021-2025.
+
+## Annexe technique
+
+### 9. Ce qui est chargé
 
 Migration `0071_immigration.sql`, connecteur `internal/immigration/`, commande
 `go run ./cmd/ingest -only=immigration`.
@@ -373,28 +433,8 @@ habitants pour les tableaux les plus fins) — le même mécanisme que
 `internal/macro/menages_effectif.go` pour les ménages permettrait de
 descendre à cette maille si un besoin géographique se précise.
 
-## Sources
+## Versions
 
-- Insee, *Immigrés et descendants d'immigrés en France*, Insee Références,
-  édition 2023.
-- Insee, *Entre 2006 et 2023, le nombre d'immigrés entrés en France augmente
-  et leur niveau de diplôme s'améliore*, Insee Première n° 2051 (2024).
-- Insee, recensement de la population, diffusion API Melodi (`api.insee.fr/melodi`),
-  jeux de données cités au § 8.
-- Eurostat, `migr_pop1ctz` (population par citoyenneté) et `migr_pop3ctb`
-  (population par pays de naissance).
-- Conseil d'analyse économique, *Focus* n° 072-2021, *Immigration et finances
-  publiques* (Lionel Ragot, novembre 2021).
-- France Stratégie, *L'impact de l'immigration sur le marché du travail, les
-  finances publiques et la croissance* (juillet 2019).
-- Assemblée nationale, Comité d'évaluation et de contrôle des politiques
-  publiques, *Évaluation des coûts et bénéfices de l'immigration en matière
-  économique et sociale* (janvier 2024).
-- OCDE, *International Migration Outlook*, édition annuelle.
-- Ministère de l'Intérieur, Direction générale des étrangers en France,
-  *Titres de séjour, publication du 27 juin 2024*, data.gouv.fr.
-- Insee, *Population immigrée et étrangère en France*, série 1921-2025.
-- Eurostat, `migr_imm1ctz` (immigration par citoyenneté) et `migr_acq`
-  (acquisitions de la nationalité par ancienne citoyenneté).
-- Ofpra, *Demandes d'asile et de statut d'apatride déposées devant l'Ofpra*,
-  data.gouv.fr, éditions annuelles 2021-2025.
+- **Version 4** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de 2024) et contrôle du Sénat (coût estimé de la politique d'immigration).
+- **Version 3** (14 septembre 2026) : demandes d'asile déposées devant l'Ofpra (§ 7.1).
+- **Version 2** : un siècle de recensements (§ 8) et flux annuels d'immigration et de naturalisation (§ 8.1).

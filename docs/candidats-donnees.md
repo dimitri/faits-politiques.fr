@@ -1,6 +1,8 @@
-# Enrichir une fiche de candidat : ce que l'open data permet
+# Enrichir une fiche de candidat : ce que les données ouvertes permettent
 
-Étude des sources, vérifiées fichier en main le 2026-09-12. L'objet visé est
+> **Méthode** · version 2 · 15 septembre 2026
+
+Étude des sources, vérifiées fichier en main le 12 septembre 2026. L'objet visé est
 double : une **frise de carrière** replacée sous les présidences successives, et
 la **liste des mandats en cours**.
 

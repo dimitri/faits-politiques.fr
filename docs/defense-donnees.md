@@ -1,16 +1,55 @@
 # Le budget de la Défense : quatre programmes, un piège de lecture répété
 
-> Note de synthèse. Version 1 — 14 septembre 2026.
-> Cette note s'appuie sur la même table que
-> [docs/securite-police-donnees.md](securite-police-donnees.md)
-> (`core.budget_programme`, PLF par mission/programme/action) : les deux
-> notes chargent une seule fois un jeu de données qui couvre déjà toutes les
-> missions du budget général, Défense et Sécurités n'en sont que deux
-> lectures.
+> **Dossier** · version 2 · 15 septembre 2026
+>
+> Que contient le budget de la Défense, programme par programme, et pourquoi le total
+> de la mission diffère-t-il du montant de la loi de programmation militaire ? Le dossier
+> s'appuie sur la même table que les dossiers police et éducation : un seul chargement du
+> projet de loi de finances couvre toutes les missions du budget général.
 
 ---
 
-## 1. La mission Défense : quatre programmes budgétaires
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| programmation militaire | 426 | 98 | 1er octobre 2024 | 15 juillet 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Une programmation militaire dans un contexte « profondément déstabilisé »** (20 novembre 2025). Le rapport situe la troisième annuité de la LPM dans un contexte géostratégique profondément déstabilisé par la guerre en Ukraine. — Sénat, commission des finances (rapport spécial sur la mission « Défense », PLF 2026) · [source](https://www.senat.fr/rap/l25-139-38/l25-139-38-syn.pdf) · *officiel*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La loi de programmation militaire 2024-2030** (1er août 2023). Programmation des crédits et des effectifs des armées de 2024 à 2030. — Parlement (loi n° 2023-703) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000047914986) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **57,15 Md€ sur le périmètre de la LPM en 2026, et une actualisation de la loi jugée indispensable** (20 novembre 2025). Sur le périmètre de la LPM (hors pensions), les crédits demandés pour 2026 atteignent 57,15 Md€, en hausse de 6,67 Md€ ; le rapporteur spécial juge indispensable une actualisation de la loi de programmation militaire (crédits votés). — [Dominique de Legge](/depute/dominique-de-legge/), Sénat, commission des finances (rapport spécial sur la mission « Défense », PLF 2026) · [source](https://www.senat.fr/rap/l25-139-38/l25-139-38-syn.pdf) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 1. La mission Défense : quatre programmes budgétaires
 
 Source : PLF, `data.economie.gouv.fr`. La mission **Défense** est composée de
 quatre programmes, chargés intégralement, aucun agrégé à un autre :
@@ -35,11 +74,30 @@ programmation militaire, LPM) ; 178 finance l'entraînement et l'engagement
 opérationnel des forces ; 144 finance le renseignement et la prospective
 stratégique.
 
-## 2. Le piège : ce total ne correspond pas au chiffre le plus souvent cité
+### 3. Investissement (titre 5) : la trajectoire la plus directement liée à la LPM
 
-**60,0 Md€ pour 2025 est plus élevé que le montant le plus souvent cité dans
-le débat public pour « le budget de la Défense » (proche de 47 Md€, la
-trajectoire suivie par la LPM 2024-2030).** L'écart n'est pas une erreur de
+| | 2024 (Md€) | 2025 (Md€) |
+|---|---:|---:|
+| Titre 5 — Investissement, mission Défense | 16,21 | 18,03 |
+
+**+11 % entre 2024 et 2025**, porté pour l'essentiel par le programme 146
+(Équipement des forces). C'est la mesure la plus proche de « l'effort
+d'équipement » suivi par la LPM, même si elle n'épuise pas le sujet (une
+partie de l'équipement est aussi financée en titre 3, maintenance en
+condition opérationnelle notamment).
+
+## Ce que les données ne disent pas
+
+Le budget voté ne dit ni la dépense exécutée, ni la répartition des crédits entre
+opérations extérieures et équipement au-delà des titres budgétaires, ni les effectifs
+réellement présents. Le rapport du Sénat relève en outre que le ministère ne sait pas isoler
+ce qui relève de la hausse supplémentaire décidée pour 2026 (§ Contrôles).
+
+## Pièges de lecture
+
+### 2. Le total de la mission et le périmètre de la LPM
+
+**60,0 Md€ pour 2025 dépasse le montant du périmètre de la loi de programmation militaire 2024-2030, qui exclut les pensions.** L'écart n'est pas une erreur de
 chargement — il s'explique en regardant la composition du titre 2
 (personnel) de la mission :
 
@@ -66,19 +124,15 @@ substantielle. Aucun des deux chiffres n'est « le bon » — ce sont deux
 périmètres différents, et les confondre produit une comparaison fausse d'une
 année sur l'autre ou d'une source à l'autre.
 
-## 3. Investissement (titre 5) : la trajectoire la plus directement liée à la LPM
+## Sources
 
-| | 2024 (Md€) | 2025 (Md€) |
-|---|---:|---:|
-| Titre 5 — Investissement, mission Défense | 16,21 | 18,03 |
+- Direction du budget, *PLF — dépenses par mission, programme et action*,
+  data.economie.gouv.fr, éditions 2024 et 2025.
+- [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
 
-**+11 % entre 2024 et 2025**, porté pour l'essentiel par le programme 146
-(Équipement des forces). C'est la mesure la plus proche de « l'effort
-d'équipement » suivi par la LPM, même si elle n'épuise pas le sujet (une
-partie de l'équipement est aussi financée en titre 3, maintenance en
-condition opérationnelle notamment).
+## Annexe technique
 
-## 4. Ce qui est chargé
+### 4. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
@@ -99,8 +153,7 @@ condition opérationnelle notamment).
   série en amont demande de retrouver et vérifier un identifiant par
   millésime, non fait à ce stade.
 
-## Sources
+## Versions
 
-- Direction du budget, *PLF — dépenses par mission, programme et action*,
-  data.economie.gouv.fr, éditions 2024 et 2025.
-- [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (LPM 2024-2030) et contrôle du Sénat sur le budget 2026 ; l'écart du § 2 n'est plus rapporté à un « montant souvent cité » mais au périmètre de la LPM.
+- **Version 1** (14 septembre 2026) : les quatre programmes de la mission Défense.

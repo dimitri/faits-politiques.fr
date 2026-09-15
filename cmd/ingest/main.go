@@ -25,6 +25,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/entreprises"
 	"github.com/faits-politiques/faits-politiques/internal/dette"
+	"github.com/faits-politiques/faits-politiques/internal/dossiers"
 	"github.com/faits-politiques/faits-politiques/internal/ecologie"
 	"github.com/faits-politiques/faits-politiques/internal/education"
 	"github.com/faits-politiques/faits-politiques/internal/europe"
@@ -36,6 +37,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/jorf"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
+	"github.com/faits-politiques/faits-politiques/internal/numerique"
 	"github.com/faits-politiques/faits-politiques/internal/partis"
 	"github.com/faits-politiques/faits-politiques/internal/paie"
 	"github.com/faits-politiques/faits-politiques/internal/prefets"
@@ -487,6 +489,21 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		"fiscalite-comptes": fiscalite.IngestComptes,
 		"fiscalite-marches": fiscalite.IngestMarches, "fiscalite-faits": fiscalite.IngestFaits,
 		"fiscalite-transparence": fiscalite.IngestTransparence,
+	} {
+		if only == nom {
+			return f(ctx, pool, arch)
+		}
+	}
+	// Souveraineté numérique : catalogue SecNumCloud de l'ANSSI, sanctions de
+	// la CNIL, SILL, marchés informatiques. Exige pdftotext ;
+	// relit les DECP consolidées (2,5 Go). Voir docs/souverainete-numerique.md.
+	for nom, f := range map[string]func(context.Context, *pgxpool.Pool, *archive.Archive) error{
+		"numerique": numerique.Ingest, "numerique-anssi": numerique.IngestQualifications,
+		"numerique-cnil": numerique.IngestSanctionsCNIL, "numerique-sill": numerique.IngestSILL,
+		"numerique-marches": numerique.IngestMarches,
+		// Faits de tous les dossiers (docs/*.md, D-066) et acteurs nommés : après
+		// jorf-complet, interventions, sirene et numerique-anssi, qu'ils relisent.
+		"dossiers": dossiers.Ingest, "dossiers-faits": dossiers.IngestFaits, "dossiers-acteurs": dossiers.IngestActeurs,
 	} {
 		if only == nom {
 			return f(ctx, pool, arch)

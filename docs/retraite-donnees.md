@@ -1,24 +1,56 @@
 # La retraite en France : dépense, pensions, minimum vieillesse
 
-> Note de synthèse. Version 3 — 14 septembre 2026.
-> Trois questions, sur le modèle des notes voisines : combien coûte le système
-> de retraite et comment ce coût a évolué, comment les pensions se distribuent
-> réellement (pas seulement en moyenne), et ce que le minimum vieillesse
-> raconte d'un système par répartition sous tension démographique. Le
-> financement par cotisations et son évolution récente sont traités en détail
-> dans [docs/cotisations-et-droits.md](cotisations-et-droits.md) — cette note
-> ne les répète pas, elle s'appuie dessus.
+> **Dossier** · version 4 · 15 septembre 2026
 >
-> **Version 2** ajoute l'âge de départ à la retraite depuis 2004 (§ 3), la
-> trace la plus directe des réformes successives.
->
-> **Version 3** ajoute le taux de remplacement par quantile (§ 5) et le ratio
-> cotisants / retraités (§ 6) ; documente l'absence d'open data pour
-> AGIRC-ARRCO malgré une recherche dédiée (§ 7).
+> Combien coûte le système de retraite et comment ce coût a-t-il évolué, comment les
+> pensions se distribuent-elles réellement, et que dit le minimum vieillesse d'un système par
+> répartition ? Le financement par cotisations est traité dans le dossier
+> [cotisations-et-droits.md](cotisations-et-droits.md), sur lequel celui-ci s'appuie.
 
 ---
 
-## 1. La dépense : la plus grosse fonction de la protection sociale
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| retraites | 2789 | 379 | 19 juillet 2024 | 21 juillet 2026 |
+| âge de départ | 176 | 91 | 1er octobre 2024 | 2 juillet 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Les dépenses de retraite rapportées au PIB, indicateur de soutenabilité** (12 juin 2025). Le COR retient la part des dépenses de retraite dans le PIB comme indicateur déterminant de la soutenabilité financière du système. — Conseil d'orientation des retraites (rapport annuel 2025) · [source](https://www.cor-retraites.fr/sites/default/files/2025-06/Synth%C3%A8se_Def_.pdf) · *officiel*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La loi de financement rectificative de la sécurité sociale pour 2023** (14 avril 2023). Son article 10 porte l'âge d'ouverture des droits à la retraite à soixante-quatre ans, progressivement selon la génération. — Parlement (loi n° 2023-270) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000047445077) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **407 Md€ de dépenses de retraite en 2024, 13,9 % du PIB ; un déficit de 1,7 Md€** (12 juin 2025). Le COR évalue les dépenses de retraite à 407 Md€ en 2024 (13,9 % du PIB, 24,4 % des dépenses publiques) et le solde du système à −1,7 Md€, hors produits et charges financiers. — Conseil d'orientation des retraites (rapport annuel 2025) · [source](https://www.cor-retraites.fr/sites/default/files/2025-06/Synth%C3%A8se_Def_.pdf) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 1. La dépense : la plus grosse fonction de la protection sociale
 
 `core.protection_sociale` (Drees, comptes de la protection sociale, tous
 régimes, 2024) :
@@ -52,7 +84,7 @@ du nombre de retraités (vieillissement démographique, entrées des génératio
 nombreuses de l'après-guerre) et la revalorisation des pensions moyennes au
 fil des carrières plus longues et mieux rémunérées.
 
-## 2. La distribution des pensions : ce qu'une moyenne ne dit pas
+### 2. La distribution des pensions : ce qu'une moyenne ne dit pas
 
 `core.pension_tranche_eir` (Drees, Échantillon interrégimes de retraités
 2020, pension brute de droit direct, 46 tranches de 100 €) — déjà chargée pour
@@ -69,16 +101,15 @@ la micro-simulation du revenu universel
 **50,3 % des retraités de droit direct perçoivent une pension brute inférieure
 au seuil de pauvreté** (1 288 €, voir
 [docs/revenu-universel-microsimulation.md](revenu-universel-microsimulation.md)
-§ 3.1) — un fait que la seule pension moyenne (souvent citée autour de
-1 660-1 670 € bruts, tous régimes et compléments confondus) ne montre pas :
+§ 3.1) — un fait que la seule pension moyenne (autour de 1 660-1 670 € bruts, tous régimes et compléments confondus) ne montre pas :
 une distribution étalée sur plus de 4 500 € masque une moitié de la
 population sous un seuil précis. La dispersion par sexe (le même fichier
 source) est documentée dans
-[docs/cotisations-et-droits.md](cotisations-et-droits.md) § 7.1 : la pension
+[docs/revenu-universel-microsimulation.md](revenu-universel-microsimulation.md) § A.1 : la pension
 moyenne des femmes (1 306 € bruts) est déjà sous le seuil de pauvreté à elle
 seule.
 
-## 3. L'âge de départ : ce que les réformes changent, visible année par année
+### 3. L'âge de départ : ce que les réformes changent, visible année par année
 
 `core.age_depart_retraite` (Drees, âge CONJONCTUREL moyen de départ — calculé
 sur les seuls départs d'une année donnée, comme un indice conjoncturel de
@@ -103,7 +134,7 @@ série** — un écart qui se réduit dans le temps (1,06 an en 2004, 0,67 an en
 ou plus hachées, qui obligent à attendre l'âge d'annulation de la décote pour
 partir sans pension réduite.
 
-## 4. Le minimum vieillesse (ASV puis ASPA) : une trajectoire en U
+### 4. Le minimum vieillesse (ASV puis ASPA) : une trajectoire en U
 
 `core.minima_sociaux_effectif`, dispositif `ASV_ASPA` (Allocation
 supplémentaire vieillesse jusqu'en 2006, Allocation de solidarité aux
@@ -135,7 +166,7 @@ celle des effectifs (+34 % sur la même période, 2009 : 517 000 → 2024 :
 693 200), qui traduit une revalorisation réelle du montant individuel de
 l'Aspa, pas seulement davantage de bénéficiaires.
 
-## 5. Le taux de remplacement : ce que la pension remplace vraiment
+### 5. Le taux de remplacement : ce que la pension remplace vraiment
 
 `core.taux_remplacement_retraite` (Drees, cohortes 2012-2020, quantiles à 10,
 25, 50, 75 et 90 %) mesure la part du revenu d'avant la retraite que la
@@ -172,7 +203,7 @@ avant la retraite étant eux-mêmes souvent plus élevés que le revenu propre d
 la femme, ce qui mécaniquement abaisse la base de comparaison et remonte le
 taux de remplacement mesuré sur le niveau de vie.
 
-## 6. Le ratio cotisants / retraités : la pression démographique, chiffrée
+### 6. Le ratio cotisants / retraités : la pression démographique, chiffrée
 
 `core.cotisants_retraites_ratio` (Insee, 2004-2023, tous régimes) :
 
@@ -192,7 +223,9 @@ de l'âge de départ mesuré au § 3. **Le ratio ne s'est PAS dégradé continû
 jusqu'à aujourd'hui**, contrairement à une intuition répandue : la dernière
 décennie chargée ici montre une stabilisation, pas un effondrement.
 
-## 7. Ce qui est hors de portée de l'open data
+## Ce que les données ne disent pas
+
+### 7. Ce qui est hors de portée de l'open data
 
 - **La distribution des pensions par décile ou par CSP** au-delà des 46
   tranches de l'EIR 2020 (le prochain échantillon, EIR 2024, n'était pas
@@ -223,7 +256,25 @@ décennie chargée ici montre une stabilisation, pas un effondrement.
   [docs/chomage-donnees.md](chomage-donnees.md) § 4.2 — l'URSSAF ne publie pas
   ses comptes par branche.
 
-## 8. Ce qui est chargé
+## Sources
+
+- Drees, *Les comptes de la protection sociale* (jeu de données ouvert).
+- Eurostat, `spr_exp_fol` (dépense ESSPROS, fonction vieillesse).
+- Drees, *Distribution des pensions mensuelles*, Échantillon interrégimes de
+  retraités 2020 (jeu de données n° 4178).
+- Drees, *Minima sociaux, RSA et prime d'activité* (jeu de données n° 336),
+  dispositif ASV/ASPA.
+- Drees, *Âge conjoncturel moyen de départ à la retraite selon le sexe*.
+- Drees, *Répartition des taux de remplacement entre les revenus juste avant
+  et juste après la retraite*.
+- Insee, *Retraités et retraites* — fichier « Cotisants et retraités de droit
+  direct » (`reve-protec-cotisant-retraite.xlsx`).
+- [docs/cotisations-et-droits.md](cotisations-et-droits.md), pour le
+  financement par répartition et la distinction contributif/non contributif.
+
+## Annexe technique
+
+### 8. Ce qui est chargé
 
 | # | Source | Table | Chargée pour |
 |---|---|---|---|
@@ -240,18 +291,8 @@ Les lignes 2, 6, 7 et 8 sont les séries chargées spécifiquement pour cette
 note ; les quatre autres existaient déjà — la preuve que les sujets de ce
 projet se recoupent plus qu'ils ne s'empilent.
 
-## Sources
+## Versions
 
-- Drees, *Les comptes de la protection sociale* (jeu de données ouvert).
-- Eurostat, `spr_exp_fol` (dépense ESSPROS, fonction vieillesse).
-- Drees, *Distribution des pensions mensuelles*, Échantillon interrégimes de
-  retraités 2020 (jeu de données n° 4178).
-- Drees, *Minima sociaux, RSA et prime d'activité* (jeu de données n° 336),
-  dispositif ASV/ASPA.
-- Drees, *Âge conjoncturel moyen de départ à la retraite selon le sexe*.
-- Drees, *Répartition des taux de remplacement entre les revenus juste avant
-  et juste après la retraite*.
-- Insee, *Retraités et retraites* — fichier « Cotisants et retraités de droit
-  direct » (`reve-protec-cotisant-retraite.xlsx`).
-- [docs/cotisations-et-droits.md](cotisations-et-droits.md), pour le
-  financement par répartition et la distinction contributif/non contributif.
+- **Version 4** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de 2023) et évaluation du Conseil d'orientation des retraites.
+- **Version 3** (14 septembre 2026) : taux de remplacement par quantile (§ 5), ratio cotisants / retraités (§ 6), absence de données ouvertes AGIRC-ARRCO (§ 7).
+- **Version 2** : âge de départ à la retraite depuis 2004 (§ 3).

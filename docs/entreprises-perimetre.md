@@ -1,12 +1,13 @@
-# Quelles entreprises, au juste ? Trois populations à ne pas confondre
+# Quelles entreprises, au juste ? Trois populations distinctes
 
-> Note de méthode. Version 1 — 13 septembre 2026.
-> Elle nomme correctement la liste de `core.entreprise`, et documente le piège
-> qui consiste à l'appeler « le CAC 40 ».
+> **Méthode** · version 2 · 15 septembre 2026
+>
+> Elle nomme correctement la liste de `core.entreprise`, et documente pourquoi elle ne
+> doit pas être appelée « le CAC 40 ».
 
 ---
 
-## 1. Le piège, en une phrase
+## 1. Trois objets sous le même mot
 
 **Trois objets différents circulent sous le mot « les grandes entreprises »**, et aucun
 n'est inclus dans les autres :
@@ -38,7 +39,7 @@ quarante** ne sont pas françaises :
 | Stellantis NV | `NL00150001Q9` | Pays-Bas |
 | STMicroelectronics | `NL0000226223` | Pays-Bas |
 
-Deux corrections aux idées reçues au passage : **Renault est française**
+Deux précisions au passage : **Renault est française**
 (`FR0000131906`) — c'est Stellantis qui est aux Pays-Bas ; et **Eurofins est revenue**
 à un ISIN français (`FR0014000MR3`) après des années au Luxembourg.
 

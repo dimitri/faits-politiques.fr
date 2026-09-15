@@ -1,21 +1,49 @@
 # Bassins versants : la gouvernance de l'eau qui existe déjà
 
-> Pour aller plus loin. Version 1 — 14 septembre 2026.
-> Comme [docs/revenu-universel-microsimulation.md](revenu-universel-microsimulation.md),
-> ce dossier prolonge le constat factuel sans en changer la méthode — mais à
-> la différence de ce dernier, il n'est **pas** une hypothèse : la gouvernance
-> de l'eau par bassin, superposée aux découpages administratifs classiques,
-> **existe déjà** et fonctionne depuis les années 1960 (loi sur l'eau de
-> 1964). Ce dossier décrit cette architecture réelle avant d'en montrer la
-> carte — pas l'inverse — et ne plaide pour aucune réforme : les
-> collectivités existantes ne sont pas remises en cause par le seul fait
-> qu'une gestion par bassin coexiste avec elles depuis six décennies.
+> **Dossier** · version 2 · 15 septembre 2026
+>
+> Comment la gestion de l'eau est-elle organisée en France, à quelle échelle, et
+> par qui ? Le dossier décrit l'architecture qui existe — comités de bassin, agences de
+> l'eau, compétence GEMAPI des intercommunalités — avant d'en montrer la carte. Il ne
+> plaide pour aucune réforme : la gestion par bassin coexiste avec les collectivités depuis
+> la loi sur l'eau de 1964.
 
 ---
 
-## 1. Ce qui existe déjà : quatre niveaux de responsabilité sur l'eau
+## Contexte
 
-### 1.1 Les comités de bassin et les agences de l'eau
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| agences de l'eau | 120 | 57 | 15 octobre 2024 | 20 juillet 2026 |
+| GEMAPI | 38 | 28 | 7 novembre 2024 | 20 juillet 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **« L'urgence d'agir pour nos usages, nos territoires et notre environnement »** (11 juillet 2023). Intitulé de la mission d'information du Sénat de 2023, qui place la gouvernance de l'eau en tête de ses propositions. — Sénat, mission d'information sur la gestion durable de l'eau · [source](https://www.senat.fr/fileadmin/Office_et_delegations/Annexe_-_Essentiel_-_Les_53_propositions.pdf) · *officiel*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La loi MAPTAM, qui crée la compétence GEMAPI** (27 janvier 2014). Son article 56 organise la compétence de gestion des milieux aquatiques et de prévention des inondations (GEMAPI). — Parlement (loi n° 2014-58) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000028526298) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+### 1. Ce qui existe déjà : quatre niveaux de responsabilité sur l'eau
+
+#### 1.1 Les comités de bassin et les agences de l'eau
 
 Six agences de l'eau, établissements publics de l'État, chacune adossée à un
 comité de bassin qui vote son programme pluriannuel et ses taux de
@@ -34,7 +62,7 @@ d'intervention (2025-2030) prévoit plus de 13 Md€ d'aides sur la période,
 de l'ordre de 2 Md€ par an — un montant identifié par cette note, pas encore
 chargé en base sous forme de série vérifiable (§ 5).
 
-### 1.2 GEMAPI : une compétence obligatoire des intercommunalités depuis 2018
+#### 1.2 GEMAPI : une compétence obligatoire des intercommunalités depuis 2018
 
 La **gestion des milieux aquatiques et prévention des inondations (GEMAPI)**
 est une compétence exclusive et obligatoire du bloc communal, transférée de
@@ -61,7 +89,7 @@ intercommunal sans le remplacer : l'EPCI reste titulaire de la compétence,
 il en confie l'exercice à une structure dont le périmètre suit le relief et
 l'hydrographie, pas les limites administratives.
 
-### 1.3 Ce qui reste aux communes, départements et régions
+#### 1.3 Ce qui reste aux communes, départements et régions
 
 L'eau potable et l'assainissement restent des compétences historiquement
 communales, en transfert progressif vers les EPCI depuis les lois NOTRe et
@@ -76,7 +104,7 @@ d'aménagement et de gestion des eaux (**SAGE**, à l'échelle locale) fixent
 les objectifs que ces différents niveaux doivent respecter, sans être
 eux-mêmes une nouvelle strate de collectivité.
 
-## 2. Résumé : quatre logiques territoriales qui coexistent déjà
+### 2. Résumé : quatre logiques territoriales qui coexistent déjà
 
 | Échelle | Acteur | Ce qu'il fait |
 |---|---|---|
@@ -92,7 +120,17 @@ et existe depuis des dates différentes (agences de l'eau : 1964 ; GEMAPI :
 répondre à la question posée par ce dossier — **une gouvernance par bassin
 existe déjà** — pas suggérer qu'il en faudrait une nouvelle.
 
-## 3. La carte : sept bassins hydrographiques, un découpage qui ignore les frontières administratives
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **53 propositions, dont une taxe GEMAPI mutualisée à l'échelle du bassin versant** (11 juillet 2023). La mission propose notamment de renforcer la gouvernance par bassin et de mutualiser une fraction de la taxe GEMAPI sur l'ensemble du bassin versant pour les intercommunalités aux ressources faibles. — [Hervé Gillé](/depute/herve-gille/), Sénat, mission d'information sur la gestion durable de l'eau (rapporteur) · [source](https://www.senat.fr/fileadmin/Office_et_delegations/Annexe_-_Essentiel_-_Les_53_propositions.pdf) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 3. La carte : sept bassins hydrographiques, un découpage qui ignore les frontières administratives
 
 `geo.contour_bassin` (nouveau, cette note) : les sept bassins hydrographiques
 de France métropolitaine (BD Topage 2025, Sandre/IGN) — les six bassins des
@@ -121,7 +159,9 @@ politico-administrative, de l'autre).
 France métropolitaine — les bassins d'outre-mer (chacun rattaché à un office
 de l'eau local plutôt qu'à une agence) ne sont pas chargés à ce stade.
 
-## 4. Ce qui reste hors de portée de cette première version
+## Ce que les données ne disent pas
+
+### 4. Ce qui reste hors de portée de cette première version
 
 - **Les tracés fins des sous-bassins et du réseau hydrographique**
   (rivières, affluents) : BD Topage les publie séparément, à une résolution
@@ -149,3 +189,8 @@ de l'eau local plutôt qu'à une agence) ne sont pas chargés à ce stade.
 - [docs/ecologie-donnees.md](ecologie-donnees.md), pour la fiscalité
   écologique et le budget vert — des prélèvements distincts des redevances
   d'agence de l'eau décrites ici.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre et contrôle sourcés (loi MAPTAM, mission d'information du Sénat de 2023).
+- **Version 1** (14 septembre 2026) : architecture de la gouvernance de l'eau et carte des bassins hydrographiques.

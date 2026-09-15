@@ -1,19 +1,93 @@
-# L'Éducation nationale : budget, effectifs, et trois idées reçues vérifiées
+# L'Éducation nationale : budget, effectifs, organisation
 
-> Note de synthèse. Version 2 — 14 septembre 2026.
-> Le budget de la mission Enseignement scolaire s'appuie sur
-> `core.budget_programme`, la même table que
-> [docs/securite-police-donnees.md](securite-police-donnees.md) et
-> [docs/defense-donnees.md](defense-donnees.md) — un seul chargement PLF
-> couvre déjà cette mission, rien à recharger.
+> **Dossier** · version 3 · 15 septembre 2026
 >
-> **Version 2** documente précisément, après une recherche dédiée, pourquoi
-> les effectifs d'AESH restent hors de portée en jeu de données ouvert
-> (§ 6) — sans rien changer aux données déjà chargées.
+> Que coûte l'enseignement scolaire, combien de personnes y travaillent par
+> établissement, et comment l'autorité et la rémunération des enseignants sont-elles
+> organisées ? Le budget s'appuie sur la table du projet de loi de finances partagée avec les
+> dossiers défense et police.
 
 ---
 
-## 1. Le budget : 87 à 88 Md€, et neuf euros sur dix pour du personnel
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| Éducation nationale | 685 | 217 | 1er octobre 2024 | 21 juillet 2026 |
+| AESH | 246 | 90 | 16 octobre 2024 | 21 juillet 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La baisse du nombre d'élèves s'accélère** (20 novembre 2025). Le rapport relève que la diminution du nombre de collégiens, limitée à 18 000 par an pendant deux rentrées, va s'accentuer très fortement. — Sénat, commission de la culture (avis sur la mission « Enseignement scolaire », PLF 2026) · [source](https://www.senat.fr/rap/a25-144-31/a25-144-31-syn.pdf) · *officiel*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La loi pour une école de la confiance** (26 juillet 2019). Son article 11 rend l'instruction obligatoire dès trois ans et jusqu'à seize ans. — Parlement (loi n° 2019-791) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000038829065) · *officiel*
+- **L'accompagnement des élèves handicapés pendant la pause méridienne pris en charge par l'État** (27 mai 2024). L'État prend en charge l'accompagnement humain des élèves en situation de handicap durant le temps de pause méridienne. — Parlement (loi n° 2024-475) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000049602933) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+### 4. L'autorité du chef d'établissement sur les enseignants
+
+Le Code de l'éducation (articles D. 422-5 à D. 422-11) dit précisément ceci :
+le chef d'établissement (principal, proviseur) **« représente l'État au sein
+de l'établissement »** et **« a autorité sur l'ensemble des personnels
+affectés ou mis à disposition »** (art. D. 422-5, D. 422-7) — une autorité
+large, sur tous les personnels sans distinction de statut dans le texte
+lui-même.
+
+**Dans la pratique et selon l'interprétation qu'en font l'administration et
+les organisations syndicales, cette autorité est qualifiée de
+« fonctionnelle » plutôt que de « hiérarchique » pour les enseignants** : le
+chef d'établissement organise leur service au sein de l'établissement, mais
+les actes qui déterminent une carrière — recrutement, évaluation
+disciplinaire, notation, mutation — restent du ressort du recteur d'académie,
+via le corps d'inspection (IA-IPR). Cette distinction fonctionnel/hiérarchique
+n'est pas un terme que le Code de l'éducation emploie explicitement dans les
+articles cités ; elle est l'interprétation dominante qu'en tirent
+l'administration et les représentants du personnel, pas une citation littérale
+de la loi — cette note le signale précisément pour ne pas citer comme
+disposition légale ce qui est une lecture établie mais non textuelle.
+
+### 5. Le versement du traitement sur douze mois
+
+**Il n'existe pas de dispositif où un enseignant serait payé pour dix mois de
+service puis « réparti » sur douze.** Comme tout fonctionnaire, un enseignant
+titulaire perçoit un traitement annuel, versé en douze mensualités égales, en
+application du principe du service fait — le même mécanisme de mensualisation
+que pour n'importe quel agent public, enseignant ou non. Le salaire continue
+d'être versé en juillet et en août, sans interruption ni rattrapage.
+
+**Un écart de rémunération d'une autre nature existe** : d'autres agents de même grade perçoivent davantage de primes et d'indemnités que les enseignants. Il n'a rien à voir avec un calendrier de versement. Cette note ne
+peut pas chiffrer précisément cet écart de primes faute d'une source ouverte
+dédiée au moment de l'écriture ; elle se limite à décrire le mécanisme de versement, qui est vérifiable dans les règles générales de la fonction
+publique.
+
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **63,02 Md€ pour l'enseignement scolaire en 2026, après 12,13 Md€ de hausse depuis 2019** (20 novembre 2025). Hors pensions, les crédits de paiement des cinq programmes du ministère s'élèvent à 63,02 Md€ pour 2026, un budget stable après une hausse de 12,13 Md€ depuis 2019 (crédits votés, pas exécutés). — Sénat, commission de la culture (avis sur la mission « Enseignement scolaire », PLF 2026) · [source](https://www.senat.fr/rap/a25-144-31/a25-144-31-syn.pdf) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 1. Le budget : 87 à 88 Md€, et neuf euros sur dix pour du personnel
 
 Mission **Enseignement scolaire**, PLF, six programmes chargés intégralement :
 
@@ -35,7 +109,7 @@ des crédits de paiement (CP) votés au PROJET de loi de finances, pas la loi de
 finances initiale adoptée ni l'exécution — même piège voté/exécuté que
 [docs/budget-donnees.md](budget-donnees.md) § 2.
 
-## 2. Les effectifs par établissement : Depp, granularité fine
+### 2. Les effectifs par établissement : Depp, granularité fine
 
 Source : Depp, `data.education.gouv.fr`, deux jeux distincts et asymétriques —
 le premier degré publie les rentrées 2024 et 2025, le second degré seulement
@@ -53,7 +127,7 @@ le premier degré publie les rentrées 2024 et 2025, le second degré seulement
 scolaire déjà documentée par ailleurs, mais cette note ne l'établit pas ici,
 faute d'avoir chargé les effectifs d'élèves en regard.
 
-## 3. Le coût de structure : ce que le personnel hors enseignement révèle — et ce qu'il cache
+### 3. Le coût de structure : ce que le personnel hors enseignement révèle — et ce qu'il cache
 
 Le second degré publie, par établissement, l'ETP total, l'ETP enseignant et
 l'ETP « personnels de vie scolaire ». Le résidu (`etp_total − etp_enseignants
@@ -86,47 +160,27 @@ moyenne par établissement) que dans le public (8,5 %)** — une mesure qui, ell
 porte sur la même catégorie de personnel (les enseignants payés par l'État)
 dans les deux secteurs, donc réellement comparable.
 
-## 4. Qui est le supérieur hiérarchique d'un enseignant ?
+## Ce que les données ne disent pas
 
-Le Code de l'éducation (articles D. 422-5 à D. 422-11) dit précisément ceci :
-le chef d'établissement (principal, proviseur) **« représente l'État au sein
-de l'établissement »** et **« a autorité sur l'ensemble des personnels
-affectés ou mis à disposition »** (art. D. 422-5, D. 422-7) — une autorité
-large, sur tous les personnels sans distinction de statut dans le texte
-lui-même.
+Les effectifs d'AESH, la dépense par élève et les séries longues ne sont pas
+disponibles en jeu de données ouvert structuré : la liste « Non chargé, et pourquoi » de
+l'annexe technique (§ 6) le détaille source par source.
 
-**Dans la pratique et selon l'interprétation qu'en font l'administration et
-les organisations syndicales, cette autorité est qualifiée de
-« fonctionnelle » plutôt que de « hiérarchique » pour les enseignants** : le
-chef d'établissement organise leur service au sein de l'établissement, mais
-les actes qui déterminent une carrière — recrutement, évaluation
-disciplinaire, notation, mutation — restent du ressort du recteur d'académie,
-via le corps d'inspection (IA-IPR). Cette distinction fonctionnel/hiérarchique
-n'est pas un terme que le Code de l'éducation emploie explicitement dans les
-articles cités ; elle est l'interprétation dominante qu'en tirent
-l'administration et les représentants du personnel, pas une citation littérale
-de la loi — cette note le signale précisément pour ne pas citer comme
-disposition légale ce qui est une lecture établie mais non textuelle.
+## Sources
 
-## 5. La rémunération pendant les vacances d'été : ce que dit la mensualisation
+- Direction du budget, *PLF — dépenses par mission, programme et action*,
+  data.economie.gouv.fr, éditions 2024 et 2025.
+- Depp (Direction de l'évaluation, de la prospective et de la performance),
+  *Les personnels dans les établissements du premier degré* et *du second
+  degré*, data.education.gouv.fr.
+- Légifrance, Code de l'éducation, articles D. 422-5 à D. 422-11.
+- Cour des comptes, rapport sur les AESH, septembre 2024 (ordre de grandeur
+  cité § 6, non chargé en base).
+- [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
 
-**Il n'existe pas de dispositif où un enseignant serait payé pour dix mois de
-service puis « réparti » sur douze.** Comme tout fonctionnaire, un enseignant
-titulaire perçoit un traitement annuel, versé en douze mensualités égales, en
-application du principe du service fait — le même mécanisme de mensualisation
-que pour n'importe quel agent public, enseignant ou non. Le salaire continue
-d'être versé en juillet et en août, sans interruption ni rattrapage.
+## Annexe technique
 
-**D'où vient alors l'idée reçue ?** Probablement de la comparaison avec
-d'autres agents de même grade qui perçoivent davantage de primes et
-d'indemnités que les enseignants — un écart de rémunération réel, mais qui
-n'a rien à voir avec un calendrier de versement sur dix mois. Cette note ne
-peut pas chiffrer précisément cet écart de primes faute d'une source ouverte
-dédiée au moment de l'écriture ; elle se limite à corriger le mécanisme de
-versement, qui est vérifiable dans les règles générales de la fonction
-publique.
-
-## 6. Ce qui est chargé
+### 6. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
@@ -142,14 +196,12 @@ publique.
   scolaire » sans être isolés — confirmé explicitement par la documentation
   du jeu de données lui-même (« les ETP des personnels de vie scolaire sont
   renseignés en nc [non concerné] » pour le secteur privé sous contrat,
-  puisque ces personnels n'y sont pas payés par l'État). Le chiffre le plus
-  cité — **86 502 ETP en 2024, 90 502 ETP en 2025** — vient du rapport de la
+  puisque ces personnels n'y sont pas payés par l'État). Les chiffres de **86 502 ETP en 2024 et 90 502 ETP en 2025** viennent du rapport de la
   Cour des comptes de septembre 2024 et de reprises parlementaires, pas d'un
   jeu de données consultable : cette note le cite comme un ordre de grandeur
   sourcé, pas comme une série chargée en base, faute d'un fichier à
   télécharger et à vérifier ligne à ligne.
-- La dépense par élève (souvent citée : environ 8 450 €/an en primaire,
-  11 320 €/an dans le secondaire) : chiffre publié par la Depp dans ses
+- La dépense par élève (environ 8 450 €/an en primaire, 11 320 €/an dans le secondaire selon les publications de la Depp) : chiffre publié par la Depp dans ses
   publications (RERS, « L'état de l'École ») mais aucun jeu de données ouvert
   structuré retrouvé au moment de l'écriture — seulement des documents PDF.
 - Effectifs d'élèves par école : jeu identifié
@@ -160,14 +212,7 @@ publique.
   les jeux Depp chargés ici ne remontent pas au-delà de 2024 ; les éditions
   RERS antérieures existent en PDF, pas en jeu de données structuré comparable.
 
-## Sources
+## Versions
 
-- Direction du budget, *PLF — dépenses par mission, programme et action*,
-  data.economie.gouv.fr, éditions 2024 et 2025.
-- Depp (Direction de l'évaluation, de la prospective et de la performance),
-  *Les personnels dans les établissements du premier degré* et *du second
-  degré*, data.education.gouv.fr.
-- Légifrance, Code de l'éducation, articles D. 422-5 à D. 422-11.
-- Cour des comptes, rapport sur les AESH, septembre 2024 (ordre de grandeur
-  cité § 6, non chargé en base).
-- [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
+- **Version 3** (15 septembre 2026) : plan commun des dossiers (D-066) ; les §§ 4 et 5, écrits comme des réponses à des questions, décrivent désormais l'organisation ; cadre et contrôle du Sénat sourcés.
+- **Version 2** (14 septembre 2026) : pourquoi les effectifs d'AESH restent hors de portée en données ouvertes.

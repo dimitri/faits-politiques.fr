@@ -1,28 +1,68 @@
 # Le budget de la police nationale, et ce qu'il ne dit pas sur la délinquance
 
-> Note de synthèse. Version 1 — 14 septembre 2026.
-> `docs/securite-conception.md` documente déjà ce que la Sécurité mesure
-> aujourd'hui : des faits enregistrés (SSMSI), jamais un budget ni un
-> effectif. Cette note ajoute l'autre moitié — combien coûte la police
-> nationale, réparti par nature de dépense — sans jamais mélanger les deux
-> mesures : un budget qui augmente et une délinquance qui recule (ou
-> l'inverse) ne se déduisent pas l'un de l'autre.
+> **Dossier** · version 2 · 15 septembre 2026
+>
+> Combien coûte la police nationale, réparti par nature de dépense ? Le dossier ajoute
+> cette mesure à celle des faits de délinquance enregistrés, sans jamais les mêler : un budget
+> qui augmente et une délinquance qui recule, ou l'inverse, ne se déduisent pas l'un de
+> l'autre.
 
 ---
 
-## 1. Deux mesures indépendantes, une seule page ne les confond pas
+## Contexte
 
-`core.commune_delinquance` compte des faits enregistrés par la police et la
-gendarmerie, commune par commune. `core.budget_programme` (nouveau, cette
-note) compte des crédits votés par l'État, mission par mission. Rien ne relie
-mécaniquement les deux : un budget en hausse peut coexister avec une
-délinquance stable, en baisse ou en hausse, pour des raisons qui n'ont rien à
-voir avec le montant voté (organisation, priorités d'affectation,
-évolutions sociales). Cette note ne tente aucun rapprochement des deux
-séries — les publier côte à côte inviterait à une lecture causale que la
-donnée ne permet pas.
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-## 2. Le budget de la police nationale : mission Sécurités, programme 176
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| police nationale | 146 | 58 | 8 octobre 2024 | 21 juillet 2026 |
+| LOPMI | 46 | 22 | 4 février 2025 | 21 juillet 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Des acteurs auditionnés qui décrivent plus d'infractions et plus de violence** (20 novembre 2025). Selon le rapporteur, les acteurs auditionnés confirment une progression importante du nombre d'infractions et de leur niveau de violence (constat d'audition, pas une statistique). — Sénat, commission des lois (avis sur la mission « Sécurités », PLF 2026) · [source](https://www.senat.fr/rap/a25-145-12/a25-145-12-syn.pdf) · *officiel*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La loi d'orientation et de programmation du ministère de l'Intérieur (LOPMI)** (24 janvier 2023). Loi de programmation du ministère de l'Intérieur, à laquelle le Sénat compare chaque budget de la mission « Sécurités ». — Parlement (loi n° 2023-22) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000047046768) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+### 3. La police municipale : une compétence communale, pas nationale
+
+Le programme 176 ne couvre que la police nationale, un corps d'État. La
+police municipale est une compétence des communes, financée par leur budget
+propre — un système entièrement différent, qui n'a pas sa place dans le
+tableau ci-dessus. **Non chargée à ce jour** : aucune source consolidée
+identifiée avec certitude au moment de l'écriture (piste à confirmer :
+rapport annuel du ministère de l'Intérieur sur les polices municipales, ou
+extraction DGCL par fonction communale). Faute de la charger, il serait faux
+de présenter le tableau ci-dessus comme « le coût de la sécurité en France » —
+c'est le coût de la seule police nationale.
+
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **L'objectif de 7 412 créations de postes de la LOPMI « de plus en plus compromis »** (20 novembre 2025). Le rapporteur juge l'objectif de 7 412 créations de postes d'ici 2027 de plus en plus compromis, malgré 1 000 postes prévus pour la police et 400 pour la gendarmerie en 2026. — Sénat, commission des lois (avis sur la mission « Sécurités », PLF 2026) · [source](https://www.senat.fr/rap/a25-145-12/a25-145-12-syn.pdf) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 2. Le budget de la police nationale : mission Sécurités, programme 176
 
 Source : PLF (projet de loi de finances), `data.economie.gouv.fr`, nomenclature
 LOLF par mission/programme/action. La mission **Sécurités** porte quatre
@@ -43,7 +83,7 @@ dans [docs/budget-donnees.md](budget-donnees.md) § 2. Les autorisations
 d'engagement (AE, 26,06 Md€ en 2025) sont chargées séparément et ne se
 confondent pas avec les CP.
 
-### 2.1 Police nationale : une dépense presque entièrement salariale
+#### 2.1 Police nationale : une dépense presque entièrement salariale
 
 | Titre (nature de la dépense) | 2024 (Md€) | 2025 (Md€) |
 |---|---:|---:|
@@ -69,19 +109,37 @@ Par action (2025, crédits de paiement) :
 | Police des étrangers et sûreté des transports internationaux | 1,21 |
 | Sécurité routière | 0,43 |
 
-## 3. La police municipale : une compétence communale, pas nationale
+## Ce que les données ne disent pas
 
-Le programme 176 ne couvre que la police nationale, un corps d'État. La
-police municipale est une compétence des communes, financée par leur budget
-propre — un système entièrement différent, qui n'a pas sa place dans le
-tableau ci-dessus. **Non chargée à ce jour** : aucune source consolidée
-identifiée avec certitude au moment de l'écriture (piste à confirmer :
-rapport annuel du ministère de l'Intérieur sur les polices municipales, ou
-extraction DGCL par fonction communale). Faute de la charger, il serait faux
-de présenter le tableau ci-dessus comme « le coût de la sécurité en France » —
-c'est le coût de la seule police nationale.
+Le budget ne dit ni l'activité des services, ni leur effet sur la délinquance, ni
+les effectifs réellement présents par commune. Le Sénat relève l'écart entre les créations
+de postes programmées et celles réalisées (§ Contrôles).
 
-## 4. Ce qui est chargé
+## Pièges de lecture
+
+### 1. Budget et délinquance : deux mesures indépendantes
+
+`core.commune_delinquance` compte des faits enregistrés par la police et la
+gendarmerie, commune par commune. `core.budget_programme` (nouveau, cette
+note) compte des crédits votés par l'État, mission par mission. Rien ne relie
+mécaniquement les deux : un budget en hausse peut coexister avec une
+délinquance stable, en baisse ou en hausse, pour des raisons qui n'ont rien à
+voir avec le montant voté (organisation, priorités d'affectation,
+évolutions sociales). Cette note ne tente aucun rapprochement des deux
+séries — les publier côte à côte inviterait à une lecture causale que la
+donnée ne permet pas.
+
+## Sources
+
+- Direction du budget, *PLF — dépenses par mission, programme et action*,
+  data.economie.gouv.fr, éditions 2024 et 2025.
+- [docs/securite-conception.md](securite-conception.md), pour ce que
+  `core.commune_delinquance` mesure et ne mesure pas.
+- [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
+
+## Annexe technique
+
+### 4. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
@@ -98,10 +156,7 @@ c'est le coût de la seule police nationale.
   d'équivalent ouvert à `core.execution_etat`, qui ne détaille pas par
   mission.
 
-## Sources
+## Versions
 
-- Direction du budget, *PLF — dépenses par mission, programme et action*,
-  data.economie.gouv.fr, éditions 2024 et 2025.
-- [docs/securite-conception.md](securite-conception.md), pour ce que
-  `core.commune_delinquance` mesure et ne mesure pas.
-- [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (LOPMI) et contrôle du Sénat sur les créations de postes.
+- **Version 1** (14 septembre 2026) : budget de la police nationale par nature de dépense.

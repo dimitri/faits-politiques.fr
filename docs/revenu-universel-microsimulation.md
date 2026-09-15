@@ -1,13 +1,14 @@
 # Le seuil de pauvreté se lit par ménage : ce que cela change pour un revenu universel
 
-> Note de méthode. Version 2 — 14 septembre 2026.
+> **Hypothèse chiffrée** · version 3 · 15 septembre 2026
+>
 > **Cette note chiffre une hypothèse de politique publique, comme
-> [docs/cotisations-et-droits.md](cotisations-et-droits.md) §7 dont elle prend la
-> suite.** Elle n'est pas un constat et ne relève pas du périmètre factuel du
+> l'annexe A de ce document, reprise de
+> [cotisations-et-droits.md](cotisations-et-droits.md), dont elle prend la suite.** Elle n'est pas un constat et ne relève pas du périmètre factuel du
 > projet (voir [docs/perimetre.md](perimetre.md) §2.1 et §2.2). Elle répond à une
 > question précise et laisse le jugement au lecteur.
 >
-> §7.3 de la note précédente chiffrait le coût d'un socle universel avec un
+> Le § A.3 chiffrait le coût d'un socle universel avec un
 > montant forfaitaire **par personne**. Ce chiffrage était cohérent avec les
 > données alors disponibles, mais il ignore un fait qui change le résultat de
 > façon substantielle : le seuil de pauvreté ne se calcule pas par personne, il
@@ -61,7 +62,7 @@ arbitraires entre types de ménages.
 
 ### 1.2 Un chiffrage recalculé, pas seulement corrigé
 
-§7.3 de la note précédente comptait 56,3 millions de résidents de 16 ans ou
+Le § A.3 comptait 56,3 millions de résidents de 16 ans ou
 plus à 1 288 €, pour 870 Md€ bruts par an — un chiffre qui, de plus, omettait
 les moins de 16 ans (environ 12 millions de personnes), leur laissant un socle
 nul alors que l'échelle d'équivalence leur accorde 0,3 UC chacun.
@@ -77,7 +78,7 @@ permet de le totaliser sur toute la population.
 couverts par la micro-simulation (§2), soit, extrapolé à l'ensemble des 30,5
 millions de ménages du recensement, environ 45,1 millions d'UC.**
 
-| | forfait par personne (§7.3, ancien) | socle par UC (ici) |
+| | forfait par personne (§ A.3, ancien) | socle par UC (ici) |
 |---|---:|---:|
 | Population couverte | 56,3 M de résidents ≥ 16 ans | tous les résidents, UC pondérée |
 | Coût brut annuel | 870 Md€ | **≈ 698 Md€** |
@@ -178,7 +179,7 @@ Montants mensuels moyens, 2023 :
 - **Le coût NET de la réforme (socle par UC + reprise fiscale − prestations
   supprimées) est d'environ 25 Md€ par an** pour la population couverte —
   extrapolé aux 3 % de ménages non modélisés, autour de **26 Md€**. C'est très
-  inférieur aux 382 Md€ « au mieux » du §7.3 de la note précédente : la
+  inférieur aux 382 Md€ « au mieux » du § A.3 : la
   différence tient presque entièrement à la reprise fiscale, qui récupère
   586 Md€ des 676 Md€ de socle brut versé à cette même population, contre les
   bornes « au plus » (266 + 38 Md€) que le chiffrage précédent posait sans
@@ -301,7 +302,7 @@ succession ?
 Ici, l'allocation d'un ménage vaut `max(0, seuil × UC − revenu initial)` : rien
 pour un ménage déjà au-dessus du seuil, un COMPLÉMENT exact pour amener
 au seuil celui qui est en dessous. C'est l'architecture « différentielle » de
-[docs/cotisations-et-droits.md](cotisations-et-droits.md) §7.2, mais appliquée
+l'annexe A.2, mais appliquée
 au revenu total du ménage plutôt qu'à chaque droit contributif séparément.
 
 **Ce calcul est IMPOSSIBLE à faire sérieusement avec les moyennes par type de
@@ -380,7 +381,7 @@ Une allocation qui vaut exactement `seuil − revenu` en dessous du seuil et
 zéro au-dessus crée, PILE au niveau du seuil, un taux marginal de **100 %** :
 le premier euro gagné au-delà de ce que l'on a déjà fait perdre un euro
 d'allocation. C'est la critique classique, déjà nommée en
-[docs/cotisations-et-droits.md](cotisations-et-droits.md) §7.2, des dispositifs
+l'annexe A.2, des dispositifs
 d'assistance à seuil dur — et la raison d'être du barème étalé (une à deux fois
 le seuil) retenu pour le socle universel du §2, qui dilue ce taux marginal sur
 une plage plus large au prix d'un coût plus élevé.
@@ -583,3 +584,112 @@ personne sous le seuil de pauvreté.
 - Drees, présentation du Centre d'accès sécurisé aux données (CASD) et du
   modèle Ines — pour ce que ce projet ne peut pas reproduire en open data
   (§6.1).
+
+## Annexe A. Point de départ : trois architectures pour un socle universel
+
+> Cette annexe reprend le § 7 de la version 1 de
+> [cotisations-et-droits.md](cotisations-et-droits.md), qui chiffrait déjà une hypothèse
+> dans un dossier de constat. Elle est rangée ici, avec l'hypothèse qu'elle a ouverte
+> (D-066). La numérotation « § 7.x » citée dans les versions antérieures correspond à
+> « § A.x ».
+
+> **Cette section chiffre une hypothèse de politique publique.** Elle n'est pas un
+> constat et ne relève pas du périmètre factuel du projet. Elle est rédigée pour
+> répondre à une question précise et laisse le jugement au lecteur.
+
+### A.1 Le problème à résoudre
+
+Un revenu universel **au niveau du seuil de pauvreté** — **1 288 € par mois** pour
+une personne seule en 2023 selon l'INSEE — versé aux **56,3 millions** de résidents
+de 16 ans ou plus coûterait **870 Md€ bruts**, soit **66 % de l'ensemble des impôts
+et cotisations** prélevés en 2024 (1 319 Md€).
+
+Le financer uniquement par les prestations **non contributives** ne suffit pas, et
+de loin. La question devient : peut-on y faire contribuer les droits
+**contributifs** sans rompre la promesse individuelle qu'ils portent ?
+
+### A.2 Trois architectures
+
+Soit **S** le socle universel et **P** le droit contributif calculé comme
+aujourd'hui (pension, allocation chômage).
+
+| architecture | ce que reçoit la personne | avantage | défaut |
+|---|---|---|---|
+| **Différentielle** | **max(S, P)** | personne ne perd ; le socle absorbe la première tranche de chaque droit, ce qui le finance en partie | **les premières cotisations deviennent inutiles** : celui dont le droit est inférieur à S reçoit exactement ce que reçoit celui qui n'a jamais cotisé |
+| **Additive** | **S + P** | tout euro cotisé compte, toujours | la plus coûteuse : le socle ne se finance sur aucun droit existant |
+| **Dégressive** | **S + α·P**, avec 0 < α < 1 | tout euro cotisé compte encore ; le socle est financé par la part (1 − α) de chaque droit | les droits élevés baissent ; le choix de α est entièrement politique |
+
+**Le défaut de l'architecture différentielle est central** et mérite d'être nommé :
+c'est un **effet de seuil sur la contributivité**. Il frappe précisément les
+carrières courtes, hachées, à bas salaire — majoritairement féminines : la pension
+moyenne des femmes est de **1 306 € bruts**, sous le socle envisagé. Une réforme
+qui rendrait leurs cotisations sans effet sur leur pension serait perçue, à juste
+titre, comme une spoliation.
+
+**L'architecture dégressive est celle qui répond à la question posée** — un socle
+au-dessus du seuil de pauvreté **et** une part individuelle liée aux cotisations.
+Les régimes de retraite qui combinent une pension de base forfaitaire de résidence
+et un étage professionnel proportionnel en sont des variantes.
+
+### A.3 Ordre de grandeur, hypothèse la plus favorable
+
+> **Ce chiffrage est dépassé par une version plus rigoureuse.** Il utilise un montant forfaitaire **par
+> personne**, alors que le seuil de pauvreté se calcule **par unité de
+> consommation d'un ménage** — un forfait par personne surpaie systématiquement
+> les ménages de plusieurs adultes et laisse les moins de 16 ans sans socle
+> propre. [docs/revenu-universel-microsimulation.md](revenu-universel-microsimulation.md)
+> refait ce calcul par unité de consommation (≈ 698 Md€ bruts, contre 870 ici)
+> et le complète d'une micro-simulation par type de ménage, financée par une
+> reprise fiscale sur le socle plutôt que par les bornes « au plus » ci-dessous
+> (coût net obtenu : ≈ 25 Md€/an, pas 382). Le tableau qui suit reste ici comme
+> trace du premier chiffrage, pas comme référence.
+
+| poste | Md€ |
+|---|---:|
+| Socle à 1 288 €, 56,3 M de personnes | **870** |
+| − prestations monétaires non contributives devenues redondantes | − 96 |
+| − dépenses fiscales rendues redondantes (PLF 2026) | − 88 |
+| − première tranche des pensions de droit direct, **au plus** | − 266 |
+| − première tranche de l'allocation chômage, **au plus** | − 38 |
+| **Reste à financer, au mieux** | **≈ 382** |
+
+Soit **29 % des prélèvements obligatoires actuels**, dans l'hypothèse la plus
+favorable. Lecture des trois lignes qui portent le calcul :
+
+- **96 Md€ de prestations substituables** : logement, RSA, prime d'activité, autres
+  prestations pauvreté, allocations familiales et assimilées, AAH, minimum
+  vieillesse. **Ne sont pas comptés** les services en nature (soins, aide sociale à
+  l'enfance, hébergement, accueil des jeunes enfants), qui ne disparaissent pas
+  parce qu'un revenu est versé.
+- **266 Md€ d'absorption des pensions** est un **plafond** : il suppose que chacun des
+  17,2 millions de retraités de droit direct touche au moins 1 288 €. La pension
+  moyenne est de 1 666 € bruts, mais une part importante des retraités — dont une
+  majorité de femmes — est en dessous. **Le chiffre réel exige la distribution des
+  pensions par décile**, publiée par la DREES, qui n'est pas chargée.
+- **38 Md€ pour le chômage** est l'enveloppe entière de l'allocation, donc aussi un
+  plafond.
+
+### A.4 Ce que ce tableau ne dit pas, et qui compte plus que lui
+
+**Le coût brut n'est pas le coût net.** Un socle versé à un salarié qui gagne
+correctement sa vie est récupéré par l'impôt sur le revenu : c'est l'équivalence
+connue entre un revenu universel assorti d'un impôt proportionnel et un crédit
+d'impôt dégressif. Le « reste à financer » ci-dessus est donc **le montant à
+récupérer**, pas nécessairement un montant de recettes nouvelles. Tout chiffrage
+sérieux passe par une microsimulation qui applique à la fois le socle et le barème
+fiscal réformé aux revenus réels des ménages — ce que ce document ne fait pas.
+
+**Le seuil de pauvreté est calculé par unité de consommation.** Un ménage de deux
+adultes n'a pas besoin de deux fois le revenu d'une personne seule pour atteindre
+le même niveau de vie. Un socle strictement individuel au niveau du seuil place
+donc les couples **au-dessus** de ce seuil : c'est un choix de conception, pas un
+détail d'arrondi.
+
+**Pour chiffrer précisément**, il manque trois séries : la distribution des
+pensions par décile (DREES), celle des allocations chômage (Unédic), et un modèle
+de microsimulation du revenu disponible des ménages.
+
+## Versions
+
+- **Version 3** (15 septembre 2026) : type « Hypothèse chiffrée » du plan commun (D-066) ; reprend en annexe A le chiffrage d'un socle universel qui figurait au § 7 de [cotisations-et-droits.md](cotisations-et-droits.md).
+- **Version 2** (14 septembre 2026) : coût net recalculé sur les déciles nationaux de niveau de vie (§ 6) et barème de reprise version 2 (§ 7).

@@ -1,18 +1,45 @@
 # La Sécurité sociale : le budget le plus lourd, en trois notes reliées
 
-> Note de synthèse. Version 1 — 14 septembre 2026.
-> Le budget social — retraites, chômage, maladie, famille — pèse plus lourd que
-> le budget de l'État (803,5 Md€ de dépenses en 2025 contre 680,8 Md€ pour
-> l'administration centrale) et se lit moins facilement : quatre périmètres
-> différents portent des chiffres différents sous le même nom
-> (`docs/decisions.md` D-048), et la Sécurité sociale, contrairement à l'État,
-> ne publie pas de compte consolidé unique. Cette note ne refait pas le travail
-> déjà fait ailleurs — elle pose le périmètre commun, puis renvoie vers les
-> trois notes qui détaillent chaque volet.
+> **Dossier** · version 2 · 15 septembre 2026
+>
+> Le budget social — retraites, chômage, maladie, famille — pèse plus que celui de
+> l'État et se lit moins facilement : quatre périmètres portent des chiffres différents sous le
+> même nom, sans compte consolidé unique. Le dossier pose ce périmètre commun, puis renvoie aux
+> dossiers qui détaillent chaque volet.
 
 ---
 
-## 1. Quatre périmètres, un seul mot
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| sécurité sociale | 2413 | 314 | 1er octobre 2024 | 20 juillet 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Des finances publiques « très dégradées »** (10 décembre 2025). La commission ouvre son rapport sur le budget de la Sécurité sociale 2026 par la situation des finances publiques, qu'elle qualifie de très dégradée. — Sénat, commission des affaires sociales (rapport sur le PLFSS 2026) · [source](https://www.senat.fr/lessentiel/plfss2026.pdf) · *officiel*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La loi de financement de la sécurité sociale pour 2024** (26 décembre 2023). Exemple de loi annuelle qui fixe les objectifs de dépenses et les prévisions de recettes des branches de la Sécurité sociale. — Parlement (loi n° 2023-1250) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000048668665) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+### 1. Quatre périmètres, un seul mot
 
 `docs/decisions.md` D-048 pose la distinction que toute lecture d'un chiffre
 « sécu » doit garder en tête :
@@ -28,17 +55,17 @@
 sur toute valeur chargée en base — aucun chiffre du site ne peut être publié
 sans dire à quel périmètre il appartient.
 
-## 2. Ce que la Sécurité sociale ne publie pas
+## Contrôles et évaluations
 
-Une recherche « comptes de la sécurité sociale » sur data.gouv.fr renvoie
-**zéro jeu de données**. Le seul jeu rattaché à la loi de financement, les
-REPSS, est **gelé depuis janvier 2022**. Le budget le plus lourd des deux
-budgets publics est le moins documenté en données ouvertes — c'est la
-contrainte qui façonne tout ce qui suit : les trois notes ci-dessous
-s'appuient sur des séries DREES, Eurostat et Unédic publiées séparément,
-faute d'un compte consolidé unique à interroger.
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-## 3. Trois volets, trois notes
+- **Budget de la Sécurité sociale 2026 : des mesures de réduction du déficit ramenées à 9 Md€** (10 décembre 2025). Selon la commission, les mesures de réduction du déficit, de 15 Md€ dans le texte initial, n'étaient plus que de 9 Md€ dans le texte adopté. — Sénat, commission des affaires sociales (rapport sur le PLFSS 2026) · [source](https://www.senat.fr/lessentiel/plfss2026.pdf) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 3. Trois volets, trois notes
 
 - **[docs/cotisations-et-droits.md](cotisations-et-droits.md)** — la question
   de fond : qu'est-ce qu'une cotisation garantit ? Deux distinctions
@@ -58,7 +85,19 @@ Chacune se lit seule ; ensemble, elles couvrent la chaîne complète — combien
 ça coûte, qui est protégé par quoi, d'où vient l'argent — sans qu'aucune ne
 tente de tout dire à la fois.
 
-## 4. Ce qui reste hors de portée, à ce périmètre
+## Ce que les données ne disent pas
+
+### 2. Ce que la Sécurité sociale ne publie pas
+
+Une recherche « comptes de la sécurité sociale » sur data.gouv.fr renvoie
+**zéro jeu de données**. Le seul jeu rattaché à la loi de financement, les
+REPSS, est **gelé depuis janvier 2022**. Le budget le plus lourd des deux
+budgets publics est le moins documenté en données ouvertes — c'est la
+contrainte qui façonne tout ce qui suit : les trois notes ci-dessous
+s'appuient sur des séries DREES, Eurostat et Unédic publiées séparément,
+faute d'un compte consolidé unique à interroger.
+
+### 4. Ce qui reste hors de portée, à ce périmètre
 
 - **Un compte consolidé de la Sécurité sociale** : n'existe pas en open data
   (§ 2) — chaque note ci-dessus recompose son propre périmètre à partir de
@@ -72,3 +111,8 @@ tente de tout dire à la fois.
 Cette note n'introduit aucune donnée nouvelle — elle relie des sources déjà
 citées dans les trois notes ci-dessus. Voir leurs sections « Sources »
 respectives.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de financement 2024) et contrôle du Sénat sur le budget 2026.
+- **Version 1** (14 septembre 2026) : périmètres et renvois.

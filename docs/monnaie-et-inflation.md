@@ -1,6 +1,7 @@
 # Comparer des montants dans le temps : francs, euros, et inflation
 
-> Note de méthode. Version 1 — 13 septembre 2026.
+> **Méthode** · version 1 · 13 septembre 2026
+>
 > Elle s'applique à **toute valeur monétaire du projet**, pas seulement au budget :
 > comptes des partis, comptes de campagne, budgets communaux, marchés publics,
 > déclarations HATVP, séries macroéconomiques.

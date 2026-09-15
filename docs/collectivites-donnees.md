@@ -1,16 +1,39 @@
 # Collectivités : d'où vient l'argent, et ce qu'un euro par habitant ne dit pas
 
-> Note de synthèse. Version 1 — 15 septembre 2026.
-> Communes, intercommunalités, départements, régions : quatre niveaux, quatre
-> paniers de compétences différents, et deux questions que ce dossier sépare
-> délibérément — combien ils dépensent (déjà documenté sur `/collectivites/`)
-> et d'où vient l'argent qu'ils dépensent. Cette seconde question est
-> celle que cette note ajoute, avec la dotation globale de fonctionnement
-> (DGF) chargée pour cela.
+> **Dossier** · version 2 · 15 septembre 2026
+>
+> Communes, intercommunalités, départements, régions : d'où vient l'argent que les
+> collectivités dépensent ? Le dossier sépare deux origines — la fiscalité qu'elles votent et
+> les transferts de l'État, dont la dotation globale de fonctionnement (DGF) — et ce qu'un
+> montant par habitant ne dit pas.
 
 ---
 
-## 1. Deux origines, à ne jamais réduire à une seule
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Aucun texte n'est encore chargé pour ce dossier.
+
+<!-- faits:CADRE:fin -->
+
+### 1. Deux origines : fiscalité propre et transferts de l'État
 
 Une collectivité locale finance ses dépenses de deux façons principales :
 **la fiscalité qu'elle vote elle-même** (taxe foncière, part locale de
@@ -26,7 +49,17 @@ trois agrégats OFGL par habitant pour les quatre niveaux — **recettes
 totales**, **DGF**, **impôts et taxes** — aux côtés des cinq indicateurs de
 dépense déjà documentés sur la page `/collectivites/`.
 
-## 2. La photographie 2025
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 2. La photographie 2025
 
 `derived.poids_des_niveaux` (vue qui somme les indicateurs par habitant en
 masse totale, niveau par niveau) :
@@ -49,7 +82,7 @@ intercommunalité reverse à ses communes membres, est comptée en recette chez
 celui qui la reçoit et en dépense chez celui qui la verse — le même
 avertissement que pour les cinq indicateurs de dépense déjà publiés.
 
-## 3. Les régions, un cas à part : la DGF a presque disparu, pas les transferts de l'État
+### 3. Les régions, un cas à part : la DGF a presque disparu, pas les transferts de l'État
 
 **1 % de DGF pour les régions, contre 8 à 13 % pour les autres niveaux — un
 fait réel, pas une lacune de chargement.** Depuis la loi de finances pour
@@ -65,7 +98,9 @@ méthodologie détaillée de l'OFGL pour le confirmer. **Une région à faible D
 n'est donc pas une région abandonnée par l'État** : c'est un changement de
 tuyau budgétaire de 2018, pas un désengagement.
 
-## 4. Ce que ce chargement ne permet pas encore de faire
+## Ce que les données ne disent pas
+
+### 4. Ce que ce chargement ne permet pas encore de faire
 
 **Le pont vers la santé et l'éducation nationale, posé mais pas chiffré.**
 Les départements financent une part de l'action sociale et des collèges, les
@@ -85,7 +120,18 @@ de ce chargement : plus lourde à charger, elle documenterait un niveau de
 détail que la question posée ici (transferts vs fiscalité propre, en masse)
 ne demande pas.
 
-## 5. Ce qui est chargé
+## Sources
+
+- OFGL (Observatoire des finances et de la gestion publique locales) /
+  DGCL, données par habitant par niveau de collectivité, 2018-2025.
+- [docs/mairies-conception.md](mairies-conception.md), pour ce qui est
+  comparable et ce qui ne l'est pas entre communes.
+- [docs/bassins-versants-donnees.md](bassins-versants-donnees.md), pour un
+  exemple déjà traité de compétence territoriale partagée entre niveaux.
+
+## Annexe technique
+
+### 5. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
@@ -101,11 +147,7 @@ ne demande pas.
 - **Chiffrage du financement territorial de la santé et de l'éducation** :
   compétences identifiées, montants non isolés — § 4.
 
-## Sources
+## Versions
 
-- OFGL (Observatoire des finances et de la gestion publique locales) /
-  DGCL, données par habitant par niveau de collectivité, 2018-2025.
-- [docs/mairies-conception.md](mairies-conception.md), pour ce qui est
-  comparable et ce qui ne l'est pas entre communes.
-- [docs/bassins-versants-donnees.md](bassins-versants-donnees.md), pour un
-  exemple déjà traité de compétence territoriale partagée entre niveaux.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066).
+- **Version 1** (15 septembre 2026) : dotation globale de fonctionnement et fiscalité propre.

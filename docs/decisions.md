@@ -2120,3 +2120,98 @@ par groupe ; elles paraissent depuis mi-2026. Chaque rapport est transcrit du do
 scellé et contrôlé contre le bénéfice du groupe déposé à la SEC. Les rapports roumains
 anticipés ne portent que sur la Roumanie. Les comptes irlandais, payants, ne sont pas
 chargés.
+
+## D-065 — Souveraineté numérique : aucune ré-identification des sanctions de la CNIL, tous les marchés informatiques, les déclarations séparées des constats
+
+Migration 0097, paquet `internal/numerique` (`-only=numerique`, ou `numerique-anssi`,
+`-cnil`, `-faits`, `-marches`), docs/souverainete-numerique.md.
+
+**Le dossier ne part pas d'une thèse.** Une première version de la note examinait une
+phrase de départ (« l'État enrichit des sociétés américaines… ») affirmation par
+affirmation ; elle a été retirée : la phrase servait à fouiller les données, pas à les
+présenter. Le dossier suit désormais un ordre fixe — contexte, raisons avancées, normes et
+souhaits de l'État, contrôles, situation chiffrée — et chaque partie dit ce que ses sources
+ne permettent pas d'établir. Le contexte s'appuie sur les données déjà chargées :
+intitulés des décrets d'attributions (corpus JORF) et prises de parole de l'Assemblée
+nationale (`derived.dossier_mentions_an`, D-066), où une mention n'est jamais lue comme une
+position.
+
+**Ce projet ne rétablit pas le nom d'un organisme que la CNIL a retiré.** La publicité
+nominative d'une sanction est une peine complémentaire limitée dans le temps ; à son
+expiration, la CNIL désigne l'organisme par sa catégorie et retire ses communiqués. Les
+noms restent trouvables dans la presse, mais les republier contournerait une décision de
+l'autorité : `core.sanction_cnil` garde la catégorie publiée, et un contrôle bloque tout
+nom de groupe dans cette table. Seules les sanctions que l'autorité nomme elle-même à la
+date du chargement (Google, 325 M€, CNIL 2025 ; Meta, 1,2 Md€, autorité irlandaise 2023)
+sont des faits nommés.
+
+**Le RGPD et les contrats de l'État ne se confondent pas.** Aucune décision chargée ne
+constate une violation du RGPD par un fournisseur *dans l'exécution d'un contrat
+public* ; les sanctions nommées portent sur des services grand public. Le cadre de
+transfert UE-États-Unis est en vigueur (décision de 2023, confirmée par le Tribunal en
+septembre 2025). Le dossier documente donc l'exposition juridique (CLOUD Act, FISA,
+arrêt Schrems II) et l'écart entre la règle française (loi SREN, doctrine « cloud au
+centre ») et les achats constatés — pas une illégalité qui n'a pas été jugée.
+
+**Tous les marchés informatiques, pas les groupes suivis.** Mesurer la part des groupes
+étrangers sur les seuls groupes qu'on a choisis de suivre fabriquerait le résultat.
+`core.marche_numerique` prend tous les marchés des codes CPV 48, 72 et 302. Il en ressort
+surtout ce que la commande publique ne dit pas : le titulaire est le plus souvent un
+revendeur ou un intégrateur français, et l'objet ne nomme un éditeur que dans une petite
+minorité de marchés. La part de l'argent public qui revient à des éditeurs étrangers
+n'est pas mesurable avec les données publiées ; le dossier donne les seuls chiffres
+officiels partiels (ventes de l'UGAP, marché cloud de l'UGAP) et le dit.
+
+**Une déclaration rapportée par le Sénat n'est pas un constat du Sénat.** Les faits
+distinguent OFFICIEL (établi par l'institution, ou propos dont l'institution atteste
+qu'il a été tenu, comme la réponse de Microsoft France sous serment) et DECLARATIF
+(chiffre ou affirmation d'une partie : les 71 % de part de marché avancés par une
+association, les surcoûts de 200 à 1 300 % avancés par un ministère et contestés par un
+éditeur, la suspension de la messagerie du procureur de la CPI rapportée par la presse et
+contestée par Microsoft).
+
+**Le catalogue de l'ANSSI est lu par pdftotext.** Le projet n'avait pas de lecteur PDF ;
+comme 7z pour la SAE, l'outil est exigé et son absence fait échouer le connecteur. Le
+même outil relit les pages du rapport du Sénat n° 830 : chaque fait tiré d'un PDF est
+désormais contrôlé contre le texte, et non plus seulement scellé.
+
+## D-066 — Un même plan, une même échelle de qualité et des citations liées pour tous les dossiers
+
+Migration 0098, paquet `internal/dossiers` (`-only=dossiers`), commande
+`cmd/sections-dossiers`, perimetre.md § 2.8.
+
+**Pourquoi.** Les dossiers avaient été écrits au fil des questions : cinq types d'en-tête,
+sept noms pour « ce qui manque », des formules de verdict (« la prémisse est fausse »,
+« idées reçues vérifiées », « Non, la France n'est pas un paradis fiscal ») contraires à
+D-002, des « chiffres souvent cités » sans dire par qui, et deux échelles de qualité des
+faits (OFFICIEL/PRESSE/ENTREPRISE pour l'évasion fiscale, OFFICIEL/DECLARATIF/PRESSE pour
+la souveraineté numérique). Le dossier souveraineté, réécrit dans l'ordre contexte →
+enjeux → cadre → contrôles → situation, a servi de modèle.
+
+**Décidé.**
+
+- **Un plan unique** (perimetre.md § 2.8). Les sections existantes des dossiers sont
+  rangées dans ce plan en gardant leur numérotation, pour que les renvois « § 1.3 » du
+  journal et du code restent valides.
+- **Une table de faits pour tous les dossiers**, `ref.fait_dossier`, avec une preuve
+  obligatoire relue au chargement : phrase attendue dans un document scellé, dans un texte
+  du Journal officiel chargé (article compris), ou dans une prise de parole de l'Assemblée
+  chargée. `ref.fait_souverainete` (migration 0097, jamais commitée) y est fondue.
+- **Une échelle de qualité unique**, `ref.qualite_fait` : le communiqué d'entreprise
+  (ENTREPRISE) devient DECLARATIF, comme la déclaration d'une association ou d'un élu en
+  séance. Une liste unique de natures de montant, `ref.nature_montant`, référencée par les
+  deux tables de faits.
+- **Les citations de personnes publiques sont liées à leur fiche.** `person_id` relie le
+  fait à `core.person` ; `derived.fait_dossier_personne` dit si la fiche existe sur le site
+  (mêmes critères que `cmd/build`). Les prises de parole sont référencées par le slug du
+  paragraphe (`intervention_slug`), sans clé étrangère : le connecteur des comptes rendus
+  recharge sa table entière.
+- **Les sections factuelles sont générées** par `cmd/sections-dossiers`, entre marqueurs
+  `<!-- faits:SECTION:debut … -->`, comme la figure du bulletin de paie (D-060).
+
+**Ce que cela coûte.** Les « enjeux » d'un dossier ne peuvent plus être écrits par le
+projet : ils viennent d'une institution citée, ce qui rend certaines sections courtes. Les
+contrôles de la Cour des comptes ne sont pas chargés : son site renvoie une erreur 502 aux
+téléchargements automatisés, non contournée. Les faits de contexte tirés des débats
+couvrent la seule Assemblée nationale depuis juillet 2024 (couverture des comptes rendus
+chargés).

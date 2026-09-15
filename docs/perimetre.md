@@ -101,6 +101,42 @@ d'éligibles.
 Permalien immuable, empreinte SHA-256 du document primaire, date de consultation,
 version datée de la page. Un screenshot doit être authentifiable.
 
+### 2.8 Un même plan pour tous les dossiers (D-066)
+
+Un dossier documentaire (`docs/*-donnees.md` et assimilés) ne part d'aucune thèse. Il
+suit toujours le même ordre, pour que le lecteur retrouve la même chose au même endroit :
+
+| section | ce qu'elle contient | d'où ça vient |
+|---|---|---|
+| **Contexte** | la place du sujet dans l'action publique : prises de parole à l'Assemblée qui emploient ses mots, déclarations de membres du Gouvernement, intitulés | `derived.dossier_mentions_an`, `ref.fait_dossier` |
+| **Enjeux** | ce que les institutions disent de l'importance du sujet, jamais ce qu'en pense le dossier | `ref.fait_dossier` |
+| **Cadre** | les textes (loi, doctrine, règles européennes) et les définitions officielles | `ref.fait_dossier`, textes relus dans le Journal officiel |
+| **Contrôles et évaluations** | Parlement, Cour des comptes, juridictions, autorités et hauts conseils | `ref.fait_dossier` |
+| **Situation chiffrée** | les données, chacune avec sa source, sa date et sa nature | tables `core` et `derived` |
+| **Ce que les données ne disent pas** | les absences, typées (§ 2.2) | — |
+| **Pièges de lecture**, **Glossaire**, **Sources** | | |
+| **Annexe technique** | tables, migrations, connecteurs, vérifications, chiffres de référence datés | hors du texte lu par le public |
+| **Versions** | ce qui a changé, et quand | |
+
+Règles d'écriture qui en découlent :
+
+1. **Aucun verdict ni formule de verdict** : ni « la prémisse est fausse », ni « idées reçues
+   vérifiées », ni pastilles « oui / non ». Un écart entre un chiffre cité et un chiffre
+   mesuré s'écrit en nommant qui cite le chiffre (orateur et séance, rapport, texte), jamais
+   « le chiffre souvent cité » ou « ce que le débat public confond ».
+2. **Chaque fait porte sa qualité** (`ref.qualite_fait`) : *officiel* (établi par une
+   institution), *déclaratif* (propos d'une partie : élu en séance, ministre, entreprise,
+   association — il est établi qu'il a été tenu, pas qu'il est exact), *presse*.
+3. **Une personne publique citée est liée à sa fiche** (`/depute/<slug>/`) quand elle en a
+   une ; les sections tirées de `ref.fait_dossier` sont écrites par
+   `cmd/sections-dossiers`, entre des marqueurs, pour que le lien et la preuve ne divergent
+   jamais de la base.
+4. **Trois types de documents seulement** : *Dossier* (constat), *Méthode* (comment le
+   projet lit une source ou construit une page), *Hypothèse chiffrée* (hors constat,
+   étiquetée comme telle). Un document n'en mélange pas deux.
+5. **Le lecteur n'a pas à connaître le dépôt** : pas de migration, de connecteur ni de
+   référence à la personne qui a posé la question dans le corps du texte.
+
 ---
 
 ## 3. Ce que l'outil peut réellement vérifier

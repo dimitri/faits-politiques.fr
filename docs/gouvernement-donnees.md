@@ -1,14 +1,13 @@
-# Onglet GOUVERNEMENT : ce que l'open data fournit, et ce qu'il ne fournit pas
+# La page Gouvernement : ce que les données ouvertes fournissent, et ce qu'elles ne fournissent pas
 
-> Étude du 12 septembre 2026 ; chiffres de la base relevés le 13 septembre 2026.
-> Là où l'étude et la base divergent, c'est la base qui fait foi : les tableaux
-> de la section 1.4 ont été recomptés.
-
-La demande portait sur une frise depuis
-Chirac — présidences, gouvernements, ministères — accompagnée des grands
-chiffres : dette, dépenses par pôle, recettes fiscales, chômage, RSA, pauvreté,
-dividendes et impôt sur les sociétés du CAC 40. Plus, séparément, les
-manifestations avec chiffres de la police, interpellations et blessés.
+> **Méthode** · version 2 · 15 septembre 2026
+>
+> Comment construire une frise des présidences, gouvernements et ministères depuis
+> Jacques Chirac, accompagnée des grands chiffres (dette, dépenses par fonction, recettes
+> fiscales, chômage, RSA, pauvreté, dividendes et impôt sur les sociétés), et que peut-on
+> dire des manifestations (chiffres de la police, interpellations, blessés) ? Étude du
+> 12 septembre 2026 ; chiffres de la base relevés le 13 septembre 2026. Là où l'étude et la
+> base divergent, c'est la base qui fait foi.
 
 Tout n'est pas disponible. Ce document sépare ce qui est chargé, ce qui est
 atteignable et ce qui n'existe pas.
@@ -43,7 +42,7 @@ Deux pièges que `ref.macro_serie.definition` documente pour chaque série :
 
 - Le **chômage BIT** n'est pas le nombre d'inscrits à France Travail. Les deux
   chiffres diffèrent de plus d'un million et obéissent à des règles
-  différentes ; les confondre est l'erreur la plus courante des débats.
+  différentes ; ils ne sont pas interchangeables.
 - Le **seuil de pauvreté est relatif** : 60 % de la médiane. Il bouge avec le
   niveau de vie médian, et une baisse du médian peut faire reculer le nombre de
   pauvres sans que personne se soit enrichi.
@@ -78,7 +77,7 @@ Valls Premier ministre.
 
 ### 1.4 Les ministres : quatre sources essayées, une seule tient
 
-| Source | Ce qu'elle donne | Verdict |
+| Source | Ce qu'elle donne | Retenue |
 |---|---|---|
 | [data.gouv.fr — composition des gouvernements](https://www.data.gouv.fr/datasets/composition-des-gouvernements-de-la-veme-republique-1959-2014) | Premiers ministres et ministres, 1959-2014 | **gelée en 2014**, aucun successeur |
 | Légifrance (site et API) | le texte des décrets | **HTTP 403** derrière une protection anti-robot ; l'API exige un compte PISTE |

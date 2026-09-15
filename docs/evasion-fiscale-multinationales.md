@@ -1,16 +1,53 @@
-# Évasion fiscale des multinationales : l'impôt que la France ne perçoit pas — données
+# Évasion fiscale des multinationales
 
-Migrations 0082 et 0087, paquet `internal/fiscalite`, `-only=fiscalite` (ou
-`fiscalite-listes`, `-ocde`, `-ide`, `-fats`, `-twz`, `-filiales`, `-comptes`,
-`-marches`, `-faits`). Contrôles : `cmd/verify/fiscalite.go`. Décisions : D-059
-(grilles et filiales), D-061 (le dossier et ses nouvelles données).
+> **Dossier** · version 3 · 15 septembre 2026
+>
+> Pourquoi une part de l'impôt sur les bénéfices des multinationales n'est-elle pas perçue
+> en France, par quels mécanismes, que sait-on de l'impôt qu'elles y paient, et que leur verse
+> l'État dans le même temps (marchés publics, aides) ? Les estimations économiques ne
+> distinguent pas fraude, évasion et optimisation : chaque fait cité porte sa qualification
+> juridique. Avoir des marchés publics n'est pas un indice d'évasion.
 
-> Ce document s'appelait « La France est-elle un paradis fiscal ? ». La réponse
-> (non, § 6) reste établie ; le dossier porte désormais sur la question qu'elle
-> ouvre : pourquoi l'impôt des multinationales échappe-t-il en partie à la France, et
-> que leur verse l'État dans le même temps ?
+---
 
-## 1. La question, et les mots
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| taxe sur les services numériques, GAFAM | 113 | 53 | 21 octobre 2024 | 21 juillet 2026 |
+| évasion fiscale | 84 | 43 | 21 octobre 2024 | 10 juillet 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+
+
+<!-- faits:ENJEUX:fin -->
+
+Les estimations académiques du § 2 (Tørsløv, Wier et Zucman) chiffrent l'impôt en jeu ;
+elles ne sont pas une évaluation officielle, et aucune institution chargée ici ne publie de
+manque à gagner par entreprise.
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La convention judiciaire d'intérêt public** (9 décembre 2016). Avant toute poursuite, le procureur peut proposer à une personne morale mise en cause une convention judiciaire d'intérêt public, notamment pour le blanchiment de fraude fiscale ; c'est la forme des règlements de Google (2019) et de McDonald's (2022). — Parlement (loi n° 2016-1691, dite Sapin 2, article 22) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000033558528) · *officiel*
+- **La taxe sur les services numériques** (24 juillet 2019). Son article 1er institue une taxe sur certains services fournis par les grandes entreprises du numérique, au taux de 3 %. — Parlement (loi n° 2019-759) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000038811588) · *officiel*
+- **L'imposition minimale mondiale des grands groupes (pilier 2)** (29 décembre 2023). L'article 33 crée dans le code général des impôts l'imposition minimale mondiale des groupes, avec un taux de 15 % et un seuil de 750 millions d'euros de chiffre d'affaires. — Parlement (loi de finances pour 2024, article 33) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000048727345) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+### 1. Les mots : fraude, évasion, optimisation
 
 | mot | sens | exemple dans ce dossier |
 |---|---|---|
@@ -23,7 +60,34 @@ catégories : elles mesurent où les bénéfices sont déclarés, pas si c'est l
 titre du dossier emploie « évasion » dans ce sens large ; chaque fait (§ 4) porte sa
 qualification juridique propre.
 
-## 2. Ce que la France ne perçoit pas
+### 5. Ce que le droit des marchés publics permet d'exiger
+
+Le droit de la commande publique interdit de choisir un titulaire selon le pays où il
+paie ses impôts : égalité de traitement des candidats (code de la commande publique,
+art. L. 3) et non-discrimination entre entreprises européennes (directive 2014/24/UE).
+Un candidat peut être exclu s'il ne s'est pas acquitté de ses impôts **là où il est
+établi** (directive 2014/24/UE, art. 57) ; une société irlandaise en règle en Irlande
+remplit cette condition. Contracter avec la société irlandaise d'un groupe n'est donc
+pas une irrégularité ; c'est ce que les sénateurs ont qualifié, en 2017, de défaut
+d'**exemplarité** plutôt que de légalité.
+
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
+
+<!-- faits:CONTROLE:fin -->
+
+Les contrôles qui visent des groupes nommés — proposition de résolution du Sénat sur le
+contrat Microsoft de la Défense (2017), commission d'enquête sur les cabinets de conseil
+(2022), conventions judiciaires d'intérêt public (Google, McDonald's), dépôts à la SEC — sont
+des faits de `ref.fait_multinationale`, présentés avec les contrats au § 4.2 et avec l'impôt
+payé au § 4 bis.
+
+## Situation chiffrée
+
+### 2. Les bénéfices déclarés hors de France : estimations et déclarations pays par pays
 
 - **Estimations Tørsløv-Wier-Zucman** (`core.transfert_benefices_estimation`) :
   42,6 Md$ de bénéfices transférés hors de France en 2019, soit 21,8 % de l'impôt sur
@@ -36,7 +100,7 @@ qualification juridique propre.
   France. Le dossier montre des écarts (bénéfice par salarié, lieu de facturation),
   jamais un manque à gagner par entreprise.
 
-## 3. Comment : où le chiffre d'affaires est facturé, où partent les redevances
+### 3. Trois mécanismes établis par des sources officielles
 
 Trois mécanismes, chacun établi par une source officielle au moins une fois :
 
@@ -59,9 +123,9 @@ de ces choix : un chiffre d'affaires de prestataire, une marge faible et stable,
 ruptures quand le lieu de facturation change (Netflix Services France : 47 M€ en 2020,
 1,2 Md€ en 2021).
 
-## 4. Ce que l'État leur verse
+### 4. Ce que l'État leur achète et leur verse
 
-### 4.1 Marchés publics (`core.marche_public_cible`, `derived.multinationale_marches`)
+#### 4.1 Marchés publics (`core.marche_public_cible`, `derived.multinationale_marches`)
 
 Données essentielles de la commande publique, consolidées (plus de 3,2 millions de
 lignes, 2,1 millions de marchés dans leur dernière version). Rattachement au groupe par
@@ -112,7 +176,7 @@ licences (64 M€ et 6 M€ estimés) et Open SAS pour le support (4,72 M€), s
 estimés sur quatre ans. Les données essentielles publiées ne portent, pour ce marché,
 que des montants partiels attribués à Crayon.
 
-### 4.2 Faits documentés (`ref.fait_multinationale`)
+#### 4.2 Faits documentés (`ref.fait_multinationale`)
 
 | groupe | fait | montant | établi par |
 |---|---|---|---|
@@ -142,7 +206,7 @@ que des montants partiels attribués à Crayon.
 | McDonald's | convention judiciaire : 508 M€ d'amende, 737 M€ d'impôt | 1,245 Md€ | ministère de l'Économie (2022) |
 | McKinsey | aucun impôt sur les sociétés en France de 2011 à 2020 | CA 2020 : 329 M€ | Sénat (commission d'enquête, 2022) |
 
-### 4.3 Aides publiées par bénéficiaire (`derived.multinationale_aides`)
+#### 4.3 Aides publiées par bénéficiaire (`derived.multinationale_aides`)
 
 Les registres d'aides (TAM européen, ADEME, minimis) croisés avec les sociétés de
 groupes étrangers : 235 groupes ont reçu 1 315 aides du registre européen, pour
@@ -157,7 +221,7 @@ crédits d'impôt sont couverts par le secret fiscal entreprise par entreprise :
 leurs totaux sont publics. Aucune donnée ouverte ne dit ce qu'une multinationale en a
 obtenu.
 
-## 4 bis. L'impôt payé en France : ce qu'on sait, groupe par groupe
+### 4 bis. L'impôt payé en France : ce qu'on sait, groupe par groupe
 
 Avoir des marchés publics n'est pas un indice d'évasion. Le dossier distingue donc,
 pour chaque groupe suivi, ce que les sources officielles établissent
@@ -174,7 +238,7 @@ pour chaque groupe suivi, ce que les sources officielles établissent
 Un statut autre que « aucun constat public » ne peut exister sans fait officiel chargé
 (contrôle dans `cmd/verify`).
 
-### Trois sources, trois échelles
+#### Trois sources, trois échelles
 
 **1. Les comptes des filiales françaises** (INPI-BCE, `derived.filiale_impot_theorique`).
 L'écart entre résultat courant avant impôt et résultat net est comparé à l'impôt
@@ -231,7 +295,7 @@ groupes cotés en Europe (format ESEF) ne ventilent pas davantage par pays. Les 
 des sociétés irlandaises (Microsoft Ireland Operations, Google Ireland) sont déposés au
 registre irlandais, dont les copies sont payantes : ils ne sont pas chargés.
 
-### Ce qui manque encore
+#### Ce qui manque encore
 
 - Les déclarations pays par pays des autres groupes : Alphabet, Amazon, IBM, Palantir,
   Apple, Meta (exercices calendaires 2025, attendues au plus tard fin 2026), Oracle
@@ -243,18 +307,7 @@ registre irlandais, dont les copies sont payantes : ils ne sont pas chargés.
 - L'impôt effectivement acquitté par une filiale française reste couvert par le secret
   fiscal ; seule la déclaration publique du groupe le donne, toutes entités confondues.
 
-## 5. Pourquoi un marché public ne peut pas exiger l'impôt payé en France
-
-Le droit de la commande publique interdit de choisir un titulaire selon le pays où il
-paie ses impôts : égalité de traitement des candidats (code de la commande publique,
-art. L. 3) et non-discrimination entre entreprises européennes (directive 2014/24/UE).
-Un candidat peut être exclu s'il ne s'est pas acquitté de ses impôts **là où il est
-établi** (directive 2014/24/UE, art. 57) ; une société irlandaise en règle en Irlande
-remplit cette condition. Contracter avec la société irlandaise d'un groupe n'est donc
-pas une irrégularité ; c'est ce que les sénateurs ont qualifié, en 2017, de défaut
-d'**exemplarité** plutôt que de légalité.
-
-## 6. La France n'est pas un paradis fiscal
+### 6. La France au regard des grilles officielles des paradis fiscaux
 
 | Grille | Critères | Ce qu'elle examine | Où c'est dans la base |
 |---|---|---|---|
@@ -262,44 +315,26 @@ d'**exemplarité** plutôt que de légalité.
 | Conseil de l'UE, conclusions du 5 décembre 2017, annexe V | 1. transparence (échange automatique CRS, échange sur demande « largement conforme », convention multilatérale, bénéficiaires effectifs) ; 2. fiscalité équitable (pas de régime dommageable au sens du code de conduite de 1997, pas de structures offshore sans activité réelle) ; 3. normes minimales BEPS. | **Pays tiers seulement** : aucun État membre ne peut y figurer | `ref.juridiction_non_cooperative` liste `UE_ANNEXE_I`, 23 versions (déc. 2017 → fév. 2026) |
 | France, art. 238-0 A du CGI (ETNC) | Refus d'échange d'informations (a et b du 2), inscription sur la liste UE (2 bis 1° et 2°) | Pays tiers | Même table, liste `ETNC_FR`, arrêtés 2010, 2016, 2020 → 2025 lus dans le corpus du JO |
 
-S'y ajoute une mesure économique, sans valeur juridique mais la plus directe :
-**où les multinationales déclarent leurs bénéfices au regard de leurs salariés et
-de leur chiffre d'affaires** — déclarations pays par pays agrégées par l'OCDE
-(`core.cbcr_agregat`, vue `derived.cbcr_juridiction`) et estimations
-Tørsløv-Wier-Zucman (`core.transfert_benefices_estimation`).
-
-Les indices du Tax Justice Network (Corporate Tax Haven Index, Financial Secrecy
-Index) sont une quatrième grille, militante et documentée. Ils sont **cités, pas
-chargés** (D-059).
-
 S'y ajoute une mesure économique, sans valeur juridique mais la plus directe : **où
 les multinationales déclarent leurs bénéfices au regard de leurs salariés et de leur
-chiffre d'affaires** (§ 2). Sur tous les critères, la France est du côté des pays qui
-perdent des bénéfices.
+chiffre d'affaires** (§ 2). Sur ces mesures, la part des bénéfices déclarés en France est inférieure à la part des salariés qu'elle accueille (§ 2).
 
 Les indices du Tax Justice Network (Corporate Tax Haven Index, Financial Secrecy
-Index) sont une quatrième grille, militante et documentée. Ils sont **cités, pas
+Index) sont une quatrième grille, publiée par une organisation non gouvernementale. Ils sont **cités, pas
 chargés** (D-059).
 
-## 7. Sources
+## Ce que les données ne disent pas
 
-| Source | Slug | Réutilisation | Contenu chargé |
-|---|---|---|---|
-| Commission européenne (PDF d'historique de la liste) | `ue-liste-juridictions-non-cooperatives` | ATTRIBUTION | annexe I de chaque version, transcrite et contrôlée contre le nombre annoncé |
-| JORF (corpus déjà chargé) | `jorf` | — | arrêtés ETNC (tableaux HTML, motifs en rowspan) |
-| OCDE Corporate Tax Statistics | `ocde-statistiques-impot-societes` | CC BY 4.0 | CbCR 2016-2023 (tous sièges × 35 juridictions dont `WXD` reste du monde et `STLS` apatrides) ; taux légaux 2000-2026 ; taux effectifs moyens et marginaux 2017-2025 ; régimes PI |
-| OCDE FDI statistics (BMD4) | `ocde-investissements-directs` | CC BY 4.0 | revenus d'IDE de la France par pays de contrepartie immédiat, 2013-2024, entrants et sortants, en USD et en euros |
-| Eurostat FATS | `eurostat-filiales-etrangeres` | CC BY 4.0 | entreprises sous contrôle étranger en France, par pays de contrôle ultime, 2008-2020 (`fats_g1b_08`) et 2021-2023 (`fats_ctrl`) |
-| missingprofits.world | `missing-profits-twz-wz` | RESTRICTED | WZ2022 Table A (2015-2019), TWZ2022 Table 3 (2015) |
-| GLEIF Golden Copy | `gleif-lei-niveau2` | CC0 | sociétés françaises (SIREN) déclarant une mère ultime étrangère |
-| Ratios INPI/BCE | `inpi-bce-ratios-financiers` | Licence ouverte | CA, EBE, résultat courant avant impôt (reconstitué), résultat net |
-| BOFiP, code général des impôts | `parametres-impot-societes` | ATTRIBUTION | taux normal, contribution sociale, contribution exceptionnelle 2025 |
-| Rapports publics pays par pays des groupes (directive (UE) 2021/2101) | `cbcr-publics-groupes` | ATTRIBUTION | Microsoft, exercice 2025, toutes juridictions |
-| SEC EDGAR, API XBRL | `sec-xbrl-companyfacts` | OPEN (domaine public) | impôt, bénéfice avant impôt (total, domestique, étranger), impôt courant étranger, chiffre d'affaires, 25 groupes, exercices clos depuis 2020 |
-| Données essentielles de la commande publique, consolidées (decp.info) | `decp-consolidees` | Licence ouverte | marchés dont le titulaire ou l'objet se rattache à un groupe suivi, dernière version de chaque marché |
-| Sénat (dont les rapports n° 578 de 2022 sur les cabinets de conseil et n° 830 de 2025 sur la commande publique), Cour des comptes, Assemblée nationale, Conseil d'État, AFA, ministère de l'Économie ; presse et entreprises, signalées | `faits-multinationales` | ATTRIBUTION | 32 faits : contrats, ventes via l'UGAP, règlements fiscaux, constats d'enquête, chacun avec sa qualité (officiel, presse, entreprise) |
+Aucune donnée publique ne dit l'impôt qu'une multinationale « devrait » payer en France :
+le dossier montre des écarts (bénéfice par salarié, lieu de facturation), jamais un manque à
+gagner par entreprise. L'impôt effectivement payé par une filiale est couvert par le secret
+fiscal ; seules les déclarations pays par pays publiques le donnent, groupe par groupe, et
+elles ne paraissent que depuis 2026 (§ 4 bis, « Ce qui manque encore »). Les crédits d'impôt
+par entreprise, dont le crédit d'impôt recherche, ne sont pas publiés.
 
-## 8. Pièges
+## Pièges de lecture
+
+### 8. Pièges
 
 1. **La liste UE ne peut pas contenir la France**, ni l'Irlande, ni le Luxembourg,
    ni les Pays-Bas. « La France n'est sur aucune liste » est vrai et ne prouve rien
@@ -389,7 +424,32 @@ chargés** (D-059).
     publié par le ministère ; il vient de la presse et de parlementaires qui la citent.
     Il est présenté comme tel.
 
-## 9. Chiffres de référence (chargement du 14 septembre 2026)
+## Sources
+
+| Source | Slug | Réutilisation | Contenu chargé |
+|---|---|---|---|
+| Commission européenne (PDF d'historique de la liste) | `ue-liste-juridictions-non-cooperatives` | ATTRIBUTION | annexe I de chaque version, transcrite et contrôlée contre le nombre annoncé |
+| JORF (corpus déjà chargé) | `jorf` | — | arrêtés ETNC (tableaux HTML, motifs en rowspan) |
+| OCDE Corporate Tax Statistics | `ocde-statistiques-impot-societes` | CC BY 4.0 | CbCR 2016-2023 (tous sièges × 35 juridictions dont `WXD` reste du monde et `STLS` apatrides) ; taux légaux 2000-2026 ; taux effectifs moyens et marginaux 2017-2025 ; régimes PI |
+| OCDE FDI statistics (BMD4) | `ocde-investissements-directs` | CC BY 4.0 | revenus d'IDE de la France par pays de contrepartie immédiat, 2013-2024, entrants et sortants, en USD et en euros |
+| Eurostat FATS | `eurostat-filiales-etrangeres` | CC BY 4.0 | entreprises sous contrôle étranger en France, par pays de contrôle ultime, 2008-2020 (`fats_g1b_08`) et 2021-2023 (`fats_ctrl`) |
+| missingprofits.world | `missing-profits-twz-wz` | RESTRICTED | WZ2022 Table A (2015-2019), TWZ2022 Table 3 (2015) |
+| GLEIF Golden Copy | `gleif-lei-niveau2` | CC0 | sociétés françaises (SIREN) déclarant une mère ultime étrangère |
+| Ratios INPI/BCE | `inpi-bce-ratios-financiers` | Licence ouverte | CA, EBE, résultat courant avant impôt (reconstitué), résultat net |
+| BOFiP, code général des impôts | `parametres-impot-societes` | ATTRIBUTION | taux normal, contribution sociale, contribution exceptionnelle 2025 |
+| Rapports publics pays par pays des groupes (directive (UE) 2021/2101) | `cbcr-publics-groupes` | ATTRIBUTION | Microsoft, exercice 2025, toutes juridictions |
+| SEC EDGAR, API XBRL | `sec-xbrl-companyfacts` | OPEN (domaine public) | impôt, bénéfice avant impôt (total, domestique, étranger), impôt courant étranger, chiffre d'affaires, 25 groupes, exercices clos depuis 2020 |
+| Données essentielles de la commande publique, consolidées (decp.info) | `decp-consolidees` | Licence ouverte | marchés dont le titulaire ou l'objet se rattache à un groupe suivi, dernière version de chaque marché |
+| Sénat (dont les rapports n° 578 de 2022 sur les cabinets de conseil et n° 830 de 2025 sur la commande publique), Cour des comptes, Assemblée nationale, Conseil d'État, AFA, ministère de l'Économie ; presse et entreprises, signalées | `faits-multinationales` | ATTRIBUTION | 32 faits : contrats, ventes via l'UGAP, règlements fiscaux, constats d'enquête, chacun avec sa qualité (officiel, presse, entreprise) |
+
+## Annexe technique
+
+Migrations 0082, 0087, 0090 et 0092, paquet `internal/fiscalite`, `-only=fiscalite` (ou
+`fiscalite-listes`, `-ocde`, `-ide`, `-fats`, `-twz`, `-filiales`, `-comptes`, `-marches`,
+`-faits`, `-transparence`). Vérifications : `cmd/verify/fiscalite.go`. Décisions : D-059,
+D-061 à D-064, D-066.
+
+### 9. Chiffres de référence (chargement du 14 septembre 2026)
 
 - Taux légal combiné de l'IS, France : 36,13 % en 2025-2026 (contribution
   exceptionnelle comprise ; 25,83 % en 2022-2024). Taux effectif moyen (EATR,
@@ -417,3 +477,9 @@ chargés** (D-059).
   publics distincts ; 12 marchés seulement ont pour titulaire une société française
   du groupe. UGAP, 2024 : environ 230 M€ de ventes Microsoft, 100 M€ Oracle ; marché
   cloud : 146 M€ cumulés d'octobre 2020 à mai 2025, dont 8 % pour AWS.
+
+## Versions
+
+- **Version 3** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre sourcé (taxe sur les services numériques, imposition minimale mondiale, convention judiciaire d'intérêt public) ; le § 6 présente la France au regard des grilles, sans verdict ; échelle de qualité commune (le communiqué d'entreprise devient « déclaratif »).
+- **Version 2** (15 septembre 2026) : Palantir, Oracle, IBM, Accenture ; l'impôt payé en France groupe par groupe (§ 4 bis, D-063, D-064).
+- **Version 1** (14 septembre 2026) : le document s'appelait « La France est-elle un paradis fiscal ? » ; il est devenu le dossier sur l'évasion fiscale des multinationales (D-061).

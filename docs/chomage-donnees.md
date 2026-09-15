@@ -1,20 +1,58 @@
 # Le chômage en France : évolution, minima sociaux, financement
 
-> Note de synthèse. Version 3 — 14 septembre 2026.
-> Trois questions : comment le taux de chômage a évolué depuis un demi-siècle,
-> ce que couvre la continuité RMI → RSA, et **d'où vient l'argent** qui finance
-> l'indemnisation et les minima sociaux — qui paie, et comment il est
-> redistribué. Comme le reste du projet, cette note établit des faits chiffrés
-> et leurs sources ; elle ne prend pas position sur les politiques de l'emploi.
+> **Dossier** · version 4 · 15 septembre 2026
 >
-> **Version 2** ajoute les demandeurs d'emploi inscrits à France Travail
-> (§ 1.2), la mesure la plus citée dans le débat public et distincte du taux
-> BIT du § 1. **Version 3** ajoute la prime d'activité (§ 2.2), qui a remplacé
-> le RSA activité en 2016.
+> Comment le taux de chômage a-t-il évolué depuis un demi-siècle, que couvre la
+> continuité du RMI au RSA, et d'où vient l'argent qui finance l'indemnisation et les minima
+> sociaux ? Le dossier établit des faits chiffrés et leurs sources ; il ne prend pas position
+> sur les politiques de l'emploi.
 
 ---
 
-## 1. Le taux de chômage depuis 1975
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+
+| expression | interventions | orateurs distincts | première | dernière |
+|---|---:|---:|---|---|
+| RSA | 271 | 116 | 1er octobre 2024 | 11 juin 2026 |
+| assurance chômage | 222 | 95 | 1er octobre 2024 | 2 juin 2026 |
+
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Le désendettement de l'Assurance chômage, un « défi » selon son gestionnaire** (3 mars 2026). Le gestionnaire du régime présente son désendettement comme un défi, dans des perspectives économiques qu'il juge moroses. — Unédic (gestionnaire de l'Assurance chômage), prévisions financières · [source](https://www.unedic.org/storage/uploads/2026/03/04/situation-financiere-assurance-chomage-a-horizon-2028_03-mars-2026_uid_69a7f392cd38b.pdf) · *déclaratif*
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **La généralisation du revenu de solidarité active (RSA)** (1er décembre 2008). Loi qui généralise le revenu de solidarité active. — Parlement (loi n° 2008-1249) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000019860428) · *officiel*
+- **Les mesures d'urgence sur le marché du travail** (21 décembre 2022). Loi de 2022 sur le fonctionnement du marché du travail, adoptée « en vue du plein emploi ». — Parlement (loi n° 2022-1598) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000046771781) · *officiel*
+- **La loi pour le plein emploi (France Travail)** (18 décembre 2023). L'article 1er réécrit l'inscription sur la liste des demandeurs d'emploi, désormais tenue par l'opérateur France Travail. — Parlement (loi n° 2023-1196) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000048581935) · *officiel*
+
+<!-- faits:CADRE:fin -->
+
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+- **Assurance chômage : 38 Md€ d'indemnisation et 61,5 Md€ de dette prévus en 2026** (3 mars 2026). Selon ses prévisions de mars 2026, les dépenses d'indemnisation atteindraient 38 Md€ en 2026 (37,2 Md€ en 2025) et la dette du régime 61,5 Md€ (59,4 Md€ en 2025). — Unédic (gestionnaire de l'Assurance chômage), prévisions financières · [source](https://www.unedic.org/storage/uploads/2026/03/04/situation-financiere-assurance-chomage-a-horizon-2028_03-mars-2026_uid_69a7f392cd38b.pdf) · *officiel*
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 1. Le taux de chômage depuis 1975
 
 `core.chomage_taux_trimestriel` (Insee, série BDM 001688527, taux au sens du
 BIT, France hors Mayotte, données CVS) : **206 trimestres, du premier
@@ -32,8 +70,7 @@ chaque publication trimestrielle.
 
 **Le plus haut niveau de la série n'est pas la crise de 2008 ni celle de
 2015 : c'est le milieu des années 1990** (10,7 %, atteint à trois reprises
-entre 1994 et 1997) — un fait que la mémoire collective du débat public place
-souvent, à tort, après la crise financière.
+entre 1994 et 1997) .
 
 **Le taux de chômage au sens du BIT n'est pas un simple décompte d'inscrits à
 France Travail** : il vient de l'enquête Emploi (échantillon de ménages), et
@@ -43,7 +80,7 @@ administrative. C'est pourquoi le taux peut baisser pendant un confinement
 (les personnes sans emploi cessent de chercher activement, donc sortent de la
 définition BIT) sans que la situation se soit améliorée.
 
-### 1.1 Le halo autour du chômage
+#### 1.1 Le halo autour du chômage
 
 `ref.macro_serie` / `core.macro_value` porte, depuis Eurostat, trois séries
 complémentaires que le taux BIT laisse de côté : personnes sous-employées à
@@ -53,7 +90,7 @@ mesurent une capacité d'emploi inutilisée plus large que le seul chômage au
 sens strict — utile pour ne pas confondre « le taux baisse » et « il y a moins
 de gens sans emploi qu'ils ne le voudraient ».
 
-### 1.2 Les demandeurs d'emploi inscrits : la mesure la plus citée, et pourtant différente
+#### 1.2 Les demandeurs d'emploi inscrits : une mesure distincte du taux au sens du BIT
 
 `core.demandeur_emploi_categorie` (Dares/France Travail, CVS-CJO, France,
 depuis février 1996) porte la statistique administrative que la presse cite le
@@ -78,7 +115,7 @@ construction (aucune activité), mais les deux ne coïncident pas : l'un est
 une enquête sur un échantillon, l'autre un dénombrement administratif de
 toutes les inscriptions.
 
-## 2. RMI puis RSA : trente-cinq ans d'un même filet, sous deux noms
+### 2. RMI puis RSA : trente-cinq ans d'un même filet, sous deux noms
 
 `core.minima_sociaux_effectif` (Drees, France métropolitaine, 1990-2024) porte
 la continuité complète :
@@ -106,7 +143,7 @@ documentée par la Drees elle-même dans le fichier source).
 l'essentiel de la hausse du coût suit la hausse du nombre de bénéficiaires,
 pas une revalorisation démesurée du montant individuel.
 
-### 2.1 L'allocation de solidarité spécifique (ASS), le plancher de
+#### 2.1 L'allocation de solidarité spécifique (ASS), le plancher de
 l'indemnisation chômage
 
 L'ASS — versée à qui a épuisé ses droits à l'assurance chômage et remplit une
@@ -117,7 +154,7 @@ financé par l'État (pas par l'Unédic) : **336 100 allocataires en 1990,
 **1996 (513 000)**, pas récemment : il est aujourd'hui inférieur à son niveau
 de 1990, malgré des remontées ponctuelles (2009, 2015, 2020).
 
-### 2.2 La prime d'activité, qui a remplacé le RSA activité
+#### 2.2 La prime d'activité, qui a remplacé le RSA activité
 
 `core.prime_activite_effectif` (Drees, même jeu de données que le RSA mais
 fichier distinct, France métropolitaine) : créée le 1er janvier 2016 en
@@ -130,7 +167,7 @@ même période (§ 2). Le saut le plus net n'est pas celui de la création
 la réponse au mouvement des Gilets jaunes, qui a fortement élargi l'accès au
 dispositif au-delà de son périmètre initial de 2016.
 
-## 3. La dépense au sens large : ESSPROS
+### 3. La dépense au sens large : ESSPROS
 
 `core.macro_value`, série `protection.depense.chomage` (Eurostat ESSPROS,
 champ protection sociale — plus large que la seule Unédic, y compris
@@ -152,11 +189,11 @@ supérieur aux 39,3 Md€ de 2010, reflète pour partie la hausse du chômage
 partiel de droit commun et pour partie l'élargissement du champ couvert par
 la fonction (formation, insertion).
 
-## 4. Le financement : qui paie, et comment il est redistribué
+### 4. Le financement : qui paie, et comment il est redistribué
 
-### 4.1 D'où vient l'argent
+#### 4.1 D'où vient l'argent
 
-Deux circuits séparés, souvent confondus dans le débat public :
+Deux circuits séparés :
 
 - **L'assurance chômage (Unédic)** est financée par une **cotisation
   patronale** — 4,05 % du salaire brut, dans la limite de quatre fois le
@@ -176,7 +213,7 @@ Deux circuits séparés, souvent confondus dans le débat public :
   des prestations non contributives (voir la distinction posée en
   [docs/cotisations-et-droits.md](cotisations-et-droits.md) § 3).
 
-### 4.2 Ce que la base peut chiffrer exactement, et ce qu'elle ne peut pas
+#### 4.2 Ce que la base peut chiffrer exactement, et ce qu'elle ne peut pas
 
 `core.encaissement_urssaf` (2020-2022, maille région — voir
 [docs/budget-donnees.md](budget-donnees.md) § 9) additionne, dans une même
@@ -197,7 +234,7 @@ entreprises en 2022 (toutes branches, `core.encaissement_urssaf`, filtré sur
 cotisations employeurs contre impôts affectés, année par année depuis 1990
 (`protection.financement.*`, § 4.5 de docs/budget-donnees.md).
 
-### 4.3 La redistribution : de la cotisation à l'allocation
+#### 4.3 La redistribution : de la cotisation à l'allocation
 
 Le circuit, simplifié : l'employeur verse la cotisation à l'URSSAF (ou la CSG,
 pour la part qui a remplacé la cotisation salariale) → l'URSSAF centralise et
@@ -208,7 +245,34 @@ minima sociaux. `core.chomage_tranche_unedic` (45 trimestres, 2014-2025)
 donne, pour chaque trimestre, la répartition exacte des allocataires par
 tranche de montant perçu — le dernier maillon de cette chaîne, chiffré.
 
-## 5. Ce qui est chargé
+## Ce que les données ne disent pas
+
+Ce que la base ne peut pas chiffrer exactement dans le financement de l'indemnisation
+et des minima sociaux est détaillé au § 4.2. Les listes « non chargé » de l'annexe technique
+(§ 5) disent pourquoi.
+
+## Sources
+
+- Insee, taux de chômage au sens du BIT, série BDM 001688527.
+- Eurostat, `une_rt_a` (taux de chômage, republication annuelle) et
+  `lfsi_sla_a` (halo du chômage), déjà chargés avant cette note ; `spr_exp_fun`
+  (dépense ESSPROS, fonction chômage), chargé pour elle.
+- Drees, *Minima sociaux, RSA et prime d'activité*, jeu de données ouvert
+  n° 336, fichiers « données nationales par dispositif », « données de
+  dépenses par dispositif » et « RSA et prime d'activité — données
+  nationales ».
+- Cnaf, données nationales du RSA.
+- Unédic, *Montant d'allocation chômage et salaires de référence des
+  allocataires de l'Assurance chômage*, data.gouv.fr.
+- Dares, *Inscrits à France Travail — Stock — France (mensuelles, CVS-CJO)*,
+  data.dares.travail-emploi.gouv.fr.
+- [docs/cotisations-et-droits.md](cotisations-et-droits.md) et
+  [docs/budget-donnees.md](budget-donnees.md), pour le cadre général du
+  financement de la protection sociale dans lequel s'inscrit cette note.
+
+## Annexe technique
+
+### 5. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
@@ -239,21 +303,8 @@ tranche de montant perçu — le dernier maillon de cette chaîne, chiffré.
   source Dares le publie (54 567 lignes au total contre 10 527 chargées) ;
   seul le total agrégé par catégorie a été retenu ici.
 
-## Sources
+## Versions
 
-- Insee, taux de chômage au sens du BIT, série BDM 001688527.
-- Eurostat, `une_rt_a` (taux de chômage, republication annuelle) et
-  `lfsi_sla_a` (halo du chômage), déjà chargés avant cette note ; `spr_exp_fun`
-  (dépense ESSPROS, fonction chômage), chargé pour elle.
-- Drees, *Minima sociaux, RSA et prime d'activité*, jeu de données ouvert
-  n° 336, fichiers « données nationales par dispositif », « données de
-  dépenses par dispositif » et « RSA et prime d'activité — données
-  nationales ».
-- Cnaf, données nationales du RSA.
-- Unédic, *Montant d'allocation chômage et salaires de référence des
-  allocataires de l'Assurance chômage*, data.gouv.fr.
-- Dares, *Inscrits à France Travail — Stock — France (mensuelles, CVS-CJO)*,
-  data.dares.travail-emploi.gouv.fr.
-- [docs/cotisations-et-droits.md](cotisations-et-droits.md) et
-  [docs/budget-donnees.md](budget-donnees.md), pour le cadre général du
-  financement de la protection sociale dans lequel s'inscrit cette note.
+- **Version 4** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (lois de 2008, 2022, 2023) et prévisions du gestionnaire de l'Assurance chômage.
+- **Version 3** (14 septembre 2026) : prime d'activité (§ 2.2), qui a remplacé le RSA activité en 2016.
+- **Version 2** : demandeurs d'emploi inscrits à France Travail (§ 1.2), distincts du taux BIT du § 1.

@@ -1,16 +1,39 @@
 # La France en contexte : Europe, G8, monde
 
-> Note de synthèse. Version 1 — 15 septembre 2026.
-> Un chantier vaste par construction : douze sujets, chacun avec sa propre
-> source, sa propre définition, et souvent une couverture géographique
-> incomplète. Cette note ne prétend pas les traiter tous — elle charge deux
-> volets tractables (salaire minimum, PIB et sa critique par l'épuisement des
-> ressources) et scope précisément les dix autres, avec leur source
-> candidate, pour un chargement ultérieur au coup par coup.
+> **Dossier** · version 2 · 15 septembre 2026
+>
+> Comment la France se situe-t-elle en Europe, au sein du G8 et dans le monde, sur des sujets
+> qui ont chacun leur source, leur définition et souvent une couverture géographique incomplète ?
+> Le dossier charge deux volets — le salaire minimum, le PIB et sa lecture au regard de
+> l'épuisement des ressources — et décrit les sources candidates des dix autres.
 
 ---
 
-## 1. Méthode : comparer sans confondre
+## Contexte
+
+<!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+
+
+<!-- faits:CONTEXTE:fin -->
+
+## Enjeux
+
+<!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+
+
+<!-- faits:ENJEUX:fin -->
+
+## Cadre
+
+<!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Aucun texte n'est encore chargé pour ce dossier.
+
+<!-- faits:CADRE:fin -->
+
+### 1. Méthode : comparer des pays
 
 Chaque comparaison internationale de ce dossier respecte trois règles, déjà
 appliquées ailleurs dans ce dépôt (`docs/dette-donnees.md`,
@@ -26,7 +49,17 @@ appliquées ailleurs dans ce dépôt (`docs/dette-donnees.md`,
    comme ailleurs, avec une acuité particulière puisque le sujet invite plus
    qu'un autre au classement.
 
-## 2. Le salaire minimum : une comparaison possible, une lecture à ne pas forcer
+## Contrôles et évaluations
+
+<!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
+
+Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
+
+<!-- faits:CONTROLE:fin -->
+
+## Situation chiffrée
+
+### 2. Le salaire minimum : une comparaison possible, une lecture à ne pas forcer
 
 `core.salaire_minimum` (Eurostat `earn_mw_cur`, mensuel brut, semestriel) —
 seul jeu identifié qui réunit l'Europe et un pays du G8 hors Union dans la
@@ -71,7 +104,7 @@ fixe un minimum par préfecture, le Canada par province — ce qui explique
 leur absence de cette même série Eurostat sans qu'il s'agisse d'une lacune
 de collecte.
 
-## 3. Le PIB, et ce qu'il ne retranche jamais
+### 3. Le PIB, et ce qu'il ne retranche jamais
 
 Le PIB compte l'extraction d'une ressource naturelle comme une production,
 sans jamais retrancher l'épuisement du stock. Deux pays qui vendent le même
@@ -128,7 +161,9 @@ dollars du tableau précédent** — l'un est un montant, les deux autres des
 ratios au revenu national brut, une grandeur différente du PIB elle-même
 (voir le commentaire de `core.indicateur_mondial`).
 
-## 4. Les dix autres sujets : scopés, non chargés
+## Ce que les données ne disent pas
+
+### 4. Les dix autres sujets : scopés, non chargés
 
 Chacun des dix sujets suivants a une source candidate identifiée dans le
 plan de travail (`docs/decisions.md` et le plan de pivot éditorial), mais
@@ -148,13 +183,6 @@ qu'une case vide :
 | Liens économiques avec des pays en guerre | Douanes françaises + UCDP (conflits) | Croisement délicat, prudence éditoriale maximale requise avant tout chargement |
 | OTAN / opérations de maintien de la paix | OTAN (dépense de défense), ONU (contributeurs) | Formats PDF/HTML non vérifiés |
 
-## 5. Ce qui est chargé
-
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Eurostat, `earn_mw_cur` | `core.salaire_minimum` | 4 573 lignes, 31 pays, 1999-2026 |
-| 2 | Banque mondiale, *World Development Indicators* | `core.indicateur_mondial` | 682 lignes, 10 pays, 3 indicateurs, 2000-2024 |
-
 ## Sources
 
 - Eurostat, `earn_mw_cur` (salaire minimum national mensuel).
@@ -165,3 +193,17 @@ qu'une case vide :
   de la dette déjà chargée.
 - [docs/pauvrete-donnees.md](pauvrete-donnees.md), pour la même méthode
   appliquée au taux de pauvreté.
+
+## Annexe technique
+
+### 5. Ce qui est chargé
+
+| # | Source | Table | Volume |
+|---|---|---|---|
+| 1 | Eurostat, `earn_mw_cur` | `core.salaire_minimum` | 4 573 lignes, 31 pays, 1999-2026 |
+| 2 | Banque mondiale, *World Development Indicators* | `core.indicateur_mondial` | 682 lignes, 10 pays, 3 indicateurs, 2000-2024 |
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066).
+- **Version 1** (15 septembre 2026) : salaire minimum, PIB et épuisement des ressources ; dix sujets décrits, non chargés.

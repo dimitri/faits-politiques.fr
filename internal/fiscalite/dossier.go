@@ -22,7 +22,8 @@ var SourceFaitsMultinationales = archive.Source{
 	Cadence:     "au fil des faits",
 	Notes: "Faits établis hors données ouvertes, transcrits un par un. La qualité dit qui établit le fait : " +
 		"OFFICIEL (texte ou réponse d'une institution, page scellée), PRESSE (révélation d'un média, non " +
-		"confirmée officiellement, page non archivée), ENTREPRISE (communiqué du groupe). Les montants " +
+		"confirmée officiellement, page non archivée), DECLARATIF (communiqué du groupe : il est établi que le groupe l'a dit, " +
+		"pas que c'est exact ; échelle commune ref.qualite_fait, D-066). Les montants " +
 		"portent leur nature : un plafond d'accord-cadre n'est pas une dépense.",
 }
 
@@ -86,7 +87,7 @@ var faits = []fait{
 		"Le ministère indique avoir demandé aux recteurs, dès octobre 2021, d'arrêter tout déploiement d'Office 365 « ainsi que celle de Google, qui seraient contraires au RGPD ».",
 		"https://www.assemblee-nationale.fr/dyn/16/questions/QANR5L16QE971"},
 	{"s3ns-secnumcloud-2025", "S3NS (Thales-Google Cloud)", "CONTROVERSE", "2025-12-17", "", "S3NS", "Organismes publics et privés",
-		"Qualification SecNumCloud de l'offre de S3NS, bâtie sur Google Cloud", "", "", "ENTREPRISE",
+		"Qualification SecNumCloud de l'offre de S3NS, bâtie sur Google Cloud", "", "", "DECLARATIF",
 		"Coentreprise de Thales et de Google Cloud, S3NS annonce la qualification SecNumCloud de son offre PREMI3NS ; en juillet 2025, le Sénat relevait que Bleu et S3NS étaient encore en cours de qualification (rapport n° 830, p. 249).",
 		"https://www.s3ns.io/en/news/premi3ns-secnumcloud-qualification"},
 	{"capgemini-health-data-hub", "Capgemini SE (groupe français)", "CONTRAT", "", "2018-2019", "Capgemini", "Direction de la recherche, des études, de l'évaluation et des statistiques (Drees)",
@@ -98,7 +99,7 @@ var faits = []fait{
 		"Le Conseil d'État refuse de suspendre l'hébergement par Microsoft mais demande des précautions dans l'attente d'une solution pérenne, en raison du risque de transfert de données vers les États-Unis.",
 		"https://www.conseil-etat.fr/actualites/health-data-hub-et-protection-de-donnees-personnelles-des-precautions-doivent-etre-prises-dans-l-attente-d-une-solution-perenne"},
 	{"bleu-lancement-2024", "Bleu (Orange-Capgemini, technologies Microsoft)", "CONTROVERSE", "", "2024", "Bleu", "État, collectivités, hôpitaux, opérateurs d'importance vitale",
-		"Lancement commercial de Bleu, « cloud de confiance » bâti sur Microsoft 365 et Azure", "", "", "ENTREPRISE",
+		"Lancement commercial de Bleu, « cloud de confiance » bâti sur Microsoft 365 et Azure", "", "", "DECLARATIF",
 		"Coentreprise d'Orange et de Capgemini, Bleu exploite sous licence les services Microsoft 365 et Azure pour l'État et les organismes publics, en visant la qualification SecNumCloud ; Microsoft est rémunéré par les licences, dont le montant n'est pas public.",
 		"https://www.capgemini.com/fr-fr/actualites/communiques-de-presse/capgemini-et-orange-annoncent-le-lancement-des-activites-commerciales-de-bleu-leur-future-plateforme-de-cloud-de-confiance/"},
 	{"accenture-crise-sanitaire", "Accenture plc", "CONTRAT", "", "2020-2022", "Accenture", "Ministère des Solidarités et de la Santé et autres administrations (hors Santé publique France)",
