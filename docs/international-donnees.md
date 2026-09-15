@@ -1,11 +1,13 @@
 # La France en contexte : Europe, G8, monde
 
-> **Dossier** · version 2 · 15 septembre 2026
+> **Dossier** · version 3 · 15 septembre 2026
 >
 > Comment la France se situe-t-elle en Europe, au sein du G8 et dans le monde, sur des sujets
 > qui ont chacun leur source, leur définition et souvent une couverture géographique incomplète ?
 > Le dossier charge deux volets — le salaire minimum, le PIB et sa lecture au regard de
-> l'épuisement des ressources — et décrit les sources candidates des dix autres.
+> l'épuisement des ressources — et décrit les sources candidates des neuf autres, plus un
+> dixième exploré puis écarté (heures travaillées, données trop anciennes pour être présentées
+> comme actuelles).
 
 ---
 
@@ -163,25 +165,45 @@ ratios au revenu national brut, une grandeur différente du PIB elle-même
 
 ## Ce que les données ne disent pas
 
-### 4. Les dix autres sujets : scopés, non chargés
+### 4. Un sujet exploré et écarté : les heures travaillées
 
-Chacun des dix sujets suivants a une source candidate identifiée dans le
-plan de travail (`docs/decisions.md` et le plan de pivot éditorial), mais
-aucune donnée n'est chargée à ce stade. Pour chacun, la raison précise plutôt
-qu'une case vide :
+**L'OCDE publie bien un jeu « heures travaillées par an », mais sa
+couverture s'est révélée trop incohérente pour être chargée.** Le connecteur
+a été écrit, exécuté, puis retiré après vérification des résultats — la
+démarche même que ce projet applique partout (vérifier avant de publier),
+ici jusqu'à son terme logique : ne pas publier ce qui ne passe pas la
+vérification.
 
-| Sujet | Source candidate | Pourquoi non chargé |
+Le flux `DSD_HW@DF_AVG_ANN_HRS_WKD` (SDMX de l'OCDE) mélange deux
+populations selon le pays — « ensemble des personnes en emploi » ou
+« salariés seulement » — sans qu'une seule des deux ne couvre correctement
+les huit pays de comparaison : la série la mieux renseignée pour la France
+et l'Allemagne s'arrête en **2007** et **2008** respectivement ; celle qui
+va jusqu'en 2019 pour le Japon n'a que deux points pour la France. L'Italie,
+sur sa meilleure série, s'arrête en **2000**. Présenter ces séries comme une
+photographie actuelle du temps de travail aurait fait passer des données de
+dix à vingt-cinq ans pour un état présent — exactement ce que
+`docs/perimetre.md` § 2 interdit. Une source de remplacement (une
+publication plus récente de l'OCDE sous un autre identifiant de flux,
+non retrouvée à ce stade) resterait à identifier avant de rouvrir ce sujet.
+
+### 5. Neuf autres sujets : scopés, non chargés
+
+Chacun des neuf sujets suivants a une source candidate, vérifiée à des
+degrés divers. Certains ont déjà révélé un obstacle précis plutôt qu'une
+simple absence d'exploration :
+
+| Sujet | Source candidate | Ce qui a été vérifié |
 |---|---|---|
-| Dette publique hors UE (G8, Chine) | FMI *World Economic Outlook* | Format et licence non vérifiés à ce stade — la dette européenne est déjà chargée (`internal/dette/eurostat.go`) |
-| Régime politique | V-Dem Institute, Freedom House | Score composite portant un jugement de valeur inhérent — à charger avec une attribution explicite, jamais comme un verdict du site |
-| Liberté de la presse | Reporters sans frontières | Format d'export non vérifié |
-| Représentativité des dirigeants | International IDEA (participation) | Part du vainqueur et mode de scrutin non harmonisés entre pays — compilation manuelle nécessaire |
-| Mouvements sociaux | ILOSTAT (jours de grève), ACLED (événements) | Deux mesures hétérogènes, couverture pays inégale |
+| Dette publique hors UE (G8, Chine) | FMI, *World Economic Outlook* (API DataMapper) | **API accessible** (testée), mais sans marqueur distinguant un exercice observé d'une projection du FMI — la base complète (hors DataMapper) porterait cette distinction, à vérifier avant de charger quoi que ce soit sous peine de présenter une prévision comme un fait |
+| Régime politique | V-Dem Institute | **Licence confirmée** : CC BY-SA. Pas de fichier de téléchargement à adresse stable trouvé sur le site — la distribution passe par un outil de sélection de variables ou un paquet R, à explorer plus avant |
+| Liberté de la presse | Reporters sans frontières, classement mondial | **Export CSV trouvé et accessible** (`/sites/default/files/import_classement/{année}.csv`, testé de 2022 à 2026, structure exploitable : score, rang, cinq sous-scores). **Aucune licence de réutilisation explicite trouvée** sur le site — une absence de licence n'est pas une autorisation (`docs/README.md`, règle 4) ; à recontacter RSF ou trouver une mention de licence avant de charger |
+| Représentativité des dirigeants | International IDEA (participation électorale) | Page accessible, contenu non exploré en détail — part du vainqueur et mode de scrutin resteraient de toute façon à compiler pays par pays, hors de portée d'un chargement automatisé |
+| Mouvements sociaux | ILOSTAT (jours de grève), ACLED (événements) | Le point d'entrée SDMX habituel de l'OIT ne répond pas à l'identifiant de flux testé ; ACLED non testé (accès probablement soumis à inscription) |
 | Santé (comparaison internationale) | OCDE Health Statistics, OMS | Non explorées ; le terrain français est déjà couvert (chantier 8) |
-| Heures travaillées vs PIB | OCDE (*Average annual hours actually worked*) | Couverture essentiellement OCDE — ne couvre pas la Chine, l'Inde, la Russie |
-| Âge de départ à la retraite | OCDE *Pensions at a Glance* | Publication biennale, probablement en tableaux non structurés |
-| Liens économiques avec des pays en guerre | Douanes françaises + UCDP (conflits) | Croisement délicat, prudence éditoriale maximale requise avant tout chargement |
-| OTAN / opérations de maintien de la paix | OTAN (dépense de défense), ONU (contributeurs) | Formats PDF/HTML non vérifiés |
+| Âge de départ à la retraite | OCDE *Pensions at a Glance* | Non trouvé dans les flux SDMX de la division Emploi de l'OCDE testés pour ce chantier — cohérent avec une publication biennale en tableaux, pas en série statistique continue |
+| Liens économiques avec des pays en guerre | Douanes françaises + UCDP (conflits) | Non testé — croisement délicat, prudence éditoriale maximale requise avant tout chargement |
+| OTAN / opérations de maintien de la paix | OTAN (dépense de défense), ONU (contributeurs) | Non testé — formats probablement PDF/HTML |
 
 ## Sources
 
@@ -196,7 +218,7 @@ qu'une case vide :
 
 ## Annexe technique
 
-### 5. Ce qui est chargé
+### 6. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
@@ -205,5 +227,8 @@ qu'une case vide :
 
 ## Versions
 
+- **Version 3** (15 septembre 2026) : heures travaillées (OCDE) exploré, chargé, puis retiré
+  après vérification (couverture trop ancienne pour huit pays sur les dix) ; les neuf sujets
+  restants vérifiés à des degrés divers plutôt que simplement listés.
 - **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066).
 - **Version 1** (15 septembre 2026) : salaire minimum, PIB et épuisement des ressources ; dix sujets décrits, non chargés.
