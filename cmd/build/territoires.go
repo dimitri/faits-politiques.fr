@@ -174,20 +174,26 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 	// Le pseudo-département « 999 » (« FRANCE » / « Tout département ») porte
 	// des totaux nationaux déjà agrégés : l'exclure évite de les additionner
 	// aux départements réels et de tripler le compte.
+	// lpad(code,2,'0') tronquerait les codes DOM à 3 chiffres ("971" -> "97") :
+	// PostgreSQL réduit une chaîne déjà plus longue que la cible au lieu de la
+	// laisser telle quelle. Un CASE, pas lpad, pour ne padder que les codes à
+	// un seul chiffre.
 	mgrows, err := pool.Query(ctx, `
-		SELECT lpad(m.code_departement,2,'0'), max(m.libelle_departement),
+		SELECT m.dep, max(m.libelle_departement),
 		       100000.0*sum(m.effectif)/nullif(max(pop.p),0)
-		FROM core.medecin_secteur_effectif m
+		FROM (SELECT *, CASE WHEN code_departement ~ '^[0-9]$'
+		                 THEN '0'||code_departement ELSE code_departement END AS dep
+		        FROM core.medecin_secteur_effectif) m
 		JOIN (SELECT code_departement AS dep, sum(value) p
 		      FROM core.commune_indicator ci
 		      JOIN ref.commune rc ON rc.code_insee=ci.commune_code AND rc.cog_millesime=ci.cog_millesime
 		      WHERE ci.indicator_code='ofgl.population_totale' AND ci.period_year=2023
-		      GROUP BY 1) pop ON pop.dep=lpad(m.code_departement,2,'0')
+		      GROUP BY 1) pop ON pop.dep=m.dep
 		WHERE m.annee=2024 AND m.code_departement<>'999'
 		  AND m.profession_sante IN
 		    ('Médecins généralistes (hors médecins à expertise particulière - MEP)',
 		     'Médecins généralistes à expertise particulière (MEP)')
-		GROUP BY lpad(m.code_departement,2,'0')`)
+		GROUP BY m.dep`)
 	if err != nil {
 		return nil, err
 	}
