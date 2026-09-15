@@ -335,6 +335,7 @@ type PageCommune struct {
 	Listes        []ListeMunicipale
 	Associations  int
 	Voisines      []LienCarte
+	Situation     *Situation
 }
 
 type PageEPCI struct {
@@ -350,6 +351,7 @@ type PageEPCI struct {
 	Exercice                      int
 	CarteCommunes                 template.HTML
 	NbCommunesCarte               int
+	Situation                     *Situation
 }
 
 var ordreFonction = regexp.MustCompile(`(\d+)`)

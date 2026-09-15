@@ -711,6 +711,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	if err != nil {
 		return err
 	}
+	// Les cartes de situation : un fond commun écrit une fois, un calque par page.
+	fond, err := chargerFondSituation(ctx, pool, out, root, col.Exercice)
+	if err != nil {
+		return err
+	}
+	for code, pc := range pagesCom {
+		pc.Situation = fond.pourCommune(code, pc.Nom)
+	}
 	tcom := page("commune.gohtml")
 	for code, pc := range pagesCom {
 		l = layout
@@ -726,6 +734,9 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	pagesEPCI, err := chargerPagesEPCI(ctx, pool, lieux, col, avecFiche)
 	if err != nil {
 		return err
+	}
+	for siren, pe := range pagesEPCI {
+		pe.Situation = fond.pourEPCI(siren, pe.Nom, pe.Finances)
 	}
 	tepci := page("epci.gohtml")
 	for siren, pe := range pagesEPCI {
@@ -749,6 +760,11 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return err
 	}
 	for _, pc := range pagesCol {
+		if pc.TypeURL == "departement" {
+			pc.Situation = fond.pourDepartement(pc.Code, pc.Nom, pc.Lignes)
+		} else {
+			pc.Situation = fond.pourRegion(pc.Code, pc.Nom, pc.Lignes)
+		}
 		l = layout
 		l.Title = pc.Nom
 		if err := write(tcol, filepath.Join(out, "collectivites", pc.TypeURL, pc.Slug,

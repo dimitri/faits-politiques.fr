@@ -2325,3 +2325,28 @@ un texte.
   35 000 contours à l'échelle nationale alourdiraient la page de plusieurs mégaoctets.
 - **Candidats** : liste complétée au 15 septembre 2026, statut `PRIMAIRE` distinct de
   `DECLARE` ; les personnalités seulement pressenties n'y figurent pas.
+
+## D-070 — Chaque collectivité se situe dans la France entière
+
+`cmd/build/carte_situation.go`, partial `situation` de `base.gohtml`.
+
+**Pourquoi.** La carte d'une page de département, de région, d'intercommunalité ou de
+commune montrait le territoire seul, à sa propre échelle : impossible de voir d'un coup
+d'œil où il se trouve ni ce qu'il pèse.
+
+**Décidé.**
+
+- **Une carte de situation en tête de page**, affichage « en ligne » : la France entière
+  (métropole et cinq cartons d'outre-mer), le reste du pays laissé sans information, le
+  territoire en évidence — communes et intercommunalités pour un département, départements
+  et intercommunalités pour une région, communes membres pour un groupement ; un cercle
+  repère les petits territoires.
+- **La légende donne** la population municipale et la superficie cadastrale (IGN / Insee),
+  leur part de la France et la densité ; le nombre de départements, de communes et
+  d'intercommunalités par nature (CC, CA, CU, métropoles, EPT) ; les dépenses du conseil,
+  des communes et des intercommunalités (OFGL / DGCL), en rappelant qu'elles ne
+  s'additionnent pas. La population du chapeau (population totale DGF) diffère de celle de
+  la légende : la légende le précise.
+- **Poids** : le fond national et les cartons d'outre-mer sont des images partagées
+  (`media/situation-*.svg`) ; chaque page n'embarque que le calque de son territoire
+  (+4 Ko par page de commune).

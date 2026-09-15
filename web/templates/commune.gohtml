@@ -11,6 +11,8 @@
 {{if $c.Dept.URL}}<a href="{{$c.Dept.URL}}">{{$c.Dept.Nom}}</a>{{else}}{{$c.Dept.Nom}}{{end}}{{end}}{{if $c.EPCI}}. Membre de
 {{if $c.EPCI.URL}}<a href="{{$c.EPCI.URL}}">{{$c.EPCI.Nom}}</a>{{else}}{{$c.EPCI.Nom}}{{end}}{{if $c.NatureEPCI}} <span class="z">({{lower $c.NatureEPCI}})</span>{{end}}{{end}}.</p>
 
+{{template "situation" $c.Situation}}
+
 <h2>Le conseil municipal</h2>
 {{if $c.Maire}}
 <div class="cartes trois">

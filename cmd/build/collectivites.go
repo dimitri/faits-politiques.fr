@@ -680,6 +680,8 @@ type PageCollectivite struct {
 	// noierait la lecture.
 	CarteCommunes   template.HTML
 	NbCommunesCarte int
+	// Carte de situation dans la France entière (carte_situation.go).
+	Situation *Situation
 }
 
 // pagesCollectivites fabrique une page par région et par département. Le rang

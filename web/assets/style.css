@@ -1110,3 +1110,38 @@ padding:.28rem .2rem;text-decoration:none;color:var(--encre);border-top:1px soli
   .hero-mille li:nth-child(n+7){display:none}
   .hero-mille .pied-mille a::before{content:"et 4 autres fonctions · "}
 }
+
+/* ── Carte de situation : le territoire dans la France entière ──────────
+   Le fond (media/situation-france.svg) est commun à toutes les pages ; le
+   calque de la page se superpose exactement, même boîte, même rapport. */
+.situation{margin:1.2rem 0 1.6rem}
+.situation .bloc-carte.ligne{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1.6rem}
+.situation-carte{position:relative}
+.situation-carte img{display:block;width:100%;height:auto}
+.situation-carte .calque{position:absolute;inset:0;width:100%;height:100%}
+.calque path{vector-effect:non-scaling-stroke;stroke-linejoin:round}
+.calque .territoire path{fill:var(--accent);fill-opacity:.32;stroke:none}
+.calque .communes path{fill:var(--accent);fill-opacity:.3;stroke:var(--accent);stroke-opacity:.55;stroke-width:.3px}
+.calque .commune path{fill:var(--accent);fill-opacity:.9;stroke:var(--encre);stroke-width:1px}
+.calque .groupements path{fill:none;stroke:var(--accent);stroke-width:.9px}
+.calque .departements path{fill:none;stroke:var(--encre);stroke-width:1px;stroke-opacity:.75}
+.calque .contour path{fill:none;stroke:var(--encre);stroke-width:2px}
+.calque .repere{fill:none;stroke:var(--accent);stroke-width:2px;vector-effect:non-scaling-stroke}
+.situation-cartons{display:flex;flex-wrap:wrap;gap:.6rem .9rem;margin-top:.6rem;align-items:flex-end}
+.situation-cartons figure{margin:0;width:4.6rem;text-align:center}
+.carton-situation{position:relative;width:100%;height:3rem}
+.carton-situation img{display:block;width:100%;height:100%;object-fit:contain}
+.carton-situation .calque{position:absolute;inset:0;width:100%;height:100%}
+.situation-cartons figcaption{font-size:.68rem;line-height:1.2;margin-top:.2rem;color:var(--attenue)}
+.situation-cartons figure.actif{width:6.4rem}
+.situation-cartons figure.actif .carton-situation{height:4.4rem}
+.situation-cartons figure.actif figcaption{color:var(--encre);font-weight:600}
+.legende-situation{display:grid;gap:.1rem;margin:.6rem 0 .4rem}
+.legende-situation div{display:grid;grid-template-columns:9.5rem minmax(0,1fr);gap:.8rem;padding:.45rem 0;border-top:1px solid var(--filet2)}
+.legende-situation div:first-child{border-top:0}
+.legende-situation dt{font:500 .68rem/1.5 var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--attenue)}
+.legende-situation dd{margin:0}
+.legende-situation dd b{display:block;font-weight:600;font-size:.98rem}
+.legende-situation dd span{display:block;font-size:.8rem;color:var(--attenue);line-height:1.4}
+@media(max-width:52rem){.situation .bloc-carte.ligne{grid-template-columns:1fr}
+  .legende-situation div{grid-template-columns:1fr;gap:.1rem}}

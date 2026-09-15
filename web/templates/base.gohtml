@@ -202,3 +202,24 @@ projection&nbsp;: les surfaces ne se comparent pas d'un carton à l'autre, ni à
      est un lien ; les autres — un canton, une circonscription — s'affichent
      sans lien, parce que ce site ne leur consacre pas de page. */}}
 {{define "lieux"}}{{range $i, $l := .}}{{if $i}}<span class="sep" aria-hidden="true"> › </span>{{end}}<span class="lieu"><span class="ech">{{echelon $l.Type}}</span>&nbsp;{{if $l.URL}}<a href="{{$l.URL}}">{{$l.Nom}}</a>{{else}}{{$l.Nom}}{{end}}</span>{{end}}{{end}}
+
+{{/* La carte de situation : le territoire dans la France entière, outre-mer
+     compris, le reste sans information ; légende à droite (affichage en ligne). */}}
+{{define "situation"}}{{if .}}
+<div class="cartes-lignes situation">
+  <div class="bloc-carte ligne">
+    <div class="situation-cadre">
+      <div class="situation-carte">
+        <img src="{{.Fond}}" alt="" width="{{.Largeur}}" height="{{.Hauteur}}">
+        {{.Calque}}
+      </div>
+      <div class="situation-cartons">{{range .Cartons}}<figure{{if .Actif}} class="actif"{{end}}><div class="carton-situation"><img src="{{.Fond}}" alt="" loading="lazy">{{.SVG}}</div><figcaption>{{.Nom}}</figcaption></figure>{{end}}</div>
+    </div>
+    <div>
+      <h3>Dans la France entière</h3>
+      <dl class="legende-situation">{{range .Legende}}<div><dt>{{.Libelle}}</dt><dd><b>{{.Valeur}}</b>{{if .Detail}}<span>{{.Detail}}</span>{{end}}</dd></div>{{end}}</dl>
+      <span class="src">{{.Note}} Contours&nbsp;: IGN Admin Express COG CARTO (Licence Ouverte), © les contributeurs OpenStreetMap (ODbL). Superficie cadastrale et population&nbsp;: IGN, Insee. Budgets&nbsp;: OFGL / DGCL.</span>
+    </div>
+  </div>
+</div>
+{{end}}{{end}}

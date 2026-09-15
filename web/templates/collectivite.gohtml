@@ -9,6 +9,8 @@
 <p class="lede">{{nb $k.Population}} habitants{{if $k.Conseillers}}, {{$k.Conseillers}} conseillers
 {{$k.MotConseiller}}{{end}}{{if $k.NbEPCI}}, {{$k.NbEPCI}} intercommunalités à fiscalité propre{{end}}.</p>
 
+{{template "situation" $k.Situation}}
+
 {{if $k.President}}
 <div class="cartes trois">
   <div class="carte"><span class="v" style="font-size:1.25rem">{{$k.President.Nom}}</span>

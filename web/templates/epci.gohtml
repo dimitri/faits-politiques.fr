@@ -10,6 +10,8 @@
 <p class="lede">{{nb $e.Population}} habitants, {{len $e.Communes}} communes membres{{if $e.Dept.Nom}}, siège
 dans {{if $e.Dept.URL}}<a href="{{$e.Dept.URL}}">{{$e.Dept.Nom}}</a>{{else}}{{$e.Dept.Nom}}{{end}}{{end}}.</p>
 
+{{template "situation" $e.Situation}}
+
 <div class="cartes trois">
   <div class="carte"><span class="v" style="font-size:1.25rem">{{if $e.President}}{{$e.President}}{{else}}non publié{{end}}</span>
     <span class="t">Président du conseil communautaire</span>
