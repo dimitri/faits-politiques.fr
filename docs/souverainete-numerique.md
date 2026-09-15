@@ -1,6 +1,6 @@
 # Souveraineté numérique de l'État
 
-> **Dossier** · version 3 · 15 septembre 2026
+> **Dossier** · version 4 · 15 septembre 2026
 >
 > Que recouvre la souveraineté numérique dans l'action publique, pourquoi l'État s'en est
 > donné des règles, lesquelles, ce qu'en ont vérifié le Sénat et les juridictions, et ce
@@ -52,6 +52,8 @@ finances et de la souveraineté industrielle, énergétique et numérique »
 - **Microsoft France ne peut pas garantir que les données ne seront pas transmises à des autorités étrangères** (10 juin 2025). Invité à garantir que les données des citoyens français qu'elle héberge ne seront jamais transmises à des autorités étrangères sans l'accord des autorités françaises, Microsoft France répond qu'elle ne peut pas le garantir. — Microsoft France (directeur des affaires publiques et juridiques, audition sous serment) · [source](https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf), p. 241 · *officiel*
 - **FISA, section 702 (50 U.S.C. 1881a) : collecte de renseignement visant des personnes situées hors des États-Unis**. Sur autorisation conjointe du ministre de la Justice et du directeur du renseignement national, approuvée par la cour FISA, un fournisseur de services de communication électronique peut être contraint de fournir immédiatement toute information et toute assistance nécessaires, en gardant le secret. Texte lu dans l'édition 2023 du code ; la section a été prorogée en avril 2024 pour deux ans, et son état après avril 2026 n'est pas vérifié ici. — Congrès des États-Unis · [source](https://www.govinfo.gov/content/pkg/USCODE-2023-title50/html/USCODE-2023-title50-chap36-subchapVI-sec1881a.htm) · *officiel*
 - **Aucune entreprise européenne visée par une demande américaine en 2023-2024, selon Microsoft**. Microsoft affirme qu'aucune entreprise européenne n'a fait l'objet d'une demande au titre du CLOUD Act en 2023-2024. La commission souligne que ces chiffres, comme les rapports de transparence de l'entreprise, sont purement déclaratifs. — Microsoft France (contribution écrite) · [source](https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf), p. 242 · *déclaratif*
+- **La part de l'Union dans les revenus mondiaux des puces : environ 10 %** (8 février 2022). La Commission estime la part de l'Union à environ 10 % des revenus mondiaux liés aux puces semi-conducteurs et fixe l'objectif d'atteindre au moins 20 % de la production mondiale. — Commission européenne (communication COM(2022) 45, « Une législation sur les semi-conducteurs pour l'Europe ») · [source](https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:52022DC0045) · *officiel*
+- **Composants de conception américaine et licences d'exportation ITAR** (6 mars 2022). L'auteur écrit que l'industrie militaire française dépend, pour ses produits les plus avancés, de composants de conception américaine soumis aux licences d'exportation ITAR, de plus en plus difficiles à obtenir, et que STMicroelectronics et NXP disent se satisfaire de technologies de 28 nm et plus. Analyse signée, non vérifiée par une source officielle chargée. — Laurent Bloch (ancien chef du service d'informatique scientifique de l'Institut Pasteur), article sur son site personnel · [source](https://www.laurentbloch.net/MySpip3/Le-Chips-Act-peut-il-sauver-l-industrie-europeenne) · *déclaratif*
 
 <!-- faits:ENJEUX:fin -->
 
@@ -68,6 +70,8 @@ finances et de la souveraineté industrielle, énergétique et numérique »
 - **Proscription des suites collaboratives en ligne d'éditeurs états-uniens ou non européens dans les écoles** (28 février 2025). Le ministère continue de proscrire tout déploiement de suites collaboratives en ligne d'éditeurs états-uniens ou non européens dans les écoles et établissements publics. — Secrétaire général du ministère de l'Éducation nationale (circulaire) · [source](https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf), p. 252 · *officiel*
 - **Rappel de la doctrine et refus des achats non soumis à la DINUM à partir du 31 mai 2025** (22 avril 2025). Les ministres rappellent l'obligation de protéger les données sensibles (solutions collaboratives, bureautiques, messagerie, IA) contre les accès d'États tiers et annoncent que chaque contrôleur budgétaire et comptable ministériel refusera tout achat qui aurait dû recevoir l'avis préalable de la DINUM. La commission d'enquête y voit la preuve d'un pilotage défaillant. — Ministres de l'Action publique, des Comptes publics et du Numérique (courrier aux membres du Gouvernement) · [source](https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf), p. 256-257 · *officiel*
 - **La qualification SecNumCloud : exigences techniques, organisationnelles et juridiques, deux ans d'instruction**. La qualification vérifie la sécurité du service et sa résistance à une injonction étrangère (cloisonnement, exploitation par le seul prestataire qualifié, protection juridique). En 2025, une quinzaine d'offres étaient qualifiées et une douzaine en cours, pour 19 sociétés ; taux de réussite de 65 %, instruction de 18 à 24 mois, audits d'au moins 200 000 € sur trois ans. — ANSSI (réponses écrites à la commission d'enquête du Sénat) · [source](https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf), p. 245 · *officiel*
+- **Usine de Crolles : soutien de l'État de 2,9 Md€ au plus** (5 juin 2023). La nouvelle usine de semi-conducteurs de Crolles (STMicroelectronics et GlobalFoundries) a officiellement commencé sa production en juin 2023, avec un soutien financier maximal de l'État de 2,9 Md€ et l'objectif de doubler la production de puces en France d'ici 2028. — Direction générale des entreprises (ministère de l'Économie) · [source](https://www.entreprises.gouv.fr/la-dge/actualites/la-mega-usine-de-semi-conducteurs-officiellement-commence-sa-production) · *officiel*
+- **Règlement européen sur les puces (« Chips Act »)** (13 septembre 2023). Le règlement établit un cadre pour renforcer l'écosystème européen des semi-conducteurs, dont l'initiative « Semi-conducteurs pour l'Europe ». La Cour des comptes chiffre à 43 Md€ les subventions prévues, financées principalement par les États membres. — Parlement européen et Conseil (règlement (UE) 2023/1781) · [source](https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32023R1781) · *officiel*
 
 <!-- faits:CADRE:fin -->
 
@@ -81,6 +85,10 @@ finances et de la souveraineté industrielle, énergétique et numérique »
 - **Bleu (Orange-Capgemini, Microsoft) et S3NS (Thales, Google Cloud) non qualifiés SecNumCloud en 2025**. Les offres hybrides Bleu et S3NS ont engagé la qualification mais ne sont pas qualifiées à la date de la réponse de l'ANSSI (2025). Le catalogue de l'ANSSI chargé ici dit où elles en sont depuis. — ANSSI (réponses écrites à la commission) · [source](https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf), p. 248 · *officiel*
 - **Décret SREN, toutes les données publiques sensibles, clause de non-soumission aux lois extraterritoriales, SecNumCloud obligatoire**. La commission recommande de publier le décret de l'article 31, de considérer toutes les données publiques comme sensibles, d'imposer une clause de non-soumission aux lois extraterritoriales dans les marchés d'hébergement et de conseil, de faire respecter SecNumCloud pour les données sensibles en privilégiant les technologies intégralement souveraines, et de faire de l'UGAP un outil de souveraineté (recommandations 22 à 31). — Sénat, commission d'enquête sur les coûts et les modalités effectifs de la commande publique (rapport n° 830, 2025) · [source](https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf), p. 268-275 · *officiel*
 - **Décret de l'article 31 de la loi SREN non publié plus d'un an après la loi ; dérogations pour les suites bureautiques et la plateforme des données de santé**. Le décret attendu dans les six mois n'est toujours pas publié à la fin des travaux de la commission (2025). Selon la DINUM, les dérogations portées à sa connaissance concernent des suites bureautiques de ministères ou d'organismes sous tutelle et l'hébergement de la plateforme des données de santé. — Sénat, commission d'enquête sur les coûts et les modalités effectifs de la commande publique (rapport n° 830, 2025) · [source](https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf), p. 251 · *officiel*
+- **Projet Liberty : 574 M€ versés à STMicroelectronics, rien à GlobalFoundries** (21 avril 2026). Sur 2,9 Md€ de subventions accordées (1,8 Md€ pour GlobalFoundries, 1,1 Md€ pour STMicroelectronics), 574 M€ avaient été versés à STMicroelectronics à fin juin 2025 ; GlobalFoundries n'a pas commencé sa part du projet. La Cour relève que l'évaluation socio-économique préalable exigée au-delà de 20 M€ est incomplète. — Cour des comptes (rapport public thématique « Le soutien à la filière des semi-conducteurs », avril 2026) · [source](https://www.ccomptes.fr/sites/default/files/2026-04/20260421-Soutien-filiere-des-semi-conducteurs.pdf), p. 11 · *officiel*
+- **Cartographier l'offre et la demande de puces, chiffrer les objectifs** (21 avril 2026). L'État ne dispose pas de cartographie précise de la filière ni de cibles de production par type de puces : il n'est donc pas en mesure, selon la Cour, de quantifier les progrès en matière de souveraineté industrielle. Elle recommande de cartographier l'offre et la demande en 2026 et de fixer des objectifs chiffrés par type de puces. — Cour des comptes (rapport public thématique « Le soutien à la filière des semi-conducteurs », avril 2026) · [source](https://www.ccomptes.fr/sites/default/files/2026-04/20260421-Soutien-filiere-des-semi-conducteurs.pdf), p. 10-12 · *officiel*
+- **Des aides peu conditionnées à la production nationale et à l'emploi** (21 avril 2026). À la différence des États-Unis ou du Japon, les soutiens publics français se caractérisent selon la Cour par une faible conditionnalité en termes de production nationale et d'emploi, et ne prennent quasiment jamais la forme d'avances remboursables. — Cour des comptes (rapport public thématique « Le soutien à la filière des semi-conducteurs », avril 2026) · [source](https://www.ccomptes.fr/sites/default/files/2026-04/20260421-Soutien-filiere-des-semi-conducteurs.pdf), p. 9 · *officiel*
+- **8,7 Md€ d'aides publiques programmées à la filière de 2018 à 2025, dont 5 Md€ versés** (21 avril 2026). Aucune consolidation des soutiens publics n'existait : la Cour les recense et les estime à 8,7 Md€ programmés sur 2018-2025, dont 5 Md€ effectivement versés, hors participations publiques au capital (3,6 Md€) et crédit d'impôt recherche inclus. — Cour des comptes (rapport public thématique « Le soutien à la filière des semi-conducteurs », avril 2026) · [source](https://www.ccomptes.fr/sites/default/files/2026-04/20260421-Soutien-filiere-des-semi-conducteurs.pdf), p. 9 · *officiel*
 
 <!-- faits:CONTROLE:fin -->
 
@@ -108,12 +116,38 @@ américaine opérée sous licence (colonne `technologie_tierce`) : S3NS et deux 
 
 | catégorie | acteurs | ce que disent les données publiques |
 |---|---|---|
-| **Semi-conducteurs** | STMicroelectronics (Crolles 2, France, Rousset, Tours, Grenoble 2), Soitec | Unités légales Sirene en « fabrication de composants électroniques » (26.11Z) ou en recherche. Aides d'État publiées : 1 276,8 M€ d'équivalent-subvention pour STMicroelectronics (Crolles 2), dont le projet « Liberty » d'usine de semi-conducteurs avec GlobalFoundries (juin 2023) ; 231,8 M€ pour Soitec. Aucune source chargée ne documente une production de processeurs d'ordinateurs : le code d'activité ne dit pas quelles puces sont fabriquées. |
+| **Semi-conducteurs** | STMicroelectronics (Crolles 2, France, Rousset, Tours, Grenoble 2), Soitec | Unités légales Sirene en « fabrication de composants électroniques » (26.11Z) ou en recherche. Aides d'État publiées : 1 276,8 M€ d'équivalent-subvention pour STMicroelectronics (Crolles 2), dont le projet « Liberty » d'usine de semi-conducteurs avec GlobalFoundries (juin 2023) ; 231,8 M€ pour Soitec. Le code d'activité ne dit pas quelles puces sont fabriquées ; la Cour des comptes et le dossier de concertation de Crolles décrivent la filière (ci-dessous). |
 | **Cloud** | OVHcloud, Scaleway (groupe iliad), Outscale, Cloud Temple, Numspot, Orange Business Services, Thales Cloud Sécurisé (S3NS), Worldline | Tous qualifiés SecNumCloud pour au moins un service, sauf Scaleway. Marché Cloud de l'UGAP 2020-2025 : OVHcloud 37 %, Outscale 11 %, Scaleway 7 % des commandes (§ 3). |
 | **Logiciel** | Index Éducation (Pronote), Wimi, Oodrive, Whaller, Linagora, XWiki | Services SaaS qualifiés SecNumCloud pour les quatre premiers ; Linagora et XWiki prestataires déclarés du socle interministériel de logiciels libres. |
 | **Intelligence artificielle** | Mistral AI | Unité légale Sirene, aides d'État publiées (14,5 M€ d'équivalent-subvention). |
 | **Pôles de compétitivité** | Systematic Paris-Region (Île-de-France), Cap Digital (Paris), Minalogic (Auvergne-Rhône-Alpes), Images & Réseaux (Bretagne, Pays de la Loire) | Associations Sirene ; chacune se présente comme pôle (qualité *déclaratif*). La liste officielle des pôles n'est pas publiée en données ouvertes à jour : le site du ministère refuse les téléchargements automatisés. |
 | **Filière et utilisateurs** | Hexatrust, Conseil national du logiciel libre, AFUL, Numeum | Associations et syndicat professionnel. |
+
+**Semi-conducteurs : la place de la France.** Point de départ : deux articles de Laurent
+Bloch, ancien chef du service d'informatique scientifique de l'Institut Pasteur, sur l'usine
+STMicroelectronics de Crolles (2014) et le règlement européen sur les puces (2022) — cités
+comme analyses signées (*déclaratif*). Les chiffres viennent des sources publiques :
+
+| indicateur | valeur | source | qualité |
+|---|---|---|---|
+| Part de l'Union dans la production mondiale de puces | 7 % | Cour des comptes, avril 2026, p. 7 | *officiel* |
+| Part de l'Union dans les revenus mondiaux des puces | environ 10 % ; objectif 20 % de la production en 2030 | Commission européenne, COM(2022) 45 | *officiel* |
+| Filière française : salariés, chiffre d'affaires 2022 | 53 600 ; 18,2 Md€, soit 11 % de la production de l'Union | Cour des comptes, p. 8 | *officiel* |
+| Excédent commercial de la filière, 2024 | 1,8 Md€ | Cour des comptes, p. 8 | *officiel* |
+| Aides publiques programmées 2018-2025 (versées) | 8,7 Md€ (5 Md€), hors 3,6 Md€ de participations au capital | Cour des comptes, p. 9 | *officiel* |
+| Projet « Liberty » à Crolles : aide maximale de l'État | 2,9 Md€ (1,8 Md€ GlobalFoundries, 1,1 Md€ STMicroelectronics) | DGE, 5 juin 2023 ; Cour des comptes, p. 11 | *officiel* |
+| Versé à fin juin 2025 | 574 M€ à STMicroelectronics, 0 à GlobalFoundries | Cour des comptes, p. 11 | *officiel* |
+| Investissement annoncé, emplois en Isère, prélèvement d'eau maximal | 7,5 Md€ ; 7 500 dont 5 100 à Crolles ; 300 m³/h | STMicroelectronics, dossier de concertation (CNDP, 2024) | *déclaratif* |
+
+La Cour relève que l'État n'a ni cartographie de l'offre et de la demande de puces ni
+objectif chiffré par type de puces, et qu'il ne peut donc pas mesurer les progrès de
+souveraineté industrielle ; elle le recommande pour 2026. Elle constate aussi une faible
+conditionnalité des aides à la production nationale et à l'emploi, et une évaluation
+socio-économique de « Liberty » incomplète. En 2014, Laurent Bloch décrivait Crolles comme la
+seule usine européenne de processeurs à l'état de l'art (22/32 nm), fabriquant notamment des
+processeurs ARM sous licence ; en 2022, il écrivait que l'industrie de défense dépend de
+composants de conception américaine soumis aux licences d'exportation ITAR. Ces deux
+constats restent les siens : aucune source officielle chargée ne les recoupe à ce jour.
 
 **Le logiciel libre dans l'État.** Le socle interministériel de logiciels libres
 (`core.sill_logiciel`, DINUM) référence **672 logiciels**, dont **68 développés par un service
@@ -138,6 +172,12 @@ déclare un système d'information à 98 % libre (voir les faits ci-dessous).
 
 - **Amende de 1,2 Md€ pour transferts de données de Facebook vers les États-Unis** (22 mai 2023). Meta Ireland a transféré des données personnelles d'utilisateurs européens vers les États-Unis sur la base de clauses contractuelles types sans protéger ces données de la surveillance américaine décrite par l'arrêt Schrems II. — Data Protection Commission (Irlande), sur décision contraignante du Comité européen de la protection des données · [source](https://www.dataprotection.ie/en/news-media/press-releases/Data-Protection-Commission-announces-conclusion-of-inquiry-into-Meta-Ireland) · *officiel*
 - **Amende de 325 M€ : publicités entre les courriels Gmail et traceurs sans consentement** (1er septembre 2025). Sanction portant sur les services grand public de Google (Gmail, création de comptes), pas sur un contrat public. — CNIL (formation restreinte) · [source](https://www.cnil.fr/fr/publicites-inserees-entre-les-courriels-et-cookies-la-cnil-sanctionne-google-dune-amende-de-325) · *officiel*
+
+**Semi-conducteurs**
+
+- **Crolles en 2014 : la seule usine européenne de processeurs de pointe, selon l'auteur** (24 octobre 2014). Après une journée portes ouvertes, l'auteur recense six entreprises capables de fabriquer des processeurs à l'état de l'art, dont une seule européenne, STMicroelectronics, dont l'unité de pointe est à Crolles (22/32 nm en 2014), qui fabrique notamment des processeurs ARM sous licence. Chiffres de 2014 non actualisés par l'auteur. — Laurent Bloch (ancien chef du service d'informatique scientifique de l'Institut Pasteur), article sur son site personnel · [source](https://www.laurentbloch.net/MySpip3/L-usine-microelectronique-STMicro-a-Crolles) · *déclaratif*
+- **Extension de Crolles : 7,5 Md€ d'investissement annoncés, 300 m³/h de prélèvement d'eau au plus** (1er mars 2024). Le dossier présenté à la concertation annonce un investissement de l'ordre de 7,5 Md€ porté avec GlobalFoundries, pour doubler la capacité de production en 300 mm à horizon 2028 ; l'entreprise déclare 7 500 salariés en Isère dont plus de 5 100 à Crolles, et un débit maximal de prélèvement d'eau de 300 m³/h. — STMicroelectronics, maître d'ouvrage (dossier de concertation publié par la Commission nationale du débat public) · [source](https://www.debatpublic.fr/sites/default/files/2024-03/Dossier_de_concertationSTM_1.pdf), p. 2, 17, 46 · *déclaratif*
+- **La filière française : 53 600 salariés, 11 % de la production européenne** (21 avril 2026). La filière compte une centaine d'entreprises et 53 600 salariés ; cinq entreprises, dont STMicroelectronics, réalisent 85 % de la production. Son chiffre d'affaires de 18,2 Md€ en 2022 représente 11 % de la production européenne, elle-même 7 % de la production mondiale de puces. Excédent commercial : 1,8 Md€ en 2024. — Cour des comptes (rapport public thématique « Le soutien à la filière des semi-conducteurs », avril 2026) · [source](https://www.ccomptes.fr/sites/default/files/2026-04/20260421-Soutien-filiere-des-semi-conducteurs.pdf), p. 7-8 · *officiel*
 
 **Solutions françaises**
 
@@ -246,8 +286,11 @@ service qui ne l'est pas (pièges de lecture).
 - **La publication du décret SREN après juillet 2025** (fin du corpus du Journal officiel
   chargé) et l'hébergeur de la plateforme des données de santé après l'annonce d'avril 2025 :
   non vérifiés.
-- **Quelles puces fabriquent les usines françaises** : le code d'activité Sirene ne le dit
-  pas, et le site de STMicroelectronics refuse les téléchargements automatisés.
+- **Quelles puces fabriquent les usines françaises, et pour qui** : le code d'activité Sirene
+  ne le dit pas, le site de STMicroelectronics refuse les téléchargements automatisés, et la
+  Cour des comptes constate que l'État n'en tient pas de cartographie (avril 2026).
+- **La dépendance de la défense aux composants américains (ITAR)** : affirmée par un analyste,
+  non documentée par une source officielle chargée.
 - **La liste officielle des pôles de compétitivité** : non publiée en données ouvertes à jour.
 
 ## Pièges de lecture
@@ -285,6 +328,8 @@ service qui ne l'est pas (pièges de lecture).
 | Comptes rendus de l'Assemblée nationale | `ref.fait_dossier`, `derived.dossier_mentions_an` | PRIMARY_OFFICIAL | corpus déjà chargé |
 | Doctrine « cloud au centre » (DINUM), CLOUD Act et FISA (govinfo.gov), EUR-Lex, curia | `ref.fait_dossier` | PRIMARY_OFFICIAL | HTML, PDF |
 | Autorité irlandaise (Meta), CNIL (Google 2025) | `ref.fait_dossier` | PRIMARY_OFFICIAL | HTML |
+| Cour des comptes, « Le soutien à la filière des semi-conducteurs » (avril 2026) ; règlement (UE) 2023/1781 et COM(2022) 45 (EUR-Lex) ; DGE (5 juin 2023) | `ref.fait_dossier` | PRIMARY_OFFICIAL | PDF, HTML |
+| Dossier de concertation de STMicroelectronics (CNDP, 2024) ; articles de Laurent Bloch (laurentbloch.net, 2014 et 2022) | `ref.fait_dossier` | DECLARATIF | PDF, HTML scellés, phrases contrôlées |
 | Répertoire Sirene, registre européen des aides d'État, sites des organismes cités | `ref.acteur_numerique`, `core.aide_nominative` | PRIMARY_OFFICIAL / DECLARATIF | déjà chargés, pages scellées |
 
 Inaccessibles ou écartés : le site du Contrôleur européen de la protection des données
@@ -304,6 +349,9 @@ contrats documentés sans les recopier.
 
 ## Versions
 
+- **Version 4** (15 septembre 2026) : semi-conducteurs (Cour des comptes 2026, règlement
+  européen sur les puces, projet « Liberty », concertation de Crolles), à partir des articles
+  de Laurent Bloch, cités comme analyses signées.
 - **Version 3** (15 septembre 2026) : plan commun des dossiers (D-066) ; « Cloud » défini
   comme la location d'ordinateurs dans des salles serveurs ; solutions françaises (§ 2) ;
   citations liées aux fiches des personnes.

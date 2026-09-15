@@ -59,9 +59,15 @@ type Fait struct {
 // Terme : une expression par laquelle un dossier est repéré dans les débats.
 type Terme struct{ Dossier, Libelle, Motif string }
 
+// Mission : une mission budgétaire de l'État suivie par un dossier. Le motif est
+// une expression régulière sur core.budget_programme.mission_libelle, parce que
+// le libellé change d'un projet de loi de finances à l'autre.
+type Mission struct{ Dossier, Libelle, Motif string }
+
 var (
-	faits  []Fait
-	termes []Terme
+	faits    []Fait
+	termes   []Terme
+	missions []Mission
 )
 
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
@@ -282,7 +288,25 @@ func IngestFaits(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 				return nil, fmt.Errorf("terme %s/%s : %w", t.Dossier, t.Libelle, err)
 			}
 		}
-		stats := map[string]any{"faits": len(faits), "documents": len(docs), "termes": len(termes)}
+		// Une mission déclarée qui ne correspond à aucune ligne du budget chargé
+		// laisserait un tableau vide sans le dire : c'est une erreur de chargement.
+		if _, err := tx.Exec(ctx, `DELETE FROM ref.dossier_mission`); err != nil {
+			return nil, err
+		}
+		for _, m := range missions {
+			var n int
+			if err := tx.QueryRow(ctx, `SELECT count(DISTINCT mission_libelle) FROM core.budget_programme WHERE mission_libelle ~ $1`, m.Motif).Scan(&n); err != nil {
+				return nil, fmt.Errorf("mission %s/%s : %w", m.Dossier, m.Libelle, err)
+			}
+			if n == 0 {
+				return nil, fmt.Errorf("mission %s/%s : aucune ligne de core.budget_programme ne correspond à %q (charger -only=budget)", m.Dossier, m.Libelle, m.Motif)
+			}
+			if _, err := tx.Exec(ctx, `INSERT INTO ref.dossier_mission (dossier, libelle, motif) VALUES ($1,$2,$3)`,
+				m.Dossier, m.Libelle, m.Motif); err != nil {
+				return nil, fmt.Errorf("mission %s/%s : %w", m.Dossier, m.Libelle, err)
+			}
+		}
+		stats := map[string]any{"faits": len(faits), "documents": len(docs), "termes": len(termes), "missions": len(missions)}
 		for d, n := range parDossier {
 			stats[d] = n
 		}

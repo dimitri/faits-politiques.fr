@@ -2211,7 +2211,50 @@ enjeux → cadre → contrôles → situation, a servi de modèle.
 
 **Ce que cela coûte.** Les « enjeux » d'un dossier ne peuvent plus être écrits par le
 projet : ils viennent d'une institution citée, ce qui rend certaines sections courtes. Les
-contrôles de la Cour des comptes ne sont pas chargés : son site renvoie une erreur 502 aux
-téléchargements automatisés, non contournée. Les faits de contexte tirés des débats
+rapports de la Cour des comptes sont lus dans leur PDF (la page d'accueil du site a renvoyé
+une erreur 502, les fichiers se téléchargent) : le premier chargé est celui d'avril 2026 sur
+les semi-conducteurs. Les faits de contexte tirés des débats
 couvrent la seule Assemblée nationale depuis juillet 2024 (couverture des comptes rendus
 chargés).
+
+## D-067 — Des dossiers verticaux par mission budgétaire ; une source non officielle ouvre une piste sans porter de chiffre
+
+Migration 0102, `internal/dossiers/verticales.go` et `souverainete_semiconducteurs.go`,
+`cmd/sections-dossiers` (section BUDGET), perimetre.md § 2.8.
+
+**Pourquoi.** Treize missions de l'État chargées dans `core.budget_programme` n'avaient
+aucun dossier : justice, culture, recherche et enseignement supérieur, logement, outre-mer,
+action extérieure, aide au développement, sport, fonction publique, économie, France 2030,
+plan de relance, agriculture. Et le dossier souveraineté numérique affirmait qu'aucune
+source chargée ne documentait la production de puces en France, alors que la Cour des
+comptes, la Commission européenne, la DGE et le dossier de concertation de Crolles le font.
+
+**Décidé.**
+
+- **Onze dossiers verticaux**, au plan commun, les missions proches regroupées (culture et
+  médias, action extérieure et aide au développement, économie et participations, France
+  2030 et relance). Chaque dossier déclare ses missions dans `ref.dossier_mission` par un
+  motif, parce que les libellés changent d'un projet de loi de finances à l'autre ; le
+  chargement refuse un motif sans correspondance.
+- **Le tableau des crédits est généré** (`derived.dossier_budget_programme`, section
+  BUDGET) : crédits de paiement par programme des projets 2024 et 2025, total des
+  autorisations d'engagement, et la mention « ni votés ni exécutés » sous chaque tableau.
+  `cmd/verify` contrôle que la somme par programme retombe sur le total de la mission.
+- **Les contrôles viennent des synthèses des rapports spéciaux du Sénat** sur le projet de
+  loi de finances pour 2026 (rapport général n° 139, annexes 31 à 330), liées à la fiche du
+  rapporteur spécial ; les cadres, des textes du Journal officiel chargé, article compris
+  quand le fait cite un objectif chiffré.
+- **Les articles de Laurent Bloch** (usine de Crolles en 2014, règlement européen sur les
+  puces en 2022) ont servi de point de départ au volet semi-conducteurs. Ils sont cités
+  comme analyses signées (*déclaratif*) ; tous les chiffres du volet viennent du rapport de
+  la Cour des comptes d'avril 2026, de la communication COM(2022) 45, du règlement
+  (UE) 2023/1781, de la DGE et du dossier de concertation publié par la CNDP (celui-ci
+  *déclaratif*, puisque rédigé par l'entreprise).
+
+**Ce que cela coûte.** Les tableaux comparent deux projets de loi de finances, quand le
+Sénat compare la loi votée pour 2025 au projet pour 2026 : les chiffres ne se recoupent pas
+directement, et le piège est écrit dans chaque dossier. L'exécution par mission n'est pas
+chargée. Deux affirmations de Laurent Bloch — la dépendance de la défense aux composants
+soumis à la réglementation américaine ITAR, et Crolles seule usine européenne de
+processeurs de pointe en 2014 — restent les siennes : aucune source officielle chargée ne
+les recoupe.

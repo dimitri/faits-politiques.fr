@@ -1,5 +1,7 @@
 # Chercher dans le Journal officiel : ce que chaque index sait faire
 
+> **Méthode** · version 2 · 15 septembre 2026
+>
 > Mesures du 13 septembre 2026, sur le corpus complet chargé en base :
 > 1 236 284 actes, 3 809 558 blocs de texte, 1861 → 2025.
 > Processeur Intel Xeon E5-2620 v2 à 2,10 GHz, PostgreSQL 17.
@@ -297,3 +299,8 @@ présenter comme une comparaison avec le plein texte serait trompeur.
 Ce qu'une vraie comparaison demanderait : un modèle d'embedding français, appliqué
 à 3,8 millions de blocs, avec le coût de calcul correspondant. C'est un chantier
 en soi, et il commence par choisir le modèle — pas par installer l'extension.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066).
+- **Version 1** (13 septembre 2026) : mesures des index du Journal officiel ; vue matérialisée du vecteur de recherche le 14 septembre.

@@ -7,7 +7,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 
 | Document | Ce qu'il contient |
 |---|---|
-| [decisions.md](decisions.md) | **Le journal des décisions, D-001 à D-066.** Toute affirmation de ce projet doit pouvoir s'y rattacher, y compris les erreurs corrigées. |
+| [decisions.md](decisions.md) | **Le journal des décisions, D-001 à D-067.** Toute affirmation de ce projet doit pouvoir s'y rattacher, y compris les erreurs corrigées. |
 | [perimetre.md](perimetre.md) | Ce que le projet couvre, la matrice des sources avec leurs licences, et ce qui est hors de portée. Le § 2.8 fixe le plan commun de tous les dossiers (D-066). |
 | [architecture.md](architecture.md) | Le choix statique / dynamique et ses conséquences. |
 
@@ -33,6 +33,25 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 | [scrutins-et-bulletins.md](scrutins-et-bulletins.md) | Le modèle des scrutins et des votes nominatifs. |
 | [contributions-utilisateurs.md](contributions-utilisateurs.md) | Cartographies alternatives sans compte utilisateur. |
 | [charte-graphique.md](charte-graphique.md) | Palette, contrastes, typographie. |
+
+## Dossiers verticaux
+
+Une politique publique suivie par ses missions budgétaires : crédits par programme,
+textes, constats du Sénat sur le projet de loi de finances pour 2026 (D-067).
+
+| Document | Missions suivies |
+|---|---|
+| [justice-donnees.md](justice-donnees.md) | Justice |
+| [culture-donnees.md](culture-donnees.md) | Culture ; Médias, livre et industries culturelles ; audiovisuel public |
+| [recherche-enseignement-superieur-donnees.md](recherche-enseignement-superieur-donnees.md) | Recherche et enseignement supérieur |
+| [logement-territoires-donnees.md](logement-territoires-donnees.md) | Cohésion des territoires |
+| [outre-mer-donnees.md](outre-mer-donnees.md) | Outre-mer |
+| [action-exterieure-donnees.md](action-exterieure-donnees.md) | Action extérieure de l'État ; Aide publique au développement |
+| [sport-vie-associative-donnees.md](sport-vie-associative-donnees.md) | Sport, jeunesse et vie associative |
+| [fonction-publique-donnees.md](fonction-publique-donnees.md) | Transformation et fonction publiques |
+| [economie-participations-donnees.md](economie-participations-donnees.md) | Économie ; Participations financières de l'État |
+| [france-2030-donnees.md](france-2030-donnees.md) | Investir pour la France de 2030 ; Plan de relance |
+| [agriculture-donnees.md](agriculture-donnees.md) | Agriculture, alimentation, forêt et affaires rurales ; Développement agricole et rural |
 
 ## Protocoles scellés avant calcul
 

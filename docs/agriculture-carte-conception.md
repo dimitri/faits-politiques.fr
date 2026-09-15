@@ -1,6 +1,8 @@
 # Cartographier l'agriculture : exploitations, surfaces, production
 
-> Note de conception. Version 1 — 14 septembre 2026.
+> **Méthode** · version 2 · 15 septembre 2026
+>
+> Note de conception.
 > Question posée : peut-on représenter sur une carte la production agricole et le
 > nombre de paysans, à partir du recensement agricole communal ?
 >
@@ -169,3 +171,8 @@ l'échelon où se décident une partie des politiques foncières.
    statistique.
 4. **Le millésime** du recensement (2020) et de la géographie (2025).
 5. **La source et son intermédiaire** : Agreste, via l'Observatoire des territoires.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066).
+- **Version 1** (14 septembre 2026) : note de conception de la carte agricole.

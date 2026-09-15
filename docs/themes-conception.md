@@ -1,5 +1,7 @@
 # Les thèmes : ce qu'on peut en faire, ce qu'on ne peut pas
 
+> **Méthode** · version 2 · 15 septembre 2026
+
 Révision de la conception initiale. La conception initiale posait une taxonomie
 maison `v1` (INSTITUTIONS, LIBERTES, DROITS_FEMMES, FISCALITE, SOCIAL, DEFENSE,
 EUROPE, SECURITE) qu'il aurait fallu appliquer nous-mêmes, texte par texte. Elle
@@ -159,3 +161,8 @@ genre de fait qui protège l'outil du soupçon d'orientation.
    pré-enregistrement.
 5. Sceller un pré-enregistrement 003 pour la seule hypothèse du §3.3 avant tout
    calcul de corrélation.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066).
+- **Version 1** (12 septembre 2026) : révision de la taxonomie, adoption des thèmes du Sénat (D-017).

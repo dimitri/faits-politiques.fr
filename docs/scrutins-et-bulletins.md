@@ -1,6 +1,8 @@
 # Modes de scrutin, bulletins de vote et participation
 
-> Document de revue. Version 3 — 12 septembre 2026.
+> **Méthode** · version 4 · 15 septembre 2026
+>
+> Document de revue.
 > Il décrit **les règles du code électoral** pour les quatre scrutins principaux, **la chaîne
 > matérielle du bulletin de vote** (qui paie, quelle norme de papier, qui le fabrique),
 > une **comparaison internationale** des modes d'élection du chef de l'État (Europe complète,
@@ -755,3 +757,8 @@ identiques :
    décision l'écrit* — « Charles de Gaulle », mais « Georges POMPIDOU ». Relier ces chaînes à des
    fiches est une décision éditoriale : elle appelle une table de liaison avec son motif, jamais
    une normalisation silencieuse à l'ingestion.
+
+## Versions
+
+- **Version 4** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066).
+- **Version 3** (12 septembre 2026) : document de revue des modes de scrutin, bulletins et participation.

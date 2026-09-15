@@ -1,6 +1,8 @@
 # Pipeline CI : stockage des données brutes, orchestration du build, publication
 
-> Note d'étude. Version 1 — 14 septembre 2026.
+> **Méthode** · version 2 · 15 septembre 2026
+>
+> Note d'étude.
 > Complète [INFRA.md](../INFRA.md), qui tranche déjà où tourne le build (une VM
 > à la demande) et comment le site est servi (bucket `fp-site` derrière Edge
 > Services). Cette note répond à deux questions plus étroites, posées
@@ -224,3 +226,8 @@ dès qu'une clé Scaleway avec droit d'écriture entre dans le pipeline :
    découpage en jobs CI, à ne pas confondre.
 3. **Domaine et certificat** restent hors budget de ce document, comme déjà
    noté en INFRA.md § 11.4.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066).
+- **Version 1** (14 septembre 2026) : note d'étude du pipeline.

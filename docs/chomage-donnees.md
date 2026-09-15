@@ -110,7 +110,7 @@ taux BIT du § 1 : c'est un décompte d'inscriptions, catégorie par catégorie
 l'ensemble ABC (3,2 millions la même année)** : une bonne partie de l'écart
 entre « le chômage recule » et « les chiffres du chômage restent élevés »
 dans le débat public tient à la catégorie retenue, pas seulement à la
-réalité économique. Category A seule se rapproche le plus du chômage BIT par
+réalité économique. La catégorie A seule se rapproche le plus du chômage BIT par
 construction (aucune activité), mais les deux ne coïncident pas : l'un est
 une enquête sur un échantillon, l'autre un dénombrement administratif de
 toutes les inscriptions.

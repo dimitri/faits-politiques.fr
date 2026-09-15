@@ -1,5 +1,7 @@
 # Contributions sans compte — note de conception
 
+> **Méthode** · version 2 · 15 septembre 2026
+>
 > Décision : **il n'y a aucun compte utilisateur dans ce produit.**
 > Ni pour consulter, ni pour créer, ni pour publier.
 
@@ -103,3 +105,8 @@ d'œil au lieu de se discuter.
   exact mais moins engageant. Arbitrage produit.
 - **Les contestations** restent le seul endroit où du texte libre arrive du public. Elles
   ne sont pas publiées automatiquement : l'équipe y répond, et la réponse est publique.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066).
+- **Version 1** (12 septembre 2026) : note de conception des contributions sans compte.

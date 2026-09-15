@@ -112,7 +112,7 @@ suit toujours le même ordre, pour que le lecteur retrouve la même chose au mê
 | **Enjeux** | ce que les institutions disent de l'importance du sujet, jamais ce qu'en pense le dossier | `ref.fait_dossier` |
 | **Cadre** | les textes (loi, doctrine, règles européennes) et les définitions officielles | `ref.fait_dossier`, textes relus dans le Journal officiel |
 | **Contrôles et évaluations** | Parlement, Cour des comptes, juridictions, autorités et hauts conseils | `ref.fait_dossier` |
-| **Situation chiffrée** | les données, chacune avec sa source, sa date et sa nature | tables `core` et `derived` |
+| **Situation chiffrée** | les données, chacune avec sa source, sa date et sa nature ; pour un dossier qui suit des missions de l'État, le tableau des crédits par programme (D-067) | tables `core` et `derived`, `derived.dossier_budget_programme` |
 | **Ce que les données ne disent pas** | les absences, typées (§ 2.2) | — |
 | **Pièges de lecture**, **Glossaire**, **Sources** | | |
 | **Annexe technique** | tables, migrations, connecteurs, vérifications, chiffres de référence datés | hors du texte lu par le public |
@@ -136,6 +136,12 @@ Règles d'écriture qui en découlent :
    étiquetée comme telle). Un document n'en mélange pas deux.
 5. **Le lecteur n'a pas à connaître le dépôt** : pas de migration, de connecteur ni de
    référence à la personne qui a posé la question dans le corps du texte.
+6. **Un document de méthode porte le même en-tête** (`> **Méthode** · version · date`) et
+   une section « Versions ». Les pré-enregistrements scellés gardent le leur : les modifier
+   changerait leur empreinte publiée.
+7. **Une source non officielle peut ouvrir une piste, jamais porter un chiffre** : un
+   article signé est cité comme analyse (*déclaratif*), et chaque chiffre repris dans le
+   dossier vient d'une source publique relue au chargement (D-067).
 
 ---
 

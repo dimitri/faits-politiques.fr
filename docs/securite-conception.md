@@ -1,9 +1,11 @@
 # Sécurité et mairies : ce qui est vérifiable, et ce qui ne l'est pas
 
-L'objectif posé : « la droite dit qu'elle apporte de la sécurité, rendons cela
-visible, ou en tout cas vérifiable ». Ce document dit ce que les données
-permettent d'établir, dans quel sens, et à quelles conditions — pour cette
-affirmation comme pour n'importe quelle autre, de n'importe quel bord.
+> **Méthode** · version 2 · 15 septembre 2026
+
+La question : une affirmation selon laquelle une couleur politique municipale
+apporterait davantage de sécurité peut-elle être vérifiée ? Ce document dit ce que
+les données permettent d'établir, dans quel sens, et à quelles conditions — pour
+cette affirmation comme pour la même affirmation portée par n'importe quel bord.
 
 ## 1. La donnée
 
@@ -124,3 +126,8 @@ raisonnement qui reste à construire.
   petites communes, qui sont justement celles où le secret s'applique.
 - **Présenter l'état des lieux de 2016-2025 comme un bilan de mandat.** C'est
   l'erreur que la colonne `periode` existe pour empêcher.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066) ; la question est formulée sans reprendre la phrase qui l'a suscitée.
+- **Version 1** (12 septembre 2026) : ce que les données de délinquance permettent d'établir pour les mairies.

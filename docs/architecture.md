@@ -1,5 +1,7 @@
 # Architecture — site statique, dépôt public, build en CI
 
+> **Méthode** · version 2 · 15 septembre 2026
+>
 > Étude de faisabilité. 11 septembre 2026.
 > Conclusion : **oui, et c'est un meilleur choix que l'architecture dynamique
 > envisagée au départ** — pas d'abord pour le coût, mais parce que le site statique
@@ -275,3 +277,8 @@ plutôt qu'en conteneurs.
 Séquence inchangée : dépôt public, schéma et `data/` d'abord, puis le connecteur AN, puis
 le build et les gabarits. La décision d'hébergement peut être prise plus tard, sur des
 chiffres réels, sans rien remettre en cause en amont.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066).
+- **Version 1** (11 septembre 2026) : étude de faisabilité du site statique.

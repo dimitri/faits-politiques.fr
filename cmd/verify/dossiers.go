@@ -10,12 +10,12 @@ var checksDossiers = []check{
 	{
 		name:  "dossiers : les faits sourcés de tous les dossiers sont chargés",
 		query: `SELECT count(*) FROM ref.fait_dossier`,
-		min:   90,
+		min:   170,
 	},
 	{
-		name:  "dossiers : au moins quinze dossiers ont des faits",
+		name:  "dossiers : au moins vingt-huit dossiers ont des faits",
 		query: `SELECT count(DISTINCT dossier) FROM ref.fait_dossier`,
-		min:   15,
+		min:   28,
 	},
 	{
 		// Chaque dossier doit dire dans quel cadre ses chiffres s'inscrivent.
@@ -61,5 +61,32 @@ var checksDossiers = []check{
 		name:  "termes : chaque dossier suivi dans les débats a au moins une expression",
 		query: `SELECT count(DISTINCT dossier) FROM ref.dossier_terme`,
 		min:   15,
+	},
+	{
+		name:  "missions : les dossiers verticaux suivent au moins quinze missions de l'État",
+		query: `SELECT count(*) FROM ref.dossier_mission`,
+		min:   15,
+	},
+	{
+		// Le chargement refuse un motif sans correspondance ; ce contrôle
+		// rattrape un rechargement du budget qui renommerait une mission.
+		name: "missions : chaque mission suivie a des crédits dans chaque exercice chargé",
+		query: `SELECT count(*) FROM ref.dossier_mission m
+		         CROSS JOIN (SELECT DISTINCT exercice FROM core.budget_programme) e
+		         WHERE NOT EXISTS (SELECT 1 FROM derived.dossier_budget_programme b
+		                           WHERE b.dossier = m.dossier AND b.mission = m.libelle AND b.exercice = e.exercice)`,
+	},
+	{
+		// Un tableau de crédits ne vaut que s'il couvre la mission entière :
+		// la somme par programme doit retomber sur le total de la mission.
+		name: "missions : les crédits par programme d'un dossier retombent sur le total de la mission",
+		query: `SELECT count(*) FROM (
+		         SELECT m.dossier, m.libelle, b.exercice, sum(b.credit_paiement) AS cp
+		         FROM ref.dossier_mission m JOIN core.budget_programme b ON b.mission_libelle ~ m.motif
+		         GROUP BY 1, 2, 3) t
+		         JOIN (SELECT dossier, mission, exercice, sum(credit_paiement) AS cp
+		               FROM derived.dossier_budget_programme GROUP BY 1, 2, 3) v
+		           ON v.dossier = t.dossier AND v.mission = t.libelle AND v.exercice = t.exercice
+		         WHERE abs(v.cp - t.cp) > 1`,
 	},
 }

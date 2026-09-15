@@ -1,5 +1,7 @@
 # La dimension mairies : ce que les sources permettent réellement
 
+> **Méthode** · version 2 · 15 septembre 2026
+
 Étude mesurée sur les fichiers eux-mêmes le 2026-09-12, puis mise à jour après
 chargement. Les connecteurs existent désormais (`internal/communes`,
 `go run ./cmd/ingest -only=communes`) ; ce document dit ce que les données
@@ -234,3 +236,8 @@ maison, désormais inutiles) puis scellé.
    toute analyse de la mandature 2020-2026 : demander l'autorisation, ou s'en
    passer. Tant qu'elle n'est pas tranchée, §4.3 reste hors d'atteinte.
 8. Réviser puis sceller `pre-enregistrement-001.md`, une fois 7 résolu.
+
+## Versions
+
+- **Version 2** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066).
+- **Version 1** (12 septembre 2026) : étude des sources communales, mise à jour après chargement.

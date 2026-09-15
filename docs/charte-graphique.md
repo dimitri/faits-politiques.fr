@@ -1,5 +1,7 @@
 # Charte graphique
 
+> **Méthode** · version 3 · 15 septembre 2026
+>
 > Revue des sites comparables, principes retenus, et palette.
 > Établie le 11 septembre 2026, refondue le 12 septembre 2026.
 > Maquette de la refonte : [maquette-refonte.html](maquette-refonte.html).
@@ -210,3 +212,9 @@ contiennent plus que des jetons.
   JavaScript** — on ne montre pas une commande morte. Tout le reste du site
   fonctionne sans JavaScript.
 - Images décoratives en `alt=""`, motif de fond en `aria-hidden`.
+
+## Versions
+
+- **Version 3** (15 septembre 2026) : en-tête commun des documents de méthode (perimetre.md § 2.8, D-066).
+- **Version 2** (12 septembre 2026) : refonte de la charte avec la maquette.
+- **Version 1** (11 septembre 2026) : revue des sites comparables et palette.
