@@ -814,12 +814,15 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		if strings.Contains(string(d.Corps), "<!-- schema:canaux -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:canaux -->",
 				`<figure class="schema">`+string(circuit.SVG)+`<figcaption>`+
-					`Le faisceau des exonérations (Employeurs → État) est en largeurs `+
-					`<strong>proportionnelles</strong>&nbsp;: quatre catégories, même année, même `+
-					`source, qui se somment exactement au total. Les flèches simples, elles, ne le `+
-					`sont pas&nbsp;: les cinq canaux ne sont publiés chiffrés que dans un PDF. `+
-					`Exonérations&nbsp;: URSSAF, `+fmt.Sprint(circuit.AnneeExo)+`. Non-compensation `+
-					`et part de TVA&nbsp;: jaune budgétaire et LFSS 2026. `+
+					`Trois largeurs sont <strong>proportionnelles</strong>, à la même échelle, pour `+
+					fmt.Sprint(circuit.AnneeCotisationsURSSAF)+`&nbsp;: les cotisations versées, les `+
+					`exonérations (URSSAF, quatre catégories qui se somment exactement au total) et `+
+					`la compensation qui leur répond (jaune budgétaire annexé au PLF 2024, exécution `+
+					fmt.Sprint(circuit.AnneeCompensation)+`). Les autres flèches restent simples&nbsp;: `+
+					`aucun montant comparable pour la même année n'a été trouvé. Non-compensation&nbsp;: `+
+					`jaune budgétaire et LFSS `+fmt.Sprint(circuit.AnneeNonComp)+` — une mesure différente, `+
+					`les mesures nouvelles décidées cette année-là, pas un solde cumulé comparable aux `+
+					`largeurs ci-dessus. `+
 					`<a href="`+root+`/budget/">La série annuelle des exonérations →</a></figcaption></figure>`))
 		}
 		if sect != nil && strings.Contains(string(d.Corps), "<!-- schema:s1311s1314 -->") {

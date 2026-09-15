@@ -12,13 +12,18 @@ import (
 // Le circuit des exonérations de cotisations entre l'État et la Sécurité
 // sociale.
 //
-// Ce schéma est un CIRCUIT, pas un diagramme de Sankey : l'épaisseur des flèches
-// n'est pas proportionnelle aux montants. Un Sankey promet que chaque largeur
-// est une quantité ; or les cinq canaux entre l'État et la Sécurité sociale ne
-// sont publiés sous forme de flux chiffrés que dans un PDF annexé au projet de
-// loi de finances (le « jaune » Protection sociale), inexploitable par machine.
-// Dessiner des largeurs reviendrait à les inventer. Les montants sont donc
-// ÉCRITS sur les flèches, chacun avec sa source, et la légende le dit.
+// Ce schéma n'est PAS un diagramme de Sankey au sens où toute largeur y serait
+// une quantité : les cinq canaux entre l'État et la Sécurité sociale ne sont
+// publiés sous forme de flux chiffré que dans un PDF annexé au projet de loi
+// de finances (le « jaune » Protection sociale) — pas une base machine, donc
+// pas une série qu'on ingère et met à jour automatiquement. Mais trois
+// largeurs SONT proportionnelles, chacune parce qu'un montant comparable a pu
+// en être extrait et vérifié à la main pour une même année : les cotisations
+// versées et les exonérations (URSSAF 2022), et la compensation qui leur
+// répond (jaune budgétaire annexé au PLF 2024, exécution 2022 — voir
+// CompensationTVA/CompensationCiblees). Pour tout le reste, dessiner une
+// largeur reviendrait à l'inventer : les montants restent alors ÉCRITS sur
+// des flèches simples, chacun avec sa source, et la légende le dit.
 //
 // Ce que le schéma montre est un fait de droit, pas un jugement : l'État décide
 // d'exonérer des cotisations dues à la Sécurité sociale ; la loi du 25 juillet
@@ -35,7 +40,14 @@ type CircuitCanaux struct {
 	NonCompenseTxt string
 	AnneeNonComp   int
 	PartTVA        string
-	SerieExo       template.HTML
+	// CompensationTVA + CompensationCiblees, à AnneeCompensation — voir leur
+	// commentaire à l'initialisation ci-dessous pour la source exacte de
+	// chacun. AnneeCompensation est délibérément 2022, l'année de
+	// AnneeCotisationsURSSAF : c'est ce qui permet de dessiner la compensation
+	// à la même échelle que les deux bandes déjà proportionnelles.
+	CompensationTVA, CompensationCiblees float64
+	AnneeCompensation                    int
+	SerieExo                             template.HTML
 	// Categories : les quatre catégories d'exonération de l'année LA PLUS
 	// RÉCENTE (AnneeExo) — sert le tableau et le graphe « année par année »,
 	// jamais le schéma lui-même : y dessiner une largeur demanderait un
@@ -195,6 +207,28 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 		// protection sociale » annexé au PLF 2026, et de la LFSS 2026. Ils sont
 		// cités tels quels dans docs/budget-donnees.md § 1.3, avec leur source.
 		NonCompense: 2.63e9, AnneeNonComp: 2026, PartTVA: "29,05 %",
+		// La compensation, pour 2022 — la seule année où elle peut se comparer
+		// honnêtement aux deux bandes déjà proportionnelles (cotisations et
+		// exonérations URSSAF, elles-mêmes datées 2022 faute de mise à jour
+		// depuis). Deux mécanismes, deux lignes du même document :
+		//   - CompensationTVA : « TVA nette », art. L. 241-2 du code de la
+		//     sécurité sociale, bénéficiaire CNAM/ACOSS — c'est la fraction de
+		//     TVA qui compense les allégements généraux « pour solde de tout
+		//     compte » depuis 2011. Jaune budgétaire annexé au PLF 2024,
+		//     annexe 1, exécution 2022 : 56 972 M€.
+		//   - CompensationCiblees : les exonérations ciblées, seules encore
+		//     compensées par crédits budgétaires. Même document, tableau 16
+		//     (« état des sommes restant dues... au 31/12/2022 »), coût total
+		//     de la mesure en 2022 : 7 702 M€.
+		// Les deux mécanismes sont disjoints (aucune mesure n'est comptée deux
+		// fois) : leur somme est la compensation totale de l'année, pas une
+		// estimation. Ce que ce chiffre NE dit pas : combien, sur les 73,5 Md€
+		// d'exonérations 2022, reste non compensé — cette soustraction n'est
+		// publiée nulle part et ce site ne la calcule pas lui-même (voir
+		// AnneeNonComp : le seul chiffre de non-compensation publié est celui
+		// de 2026, une mesure différente — les mesures nouvelles décidées
+		// cette année-là, pas un solde cumulé).
+		CompensationTVA: 56.972e9, CompensationCiblees: 7.702e9, AnneeCompensation: 2022,
 	}
 	err := pool.QueryRow(ctx, `
 		SELECT max(annee), min(annee) FROM core.exoneration_cotisation`).
@@ -503,14 +537,16 @@ func (c *CircuitCanaux) dessiner() template.HTML {
 	totalDu := c.CotisationsVerseesURSSAF + c.ExonerationsMemeAnnee
 	w(`<svg class="circuit" viewBox="0 0 760 430" role="img" aria-labelledby="circuit-t circuit-d">`)
 	w(`<title id="circuit-t">Le circuit des exonérations de cotisations</title>`)
+	compensationTotale := c.CompensationTVA + c.CompensationCiblees
 	w(`<desc id="circuit-d">Les employeurs doivent des cotisations à la Sécurité sociale. En %d, `+
 		`%s de cotisations dues se répartissent, à l'échelle, en %s effectivement versés et %s `+
 		`exonérés par l'État — ces derniers détaillés en quatre catégories. La loi Veil de 1994 `+
-		`oblige l'État à compenser cette perte, pour l'essentiel par une fraction de TVA ; cette `+
-		`compensation n'est pas à la même échelle, faute d'un montant comparable pour %d. %s `+
-		`restent non compensés en %d.</desc>`,
+		`oblige l'État à compenser cette perte ; en %d, %s l'ont été, pour l'essentiel par une `+
+		`fraction de TVA — à la même échelle que les deux bandes précédentes. %s restent `+
+		`officiellement non compensés, mais en %d, une année différente et une mesure différente `+
+		`(les mesures nouvelles décidées cette année-là, pas un solde).</desc>`,
 		c.AnneeCotisationsURSSAF, mdEur(totalDu), mdEur(c.CotisationsVerseesURSSAF),
-		mdEur(c.ExonerationsMemeAnnee), c.AnneeCotisationsURSSAF,
+		mdEur(c.ExonerationsMemeAnnee), c.AnneeCompensation, mdEur(compensationTotale),
 		Decimal(c.NonCompense/1e9, 2)+" Md€", c.AnneeNonComp)
 	w(`<defs><marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">` +
 		`<path d="M0 0L10 5L0 10z" class="pointe"/></marker></defs>`)
@@ -589,12 +625,29 @@ func (c *CircuitCanaux) dessiner() template.HTML {
 	etiq(135, 126, "end", "", fmt.Sprintf("décidées par la loi — URSSAF, %d", c.AnneeCotisationsURSSAF))
 	etiq(135, 143, "end", "", "quatre catégories, largeurs proportionnelles")
 
-	// 3. La compensation, obligation de la loi Veil. Les étiquettes passent
-	// AU-DESSUS de la courbe : à droite, elles sortaient du cadre.
-	fleche("M465 60 C540 70 640 110 650 166", "comp")
-	etiq(490, 30, "start", "fort", "compensation par l'État")
-	etiq(490, 47, "start", "", "obligation de la loi Veil, 25 juillet 1994")
-	etiq(490, 64, "start", "", "surtout par "+c.PartTVA+" de la TVA en 2026")
+	// 3. La compensation, obligation de la loi Veil — à la MÊME ÉCHELLE que les
+	// deux bandes ci-dessus depuis que le jaune budgétaire annexé au PLF 2024
+	// donne, pour 2022, deux montants qui se comparent honnêtement aux
+	// cotisations et exonérations URSSAF de cette même année : la TVA nette
+	// affectée (compense les allégements généraux) et les exonérations
+	// ciblées compensées par crédits budgétaires (voir le commentaire sur
+	// CompensationTVA/CompensationCiblees). L'épaisseur du trait porte donc un
+	// vrai chiffre, pas seulement sa couleur — un curseur épais plutôt qu'une
+	// flèche fine, seul moyen d'afficher une largeur sur un tracé courbe.
+	{
+		compensationTotale := c.CompensationTVA + c.CompensationCiblees
+		epaisseur := 0.0
+		if totalDu > 0 {
+			epaisseur = 70.0 * compensationTotale / totalDu
+		}
+		w(`<path class="flux comp" style="stroke-width:%.1fpx;stroke-linecap:round" `+
+			`d="M465 60 C540 70 640 110 650 166" marker-end="url(#fl)">`+
+			`<title>compensation par l'État — %s (%d)</title></path>`,
+			epaisseur, mdEur(compensationTotale), c.AnneeCompensation)
+	}
+	etiq(490, 30, "start", "fort", "compensation par l'État "+mdEur(c.CompensationTVA+c.CompensationCiblees))
+	etiq(490, 47, "start", "", fmt.Sprintf("loi Veil (1994) — jaune budgétaire, %d", c.AnneeCompensation))
+	etiq(490, 64, "start", "", "TVA affectée + exonérations ciblées")
 
 	// 4. Le reste non compensé : la ligne qu'on doit voir
 	w(`<rect class="noeud manque" x="275" y="300" width="210" height="104" rx="8"/>`)
