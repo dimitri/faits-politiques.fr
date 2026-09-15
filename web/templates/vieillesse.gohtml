@@ -1,0 +1,42 @@
+{{define "content"}}
+{{$v := .V}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/comprendre/">Comprendre</a> › <span>Vieillesse</span></p>
+<span class="sur">COFOG · COR · DREES</span>
+<h1>La vieillesse : combien, qui paie, et la dépendance au-delà des retraites</h1>
+<p class="lede">{{dec $v.ValeurFin 1}}&nbsp;Md€ en {{$v.Fin}} pour la vieillesse et les survivants
+(comptabilité nationale, toutes administrations), soit {{dec $v.PartCofog 1}}&nbsp;% de la dépense
+publique totale. Le budget de l'État n'en porte que {{dec $v.CasPensions 1}}&nbsp;Md€ (Pensions) +
+{{dec $v.RegimesSpeciaux 1}}&nbsp;Md€ (régimes spéciaux) — le reste vient de la Sécurité sociale,
+jamais de l'État.</p>
+
+<h2>{{$v.Debut}}–{{$v.Fin}}, vieillesse et survivants (COFOG)</h2>
+<p class="q">De {{dec $v.ValeurDebut 1}}&nbsp;Md€ en {{$v.Debut}} à {{dec $v.ValeurFin 1}}&nbsp;Md€ en
+{{$v.Fin}}.</p>
+{{$v.CourbeSVG}}
+<p class="note abs">Cette mesure (GF1002 + GF1003, Eurostat) ne coïncide pas au chiffre près avec
+celle du Conseil d'orientation des retraites (407&nbsp;Md€ en 2024, 24,4&nbsp;% des dépenses
+publiques) — les deux se recoupent (24 à 26&nbsp;%) sans partager exactement le même périmètre.
+<a href="{{.Root}}/comprendre/vieillesse-donnees/">Le détail, § 2</a>.</p>
+
+<h2>La dépendance : l'APA à domicile</h2>
+{{if $v.CarteAPA.Apercu.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+<a class="bloc-carte ligne" href="{{.Root}}/vieillesse/carte/{{$v.CarteAPA.Slug}}/">
+  {{$v.CarteAPA.Apercu.SVG}}
+  <div>
+    <h3>{{$v.CarteAPA.Titre}}</h3>
+    <p class="q">{{$v.CarteAPA.Question}}</p>
+    {{$t := $v.CarteAPA.Apercu.Teintes}}<span class="echelle"><span class="u">{{$v.CarteAPA.Apercu.Unite}}</span>
+      {{range $i, $b := $v.CarteAPA.Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+    </span>
+    <span class="src">{{$v.CarteAPA.Source}}</span>
+    <span class="voir">La carte, le classement des départements et la méthode →</span>
+  </div>
+</a>
+{{end}}
+<p class="note abs">{{$v.CarteAPA.Note}}</p>
+
+<p class="note proc">Cette page reprend <a href="{{.Root}}/comprendre/vieillesse-donnees/">le dossier
+vieillesse</a> : chaque chiffre y est vérifié par une requête directe, avec ses réserves. Voir aussi
+<a href="{{.Root}}/jeunesse/">la comparaison symétrique sur la jeunesse</a>.</p>
+{{end}}

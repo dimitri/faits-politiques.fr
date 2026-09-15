@@ -547,6 +547,64 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return err
 	}
 
+	// La vieillesse et la jeunesse : deux dossiers en miroir, voir
+	// docs/vieillesse-donnees.md et docs/jeunesse-donnees.md. Chacun a sa
+	// propre carte départementale ou régionale, sur le même modèle que
+	// /collectivites/carte/ (voir territoires.go).
+	vieil, err := loadVieillesse(ctx, pool)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "La vieillesse : combien, qui paie, et la dépendance"
+	if err := write(page("vieillesse.gohtml"), filepath.Join(out, "vieillesse", "index.html"),
+		struct {
+			Layout
+			V *StatsVieillesse
+		}{l, vieil}); err != nil {
+		return err
+	}
+	if vieil.CarteAPA.Slug != "" {
+		l = layout
+		l.Title = vieil.CarteAPA.Titre
+		l.Description = vieil.CarteAPA.Question
+		imageCarte(&l, out, "vieillesse-"+vieil.CarteAPA.Slug, vieil.CarteAPA.Page.Carte.SVG)
+		if err := write(tcd, filepath.Join(out, "vieillesse", "carte", vieil.CarteAPA.Slug, "index.html"),
+			struct {
+				Layout
+				P PageCarte
+			}{l, vieil.CarteAPA.Page}); err != nil {
+			return err
+		}
+	}
+
+	jeun, err := loadJeunesse(ctx, pool)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "La jeunesse : études supérieures, apprentissage, premiers emplois"
+	if err := write(page("jeunesse.gohtml"), filepath.Join(out, "jeunesse", "index.html"),
+		struct {
+			Layout
+			J *StatsJeunesse
+		}{l, jeun}); err != nil {
+		return err
+	}
+	if jeun.CarteInsertion.Slug != "" {
+		l = layout
+		l.Title = jeun.CarteInsertion.Titre
+		l.Description = jeun.CarteInsertion.Question
+		imageCarte(&l, out, "jeunesse-"+jeun.CarteInsertion.Slug, jeun.CarteInsertion.Page.Carte.SVG)
+		if err := write(tcd, filepath.Join(out, "jeunesse", "carte", jeun.CarteInsertion.Slug, "index.html"),
+			struct {
+				Layout
+				P PageCarte
+			}{l, jeun.CarteInsertion.Page}); err != nil {
+			return err
+		}
+	}
+
 	div, err := loadDividendes(ctx, pool)
 	if err != nil {
 		return err

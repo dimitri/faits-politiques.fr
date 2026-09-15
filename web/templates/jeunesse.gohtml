@@ -1,0 +1,65 @@
+{{define "content"}}
+{{$j := .J}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/comprendre/">Comprendre</a> › <span>Jeunesse</span></p>
+<span class="sur">PLF · DEPP InserJeunes</span>
+<h1>La jeunesse : études supérieures, apprentissage, premiers emplois</h1>
+<p class="lede">{{dec $j.EnseignementSup 2}}&nbsp;Md€ pour l'enseignement supérieur dans le budget de
+l'État, {{dec $j.CEJ2025 3}}&nbsp;Md€ pour le Contrat d'engagement jeune — deux guichets distincts
+de l'apprentissage, financé hors budget de l'État par la taxe d'apprentissage et les employeurs.</p>
+
+{{if $j.CourbeSVG}}
+<h2>L'insertion après l'apprentissage, promotion par promotion</h2>
+<p class="q">Taux d'emploi médian des CFA à 6 mois, toutes filières confondues&nbsp;: de
+{{dec $j.TauxDebut 0}}&nbsp;% ({{$j.PremierePromo}}) à {{dec $j.TauxFin 0}}&nbsp;%
+({{$j.DernierePromo}}).</p>
+{{$j.CourbeSVG}}
+<p class="note abs">Une médiane des CFA mesurés, jamais une moyenne nationale pondérée&nbsp;:
+InserJeunes ne publie aucun effectif par CFA. <a href="{{.Root}}/comprendre/jeunesse-donnees/">Le
+détail, § 3</a>.</p>
+{{end}}
+
+{{if $j.NiveauxEmploi}}
+<h2>Par niveau de diplôme, la promotion la plus récente</h2>
+<table class="donnees">
+  <thead><tr><th>Niveau</th><th class="n">CFA mesurés</th><th class="n">Taux d'emploi à 6 mois (médiane)</th></tr></thead>
+  <tbody>{{range $j.NiveauxEmploi}}<tr><td>{{.Niveau}}</td><td class="n">{{nb .NbCFA}}</td><td class="n">{{dec .MedianeEmploi 0}}&nbsp;%</td></tr>{{end}}</tbody>
+</table>
+{{end}}
+
+<h2>Où l'insertion est-elle la meilleure</h2>
+{{if $j.CarteInsertion.Apercu.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+<a class="bloc-carte ligne" href="{{.Root}}/jeunesse/carte/{{$j.CarteInsertion.Slug}}/">
+  {{$j.CarteInsertion.Apercu.SVG}}
+  <div>
+    <h3>{{$j.CarteInsertion.Titre}}</h3>
+    <p class="q">{{$j.CarteInsertion.Question}}</p>
+    {{$t := $j.CarteInsertion.Apercu.Teintes}}<span class="echelle"><span class="u">{{$j.CarteInsertion.Apercu.Unite}}</span>
+      {{range $i, $b := $j.CarteInsertion.Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+    </span>
+    <span class="src">{{$j.CarteInsertion.Source}}</span>
+    <span class="voir">La carte, le classement des régions et la méthode →</span>
+  </div>
+</a>
+{{end}}
+<p class="note abs">{{$j.CarteInsertion.Note}}</p>
+
+<h2>Les études supérieures et le Contrat d'engagement jeune</h2>
+<table class="donnees">
+  <thead><tr><th>Poste</th><th class="n">Md€</th></tr></thead>
+  <tbody>
+    <tr><td>Formations supérieures et recherche universitaire</td><td class="n">{{dec $j.EnseignementSup 2}}</td></tr>
+    <tr><td>Vie étudiante (bourses, CROUS)</td><td class="n">{{dec $j.VieEtudiante 2}}</td></tr>
+    <tr><td>Contrat d'engagement jeune (2024)</td><td class="n">{{dec $j.CEJ2024 3}}</td></tr>
+    <tr><td>Contrat d'engagement jeune (2025)</td><td class="n">{{dec $j.CEJ2025 3}}</td></tr>
+  </tbody>
+</table>
+<p class="note abs">Trois circuits de financement distincts, jamais additionnés dans ce tableau —
+l'apprentissage lui-même (896&nbsp;000 contrats, 9,4&nbsp;Md€ en 2024, France Compétences) n'y
+figure pas&nbsp;: financé par les entreprises, pas par l'impôt, et non chargé en table requêtable
+faute d'un export ouvert. <a href="{{.Root}}/comprendre/jeunesse-donnees/">Le détail, § 3</a>.</p>
+
+<p class="note proc">Cette page reprend <a href="{{.Root}}/comprendre/jeunesse-donnees/">le dossier
+jeunesse</a> : chaque chiffre y est vérifié par une requête directe, avec ses réserves. Voir aussi
+<a href="{{.Root}}/vieillesse/">la comparaison symétrique sur la vieillesse</a>.</p>
+{{end}}
