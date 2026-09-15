@@ -160,27 +160,34 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 	}
 
 	// Médecins généralistes pour 100 000 habitants — la densité de l'offre de
-	// soins de premier recours, département par département. Le fichier RPPS
-	// ne renseigne pas directement le département de la structure d'exercice
-	// (colonne vide sur la quasi-totalité des lignes) : le département est
-	// retrouvé par le code commune, via ref.commune, plutôt que par ce champ.
-	// Un même généraliste actif dans plusieurs structures peut être compté
-	// dans plusieurs départements — une présence, pas une personne unique
-	// répartie entre eux.
+	// soins de premier recours, département par département. Le RPPS a été
+	// écarté pour cette carte : seuls 56 % des généralistes y ont une commune
+	// d'exercice identifiable (remplaçants sans structure fixe, notamment),
+	// une lacune de source, pas un bug de jointure. La Cnam (démographie par
+	// secteur conventionnel, déjà chargée pour docs/sante-donnees.md § 2)
+	// couvre les 101 départements sans exception — le code déjà NOT NULL en
+	// base, par construction administrative (un médecin conventionné est
+	// nécessairement rattaché à une caisse départementale). En contrepartie,
+	// elle ne compte que les généralistes libéraux conventionnés : ni les
+	// salariés hospitaliers, ni les non-conventionnés (0,8 % de l'ensemble
+	// des médecins, cf. § 2) — un champ plus étroit mais mesuré partout.
+	// Le pseudo-département « 999 » (« FRANCE » / « Tout département ») porte
+	// des totaux nationaux déjà agrégés : l'exclure évite de les additionner
+	// aux départements réels et de tripler le compte.
 	mgrows, err := pool.Query(ctx, `
-		SELECT c.code_departement, max(c.nom_clair),
-		       100000.0*count(DISTINCT r.identifiant_pp)/nullif(max(pop.p),0)
-		FROM core.rpps_professionnel_activite r
-		JOIN ref.commune c ON c.code_insee=r.code_commune
-		  AND c.cog_millesime=(SELECT max(cog_millesime) FROM ref.commune)
+		SELECT lpad(m.code_departement,2,'0'), max(m.libelle_departement),
+		       100000.0*sum(m.effectif)/nullif(max(pop.p),0)
+		FROM core.medecin_secteur_effectif m
 		JOIN (SELECT code_departement AS dep, sum(value) p
 		      FROM core.commune_indicator ci
 		      JOIN ref.commune rc ON rc.code_insee=ci.commune_code AND rc.cog_millesime=ci.cog_millesime
 		      WHERE ci.indicator_code='ofgl.population_totale' AND ci.period_year=2023
-		      GROUP BY 1) pop ON pop.dep=c.code_departement
-		WHERE r.code_profession='10' AND r.libelle_savoir_faire IN
-		  ('Spécialiste en Médecine Générale','Qualifié en Médecine Générale','Médecine Générale')
-		GROUP BY c.code_departement`)
+		      GROUP BY 1) pop ON pop.dep=lpad(m.code_departement,2,'0')
+		WHERE m.annee=2024 AND m.code_departement<>'999'
+		  AND m.profession_sante IN
+		    ('Médecins généralistes (hors médecins à expertise particulière - MEP)',
+		     'Médecins généralistes à expertise particulière (MEP)')
+		GROUP BY lpad(m.code_departement,2,'0')`)
 	if err != nil {
 		return nil, err
 	}
@@ -207,14 +214,13 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 		st.Cartes = append(st.Cartes, poser(CarteTerritoire{
 			Slug: "medecins-generalistes", Titre: "Médecins généralistes pour 100 000 habitants",
 			Question: "Où l'offre de médecine générale est-elle la plus dense ?",
-			Note: "Ne compte que les généralistes dont le RPPS publie une commune d'exercice — 56 % " +
-				"des 152 598 généralistes inscrits au Répertoire partagé des professionnels de " +
-				"santé (RPPS), les autres n'ayant pas de commune renseignée dans cette extraction " +
-				"(remplaçants sans structure fixe, notamment). La carte compte une présence " +
-				"identifiable, pas l'ensemble des généralistes en exercice — et pas leur " +
-				"disponibilité réelle : un désert médical peut aussi être un territoire où les " +
+			Note: "Ne compte que les généralistes libéraux conventionnés — 55 546 en 2024, " +
+				"les seuls dont cette source situe systématiquement le département d'exercice. " +
+				"Les généralistes salariés (hôpital, centre de santé) et les 0,8 % non " +
+				"conventionnés en sont absents. La carte compte une présence identifiable, pas " +
+				"la disponibilité réelle : un désert médical peut aussi être un territoire où les " +
 				"généralistes recensés n'ont plus de créneaux libres.",
-			Source: "ANS, Annuaire Santé (RPPS) ; OFGL, population 2023",
+			Source: "Cnam, démographie par secteur conventionnel, 2024 ; OFGL, population 2023",
 		}, casesMG, "généralistes pour 100 000 hab.", func(v float64) string { return Decimal(v, 0) }))
 	}
 

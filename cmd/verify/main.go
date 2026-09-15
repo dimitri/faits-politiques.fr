@@ -1569,6 +1569,59 @@ var checks = []check{
 		          (SELECT count(*) FROM ref.budget_stade))`,
 		min: 3,
 	},
+	{
+		name:  "Open Damir couvre les douze mois de 2025",
+		query: `SELECT count(*) FROM core.remboursement_national WHERE annee = 2025`,
+		min:   12,
+	},
+	{
+		// Le montant remboursé mensuel observé varie entre 10,2 et 13,5 Md€ sur
+		// 2025 — un mois hors de [5, 20] signalerait un fichier tronqué ou un
+		// filtre PRS_REM_TYP mal appliqué (internal/damir/damir.go), pas une
+		// variation saisonnière réelle.
+		name: "chaque mois Open Damir reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM core.remboursement_national
+		         WHERE montant_rembourse NOT BETWEEN 5e9 AND 20e9`,
+	},
+	{
+		// region_code x prs_nat_code est censé être la clé d'agrégation exacte
+		// (internal/damir/damir.go) — un doublon signalerait que l'index unique
+		// reconstruit après le COPY n'a pas fait son travail.
+		name: "Open Damir région×prestation n'a aucun doublon (année, mois, région, prestation)",
+		query: `SELECT count(*) - count(DISTINCT (annee, mois, region_code, prs_nat_code))
+		          FROM core.remboursement_region_prestation`,
+	},
+	{
+		// La somme des lignes région×prestation d'un mois ne peut pas dépasser
+		// le total national du même mois : chaque acte n'est compté qu'une
+		// fois dans l'agrégation en flux (agregerFichier), les deux tables
+		// partent du même flux filtré PRS_REM_TYP=0.
+		name: "Open Damir région×prestation ne dépasse jamais le total national du même mois",
+		query: `SELECT count(*) FROM (
+		          SELECT r.annee, r.mois, sum(r.montant_rembourse) AS regional, max(n.montant_rembourse) AS national
+		            FROM core.remboursement_region_prestation r
+		            JOIN core.remboursement_national n USING (annee, mois)
+		           GROUP BY r.annee, r.mois
+		        ) x WHERE regional > national * 1.001`,
+	},
+	{
+		// code_departement est NOT NULL sur toute la table (démographie Cnam
+		// construite par rattachement de caisse, pas par adresse déclarative) :
+		// hors la ligne pseudo-département "999" (totaux déjà agrégés), les
+		// généralistes doivent couvrir les 101 départements sans exception —
+		// c'est précisément ce qui a fait préférer cette source au RPPS pour
+		// la carte de densité (cmd/build/territoires.go).
+		name: "les généralistes du secteur conventionnel couvrent les 101 départements, chaque exercice depuis 2013",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, count(DISTINCT code_departement) AS nb
+		            FROM core.medecin_secteur_effectif
+		           WHERE code_departement <> '999' AND annee >= 2013
+		             AND profession_sante IN
+		               ('Médecins généralistes (hors médecins à expertise particulière - MEP)',
+		                'Médecins généralistes à expertise particulière (MEP)')
+		           GROUP BY annee HAVING count(DISTINCT code_departement) < 101
+		        ) x`,
+	},
 }
 
 func main() {
