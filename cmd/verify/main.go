@@ -1687,6 +1687,21 @@ var checks = []check{
 		query: `SELECT count(DISTINCT serie) FROM core.dette_observation WHERE serie LIKE 'fmi:GGXWDG_NGDP:%'`,
 		min:   17,
 	},
+	{
+		// L'Arabie saoudite est absente par construction (l'OCDE ne la
+		// couvre pas pour cet indicateur, internal/international/sante_ocde.go)
+		// : neuf pays, pas dix, sans que ce soit une régression.
+		name:  "l'espérance de vie OCDE couvre les neuf pays qu'elle publie",
+		query: `SELECT count(DISTINCT pays_code) FROM core.indicateur_mondial WHERE indicateur = 'OCDE_ESPERANCE_VIE_NAISSANCE'`,
+		min:   9,
+	},
+	{
+		// Une valeur hors de [65, 95] ans signalerait une colonne mal lue
+		// (l'export SDMX porte treize dimensions, une confusion d'index est
+		// facile) plutôt qu'une espérance de vie réelle.
+		name:  "l'espérance de vie OCDE reste dans un intervalle plausible",
+		query: `SELECT count(*) FROM core.indicateur_mondial WHERE indicateur = 'OCDE_ESPERANCE_VIE_NAISSANCE' AND valeur NOT BETWEEN 65 AND 95`,
+	},
 }
 
 func main() {

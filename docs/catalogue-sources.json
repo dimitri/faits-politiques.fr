@@ -1,8 +1,8 @@
 {
-  "genere_le": "2026-09-15T18:33:34Z",
+  "genere_le": "2026-09-15T18:47:36Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
-  "nombre_sources": 116,
+  "nombre_sources": 117,
   "sources": [
     {
       "slug": "acteurs-numeriques-francais",
@@ -6413,9 +6413,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "annuelle",
       "notes": "Dix pays de comparaison (G8 historique, Chine, Arabie saoudite). NY.ADJ.SVNG.GN.ZS (épargne nette ajustée) et NY.ADJ.DRES.GN.ZS (épuisement des ressources naturelles) sont des pourcentages du revenu national brut, jamais des montants — ne pas les comparer en valeur absolue au PIB (NY.GDP.MKTP.CD, en dollars courants).",
-      "derniere_ingestion_reussie": "2026-09-15T02:29:45",
+      "derniere_ingestion_reussie": "2026-09-15T18:42:33",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 2,
+      "nombre_runs": 3,
       "connecteur_derniere_version": "international-v1",
       "format_detecte": "Fichier JSON",
       "urls_origine": [
@@ -6435,9 +6435,9 @@
         {
           "schema": "core",
           "table": "indicateur_mondial",
-          "lignes_totales_estimees": 682,
+          "lignes_totales_estimees": 771,
           "lignes_pour_cette_source": 682,
-          "taille_octets": 237568,
+          "taille_octets": 262144,
           "annee_min": 2000,
           "annee_max": 2024,
           "colonne_historique": "annee"
@@ -7940,9 +7940,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "semestrielle",
       "notes": "Couvre les pays européens et les États-Unis, mais ni le Japon ni le Canada (minimum fixé par État ou province, pas de minimum fédéral unique dans les deux cas). L'absence d'un pays pour un semestre signale l'absence de salaire minimum légal (Allemagne avant 2015, pays nordiques à négociation collective) — jamais une valeur nulle.",
-      "derniere_ingestion_reussie": "2026-09-15T02:29:45",
+      "derniere_ingestion_reussie": "2026-09-15T18:42:33",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 2,
+      "nombre_runs": 3,
       "connecteur_derniere_version": "international-v1",
       "format_detecte": "API Eurostat (JSON-stat)",
       "urls_origine": [
@@ -7960,7 +7960,7 @@
           "table": "salaire_minimum",
           "lignes_totales_estimees": 4573,
           "lignes_pour_cette_source": 4573,
-          "taille_octets": 1081344,
+          "taille_octets": 729088,
           "annee_min": null,
           "annee_max": null
         }
@@ -10178,6 +10178,43 @@
           "annee_min": 2020,
           "annee_max": 2026,
           "colonne_historique": "scrutin_annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "ocde-esperance-vie",
+      "label": "OCDE — espérance de vie à la naissance",
+      "publisher": "OCDE",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Creative Commons Attribution 4.0 (CC BY 4.0)",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "annuelle",
+      "notes": "Neuf des dix pays de comparaison de ce dossier (core.indicateur_mondial) : l'Arabie saoudite n'est pas couverte par cette série OCDE (ni membre ni partenaire clé pour cet indicateur précis) — absence documentée, jamais complétée par une estimation.",
+      "derniere_ingestion_reussie": "2026-09-15T18:42:34",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "international-v1",
+      "format_detecte": "Fichier CSV",
+      "urls_origine": [
+        "https://sdmx.oecd.org/public/rest/data/OECD.ELS.HD,DSD_HEALTH_STAT@DF_LE,1.1/FRA+USA+JPN+DEU+GBR+ITA+CAN+RUS+CHN.A.LFEXP.Y.Y0._T._Z._Z._Z._Z._Z._Z._Z?format=csv\u0026startPeriod=2015"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 8944,
+      "chemins_locaux": [
+        "2026/09/15/0f490760e90df642ca71912b64e86fcbd8d0fab16c64f1c704ae005895dee6a6.csv"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "indicateur_mondial",
+          "lignes_totales_estimees": 771,
+          "lignes_pour_cette_source": 89,
+          "taille_octets": 262144,
+          "annee_min": 2000,
+          "annee_max": 2024,
+          "colonne_historique": "annee"
         }
       ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"

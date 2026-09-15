@@ -107,7 +107,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err := IngestSalaireMinimum(ctx, pool, arch); err != nil {
 		return err
 	}
-	return IngestPIBEpargneNette(ctx, pool, arch)
+	if err := IngestPIBEpargneNette(ctx, pool, arch); err != nil {
+		return err
+	}
+	return IngestSanteOCDE(ctx, pool, arch)
 }
 
 type jsonStatSMIC struct {

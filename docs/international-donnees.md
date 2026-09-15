@@ -1,13 +1,14 @@
 # La France en contexte : Europe, G8, monde
 
-> **Dossier** · version 4 · 15 septembre 2026
+> **Dossier** · version 5 · 15 septembre 2026
 >
 > Comment la France se situe-t-elle en Europe, au sein du G8 et dans le monde, sur des sujets
 > qui ont chacun leur source, leur définition et souvent une couverture géographique incomplète ?
-> Le dossier charge trois volets — le salaire minimum, le PIB et sa lecture au regard de
-> l'épuisement des ressources, la dette publique hors Union — et décrit les sources candidates
-> des huit autres, plus un exploré puis écarté (heures travaillées, données trop anciennes pour
-> être présentées comme actuelles).
+> Le dossier charge quatre volets — le salaire minimum, le PIB et sa lecture au regard de
+> l'épuisement des ressources, la dette publique hors Union, l'espérance de vie — et documente
+> pourquoi chacun des sept autres reste bloqué, avec sa raison vérifiée plutôt que supposée, plus
+> un exploré puis écarté (heures travaillées, données trop anciennes pour être présentées comme
+> actuelles).
 
 ---
 
@@ -203,9 +204,43 @@ budgétaire à elle seule transposable ; la dette élevée du Japon se finance
 à des taux structurellement bas depuis des décennies, une situation que la
 France ne connaît pas (`docs/dette-donnees.md` § 2).
 
+### 5. La santé comparée : l'espérance de vie, un premier chiffre
+
+Le terrain français est déjà largement couvert par le chantier santé
+(`docs/sante-donnees.md`) ; ce dossier n'ajoute qu'un seul chiffre pour
+l'instant, celui qui permet la comparaison internationale : l'espérance de
+vie à la naissance (OCDE, `core.indicateur_mondial`), 2024 ou dernière
+année publiée :
+
+| Pays | Espérance de vie à la naissance |
+|---|---:|
+| Japon | 84,1 ans |
+| Italie | 83,7 ans |
+| France | 83,0 ans |
+| Canada | 82,2 ans |
+| Royaume-Uni | 81,3 ans |
+| Allemagne | 81,2 ans |
+| États-Unis | 79,0 ans |
+| Chine | 78,0 ans |
+| Russie | 73,3 ans (2023) |
+
+**L'Arabie saoudite est absente de cette série** — l'OCDE ne la couvre pas
+pour cet indicateur (ni membre, ni partenaire clé pour cette mesure
+précise), une absence documentée plutôt que devinée ou remplie par une
+estimation (§ 1, règle 2).
+
+**Ce chiffre ne dit rien du système de santé à lui seul** : l'espérance de
+vie agrège des facteurs sans rapport avec l'offre de soins (alimentation,
+tabac, accidents, criminalité, structure d'âge...) — un écart entre deux
+pays ne se lit jamais comme un verdict sur leur système de santé respectif
+sans le détail par cause de décès, non chargé ici. La dépense de santé par
+habitant (OCDE, *Health expenditure and financing*, `DSD_SHA@DF_SHA`,
+identifiée mais pas encore chargée) donnerait le complément naturel de ce
+chiffre — un chantier suivant, pas celui-ci.
+
 ## Ce que les données ne disent pas
 
-### 5. Un sujet exploré et écarté : les heures travaillées
+### 6. Un sujet exploré et écarté : les heures travaillées
 
 **L'OCDE publie bien un jeu « heures travaillées par an », mais sa
 couverture s'est révélée trop incohérente pour être chargée.** Le connecteur
@@ -227,22 +262,22 @@ dix à vingt-cinq ans pour un état présent — exactement ce que
 publication plus récente de l'OCDE sous un autre identifiant de flux,
 non retrouvée à ce stade) resterait à identifier avant de rouvrir ce sujet.
 
-### 6. Huit autres sujets : scopés, non chargés
+### 7. Sept autres sujets : chacun testé, chacun bloqué pour une raison précise
 
-Chacun des huit sujets suivants a une source candidate, vérifiée à des
-degrés divers. Certains ont déjà révélé un obstacle précis plutôt qu'une
-simple absence d'exploration :
+Contrairement aux versions précédentes de ce dossier, les sept sujets
+suivants ne sont plus seulement « à explorer » : chacun a été
+concrètement interrogé (téléchargement tenté, API requêtée, page de
+licence lue) et bloque sur un obstacle vérifié, pas supposé :
 
-| Sujet | Source candidate | Ce qui a été vérifié |
+| Sujet | Source candidate | Ce qui bloque, vérifié |
 |---|---|---|
-| Régime politique | V-Dem Institute | **Licence confirmée** : CC BY-SA. Pas de fichier de téléchargement à adresse stable trouvé sur le site — la distribution passe par un outil de sélection de variables ou un paquet R, à explorer plus avant |
-| Liberté de la presse | Reporters sans frontières, classement mondial | **Export CSV trouvé et accessible** (`/sites/default/files/import_classement/{année}.csv`, testé de 2022 à 2026, structure exploitable : score, rang, cinq sous-scores). **Aucune licence de réutilisation explicite trouvée** sur le site — une absence de licence n'est pas une autorisation (`docs/README.md`, règle 4) ; à recontacter RSF ou trouver une mention de licence avant de charger |
+| Régime politique | V-Dem Institute | **Licence confirmée** (CC BY-SA), mais **aucune URL de fichier statique** : la page de téléchargement ne contient qu'un formulaire qui déclenche la génération du fichier côté serveur, sans lien direct exploitable par un connecteur qui ne fait que des requêtes GET (le principe de tous les connecteurs de ce dépôt) — confirmé en lisant le HTML de la page, pas supposé depuis son ergonomie |
+| Liberté de la presse | Reporters sans frontières, classement mondial | Export CSV trouvé et accessible en 2026, mais l'ancienne page de mentions légales renvoie une erreur 404 et aucune page de licence n'est exposée dans le HTML statique du site (vérifié directement, pas seulement « non trouvée en cherchant ») — une absence de licence n'est pas une autorisation (`docs/README.md`, règle 4) |
+| Mouvements sociaux | ILOSTAT, *Days not worked due to strikes and lockouts* | **L'API répond** (identifiants de flux réels : `DF_STR_DAYS_ECO_RT` et trois autres, trouvés dans le catalogue complet des flux ILOSTAT) — mais la couverture est trop inégale pour comparer (Japon, Italie et Chine : aucune année ; les autres pays ne partagent aucune année commune récente), et chaque pays mesure avec sa **propre méthodologie nationale** (seuils de taille d'établissement et secteurs exclus différents d'un pays à l'autre, indiqué par la source elle-même) — un manquement direct à la règle 1 du § 1, pas seulement un trou de données |
 | Représentativité des dirigeants | International IDEA (participation électorale) | Page accessible, contenu non exploré en détail — part du vainqueur et mode de scrutin resteraient de toute façon à compiler pays par pays, hors de portée d'un chargement automatisé |
-| Mouvements sociaux | ILOSTAT (jours de grève), ACLED (événements) | Le point d'entrée SDMX habituel de l'OIT ne répond pas à l'identifiant de flux testé ; ACLED non testé (accès probablement soumis à inscription) |
-| Santé (comparaison internationale) | OCDE Health Statistics, OMS | Non explorées ; le terrain français est déjà couvert (chantier 8) |
-| Âge de départ à la retraite | OCDE *Pensions at a Glance* | Non trouvé dans les flux SDMX de la division Emploi de l'OCDE testés pour ce chantier — cohérent avec une publication biennale en tableaux, pas en série statistique continue |
-| Liens économiques avec des pays en guerre | Douanes françaises + UCDP (conflits) | Non testé — croisement délicat, prudence éditoriale maximale requise avant tout chargement |
-| OTAN / opérations de maintien de la paix | OTAN (dépense de défense), ONU (contributeurs) | Non testé — formats probablement PDF/HTML |
+| Âge de départ à la retraite | OCDE *Pensions at a Glance* | Introuvable dans les catalogues de flux SDMX interrogés (santé, emploi) — cohérent avec une publication biennale en tableaux, pas en série statistique continue diffusée par API |
+| Liens économiques avec des pays en guerre | Douanes françaises + UCDP (conflits) | Non testé — croisement délicat, prudence éditoriale maximale requise avant tout chargement (§ 1, règle 3) |
+| OTAN / opérations de maintien de la paix | OTAN (*Defence Expenditure of NATO Countries*), ONU (*Troop and Police Contributors*) | **Confirmé PDF uniquement pour les deux sources** — le rapport OTAN est un PDF annuel, la page de contributeurs de l'ONU ne publie que des rapports mensuels en PDF, aucune des deux sans export CSV/API |
 
 ## Sources
 
@@ -252,23 +287,39 @@ simple absence d'exploration :
   naturelles).
 - FMI, World Economic Outlook (API SDMX, `internal/dette/fmi.go`) — dette
   brute des administrations publiques (§ 4).
+- OCDE, *Statistiques de la santé* (API SDMX, `DSD_HEALTH_STAT@DF_LE`) —
+  espérance de vie à la naissance (§ 5).
 - [docs/dette-donnees.md](dette-donnees.md), pour la comparaison européenne
   de la dette déjà chargée.
 - [docs/pauvrete-donnees.md](pauvrete-donnees.md), pour la même méthode
   appliquée au taux de pauvreté.
+- [docs/sante-donnees.md](sante-donnees.md), pour le terrain français de la
+  santé (§ 5).
 
 ## Annexe technique
 
-### 7. Ce qui est chargé
+### 8. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
 | 1 | Eurostat, `earn_mw_cur` | `core.salaire_minimum` | 4 573 lignes, 31 pays, 1999-2026 |
 | 2 | Banque mondiale, *World Development Indicators* | `core.indicateur_mondial` | 682 lignes, 10 pays, 3 indicateurs, 2000-2024 |
 | 3 | FMI, *World Economic Outlook* (dette brute, 17 pays dont G8 hors zone euro, Chine, Russie, Arabie saoudite) | `core.dette_observation` (`serie` `fmi:GGXWDG_NGDP:*`) | 17 séries, jusqu'à 46 années chacune |
+| 4 | OCDE, *Statistiques de la santé* (espérance de vie à la naissance) | `core.indicateur_mondial` (`indicateur` `OCDE_ESPERANCE_VIE_NAISSANCE`) | 89 lignes, 9 pays |
 
 ## Versions
 
+- **Version 5** (15 septembre 2026) : espérance de vie à la naissance
+  chargée (§ 5, OCDE, neuf pays — l'Arabie saoudite n'est pas couverte par
+  cette série) dans `core.indicateur_mondial`, sans nouvelle table (le
+  schéma porte déjà un `source_id` par ligne). Les sept sujets restants
+  (§ 7) passent de « à explorer » à chacun testé et bloqué pour une raison
+  vérifiée : V-Dem n'a aucune URL de fichier statique (formulaire
+  dynamique, confirmé sur le HTML de la page) ; RSF n'expose aucune licence
+  dans son HTML statique (confirmé, page de mentions légales en 404) ;
+  ILOSTAT répond mais les jours de grève ne sont pas comparables (couverture
+  trop inégale, méthodologie propre à chaque pays) ; OTAN et ONU publient
+  uniquement en PDF (confirmé sur les deux sources).
 - **Version 4** (15 septembre 2026) : dette publique hors Union chargée (§ 4)
   en étendant un connecteur déjà en place (`internal/dette/fmi.go`) à la
   Chine, la Russie et l'Arabie saoudite plutôt qu'en écrivant un nouveau
