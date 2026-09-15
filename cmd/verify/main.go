@@ -900,6 +900,26 @@ var checks = []check{
 		          WHERE (periode_type = 'CAMPAGNE') <> (periode_libelle IS NOT NULL)`,
 	},
 	{
+		name:  "le salaire minimum européen couvre la France sur au moins vingt ans",
+		query: `SELECT count(DISTINCT semestre) FROM core.salaire_minimum WHERE geo_code = 'FR'`,
+		min:   40, // deux semestres par an
+	},
+	{
+		// Un salaire minimum mensuel plausible : au-delà, une colonne a été
+		// mal lue (unité horaire prise pour mensuelle, par exemple).
+		name:  "le salaire minimum reste dans une fourchette mensuelle plausible",
+		query: `SELECT count(*) FROM core.salaire_minimum WHERE unite = 'EUR' AND (valeur <= 0 OR valeur > 5000)`,
+	},
+	{
+		name:  "le PIB Banque mondiale couvre les dix pays de comparaison chaque année depuis 2010",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, count(DISTINCT pays_code) AS n
+		            FROM core.indicateur_mondial
+		           WHERE indicateur = 'NY.GDP.MKTP.CD' AND annee >= 2010 AND annee <= 2023
+		           GROUP BY annee
+		        ) x WHERE n < 10`,
+	},
+	{
 		name:  "les personnels du premier degré couvrent au moins deux rentrées scolaires",
 		query: `SELECT count(DISTINCT annee) FROM core.education_personnel_etablissement WHERE degre = 'PREMIER'`,
 		min:   2,

@@ -32,6 +32,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/geo"
 	"github.com/faits-politiques/faits-politiques/internal/hatvp"
 	"github.com/faits-politiques/faits-politiques/internal/immigration"
+	"github.com/faits-politiques/faits-politiques/internal/international"
 	"github.com/faits-politiques/faits-politiques/internal/jorf"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
@@ -47,7 +48,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | education | sante | sae | hydro | ecologie | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | education | sante | sae | hydro | ecologie | international | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -416,6 +417,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "ecologie" {
 		fmt.Println("\ndépense de protection de l'environnement")
 		return ecologie.Ingest(ctx, pool, arch)
+	}
+	// Comparaisons internationales (chantier 11) : salaire minimum, PIB et
+	// épargne nette ajustée. Voir docs/international-donnees.md. Hors chaîne
+	// par défaut.
+	if only == "international" {
+		fmt.Println("\ncomparaisons internationales")
+		return international.Ingest(ctx, pool, arch)
 	}
 	// SAE (bordereau Q24, personnel par fonction) : à part de "sante" parce
 	// que ce seul connecteur exige le binaire 7z sur la machine — voir
