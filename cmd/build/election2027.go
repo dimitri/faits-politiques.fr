@@ -177,10 +177,11 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 							"administratif décidé par la préfecture, liste par liste. " +
 							"82,7 % des sièges nuancés portent d'ailleurs une nuance " +
 							"« divers », qui ne nomme aucun parti.",
-						Section:    "Présidentielle 2027",
-						SectionURL: "2027",
-						Carte:      pleine(fin, cases, "part des voix nuancées", fmtPct),
-						Classement: classement(cases, vign.Noms, fmtPct),
+						Section:         "Présidentielle 2027",
+						SectionURL:      "2027",
+						SectionIndexURL: "2027",
+						Carte:           pleine(fin, cases, "part des voix nuancées", fmtPct),
+						Classement:      classement(cases, vign.Noms, fmtPct),
 					}
 				}
 			}

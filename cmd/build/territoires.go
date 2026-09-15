@@ -7,11 +7,18 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Les territoires : ce que le site sait de chaque département, en cartes.
+// Les cartes départementales : ce que le site sait de chaque département, en
+// agrégeant des données communales.
 //
 // C'est aujourd'hui la donnée la mieux couverte du site — 34 869 communes sur
 // 34 875 pour les finances, la totalité pour la délinquance — très loin devant
 // la donnée politique. L'ordre des cartes suit cette couverture.
+//
+// Ancienne page /territoires/, fusionnée dans /collectivites/ : ces cartes
+// agrègent des données communales, comme les tableaux régions/départements/
+// EPCI de collectivites.go agrègent des budgets — une même page, un même
+// niveau de lecture (« l'étage entre la commune et l'État »), plutôt que deux
+// pages qui se renvoyaient l'une à l'autre pour dire la même chose.
 type CarteTerritoire struct {
 	Slug, Titre, Question, Source, Note string
 	Apercu                              Carte
@@ -46,7 +53,7 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 		c.Page = PageCarte{
 			Slug: c.Slug, Titre: c.Titre, Question: c.Question,
 			Source: c.Source, Note: c.Note,
-			Section: "Territoires", SectionURL: "territoires",
+			Section: "Collectivités", SectionURL: "collectivites/carte", SectionIndexURL: "collectivites",
 			Carte:      pleine(fin2, cases, unite, format),
 			Classement: classement(cases, vign.Noms, format),
 		}

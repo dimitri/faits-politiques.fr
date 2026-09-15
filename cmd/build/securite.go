@@ -104,11 +104,12 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 			Apercu: apercu(vign, cases, "faits pour 1 000 habitants", tx)}
 		ind.Page = PageCarte{
 			Slug: ind.Slug, Titre: lib[0], Question: lib[1],
-			Source:     "SSMSI, bases communales de la délinquance enregistrée",
-			Section:    "Sécurité",
-			SectionURL: "securite",
-			Carte:      pleine(fin, cases, "faits pour 1 000 habitants", tx),
-			Classement: classement(cases, vign.Noms, tx),
+			Source:          "SSMSI, bases communales de la délinquance enregistrée",
+			Section:         "Sécurité",
+			SectionURL:      "securite",
+			SectionIndexURL: "securite",
+			Carte:           pleine(fin, cases, "faits pour 1 000 habitants", tx),
+			Classement:      classement(cases, vign.Noms, tx),
 		}
 
 		srows, err := pool.Query(ctx, `

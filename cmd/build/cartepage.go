@@ -16,12 +16,18 @@ import (
 type PageCarte struct {
 	Slug, Titre, Question, Source, Note string
 	Section, SectionURL                 string
-	Carte                               Carte
-	Classement                          []Rang
-	Serie                               []PointAnnee
-	SerieLegende                        string
-	Courbe                              template.HTML
-	Voisines                            []LienCarte
+	// SectionIndexURL : l'adresse du fil d'Ariane, si elle diffère de
+	// SectionURL (qui sert aussi de préfixe aux liens entre cartes
+	// voisines). Les cartes départementales vivent sous /collectivites/carte/
+	// pour ne pas entrer en collision avec /collectivites/region|departement/,
+	// mais leur fil d'Ariane doit pointer vers /collectivites/, l'index réel.
+	SectionIndexURL string
+	Carte           Carte
+	Classement      []Rang
+	Serie           []PointAnnee
+	SerieLegende    string
+	Courbe          template.HTML
+	Voisines        []LienCarte
 }
 
 type LienCarte struct{ Slug, Titre string }

@@ -9,7 +9,7 @@
       <span class="t">Candidats déclarés</span>
       <span class="d">Ce qu'ils ont voté, ce que leur parti déclare, où il présente des listes —
         et les cases vides, qui disent autant.</span></a>
-    <a class="carte" href="{{.Root}}/territoires/"><span class="v">{{nb .Cov.Communes}}</span>
+    <a class="carte" href="{{.Root}}/collectivites/"><span class="v">{{nb .Cov.Communes}}</span>
       <span class="t">Communes en cartes</span>
       <span class="d">Dette, investissement, épargne, vie associative. Dessinées par la base,
         sans tuile ni traceur.</span></a>
@@ -79,9 +79,9 @@
 <section class="bloc">
   <div class="tete"><div><span class="sur">Carte</span>
     <h2 class="h2">{{.Une.Question}}</h2></div>
-    <a class="plus" href="{{.Root}}/territoires/">Les {{len .Une.Page.Voisines | add 1}} cartes →</a></div>
+    <a class="plus" href="{{.Root}}/collectivites/">Les {{len .Une.Page.Voisines | add 1}} cartes →</a></div>
   <div class="une-carte">
-    <a href="{{.Root}}/territoires/{{.Une.Slug}}/">{{.Une.Apercu.SVG}}</a>
+    <a href="{{.Root}}/collectivites/carte/{{.Une.Slug}}/">{{.Une.Apercu.SVG}}</a>
     <div>
       <p><strong>Non, très majoritairement.</strong> {{.Une.Titre}}, département par département,
       aux municipales de 2026. Le ministère de l'Intérieur attribue une nuance à chaque liste&nbsp;;
@@ -91,7 +91,7 @@
         {{range $i, $b := .Une.Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
       {{template "cartons" .Une.Apercu.Cartons}}
       <p class="small muted">Source&nbsp;: {{.Une.Source}}. Contours&nbsp;: © les contributeurs
-      OpenStreetMap, ODbL&nbsp;1.0. <a href="{{.Root}}/territoires/{{.Une.Slug}}/">La carte en grand,
+      OpenStreetMap, ODbL&nbsp;1.0. <a href="{{.Root}}/collectivites/carte/{{.Une.Slug}}/">La carte en grand,
       le classement des 96 départements et la méthode →</a></p>
     </div>
   </div>

@@ -1,7 +1,7 @@
 {{define "content"}}
 {{$p := .P}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
-  <a href="{{.Root}}/{{$p.SectionURL}}/">{{$p.Section}}</a> › <span>{{$p.Titre}}</span></p>
+  <a href="{{.Root}}/{{$p.SectionIndexURL}}/">{{$p.Section}}</a> › <span>{{$p.Titre}}</span></p>
 <span class="sur">Carte par département</span>
 <h1>{{$p.Titre}}</h1>
 {{if $p.Question}}<p class="lede">{{$p.Question}}</p>{{end}}

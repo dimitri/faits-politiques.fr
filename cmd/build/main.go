@@ -471,27 +471,41 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		return err
 	}
 
-	// --- territoires, sécurité, présidentielle 2027 : les nouvelles sections
-	l = layout
-	l.Title = "Territoires"
-	if err := write(page("territoires.gohtml"), filepath.Join(out, "territoires", "index.html"),
-		struct {
-			Layout
-			T *StatsTerritoires
-		}{l, terr}); err != nil {
-		return err
-	}
-
-	// Une page par carte : tracé fin, classement complet, série annuelle.
+	// --- cartes départementales, sécurité, présidentielle 2027 : les nouvelles
+	// sections. Les cartes ex-/territoires/ vivent maintenant sous
+	// /collectivites/carte/ (voir territoires.go, en tête de fichier) : une
+	// page par carte, tracé fin, classement complet, série annuelle.
 	tcd := page("carte-detail.gohtml")
 	for _, c := range terr.Cartes {
 		l = layout
 		l.Title = c.Titre
-		if err := write(tcd, filepath.Join(out, "territoires", c.Slug, "index.html"),
+		if err := write(tcd, filepath.Join(out, "collectivites", "carte", c.Slug, "index.html"),
 			struct {
 				Layout
 				P PageCarte
 			}{l, c.Page}); err != nil {
+			return err
+		}
+	}
+	// L'ancienne adresse ne renvoie plus un 404 muet : une page fixe, aussi
+	// statique que le reste du site, qui pointe vers la nouvelle adresse.
+	l = layout
+	l.Title = "Page déplacée"
+	if err := write(page("deplace.gohtml"), filepath.Join(out, "territoires", "index.html"),
+		struct {
+			Layout
+			Vers, VersTitre string
+		}{l, "/collectivites/", "Collectivités"}); err != nil {
+		return err
+	}
+	for _, c := range terr.Cartes {
+		l = layout
+		l.Title = "Page déplacée"
+		if err := write(page("deplace.gohtml"), filepath.Join(out, "territoires", c.Slug, "index.html"),
+			struct {
+				Layout
+				Vers, VersTitre string
+			}{l, "/collectivites/carte/" + c.Slug + "/", c.Titre}); err != nil {
 			return err
 		}
 	}
@@ -669,12 +683,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		filepath.Join(out, "collectivites", "index.html"), struct {
 			Layout
 			C             *StatsCollectivites
+			T             *StatsTerritoires
 			Ind           []IndicCollectivite
 			Barres        []barreNiveau
 			BarresRecette []barreNiveau
 			Parts         []PartRecette
 			IndicLibelle  string
-		}{l, col, indicsCollectivite, barres, barresRecette, parts, "Dépenses de fonctionnement"}); err != nil {
+		}{l, col, terr, indicsCollectivite, barres, barresRecette, parts, "Dépenses de fonctionnement"}); err != nil {
 		return err
 	}
 
