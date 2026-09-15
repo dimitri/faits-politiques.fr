@@ -511,7 +511,12 @@ func heroMille(a *DonneesAccueil, root string) template.HTML {
 func mosaiqueMille(a *DonneesAccueil) string {
 	const cols, rows, cell, gap = 40, 25, 10.0, 1.4
 	var b strings.Builder
-	fmt.Fprintf(&b, `<svg class="mosaique" viewBox="0 0 %g %g" aria-hidden="true" focusable="false">`,
+	// preserveAspectRatio="none" : la mosaïque remplit toute la hauteur
+	// disponible (celle de la légende, à sa droite — voir la règle CSS
+	// .hero-mille .mosaique) plutôt que de garder le ratio 40:25 de la
+	// grille et de laisser un vide sous elle. Les cases s'étirent d'à
+	// peine quelques pour cent, invisible à l'œil sur 1 000 petits carrés.
+	fmt.Fprintf(&b, `<svg class="mosaique" viewBox="0 0 %g %g" preserveAspectRatio="none" aria-hidden="true" focusable="false">`,
 		cols*cell, rows*cell)
 	i := 0
 	for _, f := range a.Fonctions {
