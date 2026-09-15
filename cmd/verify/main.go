@@ -1733,6 +1733,21 @@ var checks = []check{
 		name:  "la participation électorale IDEA reste un pourcentage valide",
 		query: `SELECT count(*) FROM core.participation_electorale WHERE taux_participation_inscrits NOT BETWEEN 0 AND 100`,
 	},
+	{
+		// Les huit sous-fonctions COFOG de la protection sociale (GF10.x)
+		// doivent sommer exactement le total GF10, chaque année — sinon une
+		// sous-fonction a été mal codée ou une nouvelle a été introduite par
+		// Eurostat sans être ajoutée à internal/macro/macro.go.
+		name: "les sous-fonctions COFOG de la protection sociale somment le total GF10",
+		query: `SELECT count(*) FROM (
+		          SELECT mv.annee,
+		                 max(mv.valeur) FILTER (WHERE rs.cofog = 'GF10') AS total,
+		                 sum(mv.valeur) FILTER (WHERE rs.cofog LIKE 'GF10__') AS somme
+		            FROM core.macro_value mv JOIN ref.macro_serie rs ON rs.code = mv.serie_code
+		           WHERE rs.cofog = 'GF10' OR rs.cofog LIKE 'GF10__'
+		           GROUP BY mv.annee
+		        ) x WHERE abs(total - somme) > 0.5`,
+	},
 }
 
 func main() {

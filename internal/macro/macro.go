@@ -73,6 +73,23 @@ var cofog = []struct{ code, label string }{
 	{"GF10", "Protection sociale"},
 }
 
+// Le niveau 2 de GF10 (Protection sociale) — la seule façon d'isoler la
+// dépense « vieillesse » du reste (famille, chômage, exclusion...) sans
+// deviner une part depuis le seul total GF10. Même dataset Eurostat
+// (gov_10a_exp), le paramètre cofog99 accepte directement ces codes à
+// quatre chiffres, vérifié avant d'écrire cette liste plutôt que supposé.
+var cofogProtectionSociale = []struct{ code, label string }{
+	{"GF1001", "Protection sociale — Maladie et invalidité"},
+	{"GF1002", "Protection sociale — Vieillesse"},
+	{"GF1003", "Protection sociale — Survivants"},
+	{"GF1004", "Protection sociale — Famille et enfants"},
+	{"GF1005", "Protection sociale — Chômage"},
+	{"GF1006", "Protection sociale — Logement"},
+	{"GF1007", "Protection sociale — Exclusion sociale n.c.a."},
+	{"GF1008", "Protection sociale — Recherche et développement"},
+	{"GF1009", "Protection sociale — n.c.a."},
+}
+
 func series() []serie {
 	out := []serie{
 		{
@@ -369,6 +386,17 @@ func series() []serie {
 			Definition: "Dépense totale des administrations publiques pour la fonction « " +
 				c.label + " » (classification COFOG), en millions d'euros courants. " +
 				"Toutes administrations confondues, pas seulement l'État.",
+			Requete: "gov_10a_exp?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=TE&cofog99=" + c.code,
+		})
+	}
+	for _, c := range cofogProtectionSociale {
+		out = append(out, serie{
+			Code: "depense." + c.code, Label: c.label,
+			Unite: "MEUR", Famille: "DEPENSE", Cofog: c.code,
+			Definition: "Sous-fonction de GF10 (Protection sociale) — « " + c.label +
+				" », en millions d'euros courants, toutes administrations confondues. " +
+				"Somme les huit sous-fonctions pour retrouver GF10, jamais l'inverse : " +
+				"ne pas déduire une sous-fonction d'un pourcentage estimé du total.",
 			Requete: "gov_10a_exp?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=TE&cofog99=" + c.code,
 		})
 	}
