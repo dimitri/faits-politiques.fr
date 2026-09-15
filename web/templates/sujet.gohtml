@@ -1,0 +1,29 @@
+{{define "content"}}
+{{$s := .S}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  {{if eq $s.Famille.Base "argent-public"}}<a href="{{.Root}}/argent-public/">Argent public</a>{{else}}<a href="{{.Root}}/sujets/">Sujets</a> ›
+  <a href="{{.Root}}/sujets/#{{$s.Famille.ID}}">{{$s.Famille.Nom}}</a>{{end}} › <span>{{$s.Nom}}</span></p>
+
+<div class="sujet-tete">
+  <span class="sur">{{$s.Famille.Nom}}{{if $s.Famille.ParMille}} · {{$s.Famille.ParMille}}&nbsp;€ sur 1&nbsp;000 de dépense publique{{end}}</span>
+  {{if $s.Pages}}<ul class="liens-cartes">{{range $s.Pages}}<li><a href="{{$.Root}}/{{.URL}}">{{.Titre}} →</a></li>{{end}}</ul>{{end}}
+</div>
+
+<div class="doc-page">
+  <article class="prose">
+    {{$s.D.Corps}}
+    <p class="note abs" style="margin-top:2.5rem">Rendu intégralement depuis le dossier
+    <code>docs/{{$s.D.Fichier}}</code> à la construction du site&nbsp;; les sections tirées de la base
+    (faits, crédits, mentions en séance) y sont régénérées depuis les données chargées.</p>
+  </article>
+
+  <nav class="doc-toc" aria-label="Sommaire">
+    {{if gt (len $s.D.Sections) 2}}
+    <p class="lb">Sommaire</p>
+    <ul>{{range $s.D.Sections}}<li><a href="#{{.ID}}">{{.Titre}}</a></li>{{end}}</ul>
+    {{end}}
+    <p class="lb" style="margin-top:1.2rem">{{$s.Famille.Nom}}</p>
+    <ul>{{range $s.Famille.Sujets}}{{if ne .ID $s.ID}}{{if .D}}<li><a href="{{$.Root}}/{{.URL}}">{{.Nom}}</a></li>{{end}}{{end}}{{end}}</ul>
+  </nav>
+</div>
+{{end}}

@@ -319,10 +319,6 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 	if err != nil {
 		return err
 	}
-	flux, err := derniersFlux(ctx, pool, 8)
-	if err != nil {
-		return err
-	}
 	seuils, err := loadSeuils(filepath.Join(dataDir, "seuils.csv"))
 	if err != nil {
 		return err
@@ -334,33 +330,6 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		FROM raw.retrieval WHERE document_id IS NOT NULL`).Scan(&layout.DerniereIngestion)
 
 	l := layout
-	l.Title = "Accueil"
-	l.Hero = true
-	l.HeroTitre = "Ce qui a été voté, décidé, proposé — et d'où on le sait."
-	// Se définir par une absence (« rien n'est commenté ») oblige le lecteur à
-	// deviner ce qu'il obtient. On dit les trois choses qu'il reçoit.
-	l.HeroLede = "Chaque chiffre remonte à un document officiel archivé et horodaté. " +
-		"Aucun verdict n'est rendu : vous obtenez le fait, sa source primaire, " +
-		"et ce qu'elle ne permet pas de conclure."
-	// La carte de une. Choix éditorial : celle qui répond à une intuition
-	// fausse plutôt que celle qui a la plus jolie donnée. « Les municipales
-	// sont-elles des élections de partis ? » — non, et la carte le montre sans
-	// une phrase de commentaire.
-	const carteUne = "part-partisane"
-	var une *CarteTerritoire
-	for i := range terr.Cartes {
-		if terr.Cartes[i].Slug == carteUne {
-			une = &terr.Cartes[i]
-		}
-	}
-	if err := write(page("accueil.gohtml"), filepath.Join(out, "index.html"), struct {
-		Layout
-		Derniers []FluxLigne
-		Une      *CarteTerritoire
-		Defs     template.HTML
-	}{l, flux, une, terr.Defs}); err != nil {
-		return err
-	}
 
 	l = layout
 	l.Title = "Candidats 2027"
@@ -590,6 +559,34 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 			}{l, ind.Page}); err != nil {
 			return err
 		}
+	}
+
+	// --- accueil : écrit après les cartes départementales et de sécurité,
+	// dont il reprend quatre vignettes en onglets.
+	acc, err := loadAccueil(ctx, pool, terr, sec)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Présidentielle 2027 : les sujets de campagne et le budget réel"
+	l.Hero = true
+	l.HeroTitre = "Présidentielle 2027 : les sujets de campagne et le budget réel de la France"
+	// Le titre place la campagne en tête ; le chapeau dit ce que le lecteur
+	// reçoit pour chaque sujet, et à quoi cela lui sert.
+	l.HeroLede = "Retraites, santé, école, sécurité, immigration, dette : les candidats parlent " +
+		"des mêmes sujets. Pour chacun, ce site montre ce que dépensent l'État, la Sécurité sociale " +
+		"et les collectivités, d'où vient l'argent, quelles règles s'appliquent et ce qu'ont constaté " +
+		"les institutions de contrôle. De quoi suivre les débats et se faire son opinion, chiffres en main."
+	if err := write(page("accueil.gohtml"), filepath.Join(out, "index.html"), struct {
+		Layout
+		A *DonneesAccueil
+	}{l, acc}); err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Qui décide"
+	if err := write(page("qui-decide.gohtml"), filepath.Join(out, "qui-decide", "index.html"), l); err != nil {
+		return err
 	}
 
 	e27, err := load2027(ctx, pool, candidats, dataDir)
@@ -877,20 +874,64 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 		}
 	}
 
+	// --- sujets : les dossiers au plan commun deviennent les pages de sujet,
+	// et leur ancienne adresse sous /comprendre/ renvoie vers la nouvelle.
+	if err := rattacherDocs(docs); err != nil {
+		return err
+	}
+	reecrireLiensDocs(docs, root)
 	l = layout
-	l.Title = "Comprendre"
+	l.Title = "Sujets de campagne"
+	if err := write(page("sujets.gohtml"), filepath.Join(out, "sujets", "index.html"), struct {
+		Layout
+		Familles []*Famille
+		Annee    int
+	}{l, acc.Familles, acc.Annee}); err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "Argent public"
+	if err := write(page("argent-public.gohtml"), filepath.Join(out, "argent-public", "index.html"), struct {
+		Layout
+		A *DonneesAccueil
+	}{l, acc}); err != nil {
+		return err
+	}
+	ts := page("sujet.gohtml")
+	var methode []*Doc
+	for _, d := range docs {
+		s := sujetDuDoc(d.Slug)
+		if s == nil {
+			methode = append(methode, d)
+			continue
+		}
+		l = layout
+		l.Title = s.Nom
+		if err := write(ts, filepath.Join(out, filepath.FromSlash(s.URL()), "index.html"), struct {
+			Layout
+			S *Sujet
+		}{l, s}); err != nil {
+			return err
+		}
+		if err := redirection(filepath.Join(out, "comprendre", d.Slug, "index.html"), root+"/"+s.URL()); err != nil {
+			return err
+		}
+	}
+
+	l = layout
+	l.Title = "Documents de méthode"
 	if err := write(page("comprendre.gohtml"), filepath.Join(out, "comprendre", "index.html"),
 		struct {
 			Layout
 			Docs    []*Doc
 			Groupes []GroupeDocs
-		}{l, docs, GrouperDocs(docs)}); err != nil {
+		}{l, methode, GrouperDocs(methode)}); err != nil {
 		return err
 	}
 	td := page("doc.gohtml")
-	for _, d := range docs {
+	for _, d := range methode {
 		var autres []*Doc
-		for _, o := range docs {
+		for _, o := range methode {
 			if o.Slug != d.Slug {
 				autres = append(autres, o)
 			}

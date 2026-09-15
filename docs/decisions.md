@@ -2258,3 +2258,42 @@ chargée. Deux affirmations de Laurent Bloch — la dépendance de la défense a
 soumis à la réglementation américaine ITAR, et Crolles seule usine européenne de
 processeurs de pointe en 2014 — restent les siennes : aucune source officielle chargée ne
 les recoupe.
+
+## D-068 — Le site s'ouvre sur la présidentielle 2027, les sujets de campagne et le budget réel
+
+`cmd/build/sujets.go`, gabarits `accueil`, `sujets`, `sujet`, `argent-public`, `qui-decide`,
+navigation de `base.gohtml`. Proposition d'accueil du 15 septembre 2026.
+
+**Pourquoi.** L'idée de départ — montrer les conséquences des élections et ce que votent
+les partis des candidats — ne tient pas : un décompte de scrutin ne dit pas ce qu'il
+change, et l'effet d'une élection ne s'isole pas (D-026, D-037). Ce que la base sait
+montrer, c'est le fonctionnement du pays : les sujets dont parlent toutes les campagnes,
+et l'argent public qui les finance. La présidentielle de 2027 reste le point de départ et
+la raison d'être du site : comprendre les débats et se faire une opinion à partir de
+chiffres concrets.
+
+**Décidé.**
+
+- **Titre de l'accueil** : « Présidentielle 2027 : les sujets de campagne et le budget
+  réel de la France ». « Réel » désigne la dépense **constatée** (comptes nationaux) ;
+  les crédits des projets de loi de finances restent « demandés » et ne portent jamais
+  ce mot.
+- **Cinq entrées** au lieu de onze, par question du lecteur : 2027 · Sujets · Argent
+  public · Qui décide · Sources (« Sources » remplace « Méthode »).
+- **Accueil**, dans l'ordre : ce que pèse chaque fonction sur 1 000 € de dépense
+  publique (COFOG), les six familles de sujets, les trois budgets (Sécurité sociale,
+  État, collectivités) et le solde, une carte départementale à quatre onglets (santé,
+  solidarité, sécurité, finances locales) dans l'affichage en ligne avec les cartons
+  d'outre-mer, les candidats, des repères datés, les institutions, les sources. Le flux
+  des derniers scrutins et la carte des nuances municipales quittent la première page.
+- **Une page par sujet** (`/sujets/<id>/`, `/argent-public/<id>/`), rendue depuis le
+  dossier au plan commun, avec les pages de données existantes. L'ancienne adresse
+  `/comprendre/<dossier>/` renvoie vers la nouvelle ; les pages de données gardent la
+  leur. Les liens entre dossiers (`x.md`) sont réécrits vers la page.
+- **Les notes grand public** générées depuis les dossiers sont des documents de travail
+  internes, non publiés : seule la page de sujet est destinée au lecteur.
+
+**Ce que cela coûte.** Le poids d'une famille de sujets est une somme de fonctions COFOG :
+il situe, il ne s'additionne pas. Les trois budgets ne s'additionnent pas non plus, à
+cause des transferts entre administrations. La page de sujet reprend le dossier tel quel :
+elle hérite de son niveau de détail technique, en attendant un gabarit « en bref » propre.

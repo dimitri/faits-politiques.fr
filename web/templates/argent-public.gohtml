@@ -1,0 +1,75 @@
+{{define "content"}}
+{{$a := .A}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Argent public</span></p>
+<span class="sur">Argent public</span>
+<h1>Où va l'argent public, et d'où il vient</h1>
+<p class="lede">La dépense publique constatée, fonction par fonction&nbsp;; les trois budgets qui la
+portent — Sécurité sociale, État, collectivités — et leur équilibre&nbsp;; la dette. Toutes
+administrations confondues, sur une même règle comptable.</p>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Dépense constatée, {{$a.Annee}}</span>
+    <h2 class="h2">Sur 1&nbsp;000&nbsp;€ de dépense publique</h2></div></div>
+  <div class="mille">
+    {{range $i, $f := $a.Fonctions}}<div class="ligne-mille{{if eq $i 0}} etalon{{end}}">
+      <span class="l">{{$f.Libelle}}{{if $f.Detail}}<small>{{$f.Detail}}</small>{{end}}</span>
+      <span class="v">{{$f.ParMille}}&nbsp;€</span>
+      <span class="b" aria-hidden="true"><i style="width:{{printf "%.1f" $f.Largeur}}%"></i></span>
+      <span class="md">{{dec $f.Milliards 1}}&nbsp;Md€</span>
+    </div>{{end}}
+  </div>
+  <p class="src-bloc">Source&nbsp;: Eurostat / Insee, dépenses des administrations publiques par
+  fonction (COFOG), {{$a.Annee}}&nbsp;: {{dec $a.TotalMilliards 1}}&nbsp;Md€. La nomenclature range les
+  allocations logement dans la protection sociale et les intérêts de la dette dans les services
+  généraux.</p>
+</section>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Qui dépense</span>
+    <h2 class="h2">Trois budgets</h2></div></div>
+  <div class="niveaux">
+    {{range $a.Budgets}}<a class="niveau" href="{{$.Root}}/{{.URL}}">
+      <span class="t">{{.Nom}}</span>
+      <span class="n">{{dec .Milliards 1}} <small>Md€ en {{$a.Annee}}</small></span>
+      <span class="jauge" aria-hidden="true"><i style="width:{{printf "%.1f" .Largeur}}%"></i></span>
+      <span class="d">{{.Texte}}</span>
+    </a>{{end}}
+  </div>
+  <div class="solde">
+    <div><b>{{dec $a.Recettes 1}}&nbsp;Md€</b><span>recettes publiques en {{$a.Annee}}</span></div>
+    <div><b>{{dec $a.Depenses 1}}&nbsp;Md€</b><span>dépenses publiques en {{$a.Annee}}</span></div>
+    <div><b>{{dec $a.Solde 1}}&nbsp;Md€</b><span>solde{{if $a.SoldePIB}}, soit {{dec $a.SoldePIB 1}}&nbsp;% du PIB{{end}}</span></div>
+  </div>
+  <p class="src-bloc">Les trois budgets ne s'additionnent pas&nbsp;: les transferts entre eux sont
+  comptés chez l'un et chez l'autre.</p>
+</section>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Dossiers</span>
+    <h2 class="h2">Les finances publiques, sujet par sujet</h2></div></div>
+  <div class="cartes trois">
+    {{range $a.Argent.Sujets}}<a class="carte" href="{{$.Root}}/{{.URL}}">
+      <span class="t">{{.Nom}}</span>
+      {{if .D}}<span class="d">{{.D.Titre}}</span>{{end}}
+    </a>{{end}}
+    <a class="carte" href="{{.Root}}/sujets/cotisations/"><span class="t">Cotisations et droits</span>
+      <span class="d">Ce qu'une cotisation achète, d'une fiche de paie aux caisses.</span></a>
+    <a class="carte" href="{{.Root}}/sujets/securite-sociale/"><span class="t">Sécurité sociale</span>
+      <span class="d">Quatre périmètres, un seul mot.</span></a>
+    <a class="carte" href="{{.Root}}/sujets/collectivites/"><span class="t">Collectivités</span>
+      <span class="d">D'où vient l'argent des communes, départements et régions.</span></a>
+  </div>
+</section>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">En graphiques</span>
+    <h2 class="h2">Les pages de données</h2></div></div>
+  <div class="decide">
+    <a href="{{.Root}}/budget/"><b>Budget de l'État</b><span>recettes, dépenses et solde, mois par mois</span></a>
+    <a href="{{.Root}}/protection-sociale/"><b>Protection sociale</b><span>les prestations depuis 1959</span></a>
+    <a href="{{.Root}}/dette/"><b>Dette publique</b><span>qui la détient, ce qu'elle coûte</span></a>
+    <a href="{{.Root}}/dividendes/"><b>Dividendes</b><span>participations de l'État et entreprises</span></a>
+    <a href="{{.Root}}/frise/"><b>La V<sup>e</sup> République en chiffres</b><span>les séries depuis 1958</span></a>
+  </div>
+</section>
+{{end}}

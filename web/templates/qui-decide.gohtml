@@ -1,0 +1,31 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Qui décide</span></p>
+<span class="sur">Institutions</span>
+<h1>Qui décide</h1>
+<p class="lede">Le Gouvernement, les deux assemblées, le Parlement européen et les collectivités&nbsp;:
+qui y siège, ce qui y a été voté, et comment le site le sait.</p>
+
+<p class="note proc"><strong>Un vote ne dit pas ce qu'il change.</strong> Un décompte « pour » ou
+« contre » sur un amendement ou une motion ne mesure pas l'effet d'une loi. Les pages de sujet
+rattachent les votes aux textes qui fondent chaque politique&nbsp;; le site ne produit ni bilan ni
+score d'un élu ou d'un parti.</p>
+
+<div class="cartes trois">
+  <a class="carte" href="{{.Root}}/gouvernement/"><span class="t">Gouvernement</span>
+    <span class="d">Présidents, Premiers ministres, et les décrets de composition du Journal officiel tels qu'ils ont paru.</span></a>
+  <a class="carte" href="{{.Root}}/assemblee/"><span class="v">{{nb .Cov.Scrutins}}</span><span class="t">Assemblée nationale</span>
+    <span class="d">Scrutins publics de la 17<sup>e</sup> législature, groupes, députés, et les derniers votes.</span></a>
+  <a class="carte" href="{{.Root}}/senat/"><span class="v">{{nb .Cov.VotesSenat}}</span><span class="t">Sénat</span>
+    <span class="d">Votes nominatifs de {{nb .Cov.Senateurs}} sénateurs. Sans groupe ni résultat&nbsp;: la source n'en publie pas.</span></a>
+  <a class="carte" href="{{.Root}}/europe/"><span class="v">{{nb .Cov.ScrutinsPE}}</span><span class="t">Parlement européen</span>
+    <span class="d">Scrutins nominatifs et votes des eurodéputés français.</span></a>
+  <a class="carte" href="{{.Root}}/collectivites/"><span class="t">Collectivités</span>
+    <span class="d">Régions, départements, intercommunalités&nbsp;: exécutifs, budgets, compétences.</span></a>
+  <a class="carte" href="{{.Root}}/partis/"><span class="v">{{.Cov.Organisations}}</span><span class="t">Partis</span>
+    <span class="d">Comptes publics déposés à la CNCCFP, positionnement selon des référentiels tiers.</span></a>
+  <a class="carte" href="{{.Root}}/candidats/"><span class="v">{{.Cov.Candidats}}</span><span class="t">Candidats 2027</span>
+    <span class="d">Déclarés et sourcés, avec leur parcours et ce que le site ne couvre pas.</span></a>
+  <a class="carte" href="{{.Root}}/themes/"><span class="v">{{.Cov.ThemesSenat}}</span><span class="t">Thèmes des lois</span>
+    <span class="d">Les thèmes officiels du Sénat, posés sur les lois et rattachés aux scrutins.</span></a>
+</div>
+{{end}}

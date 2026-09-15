@@ -20,7 +20,7 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
        fichier est déjà servi comme favicon, donc déjà en cache. */}}
   <a class="marque" href="{{.Root}}/"><img src="{{.Root}}/media/logo-mark.svg" width="30" height="30" alt=""><span class="mot">faits-politiques<i>.fr</i></span></a>
   <button type="button" class="rech compact" data-rech hidden>
-    {{ico "loupe"}}<span class="txt">Rechercher une personne, un parti…</span><kbd>/</kbd></button>
+    {{ico "loupe"}}<span class="txt">Rechercher un candidat, un parti, un sujet…</span><kbd>/</kbd></button>
   <div class="theme" role="group" aria-label="Thème de couleur" hidden>
     <button type="button" data-theme-set="auto" title="Suivre le système"
       aria-label="Suivre le système">{{ico "systeme"}}</button>
@@ -29,23 +29,16 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
     <button type="button" data-theme-set="dark" title="Thème sombre"
       aria-label="Thème sombre">{{ico "lune"}}</button>
   </div>
-  {{/* Ordre : d'abord les chambres, par complétude de la donnée publiée —
-       l'Assemblée porte résultats, types de vote, groupes et seuils ; le Sénat
-       a plus de bulletins (1,65 M) mais ni résultat ni groupe ; l'Europe ne
-       charge que les élus français. Puis l'entrée par sujet, puis les acteurs,
-       puis la méthode. Les sources vivent dans « Comprendre » et au pied. */}}
+  {{/* Cinq entrées, par question du lecteur (proposition d'accueil du
+       15 septembre 2026) : la présidentielle d'abord, raison d'être du site,
+       puis les sujets dont parlent les candidats, l'argent public qui les
+       finance, les institutions qui en décident, et d'où viennent les chiffres. */}}
   <nav>
     <a href="{{.Root}}/2027/">{{ico "candidats"}}2027</a>
-    <a href="{{.Root}}/assemblee/">{{ico "assemblee"}}Assemblée</a>
-    <a href="{{.Root}}/senat/">{{ico "senat"}}Sénat</a>
-    <a href="{{.Root}}/europe/">{{ico "europe"}}Europe</a>
-    <a href="{{.Root}}/gouvernement/">{{ico "gouvernement"}}Gouvernement</a>
-    <a href="{{.Root}}/collectivites/">{{ico "collectivites"}}Collectivités</a>
-    <a href="{{.Root}}/securite/">{{ico "securite"}}Sécurité</a>
-    <a href="{{.Root}}/budget/">{{ico "budget"}}Budget</a>
-    <a href="{{.Root}}/frise/">{{ico "frise"}}V<sup>e</sup> République</a>
-    <a href="{{.Root}}/themes/">{{ico "themes"}}Thèmes</a>
-    <a href="{{.Root}}/comprendre/">{{ico "comprendre"}}Comprendre</a>
+    <a href="{{.Root}}/sujets/">{{ico "themes"}}Sujets</a>
+    <a href="{{.Root}}/argent-public/">{{ico "budget"}}Argent public</a>
+    <a href="{{.Root}}/qui-decide/">{{ico "assemblee"}}Qui décide</a>
+    <a href="{{.Root}}/sources/">{{ico "sources"}}Sources</a>
   </nav>
 </div></div></header>
 
@@ -56,12 +49,15 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
     <p class="lede">{{.HeroLede}}</p>
     <div class="outil">
       <button type="button" class="rech grand" data-rech hidden>
-        {{ico "loupe"}}<span class="txt">Un nom, un parti, un groupe…</span><kbd>/</kbd></button>
+        {{ico "loupe"}}<span class="txt">Un candidat, un sujet, un parti…</span><kbd>/</kbd></button>
       <div class="suggest">
         <span>Par exemple&nbsp;:</span>
+        <a href="{{.Root}}/sujets/retraites/">Retraites</a>
+        <a href="{{.Root}}/argent-public/dette/">Dette publique</a>
+        <a href="{{.Root}}/sujets/sante/">Santé</a>
+        <a href="{{.Root}}/sujets/police/">Police</a>
+        <a href="{{.Root}}/sujets/immigration/">Immigration</a>
         <a href="{{.Root}}/candidats/">Candidats 2027</a>
-        <a href="{{.Root}}/assemblee/">Groupes de l'Assemblée</a>
-        <a href="{{.Root}}/partis/">Partis et comptes publics</a>
       </div>
     </div>
     <dl class="ancrage">
@@ -78,49 +74,54 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
 </main>
 
 <nav class="tabbar" aria-label="Navigation principale">
-  <button type="button" data-rech hidden>{{ico "loupe"}}Chercher</button>
   <a href="{{.Root}}/2027/">{{ico "candidats"}}2027</a>
-  <a href="{{.Root}}/assemblee/">{{ico "assemblee"}}Assemblée</a>
-  <a href="{{.Root}}/collectivites/">{{ico "collectivites"}}Collectivités</a>
-  <a href="{{.Root}}/comprendre/">{{ico "comprendre"}}Comprendre</a>
+  <a href="{{.Root}}/sujets/">{{ico "themes"}}Sujets</a>
+  <a href="{{.Root}}/argent-public/">{{ico "budget"}}Argent</a>
+  <a href="{{.Root}}/qui-decide/">{{ico "assemblee"}}Décide</a>
+  <a href="{{.Root}}/sources/">{{ico "sources"}}Sources</a>
+  <button type="button" data-rech hidden>{{ico "loupe"}}Chercher</button>
 </nav>
 
 <footer class="pied"><div class="wrap">
   <div class="cols">
-    <div><h4>Parcourir</h4><ul>
+    <div><h4>2027</h4><ul>
       <li><a href="{{.Root}}/2027/">Présidentielle 2027</a></li>
-      <li><a href="{{.Root}}/assemblee/">Assemblée nationale</a></li>
-      <li><a href="{{.Root}}/senat/">Sénat</a></li>
-      <li><a href="{{.Root}}/gouvernement/">Gouvernement</a></li>
-      <li><a href="{{.Root}}/collectivites/">Collectivités</a></li>
-      <li><a href="{{.Root}}/securite/">Sécurité</a></li>
+      <li><a href="{{.Root}}/candidats/">Candidats déclarés</a></li>
+      <li><a href="{{.Root}}/partis/">Partis et comptes publics</a></li>
+      <li><a href="{{.Root}}/frise/">La V<sup>e</sup> République en chiffres</a></li>
+    </ul></div>
+    <div><h4>Sujets</h4><ul>
+      <li><a href="{{.Root}}/sujets/">Tous les sujets</a></li>
+      <li><a href="{{.Root}}/sujets/retraites/">Retraites</a></li>
+      <li><a href="{{.Root}}/sujets/sante/">Santé</a></li>
+      <li><a href="{{.Root}}/sujets/chomage/">Chômage</a></li>
+      <li><a href="{{.Root}}/sujets/education/">Éducation</a></li>
+      <li><a href="{{.Root}}/sujets/police/">Police et délinquance</a></li>
+      <li><a href="{{.Root}}/sujets/immigration/">Immigration</a></li>
+      <li><a href="{{.Root}}/sujets/collectivites/">Collectivités</a></li>
+    </ul></div>
+    <div><h4>Argent public</h4><ul>
+      <li><a href="{{.Root}}/argent-public/">Où va l'argent public</a></li>
       <li><a href="{{.Root}}/budget/">Budget de l'État</a></li>
+      <li><a href="{{.Root}}/protection-sociale/">Protection sociale</a></li>
       <li><a href="{{.Root}}/dette/">Dette publique</a></li>
       <li><a href="{{.Root}}/dividendes/">Dividendes</a></li>
-      <li><a href="{{.Root}}/protection-sociale/">Protection sociale</a></li>
-      <li><a href="{{.Root}}/chomage/">Chômage</a></li>
-      <li><a href="{{.Root}}/agriculture/">Agriculture et alimentation</a></li>
-      <li><a href="{{.Root}}/frise/">La V<sup>e</sup> République en chiffres</a></li>
+    </ul></div>
+    <div><h4>Qui décide</h4><ul>
+      <li><a href="{{.Root}}/gouvernement/">Gouvernement</a></li>
+      <li><a href="{{.Root}}/assemblee/">Assemblée nationale</a></li>
+      <li><a href="{{.Root}}/senat/">Sénat</a></li>
       <li><a href="{{.Root}}/europe/">Parlement européen</a></li>
-      <li><a href="{{.Root}}/candidats/">Candidats 2027</a></li>
-      <li><a href="{{.Root}}/partis/">Partis</a></li>
-      <li><a href="{{.Root}}/themes/">Thèmes</a></li>
+      <li><a href="{{.Root}}/themes/">Thèmes des lois</a></li>
     </ul></div>
-    <div><h4>Comprendre</h4><ul>
-      <li><a href="{{.Root}}/comprendre/">Tous les documents de méthode</a></li>
-      <li><a href="{{.Root}}/comprendre/perimetre/">Méthode et périmètre</a></li>
-      <li><a href="{{.Root}}/comprendre/charte-graphique/">Charte graphique</a></li>
-    </ul></div>
-    <div><h4>Vérifier</h4><ul>
+    <div><h4>Sources</h4><ul>
       <li><a href="{{.Root}}/sources/">Les {{nb .Cov.Documents}} documents scellés</a></li>
-      <li>Code sous AGPL-3.0</li>
-      <li>Données sous Licence Ouverte</li>
-    </ul></div>
-    <div><h4>État du site</h4>
-      <p>Données arrêtées au <strong>{{.DerniereIngestion}}</strong>.<br>
-      Site reconstruit le {{.BuiltAt}}.</p>
-      <p>Le site est régénéré <strong>intégralement</strong> depuis l'archive brute&nbsp;:
-      aucune donnée n'est éditée en place.</p></div>
+      <li><a href="{{.Root}}/comprendre/">Documents de méthode</a></li>
+      <li><a href="{{.Root}}/comprendre/perimetre/">Principes et périmètre</a></li>
+      <li>Code sous AGPL-3.0, données sous Licence Ouverte</li>
+    </ul>
+      <p style="margin-top:.8rem">Données arrêtées au <strong>{{.DerniereIngestion}}</strong>.
+      Site reconstruit le {{.BuiltAt}}, <strong>intégralement</strong> depuis l'archive brute.</p></div>
   </div>
   <p class="bas" style="border-top:1px solid var(--filet);margin-top:2rem;padding-top:1.2rem">
     Typographie&nbsp;: IBM&nbsp;Plex Sans et Mono, Newsreader — <abbr title="SIL Open Font License 1.1">OFL&nbsp;1.1</abbr>.
