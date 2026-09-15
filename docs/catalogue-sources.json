@@ -1,9 +1,53 @@
 {
-  "genere_le": "2026-09-15T01:01:15Z",
+  "genere_le": "2026-09-15T02:43:56Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
-  "nombre_sources": 104,
+  "nombre_sources": 111,
   "sources": [
+    {
+      "slug": "acteurs-numeriques-francais",
+      "label": "Acteurs français du numérique nommés par le dossier souveraineté",
+      "publisher": "Répertoire Sirene (Insee), catalogue de l'ANSSI, sites des organismes cités",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Sirene : licence ouverte ; pages d'organismes citées sans reproduction",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "au fil du dossier",
+      "notes": "Chaque rattachement est vérifié au chargement : dénomination de l'unité légale Sirene, qualification SecNumCloud au catalogue chargé, ou phrase attendue sur la page de l'organisme (qualité DECLARATIF : l'organisme se présente ainsi).",
+      "derniere_ingestion_reussie": "2026-09-15T01:44:08",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "dossiers-v1",
+      "format_detecte": "format non reconnu automatiquement",
+      "urls_origine": [
+        "https://mistral.ai/fr/about",
+        "https://numeum.fr/",
+        "https://www.capdigital.com/",
+        "https://www.cnll.fr/",
+        "https://www.hexatrust.com/",
+        "https://www.images-et-reseaux.com/",
+        "https://www.minalogic.com/",
+        "https://www.scaleway.com/fr/a-propos/",
+        "https://www.soitec.com/fr",
+        "https://www.systematic-paris-region.org/"
+      ],
+      "nombre_documents": 10,
+      "taille_locale_octets": 2360366,
+      "chemins_locaux": [
+        "2026/09/15/5d7747d7fe9327ce9ee5e7b63bd2c973bdabe6dbf9eb4076a05d95d30fab40a5.html",
+        "2026/09/15/5e30e2ccdb72a8049dc924d2b089e01b75001f273cffef0e75b25306bd1dcd20.html",
+        "2026/09/15/61d0c7db55ebdc6310219e486b03545a24676dba3a3d7d069e4fe5c11c1a01cc.html",
+        "2026/09/15/74fd2d5cf491bd5fe940edcc511420a8c7961e4ca0d5df22c21cfca9d3f37598.html",
+        "2026/09/15/80d73f6a2ff029a0431b9e552a349886dfbb9a68a64c6adcd2e177562901a329.html",
+        "2026/09/15/80f05b48ef81fe330584b4e8390cde150a1e03ff957fd9874495199246efbcf1.html",
+        "2026/09/15/8b6ac4f3591ee3a5db1c9be356d107dc147173cdc30f39bf469959c21f9d09bd.html",
+        "2026/09/15/91646c807ecfac912c464da8d91eb67b577ed1d78f1ee7bc01c54b404dcb8c5c.html",
+        "2026/09/15/a9f89b68fdf199fbd2fccf57459b3219ae36ac61b3d77a01a8dcfa9a6d995933.html",
+        "2026/09/15/f367aa5d3f6c9c1a82d9e29c01a43072b6c58c727d8e6a1cc5613a2749b87e6e.html"
+      ],
+      "cle_s3": null,
+      "tables": [],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
     {
       "slug": "ademe-aides-financieres",
       "label": "ADEME — aides financières attribuées (format SCDL)",
@@ -6083,7 +6127,7 @@
       ],
       "cle_s3": null,
       "tables": [],
-      "ingestion_incrementale": "connecteur non retrouvé automatiquement — à vérifier manuellement"
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
       "slug": "banatic",
@@ -6128,6 +6172,47 @@
         }
       ],
       "ingestion_incrementale": "mixte — DELETE et ON CONFLICT présents dans le même fichier, à vérifier lequel s'applique à cette table"
+    },
+    {
+      "slug": "banque-mondiale-pib-epargne-nette",
+      "label": "Banque mondiale — PIB, épargne nette ajustée, épuisement des ressources",
+      "publisher": "Banque mondiale",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Creative Commons Attribution 4.0 (CC BY 4.0)",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "annuelle",
+      "notes": "Dix pays de comparaison (G8 historique, Chine, Arabie saoudite). NY.ADJ.SVNG.GN.ZS (épargne nette ajustée) et NY.ADJ.DRES.GN.ZS (épuisement des ressources naturelles) sont des pourcentages du revenu national brut, jamais des montants — ne pas les comparer en valeur absolue au PIB (NY.GDP.MKTP.CD, en dollars courants).",
+      "derniere_ingestion_reussie": "2026-09-15T02:29:45",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 2,
+      "connecteur_derniere_version": "international-v1",
+      "format_detecte": "Fichier JSON",
+      "urls_origine": [
+        "https://api.worldbank.org/v2/country/FR;US;JP;DE;GB;IT;CA;RU;CN;SA/indicator/NY.ADJ.DRES.GN.ZS?format=json\u0026per_page=1000\u0026date=2000:2024",
+        "https://api.worldbank.org/v2/country/FR;US;JP;DE;GB;IT;CA;RU;CN;SA/indicator/NY.ADJ.SVNG.GN.ZS?format=json\u0026per_page=1000\u0026date=2000:2024",
+        "https://api.worldbank.org/v2/country/FR;US;JP;DE;GB;IT;CA;RU;CN;SA/indicator/NY.GDP.MKTP.CD?format=json\u0026per_page=1000\u0026date=2000:2024"
+      ],
+      "nombre_documents": 3,
+      "taille_locale_octets": 180892,
+      "chemins_locaux": [
+        "2026/09/15/55ecd8d8faf54f8fbd02f4eee90a409a67b7de7dbd23c417e779a629107cb7f0.json",
+        "2026/09/15/5ec3e7493d246faa52287aa78f8675145a1f99596e475a62d02d3faf92c37a1c.json",
+        "2026/09/15/e70b2efa139c68b9f3843bee8d2ff759dd3bb0e2e1abf840917e502385729b05.json"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "indicateur_mondial",
+          "lignes_totales_estimees": 682,
+          "lignes_pour_cette_source": 682,
+          "taille_octets": 237568,
+          "annee_min": 2000,
+          "annee_max": 2024,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
       "slug": "bareme-paie-2026",
@@ -6629,7 +6714,7 @@
       ],
       "cle_s3": null,
       "tables": [],
-      "ingestion_incrementale": "connecteur non retrouvé automatiquement — à vérifier manuellement"
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
       "slug": "dares-defm-categorie",
@@ -6696,6 +6781,43 @@
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
+      "slug": "depp-effectifs-eleves-premier-degre",
+      "label": "Depp — effectifs d'élèves des écoles (premier degré)",
+      "publisher": "Direction de l'évaluation, de la prospective et de la performance (Depp)",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte v2.0",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "annuelle (à la rentrée scolaire)",
+      "notes": "Premier degré seulement (écoles maternelles et élémentaires) — ne couvre pas les collèges et lycées. Agrégat national par secteur et rentrée scolaire, calculé côté serveur (group_by) plutôt qu'en téléchargeant les 859 000 lignes par école, puisque seul le total nourrit la question posée (docs/education-donnees.md § 2).",
+      "derniere_ingestion_reussie": "2026-09-15T02:37:55",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "education-v1",
+      "format_detecte": "Fichier JSON",
+      "urls_origine": [
+        "https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/fr-en-ecoles-effectifs-nb_classes/records?select=rentree_scolaire,secteur,sum(nombre_total_eleves)%20as%20total_eleves,count(*)%20as%20nb_ecoles\u0026group_by=rentree_scolaire,secteur\u0026limit=100"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 4361,
+      "chemins_locaux": [
+        "2026/09/15/d8b3f5e1270ca63e217dc91b6c0e317f9d003a3d2e1466d378755d653ca999c1.json"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "education_effectif_eleves",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 35,
+          "taille_octets": 32768,
+          "annee_min": 2009,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
       "slug": "depp-personnels-etablissements",
       "label": "Depp — personnels des établissements du premier et second degré",
       "publisher": "Direction de l'évaluation, de la prospective et de la performance (Depp)",
@@ -6704,9 +6826,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle (à la rentrée scolaire)",
       "notes": "Deux jeux distincts, asymétriques : le premier degré publie 2024 ET 2025, le second degré seulement 2024 au moment du chargement. Le premier degré ne publie pas la même décomposition par statut (titulaire/agrégé/certifié) que le second degré, qui la publie par établissement. Rien sur les AESH en tant que catégorie séparée : ils sont mêlés, si présents, aux « personnels de vie scolaire » du second degré, sans identification propre.",
-      "derniere_ingestion_reussie": "2026-09-14T19:47:41",
+      "derniere_ingestion_reussie": "2026-09-15T02:37:55",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 2,
+      "nombre_runs": 3,
       "connecteur_derniere_version": "education-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -6727,7 +6849,7 @@
           "table": "education_personnel_etablissement",
           "lignes_totales_estimees": 105281,
           "lignes_pour_cette_source": 105281,
-          "taille_octets": 42696704,
+          "taille_octets": 46759936,
           "annee_min": 2024,
           "annee_max": 2025,
           "colonne_historique": "annee"
@@ -7567,6 +7689,42 @@
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
+      "slug": "eurostat-salaire-minimum",
+      "label": "Eurostat — salaire minimum légal mensuel (earn_mw_cur)",
+      "publisher": "Eurostat",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Creative Commons Attribution 4.0 (CC BY 4.0)",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "semestrielle",
+      "notes": "Couvre les pays européens et les États-Unis, mais ni le Japon ni le Canada (minimum fixé par État ou province, pas de minimum fédéral unique dans les deux cas). L'absence d'un pays pour un semestre signale l'absence de salaire minimum légal (Allemagne avant 2015, pays nordiques à négociation collective) — jamais une valeur nulle.",
+      "derniere_ingestion_reussie": "2026-09-15T02:29:45",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 2,
+      "connecteur_derniere_version": "international-v1",
+      "format_detecte": "API Eurostat (JSON-stat)",
+      "urls_origine": [
+        "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/earn_mw_cur?format=JSON\u0026lang=FR"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 74982,
+      "chemins_locaux": [
+        "2026/09/15/7af1a661cb57599e53b2d5fb18e47fef303fd56086d946ea43ea48516f964ab7.json"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "salaire_minimum",
+          "lignes_totales_estimees": 4573,
+          "lignes_pour_cette_source": 4573,
+          "taille_octets": 1081344,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
       "slug": "eurostat-taux-pauvrete",
       "label": "Eurostat — taux de risque de pauvreté par pays (tps00184)",
       "publisher": "Eurostat",
@@ -7599,6 +7757,90 @@
           "annee_min": 2014,
           "annee_max": 2025,
           "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "faits-dossiers",
+      "label": "Faits des dossiers : textes, constats, évaluations et déclarations sourcés",
+      "publisher": "Institutions citées fait par fait (Parlement, juridictions, autorités, ministères, Journal officiel) ; déclarations de personnes et d'organismes signalées comme telles",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Documents publics des institutions, cités avec lien et page",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "au fil des dossiers",
+      "notes": "Faits transcrits un par un ; chaque preuve est relue au chargement : la phrase attendue doit figurer dans le document scellé, le texte du Journal officiel ou la prise de parole chargée. Qualités : ref.qualite_fait. Une prise de parole en séance est toujours DECLARATIF.",
+      "derniere_ingestion_reussie": "2026-09-15T01:57:05",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 4,
+      "connecteur_derniere_version": "dossiers-v1",
+      "format_detecte": "format non reconnu automatiquement",
+      "urls_origine": [
+        "https://curia.europa.eu/jcms/upload/docs/application/pdf/2025-09/cp250106fr.pdf",
+        "https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32023D1795",
+        "https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:62018CJ0311",
+        "https://www.cnil.fr/fr/publicites-inserees-entre-les-courriels-et-cookies-la-cnil-sanctionne-google-dune-amende-de-325",
+        "https://www.cor-retraites.fr/sites/default/files/2025-06/Synth%C3%A8se_Def_.pdf",
+        "https://www.dataprotection.ie/en/news-media/press-releases/Data-Protection-Commission-announces-conclusion-of-inquiry-into-Meta-Ireland",
+        "https://www.defenseurdesdroits.fr/sites/default/files/2025-03/ddd_rapport-annuel-2024_20250305.pdf",
+        "https://www.govinfo.gov/content/pkg/PLAW-115publ141/html/PLAW-115publ141.htm",
+        "https://www.govinfo.gov/content/pkg/USCODE-2023-title50/html/USCODE-2023-title50-chap36-subchapVI-sec1881a.htm",
+        "https://www.hautconseilclimat.fr/wp-content/uploads/2025/07/HCC_RA_2025-VDEF0207_web.pdf",
+        "https://www.hcfp.fr/sites/default/files/2025-10/Avis%20HCFP%202025%20%E2%80%93%205%20PLF-PLFSS%202026_0.pdf",
+        "https://www.numerique.gouv.fr/services/cloud/doctrine/",
+        "https://www.senat.fr/fileadmin/Office_et_delegations/Annexe_-_Essentiel_-_Les_53_propositions.pdf",
+        "https://www.senat.fr/lessentiel/plfss2026.pdf",
+        "https://www.senat.fr/rap/a25-142-5/a25-142-5-syn.pdf",
+        "https://www.senat.fr/rap/a25-144-31/a25-144-31-syn.pdf",
+        "https://www.senat.fr/rap/a25-145-12/a25-145-12-syn.pdf",
+        "https://www.senat.fr/rap/l25-139-315/l25-139-315_mono.html",
+        "https://www.senat.fr/rap/l25-139-322/l25-139-322-syn.pdf",
+        "https://www.senat.fr/rap/l25-139-38/l25-139-38-syn.pdf",
+        "https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf",
+        "https://www.unedic.org/storage/uploads/2026/03/04/situation-financiere-assurance-chomage-a-horizon-2028_03-mars-2026_uid_69a7f392cd38b.pdf"
+      ],
+      "nombre_documents": 28,
+      "taille_locale_octets": 48076911,
+      "chemins_locaux": [
+        "2026/09/14/7760df56828dc1a66b030bf6e03a3b05dccf2d56d588d69528dcb6bb342571ea.pdf",
+        "2026/09/15/0f5d6734c80d51d350c8e7a573c7f470965d659bcf7d553409b5ed2d29f79206.html",
+        "2026/09/15/12b165f1b76f830aa5e5a0e9fd3cd1d2921314830efa7f7a2af6b0e5ab58d762.html",
+        "2026/09/15/130ae291dcad2c898327892305f1c8af79efaa836fd7e371d8fbfe3cd67b04ae.pdf",
+        "2026/09/15/1db03184eaee19ee37ae4528738a8c09d36b44dcad4fb0f56ddd1687eeef702e.pdf",
+        "2026/09/15/25a816b8312c397b736337aba5b743d8633b53e2321d5e900ed818d246395cbc.html",
+        "2026/09/15/47bb0ca88d5d8c20001a1ccce05567c49e030e2f04fcfb492f8c4451fa1fe496.html",
+        "2026/09/15/57fb1cfa0bd439a96468ba1fce50135fe5683878710dc0495ecff87cea6af06f.pdf",
+        "2026/09/15/63d32c6d4ecc829629a75b24feb9729e832d1ad4feacafda937c248c153352bc.html",
+        "2026/09/15/840b8bdf31ff8609452dd3a59dec3042baef13fb7deb3d2b8d83ff4cdd9bd100.pdf",
+        "2026/09/15/88145b767cc98bfea1da71dd8fb8bbaf8ae6c946d3c69ead47412ffc06c176a1.html",
+        "2026/09/15/88d141c1249a046fac1feedf35d373285f44b15544f4d0cdc3a6c39170af406e.pdf",
+        "2026/09/15/948bef70792bada27967ea1c4026e4f4efc8296ab13f401d9dd479a926ec63a6.pdf",
+        "2026/09/15/96838577ad8f8ed6a69be59403a141549614c3fd36c04ea30f088f3e04813411.pdf",
+        "2026/09/15/97978609177cd43bfecd0ed2bbd59142dcc02c5be3c2ef3c3e4738bcccf2ea0d.html",
+        "2026/09/15/9ab528809b69422835c7ad4dfb790c2abb334a2268cfa2943c8d0374e69d0b2c.html",
+        "2026/09/15/9bd5ec799745f979ddb9ad89815b7d823dc6ace4c163d86f346d8344ff9778a2.html",
+        "2026/09/15/9e03189e2d0f2beeb999bfc42716f3b05dbbf99a7e7442a7340435b5da5c8e94.html",
+        "2026/09/15/b2686221fa143ee340e7425ecd09b776126b56b2d45f6ca02bbfea937a83013d.pdf",
+        "2026/09/15/b9369bf565afda5b01d00d9abb0e584f45f4f1e4fa22ce01aa64dc3d4e005ff0.pdf",
+        "2026/09/15/b9688775e0bc15533abac47ed43d9c3a16b6dd5e9049f1ad0d8c1067787a85c8.pdf",
+        "2026/09/15/bc71b87b8f026f88ec8e4321e193041b35358f827a9843fbeef5f7bfc4d7fb0c.html",
+        "2026/09/15/c76c591b07545ab7c88cb0be9279c95650e423e073800c45760904655c586ac8.html",
+        "2026/09/15/c9d770bebe333862eb2cc92ca4c831599579bc5683c9831628cdc640ffba2d2d.html",
+        "2026/09/15/d87e9bee1c5789f9213cf82bfb7591ec0adccfd4cb1021090b1f5fe8beb26a00.html",
+        "2026/09/15/dc5424b9575c053ce8739cc2f32bd5f2c3d6d89e203c3c5bde555e3e2aaa48e9.pdf",
+        "2026/09/15/f763569dbad8708dd481d6e7af9ef68ddf01b783f6086b1cea2aa80452eadaed.pdf",
+        "2026/09/15/fd0276bed46e37d3a562bfe042473a085eafc6962b908f7da41533bcac5407f0.pdf"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "ref",
+          "table": "fait_dossier",
+          "lignes_totales_estimees": 102,
+          "lignes_pour_cette_source": 102,
+          "taille_octets": 221184,
+          "annee_min": null,
+          "annee_max": null
         }
       ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
@@ -7686,9 +7928,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "au fil des faits",
       "notes": "Faits transcrits un par un ; chaque document est scellé et relu : la phrase attendue doit y figurer. OFFICIEL : établi par l'institution. DECLARATIF : propos d'une partie (entreprise, association, responsable d'achat) rapporté par l'institution — il est établi que le propos a été tenu, pas qu'il est exact.",
-      "derniere_ingestion_reussie": "2026-09-15T00:46:49",
+      "derniere_ingestion_reussie": "2026-09-15T01:09:19",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 1,
+      "nombre_runs": 3,
       "connecteur_derniere_version": "numerique-v1",
       "format_detecte": "format non reconnu automatiquement",
       "urls_origine": [
@@ -7702,31 +7944,27 @@
         "https://www.numerique.gouv.fr/services/cloud/doctrine/",
         "https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf"
       ],
-      "nombre_documents": 9,
-      "taille_locale_octets": 13269720,
+      "nombre_documents": 15,
+      "taille_locale_octets": 16793214,
       "chemins_locaux": [
         "2026/09/14/7760df56828dc1a66b030bf6e03a3b05dccf2d56d588d69528dcb6bb342571ea.pdf",
+        "2026/09/15/0848d7671e8ff68e02c036344e75e290cd11dd6c637f452752dd18aa305b99da.html",
         "2026/09/15/10dc2d3402de9b0f5c413ed7da2bfec5e5bf7d006f2180a9fc7740e5e855e7b7.html",
         "2026/09/15/12b165f1b76f830aa5e5a0e9fd3cd1d2921314830efa7f7a2af6b0e5ab58d762.html",
         "2026/09/15/25a816b8312c397b736337aba5b743d8633b53e2321d5e900ed818d246395cbc.html",
         "2026/09/15/26ee6f37b94045250fcc5c4779f891da0e47a37cb87c3237103108d059df33a2.html",
+        "2026/09/15/3989caa63ca4dedf29a76a686a121b37c2a1775e6b8ce5c859ec6434991cbd45.html",
+        "2026/09/15/71ae169f8dcfd4f1db65e9da38b82a860ad9f43318035c97182c02e0fb7666c2.html",
+        "2026/09/15/806dc5d37a2cd6c954ddbe541edf6773f2a2fe93916027377842c376d7802deb.html",
+        "2026/09/15/ac0653e16754c634370e6b457cd337474062cb342e320b0ec78a423d1ee54b88.html",
         "2026/09/15/b62251ad7ded189ad05706f6d841e668b11a4e8766da57a7668b17b133012685.html",
         "2026/09/15/b9688775e0bc15533abac47ed43d9c3a16b6dd5e9049f1ad0d8c1067787a85c8.pdf",
         "2026/09/15/c66eda36215664bb5f9f7214472b96732840b2ac0d8bceb7546d96cabae84c59.html",
-        "2026/09/15/c76c591b07545ab7c88cb0be9279c95650e423e073800c45760904655c586ac8.html"
+        "2026/09/15/c76c591b07545ab7c88cb0be9279c95650e423e073800c45760904655c586ac8.html",
+        "2026/09/15/dd713ce71e9e4cde006877dc51ced8193dd8a75634f3c7809ea23db6eac12a52.html"
       ],
       "cle_s3": null,
-      "tables": [
-        {
-          "schema": "ref",
-          "table": "fait_souverainete",
-          "lignes_totales_estimees": -1,
-          "lignes_pour_cette_source": 28,
-          "taille_octets": 73728,
-          "annee_min": null,
-          "annee_max": null
-        }
-      ],
+      "tables": [],
       "ingestion_incrementale": "connecteur non retrouvé automatiquement — à vérifier manuellement"
     },
     {
@@ -9644,6 +9882,32 @@
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
+      "slug": "ocde-heures-travaillees",
+      "label": "OCDE — heures travaillées par an et par personne en emploi",
+      "publisher": "OCDE",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Creative Commons Attribution 4.0 (CC BY 4.0)",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "annuelle",
+      "notes": "Couverture essentiellement OCDE : ni la Chine, ni l'Inde, ni l'Arabie saoudite. Sur les dix pays de comparaison de ce chantier (core.indicateur_mondial), la Chine et l'Arabie saoudite en sont donc absentes. Moyenne nationale sur l'ensemble des actifs en emploi (salariés et non-salariés), qui mélange temps plein et temps partiel.",
+      "derniere_ingestion_reussie": "2026-09-15T02:29:46",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "international-v1",
+      "format_detecte": "Fichier JSON",
+      "urls_origine": [
+        "https://sdmx.oecd.org/public/rest/data/OECD.ELS.SAE,DSD_HW@DF_AVG_ANN_HRS_WKD,1.0/all?format=jsondata"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 120422,
+      "chemins_locaux": [
+        "2026/09/15/3b5088ce91273c7b5f422181e3cb4e39576adc51478eda445ebf3d7f89e032ea.json"
+      ],
+      "cle_s3": null,
+      "tables": [],
+      "ingestion_incrementale": "connecteur non retrouvé automatiquement — à vérifier manuellement"
+    },
+    {
       "slug": "ocde-investissements-directs",
       "label": "OCDE — revenus des investissements directs par pays de contrepartie (BMD4)",
       "publisher": "OCDE, Direction des affaires financières et des entreprises",
@@ -10382,6 +10646,32 @@
       "cle_s3": null,
       "tables": [],
       "ingestion_incrementale": "oui — upsert (ON CONFLICT) sans purge préalable"
+    },
+    {
+      "slug": "sill-code-gouv",
+      "label": "Socle interministériel de logiciels libres (SILL)",
+      "publisher": "Direction interministérielle du numérique (DINUM), code.gouv.fr",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Données publiques de la DINUM, citées avec lien",
+      "reuse_class": "ATTRIBUTION",
+      "cadence_attendue": "mise à jour continue",
+      "notes": "Catalogue des logiciels libres recommandés par des agents publics, avec les organisations qui s'en déclarent utilisatrices ou référentes et les prestataires de service déclarés. Usage déclaré, pas inventaire des déploiements.",
+      "derniere_ingestion_reussie": "2026-09-15T01:43:56",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "numerique-v1",
+      "format_detecte": "Fichier JSON",
+      "urls_origine": [
+        "https://code.gouv.fr/sill/api/sill.json"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 3637040,
+      "chemins_locaux": [
+        "2026/09/15/7770fb8a8e4aa74fc9c0260e27f99b08d5e94c13d6f21d03468222a5da5b7842.json"
+      ],
+      "cle_s3": null,
+      "tables": [],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
       "slug": "ssmsi",
