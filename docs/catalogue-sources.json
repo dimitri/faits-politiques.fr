@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-09-15T14:50:52Z",
+  "genere_le": "2026-09-15T15:33:44Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
   "nombre_sources": 113,
@@ -6851,30 +6851,42 @@
     },
     {
       "slug": "decp-consolidees",
-      "label": "Données essentielles de la commande publique, consolidées (format tabulaire)",
+      "label": "DECP consolidées — commande publique française",
       "publisher": "Acheteurs publics (arrêtés du 22 mars 2019 et du 22 décembre 2022), consolidation Colibre / decp.info",
       "tier": "PRIMARY_OFFICIAL",
       "licence": "Licence Ouverte v2.0",
       "reuse_class": "OPEN",
       "cadence_attendue": "quotidienne",
       "notes": "Données déclarées par chaque acheteur au moment de l'attribution ; consolidation de plusieurs flux (plus exhaustive que le fichier du ministère des Finances). Obligation de publication depuis 2019, variable selon les acheteurs : les marchés antérieurs et une partie des marchés de défense et de sécurité n'y figurent pas. Le montant d'un accord-cadre est son MAXIMUM ; un marché à plusieurs titulaires répète son montant sur chaque ligne. Seule la dernière version de chaque marché (donneesActuelles) est lue.",
-      "derniere_ingestion_reussie": "2026-09-15T00:50:40",
+      "derniere_ingestion_reussie": "2026-09-15T15:23:32",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 4,
-      "connecteur_derniere_version": "numerique-v1",
+      "nombre_runs": 5,
+      "connecteur_derniere_version": "decp-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
         "https://static.data.gouv.fr/resources/donnees-essentielles-de-la-commande-publique-consolidees-format-tabulaire/20260914-051720/decp.csv",
+        "https://static.data.gouv.fr/resources/donnees-essentielles-de-la-commande-publique-consolidees-format-tabulaire/20260915-051620/decp.parquet",
         "https://www.data.gouv.fr/api/1/datasets/donnees-essentielles-de-la-commande-publique-consolidees-format-tabulaire/"
       ],
-      "nombre_documents": 2,
-      "taille_locale_octets": 2587441818,
+      "nombre_documents": 3,
+      "taille_locale_octets": 2834394902,
       "chemins_locaux": [
         "2026/09/14/37071ee467db09fbf14d4e3a61f04f57ce7fc4ae1060e42db4153810d23a542d.json",
-        "2026/09/14/e9dd8c8986493944bbed6b26435f2998cb6aff01bfe909592330e6a86d4ed1e2.csv"
+        "2026/09/14/e9dd8c8986493944bbed6b26435f2998cb6aff01bfe909592330e6a86d4ed1e2.csv",
+        "2026/09/15/001edce291d2b4fe6b7c9d020eebbe0af7b723e4dee932f7b5f808c3b68ee0ee.parquet"
       ],
       "cle_s3": null,
-      "tables": [],
+      "tables": [
+        {
+          "schema": "core",
+          "table": "public_contract",
+          "lignes_totales_estimees": 2103201,
+          "lignes_pour_cette_source": 2104142,
+          "taille_octets": 980983808,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
     },
     {
