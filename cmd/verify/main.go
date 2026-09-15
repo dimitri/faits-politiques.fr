@@ -1635,6 +1635,15 @@ var checks = []check{
 		query: `SELECT count(DISTINCT r.region_code) FROM core.remboursement_region_prestation r
 		         WHERE NOT EXISTS (SELECT 1 FROM ref.damir_region d WHERE d.code = r.region_code)`,
 	},
+	{
+		// La dette FMI (internal/dette/fmi.go) couvre 14 pays de longue date ;
+		// Chine, Russie et Arabie saoudite l'ont rejointe pour
+		// docs/international-donnees.md § 6 (le seul jeu ouvert qui mesure
+		// leur dette avec un concept proche de celui utilisé pour la France).
+		name:  "la dette brute FMI couvre les dix-sept pays de comparaison",
+		query: `SELECT count(DISTINCT serie) FROM core.dette_observation WHERE serie LIKE 'fmi:GGXWDG_NGDP:%'`,
+		min:   17,
+	},
 }
 
 func main() {

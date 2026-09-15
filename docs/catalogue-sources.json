@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-09-15T17:49:28Z",
+  "genere_le": "2026-09-15T18:02:41Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
   "nombre_sources": 114,
@@ -100,9 +100,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "annuelle (fin août)",
       "notes": "Modèle SF de l'AFF, pas le SEC 2010 : les montants ne se comparent pas directement à la dette Maastricht. Bilan en milliers de francs, converti à l'unité. Les ratios sont des fractions (0,45 = 45 %). La dernière année est généralement une estimation de l'AFF.",
-      "derniere_ingestion_reussie": "2026-09-14T16:00:09",
+      "derniere_ingestion_reussie": "2026-09-15T17:57:06",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 4,
       "connecteur_derniere_version": "dette-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -122,9 +122,9 @@
         {
           "schema": "ref",
           "table": "dette_serie",
-          "lignes_totales_estimees": 1592,
+          "lignes_totales_estimees": 1602,
           "lignes_pour_cette_source": 110,
-          "taille_octets": 2441216,
+          "taille_octets": 2457600,
           "annee_min": null,
           "annee_max": null
         }
@@ -140,9 +140,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle (RAP, juin)",
       "notes": "Taux de couverture en % : 297 signifie 2,97 € d'offres pour 1 € adjugé. Un « - » du RAP n'est pas chargé : il peut signifier zéro comme « sans objet », et le tableau ne permet pas de trancher. Colonnes par année figées dans le schéma du jeu : un nouveau millésime demande un nouveau jeu et un nouveau mappage.",
-      "derniere_ingestion_reussie": "2026-09-14T16:00:10",
+      "derniere_ingestion_reussie": "2026-09-15T17:57:07",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 4,
       "connecteur_derniere_version": "dette-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -158,9 +158,9 @@
         {
           "schema": "ref",
           "table": "dette_serie",
-          "lignes_totales_estimees": 1592,
+          "lignes_totales_estimees": 1602,
           "lignes_pour_cette_source": 2,
-          "taille_octets": 2441216,
+          "taille_octets": 2457600,
           "annee_min": null,
           "annee_max": null
         }
@@ -6406,9 +6406,9 @@
         {
           "schema": "ref",
           "table": "dette_serie",
-          "lignes_totales_estimees": 1592,
+          "lignes_totales_estimees": 1602,
           "lignes_pour_cette_source": 305,
-          "taille_octets": 2441216,
+          "taille_octets": 2457600,
           "annee_min": null,
           "annee_max": null
         }
@@ -6424,9 +6424,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "mensuelle (en principe)",
       "notes": "Le cube rendoblim n'était plus mis à jour depuis juillet 2025 lors de sa première intégration (date de publication du cube : 1er septembre 2025) : vérifier la fraîcheur avant de citer un taux récent.",
-      "derniere_ingestion_reussie": "2026-09-14T16:00:09",
+      "derniere_ingestion_reussie": "2026-09-15T17:57:07",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 4,
       "connecteur_derniere_version": "dette-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
@@ -6442,9 +6442,9 @@
         {
           "schema": "ref",
           "table": "dette_serie",
-          "lignes_totales_estimees": 1592,
+          "lignes_totales_estimees": 1602,
           "lignes_pour_cette_source": 1,
-          "taille_octets": 2441216,
+          "taille_octets": 2457600,
           "annee_min": null,
           "annee_max": null
         }
@@ -6460,9 +6460,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle (octobre)",
       "notes": "Une dépense fiscale peut occuper plusieurs lignes, une par cotation environnementale, avec une QUOTE-PART du montant sur chacune : on additionne les lignes, on ne dédoublonne pas (2024 : 483 lignes, 457 mesures, 89,4 Md€). Montant absent sans mention : ligne non chargée, faute de pouvoir distinguer un « ε » d'un « nc ».",
-      "derniere_ingestion_reussie": "2026-09-14T16:00:16",
+      "derniere_ingestion_reussie": "2026-09-15T17:57:10",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 2,
+      "nombre_runs": 3,
       "connecteur_derniere_version": "dette-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -6484,7 +6484,7 @@
           "table": "depense_fiscale",
           "lignes_totales_estimees": 8732,
           "lignes_pour_cette_source": 3122,
-          "taille_octets": 4005888,
+          "taille_octets": 5718016,
           "annee_min": 2018,
           "annee_max": 2026,
           "colonne_historique": "annee"
@@ -7646,9 +7646,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "annuelle (notifications d'avril et octobre), mensuelle pour les taux",
       "notes": "Échéances de gov_10dd_ggd en durée RÉSIDUELLE, à ne pas rapprocher du court/long terme de l'INSEE (durée initiale). Taux irt_lt_mcby : critère de convergence de Maastricht, rendement des emprunts d'État à environ 10 ans — pas le taux payé sur la dette. La Suisse n'est présente que dans gov_10a_main (hors notification de déficit).",
-      "derniere_ingestion_reussie": "2026-09-14T16:00:07",
+      "derniere_ingestion_reussie": "2026-09-15T17:57:05",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 4,
+      "nombre_runs": 5,
       "connecteur_derniere_version": "dette-v1",
       "format_detecte": "API Eurostat (JSON-stat)",
       "urls_origine": [
@@ -7682,9 +7682,9 @@
         {
           "schema": "ref",
           "table": "dette_serie",
-          "lignes_totales_estimees": 1592,
+          "lignes_totales_estimees": 1602,
           "lignes_pour_cette_source": 1080,
-          "taille_octets": 2441216,
+          "taille_octets": 2457600,
           "annee_min": null,
           "annee_max": null
         }
@@ -8226,29 +8226,31 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "semestrielle (avril, octobre)",
       "notes": "Dette brute au sens du FMI (GFSM 2014) : plus large que Maastricht, elle inclut les autres comptes à payer ; la France y dépasse de plusieurs points son ratio Maastricht. Le DataMapper ne distingue pas les valeurs observées des estimations : la dernière année chargée est souvent une estimation. Les projections (années postérieures à l'année précédant le chargement) sont écartées.",
-      "derniere_ingestion_reussie": "2026-09-14T16:00:08",
+      "derniere_ingestion_reussie": "2026-09-15T17:57:06",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 4,
+      "nombre_runs": 5,
       "connecteur_derniere_version": "dette-v1",
       "format_detecte": "Fichier XML",
       "urls_origine": [
+        "https://api.imf.org/external/sdmx/2.1/data/IMF.RES,WEO,/AUT+BEL+CHE+CHN+DEU+DNK+ESP+FRA+GBR+ITA+JPN+NLD+NOR+RUS+SAU+SWE+USA.GGXCNL_NGDP+GGXONLB_NGDP+GGXWDG_NGDP+GGXWDN_NGDP.A",
         "https://api.imf.org/external/sdmx/2.1/data/IMF.RES,WEO,/AUT+BEL+CHE+DEU+DNK+ESP+FRA+GBR+ITA+JPN+NLD+NOR+SWE+USA.GGXCNL_NGDP+GGXONLB_NGDP+GGXWDG_NGDP+GGXWDN_NGDP.A"
       ],
-      "nombre_documents": 3,
-      "taille_locale_octets": 596778,
+      "nombre_documents": 4,
+      "taille_locale_octets": 832051,
       "chemins_locaux": [
         "2026/09/14/3095ad7b23b1ce060e17a8495a30648a629b67ee7cf1be4bbf3d8fdbb548226d.xml",
         "2026/09/14/35edf36f0c69c15e79dbefba8e0264e8553dab800bbf41c901df4d1483ae0fed.xml",
-        "2026/09/14/88b105c327488513e43c5cd866aab949f65c93e94c50afb2343bb11435e75948.xml"
+        "2026/09/14/88b105c327488513e43c5cd866aab949f65c93e94c50afb2343bb11435e75948.xml",
+        "2026/09/15/6290796c2afa870352fb2cd0dbcb5150b5a4440454a6f01185f58d2dd731ddfd.xml"
       ],
       "cle_s3": null,
       "tables": [
         {
           "schema": "ref",
           "table": "dette_serie",
-          "lignes_totales_estimees": 1592,
-          "lignes_pour_cette_source": 56,
-          "taille_octets": 2441216,
+          "lignes_totales_estimees": 1602,
+          "lignes_pour_cette_source": 66,
+          "taille_octets": 2457600,
           "annee_min": null,
           "annee_max": null
         }
@@ -9432,17 +9434,17 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "mensuelle (dette négociable), trimestrielle (dette Maastricht)",
       "notes": "Dette négociable : valeur NOMINALE, échéance à l'émission (un titre à 10 ans reste « long terme » jusqu'à son remboursement). OAT indexées : nominal revalorisé de l'inflation. Dette trimestrielle base 2020 : révisée à chaque compte trimestriel.",
-      "derniere_ingestion_reussie": "2026-09-14T16:00:04",
+      "derniere_ingestion_reussie": "2026-09-15T17:57:01",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 5,
+      "nombre_runs": 6,
       "connecteur_derniere_version": "dette-v1",
       "format_detecte": "Fichier XML",
       "urls_origine": [
         "https://bdm.insee.fr/series/sdmx/data/DETTE-NEGOCIABLE-ETAT",
         "https://bdm.insee.fr/series/sdmx/data/DETTE-TRIM-APU-2020"
       ],
-      "nombre_documents": 10,
-      "taille_locale_octets": 2824445,
+      "nombre_documents": 12,
+      "taille_locale_octets": 3389334,
       "chemins_locaux": [
         "2026/09/14/0a70ec53fafe4a1572b9e01924070a96ee7a61550bc353551ede13f24fb69a2f.xml",
         "2026/09/14/1187ef4e95ce2dbbe87b2040e92618e4005de0d82ee39489db25aca9cb8438b4.xml",
@@ -9453,16 +9455,18 @@
         "2026/09/14/661953ee97e349182628bbf4c3a422eb2ebff489f26b414bb11d0fff004aaed3.xml",
         "2026/09/14/8d953e01a546811471cfad173d6fa5337034a31c8f622d3ef5dd060477cb70da.xml",
         "2026/09/14/ae2d3b70cfa2f30dda4cdd7735cb57edc1cdde877ff863e8ed2787af95f24cb9.xml",
-        "2026/09/14/b3e0d7e144dfed322a3736c4ee3112aa8a21dda58f7e88b3b7e49fe54fec999a.xml"
+        "2026/09/14/b3e0d7e144dfed322a3736c4ee3112aa8a21dda58f7e88b3b7e49fe54fec999a.xml",
+        "2026/09/15/3406e2c4feb1a4b9aebc8f6f732de414771816d11b5095c1b4ae8826489d6698.xml",
+        "2026/09/15/864169e9761621ecc64a69f164ca25cda5487d7e8c9cd21ed87b4ba7ed6e914c.xml"
       ],
       "cle_s3": null,
       "tables": [
         {
           "schema": "ref",
           "table": "dette_serie",
-          "lignes_totales_estimees": 1592,
+          "lignes_totales_estimees": 1602,
           "lignes_pour_cette_source": 38,
-          "taille_octets": 2441216,
+          "taille_octets": 2457600,
           "annee_min": null,
           "annee_max": null
         }
@@ -11702,9 +11706,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle (octobre) ; quatre millésimes en données ouvertes",
       "notes": "Chiffrages en millions d'euros : exécution N-2, prévisions N-1 et N. « ε » = moins de 0,5 M€, « nc » = non chiffré, « - » = sans objet : jamais des zéros. Des dizaines de mesures non chiffrées chaque année : les totaux sont des minorants. Nature du bénéficiaire déclarée par l'administration, pas vérifiée. Le classeur du PLF 2020 n'a pas de ligne d'années : elles sont déduites du millésime.",
-      "derniere_ingestion_reussie": "2026-09-14T16:00:11",
+      "derniere_ingestion_reussie": "2026-09-15T17:57:08",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 1,
+      "nombre_runs": 2,
       "connecteur_derniere_version": "dette-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -11728,7 +11732,7 @@
           "table": "depense_fiscale",
           "lignes_totales_estimees": 8732,
           "lignes_pour_cette_source": 5610,
-          "taille_octets": 4005888,
+          "taille_octets": 5718016,
           "annee_min": 2018,
           "annee_max": 2026,
           "colonne_historique": "annee"
@@ -11738,7 +11742,7 @@
           "table": "depense_fiscale_beneficiaire",
           "lignes_totales_estimees": 1879,
           "lignes_pour_cette_source": 1879,
-          "taille_octets": 327680,
+          "taille_octets": 483328,
           "annee_min": null,
           "annee_max": null
         }

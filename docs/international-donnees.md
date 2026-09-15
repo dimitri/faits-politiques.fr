@@ -1,13 +1,13 @@
 # La France en contexte : Europe, G8, monde
 
-> **Dossier** · version 3 · 15 septembre 2026
+> **Dossier** · version 4 · 15 septembre 2026
 >
 > Comment la France se situe-t-elle en Europe, au sein du G8 et dans le monde, sur des sujets
 > qui ont chacun leur source, leur définition et souvent une couverture géographique incomplète ?
-> Le dossier charge deux volets — le salaire minimum, le PIB et sa lecture au regard de
-> l'épuisement des ressources — et décrit les sources candidates des neuf autres, plus un
-> dixième exploré puis écarté (heures travaillées, données trop anciennes pour être présentées
-> comme actuelles).
+> Le dossier charge trois volets — le salaire minimum, le PIB et sa lecture au regard de
+> l'épuisement des ressources, la dette publique hors Union — et décrit les sources candidates
+> des huit autres, plus un exploré puis écarté (heures travaillées, données trop anciennes pour
+> être présentées comme actuelles).
 
 ---
 
@@ -163,9 +163,49 @@ dollars du tableau précédent** — l'un est un montant, les deux autres des
 ratios au revenu national brut, une grandeur différente du PIB elle-même
 (voir le commentaire de `core.indicateur_mondial`).
 
+### 4. La dette publique : le seul chiffre qui déborde déjà l'Union
+
+Ce sujet n'est pas nouveau dans ce dépôt — `docs/dette-donnees.md` compare
+la France à l'Europe depuis sa première version (§ 5 de ce dossier). Ce qui
+est nouveau ici : l'extension au G8 hors zone euro, à la Chine, à la Russie
+et à l'Arabie saoudite, la seule mesure de ce chantier qui existait déjà
+avant que ce dossier ne soit ouvert plutôt que d'être construite pour lui.
+
+Dette brute au sens du FMI (`internal/dette/fmi.go`), dernière année
+observée — le FMI publie une marque `LATEST_ACTUAL_ANNUAL_DATA` par pays qui
+sépare précisément la donnée observée de la projection ; les projections
+n'entrent jamais dans cette base :
+
+| Pays | Dette brute FMI (% du PIB) |
+|---|---:|
+| Japon | 214,5 (2024) |
+| États-Unis | 123,9 |
+| Chine | 90,4 (2024) |
+| Royaume-Uni | 102,3 |
+| Arabie saoudite | 31,7 (2025) |
+| Norvège | 52,8 (2024) |
+| Russie | 17,2 (2025) |
+| Suisse | 39,4 (2025) |
+
+**Chine et Arabie saoudite ne se lisent pas comme les sept autres** : le FMI
+classe lui-même la soumission chinoise en méthodologie « Other » (pas GFSM
+2014, la norme des autres pays de cette liste), et celle de l'Arabie
+saoudite ne couvre que l'administration **centrale**, pas l'ensemble des
+administrations publiques. Chargées quand même, avec la réserve explicite,
+faute d'une autre source ouverte qui les couvre — conformément à la règle 1
+du § 1 : une comparaison qui changerait silencieusement de définition d'un
+pays à l'autre serait pire qu'une absence.
+
+**Ce tableau ne dit toujours pas qui « gère mieux » sa dette** (§ 1, règle
+3) : la dette faible de la Russie et de l'Arabie saoudite reflète en bonne
+partie des recettes pétrolières et gazières record, pas une politique
+budgétaire à elle seule transposable ; la dette élevée du Japon se finance
+à des taux structurellement bas depuis des décennies, une situation que la
+France ne connaît pas (`docs/dette-donnees.md` § 2).
+
 ## Ce que les données ne disent pas
 
-### 4. Un sujet exploré et écarté : les heures travaillées
+### 5. Un sujet exploré et écarté : les heures travaillées
 
 **L'OCDE publie bien un jeu « heures travaillées par an », mais sa
 couverture s'est révélée trop incohérente pour être chargée.** Le connecteur
@@ -187,15 +227,14 @@ dix à vingt-cinq ans pour un état présent — exactement ce que
 publication plus récente de l'OCDE sous un autre identifiant de flux,
 non retrouvée à ce stade) resterait à identifier avant de rouvrir ce sujet.
 
-### 5. Neuf autres sujets : scopés, non chargés
+### 6. Huit autres sujets : scopés, non chargés
 
-Chacun des neuf sujets suivants a une source candidate, vérifiée à des
+Chacun des huit sujets suivants a une source candidate, vérifiée à des
 degrés divers. Certains ont déjà révélé un obstacle précis plutôt qu'une
 simple absence d'exploration :
 
 | Sujet | Source candidate | Ce qui a été vérifié |
 |---|---|---|
-| Dette publique hors UE (G8, Chine) | FMI, *World Economic Outlook* (API DataMapper) | **API accessible** (testée), mais sans marqueur distinguant un exercice observé d'une projection du FMI — la base complète (hors DataMapper) porterait cette distinction, à vérifier avant de charger quoi que ce soit sous peine de présenter une prévision comme un fait |
 | Régime politique | V-Dem Institute | **Licence confirmée** : CC BY-SA. Pas de fichier de téléchargement à adresse stable trouvé sur le site — la distribution passe par un outil de sélection de variables ou un paquet R, à explorer plus avant |
 | Liberté de la presse | Reporters sans frontières, classement mondial | **Export CSV trouvé et accessible** (`/sites/default/files/import_classement/{année}.csv`, testé de 2022 à 2026, structure exploitable : score, rang, cinq sous-scores). **Aucune licence de réutilisation explicite trouvée** sur le site — une absence de licence n'est pas une autorisation (`docs/README.md`, règle 4) ; à recontacter RSF ou trouver une mention de licence avant de charger |
 | Représentativité des dirigeants | International IDEA (participation électorale) | Page accessible, contenu non exploré en détail — part du vainqueur et mode de scrutin resteraient de toute façon à compiler pays par pays, hors de portée d'un chargement automatisé |
@@ -211,6 +250,8 @@ simple absence d'exploration :
 - Banque mondiale, `NY.GDP.MKTP.CD` (PIB courant), `NY.ADJ.SVNG.GN.ZS`
   (épargne nette ajustée), `NY.ADJ.DRES.GN.ZS` (épuisement des ressources
   naturelles).
+- FMI, World Economic Outlook (API SDMX, `internal/dette/fmi.go`) — dette
+  brute des administrations publiques (§ 4).
 - [docs/dette-donnees.md](dette-donnees.md), pour la comparaison européenne
   de la dette déjà chargée.
 - [docs/pauvrete-donnees.md](pauvrete-donnees.md), pour la même méthode
@@ -218,15 +259,22 @@ simple absence d'exploration :
 
 ## Annexe technique
 
-### 6. Ce qui est chargé
+### 7. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
 | 1 | Eurostat, `earn_mw_cur` | `core.salaire_minimum` | 4 573 lignes, 31 pays, 1999-2026 |
 | 2 | Banque mondiale, *World Development Indicators* | `core.indicateur_mondial` | 682 lignes, 10 pays, 3 indicateurs, 2000-2024 |
+| 3 | FMI, *World Economic Outlook* (dette brute, 17 pays dont G8 hors zone euro, Chine, Russie, Arabie saoudite) | `core.dette_observation` (`serie` `fmi:GGXWDG_NGDP:*`) | 17 séries, jusqu'à 46 années chacune |
 
 ## Versions
 
+- **Version 4** (15 septembre 2026) : dette publique hors Union chargée (§ 4)
+  en étendant un connecteur déjà en place (`internal/dette/fmi.go`) à la
+  Chine, la Russie et l'Arabie saoudite plutôt qu'en écrivant un nouveau
+  connecteur — ces deux derniers pays avec la réserve de méthode que le FMI
+  documente lui-même (Chine : méthodologie « Other » ; Arabie saoudite :
+  administration centrale, pas administrations publiques).
 - **Version 3** (15 septembre 2026) : heures travaillées (OCDE) exploré, chargé, puis retiré
   après vérification (couverture trop ancienne pour huit pays sur les dix) ; les neuf sujets
   restants vérifiés à des degrés divers plutôt que simplement listés.

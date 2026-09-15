@@ -35,7 +35,12 @@ var SourceFMI = archive.Source{
 	Notes: "Dette brute au sens du FMI (GFSM) : plus large que Maastricht, et en valeur faciale pour " +
 		"la France. Seules les années jusqu'à LATEST_ACTUAL_ANNUAL_DATA (publiée pays par pays) " +
 		"sont chargées : les projections du FMI n'entrent pas en base. La Suisse suit le GFSM " +
-		"2001, la France le GFSM 2014 : écart de méthode mineur, signalé par le FMI lui-même.",
+		"2001, la France le GFSM 2014 : écart de méthode mineur, signalé par le FMI lui-même. " +
+		"Chine et Arabie saoudite ont un écart plus net, signalé de la même façon : la Chine " +
+		"soumet sous une méthodologie que le FMI classe lui-même « Other », pas GFSM ; l'Arabie " +
+		"saoudite sous un périmètre d'administration CENTRALE, pas d'administrations publiques " +
+		"comme les autres pays de la série — deux chiffres à ne pas lire comme strictement " +
+		"comparables aux douze autres, chargés quand même faute d'alternative ouverte.",
 }
 
 const fmiURL = "https://api.imf.org/external/sdmx/2.1/data/IMF.RES,WEO,/"
@@ -50,6 +55,13 @@ var fmiIndicateurs = map[string]string{
 var fmiPays = map[string]string{
 	"CHE": "CH", "FRA": "FR", "DEU": "DE", "ITA": "IT", "ESP": "ES", "NLD": "NL", "BEL": "BE",
 	"AUT": "AT", "SWE": "SE", "DNK": "DK", "NOR": "NO", "GBR": "GB", "USA": "US", "JPN": "JP",
+	// Chine et Arabie saoudite ne suivent pas la même méthodologie que les
+	// onze pays ci-dessus (docs/international-donnees.md § 6) : la Chine
+	// soumet sous METHODOLOGY="Other" (pas GFSM 2014), l'Arabie saoudite sous
+	// un périmètre d'ADMINISTRATION CENTRALE, pas d'administrations
+	// publiques — chargées quand même, avec la réserve explicite plutôt que
+	// tues, parce qu'aucune autre source ouverte ne les couvre du tout.
+	"CHN": "CN", "RUS": "RU", "SAU": "SA",
 }
 
 type fmiMessage struct {

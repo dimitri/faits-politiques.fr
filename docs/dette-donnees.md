@@ -1,6 +1,6 @@
 # La dette publique : ce que les sources permettent d'établir
 
-> **Dossier** · version 2 · 15 septembre 2026
+> **Dossier** · version 3 · 15 septembre 2026
 >
 > Combien la France doit-elle, selon quelle définition, à qui emprunte-t-elle, que coûte
 > l'emprunt, comment se compare-t-elle à ses voisins, et comment la Suisse encadre-t-elle sa
@@ -229,6 +229,14 @@ Belgique, là où le Portugal et la Grèce sont en excédent.
 Pour les pays hors de l'Union, le FMI (dernière année observée, dette brute au sens
 du FMI, plus large que Maastricht) : Japon 214,5 % (2024), États-Unis 123,9 %,
 Royaume-Uni 102,3 %, Norvège 52,8 % (2024), **Suisse 39,4 %** (2025).
+
+**Chine 90,4 % (2024), Russie 17,2 % et Arabie saoudite 31,7 % (2025)** — chargées
+pour `docs/international-donnees.md` § 6, avec une réserve plus nette que pour les
+pays ci-dessus : le FMI classe lui-même la soumission chinoise en méthodologie
+« Other » (pas GFSM 2014), et celle de l'Arabie saoudite ne couvre que
+l'administration CENTRALE, pas les administrations publiques comme les autres
+pays de cette liste — deux chiffres à ne pas aligner sans réserve sur les douze
+premiers, chargés quand même faute d'une autre source ouverte qui les couvre.
 
 ### 6. La Suisse : sa dette et son frein à l'endettement
 
@@ -803,5 +811,6 @@ contrôle « chaque source a des séries » bloque la publication — volontaire
 
 ## Versions
 
+- **Version 3** (15 septembre 2026) : Chine, Russie et Arabie saoudite ajoutées à la comparaison FMI hors Union (§ 5), pour docs/international-donnees.md § 6 — avec la réserve de méthode que le FMI documente lui-même pour ces deux derniers pays.
 - **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de programmation des finances publiques, procédure européenne) et contrôle du Haut Conseil des finances publiques ; le § 6 ne part plus d'une prémisse sur la Suisse.
 - **Version 1** (14 septembre 2026) : définitions, prix de l'emprunt, détenteurs, échéances, comparaison européenne, Suisse.
