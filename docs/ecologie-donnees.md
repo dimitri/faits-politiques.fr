@@ -1,11 +1,15 @@
 # Écologie et climat : cinq notions que le débat public confond
 
-> Note de synthèse. Version 1 — 14 septembre 2026.
+> Note de synthèse. Version 2 — 15 septembre 2026.
 > Budget vert, dépenses environnementales, investissements climat, fiscalité
 > écologique, résultats physiques (CO2, énergie, biodiversité) : cinq mesures
 > différentes, souvent citées l'une pour l'autre. Cette note pose la
 > distinction avant les chiffres — chacun répond à une question différente,
 > et aucun ne se déduit d'un autre.
+>
+> **Version 2** charge la dépense de protection de l'environnement (Eurostat,
+> § 4) : 55,76 Md€ en 2023, pas les « 100 Md€ » souvent cités — cette note
+> documente l'écart plutôt que de le faire disparaître.
 
 ---
 
@@ -68,17 +72,42 @@ comptabilité nationale ne réunit pas sous un poste unique. Cette note ne
 recompose pas cet agrégat, faute d'une définition officielle stable à
 appliquer.
 
-## 4. Ce qui manque encore : dépenses environnementales, investissements climat, résultats physiques
+## 4. La dépense de protection de l'environnement : un agrégat plus étroit que ce qui est cité
+
+`core.depense_environnementale`, Eurostat (`env_epea_neep`), France,
+2012-2025 — la nomenclature CEP (l'évolution de CEPA/CReMA à partir de la
+collecte 2025) :
+
+| Secteur | 2020 (Md€) | 2023 (Md€) |
+|---|---:|---:|
+| Total économie | 46,77 | 55,76 |
+| Entreprises | 17,37 | 20,56 |
+| Administrations publiques | 17,35 | 21,17 |
+| Ménages | 12,05 | 14,02 |
+
+**55,76 Md€ en 2023, pas « environ 100 Md€ »** — le chiffre le plus souvent
+cité dans le débat public désigne probablement un périmètre plus large
+(investissements climat inclus, ou une définition non harmonisée avec la
+nomenclature européenne) que cette note ne peut pas reconstituer faute de
+savoir précisément ce que ce chiffre plus large inclut. **Cette note cite ce
+qu'elle mesure, pas ce qui circule.**
+
+**Les catégories par objet ne se somment PAS entre elles ni avec le total** :
+la nomenclature CEP mêle des catégories de niveaux différents (`TOT_CEP_EP`
+est déjà la somme de toutes les autres ; certaines sous-catégories comme
+« Énergies renouvelables » se recoupent avec « Air et climat » sans qu'un
+lien d'inclusion strict soit documenté dans le jeu lui-même). Trois
+catégories parmi les plus importantes, à titre d'illustration, chacune
+comparée au total et non additionnée : gestion des déchets (21,7 Md€),
+gestion des eaux usées (16,6 Md€), énergies renouvelables (23,5 Md€) —
+`cmd/verify` s'assure seulement que le total domine chaque sous-catégorie,
+pas qu'elles s'additionnent, précisément parce qu'elles ne le font pas.
 
 **Non chargé, identifié, avec la raison précise :**
 
-- **Dépenses de protection de l'environnement au sens large** (nomenclature
-  européenne CEPA/CReMA, l'agrégat le plus souvent cité autour de 100 Md€) :
-  publiées par Eurostat, non encore chargées — un nouveau connecteur à
-  ajouter à `internal/dette/eurostat.go`, qui interroge déjà Eurostat pour
-  d'autres séries de ce projet.
 - **Investissements climat** (au sens du financement de la transition,
-  hors budget vert) : aucune source unique et stable identifiée à ce stade.
+  hors budget vert et hors dépense de protection de l'environnement
+  ci-dessus) : aucune source unique et stable identifiée à ce stade.
 - **Résultats physiques** (émissions de CO2, consommation d'énergie,
   indicateurs de biodiversité) : sources probables SDES (Service des
   données et études statistiques) et Citepa (inventaire national des
@@ -102,11 +131,14 @@ recouper comptablement.
 | 1 | Direction du budget, PLF, mission Écologie | `core.budget_programme` | 9 programmes, 2024-2025 (table partagée, § 1) |
 | 2 | Eurostat/Insee, comptabilité nationale, poste D29F | `core.recette_fiscale` | déjà chargé, § 3 |
 | 3 | PLF, budget vert (cotation environnementale) | `core.depense_fiscale` | déjà chargé, voir docs/dette-donnees.md |
+| 4 | Eurostat, dépense de protection de l'environnement | `core.depense_environnementale` | 1 503 lignes, France, 2012-2025 |
 
 ## Sources
 
 - Direction du budget, *PLF — dépenses par mission, programme et action*,
   data.economie.gouv.fr, éditions 2024 et 2025.
+- Eurostat, `env_epea_neep` (dépense de protection de l'environnement par
+  objet et secteur institutionnel).
 - [docs/dette-donnees.md](dette-donnees.md), pour le budget vert et ses
   pièges de lecture.
 - [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
