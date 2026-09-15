@@ -997,6 +997,28 @@ var checks = []check{
 		        ) x WHERE tous IS NOT NULL AND max_region IS NOT NULL AND max_region > tous`,
 	},
 	{
+		name:  "les DECP couvrent au moins deux millions de lignes de marché",
+		query: `SELECT count(*) FROM core.public_contract`,
+		min:   2000000,
+	},
+	{
+		// source_uid combine marché, titulaire et modification précisément
+		// pour rester unique malgré les co-titulaires (jusqu'à 87 observés
+		// sur un même marché) — si un doublon apparaît, le dédoublonnage de
+		// internal/decp/decp.go a régressé.
+		name:  "les DECP n'ont aucun doublon de source_uid",
+		query: `SELECT count(*) - count(DISTINCT source_uid) FROM core.public_contract`,
+	},
+	{
+		// Une petite fraction de dates de notification est aberrante dans la
+		// source elle-même (des dates de l'an 1 à 3, ~0,01 % des lignes) —
+		// connu et documenté (docs/sante-donnees.md et le commentaire de la
+		// table), cette sonde s'assure seulement que cette fraction reste
+		// marginale plutôt que de devenir majoritaire sans qu'on s'en aperçoive.
+		name:  "les DECP : moins de 0,1 % de dates de notification antérieures à 2000",
+		query: `SELECT (count(*) FILTER (WHERE date_notification < '2000-01-01') > count(*) / 1000) ::int FROM core.public_contract`,
+	},
+	{
 		// Le total d'ETP d'un établissement ne peut pas être inférieur à ses
 		// seuls enseignants — sinon une colonne a été lue à la mauvaise place
 		// (déjà arrivé cette session sur d'autres connecteurs DEPP/DREES).

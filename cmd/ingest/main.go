@@ -24,6 +24,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/carto"
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/entreprises"
+	"github.com/faits-politiques/faits-politiques/internal/decp"
 	"github.com/faits-politiques/faits-politiques/internal/dette"
 	"github.com/faits-politiques/faits-politiques/internal/dossiers"
 	"github.com/faits-politiques/faits-politiques/internal/ecologie"
@@ -50,7 +51,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | education | sante | sae | rpps | hydro | ecologie | international | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | education | sante | sae | rpps | hydro | ecologie | international | decp | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -440,6 +441,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "rpps" {
 		fmt.Println("\nRPPS : professionnels de santé (Annuaire Santé)")
 		return sante.IngestRPPS(ctx, pool, arch)
+	}
+	// DECP (commande publique) : à part parce que ce seul connecteur lit un
+	// fichier Parquet de 235 Mo (3,3 millions de lignes) — voir
+	// internal/decp/decp.go et le commentaire de core.public_contract.
+	if only == "decp" {
+		fmt.Println("\nDECP : commande publique consolidée")
+		return decp.Ingest(ctx, pool, arch)
 	}
 	// La dette : encours, détenteurs, coût, comparaisons européenne et
 	// suisse. Voir docs/dette-donnees.md. La détention (Banque de France)

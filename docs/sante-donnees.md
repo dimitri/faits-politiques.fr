@@ -1,6 +1,6 @@
 # La santé : FINESS comme clé pivot, et comment les médecins sont payés
 
-> **Dossier** · version 5 · 15 septembre 2026
+> **Dossier** · version 6 · 15 septembre 2026
 >
 > Comment le système de santé est-il décrit par les données publiques, et comment les
 > médecins sont-ils rémunérés ? Les sources sont les plus éclatées du projet — établissements,
@@ -282,14 +282,19 @@ significatif, secret statistique sur petit effectif) mêlée à des valeurs
 numériques dans la même colonne — un traitement plus délicat que le
 chargement fait ici, laissé à une prochaine itération plutôt que bâclé.
 
-Deux autres limites, plus courtes :
+Une limite plus courte :
 
-- **DECP** pour les fournisseurs des établissements publics de santé : même
-  limite que pour Éducation et Défense — la table `core.public_contract`
-  existe (`docs/perimetre.md` § 4.4, priorité P2) mais aucun connecteur ne
-  l'alimente encore.
 - **PMSI, autres champs** (SMR, HAD, psychiatrie) : publiés séparément par
   l'ATIH sur le même portail que le MCO chargé au § 1.5, non explorés.
+
+**DECP, désormais chargées (transversalement, pas seulement pour la santé)** :
+`core.public_contract` — vide au moment de la version précédente de ce
+dossier — est maintenant alimentée pour l'ensemble de la commande publique
+française, établissements de santé compris ; voir
+[docs/commande-publique-donnees.md](commande-publique-donnees.md). Filtrer
+`acheteur_siret` sur les FINESS des établissements publics de santé
+(`ref.finess_etablissement.siret`) donnerait leurs fournisseurs — une
+jointure encore à écrire, pas encore un tableau de ce dossier.
 
 ### 4. SNDS/Open Damir : localisé précisément, écarté pour sa taille
 
@@ -312,6 +317,34 @@ le secteur conventionnel (§ 2, déjà chargé) donne la RÉPARTITION des
 médecins par régime tarifaire ; Open Damir aurait donné les MONTANTS
 remboursés par prestation. Les deux questions restent disjointes tant que
 ce second chargement n'est pas fait.
+
+**À quoi Open Damir (pré-agrégé) servirait concrètement, une fois ce
+chantier fait** — quatre usages précis, pas un chargement pour lui-même :
+
+1. **Vérifier l'ONDAM plutôt que le citer.** Chaque automne, le débat
+   budgétaire sur la Sécurité sociale (`docs/securite-sociale-donnees.md`,
+   D-048 : « la Sécurité sociale ne publie pas ses comptes ») porte sur des
+   montants de dépense annoncés sans qu'aucune donnée ouverte ne permette de
+   les reconstituer indépendamment. Open Damir agrégé EST cette donnée brute
+   — la seule identifiée à ce jour qui permettrait une vérification mesurée
+   plutôt qu'une reprise déclarative.
+2. **Donner une dimension monétaire au secteur conventionnel (§ 2).** On
+   sait aujourd'hui la répartition des médecins par secteur tarifaire ; on
+   ne sait pas ce que chaque secteur coûte réellement à l'Assurance Maladie
+   (base de remboursement contre dépassements). Les deux jeux partagent une
+   nomenclature de prestation qui permettrait de les croiser.
+3. **Ajouter la dépense à l'activité déjà chargée (PMSI, § 1.5).** Le PMSI
+   dit combien de séjours, par région ; Open Damir dirait combien ils
+   coûtent, par région. Les deux mesures répondent à des questions
+   différentes (activité contre remboursement) qui se complètent sans se
+   déduire l'une de l'autre.
+4. **Élargir le débat sur les déserts médicaux au-delà de la densité.**
+   RPPS (§ 1.4) dit où sont les médecins ; Open Damir dirait où va l'argent
+   remboursé — un angle distinct du même débat récurrent, l'un mesurant une
+   présence, l'autre un flux.
+
+Ces quatre usages supposent un agrégat pré-calculé (§ ci-dessus) : aucun
+n'est réalisable avec le fichier brut tel qu'il est distribué aujourd'hui.
 
 ## Sources
 
@@ -347,6 +380,11 @@ ce second chargement n'est pas fait.
 
 ## Versions
 
+- **Version 6** (15 septembre 2026) : DECP chargées (§ 4,
+  [docs/commande-publique-donnees.md](commande-publique-donnees.md)) — la
+  limite « aucun connecteur ne l'alimente » citée en version 5 ne tient
+  plus ; quatre usages concrets d'Open Damir explicités plutôt qu'une
+  mention de principe.
 - **Version 5** (15 septembre 2026) : RPPS chargé (§ 1.4, 1,9 million de
   professionnels) et PMSI-MCO chargé (§ 1.5) — le second sur un portail ATIH
   différent de celui longtemps cité (ScanSanté), trouvé en cherchant
