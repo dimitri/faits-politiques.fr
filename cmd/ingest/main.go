@@ -50,7 +50,7 @@ import (
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | education | sante | sae | hydro | ecologie | international | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | socle | immigration | education | sante | sae | rpps | hydro | ecologie | international | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -433,6 +433,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "sae" {
 		fmt.Println("\nSAE : personnel par fonction (bordereau Q24)")
 		return sante.IngestSAE(ctx, pool, arch)
+	}
+	// RPPS (Annuaire Santé) : à part de "sante" parce que ce seul connecteur
+	// télécharge et relit un fichier plat de ~820 Mo (2,4 millions de
+	// lignes) — voir internal/sante/rpps.go. Voir docs/sante-donnees.md.
+	if only == "rpps" {
+		fmt.Println("\nRPPS : professionnels de santé (Annuaire Santé)")
+		return sante.IngestRPPS(ctx, pool, arch)
 	}
 	// La dette : encours, détenteurs, coût, comparaisons européenne et
 	// suisse. Voir docs/dette-donnees.md. La détention (Banque de France)

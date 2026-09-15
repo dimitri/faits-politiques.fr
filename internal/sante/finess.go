@@ -190,5 +190,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err := IngestSecteurConventionnel(ctx, pool, arch); err != nil {
 		return err
 	}
-	return IngestCertificationHAS(ctx, pool, arch)
+	if err := IngestCertificationHAS(ctx, pool, arch); err != nil {
+		return err
+	}
+	return IngestPMSIMCO(ctx, pool, arch)
 }

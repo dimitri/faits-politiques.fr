@@ -1,6 +1,6 @@
 # La santé : FINESS comme clé pivot, et comment les médecins sont payés
 
-> **Dossier** · version 4 · 15 septembre 2026
+> **Dossier** · version 5 · 15 septembre 2026
 >
 > Comment le système de santé est-il décrit par les données publiques, et comment les
 > médecins sont-ils rémunérés ? Les sources sont les plus éclatées du projet — établissements,
@@ -200,6 +200,75 @@ Chaque démarche porte un score sur 100 par chapitre du référentiel :
 différent, publiés séparément, non comparables terme à terme sans un travail
 de correspondance non fait ici.
 
+#### 1.4 RPPS : le pont vers les professionnels, et une population plus large qu'il n'y paraît
+
+`core.rpps_professionnel_activite` (Annuaire Santé, ANS, extraction en libre
+accès) : **2 286 272 lignes d'activité pour 1 912 833 professionnels
+distincts.** Une ligne par activité déclarée, pas par personne — un même
+identifiant (`identifiant_pp`) revient sur plusieurs lignes s'il exerce sur
+plusieurs sites ou avec plusieurs rôles ; ne jamais compter les lignes comme
+un nombre de professionnels.
+
+| Profession | Professionnels distincts |
+|---|---:|
+| Infirmier | 627 962 |
+| Médecin | 391 578 |
+| Psychologue | 119 104 |
+| Masseur-kinésithérapeute | 117 782 |
+| Pharmacien | 81 903 |
+| Chirurgien-dentiste | 64 452 |
+
+**391 578 « Médecin », un chiffre plus haut que les ~226 000 médecins en
+activité habituellement cités (Ordre des médecins) — parce que le RPPS
+enregistre une population plus large que « les médecins en exercice ».**
+Décomposé par catégorie professionnelle : 346 695 relèvent du régime
+« Civil », mais **43 105 sont des étudiants** (internes et externes en
+formation, qui détiennent un numéro RPPS sans être médecins en exercice) et
+2 331 sont des agents publics. Ce dossier cite le chiffre RPPS tel qu'il est
+— une mesure d'enregistrement, pas d'activité — plutôt que de le corriger
+par un filtre qui suppose une définition de « en exercice » que la table ne
+porte pas explicitement.
+
+**Le pont vers FINESS ne couvre qu'une minorité de lignes** : 942 448 lignes
+sur 2 286 272 (41 %) portent un numéro FINESS de site. Le reste correspond
+très probablement à l'exercice libéral hors structure (cabinet individuel),
+qui n'a pas de numéro FINESS par construction — pas une donnée manquante à
+corriger.
+
+#### 1.5 PMSI-MCO : l'activité hospitalière, sur le bon portail
+
+**ScanSanté (`scansante.fr/opendata`), longtemps cité comme l'unique porte
+d'entrée du PMSI, est une application interactive sans export de fichier à
+adresse stable.** Le vrai point d'entrée ouvert de l'ATIH pour ces mêmes
+familles de chiffres est un second portail, moins connu :
+**data-essentiel.atih.sante.fr**, un Opendatasoft comme celui de la Depp ou
+de la Drees déjà utilisés ailleurs dans ce dépôt, sous licence ODbL.
+
+`core.pmsi_mco_national`, `core.pmsi_mco_par_etablissement` et
+`core.pmsi_mco_par_patient` (champ Médecine-Chirurgie-Obstétrique
+seulement — pas SMR, HAD ni psychiatrie, publiés séparément et non chargés
+ici) :
+
+| Année | Séjours (Tous) | dont hospitalisation complète | dont ambulatoire | Durée moyenne (Tous) |
+|---|---:|---:|---:|---:|
+| 2023 | 19 703 163 | 9 587 483 | 10 115 680 | 3,68 j |
+| 2024 | 20 431 758 | 9 699 182 | 10 732 576 | 3,61 j |
+| 2025 | 21 207 964 | 9 762 710 | 11 445 254 | 3,51 j |
+
+**« Tous » est la somme exacte des deux types d'hospitalisation, vérifiée
+ligne à ligne à l'ingestion** — un contrôle systématique plutôt qu'une
+confiance a priori dans la cohérence de la source. La durée moyenne de
+séjour en ambulatoire est mécaniquement de 1 jour (un séjour ambulatoire est
+par définition sans nuitée) : ce n'est pas une amélioration de la prise en
+charge, c'est une définition.
+
+**1 514 établissements** portent une activité MCO en 2025
+(`core.pmsi_mco_par_etablissement`, 18 régions dont l'outre-mer). L'Île-de-
+France et l'Auvergne-Rhône-Alpes concentrent les plus gros volumes de
+séjours en établissement public — cohérent avec leur poids démographique,
+que cette note ne rapporte pas ici faute d'avoir chargé une population de
+référence par région dans ce même chargement.
+
 ## Ce que les données ne disent pas
 
 ### 3. Ce que ce dossier ne couvre pas encore
@@ -213,37 +282,36 @@ significatif, secret statistique sur petit effectif) mêlée à des valeurs
 numériques dans la même colonne — un traitement plus délicat que le
 chargement fait ici, laissé à une prochaine itération plutôt que bâclé.
 
-### 4. PMSI, RPPS : identifiés précisément, non chargés
+Deux autres limites, plus courtes :
 
-Recherche dédiée faite cette version, avec un résultat concret pour chacun
-plutôt qu'une simple mention :
-
-- **PMSI** (activité hospitalière par séjour, MCO/SMR/HAD/psychiatrie) :
-  l'ATIH publie des fichiers agrégés (établissement, région, France) sur son
-  portail **ScanSanté** (`scansante.fr/opendata`, notamment
-  `/opendata/pmsi-mco/ccam` pour l'activité par acte CCAM) — pas de séjour
-  individuel, conformément au secret statistique. **Non chargé** : la page ne
-  publie pas d'URL de fichier stable directement accessible, seulement une
-  application interactive de consultation — trouver l'URL de téléchargement
-  réelle (probablement via l'API interne de l'application) reste à faire
-  avant de pouvoir écrire un connecteur.
-- **RPPS** (identification des professionnels de santé) : l'Annuaire Santé
-  publie une extraction en libre accès,
-  *Annuaire Santé — Extractions des données en libre accès des professionnels
-  intervenant dans le système de Santé (RPPS)*, sous l'organisation ANS sur
-  data.gouv.fr — identifiée précisément cette fois, mais pas encore explorée
-  pour son schéma de champs.
-- **SNDS / Open Damir** (remboursements) : au-delà du secteur conventionnel
-  chargé au § 2, les montants remboursés par pathologie ou par acte
-  demandent le Système national des données de santé, à accès restreint pour
-  le détail individuel — la version ouverte agrégée (Open Damir) reste à
-  localiser précisément.
 - **DECP** pour les fournisseurs des établissements publics de santé : même
   limite que pour Éducation et Défense — la table `core.public_contract`
   existe (`docs/perimetre.md` § 4.4, priorité P2) mais aucun connecteur ne
   l'alimente encore.
-- **Honoraires et dépassements en euros** (§ 3) : jeu identifié, traitement
-  du champ « NS » non encore fait proprement.
+- **PMSI, autres champs** (SMR, HAD, psychiatrie) : publiés séparément par
+  l'ATIH sur le même portail que le MCO chargé au § 1.5, non explorés.
+
+### 4. SNDS/Open Damir : localisé précisément, écarté pour sa taille
+
+**Open Damir (l'extraction ouverte du Système national des données de
+santé) est trouvé, accessible, sous Licence Ouverte — et délibérément non
+chargé.** Chaque mois se télécharge en un fichier CSV compressé d'environ
+**970 Mo** (vérifié sur janvier 2025), soit plus de 10 Go par année
+complète ; le dépôt couvre 2009 à 2025. Le contenu, inspecté directement,
+n'est pas un agrégat léger malgré la limitation à 9 puis 13 zones
+géographiques annoncée pour préserver l'anonymat : chaque ligne croise déjà
+mois, zone, âge, régime, nature de prestation et une **cinquantaine de
+colonnes** de codes et de montants — une granularité comparable à celle des
+DECP (2,5 Go), déjà écartées pour la même raison
+(`docs/perimetre.md` § 4.4). Charger ne serait-ce qu'une année demanderait
+un agrégat calculé en amont, pas un chargement direct — un chantier à part,
+pas une extension de celui-ci.
+
+**Ce que ce dossier a maintenant, contre ce qu'Open Damir aurait ajouté** :
+le secteur conventionnel (§ 2, déjà chargé) donne la RÉPARTITION des
+médecins par régime tarifaire ; Open Damir aurait donné les MONTANTS
+remboursés par prestation. Les deux questions restent disjointes tant que
+ce second chargement n'est pas fait.
 
 ## Sources
 
@@ -256,9 +324,13 @@ plutôt qu'une simple mention :
   data.ameli.fr.
 - Haute Autorité de Santé, *Certification des établissements de santé pour la
   qualité des soins (6ᵉ cycle)*, data.gouv.fr.
-- ATIH, ScanSanté (`scansante.fr/opendata`), pour le PMSI (§ 4).
 - ANS, *Annuaire Santé — extractions RPPS en libre accès*, data.gouv.fr
-  (§ 4).
+  (§ 1.4).
+- ATIH, *MCO — Chiffres clés*, *Activité par type d'établissement*,
+  *Caractéristique des patients hospitalisés*, data-essentiel.atih.sante.fr
+  (§ 1.5).
+- CNAM, *Open Damir : base complète sur les dépenses d'assurance maladie
+  interrégimes*, data.gouv.fr (§ 4, non chargé).
 
 ## Annexe technique
 
@@ -270,9 +342,18 @@ plutôt qu'une simple mention :
 | 2 | Drees, SAE, bordereau Q24 (personnel par fonction) | `core.sae_personnel_fonction` | 3 808 lignes, 2024 |
 | 3 | Cnam, démographie par secteur conventionnel | `core.medecin_secteur_effectif` | 177 720 lignes, 2010-2024 |
 | 4 | HAS, certification des établissements (6ᵉ cycle) | `core.certification_has_demarche`, `core.certification_has_chapitre` | 422 démarches, 981 résultats |
+| 5 | ANS, Annuaire Santé (RPPS) | `core.rpps_professionnel_activite` | 2 286 272 lignes, 1 912 833 professionnels distincts |
+| 6 | ATIH, PMSI-MCO (data-essentiel) | `core.pmsi_mco_national`, `core.pmsi_mco_par_etablissement`, `core.pmsi_mco_par_patient` | 15 + 245 + 1 400 lignes, 2021-2025 |
 
 ## Versions
 
+- **Version 5** (15 septembre 2026) : RPPS chargé (§ 1.4, 1,9 million de
+  professionnels) et PMSI-MCO chargé (§ 1.5) — le second sur un portail ATIH
+  différent de celui longtemps cité (ScanSanté), trouvé en cherchant
+  directement les jeux de données de l'ATIH plutôt qu'en creusant son
+  interface interactive. Open Damir localisé précisément et écarté pour sa
+  taille (§ 4), avec les chiffres qui le justifient plutôt qu'une simple
+  mention.
 - **Version 4** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de 2019) et enjeu budgétaire de la branche maladie (Sénat).
 - **Version 3** (15 septembre 2026) : certification HAS des établissements (§ 1.3).
 - **Version 2** : personnel hospitalier par fonction (SAE, § 1.1) ; suite de FINESS publiée par l'ANS (§ 1.2) ; accès PMSI et RPPS (§ 4). Les effectifs d'AESH relèvent du dossier éducation.

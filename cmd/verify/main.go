@@ -946,6 +946,57 @@ var checks = []check{
 		        ) x WHERE moins_ecoles AND NOT moins_eleves`,
 	},
 	{
+		name:  "le RPPS couvre au moins 300 000 médecins distincts",
+		query: `SELECT count(DISTINCT identifiant_pp) FROM core.rpps_professionnel_activite WHERE code_profession = '10'`,
+		min:   300000,
+	},
+	{
+		// Une ligne sans identifiant de profession serait invisible à toute
+		// analyse par profession — le NOT NULL de la colonne le garantit déjà
+		// en base, cette sonde vérifie que le connecteur ne l'a pas contourné
+		// avec une chaîne vide.
+		name:  "toute ligne RPPS porte un code profession non vide",
+		query: `SELECT count(*) FROM core.rpps_professionnel_activite WHERE code_profession = ''`,
+	},
+	{
+		name:  "le PMSI-MCO national couvre au moins cinq exercices",
+		query: `SELECT count(DISTINCT annee) FROM core.pmsi_mco_national`,
+		min:   5,
+	},
+	{
+		// 'Tous' doit rester la somme exacte des deux types d'hospitalisation
+		// — vérifié aussi à l'ingestion (internal/sante/pmsi.go), sonde
+		// redondante à dessein pour couvrir une donnée chargée hors connecteur.
+		name: "le PMSI-MCO national : Tous égale complète plus ambulatoire, chaque année",
+		query: `SELECT count(*) FROM (
+		          SELECT annee,
+		                 max(nb_sejours) FILTER (WHERE typ_hospit = 'Tous') AS tous,
+		                 sum(nb_sejours) FILTER (WHERE typ_hospit <> 'Tous') AS somme
+		            FROM core.pmsi_mco_national
+		           GROUP BY annee
+		        ) x WHERE tous <> somme`,
+	},
+	{
+		name:  "le PMSI-MCO par établissement couvre les régions métropolitaines et ultramarines",
+		query: `SELECT count(DISTINCT region) FROM core.pmsi_mco_par_etablissement`,
+		min:   15,
+	},
+	{
+		// Le total est chez la même ligne 'Tous' (côté patient) : le nombre de
+		// séjours qu'elle porte doit dominer chaque région nommée, sinon la
+		// dimension a été mal reconnue (même piège que SAE Q24, aide
+		// alimentaire, dépense environnementale — déjà rencontré plusieurs
+		// fois cette session).
+		name: "le PMSI-MCO par patient : la ligne région=Tous domine chaque région nommée",
+		query: `SELECT count(*) FROM (
+		          SELECT annee,
+		                 max(nb_sejours) FILTER (WHERE region = 'Tous' AND age='Tous' AND sexe='Tous') AS tous,
+		                 max(nb_sejours) FILTER (WHERE region <> 'Tous' AND age='Tous' AND sexe='Tous') AS max_region
+		            FROM core.pmsi_mco_par_patient
+		           GROUP BY annee
+		        ) x WHERE tous IS NOT NULL AND max_region IS NOT NULL AND max_region > tous`,
+	},
+	{
 		// Le total d'ETP d'un établissement ne peut pas être inférieur à ses
 		// seuls enseignants — sinon une colonne a été lue à la mauvaise place
 		// (déjà arrivé cette session sur d'autres connecteurs DEPP/DREES).
