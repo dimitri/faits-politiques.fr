@@ -159,6 +159,64 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 		}, cases, "pour 1 000 habitants", pour1000))
 	}
 
+	// Médecins généralistes pour 100 000 habitants — la densité de l'offre de
+	// soins de premier recours, département par département. Le fichier RPPS
+	// ne renseigne pas directement le département de la structure d'exercice
+	// (colonne vide sur la quasi-totalité des lignes) : le département est
+	// retrouvé par le code commune, via ref.commune, plutôt que par ce champ.
+	// Un même généraliste actif dans plusieurs structures peut être compté
+	// dans plusieurs départements — une présence, pas une personne unique
+	// répartie entre eux.
+	mgrows, err := pool.Query(ctx, `
+		SELECT c.code_departement, max(c.nom_clair),
+		       100000.0*count(DISTINCT r.identifiant_pp)/nullif(max(pop.p),0)
+		FROM core.rpps_professionnel_activite r
+		JOIN ref.commune c ON c.code_insee=r.code_commune
+		  AND c.cog_millesime=(SELECT max(cog_millesime) FROM ref.commune)
+		JOIN (SELECT code_departement AS dep, sum(value) p
+		      FROM core.commune_indicator ci
+		      JOIN ref.commune rc ON rc.code_insee=ci.commune_code AND rc.cog_millesime=ci.cog_millesime
+		      WHERE ci.indicator_code='ofgl.population_totale' AND ci.period_year=2023
+		      GROUP BY 1) pop ON pop.dep=c.code_departement
+		WHERE r.code_profession='10' AND r.libelle_savoir_faire IN
+		  ('Spécialiste en Médecine Générale','Qualifié en Médecine Générale','Médecine Générale')
+		GROUP BY c.code_departement`)
+	if err != nil {
+		return nil, err
+	}
+	var casesMG []CaseCarte
+	for mgrows.Next() {
+		var cc CaseCarte
+		var v *float64
+		if err := mgrows.Scan(&cc.Code, &cc.Nom, &v); err != nil {
+			mgrows.Close()
+			return nil, err
+		}
+		if v == nil {
+			cc.Absent = true
+		} else {
+			cc.Valeur = *v
+		}
+		casesMG = append(casesMG, cc)
+	}
+	mgrows.Close()
+	if err := mgrows.Err(); err != nil {
+		return nil, err
+	}
+	if len(casesMG) > 0 {
+		st.Cartes = append(st.Cartes, poser(CarteTerritoire{
+			Slug: "medecins-generalistes", Titre: "Médecins généralistes pour 100 000 habitants",
+			Question: "Où l'offre de médecine générale est-elle la plus dense ?",
+			Note: "Compte les médecins inscrits au Répertoire partagé des professionnels de santé " +
+				"(RPPS) qui exercent la médecine générale, quel que soit leur mode d'exercice " +
+				"(libéral, salarié) — pas seulement ceux qui prennent de nouveaux patients, et pas " +
+				"les médecins retraités ayant cessé leur inscription. Une carte de présence, pas de " +
+				"disponibilité réelle : un désert médical peut aussi être un territoire où les " +
+				"généralistes recensés n'ont plus de créneaux libres.",
+			Source: "ANS, Annuaire Santé (RPPS) ; OFGL, population 2023",
+		}, casesMG, "généralistes pour 100 000 hab.", func(v float64) string { return Decimal(v, 0) }))
+	}
+
 	// Part des sièges municipaux dont la nuance nomme un parti. C'est la carte
 	// qui dit pourquoi une « carte des partis » n'existe pas.
 	prows, err := pool.Query(ctx, `
