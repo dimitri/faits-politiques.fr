@@ -168,6 +168,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int) error {
 			return m
 		},
 		"sub64": func(a, b float64) float64 { return a - b },
+		"add64": func(a, b float64) float64 { return a + b },
 		"int":   func(f float64) int { return int(f) },
 		"add":   func(a, b int) int { return a + b },
 		"sub":   func(a, b int) int { return a - b },

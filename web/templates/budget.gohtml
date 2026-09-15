@@ -159,15 +159,17 @@ c'est ainsi que la part non compensée existe légalement.</p>
   {{range $i, $cat := $k.CategoriesRef}}<span><i class="r{{$i}}"></i>{{$cat.Libelle}} —
     {{mdEur $cat.Montant}} ({{dec $cat.Part 1}} %)</span>{{end}}
 </div>
-<figcaption><strong>Deux parties de ce schéma sont en largeurs proportionnelles, à la même
-échelle&nbsp;:</strong> la bande des cotisations effectivement versées et le faisceau des
-exonérations, entre Employeurs, Sécurité sociale et État. Les deux viennent de la même source
-(URSSAF), du même champ (entreprises) et de la même année — {{$k.AnneeCotisationsURSSAF}}, la seule
-où les deux montants existent, pas {{$k.AnneeExo}} citée plus haut. Le faisceau des exonérations se
-détaille lui-même en quatre catégories, qui se somment exactement à {{mdEur $k.ExonerationsMemeAnnee}}.
-La compensation et le manque non compensé, eux, restent des flèches simples&nbsp;: aucune source ne
-publie leur montant pour {{$k.AnneeCotisationsURSSAF}}, et leur donner une largeur inventerait un
-chiffre. Chaque montant écrit porte sa propre source et sa propre année.</figcaption>
+<figcaption><strong>Trois parties de ce schéma sont en largeurs proportionnelles, à la même
+échelle&nbsp;:</strong> la bande des cotisations effectivement versées, le faisceau des
+exonérations, et la compensation qui leur répond, entre Employeurs, Sécurité sociale et État. Les
+deux premières viennent de la même source (URSSAF), du même champ (entreprises) et de la même
+année — {{$k.AnneeCotisationsURSSAF}}, la seule où les deux montants existent, pas {{$k.AnneeExo}}
+citée plus haut. Le faisceau des exonérations se détaille lui-même en quatre catégories, qui se
+somment exactement à {{mdEur $k.ExonerationsMemeAnnee}}. La compensation, elle, vient du jaune
+budgétaire annexé au PLF 2024 (exécution {{$k.AnneeCompensation}}) — voir ci-dessous. Le manque non
+compensé, lui, reste une flèche simple&nbsp;: aucune source ne publie son montant pour
+{{$k.AnneeCotisationsURSSAF}}, et lui donner une largeur inventerait un chiffre. Chaque montant
+écrit porte sa propre source et sa propre année.</figcaption>
 </figure>
 
 <p class="note">{{mdEur $k.CotisationsVerseesURSSAF}} versés par les entreprises contre
@@ -176,6 +178,12 @@ chiffre. Chaque montant écrit porte sa propre source et sa propre année.</figc
 la base puisse donner, mais il s'arrête en {{$k.AnneeCotisationsURSSAF}}&nbsp;: l'URSSAF n'a plus
 mis à jour ses encaissements depuis juillet 2023, et le niveau géographique le plus fin qu'elle
 publie pour ce montant est la <strong>région</strong> (par caisse URSSAF), jamais le département.</p>
+
+<p class="note">La compensation ({{mdEur $k.CompensationTVA}} + {{mdEur $k.CompensationCiblees}} =
+{{mdEur (add64 $k.CompensationTVA $k.CompensationCiblees)}}, {{$k.AnneeCompensation}}) vient d'un
+document distinct de l'URSSAF&nbsp;: le jaune budgétaire annexé au PLF 2024, qui rapporte sur
+l'exercice {{$k.AnneeCompensation}} — la TVA nette affectée (annexe 1) compense les allégements
+généraux, les exonérations ciblées compensées par crédits budgétaires (tableau 16) le reste.</p>
 
 <h3>Et pour une année plus récente&nbsp;?</h3>
 <p class="q">Pour {{$k.AnneeExo}}, la base ne connaît que les exonérations

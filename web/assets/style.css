@@ -784,8 +784,9 @@ figure.schema figcaption{font-size:.8rem;color:var(--attenue);line-height:1.5;ma
 .circuit .flux{fill:none;stroke-width:2.5;stroke:#7FB0BA}
 .circuit .flux.verse{stroke:#1E5C69}
 .circuit .flux.exo{stroke:#4A8894;stroke-dasharray:6 4}
-.circuit .flux.comp{stroke:#1E5C69}
 .circuit .flux.manque-f{stroke:#B3412E;stroke-dasharray:3 4}
+.circuit .ruban.comp{fill:#4A8894;opacity:.88;transition:opacity .12s}
+.circuit .ruban.comp:hover{opacity:1}
 .circuit .pointe{fill:var(--attenue)}
 :root[data-theme="dark"] .circuit .noeud.manque{fill:#3a2320}
 :root[data-theme="dark"] .circuit .manque-t{fill:#F0A493}

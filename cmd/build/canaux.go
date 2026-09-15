@@ -631,19 +631,31 @@ func (c *CircuitCanaux) dessiner() template.HTML {
 	// cotisations et exonérations URSSAF de cette même année : la TVA nette
 	// affectée (compense les allégements généraux) et les exonérations
 	// ciblées compensées par crédits budgétaires (voir le commentaire sur
-	// CompensationTVA/CompensationCiblees). L'épaisseur du trait porte donc un
-	// vrai chiffre, pas seulement sa couleur — un curseur épais plutôt qu'une
-	// flèche fine, seul moyen d'afficher une largeur sur un tracé courbe.
+	// CompensationTVA/CompensationCiblees).
+	//
+	// Ce n'est pas une flèche qui vient percuter Sécurité sociale : c'est un
+	// AFFLUENT qui rejoint la bande des cotisations versées juste avant elle,
+	// exactement comme la compensation rejoint réellement les caisses de la
+	// Sécurité sociale au même titre que les cotisations. Une pointe de flèche
+	// épaisse à cette échelle dessinait un coin, pas un flux — une deuxième
+	// bande, empilée sans interstice sur le haut de la première, montre la
+	// confluence au lieu de l'illustrer par une collision.
 	{
 		compensationTotale := c.CompensationTVA + c.CompensationCiblees
-		epaisseur := 0.0
+		hComp := 0.0
 		if totalDu > 0 {
-			epaisseur = 70.0 * compensationTotale / totalDu
+			hComp = 70.0 * compensationTotale / totalDu
 		}
-		w(`<path class="flux comp" style="stroke-width:%.1fpx;stroke-linecap:round" `+
-			`d="M465 60 C540 70 640 110 650 166" marker-end="url(#fl)">`+
-			`<title>compensation par l'État — %s (%d)</title></path>`,
-			epaisseur, mdEur(compensationTotale), c.AnneeCompensation)
+		const x0, x1 = 465.0, 570.0 // État (bord droit) → Sécurité sociale (bord gauche)
+		xm := (x0 + x1) / 2
+		y0t, y0b := 90.0-hComp, 90.0
+		y1b := 170.0 + hExo // exactement le haut de la bande « versée » : aucun interstice
+		y1t := y1b - hComp
+		fmt.Fprintf(&b, `<path class="ruban comp" d="M%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f `+
+			`L%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f Z"><title>compensation par l'État — %s (%d)</title></path>`,
+			x0, y0t, xm, y0t, xm, y1t, x1, y1t,
+			x1, y1b, xm, y1b, xm, y0b, x0, y0b,
+			mdEur(compensationTotale), c.AnneeCompensation)
 	}
 	etiq(490, 30, "start", "fort", "compensation par l'État "+mdEur(c.CompensationTVA+c.CompensationCiblees))
 	etiq(490, 47, "start", "", fmt.Sprintf("loi Veil (1994) — jaune budgétaire, %d", c.AnneeCompensation))
