@@ -1,8 +1,8 @@
 {
-  "genere_le": "2026-09-15T19:56:18Z",
+  "genere_le": "2026-09-15T20:13:15Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
-  "nombre_sources": 121,
+  "nombre_sources": 122,
   "sources": [
     {
       "slug": "acteurs-numeriques-francais",
@@ -7282,6 +7282,43 @@
         }
       ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "drees-apa-domicile",
+      "label": "DREES — APA à domicile, bénéficiaires et dépenses",
+      "publisher": "Direction de la recherche, des études, de l'évaluation et des statistiques (DREES)",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "annuelle",
+      "notes": "France métropolitaine et DROM, hors Mayotte. Rupture de périmètre en 2017 (avant : seuls les intervenants à domicile ; à partir de 2017 : l'ensemble des dépenses couvertes par l'APA à domicile). Données déclaratives des conseils départementaux, parfois manquantes ('ND' dans la source, chargé en NULL). Ne couvre pas l'APA en établissement.",
+      "derniere_ingestion_reussie": "2026-09-15T20:10:56",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 2,
+      "connecteur_derniere_version": "vieillesse-v1",
+      "format_detecte": "Fichier XLSX",
+      "urls_origine": [
+        "https://data.drees.solidarites-sante.gouv.fr/api/explore/v2.1/catalog/datasets/apa-et-pch-montants-verses/attachments/apa_a_domicile_depenses_couvertes_2010_2024_xlsx"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 274588,
+      "chemins_locaux": [
+        "2026/09/15/cfc0b18cab1d66d54db6f386edd8552aabdf150952af48700bf1a482e5ce42f5.xlsx"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "apa_domicile",
+          "lignes_totales_estimees": 1520,
+          "lignes_pour_cette_source": 1520,
+          "taille_octets": 270336,
+          "annee_min": 2010,
+          "annee_max": 2024,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
     },
     {
       "slug": "drees-composition-revenu-menages",

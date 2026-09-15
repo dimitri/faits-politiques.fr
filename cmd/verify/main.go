@@ -1748,6 +1748,20 @@ var checks = []check{
 		           GROUP BY mv.annee
 		        ) x WHERE abs(total - somme) > 0.5`,
 	},
+	{
+		name:  "l'APA à domicile couvre au moins cent départements chaque année depuis 2010",
+		query: `SELECT count(*) FROM (SELECT annee, count(*) AS nb FROM core.apa_domicile GROUP BY annee HAVING count(*) < 100) x`,
+	},
+	{
+		// Le total France (somme des départements déclarants, donc un
+		// plancher : les 'ND' ne sont jamais comptés comme 0) doit rester
+		// dans un ordre de grandeur plausible — hors de [1,5] Md€ signalerait
+		// une colonne mal lue (séparateur de milliers, décalage d'index).
+		name: "le total national APA à domicile reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sum(depenses_total_eur) AS total FROM core.apa_domicile GROUP BY annee
+		        ) x WHERE total NOT BETWEEN 1e9 AND 5e9`,
+	},
 }
 
 func main() {

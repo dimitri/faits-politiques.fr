@@ -48,11 +48,12 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/sante"
 	"github.com/faits-politiques/faits-politiques/internal/senat"
 	"github.com/faits-politiques/faits-politiques/internal/store"
+	"github.com/faits-politiques/faits-politiques/internal/vieillesse"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
 func main() {
-	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | sae | rpps | hydro | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
+	only := flag.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | sae | rpps | hydro | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media")
 	rawDir := flag.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := flag.String("migrations", "db/migrations", "répertoire des migrations")
 	flag.Parse()
@@ -413,6 +414,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "sante" {
 		fmt.Println("\nsanté : FINESS et secteurs conventionnels")
 		return sante.Ingest(ctx, pool, arch)
+	}
+	// La branche autonomie : voir docs/vieillesse-donnees.md. Hors chaîne
+	// par défaut, comme les autres blocs thématiques ajoutés au fil des
+	// demandes.
+	if only == "vieillesse" {
+		fmt.Println("\nvieillesse : branche autonomie")
+		return vieillesse.IngestAPA(ctx, pool, arch)
 	}
 	// Les bassins hydrographiques (BD Topage) : la couche géographique du
 	// dossier bassins versants, voir docs/bassins-versants-donnees.md. Hors
