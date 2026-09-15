@@ -2485,3 +2485,30 @@ mesure la contredise.
   entreprises cotées en donne un ordre de grandeur, citée comme DECLARATIF, jamais
   additionnée aux séries officielles.
 - Nouveau sujet `investissement`, famille « Travail, économie et entreprises ».
+
+## D-075 — La page de sujet « Collectivités » ne recopie plus /collectivites/ en entier
+
+`cmd/build/sujet_page.go` (`donneesCollectivites`, `onglezCartesNiveaux`), `web/assets/style.css`.
+
+**Pourquoi.** `/sujets/collectivites/` reprenait tout le `<main>` de `/collectivites/` :
+les trois cartes (régions, départements, intercommunalités) empilées en pleine largeur
+avant même le premier paragraphe, puis un mur d'une dizaine de cartes thématiques
+communales, puis les tableaux complets des 103 départements et des groupements. Le
+même modèle que `/collectivites/departement/01/` — une carte, une légende, un tableau
+court — ne s'y retrouvait pas.
+
+**Décidé.**
+
+- **Les trois cartes deviennent trois onglets** (Régions, Départements, Intercommunalités),
+  même composant sans script que les cartes de l'accueil (`.onglets-carte`) : une carte
+  affichée à la fois, le panneau EST la carte plutôt qu'une vignette qui renvoie ailleurs.
+  L'extraction repère les divisions imbriquées en comptant les balises (`finDiv`), pas par
+  une expression régulière bornée à une profondeur fixe — la carte porte elle-même une
+  échelle et des cartons d'outre-mer, eux-mêmes imbriqués.
+- **Le mur de cartes communales et les tableaux exhaustifs (103 départements, groupements)
+  restent sur `/collectivites/` seulement.** La page de sujet garde « Qui dépense quoi »,
+  « D'où vient l'argent » et le tableau des 17 régions (court), puis un lien unique vers
+  la page complète — pas une seconde copie.
+- Mécanisme réservé au sujet `collectivites` (`donneesCollectivites`) ; les autres sujets
+  qui reprennent une page de données (chômage, dette, agriculture…) gardent
+  `donneesDePage`, inchangé.

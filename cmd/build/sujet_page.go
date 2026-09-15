@@ -384,6 +384,177 @@ func donneesDePage(out, url string) template.HTML {
 	return template.HTML(c)
 }
 
+// donneesCollectivites reprend, pour la page de sujet, une sélection de
+// /collectivites/ plutôt que la page entière (D-075) : les trois cartes de
+// « qui dépense où » deviennent des onglets — une seule à l'écran à la fois,
+// comme sur /collectivites/departement/<code>/ — et les tableaux exhaustifs
+// (103 départements, 9 000 groupements, les cartes commune par commune)
+// restent sur /collectivites/, avec un lien pour les y retrouver plutôt
+// qu'une seconde copie sur la page de sujet.
+var reH2Any = regexp.MustCompile(`(?s)<h2[^>]*>(.*?)</h2>`)
+
+func donneesCollectivites(out, root string) template.HTML {
+	src, err := os.ReadFile(filepath.Join(out, "collectivites", "index.html"))
+	if err != nil {
+		return ""
+	}
+	m := reMain.FindSubmatch(src)
+	if m == nil {
+		return ""
+	}
+	corps := reFil.ReplaceAllString(string(m[1]), "")
+	corps = reH1.ReplaceAllString(corps, `<h2 class="h2"$1>$2</h2>`)
+
+	idx := reH2Any.FindAllStringSubmatchIndex(corps, -1)
+	if len(idx) == 0 {
+		return template.HTML(corps)
+	}
+	avant := corps[:idx[0][0]] // la note « aucun président élu directement », avant le premier h2
+	sections := map[string]string{}
+	for i, m := range idx {
+		fin := len(corps)
+		if i+1 < len(idx) {
+			fin = idx[i+1][0]
+		}
+		titre := strings.TrimSpace(reBalises.ReplaceAllString(corps[m[2]:m[3]], ""))
+		sections[titre] = corps[m[0]:fin]
+	}
+
+	var b strings.Builder
+	b.WriteString(avant)
+
+	// Les trois cartes, en onglets plutôt qu'empilées : un seul territoire à
+	// la fois, comme sur une page de département.
+	if trois, ok := sections["Trois niveaux, trois cartes"]; ok {
+		b.WriteString(onglezCartesNiveaux(trois))
+	}
+	for _, titre := range []string{"Qui dépense quoi, en " + anneeDe(sections), "D'où vient l'argent"} {
+		if sec, ok := sections[titre]; ok {
+			b.WriteString(sec)
+		}
+	}
+	if regions, ok := regionsAvecTitre(sections); ok {
+		b.WriteString(regions)
+	}
+	fmt.Fprintf(&b, `<p class="q">Chaque département, chaque groupement de communes, et les cartes `+
+		`commune par commune, sujet par sujet&nbsp;: <a href="%s/collectivites/">toutes les données `+
+		`des collectivités →</a></p>`, root)
+	return template.HTML(b.String())
+}
+
+// anneeDe retrouve l'année de l'exercice depuis le titre « Qui dépense quoi,
+// en 2025 » déjà présent dans les sections extraites, plutôt que de la
+// recalculer : une seule source pour ce chiffre.
+func anneeDe(sections map[string]string) string {
+	for titre := range sections {
+		if strings.HasPrefix(titre, "Qui dépense quoi, en ") {
+			return strings.TrimPrefix(titre, "Qui dépense quoi, en ")
+		}
+	}
+	return ""
+}
+
+func regionsAvecTitre(sections map[string]string) (string, bool) {
+	for titre, sec := range sections {
+		if strings.HasPrefix(titre, "Les ") && strings.HasSuffix(titre, " régions") {
+			return sec, true
+		}
+	}
+	return "", false
+}
+
+// onglezCartesNiveaux transforme les trois cartes empilées (régions,
+// départements, intercommunalités) de /collectivites/ en trois onglets — le
+// même composant, sans script, que les cartes de l'accueil. Les balises div
+// sont comptées plutôt que bornées par une expression régulière : chaque
+// carte imbrique elle-même l'échelle et les cartons d'outre-mer dans leurs
+// propres <div>, à une profondeur qu'une regex ne borne pas de façon fiable.
+func onglezCartesNiveaux(section string) string {
+	titre := reH2Any.FindString(section)
+	corps := section[len(titre):]
+
+	debutEnv := strings.Index(corps, `<div class="cartes-empilees">`)
+	if debutEnv < 0 {
+		return section
+	}
+	finEnv, ok := finDiv(corps, debutEnv)
+	if !ok {
+		return section
+	}
+	interieur := corps[debutEnv+len(`<div class="cartes-empilees">`) : finEnv]
+	avant, apres := corps[:debutEnv], corps[finEnv+len("</div>"):]
+
+	var cartes []string
+	reste := interieur
+	for {
+		d := strings.Index(reste, `<div class="bloc-carte"`)
+		if d < 0 {
+			break
+		}
+		f, ok := finDiv(reste, d)
+		if !ok {
+			return section
+		}
+		cartes = append(cartes, reste[d:f+len("</div>")])
+		reste = reste[f+len("</div>"):]
+	}
+	if len(cartes) != 3 {
+		return section // la mise en page de /collectivites/ a changé : mieux vaut la page complète qu'une carte perdue
+	}
+
+	libelles := []string{"Régions", "Départements", "Intercommunalités"}
+	var b strings.Builder
+	b.WriteString(titre)
+	b.WriteString(avant)
+	b.WriteString(`<div class="onglets-carte">`)
+	for i := range cartes {
+		checked := ""
+		if i == 0 {
+			checked = " checked"
+		}
+		fmt.Fprintf(&b, `<input type="radio" name="onglet-carte-niveau" id="ocn%d" class="vh"%s>`, i+1, checked)
+	}
+	b.WriteString(`<div class="etiquettes" role="presentation">`)
+	for i, l := range libelles {
+		fmt.Fprintf(&b, `<label for="ocn%d">%s</label>`, i+1, l)
+	}
+	b.WriteString(`</div><div class="panneaux">`)
+	for i, c := range cartes {
+		b.WriteString(reBlocCarteClasse.ReplaceAllString(c, `<div class="bloc-carte p`+fmt.Sprint(i+1)+`">`))
+	}
+	b.WriteString(`</div></div>`)
+	b.WriteString(apres)
+	return b.String()
+}
+
+var reBlocCarteClasse = regexp.MustCompile(`^<div class="bloc-carte"[^>]*>`)
+
+// finDiv trouve, pour un <div ...> qui commence à l'indice debut, l'indice de
+// son </div> correspondant — en comptant les ouvertures et fermetures
+// imbriquées, pas en s'arrêtant à la première rencontrée.
+func finDiv(s string, debut int) (int, bool) {
+	depth := 0
+	i := debut
+	for i < len(s) {
+		o := strings.Index(s[i:], "<div")
+		c := strings.Index(s[i:], "</div>")
+		if c < 0 {
+			return 0, false
+		}
+		if o >= 0 && o < c {
+			depth++
+			i += o + len("<div")
+			continue
+		}
+		depth--
+		if depth == 0 {
+			return i + c, true
+		}
+		i += c + len("</div>")
+	}
+	return 0, false
+}
+
 // ── En bref : les chiffres clés, curatés par sujet, lus dans la base ────
 
 func enBref(ctx context.Context, pool *pgxpool.Pool, s *Sujet, acc *DonneesAccueil, credits []ligneCredit) []ChiffreCle {
@@ -539,7 +710,10 @@ func preparerSujets(ctx context.Context, pool *pgxpool.Pool, out, root string, a
 			}
 			decouperDossier(s, faits[s.Doc], credits[s.Doc], root)
 			s.EnBref = enBref(ctx, pool, s, acc, credits[s.Doc])
-			if len(s.Pages) > 0 {
+			switch {
+			case s.ID == "collectivites":
+				s.Donnees = donneesCollectivites(out, root)
+			case len(s.Pages) > 0:
 				s.Donnees = donneesDePage(out, s.Pages[0].URL)
 			}
 		}
