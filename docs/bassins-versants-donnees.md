@@ -21,7 +21,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | agences de l'eau | 120 | 57 | 15 octobre 2024 | 20 juillet 2026 |
 | GEMAPI | 38 | 28 | 7 novembre 2024 | 20 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -73,11 +73,10 @@ l'environnement (L. 211-7) : aménagement d'un bassin, entretien des cours
 d'eau, défense contre les inondations et la mer, protection des écosystèmes
 aquatiques.
 
-**Déjà mesurable dans la base de ce projet** : `core.epci_competence`
-dénombre entre **1 652 et 1 690 groupements** (EPCI à fiscalité propre et
-syndicats délégataires, selon la mission précise) qui portent au moins l'un
-de ces quatre items — la première fois que ce projet chiffre la compétence
-GEMAPI plutôt que de la décrire en principe.
+**Déjà mesurable dans la base de ce projet** : cette série dénombre entre **1 652 et 1
+690 groupements** (EPCI à fiscalité propre et syndicats délégataires, selon la mission
+précise) qui portent au moins l'un de ces quatre items — la première fois que ce
+projet chiffre la compétence GEMAPI plutôt que de la décrire en principe.
 
 **Une compétence qui se délègue** : un EPCI peut transférer tout ou partie de
 la GEMAPI à un syndicat mixte constitué à l'échelle d'un bassin versant —
@@ -132,10 +131,10 @@ existe déjà** — pas suggérer qu'il en faudrait une nouvelle.
 
 ### 3. La carte : sept bassins hydrographiques, un découpage qui ignore les frontières administratives
 
-`geo.contour_bassin` (nouveau, cette note) : les sept bassins hydrographiques
-de France métropolitaine (BD Topage 2025, Sandre/IGN) — les six bassins des
-agences de l'eau plus la Corse, distincte hydrographiquement mais rattachée
-administrativement à Rhône-Méditerranée (§ 1.1) :
+Cette série (nouveau, cette note) : les sept bassins hydrographiques de France
+métropolitaine (BD Topage 2025, Sandre/IGN) — les six bassins des agences de l'eau
+plus la Corse, distincte hydrographiquement mais rattachée administrativement à
+Rhône-Méditerranée (§ 1.1) :
 
 | Bassin | Superficie (km²) |
 |---|---:|
@@ -192,5 +191,5 @@ de l'eau local plutôt qu'à une agence) ne sont pas chargés à ce stade.
 
 ## Versions
 
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre et contrôle sourcés (loi MAPTAM, mission d'information du Sénat de 2023).
+- **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre et contrôle sourcés (loi MAPTAM, mission d'information du Sénat de 2023).
 - **Version 1** (14 septembre 2026) : architecture de la gouvernance de l'eau et carte des bassins hydrographiques.

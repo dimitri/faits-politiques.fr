@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | police nationale | 146 | 58 | 8 octobre 2024 | 21 juillet 2026 |
 | LOPMI | 46 | 22 | 4 février 2025 | 21 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -64,9 +64,9 @@ c'est le coût de la seule police nationale.
 
 ### 2. Le budget de la police nationale : mission Sécurités, programme 176
 
-Source : PLF (projet de loi de finances), `data.economie.gouv.fr`, nomenclature
-LOLF par mission/programme/action. La mission **Sécurités** porte quatre
-programmes budgétaires — tous chargés, aucun agrégé aux autres :
+Source : PLF (projet de loi de finances), nomenclature LOLF par
+mission/programme/action. La mission **Sécurités** porte quatre programmes budgétaires
+— tous chargés, aucun agrégé aux autres :
 
 | Programme | 2024 (Md€) | 2025 (Md€) |
 |---|---:|---:|
@@ -119,31 +119,29 @@ de postes programmées et celles réalisées (§ Contrôles).
 
 ### 1. Budget et délinquance : deux mesures indépendantes
 
-`core.commune_delinquance` compte des faits enregistrés par la police et la
-gendarmerie, commune par commune. `core.budget_programme` (nouveau, cette
-note) compte des crédits votés par l'État, mission par mission. Rien ne relie
-mécaniquement les deux : un budget en hausse peut coexister avec une
-délinquance stable, en baisse ou en hausse, pour des raisons qui n'ont rien à
-voir avec le montant voté (organisation, priorités d'affectation,
-évolutions sociales). Cette note ne tente aucun rapprochement des deux
-séries — les publier côte à côte inviterait à une lecture causale que la
-donnée ne permet pas.
+Cette série compte des faits enregistrés par la police et la gendarmerie, commune par
+commune. Cette série (nouveau, cette note) compte des crédits votés par l'État,
+mission par mission. Rien ne relie mécaniquement les deux : un budget en hausse peut
+coexister avec une délinquance stable, en baisse ou en hausse, pour des raisons qui
+n'ont rien à voir avec le montant voté (organisation, priorités d'affectation,
+évolutions sociales). Cette note ne tente aucun rapprochement des deux séries — les
+publier côte à côte inviterait à une lecture causale que la donnée ne permet pas.
 
 ## Sources
 
 - Direction du budget, *PLF — dépenses par mission, programme et action*,
   data.economie.gouv.fr, éditions 2024 et 2025.
-- [docs/securite-conception.md](securite-conception.md), pour ce que
-  `core.commune_delinquance` mesure et ne mesure pas.
+- [docs/securite-conception.md](securite-conception.md), pour ce que cette série
+  mesure et ne mesure pas.
 - [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
 
 ## Annexe technique
 
 ### 4. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Direction du budget, PLF par mission/programme/action | `core.budget_programme` | 4 796 lignes, toutes missions, 2024-2025 |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | Direction du budget, PLF par mission/programme/action | 4 796 lignes, toutes missions, 2024-2025 |
 
 **Non chargé, et pourquoi :**
 
@@ -153,10 +151,9 @@ donnée ne permet pas.
   pas dans un export structuré équivalent à celui des crédits.
 - Police municipale (§ 3).
 - Exécution réelle (par opposition au PLF voté) : la mission Sécurités n'a pas
-  d'équivalent ouvert à `core.execution_etat`, qui ne détaille pas par
-  mission.
+  d'équivalent ouvert à cette série, qui ne détaille pas par mission.
 
 ## Versions
 
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (LOPMI) et contrôle du Sénat sur les créations de postes.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (LOPMI) et contrôle du Sénat sur les créations de postes.
 - **Version 1** (14 septembre 2026) : budget de la police nationale par nature de dépense.

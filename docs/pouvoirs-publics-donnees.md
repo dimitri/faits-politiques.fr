@@ -45,14 +45,13 @@
 
 ### 1. La mission « Pouvoirs publics » : quatre institutions, une seule mission
 
-`core.budget_programme` (même table que
+Cette série (même table que
 [docs/securite-police-donnees.md](securite-police-donnees.md),
 [docs/defense-donnees.md](defense-donnees.md),
 [docs/education-donnees.md](education-donnees.md) et
-[docs/ecologie-donnees.md](ecologie-donnees.md) — un seul chargement PLF
-couvre déjà cette mission) : la mission **Pouvoirs publics** regroupe les
-crédits votés pour les institutions constitutionnelles, chacune son propre
-programme budgétaire :
+[docs/ecologie-donnees.md](ecologie-donnees.md) — un seul chargement PLF couvre déjà
+cette mission) : la mission **Pouvoirs publics** regroupe les crédits votés pour les
+institutions constitutionnelles, chacune son propre programme budgétaire :
 
 | Institution | 2024 (M€) | 2025 (M€) |
 |---|---:|---:|
@@ -85,10 +84,9 @@ les autres missions.
 
 Comme pour Défense, Sécurité et Éducation, la série ne remonte qu'à 2024 :
 les jeux PLF de data.economie.gouv.fr changent de nom et de schéma de champs
-d'une édition à l'autre (voir `internal/budget/plf_destination.go`), et
-étendre la série en amont demande de retrouver et vérifier un identifiant par
-millésime — non fait à ce stade, comme documenté pour les autres notes de
-cette même famille.
+d'une édition à l'autre, et étendre la série en amont demande de retrouver et
+vérifier un identifiant par millésime — non fait à ce stade, comme documenté
+pour les autres notes de cette même famille.
 
 ## Ce que les données ne disent pas
 
@@ -120,10 +118,10 @@ Quatre précisions manquantes, chacune pour une raison distincte :
   nominative), mais n'a pas été rapproché ici de la dotation globale du
   tableau du § 1.
 
-**Cohérent avec le reste du projet** (`docs/perimetre.md` § 2, D-003) : ce
-qui n'est pas publié comme donnée ouverte structurée n'est pas deviné ni
-estimé — cette note s'arrête à la dotation globale, la plus fine maille
-réellement disponible en open data budgétaire pour ces institutions.
+**Cohérent avec la règle de ce site** : ce qui n'est pas publié comme donnée
+ouverte structurée n'est pas deviné ni estimé — cette note s'arrête à la
+dotation globale, la plus fine maille réellement disponible en open data
+budgétaire pour ces institutions.
 
 ## Sources
 
@@ -135,11 +133,11 @@ réellement disponible en open data budgétaire pour ces institutions.
 
 ### 4. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Direction du budget, PLF, mission Pouvoirs publics | `core.budget_programme` | 6 programmes, 2024-2025 (table partagée, § 1) |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | Direction du budget, PLF, mission Pouvoirs publics | 6 programmes, 2024-2025 (table partagée, § 1) |
 
 ## Versions
 
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (ordonnance de 1958) et contrôle du Sénat sur les dotations.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (ordonnance de 1958) et contrôle du Sénat sur les dotations.
 - **Version 1** (14 septembre 2026) : dotations de la mission « Pouvoirs publics ».

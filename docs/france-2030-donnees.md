@@ -17,7 +17,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | France 2030 | 128 | 63 | 21 octobre 2024 | 6 juillet 2026 |
 | plan de relance | 84 | 50 | 2 octobre 2024 | 6 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -75,7 +75,9 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 | **Total** | **1 414,0** | **169,0** | **−88,0 %** |
 | *Autorisations d'engagement (total)* | *0,0* | *0,0* | *—* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
+les crédits de personnel incluent les cotisations au compte « Pensions » (source :
+Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 
@@ -91,7 +93,10 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 ### Autres données
 
-Des aides versées au titre de France 2030 figurent au registre européen des aides d'État chargé (`core.aide_nominative`) ; la partie semi-conducteurs de [souverainete-numerique.md](souverainete-numerique.md) détaille la stratégie électronique (5 Md€).
+Des aides versées au titre de France 2030 figurent au registre européen des aides
+d'État chargé ; la partie semi-conducteurs de
+[souverainete-numerique.md](souverainete-numerique.md) détaille la stratégie
+électronique (5 Md€).
 
 ## Ce que les données ne disent pas
 
@@ -118,16 +123,12 @@ Des aides versées au titre de France 2030 figurent au registre européen des ai
 
 ## Sources
 
-| source | table | niveau |
-|---|---|---|
-| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | `core.budget_programme` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, mission « Investir pour la France de 2030 », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-316/l25-139-316-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Journal officiel (textes cités au cadre) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Comptes rendus de l'Assemblée nationale | `derived.dossier_mentions_an` | PRIMARY_OFFICIAL |
-
-## Annexe technique
-
-Missions suivies : `ref.dossier_mission` (déclarées dans `internal/dossiers/verticales.go`, migration 0102) ; crédits : `derived.dossier_budget_programme` ; faits : `ref.fait_dossier` (`-only=dossiers-faits`, phrases relues dans chaque source au chargement) ; sections générées par `cmd/sections-dossiers`. Vérifications : `cmd/verify/dossiers.go`. Décision : D-066.
+| source | niveau |
+| --- | --- |
+| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, mission « Investir pour la France de 2030 », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-316/l25-139-316-syn.pdf) | PRIMARY_OFFICIAL |
+| Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
+| Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
 
 ## Versions
 

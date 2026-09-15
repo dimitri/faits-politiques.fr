@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | retraites | 2789 | 379 | 19 juillet 2024 | 21 juillet 2026 |
 | âge de départ | 176 | 91 | 1er octobre 2024 | 2 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -52,8 +52,7 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 ### 1. La dépense : la plus grosse fonction de la protection sociale
 
-`core.protection_sociale` (Drees, comptes de la protection sociale, tous
-régimes, 2024) :
+Cette série (Drees, comptes de la protection sociale, tous régimes, 2024) :
 
 | fonction | Md€ |
 |---|---:|
@@ -66,9 +65,8 @@ sociale française** — devant la santé (338,9 Md€, docs/cotisations-et-droi
 sur 426,7 relèvent d'un droit ouvert par la cotisation, pas par la condition
 de ressources).
 
-**La comparaison européenne harmonisée** (`core.macro_value`, série
-`protection.depense.vieillesse`, Eurostat ESSPROS) situe la trajectoire dans
-le temps :
+**La comparaison européenne harmonisée** (Eurostat ESSPROS) situe
+la trajectoire dans le temps :
 
 | année | Md€ |
 |---|---:|
@@ -86,11 +84,11 @@ fil des carrières plus longues et mieux rémunérées.
 
 ### 2. La distribution des pensions : ce qu'une moyenne ne dit pas
 
-`core.pension_tranche_eir` (Drees, Échantillon interrégimes de retraités
-2020, pension brute de droit direct, 46 tranches de 100 €) — déjà chargée pour
-la micro-simulation du revenu universel
-([docs/revenu-universel-microsimulation.md](revenu-universel-microsimulation.md)
-§ 3.1), et directement réutilisable ici :
+Cette série (Drees, Échantillon interrégimes de retraités 2020, pension brute de droit
+direct, 46 tranches de 100 €) — déjà chargée pour la micro-simulation du revenu
+universel
+([docs/revenu-universel-microsimulation.md](revenu-universel-microsimulation.md) §
+3.1), et directement réutilisable ici :
 
 | tranche | part des retraités |
 |---|---:|
@@ -111,9 +109,9 @@ seule.
 
 ### 3. L'âge de départ : ce que les réformes changent, visible année par année
 
-`core.age_depart_retraite` (Drees, âge CONJONCTUREL moyen de départ — calculé
-sur les seuls départs d'une année donnée, comme un indice conjoncturel de
-fécondité, pas l'âge réel d'une génération) :
+Cette série (Drees, âge CONJONCTUREL moyen de départ — calculé sur les seuls départs
+d'une année donnée, comme un indice conjoncturel de fécondité, pas l'âge réel d'une
+génération) :
 
 | année | femmes | hommes | ensemble |
 |---|---:|---:|---:|
@@ -136,10 +134,9 @@ partir sans pension réduite.
 
 ### 4. Le minimum vieillesse (ASV puis ASPA) : une trajectoire en U
 
-`core.minima_sociaux_effectif`, dispositif `ASV_ASPA` (Allocation
-supplémentaire vieillesse jusqu'en 2006, Allocation de solidarité aux
-personnes âgées depuis le 13 janvier 2007 — la Drees les suit comme une seule
-série continue) :
+Cette série, dispositif `ASV_ASPA` (Allocation supplémentaire vieillesse jusqu'en
+2006, Allocation de solidarité aux personnes âgées depuis le 13 janvier 2007 — la
+Drees les suit comme une seule série continue) :
 
 | année | allocataires |
 |---|---:|
@@ -160,19 +157,17 @@ récente est donc une rupture de série documentée par la source, pas
 seulement un effet démographique**, et les deux ne sont pas séparables avec
 les seules données publiées.
 
-**Dépense** (`core.minima_sociaux_depense`, Md€ constants 2024) : **2 453 M€
-en 2009 → 4 586 M€ en 2024**, soit **+87 %** — une hausse bien supérieure à
-celle des effectifs (+34 % sur la même période, 2009 : 517 000 → 2024 :
-693 200), qui traduit une revalorisation réelle du montant individuel de
-l'Aspa, pas seulement davantage de bénéficiaires.
+**Dépense** (Md€ constants 2024) : **2 453 M€ en 2009 → 4 586 M€ en 2024**, soit **+87
+%** — une hausse bien supérieure à celle des effectifs (+34 % sur la même période,
+2009 : 517 000 → 2024 : 693 200), qui traduit une revalorisation réelle du montant
+individuel de l'Aspa, pas seulement davantage de bénéficiaires.
 
 ### 5. Le taux de remplacement : ce que la pension remplace vraiment
 
-`core.taux_remplacement_retraite` (Drees, cohortes 2012-2020, quantiles à 10,
-25, 50, 75 et 90 %) mesure la part du revenu d'avant la retraite que la
-pension remplace — 100 signifie une pension égale au revenu antérieur.
-Rapporté au **niveau de vie** (qui lisse les revenus au sein du ménage,
-pas seulement le revenu personnel), cohorte 2020 :
+Cette série (Drees, cohortes 2012-2020, quantiles à 10, 25, 50, 75 et 90 %) mesure la
+part du revenu d'avant la retraite que la pension remplace — 100 signifie une pension
+égale au revenu antérieur. Rapporté au **niveau de vie** (qui lisse les revenus au
+sein du ménage, pas seulement le revenu personnel), cohorte 2020 :
 
 | | q10 | q25 | **médiane** | q75 | q90 |
 |---|---:|---:|---:|---:|---:|
@@ -205,7 +200,7 @@ taux de remplacement mesuré sur le niveau de vie.
 
 ### 6. Le ratio cotisants / retraités : la pression démographique, chiffrée
 
-`core.cotisants_retraites_ratio` (Insee, 2004-2023, tous régimes) :
+Cette série (Insee, 2004-2023, tous régimes) :
 
 | année | cotisants (M) | retraités (M) | ratio |
 |---|---:|---:|---:|
@@ -276,16 +271,16 @@ décennie chargée ici montre une stabilisation, pas un effondrement.
 
 ### 8. Ce qui est chargé
 
-| # | Source | Table | Chargée pour |
-|---|---|---|---|
-| 1 | Drees, comptes de la protection sociale | `core.protection_sociale` | docs/budget-donnees.md |
-| 2 | Eurostat ESSPROS, dépense fonction vieillesse | `core.macro_value` (`protection.depense.vieillesse`) | cette note |
-| 3 | Drees, Échantillon interrégimes de retraités 2020 | `core.pension_tranche_eir` | docs/revenu-universel-microsimulation.md |
-| 4 | Drees, minima sociaux — dispositif ASV/ASPA | `core.minima_sociaux_effectif`, `core.minima_sociaux_depense` | docs/chomage-donnees.md |
-| 5 | Insee, population par âge | `core.population_age` | docs/revenu-universel-microsimulation.md |
-| 6 | Drees, âge conjoncturel moyen de départ à la retraite | `core.age_depart_retraite` | cette note |
-| 7 | Drees, répartition des taux de remplacement | `core.taux_remplacement_retraite` | cette note |
-| 8 | Insee, cotisants et retraités de droit direct | `core.cotisants_retraites_ratio` | cette note |
+| # | Source | Chargée pour |
+| --- | --- | --- |
+| 1 | Drees, comptes de la protection sociale | docs/budget-donnees.md |
+| 2 | Eurostat ESSPROS, dépense fonction vieillesse | cette note |
+| 3 | Drees, Échantillon interrégimes de retraités 2020 | docs/revenu-universel-microsimulation.md |
+| 4 | Drees, minima sociaux — dispositif ASV/ASPA | docs/chomage-donnees.md |
+| 5 | Insee, population par âge | docs/revenu-universel-microsimulation.md |
+| 6 | Drees, âge conjoncturel moyen de départ à la retraite | cette note |
+| 7 | Drees, répartition des taux de remplacement | cette note |
+| 8 | Insee, cotisants et retraités de droit direct | cette note |
 
 Les lignes 2, 6, 7 et 8 sont les séries chargées spécifiquement pour cette
 note ; les quatre autres existaient déjà — la preuve que les sujets de ce
@@ -293,6 +288,6 @@ projet se recoupent plus qu'ils ne s'empilent.
 
 ## Versions
 
-- **Version 4** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de 2023) et évaluation du Conseil d'orientation des retraites.
+- **Version 4** (15 septembre 2026) : plan commun des dossiers ; cadre (loi de 2023) et évaluation du Conseil d'orientation des retraites.
 - **Version 3** (14 septembre 2026) : taux de remplacement par quantile (§ 5), ratio cotisants / retraités (§ 6), absence de données ouvertes AGIRC-ARRCO (§ 7).
 - **Version 2** : âge de départ à la retraite depuis 2004 (§ 3).

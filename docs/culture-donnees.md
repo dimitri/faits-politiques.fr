@@ -19,7 +19,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | spectacle vivant | 22 | 16 | 9 octobre 2024 | 28 janvier 2026 |
 | pass Culture | 17 | 15 | 21 octobre 2024 | 9 avril 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -100,7 +100,9 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 | **Total** | **735,9** | **723,7** | **−1,7 %** |
 | *Autorisations d'engagement (total)* | *741,9* | *728,0* | *−1,9 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
+les crédits de personnel incluent les cotisations au compte « Pensions » (source :
+Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 
@@ -118,7 +120,8 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 - **Les dépenses culturelles des collectivités** : non chargées ici (`NOT_LOADED`) ; la comparaison avec l'effort de l'État n'est donc pas possible dans ce dossier.
 - **Le budget du Centre national du cinéma** : financé par des taxes affectées, il n'apparaît pas dans les missions ; seul le constat du Sénat en donne l'ordre de grandeur.
-- **Les dépenses fiscales rattachées** (taux réduits de TVA, crédits d'impôt) mission par mission : citées par le Sénat, non rapprochées de `core.depense_fiscale`.
+- **Les dépenses fiscales rattachées** (taux réduits de TVA, crédits d'impôt) mission
+  par mission : citées par le Sénat, non rapprochées de cette série.
 - **L'exécution par mission et par programme** : seuls les projets de loi de finances 2024 et 2025 sont chargés ; les rapports annuels de performances et la situation mensuelle par mission ne le sont pas (`NOT_LOADED`).
 - **La série longue** : avant 2024, les jeux de la Direction du budget changent de nom et de schéma ; non chargés à ce stade.
 
@@ -140,17 +143,13 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 ## Sources
 
-| source | table | niveau |
-|---|---|---|
-| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | `core.budget_programme` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, mission « Culture », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-37/l25-139-37-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, mission « Médias, livre et industries culturelles », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-318/l25-139-318-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Journal officiel (textes cités au cadre) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Comptes rendus de l'Assemblée nationale | `derived.dossier_mentions_an` | PRIMARY_OFFICIAL |
-
-## Annexe technique
-
-Missions suivies : `ref.dossier_mission` (déclarées dans `internal/dossiers/verticales.go`, migration 0102) ; crédits : `derived.dossier_budget_programme` ; faits : `ref.fait_dossier` (`-only=dossiers-faits`, phrases relues dans chaque source au chargement) ; sections générées par `cmd/sections-dossiers`. Vérifications : `cmd/verify/dossiers.go`. Décision : D-066.
+| source | niveau |
+| --- | --- |
+| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, mission « Culture », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-37/l25-139-37-syn.pdf) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, mission « Médias, livre et industries culturelles », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-318/l25-139-318-syn.pdf) | PRIMARY_OFFICIAL |
+| Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
+| Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
 
 ## Versions
 

@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | immigration | 997 | 232 | 19 juillet 2024 | 21 juillet 2026 |
 | titres de séjour | 313 | 118 | 1er octobre 2024 | 9 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -52,7 +52,8 @@ Deux mots, deux populations qui se recoupent **partiellement** :
   soit son lieu de naissance. Un enfant né en France de parents étrangers est
   étranger, pas immigré, tant qu'il n'a pas acquis la nationalité française.
 
-**Ce que la base mesure, France entière, 15 ans ou plus, 2023** (`core.population_statut_migratoire`, Insee, recensement de la population) :
+**Ce que la base mesure, France entière, 15 ans ou plus, 2023** (Insee, recensement de
+la population) :
 
 | | effectif |
 |---|---:|
@@ -82,10 +83,9 @@ avec le chiffre publié par l'Insee (7,2 millions hors Mayotte, 10,6 %).
 
 ### 2. Origines géographiques
 
-Population immigrée par pays ou zone de naissance, France entière, 2023
-(`core.population_immigree_origine`, regroupement Insee — pas la liste
-complète des pays du monde, celle que l'Insee choisit de publier à ce niveau
-de détail) :
+Population immigrée par pays ou zone de naissance, France entière, 2023 (regroupement
+Insee — pas la liste complète des pays du monde, celle que l'Insee choisit de publier
+à ce niveau de détail) :
 
 | origine | effectif | part des immigrés |
 |---|---:|---:|
@@ -119,8 +119,7 @@ Statut d'emploi des immigrés de 15 ans ou plus, France entière, 2023 :
 | Au foyer | 466 565 |
 | Étudiant | 327 815 |
 
-Catégorie socioprofessionnelle, immigrés contre non-immigrés (15 ans ou plus,
-2023, `core.population_statut_migratoire_csp`) :
+Catégorie socioprofessionnelle, immigrés contre non-immigrés (15 ans ou plus, 2023) :
 
 | CSP | immigrés | non-immigrés | part des immigrés dans la CSP |
 |---|---:|---:|---:|
@@ -141,11 +140,10 @@ lecture unique (« les immigrés font les métiers que personne ne veut faire »
 
 ### 5. Comparaison européenne (Eurostat)
 
-Eurostat publie la même distinction sous un autre nom — **citoyenneté**
-(l'équivalent européen d'« étranger ») et **pays de naissance** (l'équivalent
-européen d'« immigré ») — ce qui permet de vérifier que la distinction n'est
-pas une particularité française. Chargé dans
-`core.eurostat_population_migratoire`, France, 2023 :
+Eurostat publie la même distinction sous un autre nom — **citoyenneté** (l'équivalent
+européen d'« étranger ») et **pays de naissance** (l'équivalent européen d'« immigré
+») — ce qui permet de vérifier que la distinction n'est pas une particularité
+française. Chargé dans cette série, France, 2023 :
 
 | | citoyenneté | pays de naissance |
 |---|---:|---:|
@@ -166,7 +164,7 @@ citer un seul chiffre comme s'il allait de soi.
 
 *Réserve technique : la décomposition national/UE27/hors UE27 n'est complète
 pour la France, dans la source Eurostat, qu'à partir de 2015 — avant, seul le
-total est fiable (`cmd/verify` le contrôle).*
+total est fiable.*
 
 ### 6. Ce que dit la recherche sur la contribution nette aux finances publiques
 
@@ -216,9 +214,9 @@ tableaux de séries.
 
 ### 7. Flux administratifs : titres de séjour (DGEF)
 
-`core.titre_sejour_stock` : stock de titres et documents de séjour valides au
-31 décembre, ressortissants de pays tiers hors Britanniques (suivis à part
-depuis le Brexit), 2013-2023 :
+Cette série : stock de titres et documents de séjour valides au 31 décembre,
+ressortissants de pays tiers hors Britanniques (suivis à part depuis le Brexit),
+2013-2023 :
 
 | zone | 2013 | 2023 |
 |---|---:|---:|
@@ -245,9 +243,9 @@ consulté : aucune édition plus récente n'y figure.
 
 #### 7.1 Les demandes d'asile (Ofpra), un flux distinct
 
-`core.demande_asile_ofpra` : demandes déposées devant l'Office français de
-protection des réfugiés et apatrides, 2021-2025 (2020 absent : la ressource
-data.gouv.fr correspondante renvoie une 404 au moment de l'écriture) :
+Cette série : demandes déposées devant l'Office français de protection des réfugiés et
+apatrides, 2021-2025 (2020 absent : la ressource data.gouv.fr correspondante renvoie
+une 404 au moment de l'écriture) :
 
 | année | premières demandes | réexamens | réouvertures |
 |---|---:|---:|---:|
@@ -277,9 +275,8 @@ nationalité (12 378), suivie de l'Ukraine (11 814).
 
 ### 8. L'évolution historique : un siècle de recensements
 
-Toutes les sections précédentes portent sur un ou deux millésimes récents. Ce
-que l'Insee publie de plus long, chargé dans
-`core.population_historique_nationalite` — trente-deux recensements ou
+Toutes les sections précédentes portent sur un ou deux millésimes récents. Ce que
+l'Insee publie de plus long, chargé dans cette série — trente-deux recensements ou
 estimations, 1921 à 2025 :
 
 | année | immigrés (%) | étrangers (%) | Français par acquisition (milliers) |
@@ -315,14 +312,14 @@ estimations, 1921 à 2025 :
 
 *Réserves posées par la source elle-même : le champ change en 1990 (métropole
 → hors Mayotte) et 2014 (Mayotte incluse), et une rupture de série affecte
-2024-2025 (protocole de collecte du recensement revu) — `cmd/verify` compare
-chaque millésime à lui-même, pas à un lissage qui masquerait ces ruptures.*
+2024-2025 (protocole de collecte du recensement revu) — chaque millésime est
+comparé à lui-même, pas à un lissage qui masquerait ces ruptures.*
 
 #### 8.1 Les flux, pas seulement le stock
 
-`core.flux_migratoire` (Eurostat, France) donne, année par année, ce que le
-tableau ci-dessus ne peut pas montrer : **combien de personnes entrent, et
-combien acquièrent la nationalité, chaque année** — deux flux, pas des stocks :
+Cette série (Eurostat, France) donne, année par année, ce que le tableau ci-dessus ne
+peut pas montrer : **combien de personnes entrent, et combien acquièrent la
+nationalité, chaque année** — deux flux, pas des stocks :
 
 | | 2010 | 2024 |
 |---|---:|---:|
@@ -401,19 +398,16 @@ avec les tableaux des sections 1 à 3.
 
 ### 9. Ce qui est chargé
 
-Migration `0071_immigration.sql`, connecteur `internal/immigration/`, commande
-`go run ./cmd/ingest -only=immigration`.
-
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Insee, recensement, `DS_RP_TD_IMMI_AGESEXEMPSTA_PRINC` + `DS_RP_TD_NAT_AGESEXEMPSTA_PRINC` (Melodi) | `core.population_statut_migratoire` | 333 lignes, France entière, 2023 |
-| 2 | Insee, recensement, `DS_RP_TD_IMMI_AGESEXPCS_COMP` + `DS_RP_TD_NAT_AGESEXPCS_COMP` (Melodi) | `core.population_statut_migratoire_csp` | 162 lignes |
-| 3 | Insee, recensement, `DS_RP_TD_IMMI_AGESEX_PAYSNAISS_R_PRINC` (Melodi) | `core.population_immigree_origine` | 180 lignes |
-| 4 | Eurostat `migr_pop1ctz` + `migr_pop3ctb` | `core.eurostat_population_migratoire` | 123 lignes, France, 1999-2025 |
-| 5 | DGEF/MIOM, stock de titres de séjour | `core.titre_sejour_stock` | 33 lignes, 2013-2023 |
-| 6 | Insee, population immigrée et étrangère depuis 1921 | `core.population_historique_nationalite` | 32 millésimes, 1921-2025 |
-| 7 | Eurostat `migr_imm1ctz` + `migr_acq` | `core.flux_migratoire` | 19 + 27 ans |
-| 8 | Ofpra, demandes d'asile et de statut d'apatride | `core.demande_asile_ofpra` | 553 lignes, France, 2021-2025 |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | Insee, recensement, `DS_RP_TD_IMMI_AGESEXEMPSTA_PRINC` + `DS_RP_TD_NAT_AGESEXEMPSTA_PRINC` (Melodi) | 333 lignes, France entière, 2023 |
+| 2 | Insee, recensement, `DS_RP_TD_IMMI_AGESEXPCS_COMP` + `DS_RP_TD_NAT_AGESEXPCS_COMP` (Melodi) | 162 lignes |
+| 3 | Insee, recensement, `DS_RP_TD_IMMI_AGESEX_PAYSNAISS_R_PRINC` (Melodi) | 180 lignes |
+| 4 | Eurostat `migr_pop1ctz` + `migr_pop3ctb` | 123 lignes, France, 1999-2025 |
+| 5 | DGEF/MIOM, stock de titres de séjour | 33 lignes, 2013-2023 |
+| 6 | Insee, population immigrée et étrangère depuis 1921 | 32 millésimes, 1921-2025 |
+| 7 | Eurostat `migr_imm1ctz` + `migr_acq` | 19 + 27 ans |
+| 8 | Ofpra, demandes d'asile et de statut d'apatride | 553 lignes, France, 2021-2025 |
 
 **Non chargé, et pourquoi :**
 
@@ -429,12 +423,12 @@ Migration `0071_immigration.sql`, connecteur `internal/immigration/`, commande
 
 **Prolongement documenté, non réalisé** : les mêmes jeux Melodi publient la
 population immigrée jusqu'au département et à l'EPCI (population ≥ 50 000
-habitants pour les tableaux les plus fins) — le même mécanisme que
-`internal/macro/menages_effectif.go` pour les ménages permettrait de
-descendre à cette maille si un besoin géographique se précise.
+habitants pour les tableaux les plus fins) — la même méthode que celle déjà
+utilisée pour les ménages permettrait de descendre à cette maille si un
+besoin géographique se précise.
 
 ## Versions
 
-- **Version 4** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de 2024) et contrôle du Sénat (coût estimé de la politique d'immigration).
+- **Version 4** (15 septembre 2026) : plan commun des dossiers ; cadre (loi de 2024) et contrôle du Sénat (coût estimé de la politique d'immigration).
 - **Version 3** (14 septembre 2026) : demandes d'asile déposées devant l'Ofpra (§ 7.1).
 - **Version 2** : un siècle de recensements (§ 8) et flux annuels d'immigration et de naturalisation (§ 8.1).

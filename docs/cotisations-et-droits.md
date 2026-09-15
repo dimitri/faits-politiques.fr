@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | cotisations sociales | 434 | 154 | 14 octobre 2024 | 15 juillet 2026 |
 | exonérations de cotisations | 239 | 86 | 14 octobre 2024 | 15 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -131,12 +131,9 @@ va à son budget. Et le **solde de la taxe d'apprentissage** n'a pas de budget u
 l'employeur choisit les établissements qui le reçoivent.
 
 Le classement de chaque destinataire, son fondement et le texte qui arrête son budget
-sont dans `ref.organisme_social` ; les taux, leur assiette et leur fondement dans
-`ref.taux_cotisation` et `ref.parametre_social`. Le bulletin n'est stocké nulle part :
-les vues `derived.bulletin_ligne`, `derived.bulletin_reduction`,
-`derived.bulletin_synthese` et `derived.bulletin_flux` le recalculent, et
-`cmd/verify` contrôle ses totaux au centime. La figure ci-dessous est régénérée par
-`go run ./cmd/figure-bulletin`.
+sont établis ici ; de même pour les taux, leur assiette et leur fondement. Le bulletin
+n'est stocké nulle part : il est recalculé à chaque construction du site, et ses
+totaux sont vérifiés au centime. La figure ci-dessous est régénérée automatiquement.
 
 <!-- figure-bulletin:debut — généré par cmd/figure-bulletin, ne pas modifier à la main -->
 <style>
@@ -304,5 +301,5 @@ autres sont citées section par section. Le chiffrage d'un socle universel, qui 
 
 ## Versions
 
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; le § 7, hypothèse chiffrée d'un socle universel, rejoint le document Hypothèse chiffrée qui le prolongeait ; cadre et contrôle sourcés.
-- **Version 1** (14 septembre 2026) : distinctions, poids de chaque nature de droit, bulletin de paie (§ 3 bis, D-060).
+- **Version 2** (15 septembre 2026) : plan commun des dossiers ; le § 7, hypothèse chiffrée d'un socle universel, rejoint le document Hypothèse chiffrée qui le prolongeait ; cadre et contrôle sourcés.
+- **Version 1** (14 septembre 2026) : distinctions, poids de chaque nature de droit, bulletin de paie (§ 3 bis).

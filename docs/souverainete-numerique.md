@@ -23,7 +23,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | logiciel libre | 8 | 3 | 18 mars 2025 | 10 juillet 2026 |
 | SecNumCloud | 5 | 4 | 12 février 2025 | 27 février 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 - **Une stratégie de souveraineté numérique appuyée sur SecNumCloud depuis 2021** (12 février 2025). Depuis 2021, avec l'ANSSI, la stratégie de sécurisation des données s'appuie notamment sur SecNumCloud ; un appel à projets du plan France 2030 vise à faire monter en compétence des acteurs comme OVHcloud ou Scaleway. — [Clara Chappaz](/depute/clara-chappaz/), ministre déléguée chargée de l'intelligence artificielle et du numérique, Assemblée nationale, compte rendu de la séance (séance n° 100) · *déclaratif*
 - **Le Health Data Hub sans « hébergeur ultrasécurisé » : un appel d'offres de migration annoncé** (8 avril 2025). Les données du système national des données de santé ne sont pas dans le Health Data Hub faute d'hébergeur ultrasécurisé ; la ministre annonce un appel d'offres pour le migrer vers un hébergeur sécurisé. — [Clara Chappaz](/depute/clara-chappaz/), ministre déléguée chargée de l'intelligence artificielle et du numérique, Assemblée nationale, compte rendu de la séance (séance n° 164) · *déclaratif*
@@ -36,8 +36,8 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 <!-- faits:CONTEXTE:fin -->
 
 Depuis le 12 octobre 2025, le ministre de l'Économie est ministre « de l'économie, des
-finances et de la souveraineté industrielle, énergétique et numérique »
-(`core.gouvernement_membre`, acte de nomination au Journal officiel).
+finances et de la souveraineté industrielle, énergétique et numérique » (acte de
+nomination au Journal officiel).
 
 ## Enjeux
 
@@ -92,27 +92,27 @@ finances et de la souveraineté industrielle, énergétique et numérique »
 
 <!-- faits:CONTROLE:fin -->
 
-Déjà au dossier sur l'évasion fiscale (`ref.fait_multinationale`) : la proposition de
-résolution du Sénat sur le contrat Microsoft de la Défense (2017), les référés du Conseil
-d'État sur la plateforme des données de santé chez Microsoft (2020) et sur Doctolib chez
-AWS (2021), la question écrite sur le contrat de la DGSI avec Palantir (2025).
+Déjà au dossier sur l'évasion fiscale : la proposition de résolution du Sénat sur le
+contrat Microsoft de la Défense (2017), les référés du Conseil d'État sur la
+plateforme des données de santé chez Microsoft (2020) et sur Doctolib chez AWS (2021),
+la question écrite sur le contrat de la DGSI avec Palantir (2025).
 
 ## Situation chiffrée
 
 ### 1. L'offre qualifiée SecNumCloud
 
-`core.qualification_secnumcloud`, catalogue de l'ANSSI du 8 septembre 2026 : **27 services
-de 12 fournisseurs**, tous opérés par des sociétés françaises. Aucun service d'Amazon, de
-Microsoft ou de Google en direct. S3NS (Thales, technologie Google Cloud) est qualifié depuis
-le 17 décembre 2025 pour ses services PaaS, CaaS et IaaS ; Bleu (Orange et Capgemini,
-technologies Microsoft) n'y figure pas. Trois services qualifiés reposent sur une technologie
-américaine opérée sous licence (colonne `technologie_tierce`) : S3NS et deux offres VMware
-(OVH, Cloud Temple).
+Cette série, catalogue de l'ANSSI du 8 septembre 2026 : **27 services de 12
+fournisseurs**, tous opérés par des sociétés françaises. Aucun service d'Amazon, de
+Microsoft ou de Google en direct. S3NS (Thales, technologie Google Cloud) est qualifié
+depuis le 17 décembre 2025 pour ses services PaaS, CaaS et IaaS ; Bleu (Orange et
+Capgemini, technologies Microsoft) n'y figure pas. Trois services qualifiés reposent
+sur une technologie américaine opérée sous licence (colonne `technologie_tierce`) :
+S3NS et deux offres VMware (OVH, Cloud Temple).
 
 ### 2. Les solutions françaises
 
-`ref.acteur_numerique` (29 acteurs, rattachement vérifié au chargement), fiche
-`derived.acteur_numerique_fiche` (Sirene, qualifications, marchés, aides d'État publiées).
+Cette série (29 acteurs, rattachement vérifié au chargement), fiche cette série
+(Sirene, qualifications, marchés, aides d'État publiées).
 
 | catégorie | acteurs | ce que disent les données publiques |
 |---|---|---|
@@ -150,11 +150,11 @@ composants de conception américaine soumis aux licences d'exportation ITAR. Ces
 constats restent les siens : aucune source officielle chargée ne les recoupe à ce jour.
 
 **Le logiciel libre dans l'État.** Le socle interministériel de logiciels libres
-(`core.sill_logiciel`, DINUM) référence **672 logiciels**, dont **68 développés par un service
-public** et **141 couverts par le marché interministériel de support** ; 279 ont au moins un
+(DINUM) référence **672 logiciels**, dont **68 développés par un service public** et
+**141 couverts par le marché interministériel de support** ; 279 ont au moins un
 prestataire déclaré. C'est un usage déclaré par des agents, pas un inventaire des
-déploiements. La gendarmerie nationale utilise Linux depuis 2009 ; l'Éducation nationale
-déclare un système d'information à 98 % libre (voir les faits ci-dessous).
+déploiements. La gendarmerie nationale utilise Linux depuis 2009 ; l'Éducation
+nationale déclare un système d'information à 98 % libre (voir les faits ci-dessous).
 
 <!-- faits:SITUATION:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
@@ -209,10 +209,9 @@ différentes.
 
 ### 4. Ce que publie la commande publique
 
-`core.marche_numerique` : les marchés des données essentielles consolidées dont le code
-CPV commence par 48 (logiciels), 72 (services informatiques) ou 302 (matériel), dernière
-version. Vues : `derived.marche_numerique_titulaire`, `derived.marche_numerique_produit`,
-`derived.marche_hebergement_qualification`.
+Cette série : les marchés des données essentielles consolidées dont le code CPV
+commence par 48 (logiciels), 72 (services informatiques) ou 302 (matériel), dernière
+version. Vues : cette série, .
 
 **70 291 marchés** notifiés pour l'essentiel de 2019 à 2026 (fichier du 14 septembre
 2026). Un marché compte une fois, sous son premier titulaire.
@@ -265,12 +264,12 @@ service qui ne l'est pas (pièges de lecture).
 
 ### 5. Les données personnelles
 
-- **Sanctions de la CNIL** (`core.sanction_cnil`, 394 décisions de 2011 à 2026) :
-  1,18 Md€ d'amendes depuis 2019 ; la somme lue pour 2025 retrouve le total du bilan de la
-  CNIL (486,8 M€) à 0,01 % près. Les quinze amendes d'au moins 10 M€ visent des sociétés
-  privées ; les personnes publiques reçoivent surtout des rappels à l'ordre (38 décisions,
-  amende maximale 5 M€).
-- **Aucune ré-identification** (D-065) : la CNIL retire le nom de l'organisme à
+- **Sanctions de la CNIL** (394 décisions de 2011 à 2026) : 1,18 Md€ d'amendes depuis
+  2019 ; la somme lue pour 2025 retrouve le total du bilan de la CNIL (486,8 M€) à
+  0,01 % près. Les quinze amendes d'au moins 10 M€ visent des sociétés privées ; les
+  personnes publiques reçoivent surtout des rappels à l'ordre (38 décisions, amende
+  maximale 5 M€).
+- **Aucune ré-identification** : la CNIL retire le nom de l'organisme à
   l'expiration du délai de publicité ; le projet garde la catégorie publiée.
 - **Sanctions nommées par l'autorité elle-même** : Google, 325 M€ (CNIL, 1er septembre
   2025, services grand public) ; Meta, 1,2 Md€ (autorité irlandaise, 22 mai 2023,
@@ -311,26 +310,26 @@ service qui ne l'est pas (pièges de lecture).
 6. **Les marchés de défense et de renseignement échappent en partie à la publication** :
    l'absence de Palantir dans les données essentielles n'est pas une absence de dépense.
 7. **Une sanction RGPD grand public n'est pas une faute dans un contrat public.**
-8. **Une mention en séance n'est pas une position.** `derived.dossier_mentions_an`
-   compte des prises de parole qui emploient les mots du sujet ; la fonction de l'orateur
-   n'y est pas déduite, les bornes des mandats ministériels chargés étant incomplètes.
+8. **Une mention en séance n'est pas une position.** Ce décompte retient les prises
+   de parole qui emploient les mots du sujet ; la fonction de l'orateur n'y est pas
+   déduite, les bornes des mandats ministériels chargés étant incomplètes.
 
 ## Sources
 
-| source | table | niveau | accès |
-|---|---|---|---|
-| Catalogue ANSSI des services qualifiés (PDF) | `core.qualification_secnumcloud` | PRIMARY_OFFICIAL | lu par `pdftotext -layout` |
-| Liste des sanctions de la CNIL | `core.sanction_cnil` | PRIMARY_OFFICIAL | page HTML |
-| Socle interministériel de logiciels libres (DINUM) | `core.sill_logiciel` | PRIMARY_OFFICIAL | JSON |
-| DECP consolidées (data.gouv.fr) | `core.marche_numerique` | PRIMARY_OFFICIAL | CSV 2,5 Go, lu en flux |
-| Sénat, rapport n° 830 (2025), p. 239-275 | `ref.fait_dossier` | PRIMARY_OFFICIAL | PDF scellé, phrases contrôlées |
-| Décrets d'attributions du ministre de l'Économie, loi SREN | `ref.fait_dossier` | PRIMARY_OFFICIAL | corpus du Journal officiel chargé |
-| Comptes rendus de l'Assemblée nationale | `ref.fait_dossier`, `derived.dossier_mentions_an` | PRIMARY_OFFICIAL | corpus déjà chargé |
-| Doctrine « cloud au centre » (DINUM), CLOUD Act et FISA (govinfo.gov), EUR-Lex, curia | `ref.fait_dossier` | PRIMARY_OFFICIAL | HTML, PDF |
-| Autorité irlandaise (Meta), CNIL (Google 2025) | `ref.fait_dossier` | PRIMARY_OFFICIAL | HTML |
-| Cour des comptes, « Le soutien à la filière des semi-conducteurs » (avril 2026) ; règlement (UE) 2023/1781 et COM(2022) 45 (EUR-Lex) ; DGE (5 juin 2023) | `ref.fait_dossier` | PRIMARY_OFFICIAL | PDF, HTML |
-| Dossier de concertation de STMicroelectronics (CNDP, 2024) ; articles de Laurent Bloch (laurentbloch.net, 2014 et 2022) | `ref.fait_dossier` | DECLARATIF | PDF, HTML scellés, phrases contrôlées |
-| Répertoire Sirene, registre européen des aides d'État, sites des organismes cités | `ref.acteur_numerique`, `core.aide_nominative` | PRIMARY_OFFICIAL / DECLARATIF | déjà chargés, pages scellées |
+| source | niveau | accès |
+| --- | --- | --- |
+| Catalogue ANSSI des services qualifiés (PDF) | PRIMARY_OFFICIAL | lu par `pdftotext -layout` |
+| Liste des sanctions de la CNIL | PRIMARY_OFFICIAL | page HTML |
+| Socle interministériel de logiciels libres (DINUM) | PRIMARY_OFFICIAL | JSON |
+| DECP consolidées (data.gouv.fr) | PRIMARY_OFFICIAL | CSV 2,5 Go, lu en flux |
+| Sénat, rapport n° 830 (2025), p. 239-275 | PRIMARY_OFFICIAL | PDF scellé, phrases contrôlées |
+| Décrets d'attributions du ministre de l'Économie, loi SREN | PRIMARY_OFFICIAL | corpus du Journal officiel chargé |
+| Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL | corpus déjà chargé |
+| Doctrine « cloud au centre » (DINUM), CLOUD Act et FISA (govinfo.gov), EUR-Lex, curia | PRIMARY_OFFICIAL | HTML, PDF |
+| Autorité irlandaise (Meta), CNIL (Google 2025) | PRIMARY_OFFICIAL | HTML |
+| Cour des comptes, « Le soutien à la filière des semi-conducteurs » (avril 2026) ; règlement (UE) 2023/1781 et COM(2022) 45 (EUR-Lex) ; DGE (5 juin 2023) | PRIMARY_OFFICIAL | PDF, HTML |
+| Dossier de concertation de STMicroelectronics (CNDP, 2024) ; articles de Laurent Bloch (laurentbloch.net, 2014 et 2022) | DECLARATIF | PDF, HTML scellés, phrases contrôlées |
+| Répertoire Sirene, registre européen des aides d'État, sites des organismes cités | PRIMARY_OFFICIAL / DECLARATIF | déjà chargés, pages scellées |
 
 Inaccessibles ou écartés : le site du Contrôleur européen de la protection des données
 (403, non contourné) et sa décision de 2024 sur l'usage de Microsoft 365 par la Commission ;
@@ -340,19 +339,15 @@ de compétitivité (connexion refusée).
 
 ## Annexe technique
 
-Migrations 0097 et 0098, paquets `internal/numerique` (`-only=numerique`, ou
-`numerique-anssi`, `-cnil`, `-sill`, `-marches`) et `internal/dossiers` (`-only=dossiers`),
-sections générées par `cmd/sections-dossiers`. Vérifications : `cmd/verify/numerique.go` et
-`cmd/verify/dossiers.go`. Décisions : D-065, D-066. Le dossier prolonge
-[evasion-fiscale-multinationales.md](evasion-fiscale-multinationales.md), dont il reprend les
-contrats documentés sans les recopier.
+Ce dossier prolonge [evasion-fiscale-multinationales.md](evasion-fiscale-multinationales.md),
+dont il reprend les contrats documentés sans les recopier.
 
 ## Versions
 
 - **Version 4** (15 septembre 2026) : semi-conducteurs (Cour des comptes 2026, règlement
   européen sur les puces, projet « Liberty », concertation de Crolles), à partir des articles
   de Laurent Bloch, cités comme analyses signées.
-- **Version 3** (15 septembre 2026) : plan commun des dossiers (D-066) ; « Cloud » défini
+- **Version 3** (15 septembre 2026) : plan commun des dossiers ; « Cloud » défini
   comme la location d'ordinateurs dans des salles serveurs ; solutions françaises (§ 2) ;
   citations liées aux fiches des personnes.
 - **Version 2** (15 septembre 2026) : réécrit dans l'ordre contexte, raisons, règles,

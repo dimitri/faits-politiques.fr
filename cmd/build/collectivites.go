@@ -609,11 +609,15 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 		// on lit d'un coup où un groupement franchit (ou non) une limite.
 		var fr strings.Builder
 		fr.WriteString(`<g class="frontieres" aria-hidden="true">`)
+		// data-code et data-nom : la page de département ou de région ouvre
+		// cette carte cadrée sur son territoire (site.js, « ?departement= »).
 		for _, c := range dep.Codes {
-			fmt.Fprintf(&fr, `<path class="dep" d="%s"/>`, dep.traces[c])
+			fmt.Fprintf(&fr, `<path class="dep" data-code="%s" data-nom="%s" d="%s"/>`,
+				c, template.HTMLEscapeString(dep.Noms[c]), dep.traces[c])
 		}
 		for _, c := range reg.Codes {
-			fmt.Fprintf(&fr, `<path class="reg" d="%s"/>`, reg.traces[c])
+			fmt.Fprintf(&fr, `<path class="reg" data-code="%s" data-nom="%s" d="%s"/>`,
+				c, template.HTMLEscapeString(reg.Noms[c]), reg.traces[c])
 		}
 		fr.WriteString(`</g>`)
 		st.CarteEPCI.SVG = template.HTML(strings.Replace(string(st.CarteEPCI.SVG), "</svg>", fr.String()+"</svg>", 1))
@@ -684,6 +688,31 @@ type PageCollectivite struct {
 	Situation *Situation
 	// Pour un département, ses circonscriptions législatives (circonscriptions.go).
 	Circonscriptions []Lieu
+	// D'où viennent les recettes de la collectivité, face à son niveau.
+	Recettes *OrigineRecettes
+}
+
+// OrigineRecettes : les recettes totales d'UNE collectivité, lues dans ses
+// propres comptes (agrégats OFGL), découpées en impôts et taxes, DGF et reste.
+// La référence est la même découpe pour l'ensemble du niveau.
+type OrigineRecettes struct {
+	Total, Impots, DGF, Autres           float64 // euros
+	ImpotsPct, DGFPct, AutresPct         float64
+	RefImpotsPct, RefDGFPct, RefAutrePct float64
+	RefLibelle                           string
+}
+
+func origineRecettes(c *Collectivite, ref PartRecette) *OrigineRecettes {
+	rec := c.Total["ofgl.recettes_totales_par_hab"]
+	if rec <= 0 {
+		return nil
+	}
+	imp, dgf := c.Total["ofgl.impots_taxes_par_hab"], c.Total["ofgl.dgf_par_hab"]
+	o := &OrigineRecettes{Total: rec, Impots: imp, DGF: dgf, Autres: rec - imp - dgf,
+		RefImpotsPct: ref.ImpotsPct, RefDGFPct: ref.DGFPct, RefAutrePct: ref.AutrePct,
+		RefLibelle: strings.ToLower(ref.Libelle)}
+	o.ImpotsPct, o.DGFPct, o.AutresPct = 100*imp/rec, 100*dgf/rec, 100*o.Autres/rec
+	return o
 }
 
 // pagesCollectivites fabrique une page par région et par département. Le rang
@@ -691,9 +720,12 @@ type PageCollectivite struct {
 // budget par habitant d'une région à celui d'un département n'a pas de sens,
 // ils ne gèrent pas les mêmes compétences.
 func pagesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsCollectivites, r *Resolveur) ([]PageCollectivite, error) {
-	var millesimeCog int
-	_ = pool.QueryRow(ctx,
-		`SELECT max(cog_millesime) FROM geo.contour_cog WHERE niveau='COMMUNE'`).Scan(&millesimeCog)
+	// La référence de chaque niveau pour « d'où vient l'argent » : la part de
+	// la DGF et des impôts et taxes dans les recettes de tous ses membres.
+	refRecettes := map[string]PartRecette{}
+	for _, pr := range partsRecettes(st.Poids) {
+		refRecettes[pr.Niveau] = pr
+	}
 
 	// région → départements, et département → région, lus dans le code
 	// officiel géographique à travers les communes.
@@ -765,13 +797,6 @@ func pagesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsCollec
 				sort.Slice(p.Communes, func(i, j int) bool {
 					return CleTri(p.Communes[i].Nom) < CleTri(p.Communes[j].Nom)
 				})
-				if millesimeCog > 0 {
-					svg, n, err := carteCommunesDepartement(ctx, pool, codesCOGDe(c.Code), millesimeCog, c.Nom)
-					if err != nil {
-						return nil, err
-					}
-					p.CarteCommunes, p.NbCommunesCarte = svg, n
-				}
 			} else {
 				for d := range depsDeReg[c.Code] {
 					if l, ok := r.lieuDept(d); ok {
@@ -782,6 +807,7 @@ func pagesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsCollec
 					return p.Departements[i].Code < p.Departements[j].Code
 				})
 			}
+			p.Recettes = origineRecettes(c, refRecettes[c.Niveau])
 			for _, ind := range indicsCollectivite {
 				v, ok := c.ParHab[ind.Code]
 				if !ok {

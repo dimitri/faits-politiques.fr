@@ -12,24 +12,24 @@ règles qui décident de ce qui peut être publié.</p>
 
 <h2>Comment une donnée arrive ici</h2>
 <div class="scroll"><table>
-<thead><tr><th>Étape</th><th>Ce qui se passe</th><th>Règle</th></tr></thead>
+<thead><tr><th class="nowrap">Étape</th><th>Ce qui se passe</th><th>Règle</th></tr></thead>
 <tbody>
-<tr><td><strong>1. Récupération</strong></td>
+<tr><td class="nowrap"><strong>1. Récupération</strong></td>
     <td class="small">Le document est téléchargé et son empreinte SHA-256 calculée.</td>
     <td class="small muted">Un téléchargement tronqué n'est jamais scellé&nbsp;: on archiverait l'empreinte d'un fichier corrompu.</td></tr>
-<tr><td><strong>2. Archivage</strong></td>
+<tr><td class="nowrap"><strong>2. Archivage</strong></td>
     <td class="small">Les octets sont conservés tels quels, identifiés par leur empreinte, avec l'URL et la date de consultation.</td>
     <td class="small muted">Jamais écrasés, jamais modifiés. Récupérer deux fois le même contenu ne duplique rien mais atteste qu'il était encore en ligne.</td></tr>
-<tr><td><strong>3. Extraction</strong></td>
+<tr><td class="nowrap"><strong>3. Extraction</strong></td>
     <td class="small">Chaque enregistrement logique est extrait tel quel, sans interprétation.</td>
     <td class="small muted">Opération pure&nbsp;: rejouée sur le même document, elle donne le même résultat.</td></tr>
-<tr><td><strong>4. Normalisation</strong></td>
+<tr><td class="nowrap"><strong>4. Normalisation</strong></td>
     <td class="small">Les enregistrements deviennent personnes, mandats, scrutins, votes.</td>
     <td class="small muted">Les tables sont <em>reconstruites</em>, jamais complétées. Rejouer l'ingestion doit produire un état identique.</td></tr>
-<tr><td><strong>5. Vérification</strong></td>
+<tr><td class="nowrap"><strong>5. Vérification</strong></td>
     <td class="small">17 contrôles s'exécutent sur les données réellement chargées.</td>
     <td class="small muted">Notamment&nbsp;: les décomptes nominatifs doivent concorder avec le relevé officiel. Un écart bloque la publication.</td></tr>
-<tr><td><strong>6. Publication</strong></td>
+<tr><td class="nowrap"><strong>6. Publication</strong></td>
     <td class="small">Le site est regénéré intégralement.</td>
     <td class="small muted">Chaque page porte ses sources, leur date et leur empreinte.</td></tr>
 </tbody></table></div>

@@ -21,7 +21,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | taxe sur les services numériques, GAFAM | 113 | 53 | 21 octobre 2024 | 21 juillet 2026 |
 | évasion fiscale | 84 | 43 | 21 octobre 2024 | 10 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -79,23 +79,22 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 <!-- faits:CONTROLE:fin -->
 
-Les contrôles qui visent des groupes nommés — proposition de résolution du Sénat sur le
-contrat Microsoft de la Défense (2017), commission d'enquête sur les cabinets de conseil
-(2022), conventions judiciaires d'intérêt public (Google, McDonald's), dépôts à la SEC — sont
-des faits de `ref.fait_multinationale`, présentés avec les contrats au § 4.2 et avec l'impôt
-payé au § 4 bis.
+Les contrôles qui visent des groupes nommés — proposition de résolution du Sénat sur
+le contrat Microsoft de la Défense (2017), commission d'enquête sur les cabinets de
+conseil (2022), conventions judiciaires d'intérêt public (Google, McDonald's), dépôts
+à la SEC — sont des faits de cette série, présentés avec les contrats au § 4.2 et avec
+l'impôt payé au § 4 bis.
 
 ## Situation chiffrée
 
 ### 2. Les bénéfices déclarés hors de France : estimations et déclarations pays par pays
 
-- **Estimations Tørsløv-Wier-Zucman** (`core.transfert_benefices_estimation`) :
-  42,6 Md$ de bénéfices transférés hors de France en 2019, soit 21,8 % de l'impôt sur
-  les sociétés collecté ; 32,1 Md$ en 2015.
-- **Déclarations pays par pays des groupes américains** (`derived.cbcr_juridiction`),
-  2023 : la France accueille 2,2 % de leurs salariés hors États-Unis et 1,4 % de leurs
-  bénéfices ; l'Irlande 0,9 % des salariés et 17,3 % des bénéfices ; 221,6 Md$ sont
-  logés dans des entités « apatrides », sans résidence fiscale.
+- **Estimations Tørsløv-Wier-Zucman** : 42,6 Md$ de bénéfices transférés hors de
+  France en 2019, soit 21,8 % de l'impôt sur les sociétés collecté ; 32,1 Md$ en 2015.
+- **Déclarations pays par pays des groupes américains**, 2023 : la France accueille
+  2,2 % de leurs salariés hors États-Unis et 1,4 % de leurs bénéfices ; l'Irlande 0,9
+  % des salariés et 17,3 % des bénéfices ; 221,6 Md$ sont logés dans des entités «
+  apatrides », sans résidence fiscale.
 - **Ce qu'aucune donnée ne dit** : l'impôt qu'une multinationale « devrait » payer en
   France. Le dossier montre des écarts (bénéfice par salarié, lieu de facturation),
   jamais un manque à gagner par entreprise.
@@ -118,14 +117,13 @@ Trois mécanismes, chacun établi par une source officielle au moins une fois :
    bénéfice imposable : aucun impôt sur les sociétés de 2011 à 2020 pour 329 M€ de
    chiffre d'affaires en 2020 (commission d'enquête du Sénat, 2022).
 
-Les comptes des filiales (`derived.filiale_etrangere_comptes`) montrent le résultat
-de ces choix : un chiffre d'affaires de prestataire, une marge faible et stable, et des
-ruptures quand le lieu de facturation change (Netflix Services France : 47 M€ en 2020,
-1,2 Md€ en 2021).
+Les comptes des filiales montrent le résultat de ces choix : un chiffre d'affaires de
+prestataire, une marge faible et stable, et des ruptures quand le lieu de facturation
+change (Netflix Services France : 47 M€ en 2020, 1,2 Md€ en 2021).
 
 ### 4. Ce que l'État leur achète et leur verse
 
-#### 4.1 Marchés publics (`core.marche_public_cible`, `derived.multinationale_marches`)
+#### 4.1 Marchés publics
 
 Données essentielles de la commande publique, consolidées (plus de 3,2 millions de
 lignes, 2,1 millions de marchés dans leur dernière version). Rattachement au groupe par
@@ -176,7 +174,7 @@ licences (64 M€ et 6 M€ estimés) et Open SAS pour le support (4,72 M€), s
 estimés sur quatre ans. Les données essentielles publiées ne portent, pour ce marché,
 que des montants partiels attribués à Crayon.
 
-#### 4.2 Faits documentés (`ref.fait_multinationale`)
+#### 4.2 Faits documentés
 
 | groupe | fait | montant | établi par |
 |---|---|---|---|
@@ -206,7 +204,7 @@ que des montants partiels attribués à Crayon.
 | McDonald's | convention judiciaire : 508 M€ d'amende, 737 M€ d'impôt | 1,245 Md€ | ministère de l'Économie (2022) |
 | McKinsey | aucun impôt sur les sociétés en France de 2011 à 2020 | CA 2020 : 329 M€ | Sénat (commission d'enquête, 2022) |
 
-#### 4.3 Aides publiées par bénéficiaire (`derived.multinationale_aides`)
+#### 4.3 Aides publiées par bénéficiaire
 
 Les registres d'aides (TAM européen, ADEME, minimis) croisés avec les sociétés de
 groupes étrangers : 235 groupes ont reçu 1 315 aides du registre européen, pour
@@ -224,8 +222,8 @@ obtenu.
 ### 4 bis. L'impôt payé en France : ce qu'on sait, groupe par groupe
 
 Avoir des marchés publics n'est pas un indice d'évasion. Le dossier distingue donc,
-pour chaque groupe suivi, ce que les sources officielles établissent
-(`ref.groupe_statut_fiscal`, vue `derived.fiche_impot_groupe`) :
+pour chaque groupe suivi, ce que les sources officielles établissent (vue cette série)
+:
 
 | statut | groupes | fondement |
 |---|---|---|
@@ -236,16 +234,16 @@ pour chaque groupe suivi, ce que les sources officielles établissent
 | aucun constat public | Oracle, IBM, Accenture, Palantir, Amazon, Apple, Meta, Netflix, Disney et les autres groupes suivis | aucune source officielle ne documente de fraude, de facturation depuis l'étranger ni d'impôt nul |
 
 Un statut autre que « aucun constat public » ne peut exister sans fait officiel chargé
-(contrôle dans `cmd/verify`).
+et vérifié.
 
 #### Trois sources, trois échelles
 
-**1. Les comptes des filiales françaises** (INPI-BCE, `derived.filiale_impot_theorique`).
-L'écart entre résultat courant avant impôt et résultat net est comparé à l'impôt
-**théorique** : taux normal de 25 %, contribution sociale de 3,3 % de l'impôt au-delà de
-763 000 €, et, pour les exercices clos à compter du 31 décembre 2025, contribution
-exceptionnelle de 20,6 % ou 41,2 % de l'impôt pour un chiffre d'affaires d'au moins 1 ou
-3 Md€ (loi de finances pour 2025, art. 48 ; BOFiP).
+**1. Les comptes des filiales françaises** (INPI-BCE). L'écart entre résultat courant
+avant impôt et résultat net est comparé à l'impôt **théorique** : taux normal de 25 %,
+contribution sociale de 3,3 % de l'impôt au-delà de 763 000 €, et, pour les exercices
+clos à compter du 31 décembre 2025, contribution exceptionnelle de 20,6 % ou 41,2 % de
+l'impôt pour un chiffre d'affaires d'au moins 1 ou 3 Md€ (loi de finances pour 2025,
+art. 48 ; BOFiP).
 
 | filiale (dernier exercice) | résultat courant | écart publié | impôt théorique |
 |---|---:|---:|---:|
@@ -263,13 +261,13 @@ contient aussi la participation des salariés et les éléments exceptionnels. C
 ne dit rien du bénéfice qui n'est pas déclaré en France : c'est là que se situe la
 question.
 
-**2. Les déclarations pays par pays publiques** (`core.cbcr_public`). La directive (UE)
-2021/2101 oblige les groupes de plus de 750 M€ de chiffre d'affaires à publier, pour
-chaque État membre, chiffre d'affaires, bénéfice avant impôt, impôt dû et payé, salariés.
-Premiers rapports : exercices ouverts à compter du 22 juin 2024, publiés dans les douze
-mois suivant la clôture — donc à partir de mi-2026, fin 2026 pour les exercices
-calendaires. **Au 15 septembre 2026, seul Microsoft est chargé** (exercice juillet 2024 -
-juin 2025) :
+**2. Les déclarations pays par pays publiques** . La directive (UE) 2021/2101 oblige
+les groupes de plus de 750 M€ de chiffre d'affaires à publier, pour chaque État
+membre, chiffre d'affaires, bénéfice avant impôt, impôt dû et payé, salariés. Premiers
+rapports : exercices ouverts à compter du 22 juin 2024, publiés dans les douze mois
+suivant la clôture — donc à partir de mi-2026, fin 2026 pour les exercices
+calendaires. **Au 15 septembre 2026, seul Microsoft est chargé** (exercice juillet
+2024 - juin 2025) :
 
 | juridiction | chiffre d'affaires | bénéfice avant impôt | impôt dû | salariés | bénéfice par salarié |
 |---|---:|---:|---:|---:|---:|
@@ -286,14 +284,14 @@ depuis Dublin et des flux intragroupe. L'impôt **payé** en France est négatif
 la somme des juridictions (123,6 Md$) retrouve le bénéfice avant impôt du groupe déposé à
 la SEC pour le même exercice, à 0,5 % près.
 
-**3. Les rapports déposés en bourse** (`core.groupe_resultat_sec`, API XBRL de la SEC,
-25 groupes). Les rapports annuels américains (10-K) sont publics et structurés, mais **ne
-ventilent pas l'impôt par pays** : ils séparent bénéfice « domestique » (États-Unis) et
-« étranger », et impôt courant étranger. Ils donnent le taux effectif du groupe et la
-part de son bénéfice réalisée hors des États-Unis, pas la France. Les rapports des
-groupes cotés en Europe (format ESEF) ne ventilent pas davantage par pays. Les comptes
-des sociétés irlandaises (Microsoft Ireland Operations, Google Ireland) sont déposés au
-registre irlandais, dont les copies sont payantes : ils ne sont pas chargés.
+**3. Les rapports déposés en bourse** (API XBRL de la SEC, 25 groupes). Les rapports
+annuels américains (10-K) sont publics et structurés, mais **ne ventilent pas l'impôt
+par pays** : ils séparent bénéfice « domestique » (États-Unis) et « étranger », et
+impôt courant étranger. Ils donnent le taux effectif du groupe et la part de son
+bénéfice réalisée hors des États-Unis, pas la France. Les rapports des groupes cotés
+en Europe (format ESEF) ne ventilent pas davantage par pays. Les comptes des sociétés
+irlandaises (Microsoft Ireland Operations, Google Ireland) sont déposés au registre
+irlandais, dont les copies sont payantes : ils ne sont pas chargés.
 
 #### Ce qui manque encore
 
@@ -309,11 +307,11 @@ registre irlandais, dont les copies sont payantes : ils ne sont pas chargés.
 
 ### 6. La France au regard des grilles officielles des paradis fiscaux
 
-| Grille | Critères | Ce qu'elle examine | Où c'est dans la base |
-|---|---|---|---|
-| OCDE, *Harmful Tax Competition* (1998), encadré I | (a) impôt nul ou symbolique — condition de départ ; (b) pas d'échange effectif d'informations ; (c) manque de transparence ; (d) aucune exigence d'activité substantielle. Encadré II : régimes préférentiels dommageables (taux effectif faible, cantonnement aux non-résidents, opacité, pas d'échange). | Tout pays, régime par régime | Taux : `core.fiscalite_pays` (`CIT.*`, `ETR.*`) ; régimes PI : `IPR.*` (statut du Forum sur les pratiques fiscales dommageables) |
-| Conseil de l'UE, conclusions du 5 décembre 2017, annexe V | 1. transparence (échange automatique CRS, échange sur demande « largement conforme », convention multilatérale, bénéficiaires effectifs) ; 2. fiscalité équitable (pas de régime dommageable au sens du code de conduite de 1997, pas de structures offshore sans activité réelle) ; 3. normes minimales BEPS. | **Pays tiers seulement** : aucun État membre ne peut y figurer | `ref.juridiction_non_cooperative` liste `UE_ANNEXE_I`, 23 versions (déc. 2017 → fév. 2026) |
-| France, art. 238-0 A du CGI (ETNC) | Refus d'échange d'informations (a et b du 2), inscription sur la liste UE (2 bis 1° et 2°) | Pays tiers | Même table, liste `ETNC_FR`, arrêtés 2010, 2016, 2020 → 2025 lus dans le corpus du JO |
+| Grille | Critères | Ce qu'elle examine |
+| --- | --- | --- |
+| OCDE, *Harmful Tax Competition* (1998), encadré I | (a) impôt nul ou symbolique — condition de départ ; (b) pas d'échange effectif d'informations ; (c) manque de transparence ; (d) aucune exigence d'activité substantielle. Encadré II : régimes préférentiels dommageables (taux effectif faible, cantonnement aux non-résidents, opacité, pas d'échange). | Tout pays, régime par régime |
+| Conseil de l'UE, conclusions du 5 décembre 2017, annexe V | 1. transparence (échange automatique CRS, échange sur demande « largement conforme », convention multilatérale, bénéficiaires effectifs) ; 2. fiscalité équitable (pas de régime dommageable au sens du code de conduite de 1997, pas de structures offshore sans activité réelle) ; 3. normes minimales BEPS. | **Pays tiers seulement** : aucun État membre ne peut y figurer |
+| France, art. 238-0 A du CGI (ETNC) | Refus d'échange d'informations (a et b du 2), inscription sur la liste UE (2 bis 1° et 2°) | Pays tiers |
 
 S'y ajoute une mesure économique, sans valeur juridique mais la plus directe : **où
 les multinationales déclarent leurs bénéfices au regard de leurs salariés et de leur
@@ -321,7 +319,7 @@ chiffre d'affaires** (§ 2). Sur ces mesures, la part des bénéfices déclarés
 
 Les indices du Tax Justice Network (Corporate Tax Haven Index, Financial Secrecy
 Index) sont une quatrième grille, publiée par une organisation non gouvernementale. Ils sont **cités, pas
-chargés** (D-059).
+chargés**.
 
 ## Ce que les données ne disent pas
 
@@ -444,11 +442,6 @@ par entreprise, dont le crédit d'impôt recherche, ne sont pas publiés.
 
 ## Annexe technique
 
-Migrations 0082, 0087, 0090 et 0092, paquet `internal/fiscalite`, `-only=fiscalite` (ou
-`fiscalite-listes`, `-ocde`, `-ide`, `-fats`, `-twz`, `-filiales`, `-comptes`, `-marches`,
-`-faits`, `-transparence`). Vérifications : `cmd/verify/fiscalite.go`. Décisions : D-059,
-D-061 à D-064, D-066.
-
 ### 9. Chiffres de référence (chargement du 14 septembre 2026)
 
 - Taux légal combiné de l'IS, France : 36,13 % en 2025-2026 (contribution
@@ -480,6 +473,6 @@ D-061 à D-064, D-066.
 
 ## Versions
 
-- **Version 3** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre sourcé (taxe sur les services numériques, imposition minimale mondiale, convention judiciaire d'intérêt public) ; le § 6 présente la France au regard des grilles, sans verdict ; échelle de qualité commune (le communiqué d'entreprise devient « déclaratif »).
-- **Version 2** (15 septembre 2026) : Palantir, Oracle, IBM, Accenture ; l'impôt payé en France groupe par groupe (§ 4 bis, D-063, D-064).
-- **Version 1** (14 septembre 2026) : le document s'appelait « La France est-elle un paradis fiscal ? » ; il est devenu le dossier sur l'évasion fiscale des multinationales (D-061).
+- **Version 3** (15 septembre 2026) : plan commun des dossiers ; cadre sourcé (taxe sur les services numériques, imposition minimale mondiale, convention judiciaire d'intérêt public) ; le § 6 présente la France au regard des grilles, sans verdict ; échelle de qualité commune (le communiqué d'entreprise devient « déclaratif »).
+- **Version 2** (15 septembre 2026) : Palantir, Oracle, IBM, Accenture ; l'impôt payé en France groupe par groupe (§ 4 bis).
+- **Version 1** (14 septembre 2026) : le document s'appelait « La France est-elle un paradis fiscal ? » ; il est devenu le dossier sur l'évasion fiscale des multinationales.

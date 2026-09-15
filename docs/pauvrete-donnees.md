@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | pauvreté | 487 | 207 | 1er octobre 2024 | 21 juillet 2026 |
 | aide alimentaire | 58 | 43 | 14 octobre 2024 | 11 juin 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -63,19 +63,17 @@ dispositif — l'énumération serait longue et n'apporterait rien à la questio
 posée — mais le signale explicitement pour empêcher la confusion avec la
 mesure de la pauvreté, qui elle est unique, stable et vérifiable.
 
-**Pour situer les deux registres l'un par rapport à l'autre**, les points de
-décile du niveau de vie national (Insee-Filosofi, 2023, déjà chargés dans
-`core.filosofi_decile_national`) donnent un repère : le premier décile (les
-10 % au niveau de vie le plus bas) plafonne à 1 100 €/mois, le second à
-1 418 €/mois. Le seuil de pauvreté à 50 % de la médiane (1 073 €/mois en
-2023, § 2) se situe donc juste sous le premier décile, et le seuil à 60 %
-(1 288 €/mois) entre le premier et le second — cohérent avec un taux de
-pauvreté à 60 % (15,4 % de la population, § 2) légèrement supérieur à 10 %.
-Un foyer qualifié de « modeste » par tel ou tel dispositif se situe
-généralement plus haut dans cette distribution, souvent jusqu'au quatrième
-ou cinquième décile selon le dispositif — mais, faute de seuil harmonisé
-(paragraphe précédent), cette note ne peut pas fixer une borne précise pour
-« modeste » comme elle le fait pour « pauvre ».
+**Pour situer les deux registres l'un par rapport à l'autre**, les points de décile du
+niveau de vie national (Insee-Filosofi, 2023, déjà chargés dans cette série) donnent
+un repère : le premier décile (les 10 % au niveau de vie le plus bas) plafonne à 1 100
+€/mois, le second à 1 418 €/mois. Le seuil de pauvreté à 50 % de la médiane (1 073
+€/mois en 2023, § 2) se situe donc juste sous le premier décile, et le seuil à 60 % (1
+288 €/mois) entre le premier et le second — cohérent avec un taux de pauvreté à 60 %
+(15,4 % de la population, § 2) légèrement supérieur à 10 %. Un foyer qualifié de «
+modeste » par tel ou tel dispositif se situe généralement plus haut dans cette
+distribution, souvent jusqu'au quatrième ou cinquième décile selon le dispositif —
+mais, faute de seuil harmonisé (paragraphe précédent), cette note ne peut pas fixer
+une borne précise pour « modeste » comme elle le fait pour « pauvre ».
 
 ## Contrôles et évaluations
 
@@ -89,8 +87,7 @@ ou cinquième décile selon le dispositif — mais, faute de seuil harmonisé
 
 ### 2. Le seuil de pauvreté en France, 1996-2023
 
-`core.pauvrete_seuil_annuel` (Insee, enquêtes Revenus fiscaux et sociaux,
-déjà chargé) :
+Cette série (Insee, enquêtes Revenus fiscaux et sociaux, déjà chargé) :
 
 | Année | Seuil à 60 % (€/mois) | Taux de pauvreté | Seuil à 50 % (€/mois) | Taux (50 %) |
 |---|---:|---:|---:|---:|
@@ -115,9 +112,9 @@ que le taux : elle dit à quel point ceux qui sont sous le seuil en sont
 
 ### 3. La France dans son contexte européen
 
-`core.pauvrete_taux_eu` (Eurostat, `tps00184`, seuil à 60 % du revenu médian
-équivalent — même définition que le § 2, ce qui rend la comparaison licite,
-contrairement à une comparaison avec une mesure construite autrement) :
+Cette série (Eurostat, `tps00184`, seuil à 60 % du revenu médian équivalent — même
+définition que le § 2, ce qui rend la comparaison licite, contrairement à une
+comparaison avec une mesure construite autrement) :
 
 | Pays | Taux (dernière année disponible) |
 |---|---:|
@@ -148,15 +145,14 @@ arbitrer.
 
 ### 5. L'aide alimentaire : une pauvreté vécue, pas un doublon du seuil monétaire
 
-`core.aide_alimentaire` (dispositif de suivi Insee-Drees, six réseaux
-nationaux — ANDES, Croix-Rouge française, Fédération française des banques
-alimentaires, Restos du Cœur, Secours catholique, Secours populaire
-français) éclaire une réalité que le seuil monétaire du § 2 ne capture pas :
-**un foyer au-dessus du seuil de pauvreté peut recourir à l'aide
-alimentaire** (revenu instable, charges imprévues, non-recours à d'autres
-prestations), **et un foyer sous le seuil peut ne jamais y recourir** (par
-choix, par méconnaissance, ou faute d'un point de distribution accessible).
-Les deux mesures se complètent, elles ne se recoupent pas terme à terme.
+Cette série (dispositif de suivi Insee-Drees, six réseaux nationaux — ANDES,
+Croix-Rouge française, Fédération française des banques alimentaires, Restos du Cœur,
+Secours catholique, Secours populaire français) éclaire une réalité que le seuil
+monétaire du § 2 ne capture pas : **un foyer au-dessus du seuil de pauvreté peut
+recourir à l'aide alimentaire** (revenu instable, charges imprévues, non-recours à
+d'autres prestations), **et un foyer sous le seuil peut ne jamais y recourir** (par
+choix, par méconnaissance, ou faute d'un point de distribution accessible). Les deux
+mesures se complètent, elles ne se recoupent pas terme à terme.
 
 **Six réseaux, six façons différentes de compter** — ce que la table reflète
 en format long (association, indicateur, valeur) plutôt que d'imposer des
@@ -231,12 +227,12 @@ droit, pas un chiffre à deviner ou à rapprocher de force.
 
 ### 6. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Insee, enquêtes Revenus fiscaux et sociaux | `core.pauvrete_seuil_annuel` | 56 lignes, 1996-2023, deux seuils |
-| 2 | Eurostat, `tps00184` | `core.pauvrete_taux_eu` | 441 lignes, jusqu'à 42 pays, 2014-2025 |
-| 3 | Insee-Drees, dispositif de suivi de l'aide alimentaire | `core.aide_alimentaire` | 326 lignes, six réseaux, 2019-2021 |
-| 4 | Insee-Filosofi | `core.filosofi_decile_national` | déjà chargé, § 1 |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | Insee, enquêtes Revenus fiscaux et sociaux | 56 lignes, 1996-2023, deux seuils |
+| 2 | Eurostat, `tps00184` | 441 lignes, jusqu'à 42 pays, 2014-2025 |
+| 3 | Insee-Drees, dispositif de suivi de l'aide alimentaire | 326 lignes, six réseaux, 2019-2021 |
+| 4 | Insee-Filosofi | déjà chargé, § 1 |
 
 **Non chargé, et pourquoi** :
 - **Taux de pauvreté OCDE (États-Unis, Japon, Canada, reste du G8/G20)** :
@@ -251,5 +247,5 @@ droit, pas un chiffre à deviner ou à rapprocher de force.
 
 ## Versions
 
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi RSA) et contrôle du Sénat sur la mission Solidarité.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (loi RSA) et contrôle du Sénat sur la mission Solidarité.
 - **Version 1** (15 septembre 2026) : seuil de pauvreté, comparaison européenne, aide alimentaire.

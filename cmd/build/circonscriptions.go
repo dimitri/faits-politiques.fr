@@ -393,7 +393,7 @@ func (f *fondSituation) pourCirconscription(p *PageCirco, popFrance int) *Situat
 		if p.Evolution != "" {
 			det += " · " + p.Evolution + " depuis 2013"
 		}
-		s.Legende = append(s.Legende, LigneLegende{"Population", Nombre(p.Population) + " habitants", det})
+		s.Legende = append(s.Legende, ligneLegende("Population", Nombre(p.Population)+" habitants", det))
 	}
 
 	// Superficie : cadastrale (IGN) quand la circonscription est faite de
@@ -418,7 +418,7 @@ func (f *fondSituation) pourCirconscription(p *PageCirco, popFrance int) *Situat
 	if km > 0 && p.Population > 0 {
 		det += " · " + Nombre(int(float64(p.Population)/km+0.5)) + " hab./km²"
 	}
-	s.Legende = append(s.Legende, LigneLegende{"Superficie", valeur, det})
+	s.Legende = append(s.Legende, ligneLegende("Superficie", valeur, det))
 
 	com := Nombre(len(p.Communes))
 	detCom := ""
@@ -431,19 +431,19 @@ func (f *fondSituation) pourCirconscription(p *PageCirco, popFrance int) *Situat
 		}
 		detCom += " avec une autre circonscription"
 	}
-	s.Legende = append(s.Legende, LigneLegende{"Communes", com, detCom})
+	s.Legende = append(s.Legende, ligneLegende("Communes", com, detCom))
 	if p.Inscrits > 0 {
-		s.Legende = append(s.Legende, LigneLegende{"Inscrits sur les listes électorales", Nombre(p.Inscrits), "au 11 avril 2022"})
+		s.Legende = append(s.Legende, ligneLegende("Inscrits sur les listes électorales", Nombre(p.Inscrits), "au 11 avril 2022"))
 	}
 	if len(p.EnCours) > 0 {
 		var noms []string
 		for _, d := range p.EnCours {
 			noms = append(noms, d.Nom)
 		}
-		s.Legende = append(s.Legende, LigneLegende{"À l'Assemblée nationale", strings.Join(noms, ", "), p.EnCours[0].Periode})
+		s.Legende = append(s.Legende, ligneLegende("À l'Assemblée nationale", strings.Join(noms, ", "), p.EnCours[0].Periode))
 	}
-	s.Legende = append(s.Legende, LigneLegende{"Budget", "aucun",
-		"une circonscription élit un député ; elle n'a ni conseil ni budget"})
+	s.Legende = append(s.Legende, ligneLegende("Budget", "aucun",
+		"une circonscription élit un député ; elle n'a ni conseil ni budget"))
 	s.Note = "La circonscription en évidence, son département en trait moyen ; le cercle aide à la trouver à l'échelle de la France. Contour et population : Insee, portraits des circonscriptions législatives (fond du 3 mai 2022)."
 	return s
 }

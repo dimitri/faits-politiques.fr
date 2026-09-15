@@ -11,19 +11,19 @@ permettent pas de dire. Chacun se lit avec l'argent public qui le finance.</p>
   <div class="tete"><div><span class="sur">{{if .ParMille}}{{.ParMille}}&nbsp;€ sur 1&nbsp;000 de dépense publique{{else}}Hors fonctions de dépense{{end}}</span>
     <h2 class="h2">{{.Nom}}</h2></div></div>
   <p class="q">{{.Intro}}</p>
-  <div class="cartes trois">
+  <ul class="liste-sujets grande">
     {{range .Sujets}}
-    {{if .D}}<a class="carte" href="{{$.Root}}/{{.URL}}">
-      <span class="t">{{.Nom}}</span>
+    {{if .D}}<li><a href="{{$.Root}}/{{.URL}}">
+      <span class="nom">{{.Nom}}</span>
       <span class="d">{{.D.Titre}}</span>
-      {{if .Pages}}<span class="d" style="margin-top:.5rem;font-size:.78rem">+ {{(index .Pages 0).Titre}}</span>{{end}}
-    </a>
-    {{else if .Pages}}<a class="carte" href="{{$.Root}}/{{(index .Pages 0).URL}}">
-      <span class="t">{{.Nom}}</span>
+      {{if .Pages}}<span class="ext">+ {{(index .Pages 0).Titre}}</span>{{end}}
+    </a></li>
+    {{else if .Pages}}<li><a href="{{$.Root}}/{{(index .Pages 0).URL}}">
+      <span class="nom">{{.Nom}}</span>
       <span class="d">{{(index .Pages 0).Titre}}</span>
-    </a>{{end}}
+    </a></li>{{end}}
     {{end}}
-  </div>
+  </ul>
 </section>
 {{end}}
 

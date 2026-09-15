@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | RSA | 271 | 116 | 1er octobre 2024 | 11 juin 2026 |
 | assurance chômage | 222 | 95 | 1er octobre 2024 | 2 juin 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -54,10 +54,9 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 ### 1. Le taux de chômage depuis 1975
 
-`core.chomage_taux_trimestriel` (Insee, série BDM 001688527, taux au sens du
-BIT, France hors Mayotte, données CVS) : **206 trimestres, du premier
-trimestre 1975 au deuxième trimestre 2026** — la mesure de référence citée à
-chaque publication trimestrielle.
+Cette série (Insee, série BDM 001688527, taux au sens du BIT, France hors Mayotte,
+données CVS) : **206 trimestres, du premier trimestre 1975 au deuxième trimestre
+2026** — la mesure de référence citée à chaque publication trimestrielle.
 
 | trimestre | taux |
 |---|---:|
@@ -82,21 +81,20 @@ définition BIT) sans que la situation se soit améliorée.
 
 #### 1.1 Le halo autour du chômage
 
-`ref.macro_serie` / `core.macro_value` porte, depuis Eurostat, trois séries
-complémentaires que le taux BIT laisse de côté : personnes sous-employées à
-temps partiel, disponibles mais ne cherchant pas (le halo proprement dit), et
-cherchant un emploi mais indisponibles. Ensemble (`chomage.halo_total`), elles
-mesurent une capacité d'emploi inutilisée plus large que le seul chômage au
-sens strict — utile pour ne pas confondre « le taux baisse » et « il y a moins
-de gens sans emploi qu'ils ne le voudraient ».
+Cette série porte, depuis Eurostat, trois séries complémentaires que le taux BIT
+laisse de côté : personnes sous-employées à temps partiel, disponibles mais ne
+cherchant pas (le halo proprement dit), et cherchant un emploi mais indisponibles.
+Ensemble, elles mesurent une capacité d'emploi inutilisée plus large que le seul
+chômage au sens strict — utile pour ne pas confondre « le taux baisse » et « il y a
+moins de gens sans emploi qu'ils ne le voudraient ».
 
 #### 1.2 Les demandeurs d'emploi inscrits : une mesure distincte du taux au sens du BIT
 
-`core.demandeur_emploi_categorie` (Dares/France Travail, CVS-CJO, France,
-depuis février 1996) porte la statistique administrative que la presse cite le
-plus souvent — « X millions de demandeurs d'emploi » — et qui n'est PAS le
-taux BIT du § 1 : c'est un décompte d'inscriptions, catégorie par catégorie
-(A : sans aucune activité ; B, C : activité réduite courte ou longue).
+Cette série (Dares/France Travail, CVS-CJO, France, depuis février 1996) porte la
+statistique administrative que la presse cite le plus souvent — « X millions de
+demandeurs d'emploi » — et qui n'est PAS le taux BIT du § 1 : c'est un décompte
+d'inscriptions, catégorie par catégorie (A : sans aucune activité ; B, C : activité
+réduite courte ou longue).
 
 | | catégorie A | catégorie A+B+C |
 |---|---:|---:|
@@ -117,8 +115,7 @@ toutes les inscriptions.
 
 ### 2. RMI puis RSA : trente-cinq ans d'un même filet, sous deux noms
 
-`core.minima_sociaux_effectif` (Drees, France métropolitaine, 1990-2024) porte
-la continuité complète :
+Cette série (Drees, France métropolitaine, 1990-2024) porte la continuité complète :
 
 | année | RMI | RSA |
 |---|---:|---:|
@@ -137,11 +134,11 @@ ce qui explique pourquoi le nombre d'allocataires RSA de 2016 n'est pas
 directement comparable à celui de 2015 sans le savoir (rupture de série
 documentée par la Drees elle-même dans le fichier source).
 
-**Coût de l'allocation** (`core.minima_sociaux_depense`, Md€ constants 2024) :
-**9,6 Md€ en 2009 → 12,4 Md€ en 2024**, en hausse de 29 % en quinze ans — une
-évolution à comparer au nombre d'allocataires (+25 % sur la même période) :
-l'essentiel de la hausse du coût suit la hausse du nombre de bénéficiaires,
-pas une revalorisation démesurée du montant individuel.
+**Coût de l'allocation** (Md€ constants 2024) : **9,6 Md€ en 2009 → 12,4 Md€ en
+2024**, en hausse de 29 % en quinze ans — une évolution à comparer au nombre
+d'allocataires (+25 % sur la même période) : l'essentiel de la hausse du coût suit la
+hausse du nombre de bénéficiaires, pas une revalorisation démesurée du montant
+individuel.
 
 #### 2.1 L'allocation de solidarité spécifique (ASS), le plancher de
 l'indemnisation chômage
@@ -156,22 +153,21 @@ de 1990, malgré des remontées ponctuelles (2009, 2015, 2020).
 
 #### 2.2 La prime d'activité, qui a remplacé le RSA activité
 
-`core.prime_activite_effectif` (Drees, même jeu de données que le RSA mais
-fichier distinct, France métropolitaine) : créée le 1er janvier 2016 en
-remplacement du RSA activité et de la prime pour l'emploi, elle est passée de
-**2 562 500 allocataires en 2016** à **4 636 500 en 2024** — soit **+81 %** en
-huit ans, une progression sans commune mesure avec celle du RSA socle sur la
-même période (§ 2). Le saut le plus net n'est pas celui de la création
-(2016 → 2017 : +6,7 %), mais **2018 → 2019 (+43 %, de 3 041 300 à
-4 357 200)** — l'effet de la revalorisation annoncée fin 2018 dans le cadre de
-la réponse au mouvement des Gilets jaunes, qui a fortement élargi l'accès au
-dispositif au-delà de son périmètre initial de 2016.
+Cette série (Drees, même jeu de données que le RSA mais fichier distinct, France
+métropolitaine) : créée le 1er janvier 2016 en remplacement du RSA activité et de la
+prime pour l'emploi, elle est passée de **2 562 500 allocataires en 2016** à **4 636
+500 en 2024** — soit **+81 %** en huit ans, une progression sans commune mesure avec
+celle du RSA socle sur la même période (§ 2). Le saut le plus net n'est pas celui de
+la création (2016 → 2017 : +6,7 %), mais **2018 → 2019 (+43 %, de 3 041 300 à 4 357
+200)** — l'effet de la revalorisation annoncée fin 2018 dans le cadre de la réponse au
+mouvement des Gilets jaunes, qui a fortement élargi l'accès au dispositif au-delà de
+son périmètre initial de 2016.
 
 ### 3. La dépense au sens large : ESSPROS
 
-`core.macro_value`, série `protection.depense.chomage` (Eurostat ESSPROS,
-champ protection sociale — plus large que la seule Unédic, y compris
-indemnisation, insertion, préretraites liées au marché du travail) :
+Cette série (Eurostat ESSPROS, champ protection sociale — plus large que la seule
+Unédic, y compris indemnisation, insertion, préretraites liées au marché du
+travail) :
 
 | année | Md€ |
 |---|---:|
@@ -215,35 +211,33 @@ Deux circuits séparés :
 
 #### 4.2 Ce que la base peut chiffrer exactement, et ce qu'elle ne peut pas
 
-`core.encaissement_urssaf` (2020-2022, maille région — voir
-[docs/budget-donnees.md](budget-donnees.md) § 9) additionne, dans une même
-catégorie « cotisations et contributions sur revenus d'activité », **toutes**
-les branches (maladie, famille, vieillesse, chômage) collectées par une même
-déclaration sociale nominative. **Aucune source URSSAF ouverte ne publie la
-part chômage séparément des autres branches** : l'URSSAF documente son
-activité de recouvrement (890 mesures d'exonération, 118 trimestres de masse
-salariale, chargés dans ce projet), jamais ses comptes par branche. Le taux
-légal de cotisation chômage (4,05 %) est un **fait de droit**, publiable et
-cité ci-dessus ; le **montant exact en euros qu'il représente à lui seul**
-n'est publié nulle part en open data — c'est la même limite que celle
+Cette série (2020-2022, maille région — voir
+[docs/budget-donnees.md](budget-donnees.md) § 9) additionne, dans une même catégorie «
+cotisations et contributions sur revenus d'activité », **toutes** les branches
+(maladie, famille, vieillesse, chômage) collectées par une même déclaration sociale
+nominative. **Aucune source URSSAF ouverte ne publie la part chômage séparément des
+autres branches** : l'URSSAF documente son activité de recouvrement (890 mesures
+d'exonération, 118 trimestres de masse salariale, chargés dans ce projet), jamais ses
+comptes par branche. Le taux légal de cotisation chômage (4,05 %) est un **fait de
+droit**, publiable et cité ci-dessus ; le **montant exact en euros qu'il représente à
+lui seul** n'est publié nulle part en open data — c'est la même limite que celle
 documentée pour les comptes de la Sécurité sociale en général.
 
-**Ce qui EST chiffrable exactement** : les 301,3 Md€ versés par les
-entreprises en 2022 (toutes branches, `core.encaissement_urssaf`, filtré sur
-`categorie_entreprise`), et la part de la protection sociale financée par
-cotisations employeurs contre impôts affectés, année par année depuis 1990
-(`protection.financement.*`, § 4.5 de docs/budget-donnees.md).
+**Ce qui EST chiffrable exactement** : les 301,3 Md€ versés par les entreprises en
+2022 (toutes branches, filtré sur `categorie_entreprise`), et la part de la protection
+sociale financée par cotisations employeurs contre impôts affectés, année par année
+depuis 1990 (§ 4.5 de docs/budget-donnees.md).
 
 #### 4.3 La redistribution : de la cotisation à l'allocation
 
-Le circuit, simplifié : l'employeur verse la cotisation à l'URSSAF (ou la CSG,
-pour la part qui a remplacé la cotisation salariale) → l'URSSAF centralise et
-reverse à l'Unédic pour l'assurance chômage, ou à l'État/aux départements pour
-les minima sociaux → France Travail (ex-Pôle emploi) verse l'allocation
-chômage (ARE) aux personnes indemnisées, ou l'ASS/le RSA aux bénéficiaires des
-minima sociaux. `core.chomage_tranche_unedic` (45 trimestres, 2014-2025)
-donne, pour chaque trimestre, la répartition exacte des allocataires par
-tranche de montant perçu — le dernier maillon de cette chaîne, chiffré.
+Le circuit, simplifié : l'employeur verse la cotisation à l'URSSAF (ou la CSG, pour la
+part qui a remplacé la cotisation salariale) → l'URSSAF centralise et reverse à
+l'Unédic pour l'assurance chômage, ou à l'État/aux départements pour les minima
+sociaux → France Travail (ex-Pôle emploi) verse l'allocation chômage (ARE) aux
+personnes indemnisées, ou l'ASS/le RSA aux bénéficiaires des minima sociaux. Cette
+série (45 trimestres, 2014-2025) donne, pour chaque trimestre, la répartition exacte
+des allocataires par tranche de montant perçu — le dernier maillon de cette chaîne,
+chiffré.
 
 ## Ce que les données ne disent pas
 
@@ -274,18 +268,18 @@ et des minima sociaux est détaillé au § 4.2. Les listes « non chargé » de 
 
 ### 5. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Insee, taux de chômage BIT trimestriel (BDM 001688527) | `core.chomage_taux_trimestriel` | 206 trimestres, 1975-2026 |
-| 2 | Eurostat, halo du chômage | `core.macro_value` (`chomage.*`) | déjà chargé, voir § 1.1 |
-| 3 | Cnaf, foyers allocataires du RSA | `core.macro_value` (`rsa.foyers`) | 10 années, 2016-2025 |
-| 4 | Drees, minima sociaux par dispositif — effectifs | `core.minima_sociaux_effectif` | 338 lignes, 1990-2024 |
-| 5 | Drees, minima sociaux par dispositif — dépenses | `core.minima_sociaux_depense` | 176 lignes, 2009-2024 |
-| 6 | Eurostat ESSPROS, dépense fonction chômage | `core.macro_value` (`protection.depense.chomage`) | 34 ans, 1990-2023 |
-| 7 | Unédic, répartition par tranche d'indemnisation | `core.chomage_tranche_unedic` | 45 trimestres, 2014-2025 |
-| 8 | URSSAF, exonérations et encaissements | `core.exoneration_cotisation`, `core.encaissement_urssaf` | déjà chargés, cf. docs/budget-donnees.md |
-| 9 | Dares/France Travail, demandeurs d'emploi inscrits par catégorie | `core.demandeur_emploi_categorie` | 10 527 lignes, depuis février 1996 |
-| 10 | Drees, RSA et prime d'activité — données nationales | `core.prime_activite_effectif` | 9 millésimes, 2016-2024 |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | Insee, taux de chômage BIT trimestriel (BDM 001688527) | 206 trimestres, 1975-2026 |
+| 2 | Eurostat, halo du chômage | déjà chargé, voir § 1.1 |
+| 3 | Cnaf, foyers allocataires du RSA | 10 années, 2016-2025 |
+| 4 | Drees, minima sociaux par dispositif — effectifs | 338 lignes, 1990-2024 |
+| 5 | Drees, minima sociaux par dispositif — dépenses | 176 lignes, 2009-2024 |
+| 6 | Eurostat ESSPROS, dépense fonction chômage | 34 ans, 1990-2023 |
+| 7 | Unédic, répartition par tranche d'indemnisation | 45 trimestres, 2014-2025 |
+| 8 | URSSAF, exonérations et encaissements | déjà chargés, cf. docs/budget-donnees.md |
+| 9 | Dares/France Travail, demandeurs d'emploi inscrits par catégorie | 10 527 lignes, depuis février 1996 |
+| 10 | Drees, RSA et prime d'activité — données nationales | 9 millésimes, 2016-2024 |
 
 **Non chargé, et pourquoi :**
 
@@ -294,17 +288,16 @@ et des minima sociaux est détaillé au § 4.2. Les listes « non chargé » de 
 - **Comptes financiers de l'Unédic** (dette, recettes, dépenses par nature) —
   publiés en PDF deux à trois fois par an, non structurés (déjà documenté en
   [docs/budget-donnees.md](budget-donnees.md) § 4.4).
-- **Dépense de la prime d'activité** : le fichier chargé (ligne 10) ne publie
-  que des effectifs. Le fichier « dépenses par dispositif » déjà utilisé pour
-  le RSA et l'ASS ne détaille pas la prime d'activité séparément — sa
-  dépense reste, pour l'instant, incluse dans des lignes plus larges de
-  `core.protection_sociale`, pas isolable.
+- **Dépense de la prime d'activité** : le fichier chargé (ligne 10) ne publie que des
+  effectifs. Le fichier « dépenses par dispositif » déjà utilisé pour le RSA et l'ASS
+  ne détaille pas la prime d'activité séparément — sa dépense reste, pour l'instant,
+  incluse dans des lignes plus larges de cette série, pas isolable.
 - **Détail des demandeurs d'emploi par âge, région ou ancienneté** : la même
   source Dares le publie (54 567 lignes au total contre 10 527 chargées) ;
   seul le total agrégé par catégorie a été retenu ici.
 
 ## Versions
 
-- **Version 4** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (lois de 2008, 2022, 2023) et prévisions du gestionnaire de l'Assurance chômage.
+- **Version 4** (15 septembre 2026) : plan commun des dossiers ; cadre (lois de 2008, 2022, 2023) et prévisions du gestionnaire de l'Assurance chômage.
 - **Version 3** (14 septembre 2026) : prime d'activité (§ 2.2), qui a remplacé le RSA activité en 2016.
 - **Version 2** : demandeurs d'emploi inscrits à France Travail (§ 1.2), distincts du taux BIT du § 1.

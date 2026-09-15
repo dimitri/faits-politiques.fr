@@ -18,7 +18,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 |---|---:|---:|---|---|
 | violences policières | 29 | 17 | 16 janvier 2025 | 8 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -78,9 +78,9 @@ précisément parce que la source officielle manque.
 
 ### 4. Les arrêts de la Cour européenne des droits de l'homme chargés
 
-`core.cedh_arret` contient **1 181 arrêts de la Cour européenne des droits de
-l'homme concernant la France, de 1986 à 2026**, avec les articles invoqués et
-le sens de la décision.
+Cette série contient **1 181 arrêts de la Cour européenne des droits de l'homme
+concernant la France, de 1986 à 2026**, avec les articles invoqués et le sens de la
+décision.
 
 | article | violations constatées | arrêts |
 |---|---|---|
@@ -152,5 +152,5 @@ Défenseur des droits, arrêts de la Cour européenne des droits de l'homme char
 
 ## Versions
 
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi organique sur le Défenseur des droits) et réclamations reçues en 2024.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (loi organique sur le Défenseur des droits) et réclamations reçues en 2024.
 - **Version 1** (13 septembre 2026) : note de méthode sur les sources.

@@ -19,7 +19,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | transition écologique | 916 | 270 | 1er octobre 2024 | 21 juillet 2026 |
 | budget vert | 3 | 2 | 21 octobre 2024 | 25 octobre 2024 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -42,13 +42,11 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 ### 2. Le budget vert : une cotation, pas une dépense
 
-Déjà chargé et documenté en détail dans
-[docs/dette-donnees.md](dette-donnees.md) (`core.depense_fiscale`) : le
+Déjà chargé et documenté en détail dans [docs/dette-donnees.md](dette-donnees.md) : le
 budget vert **cote** les dépenses fiscales existantes selon leur impact
-environnemental, il ne mesure pas une dépense propre. Cette note ne répète
-pas ce travail — voir la note citée pour ses pièges de lecture (révisions
-fortes d'un PLF à l'autre, lignes à dédoublonner par mesure et non par
-cotation).
+environnemental, il ne mesure pas une dépense propre. Cette note ne répète pas ce
+travail — voir la note citée pour ses pièges de lecture (révisions fortes d'un PLF à
+l'autre, lignes à dédoublonner par mesure et non par cotation).
 
 ## Contrôles et évaluations
 
@@ -62,14 +60,13 @@ cotation).
 
 ### 1. Le budget de la mission Écologie : neuf programmes, deux logiques différentes
 
-`core.budget_programme` (même table que
+Cette série (même table que
 [docs/securite-police-donnees.md](securite-police-donnees.md),
 [docs/defense-donnees.md](defense-donnees.md) et
-[docs/education-donnees.md](education-donnees.md) — un seul chargement PLF
-couvre déjà cette mission) : la mission **Écologie, développement et
-mobilité durables** totalise **21,63 Md€ en 2024** et **20,50 Md€ en 2025**
-en crédits de paiement, PLF (montants votés au projet, pas exécutés — voir
-[docs/budget-donnees.md](budget-donnees.md) § 2).
+[docs/education-donnees.md](education-donnees.md) — un seul chargement PLF couvre déjà
+cette mission) : la mission **Écologie, développement et mobilité durables** totalise
+**21,63 Md€ en 2024** et **20,50 Md€ en 2025** en crédits de paiement, PLF (montants
+votés au projet, pas exécutés — voir [docs/budget-donnees.md](budget-donnees.md) § 2).
 
 **Ce total mélange des politiques sans rapport entre elles** — transports,
 énergie, météorologie, biodiversité — sous un même intitulé budgétaire.
@@ -89,8 +86,8 @@ détail des dispositifs eux-mêmes.
 
 ### 3. La fiscalité écologique : un périmètre étroit
 
-`core.recette_fiscale`, poste **D29F « Impôts sur les émissions
-polluantes »** (nomenclature SEC2010, comptabilité nationale, déjà chargé) :
+Cette série, poste **D29F « Impôts sur les émissions polluantes »** (nomenclature
+SEC2010, comptabilité nationale, déjà chargé) :
 
 | Année | Montant (M€) |
 |---|---:|
@@ -111,9 +108,8 @@ appliquer.
 
 ### 4. La dépense de protection de l'environnement (Eurostat)
 
-`core.depense_environnementale`, Eurostat (`env_epea_neep`), France,
-2012-2025 — la nomenclature CEP (l'évolution de CEPA/CReMA à partir de la
-collecte 2025) :
+Cette série, Eurostat (`env_epea_neep`), France, 2012-2025 — la nomenclature CEP
+(l'évolution de CEPA/CReMA à partir de la collecte 2025) :
 
 | Secteur | 2020 (Md€) | 2023 (Md€) |
 |---|---:|---:|
@@ -131,9 +127,9 @@ est déjà la somme de toutes les autres ; certaines sous-catégories comme
 lien d'inclusion strict soit documenté dans le jeu lui-même). Trois
 catégories parmi les plus importantes, à titre d'illustration, chacune
 comparée au total et non additionnée : gestion des déchets (21,7 Md€),
-gestion des eaux usées (16,6 Md€), énergies renouvelables (23,5 Md€) —
-`cmd/verify` s'assure seulement que le total domine chaque sous-catégorie,
-pas qu'elles s'additionnent, précisément parce qu'elles ne le font pas.
+gestion des eaux usées (16,6 Md€), énergies renouvelables (23,5 Md€) — ce
+site s'assure seulement que le total domine chaque sous-catégorie, pas
+qu'elles s'additionnent, précisément parce qu'elles ne le font pas.
 
 **Non chargé, identifié, avec la raison précise :**
 
@@ -177,14 +173,14 @@ recouper comptablement.
 
 ### 6. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Direction du budget, PLF, mission Écologie | `core.budget_programme` | 9 programmes, 2024-2025 (table partagée, § 1) |
-| 2 | Eurostat/Insee, comptabilité nationale, poste D29F | `core.recette_fiscale` | déjà chargé, § 3 |
-| 3 | PLF, budget vert (cotation environnementale) | `core.depense_fiscale` | déjà chargé, voir docs/dette-donnees.md |
-| 4 | Eurostat, dépense de protection de l'environnement | `core.depense_environnementale` | 1 503 lignes, France, 2012-2025 |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | Direction du budget, PLF, mission Écologie | 9 programmes, 2024-2025 (table partagée, § 1) |
+| 2 | Eurostat/Insee, comptabilité nationale, poste D29F | déjà chargé, § 3 |
+| 3 | PLF, budget vert (cotation environnementale) | déjà chargé, voir docs/dette-donnees.md |
+| 4 | Eurostat, dépense de protection de l'environnement | 1 503 lignes, France, 2012-2025 |
 
 ## Versions
 
-- **Version 3** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (lois énergie-climat et climat-résilience) et évaluation du Haut Conseil pour le climat.
+- **Version 3** (15 septembre 2026) : plan commun des dossiers ; cadre (lois énergie-climat et climat-résilience) et évaluation du Haut Conseil pour le climat.
 - **Version 2** (15 septembre 2026) : dépense de protection de l'environnement (Eurostat, § 4).

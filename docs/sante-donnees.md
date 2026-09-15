@@ -21,7 +21,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | hôpital | 1669 | 354 | 1er octobre 2024 | 21 juillet 2026 |
 | déserts médicaux | 333 | 141 | 18 juillet 2024 | 20 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -43,9 +43,8 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 ### 2. La rémunération des médecins : le secteur conventionnel
 
-Source : Cnam (Assurance Maladie), `data.ameli.fr`, « Démographie secteurs
-conventionnels » — 177 720 lignes, toutes professions de santé libérales
-(pas seulement les médecins), 2010-2024.
+Source : Cnam (Assurance Maladie), « Démographie secteurs conventionnels » — 177 720
+lignes, toutes professions de santé libérales (pas seulement les médecins), 2010-2024.
 
 **Ensemble des médecins, France entière, 2024** :
 
@@ -72,19 +71,18 @@ Maladie rembourse sur une base forfaitaire très inférieure.
 **Une rupture de série réelle, pas une lacune** : avant 2013, la donnée ne
 distingue que trois catégories (secteur 1, secteur 2, non conventionné) —
 l'Optam (sous son nom d'origine, le contrat d'accès aux soins) n'existe pas
-avant cette date. `cmd/verify` l'accepte explicitement plutôt que de
-signaler une anomalie à chaque millésime antérieur à 2013.
+avant cette date. Un graphique sur toute la période doit le dire en légende,
+pas laisser croire à une case vide.
 
 **Évolution 2010-2024** : l'effectif total de médecins recule légèrement
 (118 133 → 112 159, soit −5,1 %) sur la période — un chiffre à mettre en
 regard, sans le faire ici, de la démographie et des capacités de formation,
 hors périmètre de cette note.
 
-**Combien, pas seulement dans quel système** — `core.medecin_honoraires`
-(Cnam, `data.ameli.fr`, jeu « montants des honoraires par territoire »),
-66 480 lignes, 38 professions, 2010-2024. Ce que le § 2 donnait comme
-RÉPARTITION par secteur, cette table le chiffre en euros. France entière,
-2024 :
+**Combien, pas seulement dans quel système** — cette série (Cnam, jeu « montants des
+honoraires par territoire »), 66 480 lignes, 38 professions, 2010-2024. Ce que le § 2
+donnait comme RÉPARTITION par secteur, cette table le chiffre en euros. France
+entière, 2024 :
 
 | Profession | Honoraires sans dépassement | Dépassements | Taux de dépassement secteur 2 (Optam / hors Optam) |
 |---|---:|---:|---|
@@ -104,17 +102,15 @@ profession sans effectif en secteur 2, sur les trois taux de dépassement —
 les deux par 0 ; ce dossier ne le reprend pas (`docs/README.md`, règle 3 —
 un montant non publié n'est pas un montant nul).
 
-**`code_departement` = « 999 » porte deux niveaux d'agrégat différents
-selon la région qui l'accompagne** — un total régional (« Tout
-département ») ou, pour la région « 99 », le total France — à exclure
-avant toute somme par département, comme pour Open Damir (§ 1.6) et la
-démographie par secteur (§ 2 ci-dessus). Cette table utilise d'ailleurs sa
-propre nomenclature régionale, une TROISIÈME distincte des deux déjà
-rencontrées dans ce dossier : chaque DOM y a son propre code (comme
-`core.medecin_secteur_effectif`), la Corse en a un séparé de PACA (à la
-différence d'Open Damir, § 1.6, qui les regroupe) — une illustration de
-plus que la nomenclature régionale ne se devine jamais d'un jeu Cnam à
-l'autre, même publiés par le même organisme.
+**`code_departement` = « 999 » porte deux niveaux d'agrégat différents selon la région
+qui l'accompagne** — un total régional (« Tout département ») ou, pour la région « 99
+», le total France — à exclure avant toute somme par département, comme pour Open
+Damir (§ 1.6) et la démographie par secteur (§ 2 ci-dessus). Cette table utilise
+d'ailleurs sa propre nomenclature régionale, une TROISIÈME distincte des deux déjà
+rencontrées dans ce dossier : chaque DOM y a son propre code (comme cette série), la
+Corse en a un séparé de PACA (à la différence d'Open Damir, § 1.6, qui les regroupe) —
+une illustration de plus que la nomenclature régionale ne se devine jamais d'un jeu
+Cnam à l'autre, même publiés par le même organisme.
 
 ## Contrôles et évaluations
 
@@ -128,9 +124,9 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 ### 1. FINESS : le référentiel, sans aucune activité ni finances
 
-`ref.finess_etablissement`, 103 022 établissements sanitaires et sociaux
-(48 760 entités juridiques distinctes — une entité gère souvent plusieurs
-sites). Source : ANS (Agence du numérique en santé), via data.gouv.fr.
+Cette série, 103 022 établissements sanitaires et sociaux (48 760 entités juridiques
+distinctes — une entité gère souvent plusieurs sites). Source : ANS (Agence du
+numérique en santé), via data.gouv.fr.
 
 **Réserve à poser dès l'ouverture** : le jeu de données utilisé
 (`etalab_cs1100502`) est signalé comme remplacé par de nouveaux flux
@@ -155,23 +151,19 @@ exhaustive serait une extrapolation non fondée.
 | Établissements et services d'hébergement pour adultes handicapés | 5 305 |
 | Laboratoires de biologie médicale | 4 562 |
 
-**Ce que cette table permet pour la suite** : `nofinesset` devient la clé sur
-laquelle toute source secondaire (SAE, PMSI, DAMIR, RPPS) pourra se joindre
-sans dupliquer l'identification d'un établissement — le même rôle que
-`ref.commune` pour le volet territorial. `code_insee` (département +
-commune FINESS concaténés par ce connecteur, à ne pas confondre avec un code
-INSEE publié tel quel par la source) prépare une jointure géographique
-future.
+**Ce que cette table permet pour la suite** : `nofinesset` devient la clé sur laquelle
+toute source secondaire (SAE, PMSI, DAMIR, RPPS) pourra se joindre sans dupliquer
+l'identification d'un établissement — le même rôle que cette série pour le volet
+territorial. `code_insee` (département + commune FINESS concaténés par ce connecteur,
+à ne pas confondre avec un code INSEE publié tel quel par la source) prépare une
+jointure géographique future.
 
 #### 1.1 Le personnel hospitalier par fonction (SAE)
 
-`core.sae_personnel_fonction`, 3 808 établissements, 2024. Source : Drees,
-SAE (Statistique annuelle des établissements de santé) — publiée sous forme
-d'une archive `.7z` contenant une cinquantaine de bordereaux thématiques
-(lits, activité par discipline, équipements, personnel), pas d'un jeu
-tabulaire directement interrogeable. Chargeable depuis que 7-zip est
-installé sur la machine de build ; `internal/sante/sae.go` est le seul
-connecteur de ce dépôt qui invoque un binaire externe plutôt que du Go pur.
+3 808 établissements, 2024. Source : Drees, SAE (Statistique annuelle des
+établissements de santé) — publiée sous forme d'une archive compressée contenant une
+cinquantaine de bordereaux thématiques (lits, activité par discipline, équipements,
+personnel), pas d'un jeu tabulaire directement interrogeable.
 
 **Un bug de comptage trouvé et corrigé avant publication** : le fichier
 source (bordereau Q24) publie, par établissement, une ligne par discipline
@@ -190,33 +182,31 @@ est retenue :
 | **Total personnel non médical, tous établissements SAE** | **1 088 252** |
 
 **Ce total ne couvre que les 3 808 établissements répondant à la SAE**
-(essentiellement les établissements de santé au sens strict), pas les
-103 022 établissements de `ref.finess_etablissement`, dont la majorité sont
-médico-sociaux et hors du champ de cette enquête.
+(essentiellement les établissements de santé au sens strict), pas les 103 022
+établissements de cette série, dont la majorité sont médico-sociaux et hors du champ
+de cette enquête.
 
 #### 1.2 FINESS change de format : ce que la suite (ANS) publie déjà
 
-Au moment de l'écriture, l'Agence du numérique en santé publie déjà les
-deux jeux qui remplaceront `etalab_cs1100502` (§ 1) : **`finess-structures-1`**
-et **`finess-activites-1`**, en JSON quotidien et mensuel
-(`finess-structures-mensuel-202608.json.gz`, etc.), sur data.gouv.fr.
-**Non repris dans cette version** : le nouveau format n'est pas une évolution
-mineure du fichier plat actuel — c'est un modèle imbriqué (`pmej` : personne
-morale/entité juridique, 98 193 entrées dans l'édition consultée ;
-`ege` : établissement géographique, imbriqué par `pmej` ; `gco`/`gcc` :
-groupements de coopération) qui distingue explicitement l'entité juridique du
-site géographique, là où le fichier actuel les juxtapose sur une seule ligne.
-Migrer vers ce format demande de modéliser cette hiérarchie proprement,
-plutôt que de la forcer dans le schéma plat de `ref.finess_etablissement` —
-un chantier à part, pas une mise à jour d'URL.
+Au moment de l'écriture, l'Agence du numérique en santé publie déjà les deux jeux qui
+remplaceront `etalab_cs1100502` (§ 1) : **`finess-structures-1`** et
+**`finess-activites-1`**, en JSON quotidien et mensuel
+(`finess-structures-mensuel-202608.json.gz`, etc.), sur data.gouv.fr. **Non repris
+dans cette version** : le nouveau format n'est pas une évolution mineure du fichier
+plat actuel — c'est un modèle imbriqué (`pmej` : personne morale/entité juridique, 98
+193 entrées dans l'édition consultée ; `ege` : établissement géographique, imbriqué
+par `pmej` ; `gco`/`gcc` : groupements de coopération) qui distingue explicitement
+l'entité juridique du site géographique, là où le fichier actuel les juxtapose sur une
+seule ligne. Migrer vers ce format demande de modéliser cette hiérarchie proprement,
+plutôt que de la forcer dans le schéma plat de cette série — un chantier à part, pas
+une mise à jour d'URL.
 
 #### 1.3 La certification HAS : la seule mesure de qualité comparable
 
-`core.certification_has_demarche` / `core.certification_has_chapitre`,
-422 démarches de certification (6ᵉ cycle, 2025-), 421 rejointes à
-`ref.finess_etablissement` par leur numéro FINESS. Source : Haute Autorité de
-Santé, trois fichiers CSV normalisés et légers (quelques centaines de Ko
-chacun) — sans commune mesure avec la complexité de SAE ou de FINESS lui-même.
+Cette série, 422 démarches de certification (6ᵉ cycle, 2025-), 421 rejointes à cette
+série par leur numéro FINESS. Source : Haute Autorité de Santé, trois fichiers CSV
+normalisés et légers (quelques centaines de Ko chacun) — sans commune mesure avec la
+complexité de SAE ou de FINESS lui-même.
 
 | Décision de certification | Démarches |
 |---|---:|
@@ -239,12 +229,11 @@ de correspondance non fait ici.
 
 #### 1.4 RPPS : le pont vers les professionnels, et une population plus large qu'il n'y paraît
 
-`core.rpps_professionnel_activite` (Annuaire Santé, ANS, extraction en libre
-accès) : **2 286 272 lignes d'activité pour 1 912 833 professionnels
-distincts.** Une ligne par activité déclarée, pas par personne — un même
-identifiant (`identifiant_pp`) revient sur plusieurs lignes s'il exerce sur
-plusieurs sites ou avec plusieurs rôles ; ne jamais compter les lignes comme
-un nombre de professionnels.
+Cette série (Annuaire Santé, ANS, extraction en libre accès) : **2 286 272 lignes
+d'activité pour 1 912 833 professionnels distincts.** Une ligne par activité déclarée,
+pas par personne — un même identifiant (`identifiant_pp`) revient sur plusieurs lignes
+s'il exerce sur plusieurs sites ou avec plusieurs rôles ; ne jamais compter les lignes
+comme un nombre de professionnels.
 
 | Profession | Professionnels distincts |
 |---|---:|
@@ -292,8 +281,7 @@ familles de chiffres est un second portail, moins connu :
 **data-essentiel.atih.sante.fr**, un Opendatasoft comme celui de la Depp ou
 de la Drees déjà utilisés ailleurs dans ce dépôt, sous licence ODbL.
 
-**MCO (Médecine-Chirurgie-Obstétrique)** — `core.pmsi_mco_national`,
-`core.pmsi_mco_par_etablissement` et `core.pmsi_mco_par_patient` :
+**MCO (Médecine-Chirurgie-Obstétrique)** :
 
 | Année | Séjours (Tous) | dont hospitalisation complète | dont ambulatoire | Durée moyenne (Tous) |
 |---|---:|---:|---:|---:|
@@ -308,19 +296,16 @@ séjour en ambulatoire est mécaniquement de 1 jour (un séjour ambulatoire est
 par définition sans nuitée) : ce n'est pas une amélioration de la prise en
 charge, c'est une définition.
 
-**1 514 établissements** portent une activité MCO en 2025
-(`core.pmsi_mco_par_etablissement`, 18 régions dont l'outre-mer). L'Île-de-
-France et l'Auvergne-Rhône-Alpes concentrent les plus gros volumes de
-séjours en établissement public — cohérent avec leur poids démographique,
-que cette note ne rapporte pas ici faute d'avoir chargé une population de
-référence par région dans ce même chargement.
+**1 514 établissements** portent une activité MCO en 2025 (18 régions dont
+l'outre-mer). L'Île-de- France et l'Auvergne-Rhône-Alpes concentrent les plus gros
+volumes de séjours en établissement public — cohérent avec leur poids démographique,
+que cette note ne rapporte pas ici faute d'avoir chargé une population de référence
+par région dans ce même chargement.
 
-**SMR (Soins médicaux et de réadaptation)** — `core.pmsi_smr_regional`,
-`core.pmsi_smr_par_etablissement`, `core.pmsi_smr_par_patient`, 2021-2025.
-Un champ dont le vocabulaire ne se transpose pas de MCO : SMR distingue
-HC/HP (hospitalisation complète/partielle), pas complète/ambulatoire, et
-publie une **durée moyenne de PRISE EN CHARGE** distincte de la durée de
-séjour :
+**SMR (Soins médicaux et de réadaptation)** — cette série, 2021-2025. Un champ dont le
+vocabulaire ne se transpose pas de MCO : SMR distingue HC/HP (hospitalisation
+complète/partielle), pas complète/ambulatoire, et publie une **durée moyenne de PRISE
+EN CHARGE** distincte de la durée de séjour :
 
 | Année | Journées (Tous) | dont HC | dont HP | Durée moy. de séjour | Durée moy. de prise en charge |
 |---|---:|---:|---:|---:|---:|
@@ -339,10 +324,9 @@ Tous, sans détail HC/HP** (2021/Normandie, entre autres) : une lacune de la
 source à cette maille précise, que le contrôle d'ingestion ignore
 explicitement plutôt que de la signaler comme une anomalie.
 
-**HAD (Hospitalisation à domicile)** — `core.pmsi_had_regional`,
-`core.pmsi_had_par_etablissement`, `core.pmsi_had_par_patient`, 2021-2025.
-La plus simple des trois : aucune sous-catégorie d'hospitalisation, et
-aucune durée publiée au niveau patient (âge × sexe) :
+**HAD (Hospitalisation à domicile)** — cette série, 2021-2025. La plus simple des
+trois : aucune sous-catégorie d'hospitalisation, et aucune durée publiée au niveau
+patient (âge × sexe) :
 
 | Année | Séjours (Tous) | Patients (Tous) | Durée moyenne de séjour |
 |---|---:|---:|---:|
@@ -356,16 +340,15 @@ source distincte resterait à identifier plutôt qu'à deviner.
 
 #### 1.6 Open Damir : les remboursements de l'Assurance Maladie, agrégés en flux
 
-Chargé depuis la version précédente de ce dossier (qui l'avait localisé et
-écarté pour sa taille — 970 Mo compressés par mois, plus de 10 Go par année).
-`core.remboursement_national` et `core.remboursement_region_prestation`
-(Cnam, Open Damir, licence Ouverte, `data.gouv.fr`) : **147,1 Md€ remboursés
-en 2025, 10,74 milliards d'actes** (12 mois, 101 980 lignes région×prestation).
+Chargé depuis la version précédente de ce dossier (qui l'avait localisé et écarté pour
+sa taille — 970 Mo compressés par mois, plus de 10 Go par année). Cette série et cette
+série (Cnam, Open Damir, Licence Ouverte) : **147,1 Md€ remboursés en 2025, 10,74
+milliards d'actes** (12 mois, 101 980 lignes région×prestation).
 
 **Jamais chargé ligne à ligne** : chaque fichier mensuel (36,6 millions de
-lignes en janvier 2025) est agrégé en flux à l'ingestion
-(`internal/damir/damir.go`) — seuls les totaux mensuels et les croisements
-région×prestation sont écrits en base, jamais les lignes brutes.
+lignes en janvier 2025) est agrégé en flux au chargement — seuls les totaux
+mensuels et les croisements région×prestation sont écrits en base, jamais
+les lignes brutes.
 
 | Mois 2025 | Md€ remboursés | Actes |
 |---|---:|---:|
@@ -398,14 +381,13 @@ transitent pas acte par acte dans ce système. Ce chiffre est une donnée
 mesurée, pas une vérification de l'ONDAM : le rapprochement précis des deux
 périmètres reste à faire, pas à deviner.
 
-**La zone de résidence (`BEN_RES_REG`) est décodée** (`ref.damir_region`,
-migration 0107) — depuis le lexique des variables que la Cnam publie
-elle-même (feuille « MOD OPEN DAMIR »), pas une correspondance devinée à
-partir des codes INSEE usuels. Deux écarts réels que deviner aurait
-manqués : un seul code regroupe tous les DOM (« 5 », Guadeloupe à Mayotte
-confondues — à l'inverse de la démographie par secteur conventionnel, § 2,
-qui les distingue), et un code « 99 » explicitement documenté « Inconnu »,
-pas une absence de ligne :
+**La zone de résidence (`BEN_RES_REG`) est décodée** depuis le lexique des variables
+que la Cnam publie elle-même (feuille « MOD OPEN DAMIR »), pas
+une correspondance devinée à partir des codes INSEE usuels. Deux écarts réels que
+deviner aurait manqués : un seul code regroupe tous les DOM (« 5 », Guadeloupe à
+Mayotte confondues — à l'inverse de la démographie par secteur conventionnel, § 2, qui
+les distingue), et un code « 99 » explicitement documenté « Inconnu », pas une absence
+de ligne :
 
 | Région | Md€ remboursés, 2025 |
 |---|---:|
@@ -425,12 +407,11 @@ systématiquement une région de résidence (cures thermales liquidées au lieu
 de l'établissement quel que soit le domicile du bénéficiaire, régimes
 « infogérés » — voir le commentaire de `ORG_CLE_REG` dans le même lexique).
 
-**La nature de prestation (`PRS_NAT`, 937 codes distincts observés) reste,
-elle, non décodée** — une nomenclature d'actes largement plus fine que
-celle des régions, qui déborde le lexique consulté ici. Une carte des
-remboursements par région existe désormais comme donnée (`ref.damir_region`
-permet de la construire), mais reste à construire : ce dossier documente le
-chiffre nouvellement décodé, pas encore une page du site.
+**La nature de prestation (`PRS_NAT`, 937 codes distincts observés) reste, elle, non
+décodée** — une nomenclature d'actes largement plus fine que celle des régions, qui
+déborde le lexique consulté ici. Une carte des remboursements par région existe
+désormais comme donnée (permet de la construire), mais reste à construire : ce dossier
+documente le chiffre nouvellement décodé, pas encore une page du site.
 
 #### 1.7 Déserts médicaux : la densité mesurée, pas la disponibilité
 
@@ -452,11 +433,10 @@ sans qu'aucune ne le résume à elle seule :
   celle qui consulte un généraliste en ville — à ne jamais additionner à la
   carte de densité pour prétendre mesurer « l'offre de soins » globale d'un
   territoire.
-- **Où va l'argent remboursé** : Open Damir (§ 1.6) le dit maintenant à
-  l'échelle région (`ref.damir_region`, § 1.6), mais sur une géographie
-  volontairement grossière (14 zones, DOM confondus, un code Inconnu) —
-  utilisable pour un ordre de grandeur régional, pas pour une carte
-  départementale comparable à celle des généralistes.
+- **Où va l'argent remboursé** : Open Damir (§ 1.6) le dit maintenant à l'échelle
+  région (§ 1.6), mais sur une géographie volontairement grossière (14 zones, DOM
+  confondus, un code Inconnu) — utilisable pour un ordre de grandeur régional, pas
+  pour une carte départementale comparable à celle des généralistes.
 
 **Ce que la carte de densité ne mesure pas** : un décompte de présence, pas
 une disponibilité. Un département dense en généralistes recensés peut avoir
@@ -470,26 +450,25 @@ un débat, elle ne le tranche pas.
 
 ### 3. Ce que ce dossier ne couvre pas encore
 
-- **Le détail des honoraires par type d'acte** (`honoraires-detailles` sur
-  `data.ameli.fr`) reste non chargé, à la différence des montants globaux
-  (§ 2) : ce second jeu décompose chaque montant sur trois niveaux
-  hiérarchiques (`honoraires_ordre_niv_1/2/3`, actes cliniques/techniques,
-  prescriptions...) — le même risque de double compte total/parties déjà
-  rencontré plusieurs fois dans ce dossier (PMSI, RPPS), à traiter avec le
-  soin que ces trois niveaux demandent plutôt qu'une agrégation hâtive.
+- **Le détail des honoraires par type d'acte** (`honoraires-detailles` sur cette
+  série) reste non chargé, à la différence des montants globaux (§ 2) : ce second jeu
+  décompose chaque montant sur trois niveaux hiérarchiques
+  (`honoraires_ordre_niv_1/2/3`, actes cliniques/techniques, prescriptions...) — le
+  même risque de double compte total/parties déjà rencontré plusieurs fois dans ce
+  dossier (PMSI, RPPS), à traiter avec le soin que ces trois niveaux demandent plutôt
+  qu'une agrégation hâtive.
 - **PMSI, psychiatrie (RIM-P)** : la seule des quatre familles PMSI absente
   de `data-essentiel.atih.sante.fr` (MCO, SMR et HAD y sont, § 1.5) — aucun
   jeu du portail n'en porte le nom, vérifié sur les 48 jeux du catalogue.
   Une source distincte resterait à identifier.
 
-**DECP, désormais chargées (transversalement, pas seulement pour la santé)** :
-`core.public_contract` — vide au moment de la version précédente de ce
-dossier — est maintenant alimentée pour l'ensemble de la commande publique
-française, établissements de santé compris ; voir
-[docs/commande-publique-donnees.md](commande-publique-donnees.md). Filtrer
-`acheteur_siret` sur les FINESS des établissements publics de santé
-(`ref.finess_etablissement.siret`) donnerait leurs fournisseurs — une
-jointure encore à écrire, pas encore un tableau de ce dossier.
+**DECP, désormais chargées (transversalement, pas seulement pour la santé)** : cette
+série — vide au moment de la version précédente de ce dossier — est maintenant
+alimentée pour l'ensemble de la commande publique française, établissements de santé
+compris ; voir [docs/commande-publique-donnees.md](commande-publique-donnees.md).
+Filtrer les marchés sur le SIRET des établissements publics de santé donnerait
+leurs fournisseurs — un rapprochement encore à écrire, pas encore un tableau de ce
+dossier.
 
 ### 4. SNDS/Open Damir : chargé depuis la version 7 — voir § 1.6
 
@@ -526,31 +505,30 @@ région×prestation n'a pas de nomenclature de décodage chargée.
 
 ### 5. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | ANS, référentiel FINESS des établissements | `ref.finess_etablissement` | 103 022 lignes |
-| 2 | Drees, SAE, bordereau Q24 (personnel par fonction) | `core.sae_personnel_fonction` | 3 808 lignes, 2024 |
-| 3 | Cnam, démographie par secteur conventionnel | `core.medecin_secteur_effectif` | 177 720 lignes, 2010-2024 |
-| 4 | HAS, certification des établissements (6ᵉ cycle) | `core.certification_has_demarche`, `core.certification_has_chapitre` | 422 démarches, 981 résultats |
-| 5 | ANS, Annuaire Santé (RPPS) | `core.rpps_professionnel_activite` | 2 286 272 lignes, 1 912 833 professionnels distincts |
-| 6 | ATIH, PMSI-MCO (data-essentiel) | `core.pmsi_mco_national`, `core.pmsi_mco_par_etablissement`, `core.pmsi_mco_par_patient` | 15 + 245 + 1 400 lignes, 2021-2025 |
-| 7 | Cnam, Open Damir (remboursements interrégimes, agrégés en flux) | `core.remboursement_national`, `core.remboursement_region_prestation` | 12 lignes + 101 980 lignes, 2025 |
-| 8 | Cnam, lexique Open Damir (nomenclature BEN_RES_REG) | `ref.damir_region` | 14 lignes |
-| 9 | ATIH, PMSI-SMR et PMSI-HAD (data-essentiel) | `core.pmsi_smr_regional`, `core.pmsi_smr_par_etablissement`, `core.pmsi_smr_par_patient`, `core.pmsi_had_regional`, `core.pmsi_had_par_etablissement`, `core.pmsi_had_par_patient` | 200+246+300 lignes SMR, 94+233+100 lignes HAD, 2021-2025 |
-| 10 | Cnam, montants des honoraires des médecins | `core.medecin_honoraires` | 66 480 lignes, 38 professions, 2010-2024 |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | ANS, référentiel FINESS des établissements | 103 022 lignes |
+| 2 | Drees, SAE, bordereau Q24 (personnel par fonction) | 3 808 lignes, 2024 |
+| 3 | Cnam, démographie par secteur conventionnel | 177 720 lignes, 2010-2024 |
+| 4 | HAS, certification des établissements (6ᵉ cycle) | 422 démarches, 981 résultats |
+| 5 | ANS, Annuaire Santé (RPPS) | 2 286 272 lignes, 1 912 833 professionnels distincts |
+| 6 | ATIH, PMSI-MCO (data-essentiel) | 15 + 245 + 1 400 lignes, 2021-2025 |
+| 7 | Cnam, Open Damir (remboursements interrégimes, agrégés en flux) | 12 lignes + 101 980 lignes, 2025 |
+| 8 | Cnam, lexique Open Damir (nomenclature BEN_RES_REG) | 14 lignes |
+| 9 | ATIH, PMSI-SMR et PMSI-HAD (data-essentiel) | 200+246+300 lignes SMR, 94+233+100 lignes HAD, 2021-2025 |
+| 10 | Cnam, montants des honoraires des médecins | 66 480 lignes, 38 professions, 2010-2024 |
 
 ## Versions
 
-- **Version 10** (15 septembre 2026) : montants des honoraires chargés
-  (§ 2, `core.medecin_honoraires`) — la répartition par secteur du § 2 a
-  maintenant son pendant en euros (26,0 Md€ d'honoraires sans dépassement
-  et 4,5 Md€ de dépassements en 2024, taux de dépassement secteur 2 qui
-  confirme en euros ce que l'Optam faisait déjà voir en effectifs). Deux
-  sentinelles textuelles décodées en NULL plutôt qu'en 0 comme le fait la
-  source elle-même (« NS » secret statistique, « NC » non concerné) ; une
-  troisième nomenclature régionale Cnam rencontrée, distincte des deux
-  déjà vues dans ce dossier. Le détail par type d'acte
-  (`honoraires-detailles`) reste non chargé (§ 3).
+- **Version 10** (15 septembre 2026) : montants des honoraires chargés (§ 2) — la
+  répartition par secteur du § 2 a maintenant son pendant en euros (26,0 Md€
+  d'honoraires sans dépassement et 4,5 Md€ de dépassements en 2024, taux de
+  dépassement secteur 2 qui confirme en euros ce que l'Optam faisait déjà voir en
+  effectifs). Deux sentinelles textuelles décodées en NULL plutôt qu'en 0 comme le
+  fait la source elle-même (« NS » secret statistique, « NC » non concerné) ; une
+  troisième nomenclature régionale Cnam rencontrée, distincte des deux déjà vues dans
+  ce dossier. Le détail par type d'acte (`honoraires-detailles`) reste non chargé (§
+  3).
 - **Version 9** (15 septembre 2026) : PMSI-SMR et PMSI-HAD chargés (§ 1.5)
   sur le même portail que le MCO — seule la psychiatrie (RIM-P) en reste
   absente, vérifié sur les 48 jeux du catalogue. Aucun des deux nouveaux
@@ -561,13 +539,12 @@ région×prestation n'a pas de nomenclature de décodage chargée.
   comparait par erreur des années différentes (clé de regroupement
   incomplète), et une valeur « NA » non numérique dans `nb_sej` que
   `strconv.Atoi` ne décode pas nativement.
-- **Version 8** (15 septembre 2026) : nomenclature des régions Open Damir
-  décodée (§ 1.6, `ref.damir_region`, migration 0107) depuis le lexique des
-  variables publié par la Cnam plutôt que devinée — deux écarts réels
-  qu'une supposition aurait manqués (un code unique pour tous les DOM, un
-  code « 99 » explicitement « Inconnu », qui porte le plus gros montant
-  des quatorze). `PRS_NAT` (nature de prestation, 937 codes) reste non
-  décodé — nomenclature d'actes hors du lexique consulté.
+- **Version 8** (15 septembre 2026) : nomenclature des régions Open Damir décodée (§
+  1.6) depuis le lexique des variables publié par la Cnam plutôt que
+  devinée — deux écarts réels qu'une supposition aurait manqués (un code unique pour
+  tous les DOM, un code « 99 » explicitement « Inconnu », qui porte le plus gros
+  montant des quatorze). `PRS_NAT` (nature de prestation, 937 codes) reste non décodé
+  — nomenclature d'actes hors du lexique consulté.
 - **Version 7** (15 septembre 2026) : Open Damir chargé (§ 1.6, 147,1 Md€
   et 10,74 milliards d'actes sur 2025, agrégé en flux — jamais ligne à
   ligne) ; carte des généralistes reconstruite sur la démographie Cnam par
@@ -586,6 +563,6 @@ région×prestation n'a pas de nomenclature de décodage chargée.
   interface interactive. Open Damir localisé précisément et écarté pour sa
   taille (§ 4), avec les chiffres qui le justifient plutôt qu'une simple
   mention.
-- **Version 4** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de 2019) et enjeu budgétaire de la branche maladie (Sénat).
+- **Version 4** (15 septembre 2026) : plan commun des dossiers ; cadre (loi de 2019) et enjeu budgétaire de la branche maladie (Sénat).
 - **Version 3** (15 septembre 2026) : certification HAS des établissements (§ 1.3).
 - **Version 2** : personnel hospitalier par fonction (SAE, § 1.1) ; suite de FINESS publiée par l'ANS (§ 1.2) ; accès PMSI et RPPS (§ 4). Les effectifs d'AESH relèvent du dossier éducation.

@@ -2388,3 +2388,66 @@ manquait.
   population totale (les six catégories somment à 100 %) : le libellé le dit, là où celui de
   l'Insee (« part de la population active au chômage ») laisse croire à un taux de chômage.
 - Les pages de département listent leurs circonscriptions.
+
+## D-072 — La carte de situation se parcourt ; la page de département dit d'où vient son argent
+
+`cmd/build/carte_situation.go`, `collectivite.gohtml`, `web/assets/site.js`.
+
+**Pourquoi.** Retour de lecture sur la page du Finistère : on veut passer d'un département à
+l'autre depuis la carte ; le nombre d'intercommunalités ne mène nulle part ; la section « Le
+territoire » (communes seules, sans rien autour) fait doublon avec la carte de situation ; et la
+page ne dit pas si ses budgets sont des chiffres locaux ou une moyenne nationale.
+
+**Décidé.**
+
+- **Chaque département de la carte de situation est un lien** vers sa page (un département
+  fusionné mène à la collectivité qui tient son budget : Alsace, Corse, Martinique, Guyane), les
+  cartons d'outre-mer aussi. Les liens sont dans le fond partagé `media/situation-france.svg`,
+  affiché en `<object>` : aucun poids ajouté aux pages. Liens relatifs au fichier, pour tenir
+  sous n'importe quel préfixe de service.
+- **« Intercommunalités » ouvre la carte nationale des intercommunalités cadrée sur le
+  territoire** (`/collectivites/?departement=29#carte-epci`, `?region=53`) : la carte passe en
+  tête et s'élargit, le département ou la région est souligné, un bouton rend la France entière.
+  Sans JavaScript, le lien mène à la carte nationale.
+- **La section « Le territoire » disparaît des pages de département.** Elle reste
+  sur les pages d'intercommunalité.
+- **« D'où vient l'argent »** sur chaque page de département et de région : recettes totales
+  découpées en impôts et taxes, dotation globale de fonctionnement et autres recettes, face à la
+  même découpe pour l'ensemble du niveau. Ce sont les comptes propres de chaque collectivité
+  (agrégats OFGL), pas une moyenne répartie — la page et la légende de la carte le disent. La
+  note rappelle que « impôts et taxes » ne veut pas dire « impôts votés sur place » (droits de
+  mutation, fraction de TVA).
+
+## D-073 — Une page par fonction de la dépense publique ; les sujets se lisent en liste, pas en pastilles ; les docs de sourcing ne citent plus le dépôt
+
+`cmd/build/fonctions.go`, `fonction.gohtml` ; `web/templates/accueil.gohtml`,
+`sujets.gohtml`, `argent-public.gohtml` ; `.liste-sujets` (`style.css`) ; balayage de
+`docs/*-donnees.md`.
+
+**Pourquoi.** Trois retours sur la même séance : les pastilles des sujets, sur
+l'accueil, sont un nuage de mots-clés sans hiérarchie ; aucune des dix lignes du
+tableau « sur 1 000 € » ne menait à une page qui lui soit propre ; et une page
+publique (`/sujets/sante/`) citait `cmd/verify`, une décision numérotée, un chemin de
+fichier du dépôt — du texte écrit pour la session de travail, pas pour un lecteur.
+
+**Décidé.**
+
+- **Une page par fonction COFOG**, `/fonction/<slug>/` (dix pages) : trente ans de la
+  dépense (1995-2024, Eurostat/Insee), sa place parmi les neuf autres dans le même
+  tableau qu'ailleurs sur le site — chaque ligne y menant désormais —, et les sujets
+  de campagne qui s'y rattachent, hérités du champ `Cofog` déjà porté par chaque
+  `Famille` (`cmd/build/sujets.go`).
+- **La mosaïque « sur 1 000 € »** du hero remplace les barres sur grand écran : 1 000
+  carrés, un par euro, dans l'ordre des fonctions, à côté d'une légende inchangée
+  (couleur, nom, valeur) qui reste le lien cliquable. Sur mobile, où 1 000 carrés
+  seraient illisibles, seule la légende s'affiche, en barres comme avant.
+- **Les sujets se lisent en liste, pas en pastilles** : sur l'accueil et sur
+  `/sujets/`, chaque sujet est une ligne — son nom, le titre de son dossier — plutôt
+  qu'un bouton rond dans un nuage sans ordre de lecture.
+- **Balayage des documents de sourcing** (une trentaine de fichiers) : chemins
+  `cmd/`/`internal/`, options `-only=`, numéros de migration et de décision retirés
+  du texte visible des pages `/sujets/` et `/argent-public/` — soit par suppression
+  (paragraphes entièrement techniques, dupliqués d'un dossier à l'autre), soit par
+  reformulation gardant le fait pour le lecteur sans le chemin qui y mène. Les pages
+  `/comprendre/` et `/sources/`, elles, restent le bon endroit pour ce niveau de
+  détail : leur public l'a choisi en cliquant dessus.

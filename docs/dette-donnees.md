@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | dette publique | 151 | 82 | 1er octobre 2024 | 10 juin 2026 |
 | charge de la dette | 75 | 38 | 14 octobre 2024 | 7 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -75,12 +75,11 @@ titres 3 170,8 Md€, crédits 322,3 Md€, dépôts 42,9 Md€.
 - Les **intérêts** sont une dépense **incluse** dans le déficit : **66,6 Md€ en
   2025** (2,2 % du PIB, 4,27 % des recettes publiques).
 
-La dette n'augmente pas **exactement** du déficit. L'écart s'appelle
-**l'ajustement stock-flux** (vue `derived.dette_ajustement_stock_flux`) : 2020,
-dette +276,5 Md€ pour un déficit de 207,1 Md€ (+69,4 Md€, trésorerie constituée
-pendant la crise sanitaire) ; 2024, +202,8 Md€ pour 169,1 Md€ (+33,7 Md€) ; 2025,
-+154,4 Md€ pour 152,5 Md€ (+1,9 Md€). Sur 1995-2025, la France n'a connu **aucune
-année d'excédent** dans la série d'Eurostat.
+La dette n'augmente pas **exactement** du déficit. L'écart s'appelle **l'ajustement
+stock-flux** (vue cette série) : 2020, dette +276,5 Md€ pour un déficit de 207,1 Md€
+(+69,4 Md€, trésorerie constituée pendant la crise sanitaire) ; 2024, +202,8 Md€ pour
+169,1 Md€ (+33,7 Md€) ; 2025, +154,4 Md€ pour 152,5 Md€ (+1,9 Md€). Sur 1995-2025, la
+France n'a connu **aucune année d'excédent** dans la série d'Eurostat.
 
 ## Contrôles et évaluations
 
@@ -100,9 +99,9 @@ année d'excédent** dans la série d'Eurostat.
   le marché secondaire) est le prix **d'un emprunt neuf**, aujourd'hui. France :
   −0,34 % en août 2019, **4,00 % en août 2026**, son plus haut depuis 2010 — et,
   ce mois-là, au-dessus de l'Italie (3,99 %) et de la Grèce (3,87 %).
-- **Le taux apparent** (vue `derived.dette_taux_apparent`) est ce que coûte **le
-  stock** : intérêts versés dans l'année ÷ dette moyenne de l'année. Il mélange des
-  titres émis à des dates et des taux très différents.
+- **Le taux apparent** (vue cette série) est ce que coûte **le stock** : intérêts
+  versés dans l'année ÷ dette moyenne de l'année. Il mélange des titres émis à des
+  dates et des taux très différents.
 
 | Année | Taux apparent (France) | Taux à 10 ans (moyenne annuelle) |
 |---|---|---|
@@ -144,7 +143,7 @@ française ne manque pas de preneurs ; la question est le prix qu'ils demandent.
 
 #### 3.1 Les détenteurs des titres de l'État (Banque de France, T1 2026)
 
-Vue `derived.dette_detention_etat`, sur 2 602 Md€ de titres **en valeur de marché** :
+Vue cette série, sur 2 602 Md€ de titres **en valeur de marché** :
 
 | Détenteur | Part | Encours |
 |---|---|---|
@@ -286,7 +285,7 @@ il n'impute pas l'écart à la règle.**
 
 ### 13. À quoi sert la dette, et ce qu'on met en regard
 
-> Ajouté le 14 septembre 2026 (migration 0075). Deux questions posées ensemble :
+> Ajouté le 14 septembre 2026. Deux questions posées ensemble :
 > **à quoi sert la dette contractée** (fonctionnement, investissement, autre), et
 > **peut-on la mettre en parallèle des exonérations et des dividendes**, pour
 > examiner l'argument selon lequel les aides aux grandes entreprises seraient
@@ -297,7 +296,7 @@ il n'impute pas l'écart à la règle.**
 **L'emprunt n'est affecté à aucune dépense.** L'argent public est fongible : aucune
 source ne peut dire « ces 100 Md€ empruntés ont payé ceci ». La question admet en
 revanche une réponse exacte **en comptabilité nationale**, par le compte de capital
-(vue `derived.dette_compte_capital`, identité vérifiée à 1,5 M€ près) :
+(vue cette série, identité vérifiée à 1,5 M€ près) :
 
     besoin de financement = épargne brute négative + investissement + transferts en capital nets
     (−B9)                 = (−B8G)                 + (P5 + NP)      + (D9PAY − D9REC)
@@ -356,10 +355,9 @@ transferts en capital 41,6.
 | Voies et moyens, tome II (classeurs en pièces jointes sur data.economie.gouv.fr) | PLF 2020, 2021, 2022, 2023 | exécuté N−2 ; prévu N−1, N | **oui**, par mesure et par millésime |
 | Budget vert | PLF 2024, 2025, 2026 | exécuté N−2 ; prévu N−1, N | non |
 
-Tables `core.depense_fiscale` (un chiffrage par millésime, mesure et année) et
-`ref.depense_fiscale_beneficiaire` (clé millésime + mesure) ; vue
-`derived.depense_fiscale_retenue` : **pour chaque année, un seul millésime**, le plus
-récent qui publie une exécution de cette année. La nature retenue est celle du
+Tables cette série (un chiffrage par millésime, mesure et année) et cette série (clé
+millésime + mesure) ; vue cette série : **pour chaque année, un seul millésime**, le
+plus récent qui publie une exécution de cette année. La nature retenue est celle du
 millésime le plus récent qui classe la mesure.
 
 | Année (exécution) | Millésime | Total | Entreprises | … dont CICE | Ménages | Entreprises et ménages, autres |
@@ -377,7 +375,7 @@ Md€. **Les pièges** :
 1. **Un total annuel ne mêle jamais deux millésimes.** Une première version de la vue
    choisissait le meilleur chiffrage mesure par mesure : une mesure renumérotée d'une
    annexe à l'autre était comptée sous ses deux numéros (2019 : 103,0 Md€ au lieu des
-   99,9 exécutés). Contrôlé par `cmd/verify`.
+   99,9 exécutés). Un contrôle le garantit désormais.
 2. **Le budget vert découpe une même mesure en plusieurs lignes**, une par cotation
    environnementale, chacune avec une quote-part : additionner, ne pas dédoublonner
    (2024 : 483 lignes, 457 mesures).
@@ -406,7 +404,7 @@ Md€. **Les pièges** :
 
 #### 13.3 Pourquoi les aides ne s'additionnent pas : le CICE compté trois fois
 
-Vue `derived.dette_aides_dividendes` : une ligne par année, colonnes **juxtaposées**.
+Vue cette série : une ligne par année, colonnes **juxtaposées**.
 
 Le **crédit d'impôt pour la compétitivité et l'emploi** (2013-2018) figure :
 - dans les **exonérations de cotisations** de l'URSSAF (mesure 141 : 12,5 Md€ en
@@ -430,8 +428,7 @@ Autres réserves, à écrire à côté de toute juxtaposition :
 - les **dividendes** ne sont pas un flux public : 302 Md€ versés par les sociétés non
   financières en 2024, dont 84 % encaissés par d'autres sociétés et 68 Md€ par les
   ménages (`entreprises-perimetre.md`) ;
-- mettre ces séries côte à côte montre des **ordres de grandeur**, pas une causalité
-  (D-026, D-037). « Sans ces aides, le déficit aurait été moindre » suppose des
+- mettre ces séries côte à côte montre des **ordres de grandeur**, pas une causalité. « Sans ces aides, le déficit aurait été moindre » suppose des
   comportements inchangés — ce qu'aucune donnée n'établit.
 
 #### 13.4 Contrôles ajoutés
@@ -444,27 +441,26 @@ Autres réserves, à écrire à côté de toute juxtaposition :
 
 ### 14. Qui reçoit les aides : la taille des entreprises
 
-> Ajouté le 14 septembre 2026 (migration 0077, paquet `internal/aides`,
-> `go run ./cmd/ingest -only=aides`). Objet : examiner le premier maillon de l'argument
+> Ajouté le 14 septembre 2026. Objet : examiner le premier maillon de l'argument
 > « les aides profitent aux grandes entreprises » avec des données, et préparer le
 > croisement avec des aides publiées bénéficiaire par bénéficiaire.
 
 #### 14.1 Trois notions de taille, qui ne se convertissent pas
 
-| Notion | Unité | Source | Où |
-|---|---|---|---|
-| **Tranche d'effectif de l'entreprise** (0-9 … 2 000 et plus) | la société (SIREN), effectifs moyens de l'année, base Sequoia | URSSAF | `core.exoneration_tranche`, `core.emploi_prive_tranche` |
-| **Catégorie d'entreprise** (PME, ETI, GE ; loi LME, décret 2008-1354) | l'entreprise profilée, **le groupe** | INSEE, SIRENE | `ref.unite_legale.categorie_entreprise` |
-| **Nature du bénéficiaire** d'une niche (entreprises, ménages) | la mesure | Direction du budget | `ref.depense_fiscale_beneficiaire` |
+| Notion | Unité | Source |
+| --- | --- | --- |
+| **Tranche d'effectif de l'entreprise** (0-9 … 2 000 et plus) | la société (SIREN), effectifs moyens de l'année, base Sequoia | URSSAF |
+| **Catégorie d'entreprise** (PME, ETI, GE ; loi LME, décret 2008-1354) | l'entreprise profilée, **le groupe** | INSEE, SIRENE |
+| **Nature du bénéficiaire** d'une niche (entreprises, ménages) | la mesure | Direction du budget |
 
 Une filiale de 300 salariés d'un groupe du CAC 40 est « 250 à 499 » pour l'URSSAF et
-« GE » pour l'INSEE. Aucune table de passage n'est construite (D-057).
+« GE » pour l'INSEE. Aucune table de passage n'est construite.
 
 #### 14.2 Les exonérations par taille (URSSAF)
 
-Vue `derived.exoneration_par_taille` : part des exonérations, part de la masse
-salariale, taux d'exonération (exonérations ÷ masse salariale). Le total par taille
-égale le total par mesure chaque année (contrôle).
+Vue cette série : part des exonérations, part de la masse salariale, taux
+d'exonération (exonérations ÷ masse salariale). Le total par taille égale le total par
+mesure chaque année (contrôle).
 
 | 2024 | Entreprises | Exonérations | Part | Part de la masse salariale | Taux |
 |---|---|---|---|---|---|
@@ -495,11 +491,11 @@ exonérations est montée de 12,7 % (2012) à 18,0 % (2017), puis redescendue à
 
 #### 14.3 La catégorie d'entreprise (SIRENE)
 
-`ref.unite_legale` : une ligne par **personne morale** du stock SIRENE (catégorie
-juridique ≠ 1000), avec la catégorie d'entreprise et son année, la tranche
-d'effectif de l'unité légale, l'activité (NAF), l'état administratif. Rechargée
-entière à chaque exécution (`-only=sirene`), depuis le fichier stock mensuel de
-data.gouv.fr (≈ 975 Mo), sans compte : c'est l'API Sirene qui en demande un.
+Cette série : une ligne par **personne morale** du stock SIRENE (catégorie juridique ≠
+1000), avec la catégorie d'entreprise et son année, la tranche d'effectif de l'unité
+légale, l'activité (NAF), l'état administratif. Rechargée entière à chaque
+exécution, depuis le fichier stock mensuel de data.gouv.fr (≈ 975 Mo), sans compte :
+c'est l'API Sirene qui en demande un.
 
 **Pourquoi exclure les entrepreneurs individuels.** Leur SIREN désigne une personne
 physique. Aucune source d'aides envisagée ne demande de les identifier, et la
@@ -539,7 +535,7 @@ déclaré par une page.
 | **Aides financières de l'ADEME** (format SCDL) | SIRET [V] | tous dossiers engagés depuis 2021, sans seuil | 39 577 dossiers, 11,2 Md€ [V] | API data-fair ouverte, mise à jour quotidienne, Licence Ouverte [V] | **exploitable tout de suite** |
 | **Registre public des aides de minimis** (DGE, décret 2025-1361) | SIREN à 99,9 % [V] | aides de minimis octroyées depuis le 1er janvier 2026, toutes autorités (Douanes, DGFiP, Bpifrance, Régions) | 16 618 aides, 161,6 M€ d'ESB au 8 septembre 2026 [V] | API data.economie.gouv.fr, quotidienne ; licence non renseignée [V] | exploitable ; plafond de 300 k€ sur 3 ans : mesure le **nombre** de bénéficiaires, pas la concentration des montants |
 | CORDIS Horizon Europe | TVA → SIREN, indicateur PME [V] | fonds européens de recherche | fichier en masse de 36,7 Mo [V] | ouvert ; licence non vérifiée | complément, hors aides françaises |
-| Liste nationale des opérations FEDER / FSE+ / FTJ | **nom seul** [V] | 16 625 opérations 2021-2027, 7,9 Md€ UE [V] | xlsx | ouvert | non croisable (rapprochement par nom interdit, D-025) |
+| Liste nationale des opérations FEDER / FSE+ / FTJ | **nom seul** [V] | 16 625 opérations 2021-2027, 7,9 Md€ UE [V] | xlsx | ouvert | non croisable (rapprochement par nom interdit) |
 | Kohesio (Commission) | URI, nom [V] | fonds de cohésion | 19 585 bénéficiaires France [V] | API non documentée | non croisable |
 | Aides PAC (transparence) | nom, commune [D] | aides agricoles | — | application MicroStrategy en JavaScript, conservation 2 ans [D] | non croisable, surtout des personnes physiques |
 | Plan de relance, projets industriels | SIREN, type d'entreprise [V] | 3 080 projets | **sans montant** [V] | ouvert, figé en 2022 | inutile pour les montants |
@@ -550,8 +546,8 @@ déclaré par une page.
 **Pièges déjà constatés.**
 1. **Le type « PME » déclaré au TAM est inutilisable tel quel** : sur les quatre plus
    grosses aides marquées « SME » en 2016-2020, trois vont à des ETI ou GE selon
-   l'INSEE (dont Storengy France, GE) [V]. C'est précisément ce que
-   `ref.unite_legale` permet de corriger.
+   l'INSEE (dont Storengy France, GE) [V]. C'est précisément ce que cette série permet
+   de corriger.
 2. **ADEME** : montants engagés, pas versés ; des intermédiaires (l'ASP reçoit
    730,6 M€ en deux dossiers, reversés à d'autres) et des organismes publics
    (2,4 Md€) à écarter avant toute répartition [V].
@@ -564,8 +560,7 @@ formulaire public, à autoriser explicitement, ou demande d'extrait à la DG COM
 
 ### 15. Les aides nominatives croisées avec la catégorie d'entreprise
 
-> Ajouté le 14 septembre 2026 (migration 0078, `internal/aides`,
-> `go run ./cmd/ingest -only=aides-nominatives`, SIRENE requis). D-058.
+> Ajouté le 14 septembre 2026 (nécessite un rapprochement avec le répertoire SIRENE).
 
 #### 15.1 Ce qui est chargé
 
@@ -575,9 +570,9 @@ formulaire public, à autoriser explicitement, ou demande d'extrait à la DG COM
 | ADEME, aides financières | 39 577 | 37 686 | montant engagé | conventions 2021-2026 |
 | Registre public des aides de minimis (DGE) | 16 618 | 11 548 | ESB | octrois 2026 |
 
-Table `core.aide_nominative` ; vues `derived.aide_par_categorie` (par source,
-année, catégorie), `derived.aide_tam_type_declare` (type déclaré contre catégorie
-INSEE), `derived.aide_montant_suspect` (montants aberrants écartés des sommes).
+Trois vues dérivées croisent ces données : une répartition par source, année et
+catégorie ; une comparaison entre le type déclaré et la catégorie INSEE ; et un
+repérage des montants aberrants, écartés des sommes.
 
 **Accès au TAM.** Formulaire public (pays, puis dates d'octroi), export CSV lié à la
 session, avec l'accord explicite du responsable du projet. Au-delà d'environ 1 000
@@ -617,8 +612,8 @@ Crolles (1,06 Md€ cumulés), Automotive Cells Company (0,73 Md€), Symbio (0,
 #### 15.3 Pièges
 
 1. **Le type « PME » déclaré au TAM est faux pour 43,7 % des montants** : sur 50,6 Md€
-   déclarés « PME », 16,1 Md€ vont à des ETI et 6,0 Md€ à des grandes entreprises selon
-   l'INSEE. Il n'est jamais utilisé comme catégorie (`derived.aide_tam_type_declare`).
+   déclarés « PME », 16,1 Md€ vont à des ETI et 6,0 Md€ à des grandes entreprises
+   selon l'INSEE. Il n'est jamais utilisé comme catégorie .
 2. **Montant aberrant** : 1 061 M€ à un GAEC dans le régime SA.107520 (investissements
    agricoles, aide médiane 21 460 €). Écarté des sommes par la règle « plus de 10 M€ et
    plus de 10 000 fois la médiane d'un régime d'au moins 20 aides », qui ne retient que
@@ -690,7 +685,7 @@ de la Banque de France. Le travail restant est listé dans l'annexe technique (�
 15. **Un null JSON-stat décodé dans un float donne 0.** Le décodeur l'écarte
     explicitement.
 16. **La clé Webstat** passe dans un en-tête HTTP (`archive.FetchEntetes`), jamais
-    dans l'URL : `raw.retrieval` conserve les URL, et une clé qui y figurerait serait
+    dans l'URL : cette série conserve les URL, et une clé qui y figurerait serait
     publiée avec la provenance. Vérifié : aucune URL archivée ne la contient.
 
 ## Sources
@@ -712,16 +707,16 @@ Volumes au 14 septembre 2026 : 1 186 séries, 53 171 observations.
 
 ### 7.2 Intégrer les données de l'Agence France Trésor
 
-Le site `aft.gouv.fr` est **entièrement** derrière une protection anti-robot
+Le site cette série est **entièrement** derrière une protection anti-robot
 (Cloudflare), y compris ses fichiers de données. **On ne la contourne pas.** Trois
 voies légitimes couvrent l'essentiel :
 
 1. **L'encours mensuel de la dette négociable** : republié par l'INSEE, source
-   déclarée AFT, sous licence ouverte (`insee.go`). C'est la même donnée.
-2. **La détention par secteur** : produite par la Banque de France, dont l'AFT
-   reprend elle-même les chiffres dans son bulletin mensuel (`banque_de_france.go`).
-3. **La performance des émissions** : indicateurs du programme 117, que l'AFT
-   rapporte au Parlement (`aft.go`).
+   déclarée AFT, sous licence ouverte . C'est la même donnée.
+2. **La détention par secteur** : produite par la Banque de France, dont l'AFT reprend
+   elle-même les chiffres dans son bulletin mensuel .
+3. **La performance des émissions** : indicateurs du programme 117, que l'AFT rapporte
+   au Parlement .
 
 **Restent inaccessibles** : l'échéancier titre par titre, la durée de vie moyenne,
 le programme d'émission annuel et le détail de chaque adjudication. Voie à
@@ -741,26 +736,12 @@ dépôt sur data.gouv.fr.
 
 ### 8. Le modèle de données
 
-Migration `0073_dette.sql`.
-
-- **`ref.dette_serie`** — une série = une combinaison de dimensions fixée : `pays`,
-  `frequence` (A/Q/M), `unite` (EUR, CHF, PCT, PCT_PIB, RATIO, NOMBRE), `concept`,
-  `mesure` (ENCOURS, VARIATION_CUMULEE, FLUX, TAUX, PART, RATIO, NOMBRE),
-  `secteur_emetteur`, `zone_detenteur` (W0 monde, W1 non-résidents, W2 résidents),
-  `secteur_detenteur`, `echeance` + `base_echeance`, `instrument`,
-  `monnaie_emission`. Toute dimension non ventilée vaut `'_T'` : NULL y
-  signifierait « inconnu ». Code stable `'<producteur>:<code producteur>'`.
-- **`core.dette_observation`** — `(serie, periode)` unique ; `periode` au format
-  `AAAA`, `AAAA-Qn` ou `AAAA-MM`, `debut` pour trier et joindre ; `valeur` **à
-  l'unité** (multiplicateur du producteur appliqué) ; `statut` du producteur ;
-  `document_id` vers le document scellé. Pas de valeur, pas de ligne.
-- **Vues** (`derived`, avec `method_version`) : `dette_taux_apparent`
-  (`dette-taux-apparent-v1`), `dette_detention_etat` (`dette-detention-etat-v1`),
-  `dette_ajustement_stock_flux` (`dette-asf-v1`).
-
-Chaque source se recharge **entièrement** dans une transaction : les producteurs
-révisent (l'INSEE à chaque compte trimestriel, Eurostat à chaque notification), et
-compléter mêlerait deux millésimes.
+Chaque observation porte l'ensemble de ses dimensions (pays, fréquence, unité,
+secteur émetteur, zone et secteur détenteurs, échéance, instrument, monnaie) plutôt
+qu'une seule mesure isolée : un même format long accueille toutes les sources sans
+en privilégier une. Chaque source se recharge **entièrement** à chaque exécution : les
+producteurs révisent (l'INSEE à chaque compte trimestriel, Eurostat à chaque
+notification), et compléter au lieu de recharger mêlerait deux millésimes.
 
 **Pourquoi un modèle long plutôt qu'une table par source.** Les sources ne
 partagent pas leurs dimensions (instrument pour l'AFT, secteur détenteur pour la
@@ -768,12 +749,12 @@ Banque de France, échéance résiduelle pour Eurostat, compte de bilan pour l'A
 Une table par source aurait été plus simple à écrire, mais aurait rendu impossibles
 les contrôles croisés qui font la valeur de l'ensemble.
 
-**Pourquoi pas `core.macro_value`.** Elle porte déjà la dette et le solde de la
-France (Eurostat, annuel) pour situer une présidence dans son époque ; elle n'a ni
-détenteur, ni échéance, ni pays. Les deux coexistent ; la concordance est vérifiable
-(mêmes requêtes Eurostat).
+**Pourquoi pas cette série.** Elle porte déjà la dette et le solde de la France
+(Eurostat, annuel) pour situer une présidence dans son époque ; elle n'a ni détenteur,
+ni échéance, ni pays. Les deux coexistent ; la concordance est vérifiable (mêmes
+requêtes Eurostat).
 
-### 10. Les vérifications de cohérence (`cmd/verify/dette.go`)
+### 10. Les vérifications de cohérence
 
 - chaque source a des séries ; au moins 40 000 observations ;
 - dette négociable : court terme + long terme + devises = total ; taux fixe + indexée
@@ -786,18 +767,6 @@ détenteur, ni échéance, ni pays. Les deux coexistent ; la concordance est vé
   catégories = 100 % ; part non résidente recalculée = part publiée ;
 - taux apparent entre 0 et 15 % ;
 - fraîcheur : dette négociable (5 mois), détention et dette trimestrielle (10 mois).
-
-### 11. Exécution
-
-```bash
-set -a; . ./.env; set +a      # WEBSTAT_API_KEY, fichier non versionné
-go run ./cmd/ingest -only=migrate
-go run ./cmd/ingest -only=dette
-go run ./cmd/verify
-```
-
-Sans `WEBSTAT_API_KEY`, la détention est sautée avec un avertissement, et le
-contrôle « chaque source a des séries » bloque la publication — volontairement.
 
 ### 12. Ce qui reste
 
@@ -812,5 +781,5 @@ contrôle « chaque source a des séries » bloque la publication — volontaire
 ## Versions
 
 - **Version 3** (15 septembre 2026) : Chine, Russie et Arabie saoudite ajoutées à la comparaison FMI hors Union (§ 5), pour docs/international-donnees.md § 6 — avec la réserve de méthode que le FMI documente lui-même pour ces deux derniers pays.
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de programmation des finances publiques, procédure européenne) et contrôle du Haut Conseil des finances publiques ; le § 6 ne part plus d'une prémisse sur la Suisse.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (loi de programmation des finances publiques, procédure européenne) et contrôle du Haut Conseil des finances publiques ; le § 6 ne part plus d'une prémisse sur la Suisse.
 - **Version 1** (14 septembre 2026) : définitions, prix de l'emprunt, détenteurs, échéances, comparaison européenne, Suisse.

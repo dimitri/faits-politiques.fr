@@ -18,7 +18,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | hébergement d'urgence | 117 | 63 | 8 octobre 2024 | 23 juin 2026 |
 | aides personnalisées au logement | 116 | 61 | 24 octobre 2024 | 11 juin 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -68,7 +68,9 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 | **Total** | **19 371,9** | **23 781,2** | **+22,8 %** |
 | *Autorisations d'engagement (total)* | *19 418,3* | *23 485,0* | *+20,9 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
+les crédits de personnel incluent les cotisations au compte « Pensions » (source :
+Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 
@@ -88,7 +90,8 @@ Les budgets des communes et intercommunalités, qui portent une part de ces poli
 
 - **Le nombre de logements sociaux par commune et le respect du taux fixé par la loi SRU** : publiés par le ministère, non chargés (`NOT_LOADED`).
 - **Les bénéficiaires des aides au logement par territoire** : non chargés ; le dossier cite le total donné par le Sénat.
-- **Les dépenses fiscales du logement** (11,68 Md€ selon le Sénat) ligne par ligne : non rapprochées de `core.depense_fiscale`.
+- **Les dépenses fiscales du logement** (11,68 Md€ selon le Sénat) ligne par ligne :
+  non rapprochées de cette série.
 - **L'exécution par mission et par programme** : seuls les projets de loi de finances 2024 et 2025 sont chargés ; les rapports annuels de performances et la situation mensuelle par mission ne le sont pas (`NOT_LOADED`).
 - **La série longue** : avant 2024, les jeux de la Direction du budget changent de nom et de schéma ; non chargés à ce stade.
 
@@ -110,17 +113,13 @@ Les budgets des communes et intercommunalités, qui portent une part de ces poli
 
 ## Sources
 
-| source | table | niveau |
-|---|---|---|
-| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | `core.budget_programme` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, « Cohésion des territoires » — hébergement, logement et ville, PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-35-1/l25-139-35-1-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, « Cohésion des territoires » — politique des territoires, PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-35-2/l25-139-35-2-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Journal officiel (textes cités au cadre) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Comptes rendus de l'Assemblée nationale | `derived.dossier_mentions_an` | PRIMARY_OFFICIAL |
-
-## Annexe technique
-
-Missions suivies : `ref.dossier_mission` (déclarées dans `internal/dossiers/verticales.go`, migration 0102) ; crédits : `derived.dossier_budget_programme` ; faits : `ref.fait_dossier` (`-only=dossiers-faits`, phrases relues dans chaque source au chargement) ; sections générées par `cmd/sections-dossiers`. Vérifications : `cmd/verify/dossiers.go`. Décision : D-066.
+| source | niveau |
+| --- | --- |
+| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, « Cohésion des territoires » — hébergement, logement et ville, PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-35-1/l25-139-35-1-syn.pdf) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, « Cohésion des territoires » — politique des territoires, PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-35-2/l25-139-35-2-syn.pdf) | PRIMARY_OFFICIAL |
+| Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
+| Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
 
 ## Versions
 

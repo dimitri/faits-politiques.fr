@@ -18,7 +18,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | EGalim | 222 | 84 | 1er octobre 2024 | 20 juillet 2026 |
 | politique agricole commune | 108 | 56 | 2 octobre 2024 | 20 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -75,7 +75,9 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 | **Total** | **141,0** | **146,0** | **+3,5 %** |
 | *Autorisations d'engagement (total)* | *141,0* | *146,0* | *+3,5 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
+les crédits de personnel incluent les cotisations au compte « Pensions » (source :
+Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 
@@ -89,7 +91,9 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 ### Autres données
 
-Les indicateurs agricoles communaux et nationaux (`core.agriculture_indicateur`), le bilan alimentaire (`core.bilan_alimentaire`) et l'autonomie alimentaire (`derived.autonomie_alimentaire`) alimentent la page /agriculture du site ; leur méthode est dans [agriculture-carte-conception.md](agriculture-carte-conception.md).
+Les indicateurs agricoles communaux et nationaux, le bilan alimentaire et l'autonomie
+alimentaire alimentent la page /agriculture du site ; leur méthode est dans
+[agriculture-carte-conception.md](agriculture-carte-conception.md).
 
 ## Ce que les données ne disent pas
 
@@ -116,16 +120,12 @@ Les indicateurs agricoles communaux et nationaux (`core.agriculture_indicateur`)
 
 ## Sources
 
-| source | table | niveau |
-|---|---|---|
-| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | `core.budget_programme` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, mission « Agriculture, alimentation, forêt et affaires rurales », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-33/l25-139-33-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Journal officiel (textes cités au cadre) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Comptes rendus de l'Assemblée nationale | `derived.dossier_mentions_an` | PRIMARY_OFFICIAL |
-
-## Annexe technique
-
-Missions suivies : `ref.dossier_mission` (déclarées dans `internal/dossiers/verticales.go`, migration 0102) ; crédits : `derived.dossier_budget_programme` ; faits : `ref.fait_dossier` (`-only=dossiers-faits`, phrases relues dans chaque source au chargement) ; sections générées par `cmd/sections-dossiers`. Vérifications : `cmd/verify/dossiers.go`. Décision : D-066.
+| source | niveau |
+| --- | --- |
+| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, mission « Agriculture, alimentation, forêt et affaires rurales », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-33/l25-139-33-syn.pdf) | PRIMARY_OFFICIAL |
+| Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
+| Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
 
 ## Versions
 

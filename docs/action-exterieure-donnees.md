@@ -17,7 +17,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | diplomatie | 320 | 150 | 2 octobre 2024 | 6 juillet 2026 |
 | aide publique au développement | 92 | 47 | 8 octobre 2024 | 21 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -75,7 +75,9 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 | **Total** | **5 928,9** | **5 154,0** | **−13,1 %** |
 | *Autorisations d'engagement (total)* | *6 292,6* | *5 673,7* | *−9,8 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
+les crédits de personnel incluent les cotisations au compte « Pensions » (source :
+Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 
@@ -116,17 +118,13 @@ Les indicateurs internationaux (salaire minimum, PIB) sont dans [international-d
 
 ## Sources
 
-| source | table | niveau |
-|---|---|---|
-| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | `core.budget_programme` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, mission « Action extérieure de l'État », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-31/l25-139-31-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, mission « Aide publique au développement », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-34/l25-139-34-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Journal officiel (textes cités au cadre) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Comptes rendus de l'Assemblée nationale | `derived.dossier_mentions_an` | PRIMARY_OFFICIAL |
-
-## Annexe technique
-
-Missions suivies : `ref.dossier_mission` (déclarées dans `internal/dossiers/verticales.go`, migration 0102) ; crédits : `derived.dossier_budget_programme` ; faits : `ref.fait_dossier` (`-only=dossiers-faits`, phrases relues dans chaque source au chargement) ; sections générées par `cmd/sections-dossiers`. Vérifications : `cmd/verify/dossiers.go`. Décision : D-066.
+| source | niveau |
+| --- | --- |
+| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, mission « Action extérieure de l'État », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-31/l25-139-31-syn.pdf) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, mission « Aide publique au développement », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-34/l25-139-34-syn.pdf) | PRIMARY_OFFICIAL |
+| Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
+| Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
 
 ## Versions
 

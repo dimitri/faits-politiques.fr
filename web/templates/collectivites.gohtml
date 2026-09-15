@@ -36,7 +36,7 @@ sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
     {{template "cartons" $c.CarteDepts.Cartons}}
     {{end}}
   </div>
-  <div class="bloc-carte">
+  <div class="bloc-carte" id="carte-epci">
     <h3>Par intercommunalité à fiscalité propre</h3>
     {{if $c.CarteEPCI.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
     {{$c.CarteEPCI.SVG}}
@@ -58,11 +58,10 @@ communes membres publiée directement par l'IGN, jamais recalculée ici.
 {{if $c.HorsCarte}}Absents de la carte départementale, parce qu'ils n'ont pas de contour propre à ce
 niveau&nbsp;: {{range $i, $h := $c.HorsCarte}}{{if $i}}, {{end}}{{$h}}{{end}}. Leurs chiffres sont
 dans le tableau.{{end}}</p>
-<p class="note">La carte des intercommunalités n'existait pas avant l'arrivée de cette table IGN
-dans la base&nbsp;: <code>core.epci_membre</code> donnait l'appartenance de chaque commune à son
-groupement, mais aucune table ne portait de tracé communal pour en déduire un contour de groupement.
-<code>geo.contour_cog</code> le fait désormais, millésime par millésime, et cette carte en est la
-première utilisation.</p>
+<p class="note">La carte des intercommunalités est nouvelle sur ce site&nbsp;: on connaissait
+l'appartenance de chaque commune à son groupement, mais aucune source ne donnait le tracé de chaque
+commune pour en déduire le contour d'un groupement. Les contours communaux publiés par l'IGN,
+millésime par millésime, le permettent désormais, et cette carte en est la première utilisation.</p>
 
 <h2>Les communes, département par département</h2>
 <p class="q">{{len .T.Cartes}} cartes, {{nb .T.Communes}} communes, {{.T.Departements}} départements

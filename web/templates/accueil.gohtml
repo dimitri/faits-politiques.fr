@@ -17,7 +17,9 @@
     {{range $a.Familles}}<div class="famille">
       <h3><a href="{{$.Root}}/sujets/#{{.ID}}">{{.Nom}}</a></h3>
       <span class="poids">{{if .ParMille}}{{.ParMille}}&nbsp;€ sur 1&nbsp;000{{else}}hors fonctions de dépense{{end}}</span>
-      <ul>{{range .Sujets}}<li><a href="{{$.Root}}/{{.Lien}}">{{.Nom}}</a></li>{{end}}</ul>
+      <ul class="liste-sujets">{{range .Sujets}}<li><a href="{{$.Root}}/{{.Lien}}">
+        <span class="nom">{{.Nom}}</span>{{if .D}}<span class="d">{{.D.Titre}}</span>{{else if .Pages}}<span class="d">{{(index .Pages 0).Titre}}</span>{{end}}
+      </a></li>{{end}}</ul>
     </div>{{end}}
   </div>
   <p class="src-bloc">Le poids de chaque famille reprend les fonctions COFOG correspondantes&nbsp;: il

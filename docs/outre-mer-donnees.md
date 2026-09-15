@@ -17,7 +17,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | outre-mer | 2197 | 364 | 1er octobre 2024 | 21 juillet 2026 |
 | vie chère | 172 | 75 | 1er octobre 2024 | 16 juin 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -62,7 +62,9 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 | **Total** | **2 657,6** | **2 555,1** | **−3,9 %** |
 | *Autorisations d'engagement (total)* | *2 904,4* | *2 782,7* | *−4,2 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
+les crédits de personnel incluent les cotisations au compte « Pensions » (source :
+Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 
@@ -104,17 +106,13 @@ La mission ne retrace qu'une partie de l'effort de l'État dans les outre-mer : 
 
 ## Sources
 
-| source | table | niveau |
-|---|---|---|
-| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | `core.budget_programme` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, mission « Outre-mer », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-320/l25-139-320-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| [Loi n° 2017-256 de programmation relative à l'égalité réelle outre-mer](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000034103762) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Journal officiel (textes cités au cadre) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Comptes rendus de l'Assemblée nationale | `derived.dossier_mentions_an` | PRIMARY_OFFICIAL |
-
-## Annexe technique
-
-Missions suivies : `ref.dossier_mission` (déclarées dans `internal/dossiers/verticales.go`, migration 0102) ; crédits : `derived.dossier_budget_programme` ; faits : `ref.fait_dossier` (`-only=dossiers-faits`, phrases relues dans chaque source au chargement) ; sections générées par `cmd/sections-dossiers`. Vérifications : `cmd/verify/dossiers.go`. Décision : D-066.
+| source | niveau |
+| --- | --- |
+| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, mission « Outre-mer », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-320/l25-139-320-syn.pdf) | PRIMARY_OFFICIAL |
+| [Loi n° 2017-256 de programmation relative à l'égalité réelle outre-mer](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000034103762) | PRIMARY_OFFICIAL |
+| Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
+| Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
 
 ## Versions
 

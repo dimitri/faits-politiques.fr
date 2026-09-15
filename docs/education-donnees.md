@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | Éducation nationale | 685 | 217 | 1er octobre 2024 | 21 juillet 2026 |
 | AESH | 246 | 90 | 16 octobre 2024 | 21 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -111,9 +111,8 @@ finances initiale adoptée ni l'exécution — même piège voté/exécuté que
 
 ### 2. Les effectifs par établissement : Depp, granularité fine
 
-Source : Depp, `data.education.gouv.fr`, deux jeux distincts et asymétriques —
-le premier degré publie les rentrées 2024 et 2025, le second degré seulement
-2024 au moment de l'écriture :
+Source : Depp, deux jeux distincts et asymétriques — le premier degré publie les
+rentrées 2024 et 2025, le second degré seulement 2024 au moment de l'écriture :
 
 | | Premier degré (ETP enseignants) | Second degré (ETP enseignants) |
 |---|---:|---:|
@@ -190,12 +189,12 @@ l'annexe technique (§ 6) le détaille source par source.
 
 ### 6. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Direction du budget, PLF, mission Enseignement scolaire | `core.budget_programme` | 6 programmes, 2024-2025 (table partagée, voir § 1) |
-| 2 | Depp, personnels des établissements du premier degré | `core.education_personnel_etablissement` | 94 584 lignes, 2024-2025 |
-| 3 | Depp, personnels des établissements du second degré | `core.education_personnel_etablissement` | 10 697 lignes, 2024 |
-| 4 | Depp, effectifs d'élèves des écoles (premier degré) | `core.education_effectif_eleves` | 35 lignes, agrégat national par secteur, 2009-2025 |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | Direction du budget, PLF, mission Enseignement scolaire | 6 programmes, 2024-2025 (table partagée, voir § 1) |
+| 2 | Depp, personnels des établissements du premier degré | 94 584 lignes, 2024-2025 |
+| 3 | Depp, personnels des établissements du second degré | 10 697 lignes, 2024 |
+| 4 | Depp, effectifs d'élèves des écoles (premier degré) | 35 lignes, agrégat national par secteur, 2009-2025 |
 
 **Non chargé, et pourquoi :**
 
@@ -227,5 +226,5 @@ l'annexe technique (§ 6) le détaille source par source.
   chargés (Depp, 2009-2025) — la baisse d'ETP enseignants du § 2 est deux
   fois moins rapide que la baisse d'effectifs, une question laissée ouverte
   en version 3 et désormais tranchée par la donnée.
-- **Version 3** (15 septembre 2026) : plan commun des dossiers (D-066) ; les §§ 4 et 5, écrits comme des réponses à des questions, décrivent désormais l'organisation ; cadre et contrôle du Sénat sourcés.
+- **Version 3** (15 septembre 2026) : plan commun des dossiers ; les §§ 4 et 5, écrits comme des réponses à des questions, décrivent désormais l'organisation ; cadre et contrôle du Sénat sourcés.
 - **Version 2** (14 septembre 2026) : pourquoi les effectifs d'AESH restent hors de portée en données ouvertes.

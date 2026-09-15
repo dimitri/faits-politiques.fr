@@ -44,10 +44,9 @@ confondre une collectivité qui s'autofinance et une collectivité sous
 perfusion de l'État — une différence politique et budgétaire réelle, que
 seule la ventilation permet de voir.
 
-`core.commune_indicator` et `core.collectivite_budget` chargent maintenant
-trois agrégats OFGL par habitant pour les quatre niveaux — **recettes
-totales**, **DGF**, **impôts et taxes** — aux côtés des cinq indicateurs de
-dépense déjà documentés sur la page `/collectivites/`.
+Cette série et cette série chargent maintenant trois agrégats OFGL par habitant pour
+les quatre niveaux — **recettes totales**, **DGF**, **impôts et taxes** — aux côtés
+des cinq indicateurs de dépense déjà documentés sur la page `/collectivites/`.
 
 ## Contrôles et évaluations
 
@@ -61,8 +60,8 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 ### 2. La photographie 2025
 
-`derived.poids_des_niveaux` (vue qui somme les indicateurs par habitant en
-masse totale, niveau par niveau) :
+Cette série (vue qui somme les indicateurs par habitant en masse totale, niveau par
+niveau) :
 
 | Niveau | Recettes totales | dont DGF | dont impôts et taxes |
 |---|---:|---:|---:|
@@ -102,17 +101,16 @@ tuyau budgétaire de 2018, pas un désengagement.
 
 ### 4. Ce que ce chargement ne permet pas encore de faire
 
-**Le pont vers la santé et l'éducation nationale, posé mais pas chiffré.**
-Les départements financent une part de l'action sociale et des collèges, les
-régions les lycées et une part de la formation professionnelle, et certains
-établissements de santé publics sont des établissements territoriaux — mais
-aucune ligne budgétaire chargée ici n'isole la part d'un budget départemental
-ou régional qui va spécifiquement à un collège, un lycée ou un hôpital.
-`core.epci_competence`/`ref.competence` documentent déjà quelles
-intercommunalités déclarent une compétence donnée (voir
-[docs/bassins-versants-donnees.md](bassins-versants-donnees.md) pour le
-même exercice appliqué à l'eau) ; le chiffrage financier de ce pont reste un
-chantier séparé, non commencé.
+**Le pont vers la santé et l'éducation nationale, posé mais pas chiffré.** Les
+départements financent une part de l'action sociale et des collèges, les régions les
+lycées et une part de la formation professionnelle, et certains établissements de
+santé publics sont des établissements territoriaux — mais aucune ligne budgétaire
+chargée ici n'isole la part d'un budget départemental ou régional qui va
+spécifiquement à un collège, un lycée ou un hôpital. Cette série documentent déjà
+quelles intercommunalités déclarent une compétence donnée (voir
+[docs/bassins-versants-donnees.md](bassins-versants-donnees.md) pour le même exercice
+appliqué à l'eau) ; le chiffrage financier de ce pont reste un chantier séparé, non
+commencé.
 
 **La fiscalité locale taux/bases (DGFiP REI)** — qui dirait, commune par
 commune, quel taux de taxe foncière est voté et sur quelle base — reste hors
@@ -133,11 +131,11 @@ ne demande pas.
 
 ### 5. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | OFGL / DGCL, budgets communaux | `core.commune_indicator` (codes `ofgl.dgf_par_hab`, `ofgl.recettes_totales_par_hab`, `ofgl.impots_taxes_par_hab`) | 34 256 à 34 772 communes, 2018-2025 |
-| 2 | OFGL / DGCL, budgets région/département/groupement | `core.collectivite_budget` | mêmes trois codes, 2018-2025 |
-| 3 | Vue dérivée | `derived.poids_des_niveaux` | déjà en place (migration 0044), étendue automatiquement aux trois nouveaux codes |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | OFGL / DGCL, budgets communaux | 34 256 à 34 772 communes, 2018-2025 |
+| 2 | OFGL / DGCL, budgets région/département/groupement | mêmes trois codes, 2018-2025 |
+| 3 | Vue dérivée | déjà en place, étendue automatiquement aux trois nouveaux codes |
 
 **Non chargé, et pourquoi** :
 - **Détail de la fraction de TVA versée aux régions** : non isolée dans la
@@ -149,5 +147,5 @@ ne demande pas.
 
 ## Versions
 
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066).
+- **Version 2** (15 septembre 2026) : plan commun des dossiers.
 - **Version 1** (15 septembre 2026) : dotation globale de fonctionnement et fiscalité propre.

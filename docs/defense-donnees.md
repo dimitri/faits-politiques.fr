@@ -19,7 +19,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 |---|---:|---:|---|---|
 | programmation militaire | 426 | 98 | 1er octobre 2024 | 15 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -51,8 +51,8 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 ### 1. La mission Défense : quatre programmes budgétaires
 
-Source : PLF, `data.economie.gouv.fr`. La mission **Défense** est composée de
-quatre programmes, chargés intégralement, aucun agrégé à un autre :
+Source : PLF, . La mission **Défense** est composée de quatre programmes, chargés
+intégralement, aucun agrégé à un autre :
 
 | Programme | 2024 (Md€) | 2025 (Md€) |
 |---|---:|---:|
@@ -134,9 +134,9 @@ année sur l'autre ou d'une source à l'autre.
 
 ### 4. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Direction du budget, PLF par mission/programme/action | `core.budget_programme` | 4 796 lignes, toutes missions, 2024-2025 |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | Direction du budget, PLF par mission/programme/action | 4 796 lignes, toutes missions, 2024-2025 |
 
 **Non chargé, et pourquoi :**
 
@@ -145,15 +145,14 @@ année sur l'autre ou d'une source à l'autre.
   de données ouvert au même format que le PLF annuel.
 - Effectifs (ETPT) par programme : même limite que pour la police nationale,
   voir [docs/securite-police-donnees.md](securite-police-donnees.md) § 4.
-- Exécution réelle (par opposition au PLF voté) : pas d'équivalent ouvert
-  détaillé par mission à `core.execution_etat`.
+- Exécution réelle (par opposition au PLF voté) : pas d'équivalent ouvert détaillé par
+  mission à cette série.
 - Millésimes antérieurs à 2024 : les jeux PLF de data.economie.gouv.fr
   changent de nom et de schéma de champs d'une édition à l'autre (déjà vrai
-  entre 2024 et 2025, voir `internal/budget/plf_destination.go`) ; étendre la
-  série en amont demande de retrouver et vérifier un identifiant par
-  millésime, non fait à ce stade.
+  entre 2024 et 2025) ; étendre la série en amont demande de retrouver et
+  vérifier un identifiant par millésime, non fait à ce stade.
 
 ## Versions
 
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (LPM 2024-2030) et contrôle du Sénat sur le budget 2026 ; l'écart du § 2 n'est plus rapporté à un « montant souvent cité » mais au périmètre de la LPM.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (LPM 2024-2030) et contrôle du Sénat sur le budget 2026 ; l'écart du § 2 n'est plus rapporté à un « montant souvent cité » mais au périmètre de la LPM.
 - **Version 1** (14 septembre 2026) : les quatre programmes de la mission Défense.

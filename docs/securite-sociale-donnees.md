@@ -19,7 +19,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 |---|---:|---:|---|---|
 | sécurité sociale | 2413 | 314 | 1er octobre 2024 | 20 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -41,8 +41,7 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 ### 1. Quatre périmètres, un seul mot
 
-`docs/decisions.md` D-048 pose la distinction que toute lecture d'un chiffre
-« sécu » doit garder en tête :
+La distinction que toute lecture d'un chiffre « sécu » doit garder en tête :
 
 | Périmètre | Ce qu'il couvre |
 |---|---|
@@ -51,9 +50,9 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 | **Tous régimes obligatoires de base** | Ajoute les régimes spéciaux et indépendants — le périmètre que vote la LFSS chaque année. |
 | **Protection sociale au sens DREES/Eurostat** | Le plus large : ajoute l'assurance chômage et les retraites complémentaires (AGIRC-ARRCO), que la LFSS **ne couvre pas**. C'est le périmètre le plus souvent cité dans le débat public (« la Sécu coûte X Md€ »), et le plus souvent confondu avec le périmètre LFSS, plus étroit.
 
-`ref.budget_perimetre` porte cette distinction comme clé étrangère obligatoire
-sur toute valeur chargée en base — aucun chiffre du site ne peut être publié
-sans dire à quel périmètre il appartient.
+Cette série porte cette distinction comme clé étrangère obligatoire sur toute valeur
+chargée en base — aucun chiffre du site ne peut être publié sans dire à quel périmètre
+il appartient.
 
 ## Contrôles et évaluations
 
@@ -114,5 +113,5 @@ respectives.
 
 ## Versions
 
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066) ; cadre (loi de financement 2024) et contrôle du Sénat sur le budget 2026.
+- **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (loi de financement 2024) et contrôle du Sénat sur le budget 2026.
 - **Version 1** (14 septembre 2026) : périmètres et renvois.

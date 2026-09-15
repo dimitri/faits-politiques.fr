@@ -23,14 +23,6 @@
 collectivité.</p>
 {{end}}
 
-{{if $k.CarteCommunes}}
-<h2>Le territoire</h2>
-<p class="q">Les {{$k.NbCommunesCarte}} communes du département, avec le contour de ses
-intercommunalités à fiscalité propre en trait épais.</p>
-{{$k.CarteCommunes}}
-<p class="attr-osm">Contours&nbsp;: IGN Admin Express COG CARTO, Licence Ouverte.</p>
-{{end}}
-
 <h2>Les cinq indicateurs financiers</h2>
 <div class="scroll"><table>
 <thead><tr><th>Indicateur</th><th class="n">Total {{$k.Exercice}}</th><th class="n">Par habitant</th>
@@ -45,6 +37,43 @@ intercommunalités à fiscalité propre en trait épais.</p>
 <p class="note">Le rang classe du plus élevé au plus bas <strong>par habitant</strong>. Il ne dit
 rien d'une bonne ou d'une mauvaise gestion&nbsp;: un montant par habitant dépend d'abord de ce que
 la collectivité gère en propre, et de la taille de son dénominateur.</p>
+
+{{with $k.Recettes}}
+<h2>D'où vient l'argent</h2>
+<p class="q">{{montant .Total}} de recettes en {{$k.Exercice}}. Ce sont les comptes propres
+de la collectivité ({{$k.Nom}}), pas une moyenne nationale répartie&nbsp;: chaque collectivité publie les siens, agrégés par l'Observatoire des finances et de
+la gestion publique locales (OFGL).</p>
+<div class="origine">
+  <div class="origine-ligne">
+    <span class="origine-nom">{{$k.Nom}}</span>
+    <span class="origine-barre" role="img" aria-label="Impôts et taxes {{dec .ImpotsPct 0}} %, dotation globale de fonctionnement {{dec .DGFPct 0}} %, autres recettes {{dec .AutresPct 0}} %">
+      <i class="o-imp" style="width:{{printf "%.1f" .ImpotsPct}}%"></i><i class="o-dgf" style="width:{{printf "%.1f" .DGFPct}}%"></i><i class="o-aut" style="width:{{printf "%.1f" .AutresPct}}%"></i>
+    </span>
+  </div>
+  <div class="origine-ligne ref">
+    <span class="origine-nom">Ensemble des {{.RefLibelle}}</span>
+    <span class="origine-barre" role="img" aria-label="Impôts et taxes {{dec .RefImpotsPct 0}} %, dotation globale de fonctionnement {{dec .RefDGFPct 0}} %, autres recettes {{dec .RefAutrePct 0}} %">
+      <i class="o-imp" style="width:{{printf "%.1f" .RefImpotsPct}}%"></i><i class="o-dgf" style="width:{{printf "%.1f" .RefDGFPct}}%"></i><i class="o-aut" style="width:{{printf "%.1f" .RefAutrePct}}%"></i>
+    </span>
+  </div>
+</div>
+<div class="scroll"><table>
+<thead><tr><th>Origine</th><th class="n">{{$k.Nom}}</th><th class="n">Part</th><th class="n">Ensemble des {{.RefLibelle}}</th></tr></thead>
+<tbody>
+<tr><td><i class="pastille o-imp"></i>Impôts et taxes</td><td class="n">{{montant .Impots}}</td><td class="n">{{dec .ImpotsPct 0}}&nbsp;%</td><td class="n z">{{dec .RefImpotsPct 0}}&nbsp;%</td></tr>
+<tr><td><i class="pastille o-dgf"></i>Dotation globale de fonctionnement (État)</td><td class="n">{{montant .DGF}}</td><td class="n">{{dec .DGFPct 0}}&nbsp;%</td><td class="n z">{{dec .RefDGFPct 0}}&nbsp;%</td></tr>
+<tr><td><i class="pastille o-aut"></i>Autres recettes</td><td class="n">{{montant .Autres}}</td><td class="n">{{dec .AutresPct 0}}&nbsp;%</td><td class="n z">{{dec .RefAutrePct 0}}&nbsp;%</td></tr>
+</tbody></table></div>
+<p class="note">«&nbsp;Impôts et taxes&nbsp;» ne veut pas dire «&nbsp;impôts votés sur
+place&nbsp;»&nbsp;: on y trouve des taxes dont la collectivité fixe le taux, d'autres dont elle ne
+fixe rien (les droits de mutation d'un département suivent le marché immobilier) et, selon toute
+vraisemblance, la fraction de TVA que l'État reverse depuis la suppression de taxes locales — voir
+la note de la page <a href="{{$.Root}}/collectivites/">Collectivités</a>. La dotation globale de fonctionnement
+est versée par l'État. «&nbsp;Autres recettes&nbsp;» est le reste des recettes totales —
+subventions, participations, produits des services, autres dotations — que cette agrégation ne
+détaille pas.{{if eq $k.TypeURL "region"}} La DGF des régions a été remplacée en 2018 par une
+fraction de TVA&nbsp;: elle est presque nulle, sans que l'État verse moins.{{end}}</p>
+{{end}}
 
 {{if $k.Vices}}
 <h2>L'exécutif</h2>

@@ -7,7 +7,7 @@ décisions fait foi en cas de contradiction, parce qu'il est daté.
 
 | Document | Ce qu'il contient |
 |---|---|
-| [decisions.md](decisions.md) | **Le journal des décisions, D-001 à D-071.** Toute affirmation de ce projet doit pouvoir s'y rattacher, y compris les erreurs corrigées. |
+| [decisions.md](decisions.md) | **Le journal des décisions, D-001 à D-073.** Toute affirmation de ce projet doit pouvoir s'y rattacher, y compris les erreurs corrigées. |
 | [perimetre.md](perimetre.md) | Ce que le projet couvre, la matrice des sources avec leurs licences, et ce qui est hors de portée. Le § 2.8 fixe le plan commun de tous les dossiers (D-066). |
 | [architecture.md](architecture.md) | Le choix statique / dynamique et ses conséquences. |
 

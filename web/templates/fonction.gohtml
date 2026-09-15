@@ -1,0 +1,40 @@
+{{define "content"}}
+{{$f := .F}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/argent-public/">Argent public</a> › <span>{{$f.Nom}}</span></p>
+<span class="sur">Fonction de la dépense publique · nomenclature COFOG</span>
+<h1>{{$f.Nom}}</h1>
+<p class="lede">{{$f.ParMille}}&nbsp;€ sur 1&nbsp;000&nbsp;€ de dépense publique en {{$f.Annee}}
+({{dec $f.Milliards 1}}&nbsp;Md€), {{if eq $f.Rang 1}}la plus importante{{else}}la {{$f.Rang}}<sup>e</sup>
+sur les {{$f.Sur}} fonctions{{end}}{{if $f.Detail}}. Cette fonction couvre&nbsp;: {{$f.Detail}}{{end}}.</p>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Depuis 1995</span>
+    <h2 class="h2">Trente ans de cette dépense</h2></div></div>
+  {{$f.Courbe}}
+  <p class="src-bloc">Source&nbsp;: Eurostat / Insee, dépenses des administrations publiques par
+  fonction (COFOG), toutes administrations confondues (État, Sécurité sociale, collectivités).</p>
+</section>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Comparée aux neuf autres</span>
+    <h2 class="h2">Sur 1&nbsp;000&nbsp;€ de dépense publique, {{$f.Annee}}</h2></div></div>
+  <div class="mille">{{$f.ComparaisonHTML}}</div>
+  <p class="src-bloc">Le poids de chaque fonction situe, il ne s'additionne pas à celui d'une
+  politique précise&nbsp;: une politique publique peut relever de plusieurs fonctions à la fois.</p>
+</section>
+
+{{if $f.Famille}}
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Sujets de campagne</span>
+    <h2 class="h2">Les sujets qui en relèvent</h2></div>
+    <a class="plus" href="{{$.Root}}/sujets/#{{$f.Famille.ID}}">{{$f.Famille.Nom}} →</a></div>
+  <p class="q">{{$f.Famille.Intro}}</p>
+  <ul class="liens-cartes">{{range $f.Famille.Sujets}}<li><a href="{{$.Root}}/{{.Lien}}">{{.Nom}}</a></li>{{end}}</ul>
+</section>
+{{else}}
+<p class="nodata">Cette fonction ne correspond à aucune famille de sujets de campagne de ce
+site&nbsp;: elle finance l'appareil de l'État lui-même plutôt qu'une politique identifiable.
+<a href="{{.Root}}/argent-public/">Où va l'argent public →</a></p>
+{{end}}
+{{end}}

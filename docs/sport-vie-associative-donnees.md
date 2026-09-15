@@ -18,7 +18,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | service civique | 29 | 23 | 4 décembre 2024 | 7 mai 2026 |
 | service national universel | 25 | 19 | 14 octobre 2024 | 21 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
+Une mention ne dit pas la position de l'orateur.
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -65,7 +65,9 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 | **Total** | **1 794,8** | **1 578,7** | **−12,0 %** |
 | *Autorisations d'engagement (total)* | *1 704,1* | *1 635,2* | *−4,0 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
+les crédits de personnel incluent les cotisations au compte « Pensions » (source :
+Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 
@@ -79,7 +81,8 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 ### Autres données
 
-Le répertoire des associations (`core.association`, 1,18 million d'unités légales) et leur densité par commune (`derived.commune_vie_associative`) sont déjà chargés pour les fiches communales.
+Le répertoire des associations (1,18 million d'unités légales) et leur densité par
+commune sont déjà chargés pour les fiches communales.
 
 ## Ce que les données ne disent pas
 
@@ -106,16 +109,12 @@ Le répertoire des associations (`core.association`, 1,18 million d'unités lég
 
 ## Sources
 
-| source | table | niveau |
-|---|---|---|
-| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | `core.budget_programme` | PRIMARY_OFFICIAL |
-| [Rapport spécial du Sénat, mission « Sport, jeunesse et vie associative », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-330/l25-139-330-syn.pdf) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Journal officiel (textes cités au cadre) | `ref.fait_dossier` | PRIMARY_OFFICIAL |
-| Comptes rendus de l'Assemblée nationale | `derived.dossier_mentions_an` | PRIMARY_OFFICIAL |
-
-## Annexe technique
-
-Missions suivies : `ref.dossier_mission` (déclarées dans `internal/dossiers/verticales.go`, migration 0102) ; crédits : `derived.dossier_budget_programme` ; faits : `ref.fait_dossier` (`-only=dossiers-faits`, phrases relues dans chaque source au chargement) ; sections générées par `cmd/sections-dossiers`. Vérifications : `cmd/verify/dossiers.go`. Décision : D-066.
+| source | niveau |
+| --- | --- |
+| Direction du budget, projets de loi de finances 2024 et 2025, dépenses par mission, programme et action (data.economie.gouv.fr) | PRIMARY_OFFICIAL |
+| [Rapport spécial du Sénat, mission « Sport, jeunesse et vie associative », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-330/l25-139-330-syn.pdf) | PRIMARY_OFFICIAL |
+| Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
+| Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
 
 ## Versions
 

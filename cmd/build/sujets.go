@@ -173,10 +173,22 @@ func sujetDuDoc(slug string) *Sujet {
 // FonctionCofog : une ligne de « sur 1 000 € de dépense publique ».
 type FonctionCofog struct {
 	Code, Libelle, Detail string
+	Slug                  string
 	Milliards             float64
 	ParMille              int
 	Largeur               float64 // en % de la plus grande fonction
 	Famille               *Famille
+}
+
+func (f FonctionCofog) URL() string { return "fonction/" + f.Slug + "/" }
+
+// slugCofog : un identifiant lisible pour l'URL de chaque fonction — plus
+// clair dans un lien qu'un code GF à deviner.
+var slugCofog = map[string]string{
+	"GF10": "protection-sociale", "GF07": "sante", "GF01": "services-generaux",
+	"GF04": "economie-transports", "GF09": "enseignement", "GF02": "defense",
+	"GF03": "ordre-securite", "GF08": "culture-loisirs", "GF06": "logement",
+	"GF05": "environnement",
 }
 
 type BudgetNiveau struct {
@@ -226,16 +238,19 @@ func loadAccueil(ctx context.Context, pool *pgxpool.Pool, terr *StatsTerritoires
 	a := &DonneesAccueil{Familles: famillesSujets(), Argent: familleArgent()}
 
 	// Dépense par fonction : la dernière année où les dix fonctions sont
-	// publiées, pour que le total soit celui d'une même année.
+	// publiées, pour que le total soit celui d'une même année. Les dix
+	// divisions seulement (« GF01 » à « GF10 ») : les groupes à quatre
+	// chiffres (« GF1002 », vieillesse) sont leurs sous-fonctions, et les
+	// compter ensemble ferait deux fois la même dépense.
 	if err := pool.QueryRow(ctx, `
-		SELECT max(annee) FROM (SELECT annee FROM core.macro_value WHERE serie_code LIKE 'depense.GF%'
+		SELECT max(annee) FROM (SELECT annee FROM core.macro_value WHERE serie_code ~ '^depense\.GF[0-9]{2}$'
 		GROUP BY annee HAVING count(*) = 10) t`).Scan(&a.Annee); err != nil {
 		return nil, fmt.Errorf("dépense par fonction : %w", err)
 	}
 	rows, err := pool.Query(ctx, `
 		SELECT replace(v.serie_code, 'depense.', ''), replace(s.label, 'Dépense publique — ', ''), v.valeur::float8
 		FROM core.macro_value v JOIN ref.macro_serie s ON s.code = v.serie_code
-		WHERE v.serie_code LIKE 'depense.GF%' AND v.annee = $1
+		WHERE v.serie_code ~ '^depense\.GF[0-9]{2}$' AND v.annee = $1
 		ORDER BY v.valeur DESC`, a.Annee)
 	if err != nil {
 		return nil, err
@@ -249,6 +264,7 @@ func loadAccueil(ctx context.Context, pool *pgxpool.Pool, terr *StatsTerritoires
 		}
 		f.Milliards = meur / 1000
 		f.Detail = detailCofog[f.Code]
+		f.Slug = slugCofog[f.Code]
 		a.TotalMilliards += f.Milliards
 		a.Fonctions = append(a.Fonctions, f)
 	}
@@ -424,30 +440,40 @@ func reecrireLiensDocs(docs []*Doc, root string) {
 	}
 }
 
+var courtsCofog = map[string]string{
+	"GF10": "Protection sociale", "GF07": "Santé", "GF01": "Services généraux et dette",
+	"GF04": "Économie, transports, agriculture", "GF09": "École et université", "GF02": "Défense",
+	"GF03": "Police, justice, prisons", "GF08": "Culture, sport, loisirs", "GF06": "Logement, équipements",
+	"GF05": "Environnement",
+}
+
+// couleurCofog : une teinte par fonction — qualitative, pas un dégradé : les
+// dix fonctions sont dix catégories côte à côte, pas une grandeur qui varie.
+var couleurCofog = map[string]string{
+	"GF10": "#125863", "GF07": "#5FA3AD", "GF01": "#8C8577", "GF04": "#C08A3E",
+	"GF09": "#5B7CA6", "GF02": "#6E4B3A", "GF03": "#8770A0", "GF08": "#B15E4A",
+	"GF06": "#A98C6B", "GF05": "#4C8F62",
+}
+
 // heroMille : le graphique d'ouverture de l'accueil. Ce qui frappe à la
 // première seconde et donne envie de creuser : sur 1 000 € de dépense publique,
-// 415 vont à la protection sociale, 31 à la police et à la justice. Chaque
-// ligne mène à la famille de sujets correspondante. Barres à l'échelle de la
-// plus grande, en gris ; la première en encre, parce qu'elle sert d'étalon.
+// 415 vont à la protection sociale, 31 à la police et à la justice. Une
+// mosaïque de 1 000 carrés — un par euro — sur ordinateur ; les mêmes chiffres
+// en barres sur mobile, où 1 000 carrés seraient illisibles. Chaque ligne de
+// la légende mène à la page de la fonction. Barres à l'échelle de la plus
+// grande, en gris ; la première en encre, parce qu'elle sert d'étalon.
 func heroMille(a *DonneesAccueil, root string) template.HTML {
 	if a == nil || len(a.Fonctions) == 0 {
 		return ""
 	}
-	courts := map[string]string{
-		"GF10": "Protection sociale", "GF07": "Santé", "GF01": "Services généraux et dette",
-		"GF04": "Économie, transports, agriculture", "GF09": "École et université", "GF02": "Défense",
-		"GF03": "Police, justice, prisons", "GF08": "Culture, sport, loisirs", "GF06": "Logement, équipements",
-		"GF05": "Environnement",
-	}
 	var b strings.Builder
 	fmt.Fprintf(&b, `<figure class="hero-mille"><figcaption><span class="sur">Le budget réel · %d</span>`+
-		`<strong>Sur 1&nbsp;000&nbsp;€ de dépense publique</strong></figcaption><ol>`, a.Annee)
+		`<strong>Sur 1&nbsp;000&nbsp;€ de dépense publique</strong></figcaption>`, a.Annee)
+	b.WriteString(`<div class="mille-corps">`)
+	b.WriteString(mosaiqueMille(a))
+	b.WriteString(`<ol>`)
 	for i, f := range a.Fonctions {
-		lien := root + "/argent-public/"
-		if f.Famille != nil && f.Famille.Base == "sujets" {
-			lien = root + "/sujets/#" + f.Famille.ID
-		}
-		nom := courts[f.Code]
+		nom := courtsCofog[f.Code]
 		if nom == "" {
 			nom = f.Libelle
 		}
@@ -455,10 +481,35 @@ func heroMille(a *DonneesAccueil, root string) template.HTML {
 		if i == 0 {
 			cl = ` class="etalon"`
 		}
-		fmt.Fprintf(&b, `<li%s><a href="%s"><span class="l">%s</span><span class="b" aria-hidden="true"><i style="width:%.1f%%"></i></span><span class="v">%d&nbsp;€</span></a></li>`,
-			cl, lien, template.HTMLEscapeString(nom), f.Largeur, f.ParMille)
+		fmt.Fprintf(&b, `<li%s><a href="%s/%s"><i class="pastille" aria-hidden="true" style="background:%s"></i>`+
+			`<span class="l">%s</span><span class="b" aria-hidden="true"><i style="width:%.1f%%"></i></span>`+
+			`<span class="v">%d&nbsp;€</span></a></li>`,
+			cl, root, f.URL(), couleurCofog[f.Code], template.HTMLEscapeString(nom), f.Largeur, f.ParMille)
 	}
-	fmt.Fprintf(&b, `</ol><p class="pied-mille">Dépense constatée de l'État, de la Sécurité sociale et des collectivités&nbsp;: %s&nbsp;Md€. Eurostat / Insee. <a href="%s/argent-public/">Le détail →</a></p></figure>`,
+	b.WriteString(`</ol></div>`)
+	fmt.Fprintf(&b, `<p class="pied-mille">Un carré = 1&nbsp;€. Dépense constatée de l'État, de la Sécurité sociale et des collectivités&nbsp;: %s&nbsp;Md€. Eurostat / Insee. <a href="%s/argent-public/">Le détail →</a></p></figure>`,
 		Decimal(a.TotalMilliards, 1), root)
 	return template.HTML(b.String())
+}
+
+// mosaiqueMille : 1 000 carrés, un par euro, dans l'ordre des fonctions —
+// visible sur ordinateur seulement (CSS), la légende ci-contre reste la
+// version accessible et cliquable des mêmes chiffres.
+func mosaiqueMille(a *DonneesAccueil) string {
+	const cols, rows, cell, gap = 40, 25, 10.0, 1.4
+	var b strings.Builder
+	fmt.Fprintf(&b, `<svg class="mosaique" viewBox="0 0 %g %g" aria-hidden="true" focusable="false">`,
+		cols*cell, rows*cell)
+	i := 0
+	for _, f := range a.Fonctions {
+		couleur := couleurCofog[f.Code]
+		for n := 0; n < f.ParMille && i < cols*rows; n++ {
+			x, y := float64(i%cols)*cell, float64(i/cols)*cell
+			fmt.Fprintf(&b, `<rect x="%.1f" y="%.1f" width="%.1f" height="%.1f" rx="1.4" fill="%s"/>`,
+				x+gap/2, y+gap/2, cell-gap, cell-gap, couleur)
+			i++
+		}
+	}
+	b.WriteString(`</svg>`)
+	return b.String()
 }

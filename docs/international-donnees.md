@@ -64,9 +64,8 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 ### 2. Le salaire minimum : une comparaison possible, une lecture à ne pas forcer
 
-`core.salaire_minimum` (Eurostat `earn_mw_cur`, mensuel brut, semestriel) —
-seul jeu identifié qui réunit l'Europe et un pays du G8 hors Union dans la
-même définition :
+Cette série (Eurostat `earn_mw_cur`, mensuel brut, semestriel) — seul jeu identifié
+qui réunit l'Europe et un pays du G8 hors Union dans la même définition :
 
 | Pays | Dernier montant (EUR/mois) |
 |---|---:|
@@ -115,8 +114,8 @@ baril de pétrole affichent la même croissance — que l'un réinvestisse la
 rente dans une économie diversifiée, ou que l'autre épuise un gisement fini
 sans rien construire à la place. Le PIB seul ne fait pas la différence.
 
-`core.indicateur_mondial` (Banque mondiale, dix pays de comparaison — G8
-historique, Chine, Arabie saoudite) :
+Cette série (Banque mondiale, dix pays de comparaison — G8 historique, Chine, Arabie
+saoudite) :
 
 | Pays | PIB 2023 (Md$) |
 |---|---:|
@@ -159,10 +158,10 @@ leur politique économique** : l'épargne nette ajustée reste positive pour
 les deux (elles réinvestissent plus qu'elles n'épuisent, au moins sur ce
 critère), et ce dossier ne conclut pas au-delà de ce que la mesure dit.
 
-**Ces deux pourcentages ne se comparent jamais en valeur absolue au PIB en
-dollars du tableau précédent** — l'un est un montant, les deux autres des
-ratios au revenu national brut, une grandeur différente du PIB elle-même
-(voir le commentaire de `core.indicateur_mondial`).
+**Ces deux pourcentages ne se comparent jamais en valeur absolue au PIB en dollars du
+tableau précédent** — l'un est un montant, les deux autres des ratios au revenu
+national brut, une grandeur différente du PIB elle-même (voir le commentaire de cette
+série).
 
 ### 4. La dette publique : le seul chiffre qui déborde déjà l'Union
 
@@ -172,10 +171,9 @@ est nouveau ici : l'extension au G8 hors zone euro, à la Chine, à la Russie
 et à l'Arabie saoudite, la seule mesure de ce chantier qui existait déjà
 avant que ce dossier ne soit ouvert plutôt que d'être construite pour lui.
 
-Dette brute au sens du FMI (`internal/dette/fmi.go`), dernière année
-observée — le FMI publie une marque `LATEST_ACTUAL_ANNUAL_DATA` par pays qui
-sépare précisément la donnée observée de la projection ; les projections
-n'entrent jamais dans cette base :
+Dette brute au sens du FMI, dernière année observée — le FMI publie une marque
+`LATEST_ACTUAL_ANNUAL_DATA` par pays qui sépare précisément la donnée observée de la
+projection ; les projections n'entrent jamais dans cette base :
 
 | Pays | Dette brute FMI (% du PIB) |
 |---|---:|
@@ -207,10 +205,9 @@ France ne connaît pas (`docs/dette-donnees.md` § 2).
 ### 5. La santé comparée : espérance de vie et dépense par habitant
 
 Le terrain français est déjà largement couvert par le chantier santé
-(`docs/sante-donnees.md`) ; ce dossier ajoute les deux chiffres qui
-permettent la comparaison internationale : l'espérance de vie à la
-naissance et la dépense de santé courante par habitant (OCDE,
-`core.indicateur_mondial`), 2024-2025 ou dernière année publiée :
+(`docs/sante-donnees.md`) ; ce dossier ajoute les deux chiffres qui permettent la
+comparaison internationale : l'espérance de vie à la naissance et la dépense de santé
+courante par habitant (OCDE), 2024-2025 ou dernière année publiée :
 
 | Pays | Espérance de vie à la naissance | Dépense de santé par habitant (USD PPA) |
 |---|---:|---:|
@@ -229,24 +226,22 @@ naissance et la dépense de santé courante par habitant (OCDE,
 clé), une absence documentée plutôt que devinée ou remplie par une
 estimation (§ 1, règle 2).
 
-**Rapprocher les deux colonnes ne dit toujours pas qui « soigne mieux »**
-(§ 1, règle 3) : les États-Unis dépensent plus du double de la France par
-habitant pour une espérance de vie inférieure de quatre ans — un écart qui
-mélange l'efficience du système de santé avec des facteurs sans rapport
-avec l'offre de soins (alimentation, accidents, criminalité, structure
-d'âge, part de la population sans couverture). Le détail par cause de
-décès, qui permettrait de départager ces facteurs, n'est pas chargé ici.
-Dollars PPA (pouvoir d'achat comparable), pas un simple change — voir le
-commentaire de `core.indicateur_mondial`.
+**Rapprocher les deux colonnes ne dit toujours pas qui « soigne mieux »** (§ 1, règle
+3) : les États-Unis dépensent plus du double de la France par habitant pour une
+espérance de vie inférieure de quatre ans — un écart qui mélange l'efficience du
+système de santé avec des facteurs sans rapport avec l'offre de soins (alimentation,
+accidents, criminalité, structure d'âge, part de la population sans couverture). Le
+détail par cause de décès, qui permettrait de départager ces facteurs, n'est pas
+chargé ici. Dollars PPA (pouvoir d'achat comparable), pas un simple change — voir le
+commentaire de cette série.
 
 ### 6. L'effort de défense : SIPRI, la seule base qui remonte à 1949
 
-SIPRI est la source la plus complète identifiée pour ce sujet — la seule
-qui couvre les dix pays de comparaison de ce dossier, Arabie saoudite
-comprise (absente de la dette FMI hors zone euro pour d'autres raisons,
-`docs/dette-donnees.md` § 5), sur une série qui remonte à 1949. Part du
-PIB, pas un montant en devise (`core.indicateur_mondial`, feuille « Share
-of GDP » du classeur officiel) :
+SIPRI est la source la plus complète identifiée pour ce sujet — la seule qui couvre
+les dix pays de comparaison de ce dossier, Arabie saoudite comprise (absente de la
+dette FMI hors zone euro pour d'autres raisons, `docs/dette-donnees.md` § 5), sur une
+série qui remonte à 1949. Part du PIB, pas un montant en devise (feuille « Share of
+GDP » du classeur officiel) :
 
 | Pays | Dépense militaire (% du PIB, 2025) |
 |---|---:|
@@ -271,28 +266,26 @@ autorisent la réutilisation à des fins non commerciales avec mention de la
 source — ce site n'a pas de vocation commerciale, la condition est remplie
 sans réserve à poser.
 
-**Ce que SIPRI ne donne pas : à qui la France vend des armes.** SIPRI
-publie une seconde base, les *Arms Transfers* (le registre des transferts
-bilatéraux, fournisseur → destinataire), qui répondrait précisément à cette
-question — mais son interface est une application entièrement dynamique
-(JavaScript), sans point d'export accessible par une simple requête : l'un
-des deux points d'entrée jadis documentés (`armstrade.sipri.org`) est
-décommissionné, l'autre (`armstransfers.sipri.org/ArmsTransfer/CSVResult`)
-ne renvoie que la coquille de l'application, jamais les données, à une
-requête directe. Le rapport français officiel sur ce même sujet (*Rapport
-au Parlement sur les exportations d'armement de la France*, publié chaque
-année par le ministère des Armées) n'a pas de version structurée ouverte
-non plus : uniquement un PDF. Les deux sources existent, aucune des deux
-n'est chargeable en l'état — un sujet à rouvrir si SIPRI publie un export
-statique, ou si un jeu structuré accompagne un futur rapport au Parlement.
+**Ce que SIPRI ne donne pas : à qui la France vend des armes.** SIPRI publie une
+seconde base, les *Arms Transfers* (le registre des transferts bilatéraux, fournisseur
+→ destinataire), qui répondrait précisément à cette question — mais son interface est
+une application entièrement dynamique (JavaScript), sans point d'export accessible par
+une simple requête : l'un des deux points d'entrée jadis documentés est
+décommissionné, l'autre (`armstransfers.sipri.org/ArmsTransfer/CSVResult`) ne renvoie
+que la coquille de l'application, jamais les données, à une requête directe. Le
+rapport français officiel sur ce même sujet (*Rapport au Parlement sur les
+exportations d'armement de la France*, publié chaque année par le ministère des
+Armées) n'a pas de version structurée ouverte non plus : uniquement un PDF. Les deux
+sources existent, aucune des deux n'est chargeable en l'état — un sujet à rouvrir si
+SIPRI publie un export statique, ou si un jeu structuré accompagne un futur rapport au
+Parlement.
 
 ### 7. Représentativité des dirigeants : la participation, pas encore le mode de scrutin
 
-International IDEA publie un export statique (pas une API documentée) qui
-donne la participation électorale par pays et par élection — une part du
-sujet, pas sa totalité : la part du vainqueur et le mode de scrutin
-resteraient à compiler à la main, élection par élection, hors de portée
-d'un chargement automatisé (`core.participation_electorale`) :
+International IDEA publie un export statique (pas une API documentée) qui donne la
+participation électorale par pays et par élection — une part du sujet, pas sa totalité
+: la part du vainqueur et le mode de scrutin resteraient à compiler à la main,
+élection par élection, hors de portée d'un chargement automatisé :
 
 | Pays | Dernière élection législative | Participation (% des inscrits) | Vote obligatoire |
 |---|---|---:|---|
@@ -372,8 +365,8 @@ bloque sur un obstacle vérifié, pas supposé :
 - Banque mondiale, `NY.GDP.MKTP.CD` (PIB courant), `NY.ADJ.SVNG.GN.ZS`
   (épargne nette ajustée), `NY.ADJ.DRES.GN.ZS` (épuisement des ressources
   naturelles).
-- FMI, World Economic Outlook (API SDMX, `internal/dette/fmi.go`) — dette
-  brute des administrations publiques (§ 4).
+- FMI, World Economic Outlook (API SDMX) — dette brute des administrations
+  publiques (§ 4).
 - OCDE, *Statistiques de la santé* (API SDMX, `DSD_HEALTH_STAT@DF_LE`,
   `DSD_SHA@DF_SHA`) — espérance de vie et dépense de santé (§ 5).
 - SIPRI, *Military Expenditure Database* (classeur officiel) — effort de
@@ -391,15 +384,15 @@ bloque sur un obstacle vérifié, pas supposé :
 
 ### 10. Ce qui est chargé
 
-| # | Source | Table | Volume |
-|---|---|---|---|
-| 1 | Eurostat, `earn_mw_cur` | `core.salaire_minimum` | 4 573 lignes, 31 pays, 1999-2026 |
-| 2 | Banque mondiale, *World Development Indicators* | `core.indicateur_mondial` | 682 lignes, 10 pays, 3 indicateurs, 2000-2024 |
-| 3 | FMI, *World Economic Outlook* (dette brute, 17 pays dont G8 hors zone euro, Chine, Russie, Arabie saoudite) | `core.dette_observation` (`serie` `fmi:GGXWDG_NGDP:*`) | 17 séries, jusqu'à 46 années chacune |
-| 4 | OCDE, *Statistiques de la santé* (espérance de vie) | `core.indicateur_mondial` (`indicateur` `OCDE_ESPERANCE_VIE_NAISSANCE`) | 89 lignes, 9 pays |
-| 5 | OCDE, *Comptes de la santé* (dépense par habitant) | `core.indicateur_mondial` (`indicateur` `OCDE_DEPENSE_SANTE_HABITANT`) | 86 lignes, 8 pays |
-| 6 | SIPRI, *Military Expenditure Database* (part du PIB) | `core.indicateur_mondial` (`indicateur` `SIPRI_DEPENSE_MILITAIRE_PIB`) | 657 lignes, 10 pays, 1949-2025 |
-| 7 | International IDEA, *Voter Turnout Database* | `core.participation_electorale` | 293 lignes, 8 pays |
+| # | Source | Volume |
+| --- | --- | --- |
+| 1 | Eurostat, `earn_mw_cur` | 4 573 lignes, 31 pays, 1999-2026 |
+| 2 | Banque mondiale, *World Development Indicators* | 682 lignes, 10 pays, 3 indicateurs, 2000-2024 |
+| 3 | FMI, *World Economic Outlook* (dette brute, 17 pays dont G8 hors zone euro, Chine, Russie, Arabie saoudite) | 17 séries, jusqu'à 46 années chacune |
+| 4 | OCDE, *Statistiques de la santé* (espérance de vie) | 89 lignes, 9 pays |
+| 5 | OCDE, *Comptes de la santé* (dépense par habitant) | 86 lignes, 8 pays |
+| 6 | SIPRI, *Military Expenditure Database* (part du PIB) | 657 lignes, 10 pays, 1949-2025 |
+| 7 | International IDEA, *Voter Turnout Database* | 293 lignes, 8 pays |
 
 ## Versions
 
@@ -419,25 +412,23 @@ bloque sur un obstacle vérifié, pas supposé :
   dossier, reste bloqué : ni SIPRI (base bilatérale entièrement
   JavaScript) ni le rapport officiel français (PDF seul) n'offrent
   d'export structuré.
-- **Version 5** (15 septembre 2026) : espérance de vie à la naissance
-  chargée (§ 5, OCDE, neuf pays — l'Arabie saoudite n'est pas couverte par
-  cette série) dans `core.indicateur_mondial`, sans nouvelle table (le
-  schéma porte déjà un `source_id` par ligne). Les sept sujets restants
-  (§ 7) passent de « à explorer » à chacun testé et bloqué pour une raison
-  vérifiée : V-Dem n'a aucune URL de fichier statique (formulaire
-  dynamique, confirmé sur le HTML de la page) ; RSF n'expose aucune licence
-  dans son HTML statique (confirmé, page de mentions légales en 404) ;
-  ILOSTAT répond mais les jours de grève ne sont pas comparables (couverture
-  trop inégale, méthodologie propre à chaque pays) ; OTAN et ONU publient
-  uniquement en PDF (confirmé sur les deux sources).
-- **Version 4** (15 septembre 2026) : dette publique hors Union chargée (§ 4)
-  en étendant un connecteur déjà en place (`internal/dette/fmi.go`) à la
-  Chine, la Russie et l'Arabie saoudite plutôt qu'en écrivant un nouveau
-  connecteur — ces deux derniers pays avec la réserve de méthode que le FMI
-  documente lui-même (Chine : méthodologie « Other » ; Arabie saoudite :
+- **Version 5** (15 septembre 2026) : espérance de vie à la naissance chargée (§ 5,
+  OCDE, neuf pays — l'Arabie saoudite n'est pas couverte par cette série) dans cette
+  série, sans nouvelle table (le schéma porte déjà un `source_id` par ligne). Les sept
+  sujets restants (§ 7) passent de « à explorer » à chacun testé et bloqué pour une
+  raison vérifiée : V-Dem n'a aucune URL de fichier statique (formulaire dynamique,
+  confirmé sur le HTML de la page) ; RSF n'expose aucune licence dans son HTML
+  statique (confirmé, page de mentions légales en 404) ; ILOSTAT répond mais les jours
+  de grève ne sont pas comparables (couverture trop inégale, méthodologie propre à
+  chaque pays) ; OTAN et ONU publient uniquement en PDF (confirmé sur les deux
+  sources).
+- **Version 4** (15 septembre 2026) : dette publique hors Union chargée (§ 4),
+  étendue à la Chine, la Russie et l'Arabie saoudite — ces deux derniers pays
+  avec la réserve de méthode que le FMI documente lui-même (Chine :
+  méthodologie « Other » ; Arabie saoudite :
   administration centrale, pas administrations publiques).
 - **Version 3** (15 septembre 2026) : heures travaillées (OCDE) exploré, chargé, puis retiré
   après vérification (couverture trop ancienne pour huit pays sur les dix) ; les neuf sujets
   restants vérifiés à des degrés divers plutôt que simplement listés.
-- **Version 2** (15 septembre 2026) : plan commun des dossiers (D-066).
+- **Version 2** (15 septembre 2026) : plan commun des dossiers.
 - **Version 1** (15 septembre 2026) : salaire minimum, PIB et épuisement des ressources ; dix sujets décrits, non chargés.

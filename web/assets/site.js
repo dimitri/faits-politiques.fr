@@ -112,3 +112,48 @@
     });
   });
 });
+
+// Carte des intercommunalités ouverte depuis une page de département ou de
+// région : « ?departement=29 » (ou « 67,68 », « ?region=53 ») cadre la carte
+// sur le territoire, le souligne, et propose de revenir à la France entière.
+// Sans JavaScript, le lien mène simplement à la carte nationale.
+(function(){
+  var bloc=document.getElementById('carte-epci'); if(!bloc) return;
+  var svg=bloc.querySelector('svg.geo'); if(!svg) return;
+  var p=new URLSearchParams(location.search), cls='dep', v=p.get('departement');
+  if(!v){ v=p.get('region'); cls='reg' }
+  if(!v) return;
+  var chemins=v.split(',').map(function(c){
+    return svg.querySelector('.frontieres .'+cls+'[data-code="'+c.replace(/[^0-9AB]/g,'')+'"]')
+  }).filter(Boolean);
+  bloc.classList.add('agrandie');
+  var nav=document.createElement('p'); nav.className='cadrage';
+  var vb0=svg.getAttribute('viewBox');
+  if(chemins.length){
+    var x0=Infinity,y0=Infinity,x1=-Infinity,y1=-Infinity, noms=[];
+    chemins.forEach(function(c){
+      var b=c.getBBox(); c.classList.add('en-avant'); noms.push(c.getAttribute('data-nom'));
+      x0=Math.min(x0,b.x); y0=Math.min(y0,b.y); x1=Math.max(x1,b.x+b.width); y1=Math.max(y1,b.y+b.height);
+    });
+    // Le cadre garde les proportions de la carte à l'écran : sans quoi le
+    // navigateur montrerait, de part et d'autre, ce qui déborde du cadre.
+    var r=svg.getBoundingClientRect(), ratio=r.height?r.width/r.height:1;
+    var m=Math.max(x1-x0,y1-y0)*1.1, w=x1-x0+2*m, h=y1-y0+2*m;
+    if(w/h<ratio) w=h*ratio; else h=w/ratio;
+    var cx=(x0+x1)/2, cy=(y0+y1)/2;
+    var vb=[cx-w/2,cy-h/2,w,h].map(Math.round).join(' ');
+    svg.setAttribute('viewBox',vb);
+    var t=document.createElement('span'); t.textContent=noms.join(', ')+' et ses voisins';
+    var bt=document.createElement('button'); bt.type='button'; bt.textContent='Voir la France entière';
+    bt.addEventListener('click',function(){
+      var large=svg.getAttribute('viewBox')===vb0;
+      svg.setAttribute('viewBox',large?vb:vb0);
+      bt.textContent=large?'Voir la France entière':'Revenir au territoire';
+    });
+    nav.appendChild(t); nav.appendChild(bt);
+  } else {
+    nav.textContent='Ce territoire est en outre-mer : ses intercommunalités sont dans les cartons sous la carte.';
+  }
+  bloc.insertBefore(nav, svg);
+  bloc.scrollIntoView({block:'start'});
+})();

@@ -29,11 +29,21 @@ const tolSituation = 0.005 // ≈ 500 m : à l'échelle de la France, un pixel c
 
 type CartonSituation struct {
 	Nom, Fond string
+	URL       string        // page du département d'outre-mer, vide s'il n'en a pas
 	SVG       template.HTML // calque du carton actif, vide sinon
 	Actif     bool
 }
 
-type LigneLegende struct{ Libelle, Valeur, Detail string }
+type LigneLegende struct{ Libelle, Valeur, Detail, URL string }
+
+// ligneLegende : une ligne de légende, avec un lien facultatif sur la valeur.
+func ligneLegende(libelle, valeur, detail string, url ...string) LigneLegende {
+	l := LigneLegende{Libelle: libelle, Valeur: valeur, Detail: detail}
+	if len(url) > 0 {
+		l.URL = url[0]
+	}
+	return l
+}
 
 type Situation struct {
 	Fond, ViewBox    string
@@ -56,6 +66,7 @@ type geomSituation struct {
 type fondSituation struct {
 	url, vb     string
 	racine      string
+	lienDept    func(code string) string
 	deps, regs  *JeuContours
 	communes    map[string]*geomSituation
 	epci        map[string]*geomSituation
@@ -72,8 +83,11 @@ type fondSituation struct {
 
 var regionDOM = map[string]string{"01": "971", "02": "972", "03": "973", "04": "974", "06": "976"}
 
-func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root string, exercice int) (*fondSituation, error) {
-	f := &fondSituation{url: root + "/media/situation-france.svg", racine: root, communes: map[string]*geomSituation{},
+// lienDept donne, pour un code de département, le chemin de sa page depuis la
+// racine du site (« collectivites/departement/29/ »), vide s'il n'en a pas.
+func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root string, exercice int,
+	lienDept func(code string) string) (*fondSituation, error) {
+	f := &fondSituation{url: root + "/media/situation-france.svg", racine: root, lienDept: lienDept, communes: map[string]*geomSituation{},
 		epci: map[string]*geomSituation{}, natureEPCI: map[string]string{}, domDept: map[string]contourSeul{},
 		budgetCom: map[string][2]float64{}, budgetEPCI: map[string][2]float64{}, anneeBudget: exercice}
 	var err error
@@ -90,15 +104,25 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	}
 	sort.Strings(f.domOrdre)
 
-	// Le fond partagé. Couleurs fixes et translucides : l'image ne lit pas les
-	// variables CSS du thème, elle doit tenir sur papier clair comme sombre.
+	// Le fond partagé. Couleurs fixes et translucides : le document ne lit pas
+	// les variables CSS du thème, il doit tenir sur papier clair comme sombre.
+	// Chaque département est un lien vers sa page : on voyage de carte en
+	// carte. Les liens sont relatifs au fichier (media/…) et ouvrent la page
+	// entière (target="_top") : ils tiennent quel que soit le préfixe sous
+	// lequel le site est servi.
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg xmlns="http://www.w3.org/2000/svg" viewBox="%s">`, f.vb)
+	b.WriteString(`<style>a path{cursor:pointer}a:hover path,a:focus path{fill:#2A8A96;fill-opacity:.38}a:focus{outline:none}</style>`)
 	b.WriteString(`<g fill="#8C877D" fill-opacity=".16" stroke="#8C877D" stroke-opacity=".45" stroke-width="700" stroke-linejoin="round">`)
 	for _, c := range f.deps.Codes {
-		fmt.Fprintf(&b, `<path d="%s"/>`, f.deps.traces[c])
+		if u := lienDept(c); u != "" {
+			fmt.Fprintf(&b, `<a href="../%s" target="_top"><title>%s</title><path d="%s"/></a>`,
+				u, template.HTMLEscapeString(f.deps.Noms[c]), f.deps.traces[c])
+		} else {
+			fmt.Fprintf(&b, `<path d="%s"/>`, f.deps.traces[c])
+		}
 	}
-	b.WriteString(`</g><g fill="none" stroke="#8C877D" stroke-opacity=".75" stroke-width="1800" stroke-linejoin="round">`)
+	b.WriteString(`</g><g fill="none" stroke="#8C877D" stroke-opacity=".75" stroke-width="1800" stroke-linejoin="round" pointer-events="none">`)
 	for _, c := range f.regs.Codes {
 		fmt.Fprintf(&b, `<path d="%s"/>`, f.regs.traces[c])
 	}
@@ -253,6 +277,9 @@ func (f *fondSituation) cartons(actif string, calqueDOM func(*calque)) []CartonS
 	for _, code := range f.domOrdre {
 		o := f.domDept[code]
 		k := CartonSituation{Nom: o.Nom, Fond: f.urlDOM(code), Actif: code == actif}
+		if u := f.lienDept(code); u != "" {
+			k.URL = f.racine + "/" + u
+		}
 		if k.Actif && calqueDOM != nil {
 			var c calque
 			calqueDOM(&c)
@@ -306,14 +333,14 @@ func meur(v float64) string {
 func (f *fondSituation) legendeTerritoire(pop int, km float64) []LigneLegende {
 	var l []LigneLegende
 	if pop > 0 {
-		l = append(l, LigneLegende{"Population", Nombre(pop) + " habitants", "population municipale · " + partFrance(float64(pop), float64(f.totalPop))})
+		l = append(l, ligneLegende("Population", Nombre(pop)+" habitants", "population municipale · "+partFrance(float64(pop), float64(f.totalPop))))
 	}
 	if km > 0 {
 		det := partFrance(km, f.totalKm2)
 		if pop > 0 {
 			det += " · " + Nombre(int(float64(pop)/km+0.5)) + " hab./km²"
 		}
-		l = append(l, LigneLegende{"Superficie", km2(km), det})
+		l = append(l, ligneLegende("Superficie", km2(km), det))
 	}
 	return l
 }
@@ -355,8 +382,8 @@ func (f *fondSituation) budgets(l []LigneLegende, conseil string, lignes []Ligne
 		}
 	}
 	if fo+in > 0 {
-		l = append(l, LigneLegende{"Budget du " + conseil, meur(fo+in) + " dépensés",
-			meur(fo) + " de fonctionnement, " + meur(in) + " d'investissement (" + fmt.Sprint(f.anneeBudget) + ")"})
+		l = append(l, ligneLegende("Budget du "+conseil, meur(fo+in)+" dépensés",
+			meur(fo)+" de fonctionnement, "+meur(in)+" d'investissement ("+fmt.Sprint(f.anneeBudget)+")"))
 	}
 	var cf, ci, ef, ei float64
 	for d := range depts {
@@ -366,10 +393,10 @@ func (f *fondSituation) budgets(l []LigneLegende, conseil string, lignes []Ligne
 		ei += f.budgetEPCI[d][1]
 	}
 	if cf+ci > 0 {
-		l = append(l, LigneLegende{"Budget des communes", meur(cf+ci) + " dépensés", meur(cf) + " de fonctionnement, " + meur(ci) + " d'investissement"})
+		l = append(l, ligneLegende("Budget des communes", meur(cf+ci)+" dépensés", meur(cf)+" de fonctionnement, "+meur(ci)+" d'investissement"))
 	}
 	if ef+ei > 0 {
-		l = append(l, LigneLegende{"Budget des intercommunalités", meur(ef+ei) + " dépensés", meur(ef) + " de fonctionnement, " + meur(ei) + " d'investissement"})
+		l = append(l, ligneLegende("Budget des intercommunalités", meur(ef+ei)+" dépensés", meur(ef)+" de fonctionnement, "+meur(ei)+" d'investissement"))
 	}
 	return l
 }
@@ -419,9 +446,10 @@ func (f *fondSituation) pourDepartement(codeBudget, nom string, lignes []LigneFi
 		}
 	}, "Situation de "+nom+" dans la France entière")
 	s.Legende = f.legendeTerritoire(pop, km)
-	s.Legende = append(s.Legende, LigneLegende{"Communes", Nombre(nCom), ""})
+	s.Legende = append(s.Legende, ligneLegende("Communes", Nombre(nCom), ""))
 	if g := f.groupementsParNature(epcis); g != "" {
-		s.Legende = append(s.Legende, LigneLegende{"Intercommunalités", Nombre(len(epcis)), g})
+		s.Legende = append(s.Legende, ligneLegende("Intercommunalités", Nombre(len(epcis)), g,
+			f.racine+"/collectivites/?departement="+strings.Join(codes, ",")+"#carte-epci"))
 	}
 	s.Legende = f.budgets(s.Legende, "conseil départemental", lignes, depts)
 	s.Note = "Communes en clair, intercommunalités en trait moyen, limite du département en trait épais. Les budgets ne s'additionnent pas : les transferts entre collectivités sont comptés chez chacune."
@@ -477,10 +505,11 @@ func (f *fondSituation) pourRegion(code, nom string, lignes []LigneFinance) *Sit
 		}
 	}, "Situation de la région "+nom+" dans la France entière")
 	s.Legende = f.legendeTerritoire(pop, km)
-	s.Legende = append(s.Legende, LigneLegende{"Départements", Nombre(len(depts)), ""},
-		LigneLegende{"Communes", Nombre(nCom), ""})
+	s.Legende = append(s.Legende, ligneLegende("Départements", Nombre(len(depts)), ""),
+		ligneLegende("Communes", Nombre(nCom), ""))
 	if g := f.groupementsParNature(epcis); g != "" {
-		s.Legende = append(s.Legende, LigneLegende{"Intercommunalités", Nombre(len(epcis)), g})
+		s.Legende = append(s.Legende, ligneLegende("Intercommunalités", Nombre(len(epcis)), g,
+			f.racine+"/collectivites/?region="+code+"#carte-epci"))
 	}
 	s.Legende = f.budgets(s.Legende, "conseil régional", lignes, depts)
 	s.Note = "Départements de la région en clair, intercommunalités en trait fin, limite de la région en trait épais. Les budgets ne s'additionnent pas : les transferts entre collectivités sont comptés chez chacune."
@@ -515,7 +544,7 @@ func (f *fondSituation) pourEPCI(siren, nom string, lignes []LigneFinance) *Situ
 		}
 	}, "Situation de "+nom+" dans la France entière")
 	s.Legende = f.legendeTerritoire(pop, e.superficieKm2)
-	s.Legende = append(s.Legende, LigneLegende{"Communes membres", Nombre(nCom), ""})
+	s.Legende = append(s.Legende, ligneLegende("Communes membres", Nombre(nCom), ""))
 	var fo, in float64
 	for _, lf := range lignes {
 		switch lf.Libelle {
@@ -526,7 +555,7 @@ func (f *fondSituation) pourEPCI(siren, nom string, lignes []LigneFinance) *Situ
 		}
 	}
 	if fo+in > 0 {
-		s.Legende = append(s.Legende, LigneLegende{"Budget du groupement", meur(fo+in) + " dépensés", meur(fo) + " de fonctionnement, " + meur(in) + " d'investissement"})
+		s.Legende = append(s.Legende, ligneLegende("Budget du groupement", meur(fo+in)+" dépensés", meur(fo)+" de fonctionnement, "+meur(in)+" d'investissement"))
 	}
 	s.Note = "Le groupement en évidence, ses communes en trait fin, son département de siège en trait moyen ; le cercle aide à le trouver à l'échelle de la France."
 	return s
