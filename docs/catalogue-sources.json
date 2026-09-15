@@ -1,5 +1,5 @@
 {
-  "genere_le": "2026-09-15T17:10:00Z",
+  "genere_le": "2026-09-15T17:49:28Z",
   "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
   "nombre_sources": 114,

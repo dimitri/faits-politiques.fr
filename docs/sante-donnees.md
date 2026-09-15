@@ -1,6 +1,6 @@
 # La santé : FINESS comme clé pivot, la rémunération des médecins et les déserts médicaux
 
-> **Dossier** · version 7 · 15 septembre 2026
+> **Dossier** · version 8 · 15 septembre 2026
 >
 > Comment le système de santé est-il décrit par les données publiques, comment les
 > médecins sont-ils rémunérés, et que disent les données sur les déserts médicaux au-delà
@@ -325,16 +325,39 @@ transitent pas acte par acte dans ce système. Ce chiffre est une donnée
 mesurée, pas une vérification de l'ONDAM : le rapprochement précis des deux
 périmètres reste à faire, pas à deviner.
 
-**Le détail région×prestation reste un chantier ouvert, pas une carte** : la
-zone de résidence du bénéficiaire (`BEN_RES_REG`, 14 valeurs distinctes) et
-la nature de prestation (`PRS_NAT`, 937 codes distincts observés) sont
-conservées telles que la Cnam les code, sans nomenclature de décodage
-chargée ici — 14 zones ne correspond pas aux 18 régions administratives
-(la Cnam y ajoute au moins un code de regroupement hors métropole/étranger,
-qui porte à lui seul le plus gros montant, signe qu'il n'est pas une région
-géographique ordinaire). Publier une carte des remboursements par région
-demanderait de décoder cette nomenclature d'abord — non fait, plutôt que
-deviné.
+**La zone de résidence (`BEN_RES_REG`) est décodée** (`ref.damir_region`,
+migration 0107) — depuis le lexique des variables que la Cnam publie
+elle-même (feuille « MOD OPEN DAMIR »), pas une correspondance devinée à
+partir des codes INSEE usuels. Deux écarts réels que deviner aurait
+manqués : un seul code regroupe tous les DOM (« 5 », Guadeloupe à Mayotte
+confondues — à l'inverse de la démographie par secteur conventionnel, § 2,
+qui les distingue), et un code « 99 » explicitement documenté « Inconnu »,
+pas une absence de ligne :
+
+| Région | Md€ remboursés, 2025 |
+|---|---:|
+| Inconnu (99) | 26,9 |
+| Île-de-France | 19,7 |
+| Auvergne-Rhône-Alpes | 13,7 |
+| Provence-Alpes-Côte d'Azur et Corse | 13,1 |
+| Occitanie | 12,3 |
+| *(8 autres régions, 4,1 à 11,1 Md€)* | |
+| DOM (code unique) | 4,5 |
+
+**« Inconnu » porte le plus gros montant des quatorze codes (18 % du
+total)** : la Cnam documente le code, pas ce qu'il recouvre — ce dossier ne
+devine pas à sa place. Une piste plausible et non vérifiée : des
+remboursements liquidés par des organismes ou régimes qui ne rattachent pas
+systématiquement une région de résidence (cures thermales liquidées au lieu
+de l'établissement quel que soit le domicile du bénéficiaire, régimes
+« infogérés » — voir le commentaire de `ORG_CLE_REG` dans le même lexique).
+
+**La nature de prestation (`PRS_NAT`, 937 codes distincts observés) reste,
+elle, non décodée** — une nomenclature d'actes largement plus fine que
+celle des régions, qui déborde le lexique consulté ici. Une carte des
+remboursements par région existe désormais comme donnée (`ref.damir_region`
+permet de la construire), mais reste à construire : ce dossier documente le
+chiffre nouvellement décodé, pas encore une page du site.
 
 #### 1.7 Déserts médicaux : la densité mesurée, pas la disponibilité
 
@@ -356,9 +379,11 @@ sans qu'aucune ne le résume à elle seule :
   celle qui consulte un généraliste en ville — à ne jamais additionner à la
   carte de densité pour prétendre mesurer « l'offre de soins » globale d'un
   territoire.
-- **Où va l'argent remboursé** : Open Damir (§ 1.6) le dirait à l'échelle
-  région×prestation, mais la nomenclature de région n'est pas encore décodée
-  (§ 1.6) — cet angle reste ouvert.
+- **Où va l'argent remboursé** : Open Damir (§ 1.6) le dit maintenant à
+  l'échelle région (`ref.damir_region`, § 1.6), mais sur une géographie
+  volontairement grossière (14 zones, DOM confondus, un code Inconnu) —
+  utilisable pour un ordre de grandeur régional, pas pour une carte
+  départementale comparable à celle des généralistes.
 
 **Ce que la carte de densité ne mesure pas** : un décompte de présence, pas
 une disponibilité. Un département dense en généralistes recensés peut avoir
@@ -436,9 +461,17 @@ région×prestation n'a pas de nomenclature de décodage chargée.
 | 5 | ANS, Annuaire Santé (RPPS) | `core.rpps_professionnel_activite` | 2 286 272 lignes, 1 912 833 professionnels distincts |
 | 6 | ATIH, PMSI-MCO (data-essentiel) | `core.pmsi_mco_national`, `core.pmsi_mco_par_etablissement`, `core.pmsi_mco_par_patient` | 15 + 245 + 1 400 lignes, 2021-2025 |
 | 7 | Cnam, Open Damir (remboursements interrégimes, agrégés en flux) | `core.remboursement_national`, `core.remboursement_region_prestation` | 12 lignes + 101 980 lignes, 2025 |
+| 8 | Cnam, lexique Open Damir (nomenclature BEN_RES_REG) | `ref.damir_region` | 14 lignes |
 
 ## Versions
 
+- **Version 8** (15 septembre 2026) : nomenclature des régions Open Damir
+  décodée (§ 1.6, `ref.damir_region`, migration 0107) depuis le lexique des
+  variables publié par la Cnam plutôt que devinée — deux écarts réels
+  qu'une supposition aurait manqués (un code unique pour tous les DOM, un
+  code « 99 » explicitement « Inconnu », qui porte le plus gros montant
+  des quatorze). `PRS_NAT` (nature de prestation, 937 codes) reste non
+  décodé — nomenclature d'actes hors du lexique consulté.
 - **Version 7** (15 septembre 2026) : Open Damir chargé (§ 1.6, 147,1 Md€
   et 10,74 milliards d'actes sur 2025, agrégé en flux — jamais ligne à
   ligne) ; carte des généralistes reconstruite sur la démographie Cnam par

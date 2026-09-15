@@ -1622,6 +1622,19 @@ var checks = []check{
 		           GROUP BY annee HAVING count(DISTINCT code_departement) < 101
 		        ) x`,
 	},
+	{
+		name:  "la nomenclature des régions Open Damir a ses quatorze codes",
+		query: `SELECT count(*) FROM ref.damir_region`,
+		min:   14,
+	},
+	{
+		// La contrainte de clé étrangère (migration 0107) empêcherait déjà un
+		// code non décodé d'entrer ; cette sonde couvre le cas où la
+		// contrainte aurait été retirée sans que la donnée le reflète.
+		name:  "toute région Open Damir se décode dans ref.damir_region",
+		query: `SELECT count(DISTINCT r.region_code) FROM core.remboursement_region_prestation r
+		         WHERE NOT EXISTS (SELECT 1 FROM ref.damir_region d WHERE d.code = r.region_code)`,
+	},
 }
 
 func main() {
