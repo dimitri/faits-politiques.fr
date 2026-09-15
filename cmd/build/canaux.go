@@ -202,11 +202,16 @@ var loisExonerations = map[string]LoiExoneration{
 
 func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Presidence) (*CircuitCanaux, error) {
 	c := &CircuitCanaux{
-		// Ces deux chiffres ne sont PAS dans la base : ils viennent du jaune
-		// budgétaire « Bilan des relations financières entre l'État et la
-		// protection sociale » annexé au PLF 2026, et de la LFSS 2026. Ils sont
-		// cités tels quels dans docs/budget-donnees.md § 1.3, avec leur source.
-		NonCompense: 2.63e9, AnneeNonComp: 2026, PartTVA: "29,05 %",
+		// Ces deux chiffres ne sont PAS dans la base : NonCompense vient du
+		// jaune budgétaire « Bilan des relations financières entre l'État et
+		// la protection sociale » annexé au PLF 2026. PartTVA (8,10 % à
+		// l'ACOSS + 19,26 % à la CNAM) vient de l'annexe 3 du PLFSS 2026, p. 47
+		// — vérifiée directement sur la page, table par année : le site citait
+		// à tort 29,05 %, un chiffre absent des deux documents sources ; les
+		// deux s'accordent sur 27,36 % pour 2026, en BAISSE de 1,06 point par
+		// rapport à 2025 (28,42 %), jamais en hausse. Cités tels quels dans
+		// docs/budget-donnees.md § 1.3, avec leur source.
+		NonCompense: 2.63e9, AnneeNonComp: 2026, PartTVA: "27,36 %",
 		// La compensation, pour 2022 — la seule année où elle peut se comparer
 		// honnêtement aux deux bandes déjà proportionnelles (cotisations et
 		// exonérations URSSAF, elles-mêmes datées 2022 faute de mise à jour

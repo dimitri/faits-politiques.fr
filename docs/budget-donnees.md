@@ -46,10 +46,13 @@ premier fait à opposer à toute phrase qui commence par « le budget de la Fran
 
 ### 1.3 Les cinq canaux entre les deux budgets
 
-1. **La TVA affectée**, le principal. La part revenant à la Sécurité sociale est
-   passée à **29,05 % en 2026** (+0,63 point, soit **3,6 Md€**). Un arbitrage sur une
-   fraction de TVA déplace des milliards d'un budget à l'autre sans qu'aucun impôt ne
-   change.
+1. **La TVA affectée**, le principal. La part revenant à la Sécurité sociale
+   [recule à **27,36 % en 2026**](https://www.assemblee-nationale.fr/dyn/dyn/contenu/visualisation/1089896/file/PLFSS2026-Annexe3-20251015-103900-55-4.pdf)
+   (8,10 % à l'ACOSS, minorés de 4,10 Md€, + 19,26 % à la CNAM ; annexe 3 du PLFSS
+   2026, p. 47), contre 28,42 % en 2025&nbsp;: **−1,06 point**, et non une hausse — la
+   baisse rembourse à l'État les économies attendues de la réforme des allégements
+   généraux de cotisations patronales. Un arbitrage sur une fraction de TVA déplace
+   des milliards d'un budget à l'autre sans qu'aucun impôt ne change.
 2. **La compensation des exonérations.** L'État allège les cotisations et compense —
    pour l'essentiel via la TVA. **2,63 Md€ d'exonérations restent officiellement non
    compensées en 2026.** Le principe de compensation vient de la loi n° 94-637 du
@@ -599,5 +602,5 @@ budgétaire. Il ne couvre ni les collectivités ni la Sécurité sociale, et ne 
 déficit public.
 
 **TVA affectée.** La fraction du produit de la TVA que la loi attribue à la Sécurité sociale au lieu
-de l'État&nbsp;: 29,05 % en 2026. Changer ce pourcentage déplace des milliards d'un budget à l'autre
-sans qu'aucun contribuable ne paie davantage.
+de l'État&nbsp;: 27,36 % en 2026 (annexe 3 du PLFSS 2026). Changer ce pourcentage déplace des
+milliards d'un budget à l'autre sans qu'aucun contribuable ne paie davantage.
