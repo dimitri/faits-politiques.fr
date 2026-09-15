@@ -23,29 +23,29 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/campagne"
 	"github.com/faits-politiques/faits-politiques/internal/carto"
 	"github.com/faits-politiques/faits-politiques/internal/communes"
-	"github.com/faits-politiques/faits-politiques/internal/entreprises"
 	"github.com/faits-politiques/faits-politiques/internal/damir"
 	"github.com/faits-politiques/faits-politiques/internal/decp"
 	"github.com/faits-politiques/faits-politiques/internal/dette"
 	"github.com/faits-politiques/faits-politiques/internal/dossiers"
 	"github.com/faits-politiques/faits-politiques/internal/ecologie"
 	"github.com/faits-politiques/faits-politiques/internal/education"
+	"github.com/faits-politiques/faits-politiques/internal/entreprises"
 	"github.com/faits-politiques/faits-politiques/internal/europe"
 	"github.com/faits-politiques/faits-politiques/internal/fiscalite"
 	"github.com/faits-politiques/faits-politiques/internal/geo"
 	"github.com/faits-politiques/faits-politiques/internal/hatvp"
+	"github.com/faits-politiques/faits-politiques/internal/hydro"
 	"github.com/faits-politiques/faits-politiques/internal/immigration"
-	"github.com/faits-politiques/faits-politiques/internal/jeunesse"
 	"github.com/faits-politiques/faits-politiques/internal/international"
+	"github.com/faits-politiques/faits-politiques/internal/jeunesse"
 	"github.com/faits-politiques/faits-politiques/internal/jorf"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
 	"github.com/faits-politiques/faits-politiques/internal/numerique"
-	"github.com/faits-politiques/faits-politiques/internal/partis"
 	"github.com/faits-politiques/faits-politiques/internal/paie"
+	"github.com/faits-politiques/faits-politiques/internal/partis"
 	"github.com/faits-politiques/faits-politiques/internal/prefets"
 	"github.com/faits-politiques/faits-politiques/internal/presidentielle"
-	"github.com/faits-politiques/faits-politiques/internal/hydro"
 	"github.com/faits-politiques/faits-politiques/internal/sante"
 	"github.com/faits-politiques/faits-politiques/internal/senat"
 	"github.com/faits-politiques/faits-politiques/internal/store"
@@ -671,6 +671,16 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "entreprises" {
 		fmt.Println("\ncomptes déposés des grandes sociétés")
 		return entreprises.Ingest(ctx, pool, arch)
+	}
+
+	// Investissement et dividendes des sociétés non financières, et le tissu
+	// productif par catégorie d'entreprise : le point de départ du chantier
+	// sur ce que finance réellement l'argent des entreprises, et où. Hors
+	// chaîne par défaut, comme les autres blocs thématiques ajoutés au fil
+	// des demandes.
+	if only == "investissement-entreprises" {
+		fmt.Println("\ninvestissement, dividendes et tissu productif par catégorie d'entreprise")
+		return entreprises.IngestInvestissement(ctx, pool, arch)
 	}
 
 	if only == "" || only == "macro" {

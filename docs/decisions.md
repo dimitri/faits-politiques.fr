@@ -2451,3 +2451,37 @@ fichier du dépôt — du texte écrit pour la session de travail, pas pour un l
   reformulation gardant le fait pour le lecteur sans le chemin qui y mène. Les pages
   `/comprendre/` et `/sources/`, elles, restent le bon endroit pour ce niveau de
   détail : leur public l'a choisi en cliquant dessus.
+
+## D-074 — Démarrage du chantier investissement/dividendes des entreprises
+
+`db/migrations/0114_investissement_entreprises.sql`, `internal/entreprises/investissement.go`,
+`docs/investissement-entreprises-donnees.md` ; `go run ./cmd/ingest -only=investissement-entreprises`.
+
+**Pourquoi.** Le débat sur le « ruissellement » — protéger les revenus des grandes
+entreprises profiterait, par l'investissement, à toute l'économie — se discute
+d'habitude sans chiffres vérifiables. La consigne du chantier était explicite : ne pas
+chercher à démontrer une thèse donnée en amont, seulement à mesurer, quitte à ce que la
+mesure la contredise.
+
+**Décidé.**
+
+- **Deux sources officielles, aucune ne mélangeant taille et nature de la dépense.**
+  Les comptes nationaux trimestriels des sociétés non financières (Insee, BDM, séries
+  011794592 et 011794792, 1995-2025) comparent l'investissement productif (FBCF) aux
+  dividendes versés — mais toutes tailles d'entreprise confondues. Ésane (Insee Focus
+  n° 343) donne, à l'inverse, le taux d'investissement par catégorie d'entreprise (MIC,
+  PME, ETI, GE au sens de la loi de 2008) — mais un seul millésime (2022), sans le
+  détail des dividendes. Les deux ne se recoupent pas : le dossier le dit plutôt que de
+  forcer un rapprochement.
+- **Ce que la mesure montre, sans lecture forcée** : l'investissement dépasse les
+  dividendes chaque année depuis 1995 sauf en 2009 (crise financière), mais le rapport
+  dividendes/investissement est passé d'environ 55-68 % au milieu des années 1990 à
+  80-90 % depuis le milieu des années 2010 — l'écart s'est resserré, pas inversé. Par
+  catégorie, la relation taille/investissement n'est pas linéaire : les
+  micro-entreprises ont le taux d'investissement le plus élevé (26,6 % de leur valeur
+  ajoutée), les PME hors micro le plus bas (14,7 %).
+- **Les rachats d'actions n'ont pas de série officielle** à l'échelle de l'ensemble des
+  sociétés non financières : seule l'étude d'Oxfam France sur les 100 plus grandes
+  entreprises cotées en donne un ordre de grandeur, citée comme DECLARATIF, jamais
+  additionnée aux séries officielles.
+- Nouveau sujet `investissement`, famille « Travail, économie et entreprises ».
