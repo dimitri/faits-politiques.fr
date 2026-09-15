@@ -448,8 +448,7 @@ func (f *fondSituation) pourDepartement(codeBudget, nom string, lignes []LigneFi
 	s.Legende = f.legendeTerritoire(pop, km)
 	s.Legende = append(s.Legende, ligneLegende("Communes", Nombre(nCom), ""))
 	if g := f.groupementsParNature(epcis); g != "" {
-		s.Legende = append(s.Legende, ligneLegende("Intercommunalités", Nombre(len(epcis)), g,
-			f.racine+"/collectivites/?departement="+strings.Join(codes, ",")+"#carte-epci"))
+		s.Legende = append(s.Legende, ligneLegende("Intercommunalités", Nombre(len(epcis)), g))
 	}
 	s.Legende = f.budgets(s.Legende, "conseil départemental", lignes, depts)
 	s.Note = "Communes en clair, intercommunalités en trait moyen, limite du département en trait épais. Les budgets ne s'additionnent pas : les transferts entre collectivités sont comptés chez chacune."
@@ -508,8 +507,7 @@ func (f *fondSituation) pourRegion(code, nom string, lignes []LigneFinance) *Sit
 	s.Legende = append(s.Legende, ligneLegende("Départements", Nombre(len(depts)), ""),
 		ligneLegende("Communes", Nombre(nCom), ""))
 	if g := f.groupementsParNature(epcis); g != "" {
-		s.Legende = append(s.Legende, ligneLegende("Intercommunalités", Nombre(len(epcis)), g,
-			f.racine+"/collectivites/?region="+code+"#carte-epci"))
+		s.Legende = append(s.Legende, ligneLegende("Intercommunalités", Nombre(len(epcis)), g))
 	}
 	s.Legende = f.budgets(s.Legende, "conseil régional", lignes, depts)
 	s.Note = "Départements de la région en clair, intercommunalités en trait fin, limite de la région en trait épais. Les budgets ne s'additionnent pas : les transferts entre collectivités sont comptés chez chacune."
