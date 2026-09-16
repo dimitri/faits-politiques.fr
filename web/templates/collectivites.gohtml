@@ -15,6 +15,18 @@ des listes municipales. C'est le droit, pas un reproche&nbsp;: ce site le rappel
 donnée le montre et qu'on l'oublie souvent, en confondant ce budget avec celui de la commune ou de
 son maire.</p>
 
+{{if $c.CarteInteractive}}
+<h2>La carte&nbsp;: la France, une région, un département</h2>
+<p class="q">{{.IndicLibelle}} par habitant, en {{$c.Exercice}}. Cliquez une région pour voir ses
+départements, un département pour ouvrir sa page&nbsp;; un chiffre par défaut, celui de la France
+entière, s'affine à chaque clic.</p>
+<div id="carte-interactive">{{$c.CarteInteractive}}</div>
+<p class="attr-osm">Contours&nbsp;: © les contributeurs OpenStreetMap, sous ODbL&nbsp;1.0.</p>
+<p class="note">Sans JavaScript, la carte reste utilisable comme repère visuel&nbsp;: le détail par
+région, département et intercommunalité est de toute façon dans les trois cartes et les tableaux
+ci-dessous.</p>
+{{end}}
+
 <h2>Trois niveaux, trois cartes</h2>
 <p class="q">{{.IndicLibelle}} par habitant, en {{$c.Exercice}}. Les trois cartes couvrent le même
 territoire dans le même repère&nbsp;: elles se superposent exactement. Celle des intercommunalités
@@ -113,8 +125,8 @@ tracé fin.</p>
 
 <h2>Qui dépense quoi, en {{$c.Exercice}}</h2>
 <p class="q">Totaux par niveau, en milliards d'euros, avec le nombre de collectivités concernées.
-Le fond de chaque cellule est proportionnel au maximum de sa colonne&nbsp;: comparez une colonne
-(qui dépense le plus pour ce poste) ou une ligne (le profil d'un niveau) d'un coup d'œil.</p>
+Le plus élevé de chaque colonne est en gras&nbsp;: comparez une colonne (qui dépense le plus pour ce
+poste) ou une ligne (le profil d'un niveau) d'un coup d'œil.</p>
 <p class="note abs"><strong>N'additionnez pas une ligne avec une autre.</strong> Chaque niveau est
 totalisé séparément, et les transferts entre niveaux — une subvention du département à une commune,
 l'attribution de compensation qu'une intercommunalité reverse à ses communes — sont comptés chez
@@ -124,7 +136,7 @@ dépense réelle des collectivités.</p>
 <thead><tr><th>Niveau</th>{{range .TableDep.Indicateurs}}<th class="n">{{.Court}}</th>{{end}}</tr></thead>
 <tbody>{{range .TableDep.Lignes}}<tr>
   <td>{{.Niveau}} <span class="z small">{{nb .Collectivites}}</span></td>
-  {{range .Cellules}}<td class="n" style="background:linear-gradient(to right,var(--accent-doux) {{printf "%.1f" .Pct}}%,transparent {{printf "%.1f" .Pct}}%)">{{dec .Valeur 1}}&nbsp;Md€</td>{{end}}
+  {{range .Cellules}}<td class="n">{{if ge .Pct 99.95}}<strong>{{dec .Valeur 1}}&nbsp;Md€</strong>{{else}}{{dec .Valeur 1}}&nbsp;Md€{{end}}</td>{{end}}
 </tr>{{end}}</tbody></table></div>
 <p class="note"><strong>Les 34 772 communes ne dépensent pas le plus.</strong> En fonctionnement
 elles restent devant, mais en investissement les trois autres niveaux réunis font plus qu'elles, et

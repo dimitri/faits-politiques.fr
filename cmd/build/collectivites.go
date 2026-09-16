@@ -89,6 +89,11 @@ type CompetenceEPCI struct {
 type StatsCollectivites struct {
 	Exercice                 int
 	CarteRegions, CarteDepts Carte
+	// CarteInteractive : la carte principale de la page — national par
+	// défaut, recadrage sur une région au clic, puis sur ses départements
+	// (site.js). Les cartes en onglets ci-dessus (CarteRegions/CarteDepts/
+	// CarteEPCI) restent le détail exhaustif, avec classement et cartons.
+	CarteInteractive         template.HTML
 	CarteEPCI                Carte
 	MillesimeEPCI            int
 	NbEPCISurCarte           int
@@ -611,6 +616,54 @@ func relierFiches(st *StatsCollectivites, avecFiche map[string]bool) {
 	}
 }
 
+// carteInteractive : la carte principale de la page. Deux calques dans le
+// même repère Lambert-93 (régions, départements) — les coordonnées des
+// tracés sont des mètres absolus, valables sous n'importe quel viewBox, donc
+// superposables sans recalcul. Régions visibles par défaut ; site.js recadre
+// sur la région cliquée et bascule vers le calque départements, sur le
+// modèle déjà en place pour #carte-epci (« ?departement=»/« ?region= »),
+// généralisé ici au clic direct plutôt qu'à un paramètre d'URL. Cliquer un
+// département renvoie vers sa page complète — la réutilisation la plus
+// fidèle de /collectivites/departement/<code>/ est d'y renvoyer au bon
+// moment, pas de dupliquer son contenu ici.
+func carteInteractive(reg, dep *JeuContours, casesR, casesD []CaseCarte, unite string, format func(float64) string) template.HTML {
+	cR := preparer(casesR, unite, format)
+	cD := preparer(casesD, unite, format)
+	if cR.Vide || cD.Vide {
+		return ""
+	}
+	byR, byD := indexer(casesR), indexer(casesD)
+	var b strings.Builder
+	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo carte-interactive" role="img" `+
+		`aria-label="Carte interactive : la France, une région, puis un département">`, dep.ViewBox)
+	b.WriteString(`<g class="calque-regions">`)
+	for _, code := range reg.Codes {
+		cc := byR[code]
+		titre := reg.Noms[code]
+		if !cc.Absent && cc.Code != "" {
+			titre += " — " + format(cc.Valeur)
+		}
+		fmt.Fprintf(&b, `<path class="cliquable" data-niveau="region" data-code="%s" data-nom="%s" `+
+			`d="%s" fill="%s"><title>%s</title></path>`,
+			code, template.HTMLEscapeString(reg.Noms[code]), reg.traces[code], cR.remplissage(cc),
+			template.HTMLEscapeString(titre))
+	}
+	b.WriteString(`</g><g class="calque-departements" hidden>`)
+	for _, code := range dep.Codes {
+		cc := byD[code]
+		titre := dep.Noms[code]
+		if !cc.Absent && cc.Code != "" {
+			titre += " — " + format(cc.Valeur)
+		}
+		fmt.Fprintf(&b, `<path class="cliquable" data-niveau="departement" data-code="%s" data-nom="%s" `+
+			`d="%s" fill="%s"><title>%s</title></path>`,
+			code, template.HTMLEscapeString(dep.Noms[code]), dep.traces[code], cD.remplissage(cc),
+			template.HTMLEscapeString(titre))
+	}
+	b.WriteString(`</g></svg>`)
+	return template.HTML(b.String())
+}
+
 // cartesCollectivites dessine les deux cartes de l'index : une par niveau, sur
 // la même boîte, donc superposables.
 func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsCollectivites,
@@ -656,6 +709,7 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 	}
 	sort.Strings(st.HorsCarte)
 	st.CarteDepts = pleine(dep, casesD, "€ par habitant", eur)
+	st.CarteInteractive = carteInteractive(reg, dep, casesR, casesD, "€ par habitant", eur)
 
 	// La carte des intercommunalités : rendue possible par geo.contour_cog
 	// (IGN Admin Express COG CARTO), qui donne enfin un tracé à chaque EPCI.

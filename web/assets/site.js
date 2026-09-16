@@ -157,3 +157,51 @@
   bloc.insertBefore(nav, svg);
   bloc.scrollIntoView({block:'start'});
 })();
+
+// Carte interactive de /collectivites/ : régions par défaut, clic sur une
+// région pour recadrer et basculer vers ses départements (même mécanique de
+// recadrage que #carte-epci ci-dessus, généralisée au clic direct plutôt
+// qu'à un paramètre d'URL), clic sur un département pour ouvrir sa page.
+// Sans JavaScript, la carte reste visible telle quelle (calque régions,
+// non cliquable) — jamais vide.
+(function(){
+  var conteneur=document.getElementById('carte-interactive'); if(!conteneur) return;
+  var svg=conteneur.querySelector('svg.carte-interactive'); if(!svg) return;
+  var calqueRegions=svg.querySelector('.calque-regions');
+  var calqueDeps=svg.querySelector('.calque-departements');
+  if(!calqueRegions||!calqueDeps) return;
+  var vb0=svg.getAttribute('viewBox');
+  var nav=document.createElement('p'); nav.className='cadrage'; nav.hidden=true;
+  conteneur.insertBefore(nav, svg);
+
+  function cadrer(chemin){
+    var b=chemin.getBBox();
+    var r=svg.getBoundingClientRect(), ratio=r.height?r.width/r.height:1;
+    var m=Math.max(b.width,b.height)*0.15, w=b.width+2*m, h=b.height+2*m;
+    if(w/h<ratio) w=h*ratio; else h=w/ratio;
+    var cx=b.x+b.width/2, cy=b.y+b.height/2;
+    return [cx-w/2,cy-h/2,w,h].map(Math.round).join(' ');
+  }
+
+  function reinitialiser(){
+    svg.setAttribute('viewBox',vb0);
+    calqueRegions.hidden=false; calqueDeps.hidden=true;
+    nav.hidden=true; nav.innerHTML='';
+  }
+
+  calqueRegions.addEventListener('click',function(e){
+    var chemin=e.target.closest('.cliquable'); if(!chemin) return;
+    svg.setAttribute('viewBox',cadrer(chemin));
+    calqueRegions.hidden=true; calqueDeps.hidden=false;
+    var t=document.createElement('span');
+    t.textContent=chemin.getAttribute('data-nom')+' — cliquez un département';
+    var bt=document.createElement('button'); bt.type='button'; bt.textContent='Voir la France entière';
+    bt.addEventListener('click',reinitialiser);
+    nav.innerHTML=''; nav.appendChild(t); nav.appendChild(bt); nav.hidden=false;
+  });
+
+  calqueDeps.addEventListener('click',function(e){
+    var chemin=e.target.closest('.cliquable'); if(!chemin) return;
+    location.href='departement/'+chemin.getAttribute('data-code')+'/';
+  });
+})();

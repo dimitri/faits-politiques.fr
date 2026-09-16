@@ -493,8 +493,25 @@ func chargerPagesEPCI(ctx context.Context, pool *pgxpool.Pool, r *Resolveur,
 	_ = pool.QueryRow(ctx,
 		`SELECT max(cog_millesime) FROM geo.contour_cog WHERE niveau='COMMUNE'`).Scan(&millesimeCog)
 	if millesimeCog > 0 {
+		// Le fond de carte départemental est chargé une fois par département,
+		// pas une fois par groupement qui y a son siège — voir le commentaire
+		// de contexteDept (cmd/build/carte_maillee.go).
+		contextesDept := map[string]*contexteDept{}
 		for siren, p := range pages {
-			svg, n, err := carteCommunesEPCI(ctx, pool, siren, millesimeCog, p.Nom)
+			var ctxDept *contexteDept
+			if p.Dept.Code != "" {
+				if c, ok := contextesDept[p.Dept.Code]; ok {
+					ctxDept = c
+				} else {
+					c, err := chargerContexteDept(ctx, pool, p.Dept.Code, millesimeCog)
+					if err != nil {
+						return nil, err
+					}
+					contextesDept[p.Dept.Code] = c
+					ctxDept = c
+				}
+			}
+			svg, n, err := carteCommunesEPCIAvecContexte(ctx, pool, ctxDept, siren, millesimeCog, p.Nom)
 			if err != nil {
 				return nil, err
 			}

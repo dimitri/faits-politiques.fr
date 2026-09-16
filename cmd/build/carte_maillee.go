@@ -141,6 +141,9 @@ func codesCOGDe(codeBudget string) []string {
 
 // carteCommunesEPCI : les seules communes membres d'une intercommunalité, et
 // son propre contour en surimpression — sans le reste du département autour.
+// Gardée comme repli pour carteCommunesEPCIAvecContexte (millésime ou
+// département de rattachement absent) — voir cette fonction pour la carte
+// affichée en temps normal sur une page d'EPCI.
 func carteCommunesEPCI(ctx context.Context, pool *pgxpool.Pool, siren string,
 	millesime int, nomEPCI string) (template.HTML, int, error) {
 
@@ -149,4 +152,149 @@ func carteCommunesEPCI(ctx context.Context, pool *pgxpool.Pool, siren string,
 	whereE := "code=$1 AND cog_millesime=$2"
 	return carteMaillee(ctx, pool, whereC, whereE, []any{siren, millesime},
 		"Communes membres de "+nomEPCI)
+}
+
+// contexteDept : le fond de carte d'un département — toutes ses communes,
+// calculé UNE SEULE FOIS par département plutôt qu'une fois par groupement
+// qui y a son siège (un département compte souvent plusieurs dizaines
+// d'EPCI : refaire cette requête pour chacun avait fait passer la
+// génération des pages d'intercommunalité de ~20 s à plus de 5 min).
+type contexteDept struct {
+	Srid       int
+	ViewBox    string
+	Largeur    float64
+	CommunesSVG string
+}
+
+// chargerContexteDept charge le fond de carte d'un département, à appeler une
+// fois par département puis à réutiliser pour chaque groupement qui y a son
+// siège (voir carteCommunesEPCIAvecContexte).
+func chargerContexteDept(ctx context.Context, pool *pgxpool.Pool, codeDept string, millesime int) (*contexteDept, error) {
+	var c contexteDept
+	if err := pool.QueryRow(ctx,
+		`SELECT srid_rendu FROM geo.contour_cog
+		 WHERE niveau='COMMUNE' AND code_departement=$1 AND cog_millesime=$2 LIMIT 1`,
+		codeDept, millesime).Scan(&c.Srid); err != nil {
+		return nil, nil // département sans contour dans ce millésime : repli sur carteCommunesEPCI
+	}
+
+	if err := pool.QueryRow(ctx, `
+		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
+		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
+		FROM (SELECT st_extent(st_transform(geom,$1::int)) e FROM geo.contour_cog
+		      WHERE niveau='COMMUNE' AND code_departement=$2 AND cog_millesime=$3) x`,
+		c.Srid, codeDept, millesime).Scan(&c.ViewBox); err != nil {
+		return nil, err
+	}
+	champs := strings.Fields(c.ViewBox)
+	c.Largeur, _ = strconv.ParseFloat(champs[2], 64)
+	if c.Largeur <= 0 {
+		c.Largeur = 1000
+	}
+
+	// Toutes les communes du département, sans exclure celles d'un groupement
+	// en particulier : la mosaïque mise en évidence d'un groupement est
+	// dessinée PAR-DESSUS ce fond dans le même ordre de calques, ce qui la
+	// rend visible sans qu'il faille exclure ses communes ici — un fond
+	// unique sert donc tous les groupements du département sans distinction.
+	rows, err := pool.Query(ctx, `
+		SELECT st_assvg(st_transform(st_simplifypreservetopology(geom,$1),$2::int),1,0)
+		FROM geo.contour_cog WHERE niveau='COMMUNE' AND code_departement=$3 AND cog_millesime=$4
+		ORDER BY code`,
+		tolMaillee, c.Srid, codeDept, millesime)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var b strings.Builder
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			return nil, err
+		}
+		fmt.Fprintf(&b, `<path d="%s"/>`, d)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	c.CommunesSVG = b.String()
+	return &c, nil
+}
+
+// carteCommunesEPCIAvecContexte : comme carteCommunesEPCI, mais cadrée sur le
+// département de rattachement (ctxDept, chargé une fois par
+// chargerContexteDept) plutôt que sur la seule emprise du groupement — les
+// autres communes du département apparaissent en gris neutre derrière la
+// mosaïque mise en évidence. Une carte de groupement isolée, sans rien
+// autour, ne montre pas où il se situe parmi ses voisins. Retombe sur
+// carteCommunesEPCI si aucun contexte départemental n'est disponible
+// (outre-mer sans siège identifié, par exemple).
+func carteCommunesEPCIAvecContexte(ctx context.Context, pool *pgxpool.Pool, ctxDept *contexteDept,
+	siren string, millesime int, nomEPCI string) (template.HTML, int, error) {
+
+	if ctxDept == nil {
+		return carteCommunesEPCI(ctx, pool, siren, millesime, nomEPCI)
+	}
+
+	rows, err := pool.Query(ctx, `
+		SELECT st_assvg(st_transform(st_simplifypreservetopology(geom,$1),$2::int),1,0)
+		FROM geo.contour_cog WHERE niveau='COMMUNE' AND cog_millesime=$4
+		  AND code IN (SELECT commune_code FROM core.epci_membre
+		               WHERE epci_siren=$3 AND cog_millesime=$4)
+		ORDER BY code`,
+		tolMaillee, ctxDept.Srid, siren, millesime)
+	if err != nil {
+		return "", 0, err
+	}
+	var communes strings.Builder
+	n := 0
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			rows.Close()
+			return "", 0, err
+		}
+		fmt.Fprintf(&communes, `<path d="%s"/>`, d)
+		n++
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return "", 0, err
+	}
+	if n == 0 {
+		return carteCommunesEPCI(ctx, pool, siren, millesime, nomEPCI)
+	}
+
+	rowsE, err := pool.Query(ctx, `
+		SELECT nom, st_assvg(st_transform(st_simplifypreservetopology(geom,$1),$2::int),1,0)
+		FROM geo.contour_cog WHERE niveau='EPCI' AND code=$3 AND cog_millesime=$4`,
+		tolMaillee, ctxDept.Srid, siren, millesime)
+	if err != nil {
+		return "", 0, err
+	}
+	var epcis strings.Builder
+	for rowsE.Next() {
+		var nom, d string
+		if err := rowsE.Scan(&nom, &d); err != nil {
+			rowsE.Close()
+			return "", 0, err
+		}
+		fmt.Fprintf(&epcis, `<path d="%s"><title>%s</title></path>`, d, template.HTMLEscapeString(nom))
+	}
+	rowsE.Close()
+	if err := rowsE.Err(); err != nil {
+		return "", 0, err
+	}
+
+	// Même logique d'épaisseur proportionnelle que carteMaillee — le contexte
+	// reste le plus fin des trois traits, jamais la vedette de la carte.
+	swCtx, swC, swE := ctxDept.Largeur/1400, ctxDept.Largeur/900, ctxDept.Largeur/420
+	svg := fmt.Sprintf(
+		`<svg viewBox="%s" class="geo maille" role="img" aria-label="%s">`+
+			`<g class="maille-ctx" stroke-width="%.0f">%s</g>`+
+			`<g class="maille-c" stroke-width="%.0f">%s</g>`+
+			`<g class="maille-e" stroke-width="%.0f">%s</g></svg>`,
+		ctxDept.ViewBox, template.HTMLEscapeString(nomEPCI+" et ses environs dans le département"),
+		swCtx, ctxDept.CommunesSVG, swC, communes.String(), swE, epcis.String())
+	return template.HTML(svg), n, nil
 }

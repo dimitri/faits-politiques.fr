@@ -26,7 +26,8 @@ dans {{if $e.Dept.URL}}<a href="{{$e.Dept.URL}}">{{$e.Dept.Nom}}</a>{{else}}{{$e
 {{if $e.CarteCommunes}}
 <h2>Le territoire</h2>
 <p class="q">Les {{$e.NbCommunesCarte}} communes membres, avec le contour du groupement en trait
-épais.</p>
+épais{{if $e.Dept.Nom}} — et, en retrait, les autres communes du département pour situer le
+groupement parmi ses voisines{{end}}.</p>
 {{$e.CarteCommunes}}
 <p class="attr-osm">Contours&nbsp;: IGN Admin Express COG CARTO, Licence Ouverte.</p>
 {{end}}
