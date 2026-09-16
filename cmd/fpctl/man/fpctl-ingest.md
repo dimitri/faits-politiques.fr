@@ -12,7 +12,7 @@ fpctl-ingest - télécharge, archive et charge les jeux de données sources
 
 # SYNOPSIS
 
-**fpctl ingest** [**-only** *source*]
+**fpctl ingest data** [**-only** *source*]
 
 # DESCRIPTION
 
@@ -45,7 +45,7 @@ toute récupération est datée — voir docs/perimetre.md §2.5.
         rpps...). La liste complète, tenue à jour dans le code plutôt que
         recopiée ici, s'obtient avec :
 
-            fpctl ingest -h
+            fpctl ingest data -h
 
 # VOIR AUSSI
 

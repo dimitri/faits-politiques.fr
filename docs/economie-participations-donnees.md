@@ -17,7 +17,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | réindustrialisation | 248 | 127 | 1er octobre 2024 | 15 juillet 2026 |
 | participations de l'État | 31 | 24 | 21 octobre 2024 | 21 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -74,9 +74,7 @@ Une mention ne dit pas la position de l'orateur.
 | **Total** | **9 862,0** | **9 569,0** | **−3,0 %** |
 | *Autorisations d'engagement (total)* | *9 862,0* | *9 569,0* | *−3,0 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
-les crédits de personnel incluent les cotisations au compte « Pensions » (source :
-Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 

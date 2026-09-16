@@ -18,7 +18,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | hébergement d'urgence | 117 | 63 | 8 octobre 2024 | 23 juin 2026 |
 | aides personnalisées au logement | 116 | 61 | 24 octobre 2024 | 11 juin 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -68,9 +68,7 @@ Une mention ne dit pas la position de l'orateur.
 | **Total** | **19 371,9** | **23 781,2** | **+22,8 %** |
 | *Autorisations d'engagement (total)* | *19 418,3* | *23 485,0* | *+20,9 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
-les crédits de personnel incluent les cotisations au compte « Pensions » (source :
-Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 

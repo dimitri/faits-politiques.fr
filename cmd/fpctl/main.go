@@ -1,10 +1,14 @@
 // Commande fpctl : point d'entrée unique de la chaîne de construction de
 // faits-politiques.fr.
 //
-// N'exécute aucune logique propre au-delà du routage : chaque sous-commande
-// compile puis lance le binaire cmd/... correspondant, options transmises
-// telles quelles. Un seul exécutable, un seul arbre d'aide (fpctl help),
-// sans réécrire une seule ligne des commandes existantes.
+// L'arbre de commandes suit un seul principe : fpctl <verbe> [<nom>], comme
+// git — jamais un nom seul (git n'a pas de commande « branch-name »), jamais
+// un verbe qui déguise un nom (« ingest » n'est pas « ingest-data », c'est
+// ingest appliqué à data). La plupart des paquets qu'il route sont importés
+// directement (build, verify, list, generate) : leur logique vit dans
+// internal/, fpctl n'en est que la façade. Seul « build site » reste à part,
+// compilé et exécuté comme un binaire séparé plutôt qu'importé — voir le
+// commentaire de commandeBuild pour pourquoi.
 package main
 
 import (
@@ -15,35 +19,50 @@ import (
 )
 
 func main() {
-	racine := &cobra.Command{
+	racine, err := racineDepot()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "fpctl : %v\n", err)
+		os.Exit(1)
+	}
+	// Comme git : les commandes se comportent pareil qu'on les lance depuis
+	// la racine du dépôt ou depuis un sous-répertoire, parce que fpctl s'y
+	// place lui-même avant de faire quoi que ce soit — les chemins par défaut
+	// des paquets routés (web/templates, docs, data, raw...) restent alors
+	// relatifs à la racine, jamais au répertoire d'appel.
+	if err := os.Chdir(racine); err != nil {
+		fmt.Fprintf(os.Stderr, "fpctl : %v\n", err)
+		os.Exit(1)
+	}
+
+	racineCmd := &cobra.Command{
 		Use:   "fpctl",
 		Short: "Chaîne de construction de faits-politiques.fr",
 		Long: "fpctl assemble en une seule commande l'ingestion, la vérification et\n" +
-			"la construction du site — chacune reste le même binaire qu'avant,\n" +
-			"compilé à la volée et lancé avec les mêmes options.\n\n" +
-			"« fpctl help » affiche le manuel complet ; « fpctl help <commande> »\n" +
-			"affiche celui d'une commande précise.",
+			"la construction du site. Chaque verbe s'applique à un nom :\n" +
+			"fpctl <verbe> <nom> [options], comme « git <verbe> <nom> ».\n\n" +
+			"« fpctl help » affiche le manuel complet ; « fpctl help <verbe> »\n" +
+			"affiche celui d'un verbe précis.",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
 			return afficherManuel("fpctl")
 		},
 	}
-	racine.CompletionOptions.DisableDefaultCmd = true
+	racineCmd.CompletionOptions.DisableDefaultCmd = true
 
-	racine.AddCommand(
+	racineCmd.AddCommand(
 		commandeBuild(),
 		commandeIngest(),
 		commandeVerify(),
-		commandeSources(),
-		commandeDocs(),
+		commandeList(),
+		commandeGenerate(),
 	)
 	// Remplace l'aide générée par cobra (une liste d'options) par la vraie
-	// page de manuel : « fpctl help » et « fpctl help <commande> » doivent se
+	// page de manuel : « fpctl help » et « fpctl help <verbe> » doivent se
 	// comporter comme « git help », pas comme --help.
-	racine.SetHelpCommand(commandeHelp())
+	racineCmd.SetHelpCommand(commandeHelp())
 
-	if err := racine.Execute(); err != nil {
+	if err := racineCmd.Execute(); err != nil {
 		fmt.Fprintf(os.Stderr, "fpctl : %v\n", err)
 		os.Exit(1)
 	}

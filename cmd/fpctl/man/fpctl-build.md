@@ -12,7 +12,7 @@ fpctl-build - génère le site statique et le met en place
 
 # SYNOPSIS
 
-**fpctl build** [**-out** *répertoire*] [**-templates** *répertoire*]
+**fpctl build site** [**-out** *répertoire*] [**-templates** *répertoire*]
 [**-data** *répertoire*] [**-root** *préfixe*]
 [**-max-scrutins** *n*] [**-only** *liste*] [**-cpuprofile** *fichier*]
 

@@ -19,7 +19,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 |---|---:|---:|---|---|
 | sécurité sociale | 2413 | 314 | 1er octobre 2024 | 20 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

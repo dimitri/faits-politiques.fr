@@ -58,29 +58,35 @@ index statique, et ses déclencheurs restent masqués s'il ne s'exécute pas —
 site fonctionne sans lui. Présentation : [docs/charte-graphique.md](docs/charte-graphique.md).
 
 **Invariant central** : `core` est intégralement reconstructible depuis `raw` par une
-fonction idempotente. `cmd/ingest` reconstruit les tables dérivées à chaque exécution
-plutôt que de les compléter — rejouer l'ingestion doit produire un état identique.
+fonction idempotente. `fpctl ingest data` reconstruit les tables dérivées à chaque
+exécution plutôt que de les compléter — rejouer l'ingestion doit produire un état
+identique.
 
 ## Commandes
 
+Toutes routées par `fpctl` (`cmd/fpctl` ; voir `fpctl help`) — un seul point d'entrée,
+un verbe puis un nom, comme `git` :
+
 | Commande | Rôle |
 |---|---|
-| `cmd/ingest` | connecteurs, archive scellée, `raw` → `core` |
-| `cmd/verify` | contrôles de cohérence des **données chargées** — porte de publication |
-| `cmd/build` | `core` → site statique |
+| `fpctl ingest data` | connecteurs, archive scellée, `raw` → `core` |
+| `fpctl verify data` | contrôles de cohérence des **données chargées** — porte de publication |
+| `fpctl build site` | `core` → site statique |
+| `fpctl list sources` | catalogue des sources ingérées |
+| `fpctl generate dossiers`, `fpctl generate bulletin` | sections chiffrées des dossiers documentaires |
 
 ## Deux portes avant publication
 
 1. **`db/tests/*.sql`** — 70 garanties structurelles, exécutées sur la base réellement
    chargée. Une donnée qui violerait une règle éditoriale bloque le déploiement.
-2. **`cmd/verify`** — concordance des décomptes chargés avec le relevé officiel publié
-   par l'Assemblée. Cette porte a déjà servi : elle a détecté que le jeu de données
-   « députés actifs » omettait les députés ayant quitté leur siège en cours de
+2. **`fpctl verify data`** — concordance des décomptes chargés avec le relevé officiel
+   publié par l'Assemblée. Cette porte a déjà servi : elle a détecté que le jeu de
+   données « députés actifs » omettait les députés ayant quitté leur siège en cours de
    législature, dont les votes disparaissaient silencieusement.
 
 ```bash
 make test
-go run ./cmd/verify
+fpctl verify data
 ```
 
 ## `data/` — les décisions éditoriales

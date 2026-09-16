@@ -17,7 +17,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | France 2030 | 128 | 63 | 21 octobre 2024 | 6 juillet 2026 |
 | plan de relance | 84 | 50 | 2 octobre 2024 | 6 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -75,9 +75,7 @@ Une mention ne dit pas la position de l'orateur.
 | **Total** | **1 414,0** | **169,0** | **−88,0 %** |
 | *Autorisations d'engagement (total)* | *0,0* | *0,0* | *—* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
-les crédits de personnel incluent les cotisations au compte « Pensions » (source :
-Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 

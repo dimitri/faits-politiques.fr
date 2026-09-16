@@ -21,7 +21,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | taxe sur les services numériques, GAFAM | 113 | 53 | 21 octobre 2024 | 21 juillet 2026 |
 | évasion fiscale | 84 | 43 | 21 octobre 2024 | 10 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

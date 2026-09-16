@@ -50,8 +50,11 @@ jobs:
           key: raw-${{ github.run_id }}
           restore-keys: raw-
 
+      - name: Compiler fpctl
+        run: go build -o bin/fpctl ./cmd/fpctl
+
       - name: Ingestion
-        run: go run ./cmd/ingest
+        run: ./bin/fpctl ingest data
 
       # Porte 1 : les garanties structurelles tournent sur la base RÉELLEMENT
       # chargée, pas sur une base vide. Une donnée qui violerait une règle
@@ -68,10 +71,10 @@ jobs:
 
       # Porte 2 : cohérence des données chargées avec les décomptes officiels.
       - name: Concordance avec les décomptes officiels
-        run: go run ./cmd/verify
+        run: ./bin/fpctl verify data
 
       - name: Génération du site
-        run: go run ./cmd/build
+        run: ./bin/fpctl build site
 
       - name: Taille produite
         run: |

@@ -2,14 +2,16 @@ package main
 
 import "github.com/spf13/cobra"
 
-// commandeBuild enveloppe cmd/build tel quel : mêmes options (-out,
-// -templates, -data, -root, -max-scrutins, -only, -cpuprofile), même
-// comportement (construction dans <out>.construction/ puis mise en place
-// atomique) — fpctl.go ne réimplémente rien, il compile et lance le même
-// binaire qu'un « go run ./cmd/build ». Voir cmd/fpctl/man/fpctl-build.md.
+// commandeBuild : fpctl build site. Reste un binaire séparé (compilé et
+// exécuté par execBinaire), pas un import direct comme les autres verbes :
+// cmd/build fait 16 000 lignes activement modifiées par d'autres sessions en
+// parallèle de celle-ci — l'importer forcerait fpctl à recompiler l'un dans
+// l'autre, couplage qu'aucune des deux commandes ne demande, pour un paquet
+// dont la seule interface utile est déjà sa ligne de commande.
 func commandeBuild() *cobra.Command {
-	return &cobra.Command{
-		Use:   "build [options]",
+	cmd := &cobra.Command{Use: "build", Short: "Construit une ressource du site"}
+	cmd.AddCommand(&cobra.Command{
+		Use:   "site [options]",
 		Short: "Génère le site statique et le met en place",
 		Long: "Construit le site dans <out>.construction/ puis le met en place d'un\n" +
 			"coup (le domaine réel n'est jamais interrompu). Recopie depuis la\n" +
@@ -22,5 +24,6 @@ func commandeBuild() *cobra.Command {
 			}
 			return execBinaire("fpbuild", "cmd/build", args)
 		},
-	}
+	})
+	return cmd
 }

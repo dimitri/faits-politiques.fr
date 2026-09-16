@@ -17,7 +17,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | outre-mer | 2197 | 364 | 1er octobre 2024 | 21 juillet 2026 |
 | vie chère | 172 | 75 | 1er octobre 2024 | 16 juin 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -62,9 +62,7 @@ Une mention ne dit pas la position de l'orateur.
 | **Total** | **2 657,6** | **2 555,1** | **−3,9 %** |
 | *Autorisations d'engagement (total)* | *2 904,4* | *2 782,7* | *−4,2 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
-les crédits de personnel incluent les cotisations au compte « Pensions » (source :
-Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 

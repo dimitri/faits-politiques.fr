@@ -19,8 +19,8 @@
 
 `.github/workflows/build.yml` : un seul job, sur runner hébergé GitHub, avec
 Postgres en conteneur `services:`, `timeout-minutes: 45`. Séquence : restaurer
-`raw/` depuis `actions/cache`, `go run ./cmd/ingest`, deux portes (garanties
-structurelles SQL, puis `go run ./cmd/verify`), `go run ./cmd/build`, publier
+`raw/` depuis `actions/cache`, `fpctl ingest data`, deux portes (garanties
+structurelles SQL, puis `fpctl verify data`), `fpctl build site`, publier
 `site/` en artefact, et un déploiement encore non branché
 (`echo "cible d'hébergement à trancher — voir docs/decisions.md D-012"`).
 
@@ -50,8 +50,8 @@ d'`actions/cache` :
 
 ```
 1. rclone copy scw:fp-archive/ raw/      # restaurer ce qui est déjà scellé
-2. go run ./cmd/ingest                   # ne récupère que le nouveau/changé
-3. go run ./cmd/verify                   # porte existante
+2. fpctl ingest data                     # ne récupère que le nouveau/changé
+3. fpctl verify data                     # porte existante
 4. rclone sync raw/ scw:fp-archive/      # publier le delta
 ```
 

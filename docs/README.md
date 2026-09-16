@@ -103,5 +103,5 @@ Elles sont dispersées dans le journal ; les voici rassemblées.
 
 ## État du chargement
 
-`go run ./cmd/verify` vérifie la cohérence avant toute publication. Les étapes
-d'ingestion sont listées par `go run ./cmd/ingest -h`.
+`fpctl verify data` vérifie la cohérence avant toute publication. Les étapes
+d'ingestion sont listées par `fpctl ingest data -h`.

@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | dette publique | 151 | 82 | 1er octobre 2024 | 10 juin 2026 |
 | charge de la dette | 75 | 38 | 14 octobre 2024 | 7 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

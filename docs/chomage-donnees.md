@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | RSA | 271 | 116 | 1er octobre 2024 | 11 juin 2026 |
 | assurance chômage | 222 | 95 | 1er octobre 2024 | 2 juin 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | immigration | 997 | 232 | 19 juillet 2024 | 21 juillet 2026 |
 | titres de séjour | 313 | 118 | 1er octobre 2024 | 9 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

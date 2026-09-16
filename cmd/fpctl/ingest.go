@@ -1,15 +1,18 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/faits-politiques/faits-politiques/internal/ingest"
+	"github.com/spf13/cobra"
+)
 
-// commandeIngest enveloppe cmd/ingest tel quel — y compris son option
-// -only, qui reste la référence unique pour la liste des sources (une
-// soixantaine) : la dupliquer ici en sous-commandes cobra créerait deux
-// endroits à tenir synchronisés, l'un d'eux finirait par mentir. Voir
-// « fpctl help ingest » pour la liste, ou -only= (vide) pour tout charger.
+// commandeIngest : fpctl ingest data. L'option -only reste la référence
+// unique pour la liste des sources (une soixantaine) : la dupliquer ici en
+// sous-commandes cobra créerait deux endroits à tenir synchronisés, l'un
+// d'eux finirait par mentir.
 func commandeIngest() *cobra.Command {
-	return &cobra.Command{
-		Use:   "ingest [options]",
+	cmd := &cobra.Command{Use: "ingest", Short: "Charge une ressource dans la base"}
+	cmd.AddCommand(&cobra.Command{
+		Use:   "data [options]",
 		Short: "Télécharge, archive et charge les jeux de données sources",
 		Long: "Sans -only, recharge tout, dans l'ordre attendu par les dépendances\n" +
 			"entre sources. Avec -only=<source> (migrate, checksums, ou l'un des\n" +
@@ -19,7 +22,8 @@ func commandeIngest() *cobra.Command {
 			if estDemandeAide(args) {
 				return afficherManuel("fpctl-ingest")
 			}
-			return execBinaire("fpingest", "cmd/ingest", args)
+			return executerInterne(ingest.Run(args))
 		},
-	}
+	})
+	return cmd
 }

@@ -19,7 +19,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | spectacle vivant | 22 | 16 | 9 octobre 2024 | 28 janvier 2026 |
 | pass Culture | 17 | 15 | 21 octobre 2024 | 9 avril 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -100,9 +100,7 @@ Une mention ne dit pas la position de l'orateur.
 | **Total** | **735,9** | **723,7** | **−1,7 %** |
 | *Autorisations d'engagement (total)* | *741,9* | *728,0* | *−1,9 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
-les crédits de personnel incluent les cotisations au compte « Pensions » (source :
-Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 

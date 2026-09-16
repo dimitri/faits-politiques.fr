@@ -12,7 +12,7 @@ fpctl-verify - contrôles de cohérence des données chargées
 
 # SYNOPSIS
 
-**fpctl verify**
+**fpctl verify data**
 
 # DESCRIPTION
 

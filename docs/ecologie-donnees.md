@@ -19,7 +19,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | transition écologique | 916 | 270 | 1er octobre 2024 | 21 juillet 2026 |
 | budget vert | 3 | 2 | 21 octobre 2024 | 25 octobre 2024 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

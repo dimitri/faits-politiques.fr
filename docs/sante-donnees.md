@@ -21,7 +21,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | hôpital | 1669 | 354 | 1er octobre 2024 | 21 juillet 2026 |
 | déserts médicaux | 333 | 141 | 18 juillet 2024 | 20 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | loi de finances | 1692 | 356 | 1er octobre 2024 | 21 juillet 2026 |
 | dette sociale, Cades | 177 | 46 | 14 octobre 2024 | 9 juin 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

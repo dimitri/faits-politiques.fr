@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | retraites | 2789 | 379 | 19 juillet 2024 | 21 juillet 2026 |
 | âge de départ | 176 | 91 | 1er octobre 2024 | 2 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

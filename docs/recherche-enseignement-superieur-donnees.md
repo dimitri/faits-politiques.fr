@@ -18,7 +18,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | précarité étudiante | 69 | 37 | 22 octobre 2024 | 16 juin 2026 |
 | loi de programmation de la recherche | 14 | 8 | 14 janvier 2025 | 11 février 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -71,9 +71,7 @@ Une mention ne dit pas la position de l'orateur.
 | **Total** | **31 819,2** | **31 285,7** | **−1,7 %** |
 | *Autorisations d'engagement (total)* | *32 319,2* | *31 703,6* | *−1,9 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
-les crédits de personnel incluent les cotisations au compte « Pensions » (source :
-Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 

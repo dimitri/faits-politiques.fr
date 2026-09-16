@@ -21,7 +21,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | agences de l'eau | 120 | 57 | 15 octobre 2024 | 20 juillet 2026 |
 | GEMAPI | 38 | 28 | 7 novembre 2024 | 20 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 

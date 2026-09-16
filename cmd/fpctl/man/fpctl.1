@@ -4,52 +4,57 @@
 .SH NOM
 fpctl \- chaîne de construction de faits\-politiques.fr
 .SH SYNOPSIS
-\f[B]fpctl\f[R] \f[I]commande\f[R] options
+\f[B]fpctl\f[R] \f[I]verbe\f[R] \f[I]nom\f[R] options
 .PP
-\f[B]fpctl help\f[R] [\f[I]commande\f[R]]
+\f[B]fpctl help\f[R] [\f[I]verbe\f[R]]
 .SH DESCRIPTION
 \f[B]fpctl\f[R] assemble en un seul exécutable l\[cq]ingestion des
 données, leur vérification et la construction du site statique.
-Chaque commande reste le binaire qui existait déjà (\f[B]cmd/build\f[R],
-\f[B]cmd/ingest\f[R], \&...), compilé à la volée et lancé avec les mêmes
-options qu\[cq]avant : fpctl route, il ne réimplémente rien.
-.SH COMMANDES
+L\[cq]arbre de commandes suit un seul principe, comme \f[B]git\f[R] :
+chaque verbe s\[cq]applique à un nom \[em] \f[B]fpctl build site\f[R],
+jamais \f[B]fpctl build\f[R] seul ni \f[B]fpctl site\f[R].
+.PP
+La plupart des verbes routent directement vers le paquet
+\f[B]internal/\f[R] correspondant ; \f[B]build site\f[R] reste un
+binaire séparé, compilé à la volée.
+Dans les deux cas, fpctl ne réimplémente rien.
+.SH VERBES
 .TP
-\f[B]build\f[R]
+\f[B]build site\f[R] options
 Génère le site statique et le met en place.
 Voir \f[B]fpctl\-build\f[R](1).
 .TP
-\f[B]ingest\f[R]
+\f[B]ingest data\f[R] options
 Télécharge, archive et charge les jeux de données sources.
 Voir \f[B]fpctl\-ingest\f[R](1).
 .TP
-\f[B]verify\f[R]
+\f[B]verify data\f[R]
 Contrôles de cohérence des données chargées, avant publication.
 Voir \f[B]fpctl\-verify\f[R](1).
 .TP
-\f[B]sources\f[R]
+\f[B]list sources\f[R] options
 Catalogue des sources de données ingérées.
-Voir \f[B]fpctl\-sources\f[R](1).
+Voir \f[B]fpctl\-list\f[R](1).
 .TP
-\f[B]docs\f[R]
+\f[B]generate dossiers\f[R] | \f[B]generate bulletin\f[R]
 Régénère les sections chiffrées des dossiers documentaires (docs/*.md).
-Voir \f[B]fpctl\-docs\f[R](1).
+Voir \f[B]fpctl\-generate\f[R](1).
 .TP
-\f[B]help\f[R] [\f[I]commande\f[R]]
-Affiche cette page, ou la page de manuel d\[cq]une commande précise.
+\f[B]help\f[R] [\f[I]verbe\f[R]]
+Affiche cette page, ou la page de manuel d\[cq]un verbe précis.
 .SH OPTIONS
-Chaque commande transmet ses propres options telles quelles au binaire
-qu\[cq]elle enveloppe \[em] \f[B]\-h\f[R] ou \f[B]\[en]help\f[R] en
+Chaque nom transmet ses propres options telles quelles au paquet ou au
+binaire qu\[cq]il route \[em] \f[B]\-h\f[R] ou \f[B]\[en]help\f[R] en
 première position ouvre la page de manuel dédiée plutôt que de les
 transmettre.
 .SH CONVENTIONS
 fpctl doit être lancé depuis n\[cq]importe où \f[B]à
 l\[cq]intérieur\f[R] du dépôt : il retrouve la racine par lui\-même (via
-\f[CR]go env GOMOD\f[R]) et y exécute les commandes qu\[cq]il enveloppe,
-pour que leurs chemins par défaut (\f[B]web/templates\f[R],
-\f[B]docs\f[R], \f[B]data\f[R]) restent corrects quel que soit le
-répertoire de travail au moment de l\[cq]appel.
+\f[CR]go env GOMOD\f[R]) et s\[cq]y place avant toute chose, pour que
+les chemins par défaut des commandes routées (\f[B]web/templates\f[R],
+\f[B]docs\f[R], \f[B]data\f[R], \f[B]raw\f[R]) restent corrects quel que
+soit le répertoire de travail au moment de l\[cq]appel.
 .SH VOIR AUSSI
 \f[B]fpctl\-build\f[R](1), \f[B]fpctl\-ingest\f[R](1),
-\f[B]fpctl\-verify\f[R](1), \f[B]fpctl\-sources\f[R](1),
-\f[B]fpctl\-docs\f[R](1)
+\f[B]fpctl\-verify\f[R](1), \f[B]fpctl\-list\f[R](1),
+\f[B]fpctl\-generate\f[R](1)

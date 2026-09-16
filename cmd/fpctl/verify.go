@@ -1,12 +1,16 @@
 package main
 
-import "github.com/spf13/cobra"
+import (
+	"github.com/faits-politiques/faits-politiques/internal/verify"
+	"github.com/spf13/cobra"
+)
 
-// commandeVerify enveloppe cmd/verify : les contrôles de cohérence des
+// commandeVerify : fpctl verify data. Les contrôles de cohérence des
 // données chargées, à rejouer avant toute publication.
 func commandeVerify() *cobra.Command {
-	return &cobra.Command{
-		Use:   "verify",
+	cmd := &cobra.Command{Use: "verify", Short: "Contrôle la cohérence d'une ressource"}
+	cmd.AddCommand(&cobra.Command{
+		Use:   "data",
 		Short: "Contrôles de cohérence des données chargées",
 		Long: "Compte les anomalies entre les données chargées et les relevés\n" +
 			"officiels — une porte de publication qui passe à zéro, jamais un\n" +
@@ -16,7 +20,8 @@ func commandeVerify() *cobra.Command {
 			if estDemandeAide(args) {
 				return afficherManuel("fpctl-verify")
 			}
-			return execBinaire("fpverify", "cmd/verify", args)
+			return executerInterne(verify.Run(args))
 		},
-	}
+	})
+	return cmd
 }

@@ -18,7 +18,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | service civique | 29 | 23 | 4 décembre 2024 | 7 mai 2026 |
 | service national universel | 25 | 19 | 14 octobre 2024 | 21 juillet 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -65,9 +65,7 @@ Une mention ne dit pas la position de l'orateur.
 | **Total** | **1 794,8** | **1 578,7** | **−12,0 %** |
 | *Autorisations d'engagement (total)* | *1 704,1* | *1 635,2* | *−4,0 %* |
 
-Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ;
-les crédits de personnel incluent les cotisations au compte « Pensions » (source :
-Direction du budget).
+Montants demandés au projet de loi de finances de chaque année, ni votés ni exécutés ; les crédits de personnel incluent les cotisations au compte « Pensions » (`derived.dossier_budget_programme`, source : Direction du budget).
 
 <!-- faits:BUDGET:fin -->
 

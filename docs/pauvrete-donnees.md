@@ -20,7 +20,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | pauvreté | 487 | 207 | 1er octobre 2024 | 21 juillet 2026 |
 | aide alimentaire | 58 | 43 | 14 octobre 2024 | 11 juin 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTEXTE:fin -->
 
@@ -224,6 +224,9 @@ droit, pas un chiffre à deviner ou à rapprocher de force.
 - Drees-Insee, *Dispositif de suivi de l'aide alimentaire en France*,
   data.drees.solidarites-sante.gouv.fr.
 - Insee-Filosofi, déciles nationaux du niveau de vie (2023).
+- [docs/repartition-richesse-donnees.md](repartition-richesse-donnees.md), pour ce qu'il y a à
+  l'intérieur du dixième décile (non borné ici) — 1 %, 0,1 %, 0,01 % les plus aisés — et pour le
+  patrimoine des plus hauts patrimoines.
 
 ## Annexe technique
 

@@ -23,7 +23,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | logiciel libre | 8 | 3 | 18 mars 2025 | 10 juillet 2026 |
 | SecNumCloud | 5 | 4 | 12 février 2025 | 27 février 2026 |
 
-Une mention ne dit pas la position de l'orateur.
+Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 - **Une stratégie de souveraineté numérique appuyée sur SecNumCloud depuis 2021** (12 février 2025). Depuis 2021, avec l'ANSSI, la stratégie de sécurisation des données s'appuie notamment sur SecNumCloud ; un appel à projets du plan France 2030 vise à faire monter en compétence des acteurs comme OVHcloud ou Scaleway. — [Clara Chappaz](/depute/clara-chappaz/), ministre déléguée chargée de l'intelligence artificielle et du numérique, Assemblée nationale, compte rendu de la séance (séance n° 100) · *déclaratif*
 - **Le Health Data Hub sans « hébergeur ultrasécurisé » : un appel d'offres de migration annoncé** (8 avril 2025). Les données du système national des données de santé ne sont pas dans le Health Data Hub faute d'hébergeur ultrasécurisé ; la ministre annonce un appel d'offres pour le migrer vers un hébergeur sécurisé. — [Clara Chappaz](/depute/clara-chappaz/), ministre déléguée chargée de l'intelligence artificielle et du numérique, Assemblée nationale, compte rendu de la séance (séance n° 164) · *déclaratif*
