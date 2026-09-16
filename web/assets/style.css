@@ -545,10 +545,18 @@ font-size:.73rem;color:var(--attenue);line-height:1.3}
    Sans plafond, .geo{width:100%} l'étirait sur toute la largeur de l'article. */
 .geo.maille{max-width:26rem}
 .geo.maille:hover path{opacity:1}
-.geo.maille .maille-c path{fill:var(--carte);stroke:var(--filet);transition:fill .12s}
+/* stroke-width:inherit, pas une valeur fixe : cmd/build/carte_maillee.go pose
+   déjà l'épaisseur du trait sur le <g> parent (largeur/900, largeur/420),
+   proportionnelle à l'étendue de CETTE carte — un département et une seule
+   intercommunalité n'ont pas la même échelle. La règle générique .geo
+   path{stroke-width:1100} plus haut aurait sinon gagné sur la cascade
+   (aucune autre règle ne posait stroke-width sur ces path), et à l'échelle
+   d'une intercommunalité (quelques dizaines de km) 1100 avalait la mosaïque
+   des communes sous un trait ~20 fois trop épais. */
+.geo.maille .maille-c path{fill:var(--carte);stroke:var(--filet);transition:fill .12s;stroke-width:inherit}
 .geo.maille .maille-c path:hover{fill:var(--accent-doux)}
 .geo.maille .maille-e path{fill:none;stroke:var(--accent);stroke-linejoin:round;
-stroke-opacity:.72;pointer-events:none}
+stroke-opacity:.72;pointer-events:none;stroke-width:inherit}
 .cartes-grille{display:grid;gap:1.6rem 1.3rem;
 grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}
 /* Une ligne par carte, comme la carte « une » de l'accueil : la vignette a
