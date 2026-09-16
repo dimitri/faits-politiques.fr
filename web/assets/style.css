@@ -715,14 +715,19 @@ margin:1rem 0}
 .cartes-empilees{display:flex;flex-direction:column;gap:1.8rem;margin:1rem 0}
 .cartes-empilees .bloc-carte{max-width:40rem}
 /* Carte à gauche, légende à droite — même rapport que .carte-dossier
-   (1.15fr/1fr), autonome (pas besoin de l'ancêtre .cartes-lignes) : ce bloc
-   sert aussi, tel quel, une fois extrait par onglezCartesNiveaux()
-   (cmd/build/sujet_page.go) dans .onglets-carte .panneaux sur /sujets/. */
-.cartes-empilees .bloc-carte.ligne,.onglets-carte .panneaux .bloc-carte.ligne{
-display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1.4rem;align-items:start}
-.cartes-empilees .bloc-carte.ligne{max-width:none}
-@media(max-width:52rem){.cartes-empilees .bloc-carte.ligne,.onglets-carte .panneaux .bloc-carte.ligne{
-grid-template-columns:1fr}}
+   (1.15fr/1fr). Scopé à .cartes-empilees seul (unique à /collectivites/,
+   jamais tabulé) : NE PAS élargir ce sélecteur à .onglets-carte .panneaux
+   .bloc-carte.ligne en général — l'accueil (accueil.gohtml) utilise la même
+   classe « bloc-carte ligne », dans SES onglets à lui (#oc1-4, ratio
+   18rem/1fr via .cartes-lignes .bloc-carte.ligne), pour un tout autre
+   agencement. Un sélecteur générique gagnait sur la cascade et cassait à la
+   fois l'affichage de l'accueil ET le masquage des onglets (leur display:none
+   par défaut perdait contre le display:grid posé ici sans condition). Voir
+   plus bas, #ocn1/#ocn2/#ocn3, pour la mise en rangée propre à
+   /sujets/collectivites/ (onglezCartesNiveaux). */
+.cartes-empilees .bloc-carte.ligne{display:grid;max-width:none;
+grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1.4rem;align-items:start}
+@media(max-width:52rem){.cartes-empilees .bloc-carte.ligne{grid-template-columns:1fr}}
 
 /* Empilements à 100 % : deux dates, pas une série. Quatre teintes de la même
    rampe séquentielle — les postes de financement s'ordonnent du plus ancien
@@ -1073,7 +1078,14 @@ outline:2px solid var(--accent);outline-offset:2px}
    « Collectivités », D-075) : une carte pleine à la fois, pas un onglet vers
    une prévisualisation qui renvoie ailleurs — le panneau EST la carte. */
 .onglets-carte .panneaux .bloc-carte{max-width:44rem}
-#ocn1:checked ~ .panneaux .p1,#ocn2:checked ~ .panneaux .p2,#ocn3:checked ~ .panneaux .p3{display:grid}
+/* Carte à gauche, légende à droite, pleine largeur (pas de plafond à 44rem
+   comme la règle générique ci-dessus) — scopé aux trois onglets niveau par
+   #ocn1-3 (jamais un sélecteur .bloc-carte.ligne générique, voir le
+   commentaire sur .cartes-empilees .bloc-carte.ligne plus haut). */
+#ocn1:checked ~ .panneaux .p1,#ocn2:checked ~ .panneaux .p2,#ocn3:checked ~ .panneaux .p3{
+display:grid;max-width:none;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1.4rem;align-items:start}
+@media(max-width:52rem){#ocn1:checked ~ .panneaux .p1,#ocn2:checked ~ .panneaux .p2,#ocn3:checked ~ .panneaux .p3{
+grid-template-columns:1fr}}
 #ocn1:checked ~ .etiquettes label[for=ocn1],#ocn2:checked ~ .etiquettes label[for=ocn2],
 #ocn3:checked ~ .etiquettes label[for=ocn3]{background:var(--encre);color:var(--papier);border-color:var(--encre)}
 #ocn1:focus-visible ~ .etiquettes label[for=ocn1],#ocn2:focus-visible ~ .etiquettes label[for=ocn2],
