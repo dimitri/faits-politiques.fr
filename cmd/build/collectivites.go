@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/partis"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -95,6 +96,12 @@ type StatsCollectivites struct {
 	// CarteEPCI) restent le détail exhaustif, avec classement et cartons.
 	CarteInteractive         template.HTML
 	CarteEPCI                Carte
+	// ResumeRegions/Depts/EPCI : nombre d'unités, total et médiane de
+	// l'indicateur cartographié — de quoi remplir la colonne de droite de
+	// chaque onglet d'un vrai contenu (sur le modèle du panneau « situation »
+	// d'une page de collectivité), plutôt que le seul titre et l'échelle de
+	// couleur qui y suffisaient à peine.
+	ResumeRegions, ResumeDepts, ResumeEPCI *ResumeCarte
 	MillesimeEPCI            int
 	NbEPCISurCarte           int
 	Regions, Departements    []*Collectivite
@@ -664,12 +671,47 @@ func carteInteractive(reg, dep *JeuContours, casesR, casesD []CaseCarte, unite s
 	return template.HTML(b.String())
 }
 
+// indicPopulation : un repère démographique, pas un chiffre budgétaire —
+// la carte d'ouverture montre où vivent les gens avant les cartes de
+// dépenses, dette et recettes plus bas, plutôt que de présenter un seul
+// indicateur budgétaire (au hasard, le fonctionnement) comme LE chiffre par
+// défaut.
+const indicPopulation = "population"
+
+type ResumeCarte struct {
+	Nombre         int
+	Total, Mediane float64
+}
+
+// resumerCarte : nombre d'unités, total et médiane de l'indicateur
+// cartographié — le contenu de la colonne de droite de chaque onglet
+// « Trois niveaux, trois cartes ».
+func resumerCarte(cases []CaseCarte) *ResumeCarte {
+	if len(cases) == 0 {
+		return nil
+	}
+	vals := make([]float64, len(cases))
+	var total float64
+	for i, c := range cases {
+		vals[i] = c.Valeur
+		total += c.Valeur
+	}
+	sort.Float64s(vals)
+	return &ResumeCarte{Nombre: len(cases), Total: total, Mediane: vals[len(vals)/2]}
+}
+
 // cartesCollectivites dessine les deux cartes de l'index : une par niveau, sur
 // la même boîte, donc superposables.
+
 func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsCollectivites,
 	indic string) error {
 
-	eur := func(v float64) string { return Nombre(int(v+0.5)) + " €" }
+	eur := func(v float64) string { return Nombre(int(v+0.5)) + " €" }
+	hab := func(v float64) string { return Nombre(int(v+0.5)) + " habitants" }
+	unite, format := "€ par habitant", eur
+	if indic == indicPopulation {
+		unite, format = "habitants", hab
+	}
 
 	reg, err := jeuContours(ctx, pool, "REGION", tolApercu)
 	if err != nil {
@@ -677,11 +719,14 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 	}
 	var casesR []CaseCarte
 	for _, c := range st.Regions {
-		if v, ok := c.ParHab[indic]; ok {
+		if indic == indicPopulation {
+			casesR = append(casesR, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: float64(c.Population)})
+		} else if v, ok := c.ParHab[indic]; ok {
 			casesR = append(casesR, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: v})
 		}
 	}
-	st.CarteRegions = pleine(reg, casesR, "€ par habitant", eur)
+	st.CarteRegions = pleine(reg, casesR, unite, format)
+	st.ResumeRegions = resumerCarte(casesR)
 
 	dep, err := jeuContours(ctx, pool, "DEPARTEMENT", tolApercu)
 	if err != nil {
@@ -703,13 +748,17 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 			st.HorsCarte = append(st.HorsCarte, c.Nom+" ("+c.Code+")")
 			continue
 		}
-		if v, ok := c.ParHab[indic]; ok {
+		if indic == indicPopulation {
+			casesD = append(casesD, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: float64(c.Population)})
+		} else if v, ok := c.ParHab[indic]; ok {
 			casesD = append(casesD, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: v})
 		}
 	}
 	sort.Strings(st.HorsCarte)
-	st.CarteDepts = pleine(dep, casesD, "€ par habitant", eur)
-	st.CarteInteractive = carteInteractive(reg, dep, casesR, casesD, "€ par habitant", eur)
+	st.CarteDepts = pleine(dep, casesD, unite, format)
+	st.ResumeDepts = resumerCarte(casesD)
+	st.CarteInteractive = carteInteractive(reg, dep, casesR, casesD, unite, format)
+
 
 	// La carte des intercommunalités : rendue possible par geo.contour_cog
 	// (IGN Admin Express COG CARTO), qui donne enfin un tracé à chaque EPCI.
@@ -720,10 +769,18 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 		if err != nil {
 			return err
 		}
-		vrows, err := pool.Query(ctx, `
-			SELECT code, euros_par_hab::float8 FROM core.collectivite_budget
-			WHERE niveau='GROUPEMENT' AND indicator_code=$1 AND exercice=$2
-			  AND euros_par_hab IS NOT NULL`, indic, st.Exercice)
+		var vrows pgx.Rows
+		if indic == indicPopulation {
+			vrows, err = pool.Query(ctx, `
+				SELECT siren, population_totale::float8 FROM core.epci
+				WHERE nature_juridique = ANY($1) AND population_totale IS NOT NULL`,
+				[]string{"CC", "CA", "CU", "METRO", "MET69", "EPT"})
+		} else {
+			vrows, err = pool.Query(ctx, `
+				SELECT code, euros_par_hab::float8 FROM core.collectivite_budget
+				WHERE niveau='GROUPEMENT' AND indicator_code=$1 AND exercice=$2
+				  AND euros_par_hab IS NOT NULL`, indic, st.Exercice)
+		}
 		if err != nil {
 			return err
 		}
@@ -742,7 +799,8 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 			return err
 		}
 		st.NbEPCISurCarte = len(epci.Codes) + len(epci.outremer)
-		st.CarteEPCI = pleine(epci, casesE, "€ par habitant", eur)
+		st.CarteEPCI = pleine(epci, casesE, unite, format)
+		st.ResumeEPCI = resumerCarte(casesE)
 		// Les frontières des départements et des régions, tracées par-dessus
 		// les intercommunalités : la même boîte Lambert-93, donc le même
 		// repère. Un trait fin pour le département, épais pour la région —

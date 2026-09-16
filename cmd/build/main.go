@@ -862,11 +862,11 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
-	// La carte d'index porte le fonctionnement : c'est le budget qui tourne
-	// chaque année, celui qui décrit le mieux ce que la collectivité fait.
+	// La carte d'index porte la population : un repère démographique neutre,
+	// avant les cartes de dépenses, dette et recettes plus bas — plutôt que
+	// de présenter un seul indicateur budgétaire comme LE chiffre par défaut.
 	relierFiches(col, avecFiche)
-	const indicCarte = "ofgl.fonctionnement_par_hab"
-	if err := cartesCollectivites(ctx, pool, col, indicCarte); err != nil {
+	if err := cartesCollectivites(ctx, pool, col, indicPopulation); err != nil {
 		return err
 	}
 	tableDep := tableDepenses(col.Poids, indicsCollectivite)
@@ -883,7 +883,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 			TableDep     TableDepenses
 			Parts        []PartRecette
 			IndicLibelle string
-		}{l, col, terr, indicsCollectivite, tableDep, parts, "Dépenses de fonctionnement"}); err != nil {
+		}{l, col, terr, indicsCollectivite, tableDep, parts, "Population"}); err != nil {
 		return err
 	}
 

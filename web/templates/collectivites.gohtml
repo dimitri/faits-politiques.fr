@@ -17,7 +17,7 @@ son maire.</p>
 
 {{if $c.CarteInteractive}}
 <h2>La carte&nbsp;: la France, une région, un département</h2>
-<p class="q">{{.IndicLibelle}} par habitant, en {{$c.Exercice}}. Cliquez une région pour voir ses
+<p class="q">{{.IndicLibelle}}, en {{$c.Exercice}}. Cliquez une région pour voir ses
 départements, un département pour ouvrir sa page&nbsp;; un chiffre par défaut, celui de la France
 entière, s'affine à chaque clic.</p>
 <div id="carte-interactive">{{$c.CarteInteractive}}</div>
@@ -28,7 +28,7 @@ ci-dessous.</p>
 {{end}}
 
 <h2>Trois niveaux, trois cartes</h2>
-<p class="q">{{.IndicLibelle}} par habitant, en {{$c.Exercice}}. Les trois cartes couvrent le même
+<p class="q">{{.IndicLibelle}}, en {{$c.Exercice}}. Les trois cartes couvrent le même
 territoire dans le même repère&nbsp;: elles se superposent exactement. Celle des intercommunalités
 est nouvelle&nbsp;: jusqu'ici, le site connaissait l'appartenance de chaque commune à son groupement
 sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
@@ -41,8 +41,12 @@ sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
     </div>
     <div>
       <h3>Par région</h3>
-      {{$t := $c.CarteRegions.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
+      {{$t := $c.CarteRegions.Teintes}}<div class="echelle"><span class="u">{{$c.CarteRegions.Unite}}</span>
         {{range $i, $b := $c.CarteRegions.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+      {{with $c.ResumeRegions}}<dl class="legende-situation">
+        <div><dt>Régions</dt><dd><b>{{nb .Nombre}}</b></dd></div>
+        <div><dt>Médiane</dt><dd><b>{{nb (int .Mediane)}}</b> {{$c.CarteRegions.Unite}}</dd></div>
+      </dl>{{end}}
     </div>
     {{end}}
   </div>
@@ -54,8 +58,12 @@ sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
     </div>
     <div>
       <h3>Par département</h3>
-      {{$t := $c.CarteDepts.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
+      {{$t := $c.CarteDepts.Teintes}}<div class="echelle"><span class="u">{{$c.CarteDepts.Unite}}</span>
         {{range $i, $b := $c.CarteDepts.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+      {{with $c.ResumeDepts}}<dl class="legende-situation">
+        <div><dt>Départements</dt><dd><b>{{nb .Nombre}}</b></dd></div>
+        <div><dt>Médiane</dt><dd><b>{{nb (int .Mediane)}}</b> {{$c.CarteDepts.Unite}}</dd></div>
+      </dl>{{end}}
     </div>
     {{end}}
   </div>
@@ -72,8 +80,12 @@ sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
     </div>
     <div>
       <h3>Par intercommunalité à fiscalité propre</h3>
-      {{$t := $c.CarteEPCI.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
+      {{$t := $c.CarteEPCI.Teintes}}<div class="echelle"><span class="u">{{$c.CarteEPCI.Unite}}</span>
         {{range $i, $b := $c.CarteEPCI.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+      {{with $c.ResumeEPCI}}<dl class="legende-situation">
+        <div><dt>Intercommunalités</dt><dd><b>{{nb .Nombre}}</b></dd></div>
+        <div><dt>Médiane</dt><dd><b>{{nb (int .Mediane)}}</b> {{$c.CarteEPCI.Unite}}</dd></div>
+      </dl>{{end}}
     </div>
     {{end}}
   </div>
