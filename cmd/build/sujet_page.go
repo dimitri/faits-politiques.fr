@@ -487,7 +487,7 @@ func onglezCartesNiveaux(section string) string {
 	var cartes []string
 	reste := interieur
 	for {
-		d := strings.Index(reste, `<div class="bloc-carte"`)
+		d := strings.Index(reste, `<div class="bloc-carte ligne"`)
 		if d < 0 {
 			break
 		}
@@ -520,14 +520,14 @@ func onglezCartesNiveaux(section string) string {
 	}
 	b.WriteString(`</div><div class="panneaux">`)
 	for i, c := range cartes {
-		b.WriteString(reBlocCarteClasse.ReplaceAllString(c, `<div class="bloc-carte p`+fmt.Sprint(i+1)+`">`))
+		b.WriteString(reBlocCarteClasse.ReplaceAllString(c, `<div class="bloc-carte ligne p`+fmt.Sprint(i+1)+`">`))
 	}
 	b.WriteString(`</div></div>`)
 	b.WriteString(apres)
 	return b.String()
 }
 
-var reBlocCarteClasse = regexp.MustCompile(`^<div class="bloc-carte"[^>]*>`)
+var reBlocCarteClasse = regexp.MustCompile(`^<div class="bloc-carte ligne"[^>]*>`)
 
 // finDiv trouve, pour un <div ...> qui commence à l'indice debut, l'indice de
 // son </div> correspondant — en comptant les ouvertures et fermetures

@@ -2,15 +2,18 @@
 {{$c := .C}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Collectivités</span></p>
 <span class="sur">Régions, départements, intercommunalités · exercice {{$c.Exercice}}</span>
-<h1>L'échelon dont on parle le moins</h1>
-<p class="lede">Entre la commune et l'État, trois niveaux lèvent l'impôt, votent des budgets et
-exercent des compétences. Leurs exécutifs ne sont élus par personne <em>directement</em>.</p>
+<h1>Qui dirige le budget, entre la commune et l'État</h1>
+<p class="lede">Régions, départements et intercommunalités ont dépensé <strong>137&nbsp;Md€ de
+fonctionnement en {{$c.Exercice}}, contre 84&nbsp;Md€ pour les 34&nbsp;772 communes</strong> — et
+pourtant, aucun de leurs exécutifs n'est élu par personne <em>directement</em>.</p>
 
 <p class="note proc"><strong>Aucun de ces présidents n'a été élu à cette fonction au suffrage
 universel.</strong> Un président de conseil régional ou départemental est élu par les conseillers,
-eux-mêmes élus sur des listes&nbsp;; un président d'intercommunalité est désigné par des conseillers
-communautaires, eux-mêmes élus sur des listes municipales. C'est le droit, pas un reproche&nbsp;:
-ce site le rappelle parce que la donnée le montre et qu'on l'oublie souvent.</p>
+eux-mêmes élus sur des listes&nbsp;; un président d'intercommunalité — la « CC », la « métropole »,
+l'« agglo » de la vie courante — est désigné par des conseillers communautaires, eux-mêmes élus sur
+des listes municipales. C'est le droit, pas un reproche&nbsp;: ce site le rappelle parce que la
+donnée le montre et qu'on l'oublie souvent, en confondant ce budget avec celui de la commune ou de
+son maire.</p>
 
 <h2>Trois niveaux, trois cartes</h2>
 <p class="q">{{.IndicLibelle}} par habitant, en {{$c.Exercice}}. Les trois cartes couvrent le même
@@ -18,36 +21,48 @@ territoire dans le même repère&nbsp;: elles se superposent exactement. Celle d
 est nouvelle&nbsp;: jusqu'ici, le site connaissait l'appartenance de chaque commune à son groupement
 sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
 <div class="cartes-empilees">
-  <div class="bloc-carte">
-    <h3>Par région</h3>
+  <div class="bloc-carte ligne">
     {{if $c.CarteRegions.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
-    {{$c.CarteRegions.SVG}}
-    {{$t := $c.CarteRegions.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
-      {{range $i, $b := $c.CarteRegions.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
-    {{template "cartons" $c.CarteRegions.Cartons}}
+    <div>
+      {{$c.CarteRegions.SVG}}
+      {{template "cartons" $c.CarteRegions.Cartons}}
+    </div>
+    <div>
+      <h3>Par région</h3>
+      {{$t := $c.CarteRegions.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
+        {{range $i, $b := $c.CarteRegions.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+    </div>
     {{end}}
   </div>
-  <div class="bloc-carte">
-    <h3>Par département</h3>
+  <div class="bloc-carte ligne">
     {{if $c.CarteDepts.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
-    {{$c.CarteDepts.SVG}}
-    {{$t := $c.CarteDepts.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
-      {{range $i, $b := $c.CarteDepts.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
-    {{template "cartons" $c.CarteDepts.Cartons}}
+    <div>
+      {{$c.CarteDepts.SVG}}
+      {{template "cartons" $c.CarteDepts.Cartons}}
+    </div>
+    <div>
+      <h3>Par département</h3>
+      {{$t := $c.CarteDepts.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
+        {{range $i, $b := $c.CarteDepts.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+    </div>
     {{end}}
   </div>
-  <div class="bloc-carte" id="carte-epci">
-    <h3>Par intercommunalité à fiscalité propre</h3>
+  <div class="bloc-carte ligne" id="carte-epci">
     {{if $c.CarteEPCI.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
-    {{$c.CarteEPCI.SVG}}
-    {{$t := $c.CarteEPCI.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
-      {{range $i, $b := $c.CarteEPCI.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
-    {{if gt (len $c.CarteEPCI.Cartons) 8}}
-    <details class="plus">
-      <summary>Outre-mer&nbsp;: {{len $c.CarteEPCI.Cartons}} intercommunalités</summary>
-      <div class="dedans">{{template "cartons" $c.CarteEPCI.Cartons}}</div>
-    </details>
-    {{else}}{{template "cartons" $c.CarteEPCI.Cartons}}{{end}}
+    <div>
+      {{$c.CarteEPCI.SVG}}
+      {{if gt (len $c.CarteEPCI.Cartons) 8}}
+      <details class="plus">
+        <summary>Outre-mer&nbsp;: {{len $c.CarteEPCI.Cartons}} intercommunalités</summary>
+        <div class="dedans">{{template "cartons" $c.CarteEPCI.Cartons}}</div>
+      </details>
+      {{else}}{{template "cartons" $c.CarteEPCI.Cartons}}{{end}}
+    </div>
+    <div>
+      <h3>Par intercommunalité à fiscalité propre</h3>
+      {{$t := $c.CarteEPCI.Teintes}}<div class="echelle"><span class="u">€ par habitant</span>
+        {{range $i, $b := $c.CarteEPCI.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+    </div>
     {{end}}
   </div>
 </div>
