@@ -17,20 +17,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
-    services:
-      db:
-        image: postgres:17
-        env:
-          POSTGRES_USER: fp
-          POSTGRES_PASSWORD: fp
-          POSTGRES_DB: fp
-        ports: ['5432:5432']
-        options: >-
-          --health-cmd "pg_isready -U fp -d fp"
-          --health-interval 5s --health-timeout 5s --health-retries 20
-
+    # Pas de services: ici. Le mécanisme services: de GitHub Actions ne sait
+    # que tirer une image publiée telle quelle — il ne peut pas construire
+    # docker/postgres.Dockerfile, qui ajoute PostGIS, pgvector, rum et
+    # unaccent à l'image officielle. Un postgres:17 nu (ce que faisait ce
+    # fichier jusqu'ici) échoue dès la migration 0058 (« extension "postgis"
+    # is not available »). fpctl provision db (docker compose) construit et
+    # démarre la même image que le développement local — voir
+    # docker-compose.yml.
     env:
-      DATABASE_URL: postgres://fp:fp@localhost:5432/fp?sslmode=disable
+      DATABASE_URL: postgres://fp:fp@localhost:55432/fp?sslmode=disable
 
     steps:
       - uses: actions/checkout@v4
@@ -39,6 +35,12 @@ jobs:
         with:
           go-version: '1.26'
           cache: true
+
+      - name: Compiler fpctl
+        run: go build -o bin/fpctl ./cmd/fpctl
+
+      - name: Provisionner Postgres
+        run: ./bin/fpctl provision db
 
       # Les documents scellés sont conservés entre deux exécutions : l'archive
       # est immuable et adressée par empreinte, un document déjà vu n'est pas
@@ -49,9 +51,6 @@ jobs:
           path: raw
           key: raw-${{ github.run_id }}
           restore-keys: raw-
-
-      - name: Compiler fpctl
-        run: go build -o bin/fpctl ./cmd/fpctl
 
       - name: Ingestion
         run: ./bin/fpctl ingest data
