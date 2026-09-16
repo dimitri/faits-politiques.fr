@@ -1,0 +1,93 @@
+{{define "content"}}
+{{$r := .R}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> ›
+  <a href="{{.Root}}/comprendre/">Comprendre</a> › <span>Répartition de la richesse</span></p>
+<span class="sur">INSEE · FILOSOFI · ENQUÊTE PATRIMOINE</span>
+<h1>La répartition de la richesse en France : ce qu'il y a dans le dernier décile</h1>
+<p class="lede">Le dixième décile de niveau de vie (les 10&nbsp;% les plus aisés) n'a pas de plafond —
+mais à l'intérieur, le 1&nbsp;%, le 0,1&nbsp;% et le 0,01&nbsp;% les plus aisés ne vivent pas la
+même chose. Ce dossier ouvre ce dixième décile pour le revenu, puis fait de même pour le
+patrimoine — une notion distincte, jamais additionnée au revenu.</p>
+
+<h2>Les seuils au sommet de la distribution de revenu, 2021</h2>
+<p class="q">Niveau de vie annuel par unité de consommation (Insee-Filosofi) : au-delà de ce seuil,
+on appartient au groupe indiqué.</p>
+<div class="scroll"><table class="donnees">
+<thead><tr><th>Seuil d'appartenance à…</th><th class="n">Revenu avant redistribution</th><th class="n">Niveau de vie (après redistribution)</th></tr></thead>
+<tbody>{{range $r.Seuils}}<tr><td>{{.Libelle}}</td>
+  <td class="n">{{nb .RevenuAvant}}&nbsp;€/an</td>
+  <td class="n">{{nb .NiveauDeVie}}&nbsp;€/an</td></tr>{{end}}</tbody>
+</table></div>
+<p class="note abs">Le revenu avant redistribution (avant impôts et prestations sociales) est
+toujours supérieur au niveau de vie après redistribution, mais l'écart entre les deux ne pèse pas
+pareil selon le niveau : proportionnellement bien plus réduit par la redistribution pour la médiane
+que pour le 0,01&nbsp;% les plus aisés. Ces seuils sont un millésime unique (2021), pas une série.
+<a href="{{.Root}}/comprendre/repartition-richesse-donnees/">Le détail, § 1</a>.</p>
+
+<h2>La part du revenu captée par le sommet, {{$r.AnneeDebut}}–{{$r.AnneeFin}}</h2>
+<p class="q">Part de la masse des revenus déclarés par unité de consommation. Le 1&nbsp;% les plus
+aisés en captaient {{dec $r.Part1PctDebut 1}}&nbsp;% en {{$r.AnneeDebut}}, {{dec $r.Part1PctFin 1}}&nbsp;%
+en {{$r.AnneeFin}}.</p>
+{{$r.Courbe1Pct}}
+<p class="q" style="margin-top:1.4rem">Le 0,1&nbsp;% les plus aisés, à l'intérieur du précédent : de
+{{dec $r.Part01PctDebut 1}}&nbsp;% à {{dec $r.Part01PctFin 1}}&nbsp;%.</p>
+{{$r.Courbe01Pct}}
+<p class="note abs">Une rupture de série existe en 2012-2013 (changement de source statistique,
+Filosofi remplaçant les revenus fiscaux localisés) — la source elle-même la documente, elle n'est
+pas lissée ici. <a href="{{.Root}}/comprendre/repartition-richesse-donnees/">Le détail, § 2</a>.</p>
+
+<h2>Le patrimoine des plus hauts patrimoines, {{$r.AnneePatrimoine}}</h2>
+<p class="q">Patrimoine brut (avant déduction des emprunts), France hors Mayotte. Une notion
+distincte du revenu ci-dessus, jamais additionnée.</p>
+<div class="scroll"><table class="donnees">
+<thead><tr><th>Tranche</th><th class="n">Seuil bas 2021</th><th class="n">Patrimoine moyen 2021</th><th class="n">Part de la masse (2021)</th></tr></thead>
+<tbody>{{range $r.Patrimoines}}<tr><td>{{.Libelle}}</td>
+  <td class="n">{{nb .Seuil2021}}&nbsp;€</td>
+  <td class="n">{{nb .Moyen2021}}&nbsp;€</td>
+  <td class="n">{{dec .PartMasse2021 0}}&nbsp;%</td></tr>{{end}}</tbody>
+</table></div>
+<p class="note abs">Les trois tranches ci-dessus (10&nbsp;% des ménages) détiennent à elles seules
+près de la moitié de la masse de patrimoine brut de l'ensemble des ménages. Comparaison 2015-2021 et
+composition du patrimoine (financier, immobilier, professionnel) :
+<a href="{{.Root}}/comprendre/repartition-richesse-donnees/">le détail, § 3</a>.</p>
+
+<h2>L'héritage, un facteur d'accès à la richesse</h2>
+<p class="q">Part des ménages ayant hérité, ou reçu une donation, au moins une fois au cours de leur
+vie (Insee, enquête Histoire de vie et Patrimoine 2020-2021) :</p>
+<div class="cartes trois">
+  <div class="carte"><span class="v">{{dec $r.HeriteHaut 0}}&nbsp;%</span>
+    <span class="t">des ménages à haut patrimoine et haut niveau de vie ont hérité</span>
+    <span class="d">Contre {{dec $r.HeriteEnsemble 0}}&nbsp;% de l'ensemble des ménages.</span></div>
+  <div class="carte"><span class="v">{{dec $r.DonationHaut 0}}&nbsp;%</span>
+    <span class="t">ont reçu une donation</span>
+    <span class="d">Contre {{dec $r.DonationEnsemble 0}}&nbsp;% de l'ensemble des ménages.</span></div>
+</div>
+<p class="note abs">Cette mesure compte les ménages concernés, pas la part de leur richesse qui
+provient de l'héritage — une question différente, sur laquelle ce dossier n'a pas trouvé de mesure
+officielle chiffrée pour la France. <a href="{{.Root}}/comprendre/repartition-richesse-donnees/">Le
+détail, § 4</a>.</p>
+
+<h2>Patrimoine contre revenu : deux concentrations très différentes</h2>
+<p class="q">Le patrimoine et le niveau de vie, mesurés par le même indicateur (indice de Gini, 0 =
+égalité parfaite, 1 = concentration totale) sur la même population, {{$r.AnneePatrimoine}} :</p>
+<div class="cartes trois">
+  <div class="carte"><span class="v">{{dec $r.GiniPatrimoine 3}}</span>
+    <span class="t">Indice de Gini du patrimoine brut</span></div>
+  <div class="carte"><span class="v">{{dec $r.GiniNiveauVie 3}}</span>
+    <span class="t">Indice de Gini du niveau de vie</span></div>
+</div>
+<div class="scroll"><table class="donnees">
+<thead><tr><th>Position dans la distribution</th><th class="n">Masse de patrimoine détenue</th><th class="n">Masse de niveau de vie détenue</th></tr></thead>
+<tbody>{{range $r.Concentrations}}<tr><td>{{.Position}}</td>
+  <td class="n">{{dec .MassePatrimoine 1}}&nbsp;%</td>
+  <td class="n">{{dec .MasseNiveauVie 1}}&nbsp;%</td></tr>{{end}}</tbody>
+</table></div>
+<p class="note abs">Les ménages classés par patrimoine et ceux classés par niveau de vie ne sont pas
+nécessairement les mêmes ménages : les deux distributions sont mesurées séparément, pas croisées.
+<a href="{{.Root}}/comprendre/repartition-richesse-donnees/">Le détail, § 5</a>.</p>
+
+<p class="note proc">Cette page reprend <a href="{{.Root}}/comprendre/repartition-richesse-donnees/">le
+dossier répartition de la richesse</a> : chaque chiffre y est vérifié par une requête directe, avec
+ses réserves. Voir aussi <a href="{{.Root}}/sujets/pauvrete/">le dossier pauvreté</a>, sur l'autre
+bout de la même distribution.</p>
+{{end}}
