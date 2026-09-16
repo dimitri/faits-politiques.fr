@@ -439,6 +439,21 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\npopulation par département et âge")
 		return communes.IngestPopulationAgeDepartement(ctx, pool, arch)
 	}
+	// Ce qu'il y a dans le dernier décile de niveau de vie : hauts revenus et
+	// hauts patrimoines. Voir docs/repartition-richesse-donnees.md. Hors
+	// chaîne par défaut, comme les autres blocs thématiques ajoutés au fil
+	// des demandes.
+	if only == "richesse" {
+		fmt.Println("\nhauts revenus et hauts patrimoines")
+		return macro.IngestHautsRevenusPatrimoine(ctx, pool, arch)
+	}
+	// L'héritage comme facteur d'accès à la richesse, et la comparaison
+	// patrimoine/niveau de vie (concentration, Gini). Voir docs/repartition-
+	// richesse-donnees.md. Hors chaîne par défaut.
+	if only == "heritage" {
+		fmt.Println("\nhéritage et concentration patrimoine/niveau de vie")
+		return macro.IngestHeritageConcentration(ctx, pool, arch)
+	}
 	// L'insertion des apprentis : voir docs/jeunesse-donnees.md. Hors chaîne
 	// par défaut, comme les autres blocs thématiques ajoutés au fil des
 	// demandes.

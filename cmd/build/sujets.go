@@ -72,6 +72,7 @@ var familles = []*Famille{
 			{ID: "sante", Nom: "Santé et hôpitaux", Doc: "sante-donnees"},
 			{ID: "chomage", Nom: "Chômage", Doc: "chomage-donnees", Pages: []LienPage{{"Chômage et minima sociaux, en graphiques", "chomage/"}}},
 			{ID: "pauvrete", Nom: "Pauvreté", Doc: "pauvrete-donnees"},
+			{ID: "richesse", Nom: "Répartition de la richesse", Doc: "repartition-richesse-donnees", Pages: []LienPage{{"La répartition de la richesse, en graphiques", "richesse/"}}},
 			{ID: "securite-sociale", Nom: "Sécurité sociale", Doc: "securite-sociale-donnees", Pages: []LienPage{{"La protection sociale depuis 1959", "protection-sociale/"}}},
 			{ID: "cotisations", Nom: "Cotisations et droits", Doc: "cotisations-et-droits"},
 		}},

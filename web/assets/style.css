@@ -771,6 +771,36 @@ font:400 .68rem/1.2 var(--mono);font-variant-numeric:tabular-nums}
    traverse visiblement son étiquette de valeur (« 1 100 € » barré). Un
    contour couleur papier, peint avant le texte, l'occulte proprement. */
 .seuils-pauvrete .et{paint-order:stroke;stroke:var(--papier);stroke-width:3px;stroke-linejoin:round}
+
+/* Courbe de Lorenz (dessinerLorenz) : deux lignes contre une diagonale
+   d'égalité parfaite, carrée plutôt que large — l'axe X et l'axe Y
+   partagent la même unité (un pourcentage cumulé), un rectangle large
+   suggérerait à tort deux échelles différentes. */
+.lorenz{width:100%;height:auto;display:block;max-width:26rem;margin:.6rem auto}
+.lorenz .axe{stroke:var(--filet);stroke-width:1.5}
+.lorenz .egalite{stroke:var(--attenue);stroke-width:1;stroke-dasharray:3 3}
+.lorenz .ligne-patrimoine{fill:none;stroke:#8C4B3A;stroke-width:2.2}
+.lorenz .ligne-niveau-vie{fill:none;stroke:#1E5C69;stroke-width:2.2}
+.lorenz .ligne-patrimoine-pt{fill:#8C4B3A}
+.lorenz .ligne-niveau-vie-pt{fill:#1E5C69}
+.lorenz .an{font:400 .68rem/1 var(--mono);fill:var(--attenue)}
+.legende-simple{display:flex;flex-wrap:wrap;gap:.4rem 1.1rem;justify-content:center;
+font-size:.82rem;color:var(--attenue);margin:.2rem 0 1rem}
+.legende-simple span{display:inline-flex;align-items:center;gap:.4rem}
+.legende-simple i{width:16px;height:3px;border-radius:2px;flex:0 0 auto}
+.legende-simple i.pointille{background:none;border-top:1px dashed var(--attenue);height:0}
+
+/* Répartition de la population par tranche de revenu, année la plus
+   récente : une seule barre empilée, sur le même principe que .origine-
+   barre (collectivite.gohtml) — des segments dont la largeur EST le
+   pourcentage, la légende à côté porte les valeurs trop fines pour être
+   lisibles dans leur propre segment (0,1 % de 65 millions tient sur
+   quelques pixels). */
+.repartition-barre{display:flex;height:2.2rem;border-radius:4px;overflow:hidden;margin:.8rem 0}
+.repartition-legende{display:grid;gap:.3rem;margin-top:.6rem;font-size:.85rem}
+.repartition-legende div{display:flex;align-items:baseline;gap:.5rem}
+.repartition-legende i{width:11px;height:11px;border-radius:2.5px;flex:0 0 auto;align-self:center}
+
 /* Dépenses et recettes : deux teintes d'une même rampe, la dépense foncée.
    Ce n'est pas un code « bien / mal » : aucune couleur d'alerte. */
 .graphe .dep,.legende i.dep{fill:#1E5C69;background:#1E5C69}

@@ -83,6 +83,25 @@ passe de 6,3 % (2004) à 7,7 % (2021), celle du 0,1 % de 1,7 % à 2,6 % — une 
 avec un point bas en 2013 (rupture de série) et une accélération après 2018. La part des 90 % les
 plus modestes baisse d'autant, mécaniquement (les colonnes somment à 100 %).
 
+**Un ancrage en euros, pour 2021 (le seul millésime où le § 1 donne des seuils réels)** : appartenir
+aux 0,1 % les plus aisés en 2021 supposait un revenu avant redistribution supérieur à 332 420 € par
+UC et par an, contre 24 800 € pour la médiane (D5) — treize fois plus (§ 1). C'est ce à quoi
+renvoient concrètement les 2,6 points de pourcentage ci-dessus : un écart de revenu par personne, pas
+seulement un écart de part.
+
+**Convertir ces parts en montants cumulés (milliards d'euros captés par le 1 % ou le 0,1 %, pour
+2004, 2013, 2018 et 2021) n'est délibérément pas fait ici.** Cela suppose de connaître la masse
+totale des revenus déclarés par UC, chaque année, dans le même champ que cette série (ménages
+fiscaux à revenu positif ou nul, France métropolitaine) — masse qu'aucune fiche Insee consultée
+(RPM2024-F10, ni les séries longues « Niveau de vie et revenu disponible » 1996-2021,
+insee.fr/fr/statistiques/7766283) ne publie directement à ce niveau. Le seul agrégat de masse
+disponible en routine est le **revenu disponible brut des ménages** (comptabilité nationale) — une
+notion différente (par ménage, pas par UC ; après redistribution ; un champ plus large que les seuls
+ménages fiscaux) que multiplier par ces pourcentages mélangerait deux concepts de revenu distincts,
+ce que ce dossier évite systématiquement (§ 5 applique la même prudence entre patrimoine et niveau de
+vie). Si une source publie un jour la masse des revenus déclarés par UC dans ce champ précis, la
+conversion en euros cumulés pourra être ajoutée sans reconstruction approximative.
+
 ### 3. Le patrimoine des plus hauts patrimoines, 2015 et 2021
 
 Insee, enquêtes Patrimoine 2014-2015 et Histoire de vie et Patrimoine 2020-2021, fiche « Les hauts

@@ -654,6 +654,22 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		}
 	}
 
+	// Ce qu'il y a dans le dernier décile de niveau de vie (D10, non borné
+	// dans le dossier pauvreté) : voir docs/repartition-richesse-donnees.md.
+	riche, err := loadRichesse(ctx, pool)
+	if err != nil {
+		return err
+	}
+	l = layout
+	l.Title = "La répartition de la richesse en France"
+	if err := write(page("richesse.gohtml"), filepath.Join(out, "richesse", "index.html"),
+		struct {
+			Layout
+			R *StatsRichesse
+		}{l, riche}); err != nil {
+		return err
+	}
+
 	div, err := loadDividendes(ctx, pool)
 	if err != nil {
 		return err
