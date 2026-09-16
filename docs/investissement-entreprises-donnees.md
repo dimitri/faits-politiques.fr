@@ -121,23 +121,32 @@ occasion. Les deux opérations se disent « investir en bourse » dans le langag
 seule la première finance une entreprise.
 
 **L'écart d'ordre de grandeur, en France, est considérable** (AMF, *Cartographie des
-marchés et des risques 2025*, données 2024) :
+marchés et des risques 2025* et *Rapport annuel 2024*, données 2024) :
 
 | Circuit | Montant (2024) | Ce qu'il mesure |
 |---|---:|---|
 | Marché secondaire — volumes échangés sur les marchés français (actions) | 1 973 Md€ | Échanges entre investisseurs, aucun financement de société |
 | Marché primaire — introductions en bourse sur le marché réglementé d'Euronext Paris | 0,75 Md€ | Capitaux neufs apportés aux sociétés nouvellement cotées |
+| Marché primaire — augmentations de capital avec droit préférentiel de souscription, sociétés déjà cotées | 2,7 Md€ | Capitaux neufs apportés à des sociétés cotées existantes |
+| **Marché primaire, total des deux lignes ci-dessus** | **3,45 Md€** | |
 
-Soit un rapport d'environ **2 600 pour 1** entre le volume échangé sur le marché
-secondaire et les seules introductions en bourse. **Ce tableau sous-estime plutôt qu'il
-ne surestime l'écart réel avec le financement des entreprises non cotées** (l'essentiel
-du tissu productif du § 2) : le marché primaire ci-dessus ne compte que les
-introductions en bourse, pas les augmentations de capital des sociétés déjà cotées
-(une opération de marché primaire elle aussi, mais dont ce dépôt n'a pas trouvé de
-total annuel officiel comparable) — l'inclure ferait remonter le montant du marché
-primaire sans changer l'ordre de grandeur de l'écart. L'AMF elle-même qualifie le
-niveau des introductions en bourse de 2024 de « faible », même après un doublement par
-rapport à 2023.
+Soit un rapport d'environ **570 pour 1** entre le volume échangé sur le marché
+secondaire et l'ensemble du marché primaire mesuré ici — un ordre de grandeur qui
+reste considérable même après avoir ajouté les augmentations de capital aux
+introductions en bourse. Les augmentations de capital avec droit préférentiel de
+souscription ont progressé de 79 % par rapport à 2023, portées notamment par les
+émissions d'Emeis (ex-Orpea, 390 M€), Clariane (237 M€), Société de la Tour Eiffel
+(599 M€) et Alstom (1 Md€) — plusieurs d'entre elles liées à des restructurations
+financières (Casino, Atos, Solocal) plutôt qu'à un financement de croissance.
+
+**Ce tableau reste un plancher, pas un total.** Les augmentations de capital **sans**
+droit préférentiel de souscription (placements privés réservés à certains
+investisseurs) sont elles aussi une opération de marché primaire, mais ce dépôt n'a
+pas trouvé de montant annuel agrégé officiel pour cette catégorie précise — seules des
+mesures réglementaires les concernant (relèvement du plafond de 20 à 30 % par la loi
+Attractivité de 2024) sont mentionnées par l'AMF, sans total en euros. Le rapport de
+570 pour 1 est donc, lui aussi, un minorant de l'écart réel entre marché secondaire et
+financement effectif des entreprises cotées.
 
 **Ce que cet écart implique pour le § 1** : le volume quotidien de transactions
 boursières, largement commenté dans le débat public, ne mesure pas l'effort de
@@ -168,6 +177,10 @@ dossier.
 - **Le millésime Ésane 2022 est une photographie, pas une série.** Aucune tendance sur
   plusieurs années n'est établie pour le tableau par catégorie ; un seul millésime est
   chargé au moment de l'écriture.
+- **Les augmentations de capital sans droit préférentiel de souscription (§ 4) n'ont pas
+  de total officiel identifié.** Seules celles avec droit préférentiel sont chiffrées
+  (2,7 Md€ en 2024) ; le marché primaire total est donc un plancher, pas un montant
+  complet.
 
 ## Pièges de lecture
 
@@ -206,6 +219,7 @@ dossier.
 | Insee, Ésane, Insee Focus « Le tissu productif français par catégorie d'entreprises en 2022 » | PRIMARY_OFFICIAL |
 | Oxfam France, étude sur les 100 plus grandes entreprises cotées françaises | DECLARATIF |
 | AMF, *Cartographie des marchés et des risques 2025* (données 2024) | PRIMARY_OFFICIAL |
+| AMF, *Rapport annuel 2024* (émissions secondaires, introductions en bourse) | PRIMARY_OFFICIAL |
 
 ## Versions
 
@@ -217,3 +231,8 @@ dossier.
   ajoutée (§ 4), avec les volumes 2024 de l'AMF — l'écart entre les deux (environ
   2 600 pour 1) montre que l'essentiel des volumes boursiers commentés dans le débat
   public ne finance aucune entreprise.
+- **Version 3** (16 septembre 2026) : ajout des augmentations de capital avec droit
+  préférentiel de souscription des sociétés déjà cotées (2,7 Md€ en 2024, AMF
+  *Rapport annuel 2024*), qui manquaient au marché primaire du § 4 — l'écart avec le
+  marché secondaire reste d'environ 570 pour 1 une fois les deux additionnées. Les
+  émissions sans droit préférentiel restent hors de portée, faute de total officiel.

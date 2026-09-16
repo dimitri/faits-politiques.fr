@@ -1048,6 +1048,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	seuilsPauvrete, err := chargerSeuilsPauvrete(ctx, pool)
+	if err != nil {
+		return err
+	}
 	if bud != nil {
 		l = layout
 		l.Title = "Budget de l'État"
@@ -1141,6 +1145,17 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					fmt.Sprint(sect.DebutFin)+` et `+fmt.Sprint(sect.AnnFin)+
 					`. Source&nbsp;: Eurostat ESSPROS, dataflow spr_rec_sumt. `+
 					`<a href="`+root+`/budget/">Le tableau des deux dates →</a></figcaption></figure>`))
+		}
+		if seuilsPauvrete != nil && strings.Contains(string(d.Corps), "<!-- schema:seuils-pauvrete -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:seuils-pauvrete -->",
+				`<figure class="schema">`+string(seuilsPauvrete.SVG)+`<figcaption>`+
+					`Les neuf déciles de niveau de vie mensuel par unité de consommation, `+
+					fmt.Sprint(seuilsPauvrete.Annee)+` (Insee-Filosofi) — chaque barre est le `+
+					`plafond du décile, pas son montant propre. Seul le premier décile (D1) `+
+					`plafonne sous le seuil à 60&nbsp;% de la médiane (teinte plus sombre) ; `+
+					`le second (D2) le chevauche, cohérent avec un taux de pauvreté à 60&nbsp;% `+
+					`légèrement supérieur à 10&nbsp;%. L'axe part de zéro.`+
+					`</figcaption></figure>`))
 		}
 	}
 

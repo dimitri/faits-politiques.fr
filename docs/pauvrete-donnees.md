@@ -75,6 +75,8 @@ distribution, souvent jusqu'au quatrième ou cinquième décile selon le disposi
 mais, faute de seuil harmonisé (paragraphe précédent), cette note ne peut pas fixer
 une borne précise pour « modeste » comme elle le fait pour « pauvre ».
 
+<!-- schema:seuils-pauvrete -->
+
 ## Contrôles et évaluations
 
 <!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
