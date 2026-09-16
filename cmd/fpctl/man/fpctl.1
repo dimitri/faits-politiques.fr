@@ -32,13 +32,21 @@ Voir \f[B]fpctl\-ingest\f[R](1).
 Contrôles de cohérence des données chargées, avant publication.
 Voir \f[B]fpctl\-verify\f[R](1).
 .TP
-\f[B]list sources\f[R] options
-Catalogue des sources de données ingérées.
+\f[B]list sources\f[R] | \f[B]list connectors\f[R] | \f[B]list stats\f[R]
+Catalogue des sources, des connecteurs, ou résumé du contenu de la base.
 Voir \f[B]fpctl\-list\f[R](1).
 .TP
 \f[B]generate dossiers\f[R] | \f[B]generate bulletin\f[R]
 Régénère les sections chiffrées des dossiers documentaires (docs/*.md).
 Voir \f[B]fpctl\-generate\f[R](1).
+.TP
+\f[B]provision db\f[R] | \f[B]provision store\f[R]
+Démarre Postgres ou l\[cq]object store local (docker compose).
+Voir \f[B]fpctl\-provision\f[R](1).
+.TP
+\f[B]sync archive\f[R] | \f[B]sync site\f[R]
+Envoie l\[cq]archive ou le site généré vers l\[cq]object store.
+Voir \f[B]fpctl\-sync\f[R](1).
 .TP
 \f[B]help\f[R] [\f[I]verbe\f[R]]
 Affiche cette page, ou la page de manuel d\[cq]un verbe précis.
@@ -57,4 +65,5 @@ soit le répertoire de travail au moment de l\[cq]appel.
 .SH VOIR AUSSI
 \f[B]fpctl\-build\f[R](1), \f[B]fpctl\-ingest\f[R](1),
 \f[B]fpctl\-verify\f[R](1), \f[B]fpctl\-list\f[R](1),
-\f[B]fpctl\-generate\f[R](1)
+\f[B]fpctl\-generate\f[R](1), \f[B]fpctl\-provision\f[R](1),
+\f[B]fpctl\-sync\f[R](1)

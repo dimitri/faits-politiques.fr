@@ -56,6 +56,8 @@ func main() {
 		commandeVerify(),
 		commandeList(),
 		commandeGenerate(),
+		commandeProvision(),
+		commandeSync(),
 	)
 	// Remplace l'aide générée par cobra (une liste d'options) par la vraie
 	// page de manuel : « fpctl help » et « fpctl help <verbe> » doivent se

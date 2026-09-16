@@ -60,5 +60,30 @@ services:
       # `docker compose up --wait` déclarait le conteneur défaillant pendant
       # qu'il s'initialisait normalement.
       start_period: 180s
+  # Object store local, compatible S3 — sert à deux choses distinctes :
+  # l'archive scellée (fp-archive, voir internal/archive) et, pour évaluer si
+  # servir le site depuis un object storage a du sens, une copie du site
+  # généré (fp-site). Un seul conteneur, deux buckets, comme la production
+  # n'en aurait besoin que d'un des deux le jour où elle en aurait besoin.
+  minio:
+    image: minio/minio:latest
+    container_name: fp_minio
+    command: server /data --console-address ":9091"
+    environment:
+      MINIO_ROOT_USER: fpminio
+      MINIO_ROOT_PASSWORD: fp12345678
+    ports:
+      - "9090:9000"   # API S3
+      - "9091:9091"   # console web
+    volumes:
+      - "fp_minio_data:/data"
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+
 volumes:
   fp_pgdata_debian:
+  fp_minio_data:

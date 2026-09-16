@@ -25,9 +25,9 @@ func commandeHelp() *cobra.Command {
 		Use:   "help [commande]",
 		Short: "Affiche la page de manuel de fpctl ou d'une de ses commandes",
 		Long: "Sans argument, affiche le manuel général de fpctl. Avec un verbe\n" +
-			"(build, ingest, verify, list, generate), affiche sa page de manuel\n" +
-			"dédiée — exactement ce que fait « git help <commande> ».",
-		ValidArgs: []string{"build", "ingest", "verify", "list", "generate"},
+			"(build, ingest, verify, list, generate, provision, sync), affiche sa\n" +
+			"page de manuel dédiée — exactement ce que fait « git help <commande> ».",
+		ValidArgs: []string{"build", "ingest", "verify", "list", "generate", "provision", "sync"},
 		Args:      cobra.MaximumNArgs(1),
 		RunE: func(_ *cobra.Command, args []string) error {
 			page := "fpctl"

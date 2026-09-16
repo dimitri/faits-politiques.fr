@@ -40,12 +40,21 @@ Dans les deux cas, fpctl ne réimplémente rien.
 :   Contrôles de cohérence des données chargées, avant publication.
     Voir **fpctl-verify**(1).
 
-**list sources** [options]
-:   Catalogue des sources de données ingérées. Voir **fpctl-list**(1).
+**list sources** | **list connectors** | **list stats**
+:   Catalogue des sources, des connecteurs, ou résumé du contenu de la
+    base. Voir **fpctl-list**(1).
 
 **generate dossiers** | **generate bulletin**
 :   Régénère les sections chiffrées des dossiers documentaires
     (docs/*.md). Voir **fpctl-generate**(1).
+
+**provision db** | **provision store**
+:   Démarre Postgres ou l'object store local (docker compose).
+    Voir **fpctl-provision**(1).
+
+**sync archive** | **sync site**
+:   Envoie l'archive ou le site généré vers l'object store.
+    Voir **fpctl-sync**(1).
 
 **help** [*verbe*]
 :   Affiche cette page, ou la page de manuel d'un verbe précis.
@@ -67,4 +76,5 @@ soit le répertoire de travail au moment de l'appel.
 # VOIR AUSSI
 
 **fpctl-build**(1), **fpctl-ingest**(1), **fpctl-verify**(1),
-**fpctl-list**(1), **fpctl-generate**(1)
+**fpctl-list**(1), **fpctl-generate**(1), **fpctl-provision**(1),
+**fpctl-sync**(1)

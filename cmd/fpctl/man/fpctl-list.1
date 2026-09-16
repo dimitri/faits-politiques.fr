@@ -2,10 +2,14 @@
 .\"
 .TH "FPCTL\-LIST" "1" "2026\-09\-16" "faits\-politiques.fr" "Manuel fpctl"
 .SH NOM
-fpctl\-list \- liste une collection (sources de données)
+fpctl\-list \- liste une collection (sources, connecteurs, statistiques)
 .SH SYNOPSIS
 \f[B]fpctl list sources\f[R] [\f[B]\-out\f[R] \f[I]fichier\f[R]]
 [\f[B]\-raw\-root\f[R] \f[I]répertoire\f[R]]
+.PP
+\f[B]fpctl list connectors\f[R]
+.PP
+\f[B]fpctl list stats\f[R]
 .SH DESCRIPTION
 .TP
 \f[B]sources\f[R]
@@ -30,5 +34,19 @@ Par défaut \f[B]docs/catalogue\-sources.json\f[R].
 Racine locale de l\[cq]archive scellée.
 Par défaut \f[B]raw\f[R].
 .RE
+.TP
+\f[B]connectors\f[R]
+Liste les fonctions \f[B]Ingest*\f[R] trouvées sous \f[B]internal/\f[R],
+groupées par paquet.
+Le type de connecteur n\[cq]est pas déclaré dans un registre à part :
+cherché directement dans le code, pour ne jamais dériver de ce qui
+existe réellement.
+.TP
+\f[B]stats\f[R]
+Résumé du contenu de la base : nombre de tables, lignes estimées
+(\f[B]n_live_tup\f[R], pas un \f[B]COUNT(*)\f[R] exact) et taille sur
+disque, par schéma applicatif (\f[B]core\f[R], \f[B]ref\f[R],
+\f[B]geo\f[R], \f[B]raw\f[R], \f[B]derived\f[R]\&...), puis les dix
+tables les plus lourdes tous schémas confondus.
 .SH VOIR AUSSI
 \f[B]fpctl\f[R](1), \f[B]fpctl\-ingest\f[R](1)

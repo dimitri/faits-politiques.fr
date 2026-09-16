@@ -59,6 +59,12 @@ type Source struct {
 	CheminsLocaux      []string `json:"chemins_locaux"`
 	CleS3              *string  `json:"cle_s3"` // toujours null tant que le bucket n'existe pas — voir docs/ci-pipeline.md
 
+	// StockageVerifie : "disque", "s3", ou "" si -verify-store=none (défaut) —
+	// contre quel support DocumentsManquants a été compté. Vide ne veut pas
+	// dire « tout est là », ça veut dire « pas vérifié ».
+	StockageVerifie    string `json:"stockage_verifie"`
+	DocumentsManquants int    `json:"documents_manquants"`
+
 	Tables []Table `json:"tables"`
 
 	IngestionIncrementale string `json:"ingestion_incrementale"`
@@ -78,6 +84,9 @@ func Run(args []string) error {
 	fs := flag.NewFlagSet("sources", flag.ContinueOnError)
 	out := fs.String("out", "docs/catalogue-sources.json", "fichier JSON à écrire")
 	racine := fs.String("raw-root", "raw", "racine locale de l'archive scellée")
+	verifierStockage := fs.String("verify-store", "none",
+		"vérifie la présence des documents : none (défaut, pas de vérification) | disk | s3")
+	bucket := fs.String("bucket", "fp-archive", "bucket à interroger si -verify-store=s3")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -89,7 +98,22 @@ func Run(args []string) error {
 	}
 	defer pool.Close()
 
-	cat, err := construire(ctx, pool, *racine)
+	var empreintes EmpreintesStockage
+	switch *verifierStockage {
+	case "none":
+	case "disk":
+		if empreintes, err = StockageDisque(*racine); err != nil {
+			return fmt.Errorf("vérification disque : %w", err)
+		}
+	case "s3":
+		if empreintes, err = StockageS3(ctx, *bucket); err != nil {
+			return fmt.Errorf("vérification s3 : %w", err)
+		}
+	default:
+		return fmt.Errorf("-verify-store=%s inconnu (attendu : none, disk, s3)", *verifierStockage)
+	}
+
+	cat, err := construire(ctx, pool, *racine, *verifierStockage, empreintes)
 	if err != nil {
 		return err
 	}
@@ -105,7 +129,7 @@ func Run(args []string) error {
 	return nil
 }
 
-func construire(ctx context.Context, pool *pgxpool.Pool, racine string) (*Catalogue, error) {
+func construire(ctx context.Context, pool *pgxpool.Pool, racine, nomStockageVerifie string, empreintes EmpreintesStockage) (*Catalogue, error) {
 	sources, err := chargerSources(ctx, pool)
 	if err != nil {
 		return nil, fmt.Errorf("sources : %w", err)
@@ -180,7 +204,7 @@ func construire(ctx context.Context, pool *pgxpool.Pool, racine string) (*Catalo
 		s.CheminsLocaux = []string{}
 		s.Tables = []Table{}
 
-		urls, docs, octets, chemins, err := documentsDeSource(ctx, pool, s.Slug)
+		urls, docs, octets, chemins, tailles, err := documentsDeSource(ctx, pool, s.Slug)
 		if err != nil {
 			return nil, fmt.Errorf("%s : %w", s.Slug, err)
 		}
@@ -193,6 +217,10 @@ func construire(ctx context.Context, pool *pgxpool.Pool, racine string) (*Catalo
 			s.CheminsLocaux = chemins
 		}
 		s.FormatDetecte = detecterFormat(urls, chemins)
+		if empreintes != nil {
+			s.StockageVerifie = nomStockageVerifie
+			s.DocumentsManquants = empreintes.Manquants(chemins, tailles)
+		}
 
 		srcID, ok := idParSlug[s.Slug]
 		if !ok {
@@ -257,26 +285,26 @@ func chargerSources(ctx context.Context, pool *pgxpool.Pool) ([]Source, error) {
 	return out, rows.Err()
 }
 
-func documentsDeSource(ctx context.Context, pool *pgxpool.Pool, slug string) (urls []string, docs, octets int64, chemins []string, err error) {
+func documentsDeSource(ctx context.Context, pool *pgxpool.Pool, slug string) (urls []string, docs, octets int64, chemins []string, tailles map[string]int64, err error) {
 	rows, err := pool.Query(ctx, `
 		SELECT DISTINCT r.url FROM raw.retrieval r
 		JOIN raw.source s ON s.id = r.source_id
 		WHERE s.slug = $1 AND r.document_id IS NOT NULL
 		ORDER BY r.url`, slug)
 	if err != nil {
-		return nil, 0, 0, nil, err
+		return nil, 0, 0, nil, nil, err
 	}
 	for rows.Next() {
 		var u string
 		if err := rows.Scan(&u); err != nil {
 			rows.Close()
-			return nil, 0, 0, nil, err
+			return nil, 0, 0, nil, nil, err
 		}
 		urls = append(urls, u)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
-		return nil, 0, 0, nil, err
+		return nil, 0, 0, nil, nil, err
 	}
 
 	drows, err := pool.Query(ctx, `
@@ -286,20 +314,22 @@ func documentsDeSource(ctx context.Context, pool *pgxpool.Pool, slug string) (ur
 		WHERE s.slug = $1
 		ORDER BY d.storage_key`, slug)
 	if err != nil {
-		return nil, 0, 0, nil, err
+		return nil, 0, 0, nil, nil, err
 	}
 	defer drows.Close()
+	tailles = map[string]int64{}
 	for drows.Next() {
 		var key string
 		var size int64
 		if err := drows.Scan(&key, &size); err != nil {
-			return nil, 0, 0, nil, err
+			return nil, 0, 0, nil, nil, err
 		}
 		chemins = append(chemins, key)
+		tailles[key] = size
 		octets += size
 		docs++
 	}
-	return urls, docs, octets, chemins, drows.Err()
+	return urls, docs, octets, chemins, tailles, drows.Err()
 }
 
 // tablesSourceID introspecte le schéma : toute table core.*/ref.*/derived.*
