@@ -8,6 +8,7 @@ package main
 import (
 	"bytes"
 	"context"
+	"errors"
 	"flag"
 	"fmt"
 	"html/template"
@@ -138,6 +139,11 @@ func main() {
 	// n'est pas touché.
 	chantier := strings.TrimRight(*out, "/") + ".construction"
 	if err := run(chantier, *tpl, *dataDir, *root, *maxScrutins, *only); err != nil {
+		if errors.Is(err, errRienAFaire) {
+			// run() est retourné avant même de créer chantier/ : rien à
+			// mettre en place, le site publié est déjà à jour.
+			return
+		}
 		fmt.Fprintf(os.Stderr, "erreur : %v\n", err)
 		os.Exit(1)
 	}
@@ -205,6 +211,30 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	siteActuel := strings.TrimSuffix(out, ".construction")
 	ancienCache := chargerManifeste(siteActuel)
 	nouveauCache := manifesteCache{Sections: map[string]etatSection{}}
+
+	// Court-circuit global : avant tout chargement, la question la moins
+	// chère à poser est aussi la plus rentable — rien n'a changé DU TOUT
+	// depuis la dernière construction ? -only et -max-scrutins produisent
+	// délibérément un site partiel : jamais la référence à laquelle comparer.
+	if only == "" && maxScrutins == 0 {
+		communesOK, _, err := sectionInchangee(ctx, pool, ancienCache, "communes")
+		if err != nil {
+			return err
+		}
+		scrutinOK, _, err := sectionInchangee(ctx, pool, ancienCache, "scrutin")
+		if err != nil {
+			return err
+		}
+		resteOK, _, err := resteInchange(ctx, pool, ancienCache)
+		if err != nil {
+			return err
+		}
+		if communesOK && scrutinOK && resteOK {
+			fmt.Printf("rien n'a changé depuis la dernière construction (%s écoulées)\n",
+				time.Since(start).Round(time.Millisecond))
+			return errRienAFaire
+		}
+	}
 
 	fns := template.FuncMap{"jauge": Jauge, "poleG": PoleGauche, "poleD": PoleDroit,
 		"lower": strings.ToLower, "nb": Nombre, "ico": Icone,
@@ -1469,6 +1499,17 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 
 	fmt.Printf("site généré dans %s/ : %d députés, %d candidats, %d organisations, %d groupes, %d scrutins (%s)\n",
 		out, len(persons), len(candidats), len(orgs), len(groupes), n, time.Since(start).Round(time.Millisecond))
+
+	// « reste » (voir resteInchange) : comme pour scrutin, jamais à partir
+	// d'une construction tronquée par -only/-max-scrutins — elle serait prise
+	// pour une construction complète par le prochain lancement, sans troncature.
+	if only == "" && maxScrutins == 0 {
+		_, etatReste, err := resteInchange(ctx, pool, ancienCache)
+		if err != nil {
+			return err
+		}
+		nouveauCache.Sections["reste"] = etatReste
+	}
 
 	// Écrit quoi qu'il arrive, y compris pour une section refaite cette fois :
 	// c'est cet état-ci, celui que ce chantier vient de produire, auquel la

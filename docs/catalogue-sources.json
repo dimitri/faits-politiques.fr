@@ -1,8 +1,8 @@
 {
-  "genere_le": "2026-09-15T20:21:40Z",
-  "note": "Généré par cmd/inventaire — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
+  "genere_le": "2026-09-16T02:54:59Z",
+  "note": "Généré par fpctl list sources — chaque champ vient d'une requête sur raw.*/core.*, aucun n'est recopié à la main. cle_s3 reste null tant que le bucket fp-archive (docs/ci-pipeline.md) n'existe pas ; à remplir le jour où l'archive y est synchronisée.",
   "racine_locale": "raw",
-  "nombre_sources": 123,
+  "nombre_sources": 128,
   "sources": [
     {
       "slug": "acteurs-numeriques-francais",
@@ -6796,9 +6796,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "mensuelle",
       "notes": "Régime général uniquement : les allocataires relevant de la MSA ne sont pas comptés. Série disponible à partir de juin 2016 seulement.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:38",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:09",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 19,
+      "nombre_runs": 20,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "Fichier JSON",
       "urls_origine": [
@@ -6832,9 +6832,9 @@
         {
           "schema": "core",
           "table": "macro_value",
-          "lignes_totales_estimees": 1886,
+          "lignes_totales_estimees": 1988,
           "lignes_pour_cette_source": 10,
-          "taille_octets": 598016,
+          "taille_octets": 638976,
           "annee_min": 1971,
           "annee_max": 2025,
           "colonne_historique": "annee"
@@ -6956,9 +6956,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "mensuelle",
       "notes": "Données CVS-CJO (corrigées des variations saisonnières et du nombre de jours ouvrés) : à comparer d'un mois à l'autre, pas pour un cumul annuel exact. Champ agrégé (sexe, âge, ancienneté, tranche d'heures = Total) : la ventilation fine existe dans la source mais n'est pas chargée.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:54",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:28",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 4,
+      "nombre_runs": 5,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -6976,7 +6976,7 @@
           "table": "demandeur_emploi_categorie",
           "lignes_totales_estimees": 10527,
           "lignes_pour_cette_source": 10527,
-          "taille_octets": 2621440,
+          "taille_octets": 1802240,
           "annee_min": null,
           "annee_max": null
         }
@@ -7254,9 +7254,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Indicateur CONJONCTUREL, calculé sur les départs d'une seule année (comme un indice conjoncturel de fécondité) : pas l'âge moyen réel auquel une génération donnée est partie, qui ne se connaît qu'une fois cette génération entièrement retraitée.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:51",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:27",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 4,
+      "nombre_runs": 5,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -7476,9 +7476,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Champ France métropolitaine pour les effectifs, France pour les dépenses (la Drees ne publie pas les dépenses séparément par champ). Plusieurs ruptures de série documentées par la source elle-même (voir le fichier source) : la plus visible est la bascule RMI → RSA au 1er juin 2009.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:50",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:26",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 5,
+      "nombre_runs": 6,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -7498,7 +7498,7 @@
           "table": "minima_sociaux_depense",
           "lignes_totales_estimees": 176,
           "lignes_pour_cette_source": 176,
-          "taille_octets": 81920,
+          "taille_octets": 98304,
           "annee_min": 2009,
           "annee_max": 2024,
           "colonne_historique": "annee"
@@ -7525,9 +7525,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "mensuelle",
       "notes": "Trois échelles géographiques cohabitent dans le même fichier (France, région, département) : sommer sans filtrer compterait chaque allocataire trois fois. La colonne maturite distingue les valeurs définitives des valeurs provisoires, que la DREES révise ensuite.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:50",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:26",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 15,
+      "nombre_runs": 16,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -7562,9 +7562,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Même jeu de données ouvert que core.minima_sociaux_effectif (n° 336), fichier distinct : la prime d'activité n'existe pas avant 2016, contrairement au RSA.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:55",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:28",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 4,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -7580,7 +7580,7 @@
         {
           "schema": "core",
           "table": "prime_activite_effectif",
-          "lignes_totales_estimees": -1,
+          "lignes_totales_estimees": 9,
           "lignes_pour_cette_source": 9,
           "taille_octets": 24576,
           "annee_min": 2016,
@@ -7636,9 +7636,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "100 = pension égale au revenu d'avant la retraite. Plusieurs revenus de référence coexistent (revenus personnels, niveau de vie, retraite / revenus du travail) : ne jamais comparer deux taux calculés sur des références différentes.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:55",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:29",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 4,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "API Opendatasoft (export JSON)",
       "urls_origine": [
@@ -7672,9 +7672,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle, avec révisions",
       "notes": "Les séries sont révisées : une valeur peut changer d'un millésime à l'autre. Le chargement reconstruit donc tout, plutôt que de compléter.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:50",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:26",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 31,
+      "nombre_runs": 33,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "API Eurostat (JSON-stat)",
       "urls_origine": [
@@ -7722,6 +7722,8 @@
         "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/lfsi_sla_a?format=JSON\u0026lang=FR\u0026geo=FR\u0026sex=T\u0026age=Y15-74\u0026unit=THS_PER\u0026wstatus=SEEK_NAVL",
         "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/lfsi_sla_a?format=JSON\u0026lang=FR\u0026geo=FR\u0026sex=T\u0026age=Y15-74\u0026unit=THS_PER\u0026wstatus=SLACK",
         "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/lfsi_sla_a?format=JSON\u0026lang=FR\u0026geo=FR\u0026sex=T\u0026age=Y15-74\u0026unit=THS_PER\u0026wstatus=UEMP_PT",
+        "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10_pe?format=JSON\u0026lang=FR\u0026geo=FR\u0026na_item=EMP_DC\u0026unit=THS_PER",
+        "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10_pe?format=JSON\u0026lang=FR\u0026geo=FR\u0026na_item=SAL_DC\u0026unit=THS_PER",
         "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nasa_10_nf_tr?format=JSON\u0026lang=FR\u0026geo=FR\u0026unit=CP_MEUR\u0026na_item=B1G\u0026sector=S11\u0026direct=PAID",
         "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nasa_10_nf_tr?format=JSON\u0026lang=FR\u0026geo=FR\u0026unit=CP_MEUR\u0026na_item=B2A3G\u0026sector=S11\u0026direct=PAID",
         "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nasa_10_nf_tr?format=JSON\u0026lang=FR\u0026geo=FR\u0026unit=CP_MEUR\u0026na_item=D1\u0026sector=S11\u0026direct=PAID",
@@ -7738,8 +7740,8 @@
         "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/spr_rec_sumt?format=JSON\u0026lang=FR\u0026geo=FR\u0026unit=MIO_EUR\u0026sptype=TOTAL",
         "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/une_rt_a?format=JSON\u0026lang=FR\u0026geo=FR\u0026sex=T\u0026age=Y15-74\u0026unit=PC_ACT"
       ],
-      "nombre_documents": 66,
-      "taille_locale_octets": 341600,
+      "nombre_documents": 68,
+      "taille_locale_octets": 351229,
       "chemins_locaux": [
         "2026/09/12/0d542f059044a3740f26b3e413550456d0c21e1ff297778e576fadf132559c8f.json",
         "2026/09/12/1975e336c7b1fa4a14f732a4913cc0497c104084c8b078ee64f19644903adb9c.json",
@@ -7805,17 +7807,19 @@
         "2026/09/15/927be09219d60eea0e9807a13cda4636d135a7bec0858d6b174bbc87f3abee8e.json",
         "2026/09/15/a15c96ad385e6f616e1e4572d387eeb256a15fe1e6e65bc0a15da5bbf077f151.json",
         "2026/09/15/c0889b5a0c78b232544d075c225d6e2e0eeda82c8145722b1e6f400f75a0964e.json",
+        "2026/09/15/d52646491cc3db72347e7a30bd7da5d7cc6f4fbedf187a7ffe4c0db241118eb1.json",
         "2026/09/15/d6e73c350b20eee120222dcc7f3564ae864e604c9a94e1676f517c6a09173832.json",
-        "2026/09/15/e565f6483a23247b6d9106ce866de5276c3b425681e43e70e7ffabe0e40a22aa.json"
+        "2026/09/15/e565f6483a23247b6d9106ce866de5276c3b425681e43e70e7ffabe0e40a22aa.json",
+        "2026/09/15/f877e9b4fff5434bf373ab9fe687a21982706a7f65cb225f6c800b286e02125d.json"
       ],
       "cle_s3": null,
       "tables": [
         {
           "schema": "core",
           "table": "macro_value",
-          "lignes_totales_estimees": 1886,
-          "lignes_pour_cette_source": 1876,
-          "taille_octets": 598016,
+          "lignes_totales_estimees": 1988,
+          "lignes_pour_cette_source": 1978,
+          "taille_octets": 638976,
           "annee_min": 1971,
           "annee_max": 2025,
           "colonne_historique": "annee"
@@ -7825,7 +7829,7 @@
           "table": "recette_fiscale",
           "lignes_totales_estimees": 2490,
           "lignes_pour_cette_source": 2490,
-          "taille_octets": 417792,
+          "taille_octets": 401408,
           "annee_min": 1995,
           "annee_max": 2024,
           "colonne_historique": "annee"
@@ -8920,9 +8924,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Ne contient ni les dividendes ni l'impôt sur les sociétés payé. Mêle comptes sociaux et comptes consolidés : voir la colonne type_bilan.",
-      "derniere_ingestion_reussie": "2026-09-15T19:54:20",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:50",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 17,
+      "nombre_runs": 18,
       "connecteur_derniere_version": "entreprises-v2",
       "format_detecte": "Fichier JSON",
       "urls_origine": [
@@ -9718,6 +9722,44 @@
       "ingestion_incrementale": "mixte — DELETE et ON CONFLICT présents dans le même fichier, à vérifier lequel s'applique à cette table"
     },
     {
+      "slug": "insee-bdm-comptes-snf",
+      "label": "Insee — comptes des sociétés non financières (BDM)",
+      "publisher": "INSEE",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte v2.0",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "trimestrielle",
+      "notes": "Séries CVS(-CJO) de la Banque de données macro-économiques (BDM), valeur aux prix courants, France entière, secteur S11 (sociétés non financières) toutes tailles et tous secteurs confondus. Dividendes (idbank 011794592) et formation brute de capital fixe — l'investissement productif (idbank 011794792), même champ, même unité, directement comparables terme à terme.",
+      "derniere_ingestion_reussie": "2026-09-15T21:54:10",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "entreprises-investissement-v1",
+      "format_detecte": "Fichier XML",
+      "urls_origine": [
+        "https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/011794592",
+        "https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/011794792"
+      ],
+      "nombre_documents": 2,
+      "taille_locale_octets": 59221,
+      "chemins_locaux": [
+        "2026/09/15/68a6f73cb8dc5c96ed32614020795897e8749b8ec36bce4bd6a6092a9dfee855.xml",
+        "2026/09/15/dad9e184efe1ab5f316976e5a4c7778f659f6c32590e8ff6d78a6959a0978485.xml"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "flux_financier_snf",
+          "lignes_totales_estimees": 620,
+          "lignes_pour_cette_source": 620,
+          "taille_octets": 131072,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
       "slug": "insee-chomage-trimestriel",
       "label": "INSEE — taux de chômage trimestriel au sens du BIT",
       "publisher": "INSEE",
@@ -9726,16 +9768,16 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "trimestrielle",
       "notes": "France hors Mayotte, données CVS. API SDMX de la Banque de données macro-économiques (BDM), pas de fichier téléchargé : la réponse EST la donnée.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:50",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:26",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 7,
+      "nombre_runs": 8,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "Fichier XML",
       "urls_origine": [
         "https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/001688527"
       ],
-      "nombre_documents": 7,
-      "taille_locale_octets": 138299,
+      "nombre_documents": 8,
+      "taille_locale_octets": 158056,
       "chemins_locaux": [
         "2026/09/14/323513c9e55f3595a97bbfcd97c7a24e12e5a489a4f31ad5489a70d1511e252d.xml",
         "2026/09/14/4cddca477cf89435b45b3ae390ce5f10b7051b314c1d89fcbafb56200c2250dc.xml",
@@ -9743,7 +9785,8 @@
         "2026/09/14/9e8c166a3d4307d4127d114efaee173c17b58d41eb6418958d9805b07689ec61.xml",
         "2026/09/14/ce5e1dde09f4cf7624ba17db5a5c94b4f18695fdb2e37ea0cdba300fca384d3f.xml",
         "2026/09/14/f74835eac3d8e7b653137de983d63b6ff939642f47528c6e2a9518cd8300f325.xml",
-        "2026/09/15/862698c69752fcca83390010fe2c0a205df5d06ac1b90917aa9b890cce400b79.xml"
+        "2026/09/15/862698c69752fcca83390010fe2c0a205df5d06ac1b90917aa9b890cce400b79.xml",
+        "2026/09/15/9298562ae7be1044a9ded812ae6edd995453167bbeb7be8eeb7ac25dedab3a37.xml"
       ],
       "cle_s3": null,
       "tables": [
@@ -9752,7 +9795,7 @@
           "table": "chomage_taux_trimestriel",
           "lignes_totales_estimees": 206,
           "lignes_pour_cette_source": 206,
-          "taille_octets": 73728,
+          "taille_octets": 90112,
           "annee_min": 1975,
           "annee_max": 2026,
           "colonne_historique": "annee"
@@ -9859,9 +9902,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "annuelle",
       "notes": "Rupture de série en 2020 : les effectifs de retraités résidant à l'étranger ont été revus à la baisse. Champ : retraités ayant perçu un droit direct au cours de l'année, résidant en France ou à l'étranger, vivants au 31 décembre.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:55",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:29",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 3,
+      "nombre_runs": 4,
       "connecteur_derniere_version": "macro-v1",
       "format_detecte": "Fichier XLSX",
       "urls_origine": [
@@ -9879,7 +9922,7 @@
           "table": "cotisants_retraites_ratio",
           "lignes_totales_estimees": 20,
           "lignes_pour_cette_source": 20,
-          "taille_octets": 32768,
+          "taille_octets": 65536,
           "annee_min": 2004,
           "annee_max": 2023,
           "colonne_historique": "annee"
@@ -9936,6 +9979,43 @@
       "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
     },
     {
+      "slug": "insee-esane-categorie-entreprise",
+      "label": "Insee — Ésane, le tissu productif par catégorie d'entreprise",
+      "publisher": "INSEE",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte v2.0",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "annuelle",
+      "notes": "Catégories au sens de la loi de modernisation de l'économie de 2008 (seuils d'effectif, chiffre d'affaires et total de bilan) : micro-entreprises (MIC), PME hors MIC, entreprises de taille intermédiaire (ETI), grandes entreprises (GE). Champ : secteurs principalement marchands non agricoles et non financiers. Millésime 2022, le seul publié sous cette forme au moment du chargement — pas une série : une photographie, à rejouer quand l'édition suivante paraît.",
+      "derniere_ingestion_reussie": "2026-09-15T21:54:10",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "entreprises-investissement-v1",
+      "format_detecte": "Fichier XLSX",
+      "urls_origine": [
+        "https://www.insee.fr/fr/statistiques/fichier/8290682/IF343.xlsx"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 475554,
+      "chemins_locaux": [
+        "2026/09/15/b4cdcbf877a58e90b5bbb8031556bae672347c7329da815c4699120dbb16c3dc.xlsx"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "entreprise_categorie",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 4,
+          "taille_octets": 32768,
+          "annee_min": 2022,
+          "annee_max": 2022,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
       "slug": "insee-filosofi-cc",
       "label": "Insee — Filosofi, revenus et pauvreté, tous niveaux géographiques",
       "publisher": "INSEE",
@@ -9971,6 +10051,120 @@
         }
       ],
       "ingestion_incrementale": "non — reconstruction complète (DELETE puis COPY) à chaque exécution"
+    },
+    {
+      "slug": "insee-hauts-revenus-patrimoine",
+      "label": "INSEE — hauts revenus et hauts patrimoines",
+      "publisher": "INSEE (Insee-DGFiP-Cnaf-Cnav-CCMSA, Filosofi ; enquêtes Patrimoine)",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte v2.0",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "annuelle (édition), millésimes des données irréguliers selon la fiche",
+      "notes": "Fiche \"Très hauts revenus\" (seuils 2021, série de parts 2004-2021) et fiche \"Les hauts patrimoines\" (2015 et 2021 seulement, patrimoine BRUT). Le revenu et le patrimoine sont deux notions distinctes, chargées séparément, jamais additionnées.",
+      "derniere_ingestion_reussie": "2026-09-16T02:25:34",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "hauts-revenus-patrimoine-v1",
+      "format_detecte": "Fichier XLSX",
+      "urls_origine": [
+        "https://www.insee.fr/fr/statistiques/fichier/7941389/RPM2024-F10.xlsx",
+        "https://www.insee.fr/fr/statistiques/fichier/8272285/RPM2024-F28.xlsx"
+      ],
+      "nombre_documents": 2,
+      "taille_locale_octets": 51966,
+      "chemins_locaux": [
+        "2026/09/16/338050e7d92cad47bd0b773d4b8b9ca8d9f08824744caeeee4ddda7a4ee8b4c8.xlsx",
+        "2026/09/16/feaaf363d4f783aed97282384193eb41ca37924b66aa9262918e565ee55ca401.xlsx"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "filosofi_haut_revenu",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 5,
+          "taille_octets": 32768,
+          "annee_min": 2021,
+          "annee_max": 2021,
+          "colonne_historique": "annee"
+        },
+        {
+          "schema": "core",
+          "table": "patrimoine_haut",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 6,
+          "taille_octets": 32768,
+          "annee_min": 2015,
+          "annee_max": 2021,
+          "colonne_historique": "annee"
+        },
+        {
+          "schema": "core",
+          "table": "revenu_part_groupe",
+          "lignes_totales_estimees": 90,
+          "lignes_pour_cette_source": 90,
+          "taille_octets": 32768,
+          "annee_min": 2004,
+          "annee_max": 2021,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
+    },
+    {
+      "slug": "insee-heritage-concentration",
+      "label": "INSEE — héritage et concentration patrimoine/niveau de vie",
+      "publisher": "INSEE",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte v2.0",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "irrégulière (au gré des éclairages de l'édition annuelle)",
+      "notes": "Enquête Histoire de vie et Patrimoine 2020-2021 (patrimoine, héritage) et enquête Revenus fiscaux et sociaux 2021 (niveau de vie). Mesure la part des MÉNAGES ayant hérité, pas la part de la RICHESSE qui provient de l'héritage — deux questions différentes.",
+      "derniere_ingestion_reussie": "2026-09-16T02:43:24",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 1,
+      "connecteur_derniere_version": "heritage-concentration-v1",
+      "format_detecte": "Fichier XLSX",
+      "urls_origine": [
+        "https://www.insee.fr/fr/statistiques/fichier/8612590/FPORSOC25-E3.xlsx"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 34457,
+      "chemins_locaux": [
+        "2026/09/16/10da3550b60b179f06a3b11d1361877df4dd9fa05ff548c042547aa0dbbab1ab.xlsx"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "concentration_patrimoine_niveau_vie",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 6,
+          "taille_octets": 32768,
+          "annee_min": null,
+          "annee_max": null
+        },
+        {
+          "schema": "core",
+          "table": "gini_patrimoine_niveau_vie",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 1,
+          "taille_octets": 32768,
+          "annee_min": 2021,
+          "annee_max": 2021,
+          "colonne_historique": "annee"
+        },
+        {
+          "schema": "core",
+          "table": "menage_heritage",
+          "lignes_totales_estimees": -1,
+          "lignes_pour_cette_source": 12,
+          "taille_octets": 32768,
+          "annee_min": null,
+          "annee_max": null
+        }
+      ],
+      "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
     },
     {
       "slug": "insee-pauvrete-niveau-de-vie",
@@ -10040,6 +10234,43 @@
           "lignes_pour_cette_source": 15897,
           "taille_octets": 1777664,
           "annee_min": 1901,
+          "annee_max": 2025,
+          "colonne_historique": "annee"
+        }
+      ],
+      "ingestion_incrementale": "non déterminé automatiquement (ni DELETE FROM ni ON CONFLICT trouvé) — à vérifier manuellement"
+    },
+    {
+      "slug": "insee-population-age-departement",
+      "label": "INSEE — population par département, sexe et grande classe d'âge",
+      "publisher": "INSEE",
+      "tier": "PRIMARY_OFFICIAL",
+      "licence": "Licence Ouverte v2.0",
+      "reuse_class": "OPEN",
+      "cadence_attendue": "annuelle",
+      "notes": "Une feuille par année, 1975 à l'édition la plus récente. Trois blocs de colonnes (Ensemble, Hommes, Femmes) ; seul « Ensemble » est chargé. Les lignes d'agrégat (« France métropolitaine », « DOM », « France métropolitaine et DOM ») sont écartées.",
+      "derniere_ingestion_reussie": "2026-09-15T22:33:18",
+      "dernier_statut_run": "SUCCESS",
+      "nombre_runs": 2,
+      "connecteur_derniere_version": "population-age-departement-v1",
+      "format_detecte": "Fichier XLSX",
+      "urls_origine": [
+        "https://www.insee.fr/fr/statistiques/fichier/8331297/estim-pop-dep-sexe-gca-1975-2025.xlsx"
+      ],
+      "nombre_documents": 1,
+      "taille_locale_octets": 922640,
+      "chemins_locaux": [
+        "2026/09/15/7535a4bc3a2e730f2e59b61cfea53e41d965f2f61fbb9cddacf5a504f38de222.xlsx"
+      ],
+      "cle_s3": null,
+      "tables": [
+        {
+          "schema": "core",
+          "table": "population_age_departement",
+          "lignes_totales_estimees": 25260,
+          "lignes_pour_cette_source": 25260,
+          "taille_octets": 2564096,
+          "annee_min": 1975,
           "annee_max": 2025,
           "colonne_historique": "annee"
         }
@@ -11125,9 +11356,9 @@
       "reuse_class": "OPEN",
       "cadence_attendue": "irrégulière",
       "notes": "Alimentée par les versements aux Archives, faits environ six ans après la clôture du dossier de carrière : la série est donc en retard sur le présent, même si elle contient des postes ouverts. Les dates sont connues à l'année, pas au jour. Aucune couleur politique n'est publiée et il n'en est pas déduit.",
-      "derniere_ingestion_reussie": "2026-09-15T19:53:56",
+      "derniere_ingestion_reussie": "2026-09-15T23:48:30",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 12,
+      "nombre_runs": 13,
       "connecteur_derniere_version": "prefets-v1",
       "format_detecte": "Fichier CSV",
       "urls_origine": [
@@ -12331,9 +12562,9 @@
       "reuse_class": "ATTRIBUTION",
       "cadence_attendue": "à la demande",
       "notes": "Un fichier hébergé localement sur Wikipédia plutôt que sur Commons est presque toujours non libre : il est alors ignoré.",
-      "derniere_ingestion_reussie": "2026-09-14T20:46:33",
+      "derniere_ingestion_reussie": "2026-09-15T21:45:27",
       "dernier_statut_run": "SUCCESS",
-      "nombre_runs": 10,
+      "nombre_runs": 12,
       "connecteur_derniere_version": "media/1",
       "format_detecte": "aucun document récupéré à ce jour",
       "urls_origine": [],

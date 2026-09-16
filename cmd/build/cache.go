@@ -5,10 +5,13 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"os"
 	"path/filepath"
+	"sort"
+	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -123,6 +126,73 @@ func sectionInchangee(ctx context.Context, pool *pgxpool.Pool, ancien manifesteC
 		return false, actuel, err
 	}
 	prec, ok := ancien.Sections[section]
+	inchangee := ok && prec.DataHash == actuel.DataHash && prec.CodeHash == actuel.CodeHash
+	return inchangee, actuel, nil
+}
+
+// errRienAFaire signale à main() que run() s'est arrêté avant même de créer
+// le chantier : rien à mettre en place, ce n'est pas une erreur.
+var errRienAFaire = errors.New("rien n'a changé depuis la dernière construction")
+
+// hashGlobs élargit hashFichiers à des motifs (filepath.Glob) plutôt qu'une
+// liste tenue à la main — utilisé pour « reste », la section fourre-tout qui
+// couvre tout ce que communes/scrutin ne couvrent pas (une cinquantaine de
+// pages indépendantes : accueil, dossiers, 2027, gouvernement, thèmes...).
+// Une liste à la main serait aussi longue que risquée à tenir à jour pour un
+// périmètre aussi large ; un glob ne peut pas oublier un fichier qui existe
+// au moment de la construction — il peut seulement, par construction,
+// changer de résultat dès qu'un fichier apparaît, disparaît ou change,
+// exactement ce qu'on veut détecter.
+func hashGlobs(motifs ...string) (string, error) {
+	var fichiers []string
+	for _, motif := range motifs {
+		trouves, err := filepath.Glob(motif)
+		if err != nil {
+			return "", err
+		}
+		fichiers = append(fichiers, trouves...)
+	}
+	sort.Strings(fichiers)
+	return hashFichiers(fichiers)
+}
+
+// empreinteIngestion : la date de la dernière exécution de cmd/ingest
+// terminée avec succès, tables source par tables source, section par
+// section. Sert de signal de fraîcheur des données pour « reste » — pas un
+// hachage de tables lues (la liste serait celle de tout core/ref/geo,
+// intenable), mais une question plus simple et tout aussi sûre : cmd/ingest
+// a-t-il tourné à bien depuis la dernière construction ? Un ingest qui
+// n'aurait touché aucune des tables de « reste » ferait reconstruire pour
+// rien — jamais servir une page périmée, qui serait le sens dangereux.
+func empreinteIngestion(ctx context.Context, pool *pgxpool.Pool) (string, error) {
+	var derniere *time.Time
+	if err := pool.QueryRow(ctx,
+		`SELECT max(finished_at) FROM raw.fetch_run WHERE status = 'SUCCESS'`).
+		Scan(&derniere); err != nil {
+		return "", err
+	}
+	if derniere == nil {
+		return "jamais", nil
+	}
+	return derniere.UTC().Format(time.RFC3339Nano), nil
+}
+
+// resteInchange : rien de ce que communes/scrutin ne couvrent pas n'a
+// changé — ni le code, ni les gabarits, ni les CSV éditoriaux (data/), ni les
+// dossiers documentaires (docs/*.md, voir loadDocs), ni les données
+// core/ref/geo depuis la dernière ingestion réussie.
+func resteInchange(ctx context.Context, pool *pgxpool.Pool, ancien manifesteCache) (bool, etatSection, error) {
+	var actuel etatSection
+	var err error
+	actuel.DataHash, err = empreinteIngestion(ctx, pool)
+	if err != nil {
+		return false, actuel, err
+	}
+	actuel.CodeHash, err = hashGlobs("cmd/build/*.go", "web/templates/*.gohtml", "web/assets/*", "docs/*.md", "data/*.csv")
+	if err != nil {
+		return false, actuel, err
+	}
+	prec, ok := ancien.Sections["reste"]
 	inchangee := ok && prec.DataHash == actuel.DataHash && prec.CodeHash == actuel.CodeHash
 	return inchangee, actuel, nil
 }
