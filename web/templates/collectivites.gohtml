@@ -45,7 +45,10 @@ sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
         {{range $i, $b := $c.CarteRegions.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
       {{with $c.ResumeRegions}}<dl class="legende-situation">
         <div><dt>Régions</dt><dd><b>{{nb .Nombre}}</b></dd></div>
+        <div><dt>Population totale</dt><dd><b>{{nb (int .Total)}}</b> {{$c.CarteRegions.Unite}}</dd></div>
         <div><dt>Médiane</dt><dd><b>{{nb (int .Mediane)}}</b> {{$c.CarteRegions.Unite}}</dd></div>
+        <div><dt>Maximum</dt><dd><b>{{nb (int .MaxValeur)}}</b> {{$c.CarteRegions.Unite}}<span>{{.MaxNom}}</span></dd></div>
+        <div><dt>Minimum</dt><dd><b>{{nb (int .MinValeur)}}</b> {{$c.CarteRegions.Unite}}<span>{{.MinNom}}</span></dd></div>
       </dl>{{end}}
     </div>
     {{end}}
@@ -62,7 +65,10 @@ sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
         {{range $i, $b := $c.CarteDepts.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
       {{with $c.ResumeDepts}}<dl class="legende-situation">
         <div><dt>Départements</dt><dd><b>{{nb .Nombre}}</b></dd></div>
+        <div><dt>Population totale</dt><dd><b>{{nb (int .Total)}}</b> {{$c.CarteDepts.Unite}}</dd></div>
         <div><dt>Médiane</dt><dd><b>{{nb (int .Mediane)}}</b> {{$c.CarteDepts.Unite}}</dd></div>
+        <div><dt>Maximum</dt><dd><b>{{nb (int .MaxValeur)}}</b> {{$c.CarteDepts.Unite}}<span>{{.MaxNom}}</span></dd></div>
+        <div><dt>Minimum</dt><dd><b>{{nb (int .MinValeur)}}</b> {{$c.CarteDepts.Unite}}<span>{{.MinNom}}</span></dd></div>
       </dl>{{end}}
     </div>
     {{end}}
@@ -84,7 +90,10 @@ sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
         {{range $i, $b := $c.CarteEPCI.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
       {{with $c.ResumeEPCI}}<dl class="legende-situation">
         <div><dt>Intercommunalités</dt><dd><b>{{nb .Nombre}}</b></dd></div>
+        <div><dt>Population totale</dt><dd><b>{{nb (int .Total)}}</b> {{$c.CarteEPCI.Unite}}</dd></div>
         <div><dt>Médiane</dt><dd><b>{{nb (int .Mediane)}}</b> {{$c.CarteEPCI.Unite}}</dd></div>
+        <div><dt>Maximum</dt><dd><b>{{nb (int .MaxValeur)}}</b> {{$c.CarteEPCI.Unite}}<span>{{.MaxNom}}</span></dd></div>
+        <div><dt>Minimum</dt><dd><b>{{nb (int .MinValeur)}}</b> {{$c.CarteEPCI.Unite}}<span>{{.MinNom}}</span></dd></div>
       </dl>{{end}}
     </div>
     {{end}}

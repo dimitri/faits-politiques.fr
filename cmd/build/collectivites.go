@@ -94,28 +94,28 @@ type StatsCollectivites struct {
 	// défaut, recadrage sur une région au clic, puis sur ses départements
 	// (site.js). Les cartes en onglets ci-dessus (CarteRegions/CarteDepts/
 	// CarteEPCI) restent le détail exhaustif, avec classement et cartons.
-	CarteInteractive         template.HTML
-	CarteEPCI                Carte
+	CarteInteractive template.HTML
+	CarteEPCI        Carte
 	// ResumeRegions/Depts/EPCI : nombre d'unités, total et médiane de
 	// l'indicateur cartographié — de quoi remplir la colonne de droite de
 	// chaque onglet d'un vrai contenu (sur le modèle du panneau « situation »
 	// d'une page de collectivité), plutôt que le seul titre et l'échelle de
 	// couleur qui y suffisaient à peine.
 	ResumeRegions, ResumeDepts, ResumeEPCI *ResumeCarte
-	MillesimeEPCI            int
-	NbEPCISurCarte           int
-	Regions, Departements    []*Collectivite
-	Poids                    []NiveauPoids
-	Indicateurs              []IndicCollectivite
-	Natures                  []NatureEPCI
-	Competences              []CompetenceEPCI
-	NbEPCI                   int
-	NbEPCIAvecBudget         int
-	NbMembresEPCI            int
-	NbFiscalitePropre        int
-	EPCIParDept              map[string][]*Groupement
-	HorsCarte                []string
-	FiscaliteLocale          *StatsFiscaliteLocale
+	MillesimeEPCI                          int
+	NbEPCISurCarte                         int
+	Regions, Departements                  []*Collectivite
+	Poids                                  []NiveauPoids
+	Indicateurs                            []IndicCollectivite
+	Natures                                []NatureEPCI
+	Competences                            []CompetenceEPCI
+	NbEPCI                                 int
+	NbEPCIAvecBudget                       int
+	NbMembresEPCI                          int
+	NbFiscalitePropre                      int
+	EPCIParDept                            map[string][]*Groupement
+	HorsCarte                              []string
+	FiscaliteLocale                        *StatsFiscaliteLocale
 }
 
 // StatsFiscaliteLocale : qui paie, via quel mécanisme fiscal nommé — pas
@@ -679,25 +679,39 @@ func carteInteractive(reg, dep *JeuContours, casesR, casesD []CaseCarte, unite s
 const indicPopulation = "population"
 
 type ResumeCarte struct {
-	Nombre         int
-	Total, Mediane float64
+	Nombre               int
+	Total, Mediane       float64
+	MaxNom, MinNom       string
+	MaxValeur, MinValeur float64
 }
 
-// resumerCarte : nombre d'unités, total et médiane de l'indicateur
-// cartographié — le contenu de la colonne de droite de chaque onglet
-// « Trois niveaux, trois cartes ».
+// resumerCarte : nombre d'unités, total, médiane, maximum et minimum de
+// l'indicateur cartographié — le contenu de la colonne de droite de chaque
+// onglet « Trois niveaux, trois cartes », sur le modèle du panneau
+// « situation » d'une page de collectivité (un vrai résumé chiffré, pas
+// seulement un titre et l'échelle de couleur).
 func resumerCarte(cases []CaseCarte) *ResumeCarte {
 	if len(cases) == 0 {
 		return nil
 	}
+	r := &ResumeCarte{Nombre: len(cases)}
+	max, min := cases[0], cases[0]
 	vals := make([]float64, len(cases))
-	var total float64
 	for i, c := range cases {
 		vals[i] = c.Valeur
-		total += c.Valeur
+		r.Total += c.Valeur
+		if c.Valeur > max.Valeur {
+			max = c
+		}
+		if c.Valeur < min.Valeur {
+			min = c
+		}
 	}
 	sort.Float64s(vals)
-	return &ResumeCarte{Nombre: len(cases), Total: total, Mediane: vals[len(vals)/2]}
+	r.Mediane = vals[len(vals)/2]
+	r.MaxNom, r.MaxValeur = max.Nom, max.Valeur
+	r.MinNom, r.MinValeur = min.Nom, min.Valeur
+	return r
 }
 
 // cartesCollectivites dessine les deux cartes de l'index : une par niveau, sur
@@ -720,7 +734,9 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 	var casesR []CaseCarte
 	for _, c := range st.Regions {
 		if indic == indicPopulation {
-			casesR = append(casesR, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: float64(c.Population)})
+			if c.Population > 0 {
+				casesR = append(casesR, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: float64(c.Population)})
+			}
 		} else if v, ok := c.ParHab[indic]; ok {
 			casesR = append(casesR, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: v})
 		}
@@ -749,7 +765,14 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 			continue
 		}
 		if indic == indicPopulation {
-			casesD = append(casesD, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: float64(c.Population)})
+			// Les départements sans budget propre (Corse-du-Sud, Haute-Corse...,
+			// fusionnés dans une collectivité territoriale unique) n'ont pas de
+			// population chargée ici (Population reste à zéro) : les exclure de
+			// la carte plutôt que de fausser le minimum avec un zéro qui ne veut
+			// rien dire.
+			if c.Population > 0 {
+				casesD = append(casesD, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: float64(c.Population)})
+			}
 		} else if v, ok := c.ParHab[indic]; ok {
 			casesD = append(casesD, CaseCarte{Code: c.Code, Nom: c.Nom, Valeur: v})
 		}
@@ -758,7 +781,6 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 	st.CarteDepts = pleine(dep, casesD, unite, format)
 	st.ResumeDepts = resumerCarte(casesD)
 	st.CarteInteractive = carteInteractive(reg, dep, casesR, casesD, unite, format)
-
 
 	// La carte des intercommunalités : rendue possible par geo.contour_cog
 	// (IGN Admin Express COG CARTO), qui donne enfin un tracé à chaque EPCI.
@@ -773,7 +795,7 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 		if indic == indicPopulation {
 			vrows, err = pool.Query(ctx, `
 				SELECT siren, population_totale::float8 FROM core.epci
-				WHERE nature_juridique = ANY($1) AND population_totale IS NOT NULL`,
+				WHERE nature_juridique = ANY($1) AND population_totale > 0`,
 				[]string{"CC", "CA", "CU", "METRO", "MET69", "EPT"})
 		} else {
 			vrows, err = pool.Query(ctx, `
