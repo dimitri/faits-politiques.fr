@@ -146,6 +146,8 @@ Rhône-Méditerranée (§ 1.1) :
 | Artois-Picardie | 19 846 |
 | Corse | 8 724 |
 
+<!-- schema:carte-bassins -->
+
 **Ce découpage ne suit aucune limite administrative** : le bassin
 Loire-Bretagne, le plus vaste, traverse une douzaine de régions et
 départements actuels. C'est le fait cartographique central de ce dossier —

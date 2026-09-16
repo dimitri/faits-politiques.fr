@@ -1098,6 +1098,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	carteBassins, err := chargerCarteBassins(ctx, pool)
+	if err != nil {
+		return err
+	}
 	if bud != nil {
 		l = layout
 		l.Title = "Budget de l'État"
@@ -1216,6 +1220,24 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`le chevauche — cohérent avec un taux de pauvreté à 60&nbsp;% légèrement `+
 					`supérieur à 10&nbsp;%. L'axe part de zéro.`+
 					`</figcaption></figure>`))
+		}
+		if carteBassins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-bassins -->") {
+			var legende strings.Builder
+			legende.WriteString(`<div class="repartition-legende">`)
+			for _, bs := range carteBassins.Bassins {
+				fmt.Fprintf(&legende, `<div><i style="background:%s"></i><span>%s</span></div>`,
+					bs.Couleur, template.HTMLEscapeString(bs.Nom))
+			}
+			legende.WriteString(`</div>`)
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-bassins -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(carteBassins.SVG)+`</div>`+
+					legende.String()+
+					`<figcaption>Les 7 bassins hydrographiques de France métropolitaine — les 6 `+
+					`comités de bassin classiques plus la Corse, distincte hydrographiquement mais `+
+					`rattachée administrativement à Rhône-Méditerranée (§ 1.1). Un découpage qui ne `+
+					`suit aucune limite régionale ou départementale — le bassin Loire-Bretagne, le `+
+					`plus vaste, traverse une douzaine de régions et départements actuels. `+
+					`Source&nbsp;: BD Topage 2025, Sandre/IGN, Licence Ouverte.</figcaption></figure>`))
 		}
 	}
 
