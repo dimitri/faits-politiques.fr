@@ -102,20 +102,24 @@ type StatsCollectivites struct {
 	// d'une page de collectivité), plutôt que le seul titre et l'échelle de
 	// couleur qui y suffisaient à peine.
 	ResumeRegions, ResumeDepts, ResumeEPCI *ResumeCarte
-	MillesimeEPCI                          int
-	NbEPCISurCarte                         int
-	Regions, Departements                  []*Collectivite
-	Poids                                  []NiveauPoids
-	Indicateurs                            []IndicCollectivite
-	Natures                                []NatureEPCI
-	Competences                            []CompetenceEPCI
-	NbEPCI                                 int
-	NbEPCIAvecBudget                       int
-	NbMembresEPCI                          int
-	NbFiscalitePropre                      int
-	EPCIParDept                            map[string][]*Groupement
-	HorsCarte                              []string
-	FiscaliteLocale                        *StatsFiscaliteLocale
+	// ResumeEPCIBudget : ce dont cette page parle vraiment — l'intercommunalité,
+	// pas la population. Nombre de groupements, budget cumulé, élus indirects
+	// cumulés : voir chargerResumeEPCIBudget.
+	ResumeEPCIBudget      *ResumeEPCIBudget
+	MillesimeEPCI         int
+	NbEPCISurCarte        int
+	Regions, Departements []*Collectivite
+	Poids                 []NiveauPoids
+	Indicateurs           []IndicCollectivite
+	Natures               []NatureEPCI
+	Competences           []CompetenceEPCI
+	NbEPCI                int
+	NbEPCIAvecBudget      int
+	NbMembresEPCI         int
+	NbFiscalitePropre     int
+	EPCIParDept           map[string][]*Groupement
+	HorsCarte             []string
+	FiscaliteLocale       *StatsFiscaliteLocale
 }
 
 // StatsFiscaliteLocale : qui paie, via quel mécanisme fiscal nommé — pas
@@ -714,6 +718,48 @@ func resumerCarte(cases []CaseCarte) *ResumeCarte {
 	return r
 }
 
+// ResumeEPCIBudget : ce dont la page parle réellement — l'échelon
+// intercommunal, ses moyens et ses élus indirects — plutôt qu'un repère
+// démographique générique. Card dédiée à l'onglet Intercommunalités, la
+// carte que la page ouvre désormais en premier.
+type ResumeEPCIBudget struct {
+	Nombre                         int
+	Fonctionnement, Investissement float64 // Md€, cumulés, tous les groupements
+	Elus                           int     // conseillers communautaires en mandat, cumulés
+	Population                     float64
+	// PartBlocCommunal : le fonctionnement des intercommunalités rapporté à
+	// celui des intercommunalités PLUS des communes — la part du bloc
+	// communal qui passe déjà par l'échelon indirect, pas par la commune.
+	PartBlocCommunal float64
+}
+
+// chargerResumeEPCIBudget : budget cumulé (derived.poids_des_niveaux, déjà
+// chargé dans st.Poids) et nombre d'élus communautaires en mandat
+// (core.mandate) — deux chiffres qu'aucune des cartes de dépenses plus bas
+// ne met en avant à ce niveau de la page.
+func chargerResumeEPCIBudget(ctx context.Context, pool *pgxpool.Pool, st *StatsCollectivites, nombre int, population float64) (*ResumeEPCIBudget, error) {
+	r := &ResumeEPCIBudget{Nombre: nombre, Population: population}
+	var fonctCommunes float64
+	for _, p := range st.Poids {
+		switch p.Niveau {
+		case "GROUPEMENT":
+			r.Fonctionnement = p.Totaux["ofgl.fonctionnement_par_hab"] / 1e9
+			r.Investissement = p.Totaux["ofgl.investissement_par_hab"] / 1e9
+		case "COMMUNE":
+			fonctCommunes = p.Totaux["ofgl.fonctionnement_par_hab"] / 1e9
+		}
+	}
+	if total := r.Fonctionnement + fonctCommunes; total > 0 {
+		r.PartBlocCommunal = 100 * r.Fonctionnement / total
+	}
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*) FROM core.mandate
+		WHERE mandate_type='CONSEILLER_COMMUNAUTAIRE' AND upper(validity) IS NULL`).Scan(&r.Elus); err != nil {
+		return nil, err
+	}
+	return r, nil
+}
+
 // cartesCollectivites dessine les deux cartes de l'index : une par niveau, sur
 // la même boîte, donc superposables.
 
@@ -823,6 +869,13 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 		st.NbEPCISurCarte = len(epci.Codes) + len(epci.outremer)
 		st.CarteEPCI = pleine(epci, casesE, unite, format)
 		st.ResumeEPCI = resumerCarte(casesE)
+		if st.ResumeEPCI != nil {
+			reb, err := chargerResumeEPCIBudget(ctx, pool, st, st.ResumeEPCI.Nombre, st.ResumeEPCI.Total)
+			if err != nil {
+				return err
+			}
+			st.ResumeEPCIBudget = reb
+		}
 		// Les frontières des départements et des régions, tracées par-dessus
 		// les intercommunalités : la même boîte Lambert-93, donc le même
 		// repère. Un trait fin pour le département, épais pour la région —

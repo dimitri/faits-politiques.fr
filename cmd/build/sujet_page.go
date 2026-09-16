@@ -502,7 +502,10 @@ func onglezCartesNiveaux(section string) string {
 		return section // la mise en page de /collectivites/ a changé : mieux vaut la page complète qu'une carte perdue
 	}
 
-	libelles := []string{"Régions", "Départements", "Intercommunalités"}
+	// L'ordre suit celui des .bloc-carte dans collectivites.gohtml : EPCI en
+	// premier, le sujet réel de cette page (élection indirecte), pas les
+	// régions par habitude de tri administratif.
+	libelles := []string{"Intercommunalités", "Régions", "Départements"}
 	var b strings.Builder
 	b.WriteString(titre)
 	b.WriteString(avant)

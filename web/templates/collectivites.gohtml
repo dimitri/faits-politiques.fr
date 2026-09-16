@@ -29,10 +29,37 @@ ci-dessous.</p>
 
 <h2>Trois niveaux, trois cartes</h2>
 <p class="q">{{.IndicLibelle}}, en {{$c.Exercice}}. Les trois cartes couvrent le même
-territoire dans le même repère&nbsp;: elles se superposent exactement. Celle des intercommunalités
-est nouvelle&nbsp;: jusqu'ici, le site connaissait l'appartenance de chaque commune à son groupement
-sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
+territoire dans le même repère&nbsp;: elles se superposent exactement. L'intercommunalité —
+la « CC », l'agglo, la métropole — est l'échelon où cette gouvernance indirecte se joue tous
+les jours&nbsp;: c'est son conseil communautaire, pas un vote direct, qui décide le budget montré
+ici.</p>
 <div class="cartes-empilees">
+  <div class="bloc-carte ligne" id="carte-epci">
+    {{if $c.CarteEPCI.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+    <div>
+      {{$c.CarteEPCI.SVG}}
+      {{if gt (len $c.CarteEPCI.Cartons) 8}}
+      <details class="plus">
+        <summary>Outre-mer&nbsp;: {{len $c.CarteEPCI.Cartons}} intercommunalités</summary>
+        <div class="dedans">{{template "cartons" $c.CarteEPCI.Cartons}}</div>
+      </details>
+      {{else}}{{template "cartons" $c.CarteEPCI.Cartons}}{{end}}
+    </div>
+    <div>
+      <h3>Par intercommunalité à fiscalité propre</h3>
+      {{$t := $c.CarteEPCI.Teintes}}<div class="echelle"><span class="u">{{$c.CarteEPCI.Unite}}</span>
+        {{range $i, $b := $c.CarteEPCI.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+      {{with $c.ResumeEPCIBudget}}<dl class="legende-situation">
+        <div><dt>Intercommunalités à fiscalité propre</dt><dd><b>{{nb .Nombre}}</b></dd></div>
+        <div><dt>Budget de fonctionnement cumulé</dt><dd><b>{{dec .Fonctionnement 1}}&nbsp;Md€</b></dd></div>
+        <div><dt>Budget d'investissement cumulé</dt><dd><b>{{dec .Investissement 1}}&nbsp;Md€</b></dd></div>
+        <div><dt>Part du bloc communal</dt><dd><b>{{dec .PartBlocCommunal 0}}&nbsp;%</b><span>du fonctionnement communes + intercommunalités passe par l'échelon indirect</span></dd></div>
+        <div><dt>Conseillers communautaires</dt><dd><b>{{nb .Elus}}</b><span>élus indirects, en mandat</span></dd></div>
+        <div><dt>Population couverte</dt><dd><b>{{nb (int .Population)}}</b> habitants</dd></div>
+      </dl>{{end}}
+    </div>
+    {{end}}
+  </div>
   <div class="bloc-carte ligne">
     {{if $c.CarteRegions.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
     <div>
@@ -73,31 +100,6 @@ sans jamais pouvoir en tracer le contour — voir la note sous la carte.</p>
     </div>
     {{end}}
   </div>
-  <div class="bloc-carte ligne" id="carte-epci">
-    {{if $c.CarteEPCI.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
-    <div>
-      {{$c.CarteEPCI.SVG}}
-      {{if gt (len $c.CarteEPCI.Cartons) 8}}
-      <details class="plus">
-        <summary>Outre-mer&nbsp;: {{len $c.CarteEPCI.Cartons}} intercommunalités</summary>
-        <div class="dedans">{{template "cartons" $c.CarteEPCI.Cartons}}</div>
-      </details>
-      {{else}}{{template "cartons" $c.CarteEPCI.Cartons}}{{end}}
-    </div>
-    <div>
-      <h3>Par intercommunalité à fiscalité propre</h3>
-      {{$t := $c.CarteEPCI.Teintes}}<div class="echelle"><span class="u">{{$c.CarteEPCI.Unite}}</span>
-        {{range $i, $b := $c.CarteEPCI.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
-      {{with $c.ResumeEPCI}}<dl class="legende-situation">
-        <div><dt>Intercommunalités</dt><dd><b>{{nb .Nombre}}</b></dd></div>
-        <div><dt>Population totale</dt><dd><b>{{nb (int .Total)}}</b> {{$c.CarteEPCI.Unite}}</dd></div>
-        <div><dt>Médiane</dt><dd><b>{{nb (int .Mediane)}}</b> {{$c.CarteEPCI.Unite}}</dd></div>
-        <div><dt>Maximum</dt><dd><b>{{nb (int .MaxValeur)}}</b> {{$c.CarteEPCI.Unite}}<span>{{.MaxNom}}</span></dd></div>
-        <div><dt>Minimum</dt><dd><b>{{nb (int .MinValeur)}}</b> {{$c.CarteEPCI.Unite}}<span>{{.MinNom}}</span></dd></div>
-      </dl>{{end}}
-    </div>
-    {{end}}
-  </div>
 </div>
 <p class="attr-osm">Contours régions/départements&nbsp;: © les contributeurs OpenStreetMap, sous
 ODbL&nbsp;1.0. Contours des {{nb $c.NbEPCISurCarte}} intercommunalités&nbsp;: IGN Admin Express COG
@@ -106,10 +108,6 @@ communes membres publiée directement par l'IGN, jamais recalculée ici.
 {{if $c.HorsCarte}}Absents de la carte départementale, parce qu'ils n'ont pas de contour propre à ce
 niveau&nbsp;: {{range $i, $h := $c.HorsCarte}}{{if $i}}, {{end}}{{$h}}{{end}}. Leurs chiffres sont
 dans le tableau.{{end}}</p>
-<p class="note">La carte des intercommunalités est nouvelle sur ce site&nbsp;: on connaissait
-l'appartenance de chaque commune à son groupement, mais aucune source ne donnait le tracé de chaque
-commune pour en déduire le contour d'un groupement. Les contours communaux publiés par l'IGN,
-millésime par millésime, le permettent désormais, et cette carte en est la première utilisation.</p>
 
 <h2>Les communes, département par département</h2>
 <p class="q">{{len .T.Cartes}} cartes, {{nb .T.Communes}} communes, {{.T.Departements}} départements
