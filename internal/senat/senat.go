@@ -105,7 +105,13 @@ func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, workDir string)
 	}
 	// Le dump contient des instructions de suppression préalables qui échouent
 	// sur un schéma vide : on les laisse échouer plutôt que de le réécrire.
-	cmd := exec.CommandContext(ctx, "psql", "-q", "-v", "ON_ERROR_STOP=0")
+	//
+	// -d $DATABASE_URL, explicite : sans elle, psql se rabat sur ses valeurs
+	// par défaut (socket Unix local), qui n'existent pas quand Postgres tourne
+	// dans un conteneur — invisible en local, où senat_raw existe déjà depuis
+	// longtemps et court-circuite cette fonction (dejaLa > 0 ci-dessus), mais
+	// immédiat sur une base neuve (CI, ou tout premier chargement).
+	cmd := exec.CommandContext(ctx, "psql", "-q", "-v", "ON_ERROR_STOP=0", "-d", os.Getenv("DATABASE_URL"))
 	cmd.Env = append(os.Environ(), "PGOPTIONS=--search_path=senat_raw")
 	cmd.Stdin = strings.NewReader(sql)
 	if out, err := cmd.CombinedOutput(); err != nil {
