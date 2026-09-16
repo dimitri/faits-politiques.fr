@@ -114,6 +114,15 @@ logement ordinaire :
 | Du 95ᵉ au 99ᵉ centile | 952 700 € | 1 034 600 € | 1 308 100 € | 1 434 000 € | 18 % |
 | Au-delà du 99ᵉ centile | 2 076 500 € | 2 239 200 € | 4 534 600 € | 4 869 000 € | 15 % |
 
+**La tranche la plus fine ci-dessus (au-delà du 99ᵉ centile, patrimoine moyen 4,87 M€ en 2021) reste
+très en-deçà du sommet absolu.** Selon une estimation de l'économiste Gabriel Zucman, promoteur d'un
+impôt plancher sur les très hauts patrimoines (« taxe Zucman », débattue à l'Assemblée nationale en
+2025), environ **1 800 foyers fiscaux** détiendraient en France un patrimoine net supérieur à
+100 millions d'euros. **Ce chiffre est l'estimation d'un auteur engagé dans le débat sur cette
+proposition, pas une statistique officielle Insee ou DGFiP** — il n'est pas chargé comme donnée
+vérifiée dans ce dossier (aucune table `core.patrimoine_haut` ne descend à ce niveau de finesse),
+seulement cité ici avec son origine précise pour donner un ordre de grandeur au lecteur.
+
 **Les 10 % de ménages les plus fortunés (les trois tranches ci-dessus) détiennent 47 % de la masse
 de patrimoine brut de l'ensemble des ménages en 2021** — patrimoine moyen 1 492 000 €, contre
 858 400 € pour le seul dixième inférieur de ce groupe (90ᵉ-95ᵉ centile).

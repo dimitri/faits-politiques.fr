@@ -72,9 +72,16 @@ le temps :</p>
     <span><strong>{{.Libelle}}</strong> — {{dec .PartPct 1}}&nbsp;% du revenu, environ
     {{nb .Personnes}} personnes</span></div>{{end}}
 </div>
-<p class="note abs">Les effectifs sont, comme au § 1, un ordre de grandeur calculé à partir de la
-population de France métropolitaine {{$r.AnneePopulation}}, pas un chiffre publié directement par la
-source.</p>
+<p class="note abs">Le 100&nbsp;% de ce diagramme, c'est la masse des revenus déclarés par unité de
+consommation de l'ensemble de la population (France métropolitaine, ménages fiscaux à revenu positif
+ou nul) — une masse réelle, mais dont l'Insee ne publie le <strong>montant total en euros</strong>
+nulle part dans cette fiche (§ 2 du détail explique pourquoi ce dossier ne le reconstitue pas depuis
+un autre agrégat). Les effectifs, eux, sont un ordre de grandeur calculé à partir de la population de
+France métropolitaine {{$r.AnneePopulation}}, comme au § 1 — pas un chiffre publié directement par la
+source. <strong>Le 0,01&nbsp;% n'apparaît pas comme cinquième segment</strong> : la même fiche qui
+publie ces quatre parts année par année s'arrête au 0,1&nbsp;%, sans le sous-diviser — seul son
+<em>seuil</em> d'entrée ({{nb (index $r.Seuils 4).RevenuAvant}}&nbsp;€/an par UC en 2021), pas sa part du
+revenu, est connu et déjà montré au § 1 ci-dessus.</p>
 
 <h2>Le patrimoine des plus hauts patrimoines, {{$r.AnneePatrimoine}}</h2>
 <p class="q">Patrimoine brut (avant déduction des emprunts), France hors Mayotte. Une notion
@@ -86,6 +93,13 @@ distincte du revenu ci-dessus, jamais additionnée.</p>
   <td class="n">{{nb .Moyen2021}}&nbsp;€</td>
   <td class="n">{{dec .PartMasse2021 0}}&nbsp;%</td></tr>{{end}}</tbody>
 </table></div>
+<p class="note abs">La tranche la plus fine ci-dessus (au-delà du 99ᵉ centile) reste très en-deçà du
+sommet absolu du patrimoine : selon une estimation de l'économiste Gabriel Zucman, promoteur d'un
+impôt plancher sur les très hauts patrimoines (« taxe Zucman », débattue à l'Assemblée nationale en
+2025), environ <strong>1 800 foyers fiscaux</strong> détiendraient un patrimoine net supérieur à
+100 millions d'euros en France. <strong>Ce chiffre est une estimation d'un auteur engagé dans le
+débat, pas une statistique officielle Insee ou DGFiP</strong> — il n'est pas chargé comme donnée
+vérifiée dans ce dossier, seulement cité avec son origine précise, pour situer l'ordre de grandeur.</p>
 <p class="q">Les trois tranches ci-dessus (10&nbsp;% des ménages) détiennent à elles seules près de la
 moitié de la masse de patrimoine brut de l'ensemble des ménages :</p>
 {{$autres := sub64 100 $r.Part10PctPatrimoine}}
