@@ -1,7 +1,7 @@
 DATABASE_URL ?= postgres://fp:fp@localhost:55432/fp?sslmode=disable
 export DATABASE_URL
 
-.PHONY: db-up db-down db-image db-dump db-restore migrate ingest build test reset site
+.PHONY: db-up db-down db-image db-dump db-restore migrate ingest build test reset site man fpctl
 
 db-up:            ## démarre Postgres local
 	docker compose up -d --wait db
@@ -63,17 +63,29 @@ db-restore: db-up ## restaure db/dump/fp.dump dans la base courante
 	docker compose exec -T db psql -U fp -d fp -v ON_ERROR_STOP=1 \
 		-f /docker-entrypoint-initdb.d/01-extensions.sql
 
-migrate: db-up    ## applique les migrations
-	go run ./cmd/ingest -only=migrate
+fpctl:            ## compile le point d'entrée unique du projet (bin/fpctl)
+	go build -o bin/fpctl ./cmd/fpctl
 
-ingest: db-up     ## télécharge, archive et charge les jeux de données
-	go run ./cmd/ingest
+# Régénère les pages de manuel de fpctl depuis leurs sources Markdown
+# (cmd/fpctl/man/*.md). Nécessite pandoc — un outil de développement, jamais
+# une dépendance d'exécution : les .1 générés sont gravés dans le binaire
+# (go:embed) et lus au vol par `man`, présent sur toute machine Unix.
+man:              ## régénère les pages de manuel de fpctl (nécessite pandoc)
+	@for f in cmd/fpctl/man/*.md; do \
+		pandoc -s -t man "$$f" -o "$${f%.md}.1"; \
+	done
 
-build:            ## génère le site statique dans ./site
-	go run ./cmd/build
+migrate: db-up fpctl    ## applique les migrations
+	./bin/fpctl ingest -only=migrate
 
-verify:            ## contrôles de cohérence des données chargées
-	go run ./cmd/verify
+ingest: db-up fpctl     ## télécharge, archive et charge les jeux de données
+	./bin/fpctl ingest
+
+build: fpctl            ## génère le site statique dans ./site
+	./bin/fpctl build
+
+verify: fpctl           ## contrôles de cohérence des données chargées
+	./bin/fpctl verify
 
 site: ingest verify build
 
