@@ -79,15 +79,23 @@ func dessinerSeuilsPauvrete(deciles []pointDecile, seuil50, seuil60 float64, for
 	if len(deciles) == 0 {
 		return ""
 	}
-	const w, h, ml, mr, mt, mb = 720.0, 260.0, 8.0, 8.0, 20.0, 30.0
+	// mr large : une vraie colonne vide à droite des neuf barres, pour les
+	// étiquettes des deux seuils. Sans elle, la ligne d'un seuil traverse la
+	// plupart des barres (seule D1 est plus basse que les deux seuils) et
+	// aucun endroit du tracé n'est libre pour écrire dessus.
+	const w, h, ml, mr, mt, mb = 720.0, 270.0, 8.0, 118.0, 30.0, 30.0
 	max := seuil60
 	for _, p := range deciles {
 		if p.Valeur > max {
 			max = p.Valeur
 		}
 	}
-	max *= 1.08 // un peu d'air au-dessus de la barre la plus haute
-	n := float64(len(deciles))
+	max *= 1.15 // de l'air au-dessus de la barre la plus haute, pour son étiquette
+	// Dix créneaux, pas neuf : le dixième est réservé à D10, qui n'a pas de
+	// plafond à dessiner (voir le dégradé plus bas), mais doit garder sa
+	// place dans la rangée pour que la lecture "dix tas de 10 %" reste vraie
+	// à l'œil, pas seulement dans le texte.
+	n := float64(len(deciles) + 1)
 	pas := (w - ml - mr) / n
 	gap := pas * 0.16
 	y := func(v float64) float64 { return mt + (h-mt-mb)*(1-v/max) }
@@ -95,10 +103,34 @@ func dessinerSeuilsPauvrete(deciles []pointDecile, seuil50, seuil60 float64, for
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg class="courbe barres-an seuils-pauvrete" viewBox="0 0 %.0f %.0f" role="img" `+
 		`aria-label="%s">`, w, h, template.HTMLEscapeString(fmt.Sprintf(
-		"Déciles de niveau de vie et seuils de pauvreté : le premier décile plafonne à %s, "+
-			"le seuil à 60%% de la médiane est à %s", format(deciles[0].Valeur), format(seuil60))))
+		"Les dix pour cent de Français au niveau de vie le plus bas (premier décile) vivent avec "+
+			"%s ou moins par mois ; le seuil de pauvreté à 60%% du niveau de vie médian est à %s ; "+
+			"le dixième décile, le plus aisé, n'a pas de plafond connu",
+		format(deciles[0].Valeur), format(seuil60))))
+	// Le dégradé de D10 : la même teinte que les autres barres en bas, vers
+	// transparent en haut — une barre qui s'estompe plutôt qu'une barre qui
+	// s'arrête, pour qu'« aucun plafond » se voie sans phrase à côté.
+	b.WriteString(`<defs><linearGradient id="d10fade" x1="0" y1="1" x2="0" y2="0">` +
+		`<stop offset="0%" stop-color="#7FB0BA"/>` +
+		`<stop offset="75%" stop-color="#7FB0BA" stop-opacity=".35"/>` +
+		`<stop offset="100%" stop-color="#7FB0BA" stop-opacity="0"/></linearGradient></defs>`)
 	fmt.Fprintf(&b, `<line class="axe" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>`,
 		ml, h-mb, w-mr, h-mb)
+
+	// Les lignes traversent tout le tracé (jusqu'à w-mr) ; leur étiquette,
+	// elle, vit uniquement dans la colonne vide au-delà — jamais superposée à
+	// une barre ni au chiffre qui la surmonte. Les deux seuils ne sont qu'à
+	// une vingtaine d'euros l'un de l'autre : chaque étiquette est décalée
+	// (au-dessus pour 60 %, en dessous pour 50 %) pour ne pas se chevaucher.
+	ligneSeuil := func(seuil float64, pct string, decale float64) {
+		yy := y(seuil)
+		fmt.Fprintf(&b, `<line class="ligne-seuil" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>`,
+			ml, yy, w-mr, yy)
+		fmt.Fprintf(&b, `<text class="et-seuil" x="%.1f" y="%.1f">%s — %s</text>`,
+			w-mr+8, yy+decale, pct, template.HTMLEscapeString(format(seuil)))
+	}
+	ligneSeuil(seuil60, "60 %", -7)
+	ligneSeuil(seuil50, "50 %", 16)
 
 	for i, p := range deciles {
 		x := ml + pas*float64(i) + gap/2
@@ -110,28 +142,30 @@ func dessinerSeuilsPauvrete(deciles []pointDecile, seuil50, seuil60 float64, for
 			cl = "b der"
 		}
 		fmt.Fprintf(&b, `<rect class="%s" x="%.1f" y="%.1f" width="%.1f" height="%.1f">`+
-			`<title>D%d — plafond à %s</title></rect>`,
-			cl, x, top, pas-gap, (h-mb)-top, p.Decile, template.HTMLEscapeString(format(p.Valeur)))
+			`<title>%d %% des Français ont un niveau de vie inférieur à %s par mois</title></rect>`,
+			cl, x, top, pas-gap, (h-mb)-top, (p.Decile)*10, template.HTMLEscapeString(format(p.Valeur)))
+		// Une valeur au-dessus de CHAQUE barre : avec seulement neuf barres,
+		// contrairement à une série de trente ans, le graphique reste lisible
+		// et un lecteur non statisticien n'a besoin de survoler aucune barre
+		// pour lire le montant.
+		fmt.Fprintf(&b, `<text class="et" x="%.1f" y="%.1f" text-anchor="middle">%s</text>`,
+			x+(pas-gap)/2, top-6, template.HTMLEscapeString(format(p.Valeur)))
 		fmt.Fprintf(&b, `<text class="an" x="%.1f" y="%.1f" text-anchor="middle">D%d</text>`,
 			x+(pas-gap)/2, h-8, p.Decile)
 	}
-	// Valeur explicite sur D1 et D9 seulement (comme courbe()) : une valeur
-	// par barre transformerait le graphique en tableau mal rangé.
-	fmt.Fprintf(&b, `<text class="et" x="%.1f" y="%.1f" text-anchor="middle">%s</text>`,
-		ml+pas*0.5, y(deciles[0].Valeur)-8, template.HTMLEscapeString(format(deciles[0].Valeur)))
-	dernier := deciles[len(deciles)-1]
-	fmt.Fprintf(&b, `<text class="et" x="%.1f" y="%.1f" text-anchor="middle">%s</text>`,
-		ml+pas*(n-0.5), y(dernier.Valeur)-8, template.HTMLEscapeString(format(dernier.Valeur)))
 
-	ligneSeuil := func(seuil float64, pct string, decale float64) {
-		yy := y(seuil)
-		fmt.Fprintf(&b, `<line class="ligne-seuil" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>`,
-			ml, yy, w-mr, yy)
-		fmt.Fprintf(&b, `<text class="et-seuil" x="%.1f" y="%.1f">Seuil à %s de la médiane — %s</text>`,
-			ml+4, yy+decale, pct, template.HTMLEscapeString(format(seuil)))
-	}
-	ligneSeuil(seuil60, "60 %", -5)
-	ligneSeuil(seuil50, "50 %", 13)
+	// D10 : aucune donnée ne le borne (le neuvième décile est déjà le
+	// dernier plafond que la table publie), donc aucune barre de hauteur
+	// définie — seulement ce dégradé, du haut de D9 jusqu'au sommet du
+	// graphique, pour dire "continue au-delà de ce qui est montré ici".
+	xD10 := ml + pas*float64(len(deciles)) + gap/2
+	fmt.Fprintf(&b, `<rect class="d10" x="%.1f" y="%.1f" width="%.1f" height="%.1f" fill="url(#d10fade)">`+
+		`<title>Le dixième décile (10&#37; les plus aisés) n'a pas de plafond : son niveau de vie le plus haut n'est pas borné</title></rect>`,
+		xD10, mt, pas-gap, (h-mb)-mt)
+	fmt.Fprintf(&b, `<text class="et d10-et" x="%.1f" y="%.1f" text-anchor="middle">non borné</text>`,
+		xD10+(pas-gap)/2, mt+34)
+	fmt.Fprintf(&b, `<text class="an" x="%.1f" y="%.1f" text-anchor="middle">D10</text>`,
+		xD10+(pas-gap)/2, h-8)
 
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())

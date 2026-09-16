@@ -636,7 +636,7 @@ func enBref(ctx context.Context, pool *pgxpool.Pool, s *Sujet, acc *DonneesAccue
 	case "pauvrete":
 		macro("pauvrete.taux", "taux de pauvreté", "Eurostat, seuil à 60 % du revenu médian", pct)
 		macro("pauvrete.nombre", "personnes sous le seuil de pauvreté", "Eurostat", func(v float64) string { return Decimal(v/1000, 1) + "\u00a0millions" })
-		macro("rsa.foyers", "foyers allocataires du RSA", "Cnaf / Drees", func(v float64) string { return Nombre(int(v*1000 + 0.5)) })
+		macro("rsa.foyers", "foyers allocataires du RSA", "Cnaf / Drees", func(v float64) string { return Nombre(int(v + 0.5)) })
 	case "securite-sociale":
 		sousSecteur("S1314", "de dépenses des administrations de sécurité sociale")
 		requete(`SELECT annee, solde_meur::float8 FROM derived.budget_sous_secteur WHERE secteur='S1314' AND solde_meur IS NOT NULL ORDER BY annee DESC LIMIT 1`,

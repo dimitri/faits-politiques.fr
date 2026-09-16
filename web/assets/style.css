@@ -766,6 +766,11 @@ font:400 .68rem/1.2 var(--mono);font-variant-numeric:tabular-nums}
    échelle — même convention que .avec-ligne pour le pointillé. */
 .seuils-pauvrete .ligne-seuil{stroke:var(--encre);stroke-width:1.4;stroke-dasharray:5 3}
 .seuils-pauvrete .et-seuil{font:500 .68rem/1 var(--sans);fill:var(--encre)}
+.seuils-pauvrete .d10-et{font-style:italic;fill:var(--attenue);font-weight:400}
+/* D1 plafonne juste entre les deux seuils : sans halo, la ligne pointillée
+   traverse visiblement son étiquette de valeur (« 1 100 € » barré). Un
+   contour couleur papier, peint avant le texte, l'occulte proprement. */
+.seuils-pauvrete .et{paint-order:stroke;stroke:var(--papier);stroke-width:3px;stroke-linejoin:round}
 /* Dépenses et recettes : deux teintes d'une même rampe, la dépense foncée.
    Ce n'est pas un code « bien / mal » : aucune couleur d'alerte. */
 .graphe .dep,.legende i.dep{fill:#1E5C69;background:#1E5C69}

@@ -1149,12 +1149,25 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		if seuilsPauvrete != nil && strings.Contains(string(d.Corps), "<!-- schema:seuils-pauvrete -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:seuils-pauvrete -->",
 				`<figure class="schema">`+string(seuilsPauvrete.SVG)+`<figcaption>`+
-					`Les neuf déciles de niveau de vie mensuel par unité de consommation, `+
-					fmt.Sprint(seuilsPauvrete.Annee)+` (Insee-Filosofi) — chaque barre est le `+
-					`plafond du décile, pas son montant propre. Seul le premier décile (D1) `+
-					`plafonne sous le seuil à 60&nbsp;% de la médiane (teinte plus sombre) ; `+
-					`le second (D2) le chevauche, cohérent avec un taux de pauvreté à 60&nbsp;% `+
-					`légèrement supérieur à 10&nbsp;%. L'axe part de zéro.`+
+					`<strong>Comment lire ce graphique</strong> : classez tous les Français du `+
+					`niveau de vie le plus bas au plus haut, puis coupez cette file en dix tas `+
+					`égaux de 10&nbsp;% chacun — D1 est le tas le plus pauvre, D9 le neuvième. `+
+					`Chaque barre est le plafond de son tas, `+fmt.Sprint(seuilsPauvrete.Annee)+
+					` (Insee-Filosofi) : personne dans ce dixième de la population ne touche plus `+
+					`que le montant affiché au-dessus de sa barre. Le dixième tas, D10 — les `+
+					`10&nbsp;% les plus aisés —, n'a par définition aucun plafond&nbsp;: sa barre `+
+					`s'estompe vers le haut plutôt que de s'arrêter net, pour montrer qu'elle `+
+					`existe sans prétendre savoir où elle finit.`+
+					`<br><strong>Le « niveau de vie »</strong> n'est pas le revenu du foyer tel quel, mais `+
+					`ce revenu ramené à sa taille (un couple sans enfant n'a pas les mêmes besoins `+
+					`qu'une famille de quatre) — de quoi comparer des foyers de toutes tailles sur `+
+					`la même échelle, à peu près « ce que toucherait une personne seule pour vivre `+
+					`aussi bien ».<br>`+
+					`Les deux lignes pointillées sont les seuils de pauvreté&nbsp;: en dessous, `+
+					`l'Insee et Eurostat considèrent qu'on est pauvre. Seul le premier dixième `+
+					`(D1) plafonne sous le seuil à 60&nbsp;% (teinte plus sombre) ; le second (D2) `+
+					`le chevauche — cohérent avec un taux de pauvreté à 60&nbsp;% légèrement `+
+					`supérieur à 10&nbsp;%. L'axe part de zéro.`+
 					`</figcaption></figure>`))
 		}
 	}
