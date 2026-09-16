@@ -132,6 +132,8 @@ en dette les régions — dix-sept collectivités — portent presque autant que
 intercommunalités à fiscalité propre.</p>
 
 <h2>D'où vient l'argent</h2>
+
+<h3>Qui vote la recette, qui la reçoit sans la voter</h3>
 <p class="q">Deux origines à ne pas confondre&nbsp;: la fiscalité que la collectivité vote elle-même
 (« Impôts et taxes »), et la dotation globale de fonctionnement (DGF) que l'État lui verse chaque
 année. Le reste des recettes totales — subventions diverses, produits des services, autres
@@ -151,6 +153,40 @@ du produit de la TVA. Leur part d'« impôts et taxes » reste pourtant comparab
 niveaux&nbsp;: cette recette de substitution semble comptée dans cette catégorie par l'OFGL, bien que
 la région n'en vote pas le taux — une hypothèse de lecture cohérente avec les chiffres, que cette
 note ne peut pas confirmer faute d'avoir ouvert la méthodologie détaillée de l'OFGL.</p>
+
+{{with $c.FiscaliteLocale}}
+<h3>Qui paie, via quel mécanisme</h3>
+<p class="q">Quatre impôts locaux réels, {{.Annee}}, pour les seules communes et intercommunalités
+(pas département ni région, qui n'en reçoivent plus depuis les réformes 2020-2021) — pas des noms
+abstraits de niveaux de collectivité, mais des mécanismes fiscaux nommés et qui les paie.</p>
+<div class="repartition-barre" role="img" aria-label="Ménages {{dec .MenagesPct 0}} %, entreprises {{dec .EntreprisesPct 0}} %">
+  <i style="width:{{printf "%.1f" .MenagesPct}}%;background:#1E5C69" title="Ménages — {{dec .MenagesPct 0}} %"></i>
+  <i style="width:{{printf "%.1f" .EntreprisesPct}}%;background:#8C4B3A" title="Entreprises — {{dec .EntreprisesPct 0}} %"></i>
+</div>
+<div class="repartition-legende">
+  <div><i style="background:#1E5C69"></i><span><strong>Ménages</strong> — {{dec .Menages 1}}&nbsp;Md€
+    ({{dec .MenagesPct 0}}&nbsp;%), via le foncier bâti et non bâti</span></div>
+  <div><i style="background:#8C4B3A"></i><span><strong>Entreprises</strong> — {{dec .Entreprises 1}}&nbsp;Md€
+    ({{dec .EntreprisesPct 0}}&nbsp;%), via la CFE et la TASCOM</span></div>
+</div>
+<div class="scroll"><table class="donnees">
+<thead><tr><th>Qui paie</th><th>Mécanisme</th><th class="n">Montant, bloc communal</th></tr></thead>
+<tbody>
+{{range $i, $l := .DetailMenages}}<tr>{{if eq $i 0}}<td rowspan="{{len $c.FiscaliteLocale.DetailMenages}}">Ménages</td>{{end}}
+  <td>{{$l.Libelle}}</td><td class="n">{{dec $l.Montant 1}}&nbsp;Md€</td></tr>{{end}}
+{{range $i, $l := .DetailEntreprises}}<tr>{{if eq $i 0}}<td rowspan="{{len $c.FiscaliteLocale.DetailEntreprises}}">Entreprises</td>{{end}}
+  <td>{{$l.Libelle}}</td><td class="n">{{dec $l.Montant 1}}&nbsp;Md€</td></tr>{{end}}
+</tbody></table></div>
+<p class="note abs"><strong>Quatre impôts sur beaucoup d'autres.</strong> Non chargés ici&nbsp;:
+l'IFER (impôt forfaitaire sur les entreprises de réseau — la source répète la même valeur
+régionale sur chaque commune membre, un piège de comptage vérifié directement plutôt que deviné),
+la taxe d'habitation résiduelle sur les résidences secondaires, la taxe d'enlèvement des ordures
+ménagères (TEOM, un service facturé aux occupants, pas un impôt réparti ménages/entreprises), et
+les surtaxes GEMAPI/TSE additionnelles. Exclus aussi&nbsp;: les frais de gestion perçus par
+l'État sur ces quatre impôts, et la part reçue par les syndicats et chambres consulaires — cette
+section montre ce que reçoivent les communes et intercommunalités, pas la totalité collectée.
+Source&nbsp;: DGFiP (Registre des éléments d'imposition), diffusion OFGL.</p>
+{{end}}
 
 <h2>Les {{len $c.Regions}} régions</h2>
 <div class="scroll"><table>

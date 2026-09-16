@@ -103,6 +103,26 @@ type StatsCollectivites struct {
 	NbFiscalitePropre        int
 	EPCIParDept              map[string][]*Groupement
 	HorsCarte                []string
+	FiscaliteLocale          *StatsFiscaliteLocale
+}
+
+// StatsFiscaliteLocale : qui paie, via quel mécanisme fiscal nommé — pas
+// seulement quel niveau de collectivité reçoit (voir Poids ci-dessus). Bloc
+// communal seulement (commune + intercommunalité), quatre dispositifs
+// seulement (foncier bâti, foncier non bâti, CFE, TASCOM) — voir le
+// commentaire de internal/communes/fiscalite_locale.go pour ce qui est
+// délibérément exclu.
+type StatsFiscaliteLocale struct {
+	Annee                      int
+	Menages, Entreprises       float64 // Md€
+	MenagesPct, EntreprisesPct float64
+	DetailMenages              []LigneFiscaliteLocale
+	DetailEntreprises          []LigneFiscaliteLocale
+}
+
+type LigneFiscaliteLocale struct {
+	Libelle string
+	Montant float64 // Md€
 }
 
 type Groupement struct {
@@ -174,6 +194,76 @@ var libelleNature = map[string]string{
 // 9 282 échelons de décision.
 var natureAFiscalite = map[string]bool{
 	"CC": true, "CA": true, "CU": true, "METRO": true, "MET69": true, "EPT": true,
+}
+
+var libelleDispositifFiscal = map[string]string{
+	"FB": "Foncier bâti", "FNB": "Foncier non bâti",
+	"CFE": "Cotisation foncière des entreprises (CFE)", "TASCOM": "Taxe sur les surfaces commerciales (TASCOM)",
+}
+var ordreDispositifFiscal = []string{"FB", "FNB", "CFE", "TASCOM"}
+
+// categoriePayeurDispositif : même classification que
+// internal/communes/fiscalite_locale.go (categoriePayeur, non exportée) —
+// dupliquée ici plutôt qu'importée, cmd/build ne dépendant d'aucun paquet
+// internal/communes pour l'instant.
+var categoriePayeurDispositif = map[string]string{
+	"FB": "MENAGES", "FNB": "MENAGES",
+	"CFE": "ENTREPRISES", "TASCOM": "ENTREPRISES",
+}
+
+// chargerFiscaliteLocale : le dernier millésime disponible de
+// core.fiscalite_directe_locale (internal/communes/fiscalite_locale.go),
+// sommé sur les deux destinataires chargés (commune, intercommunalité) et
+// catégorisé ménages/entreprises.
+func chargerFiscaliteLocale(ctx context.Context, pool *pgxpool.Pool) (*StatsFiscaliteLocale, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT annee, dispositif, categorie_payeur, sum(montant_eur)
+		FROM core.fiscalite_directe_locale
+		WHERE annee = (SELECT max(annee) FROM core.fiscalite_directe_locale)
+		GROUP BY annee, dispositif, categorie_payeur`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	montants := map[string]float64{} // code dispositif -> € (avant conversion en Md€)
+	f := &StatsFiscaliteLocale{}
+	for rows.Next() {
+		var dispositif, cat string
+		var montant float64
+		if err := rows.Scan(&f.Annee, &dispositif, &cat, &montant); err != nil {
+			return nil, err
+		}
+		montants[dispositif] = montant
+		if cat == "MENAGES" {
+			f.Menages += montant
+		} else {
+			f.Entreprises += montant
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if f.Menages+f.Entreprises == 0 {
+		return nil, nil // table absente ou vide : la section est simplement omise
+	}
+	total := f.Menages + f.Entreprises
+	f.MenagesPct = 100 * f.Menages / total
+	f.EntreprisesPct = 100 * f.Entreprises / total
+	for _, code := range ordreDispositifFiscal {
+		m, ok := montants[code]
+		if !ok {
+			continue
+		}
+		l := LigneFiscaliteLocale{Libelle: libelleDispositifFiscal[code], Montant: m / 1e9}
+		if categoriePayeurDispositif[code] == "MENAGES" {
+			f.DetailMenages = append(f.DetailMenages, l)
+		} else {
+			f.DetailEntreprises = append(f.DetailEntreprises, l)
+		}
+	}
+	f.Menages /= 1e9
+	f.Entreprises /= 1e9
+	return f, nil
 }
 
 // fusionConnue : les départements géographiques dont le budget n'est plus
@@ -496,6 +586,13 @@ func loadCollectivites(ctx context.Context, pool *pgxpool.Pool) (*StatsCollectiv
 		st.EPCIParDept[dep] = append(st.EPCIParDept[dep], g)
 	}
 	grows.Close()
+
+	fisc, err := chargerFiscaliteLocale(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+	st.FiscaliteLocale = fisc
+
 	return st, nil
 }
 

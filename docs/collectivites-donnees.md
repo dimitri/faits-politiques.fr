@@ -112,16 +112,32 @@ quelles intercommunalités déclarent une compétence donnée (voir
 appliqué à l'eau) ; le chiffrage financier de ce pont reste un chantier séparé, non
 commencé.
 
-**La fiscalité locale taux/bases (DGFiP REI)** — qui dirait, commune par
-commune, quel taux de taxe foncière est voté et sur quelle base — reste hors
-de ce chargement : plus lourde à charger, elle documenterait un niveau de
-détail que la question posée ici (transferts vs fiscalité propre, en masse)
-ne demande pas.
+**La fiscalité locale par mécanisme et par payeur (DGFiP REI), chargée
+partiellement.** `core.fiscalite_directe_locale` (migration 0119,
+`internal/communes/fiscalite_locale.go`) porte le produit réel national de
+quatre impôts du bloc communal — foncier bâti, foncier non bâti (ménages),
+CFE, TASCOM (entreprises) — agrégé côté serveur (group_by) plutôt que
+téléchargé commune par commune : le REI publie ~35 millions de lignes par
+commune × variable × année, et une seule variable de tête par dispositif ×
+destinataire (jamais un sous-total ET son détail, qui ne s'additionnent
+pas — un premier calcul naïf avait donné 21,9 Md€ de CFE intercommunale
+contre 7,3 Md€ réels). **Ce que ce chargement NE donne PAS** : le détail
+commune par commune (taux voté, base imposable) qu'évoquait la version
+précédente de cette note — seul l'agrégat national par mécanisme est
+chargé, la question posée ici étant « qui paie, au total » plutôt que la
+fiscalité de telle commune précise. IFER, taxe d'habitation résiduelle,
+TEOM et les surtaxes GEMAPI/TSE/CHAMBRE ne sont pas chargés — IFER en
+particulier répète la même valeur régionale sur chaque commune membre de
+la région (vérifié directement), ce qu'un agrégat national naïf prendrait
+pour une vraie ventilation territoriale et fausserait de plusieurs ordres
+de grandeur.
 
 ## Sources
 
 - OFGL (Observatoire des finances et de la gestion publique locales) /
   DGCL, données par habitant par niveau de collectivité, 2018-2025.
+- DGFiP, Registre des éléments d'imposition (REI), diffusion OFGL —
+  fiscalité directe locale, 2024-2025 (§ 4).
 - [docs/mairies-conception.md](mairies-conception.md), pour ce qui est
   comparable et ce qui ne l'est pas entre communes.
 - [docs/bassins-versants-donnees.md](bassins-versants-donnees.md), pour un
@@ -136,16 +152,24 @@ ne demande pas.
 | 1 | OFGL / DGCL, budgets communaux | 34 256 à 34 772 communes, 2018-2025 |
 | 2 | OFGL / DGCL, budgets région/département/groupement | mêmes trois codes, 2018-2025 |
 | 3 | Vue dérivée | déjà en place, étendue automatiquement aux trois nouveaux codes |
+| 4 | DGFiP (REI), diffusion OFGL — fiscalité directe locale | 4 dispositifs × 2 destinataires × 2 millésimes (2024-2025), agrégats nationaux |
 
 **Non chargé, et pourquoi** :
 - **Détail de la fraction de TVA versée aux régions** : non isolée dans la
   nomenclature OFGL utilisée ici — § 3.
-- **Fiscalité locale taux/bases (DGFiP REI)** : hors périmètre de cette
-  question, plus lourde à charger — § 4.
+- **Fiscalité locale, détail commune par commune (taux voté, base
+  imposable)** : seul l'agrégat national par mécanisme est chargé — § 4.
+- **IFER, taxe d'habitation résiduelle, TEOM, surtaxes GEMAPI/TSE/CHAMBRE** :
+  hors du périmètre ménages/entreprises visé, IFER de surcroît affecté d'un
+  piège de comptage vérifié (valeur régionale répétée par commune) — § 4.
 - **Chiffrage du financement territorial de la santé et de l'éducation** :
   compétences identifiées, montants non isolés — § 4.
 
 ## Versions
 
+- **Version 3** (16 septembre 2026) : qui paie, via quel mécanisme fiscal
+  (DGFiP REI, foncier bâti/non bâti, CFE, TASCOM) — ménages contre
+  entreprises, en plus de la distinction déjà chargée fiscalité propre
+  contre transferts de l'État.
 - **Version 2** (15 septembre 2026) : plan commun des dossiers.
 - **Version 1** (15 septembre 2026) : dotation globale de fonctionnement et fiscalité propre.

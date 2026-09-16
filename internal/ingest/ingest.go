@@ -60,7 +60,7 @@ import (
 // router vers ce paquet plutôt que de dupliquer son analyse d'options.
 func Run(args []string) error {
 	fs := flag.NewFlagSet("ingest", flag.ContinueOnError)
-	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | sae | rpps | hydro | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | paie | budget | presidentielle | media | checksums")
+	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | sae | rpps | hydro | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | fiscalite-locale | paie | budget | presidentielle | media | checksums")
 	rawDir := fs.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := fs.String("migrations", "db/migrations", "répertoire des migrations")
 	if err := fs.Parse(args); err != nil {
@@ -438,6 +438,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "population-age" {
 		fmt.Println("\npopulation par département et âge")
 		return communes.IngestPopulationAgeDepartement(ctx, pool, arch)
+	}
+	// Qui paie, via quel mécanisme fiscal nommé (foncier bâti/non bâti, CFE,
+	// TASCOM) — pas seulement quel niveau de collectivité reçoit. Voir
+	// docs/collectivites-donnees.md et internal/communes/fiscalite_locale.go.
+	if only == "fiscalite-locale" {
+		fmt.Println("\nfiscalité directe locale (OFGL/REI)")
+		return communes.IngestFiscaliteDirecteLocale(ctx, pool, arch)
 	}
 	// Ce qu'il y a dans le dernier décile de niveau de vie : hauts revenus et
 	// hauts patrimoines. Voir docs/repartition-richesse-donnees.md. Hors

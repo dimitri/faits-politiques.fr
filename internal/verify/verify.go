@@ -1891,6 +1891,29 @@ var checks = []check{
 		name:  "l'indice de Gini du patrimoine est supérieur à celui du niveau de vie",
 		query: `SELECT count(*) FROM core.gini_patrimoine_niveau_vie WHERE indice_patrimoine <= indice_niveau_vie`,
 	},
+	{
+		// Garde-fou de reconstruction de total : le foncier bâti seul (le
+		// plus gros des quatre dispositifs chargés) doit rester dans un
+		// ordre de grandeur plausible par année — le repère précis qui
+		// aurait détecté la confusion P33/P33_1+P33_2 découverte à
+		// l'ingestion (un calcul naïf donnait 21,9 Md€ de CFE intercommunale
+		// contre 7,3 Md€ réels : un facteur ~3, que cette fourchette large
+		// suffit à attraper si elle se reproduit sur le foncier bâti).
+		name: "le produit du foncier bâti (bloc communal) reste dans un ordre de grandeur plausible, chaque année",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sum(montant_eur) AS total FROM core.fiscalite_directe_locale
+		          WHERE dispositif = 'FB' GROUP BY annee
+		        ) x WHERE total NOT BETWEEN 20e9 AND 70e9`,
+	},
+	{
+		// categorie_payeur doit rester cohérent avec le dispositif fiscal —
+		// jamais une CFE classée « ménages » ou un foncier classé
+		// « entreprises » par une régression future du connecteur.
+		name: "categorie_payeur de fiscalite_directe_locale reste cohérent avec le dispositif fiscal",
+		query: `SELECT count(*) FROM core.fiscalite_directe_locale
+		        WHERE (dispositif IN ('FB','FNB') AND categorie_payeur <> 'MENAGES')
+		           OR (dispositif IN ('CFE','TASCOM') AND categorie_payeur <> 'ENTREPRISES')`,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur
