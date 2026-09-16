@@ -127,17 +127,6 @@ var indicsCollectivite = []IndicCollectivite{
 	{"ofgl.masse_salariale_par_hab", "Charges de personnel", "personnel"},
 }
 
-// Les trois indicateurs de recette, pour la section « d'où vient l'argent » —
-// distincts des cinq indicateurs de dépense ci-dessus : mélanger recette et
-// dépense dans les mêmes barres ferait perdre le sens de la mise en garde
-// « n'additionnez pas les barres » qui s'applique à chacun des deux groupes
-// séparément, pas à leur réunion.
-var indicsRecette = []IndicCollectivite{
-	{"ofgl.recettes_totales_par_hab", "Recettes totales", "recettes"},
-	{"ofgl.dgf_par_hab", "Dotation globale de fonctionnement", "DGF"},
-	{"ofgl.impots_taxes_par_hab", "Impôts et taxes", "impôts"},
-}
-
 // PartRecette : la part de la DGF et celle des impôts et taxes dans les
 // recettes totales, par niveau — ce qui distingue « financé par l'État » de
 // « financé par la fiscalité que la collectivité vote elle-même ». Calculé ici
@@ -625,34 +614,52 @@ func cartesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsColle
 	return nil
 }
 
-// barresNiveaux : un diagramme en barres du poids des quatre niveaux, une barre
-// par indicateur. Même unité, même axe, origine à zéro — la seule forme qui
-// répond à « qui dépense le plus ».
-func barresNiveaux(poids []NiveauPoids, indic string) template.HTML {
-	if len(poids) == 0 {
-		return ""
-	}
-	var max float64
+// CelluleDepense : un montant (Md€) et sa part du maximum de SA COLONNE
+// (pas de sa ligne) — un repère de fond ténu dans le tableau, sans dupliquer
+// une barre par cellule.
+type CelluleDepense struct {
+	Valeur, Pct float64
+}
+
+type LigneDepense struct {
+	Niveau        string
+	Collectivites int
+	Cellules      []CelluleDepense // même ordre que TableDepenses.Indicateurs
+}
+
+type TableDepenses struct {
+	Indicateurs []IndicCollectivite
+	Lignes      []LigneDepense
+}
+
+// tableDepenses construit un tableau niveau × indicateur plutôt qu'une suite
+// de mini-graphiques à barres presque identiques (un par indicateur) : à 4
+// niveaux et 5 indicateurs, un tableau se lit à la fois en ligne (le profil
+// d'un niveau) et en colonne (qui dépense le plus pour un poste donné), ce
+// qu'un mur de petits graphiques empêche de voir d'un coup d'œil.
+func tableDepenses(poids []NiveauPoids, indics []IndicCollectivite) TableDepenses {
+	t := TableDepenses{Indicateurs: indics}
+	max := make([]float64, len(indics))
 	for _, p := range poids {
-		if p.Totaux[indic] > max {
-			max = p.Totaux[indic]
+		for i, ind := range indics {
+			if v := p.Totaux[ind.Code]; v > max[i] {
+				max[i] = v
+			}
 		}
 	}
-	if max <= 0 {
-		return ""
-	}
-	var b strings.Builder
-	b.WriteString(`<div class="barres">`)
 	for _, p := range poids {
-		v := p.Totaux[indic]
-		fmt.Fprintf(&b, `<div class="ligne"><span class="n">%s</span>`+
-			`<span class="piste"><i style="width:%.1f%%"></i></span>`+
-			`<span class="v">%s</span><span class="c">%s</span></div>`,
-			template.HTMLEscapeString(p.Libelle), 100*v/max,
-			Decimal(v/1e9, 1)+" Md€", Nombre(p.Collectivites))
+		l := LigneDepense{Niveau: p.Libelle, Collectivites: p.Collectivites}
+		for i, ind := range indics {
+			v := p.Totaux[ind.Code]
+			var pct float64
+			if max[i] > 0 {
+				pct = 100 * v / max[i]
+			}
+			l.Cellules = append(l.Cellules, CelluleDepense{Valeur: v / 1e9, Pct: pct})
+		}
+		t.Lignes = append(t.Lignes, l)
 	}
-	b.WriteString(`</div>`)
-	return template.HTML(b.String())
+	return t
 }
 
 // ── Page d'une collectivité ───────────────────────────────────────────

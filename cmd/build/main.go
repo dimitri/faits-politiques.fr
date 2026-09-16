@@ -869,18 +869,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err := cartesCollectivites(ctx, pool, col, indicCarte); err != nil {
 		return err
 	}
-	type barreNiveau struct {
-		Titre  string
-		Graphe template.HTML
-	}
-	var barres []barreNiveau
-	for _, ind := range indicsCollectivite {
-		barres = append(barres, barreNiveau{ind.Libelle, barresNiveaux(col.Poids, ind.Code)})
-	}
-	var barresRecette []barreNiveau
-	for _, ind := range indicsRecette {
-		barresRecette = append(barresRecette, barreNiveau{ind.Libelle, barresNiveaux(col.Poids, ind.Code)})
-	}
+	tableDep := tableDepenses(col.Poids, indicsCollectivite)
 	parts := partsRecettes(col.Poids)
 	l = layout
 	l.Title = "Collectivités"
@@ -888,14 +877,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err := write(page("collectivites.gohtml"),
 		filepath.Join(out, "collectivites", "index.html"), struct {
 			Layout
-			C             *StatsCollectivites
-			T             *StatsTerritoires
-			Ind           []IndicCollectivite
-			Barres        []barreNiveau
-			BarresRecette []barreNiveau
-			Parts         []PartRecette
-			IndicLibelle  string
-		}{l, col, terr, indicsCollectivite, barres, barresRecette, parts, "Dépenses de fonctionnement"}); err != nil {
+			C            *StatsCollectivites
+			T            *StatsTerritoires
+			Ind          []IndicCollectivite
+			TableDep     TableDepenses
+			Parts        []PartRecette
+			IndicLibelle string
+		}{l, col, terr, indicsCollectivite, tableDep, parts, "Dépenses de fonctionnement"}); err != nil {
 		return err
 	}
 

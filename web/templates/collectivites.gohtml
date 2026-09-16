@@ -112,16 +112,20 @@ Les vignettes sont simplifiées à environ quatre kilomètres&nbsp;; chaque page
 tracé fin.</p>
 
 <h2>Qui dépense quoi, en {{$c.Exercice}}</h2>
-<p class="q">Totaux par niveau, en milliards d'euros, avec le nombre de collectivités concernées.</p>
-<p class="note abs"><strong>N'additionnez pas les quatre barres.</strong> Chaque niveau est totalisé
-séparément, et les transferts entre niveaux — une subvention du département à une commune,
+<p class="q">Totaux par niveau, en milliards d'euros, avec le nombre de collectivités concernées.
+Le fond de chaque cellule est proportionnel au maximum de sa colonne&nbsp;: comparez une colonne
+(qui dépense le plus pour ce poste) ou une ligne (le profil d'un niveau) d'un coup d'œil.</p>
+<p class="note abs"><strong>N'additionnez pas une ligne avec une autre.</strong> Chaque niveau est
+totalisé séparément, et les transferts entre niveaux — une subvention du département à une commune,
 l'attribution de compensation qu'une intercommunalité reverse à ses communes — sont comptés chez
-celui qui verse <em>et</em> chez celui qui dépense. La somme des quatre dépasse donc la dépense
-réelle des collectivités. Les barres se comparent entre elles&nbsp;; elles ne se cumulent pas.</p>
-{{range .Barres}}
-<h3>{{.Titre}}</h3>
-{{.Graphe}}
-{{end}}
+celui qui verse <em>et</em> chez celui qui dépense. La somme des quatre niveaux dépasse donc la
+dépense réelle des collectivités.</p>
+<div class="scroll"><table class="donnees">
+<thead><tr><th>Niveau</th>{{range .TableDep.Indicateurs}}<th class="n">{{.Court}}</th>{{end}}</tr></thead>
+<tbody>{{range .TableDep.Lignes}}<tr>
+  <td>{{.Niveau}} <span class="z small">{{nb .Collectivites}}</span></td>
+  {{range .Cellules}}<td class="n" style="background:linear-gradient(to right,var(--accent-doux) {{printf "%.1f" .Pct}}%,transparent {{printf "%.1f" .Pct}}%)">{{dec .Valeur 1}}&nbsp;Md€</td>{{end}}
+</tr>{{end}}</tbody></table></div>
 <p class="note"><strong>Les 34 772 communes ne dépensent pas le plus.</strong> En fonctionnement
 elles restent devant, mais en investissement les trois autres niveaux réunis font plus qu'elles, et
 en dette les régions — dix-sept collectivités — portent presque autant que les 1 262
@@ -132,13 +136,6 @@ intercommunalités à fiscalité propre.</p>
 (« Impôts et taxes »), et la dotation globale de fonctionnement (DGF) que l'État lui verse chaque
 année. Le reste des recettes totales — subventions diverses, produits des services, autres
 dotations — n'est pas détaillé par cette seule agrégation.</p>
-<p class="note abs"><strong>N'additionnez pas non plus ces barres-là entre elles</strong>&nbsp;: comme
-pour les dépenses ci-dessus, chaque niveau est totalisé séparément et les transferts entre niveaux
-sont comptés plusieurs fois dans la somme.</p>
-{{range .BarresRecette}}
-<h3>{{.Titre}}</h3>
-{{.Graphe}}
-{{end}}
 <div class="scroll"><table>
 <thead><tr><th>Niveau</th><th class="n">Recettes totales</th><th class="n">dont DGF</th>
   <th class="n">dont impôts et taxes</th></tr></thead>
