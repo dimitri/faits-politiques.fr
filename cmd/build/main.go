@@ -1151,7 +1151,8 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 				`<figure class="schema">`+string(seuilsPauvrete.SVG)+`<figcaption>`+
 					`<strong>Comment lire ce graphique</strong> : classez tous les Français du `+
 					`niveau de vie le plus bas au plus haut, puis coupez cette file en dix tas `+
-					`égaux de 10&nbsp;% chacun — D1 est le tas le plus pauvre, D9 le neuvième. `+
+					`du même nombre de personnes — 10&nbsp;% de la population dans chaque tas, `+
+					`pas 10&nbsp;% du revenu total. D1 est le tas le plus pauvre, D9 le neuvième. `+
 					`Chaque barre est le plafond de son tas, `+fmt.Sprint(seuilsPauvrete.Annee)+
 					` (Insee-Filosofi) : personne dans ce dixième de la population ne touche plus `+
 					`que le montant affiché au-dessus de sa barre. Le dixième tas, D10 — les `+
