@@ -79,6 +79,10 @@ pas laisser croire à une case vide.
 regard, sans le faire ici, de la démographie et des capacités de formation,
 hors périmètre de cette note.
 
+<!-- schema:carte-medecins-generalistes -->
+
+
+
 **Combien, pas seulement dans quel système** — cette série (Cnam, jeu « montants des
 honoraires par territoire »), 66 480 lignes, 38 professions, 2010-2024. Ce que le § 2
 donnait comme RÉPARTITION par secteur, cette table le chiffre en euros. France

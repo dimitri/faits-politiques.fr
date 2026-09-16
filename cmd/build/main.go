@@ -1090,6 +1090,16 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	// La carte des médecins généralistes (territoires.go) existait déjà,
+	// utilisée seulement par les onglets de l'accueil — jamais reprise sur
+	// /sujets/sante/, qui n'a par ailleurs aucune carte du tout.
+	var carteMedecins *CarteTerritoire
+	for i := range terr.Cartes {
+		if terr.Cartes[i].Slug == "medecins-generalistes" {
+			carteMedecins = &terr.Cartes[i]
+			break
+		}
+	}
 	if bud != nil {
 		l = layout
 		l.Title = "Budget de l'État"
@@ -1226,6 +1236,22 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`suit aucune limite régionale ou départementale — le bassin Loire-Bretagne, le `+
 					`plus vaste, traverse une douzaine de régions et départements actuels. `+
 					`Source&nbsp;: BD Topage 2025, Sandre/IGN, Licence Ouverte.</figcaption></figure>`))
+		}
+		if carteMedecins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-medecins-generalistes -->") {
+			c := carteMedecins.Page.Carte
+			var echelle strings.Builder
+			echelle.WriteString(`<div class="echelle"><span class="u">` + template.HTMLEscapeString(c.Unite) + `</span>`)
+			for i, b := range c.Bornes {
+				fmt.Fprintf(&echelle, `<span><i style="background:%s"></i>%s</span>`, c.Teintes[i], b)
+			}
+			echelle.WriteString(`</div>`)
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-medecins-generalistes -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(c.SVG)+`</div>`+
+					echelle.String()+
+					`<figcaption>`+template.HTMLEscapeString(carteMedecins.Question)+` `+
+					template.HTMLEscapeString(carteMedecins.Note)+` `+
+					`<a href="`+root+`/collectivites/carte/medecins-generalistes/">Le classement des 101 `+
+					`départements et la méthode →</a></figcaption></figure>`))
 		}
 	}
 
