@@ -1793,6 +1793,26 @@ var checks = []check{
 		          FROM core.population_age_departement GROUP BY code_departement, annee
 		        ) x WHERE nb <> 5`,
 	},
+	{
+		name:  "l'emploi total et l'emploi salarié couvrent 1975 à aujourd'hui sans trou",
+		query: `SELECT count(*) FROM (
+		          SELECT annee FROM core.macro_value WHERE serie_code = 'emploi.total'
+		          EXCEPT SELECT annee FROM core.macro_value WHERE serie_code = 'emploi.salarie'
+		          UNION
+		          SELECT annee FROM core.macro_value WHERE serie_code = 'emploi.salarie'
+		          EXCEPT SELECT annee FROM core.macro_value WHERE serie_code = 'emploi.total'
+		        ) x`,
+	},
+	{
+		// L'emploi salarié ne peut jamais dépasser l'emploi total (les non-
+		// salariés se déduisent des deux par soustraction, jamais négatifs).
+		name:  "l'emploi salarié ne dépasse jamais l'emploi total, chaque année",
+		query: `SELECT count(*) FROM (
+		          SELECT t.annee FROM core.macro_value t
+		          JOIN core.macro_value s ON s.serie_code = 'emploi.salarie' AND s.annee = t.annee
+		          WHERE t.serie_code = 'emploi.total' AND s.valeur > t.valeur
+		        ) x`,
+	},
 }
 
 func main() {

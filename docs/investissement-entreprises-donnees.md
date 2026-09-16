@@ -109,6 +109,43 @@ porte sur un échantillon de 100 sociétés cotées choisi par Oxfam, pas sur l'
 sociétés non financières des tableaux ci-dessus, et la méthode de calcul n'est pas celle
 de la comptabilité nationale — les deux ne s'additionnent pas.
 
+### 4. Marché primaire, marché secondaire : un seul mot, « Bourse », pour deux circuits
+
+**Le marché primaire finance les entreprises ; le marché secondaire échange entre
+investisseurs des actions déjà émises, sans qu'un euro n'entre dans l'entreprise dont
+le titre change de mains.** Une introduction en bourse ou une augmentation de capital
+crée des actions nouvelles et apporte des fonds propres frais à la société ; acheter ou
+vendre ensuite ces mêmes actions en bourse ne fait que transférer la propriété d'un
+investisseur à un autre — la société elle-même n'encaisse ni ne décaisse rien à cette
+occasion. Les deux opérations se disent « investir en bourse » dans le langage courant ;
+seule la première finance une entreprise.
+
+**L'écart d'ordre de grandeur, en France, est considérable** (AMF, *Cartographie des
+marchés et des risques 2025*, données 2024) :
+
+| Circuit | Montant (2024) | Ce qu'il mesure |
+|---|---:|---|
+| Marché secondaire — volumes échangés sur les marchés français (actions) | 1 973 Md€ | Échanges entre investisseurs, aucun financement de société |
+| Marché primaire — introductions en bourse sur le marché réglementé d'Euronext Paris | 0,75 Md€ | Capitaux neufs apportés aux sociétés nouvellement cotées |
+
+Soit un rapport d'environ **2 600 pour 1** entre le volume échangé sur le marché
+secondaire et les seules introductions en bourse. **Ce tableau sous-estime plutôt qu'il
+ne surestime l'écart réel avec le financement des entreprises non cotées** (l'essentiel
+du tissu productif du § 2) : le marché primaire ci-dessus ne compte que les
+introductions en bourse, pas les augmentations de capital des sociétés déjà cotées
+(une opération de marché primaire elle aussi, mais dont ce dépôt n'a pas trouvé de
+total annuel officiel comparable) — l'inclure ferait remonter le montant du marché
+primaire sans changer l'ordre de grandeur de l'écart. L'AMF elle-même qualifie le
+niveau des introductions en bourse de 2024 de « faible », même après un doublement par
+rapport à 2023.
+
+**Ce que cet écart implique pour le § 1** : le volume quotidien de transactions
+boursières, largement commenté dans le débat public, ne mesure pas l'effort de
+financement des entreprises par les marchés financiers — l'essentiel de ce volume est
+un jeu à somme nulle entre détenteurs d'actions déjà émises, distinct de
+l'investissement productif (FBCF) et des levées de fonds propres neuves du reste de ce
+dossier.
+
 ## Ce que les données ne disent pas
 
 - **Aucune source ne croise la taille de l'entreprise et la nature de l'investissement.**
@@ -168,6 +205,7 @@ de la comptabilité nationale — les deux ne s'additionnent pas.
 | Insee, comptes nationaux trimestriels, sociétés non financières (BDM, séries 011794592 et 011794792) | PRIMARY_OFFICIAL |
 | Insee, Ésane, Insee Focus « Le tissu productif français par catégorie d'entreprises en 2022 » | PRIMARY_OFFICIAL |
 | Oxfam France, étude sur les 100 plus grandes entreprises cotées françaises | DECLARATIF |
+| AMF, *Cartographie des marchés et des risques 2025* (données 2024) | PRIMARY_OFFICIAL |
 
 ## Versions
 
@@ -175,3 +213,7 @@ de la comptabilité nationale — les deux ne s'additionnent pas.
   financières depuis 1995 (comptes nationaux trimestriels), tissu productif par catégorie
   d'entreprise en 2022 (Ésane), rachats d'actions cités faute d'une source officielle à
   cette maille.
+- **Version 2** (15 septembre 2026) : distinction marché primaire / marché secondaire
+  ajoutée (§ 4), avec les volumes 2024 de l'AMF — l'écart entre les deux (environ
+  2 600 pour 1) montre que l'essentiel des volumes boursiers commentés dans le débat
+  public ne finance aucune entreprise.

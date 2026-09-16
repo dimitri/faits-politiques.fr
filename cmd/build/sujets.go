@@ -84,6 +84,7 @@ var familles = []*Famille{
 			{ID: "souverainete-numerique", Nom: "Souveraineté numérique", Doc: "souverainete-numerique"},
 			{ID: "evasion-fiscale", Nom: "Évasion fiscale", Doc: "evasion-fiscale-multinationales"},
 			{ID: "investissement", Nom: "Investissement et dividendes des entreprises", Doc: "investissement-entreprises-donnees"},
+			{ID: "emploi", Nom: "Emploi et aides aux entreprises", Doc: "emploi-aides-entreprises-donnees"},
 		}},
 	{ID: "ecole-recherche-culture", Nom: "École, recherche et culture", Base: "sujets",
 		Intro: "L'enseignement scolaire, les universités et la recherche, la culture, le sport.",

@@ -168,6 +168,27 @@ func series() []serie {
 				"précisément pourquoi elle existe comme indicateur à part.",
 			Requete: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=SLACK",
 		},
+		// L'emploi total et l'emploi salarié, comptabilité nationale — le
+		// dénominateur qui manquait pour mettre en regard une politique de
+		// l'emploi (CICE, exonérations) et l'évolution réelle de l'emploi :
+		// EMP_DC moins SAL_DC donne les non-salariés (indépendants, artisans,
+		// exploitants agricoles), qu'aucune exonération de cotisation
+		// employeur ne peut atteindre puisqu'ils n'ont pas de salariés
+		// employeur au sens de ces dispositifs.
+		{
+			Code: "emploi.total", Label: "Emploi total (concept intérieur)", Unite: "MILLIERS", Famille: "EMPLOI",
+			Definition: "Nombre de personnes en emploi, salariées et non salariées, résidentes ou " +
+				"non, produisant sur le territoire français — comptabilité nationale, pas l'enquête " +
+				"Emploi (BIT). Inclut les non-salariés (indépendants, artisans, exploitants agricoles).",
+			Requete: "nama_10_pe?format=JSON&lang=FR&geo=FR&na_item=EMP_DC&unit=THS_PER",
+		},
+		{
+			Code: "emploi.salarie", Label: "Emploi salarié (concept intérieur)", Unite: "MILLIERS", Famille: "EMPLOI",
+			Definition: "Nombre de salariés produisant sur le territoire français, comptabilité " +
+				"nationale. La différence avec l'emploi total (emploi.total) est le nombre de " +
+				"non-salariés, hors du champ des exonérations de cotisations employeur.",
+			Requete: "nama_10_pe?format=JSON&lang=FR&geo=FR&na_item=SAL_DC&unit=THS_PER",
+		},
 		{
 			Code: "pauvrete.nombre", Label: "Personnes sous le seuil de pauvreté", Unite: "MILLIERS", Famille: "PAUVRETE",
 			Definition: "Personnes vivant dans un ménage dont le revenu disponible par unité de " +
