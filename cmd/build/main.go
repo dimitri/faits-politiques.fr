@@ -1103,6 +1103,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	carteIFI, err := chargerCarteIFI(ctx, pool)
+	if err != nil {
+		return err
+	}
 	// La carte des médecins généralistes (territoires.go) existait déjà,
 	// utilisée seulement par les onglets de l'accueil — jamais reprise sur
 	// /sujets/sante/, qui n'a par ailleurs aucune carte du tout.
@@ -1288,6 +1292,16 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 			}
 			t.WriteString(`</tbody></table></div>`)
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:depenses-fiscales-impot -->", t.String()))
+		}
+		if carteIFI != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-ifi -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-ifi -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(carteIFI.SVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>%d communes publiées par la DGFiP pour %d (plus de 20 000 `+
+						`habitants et plus de 50 redevables à l'IFI — un seuil de publication de la DGFiP, `+
+						`pas de ce dépôt). La surface de chaque cercle est proportionnelle au nombre de `+
+						`redevables ; la couleur est uniforme. Les zones sans cercle n'ont pas de commune `+
+						`publiée à ce niveau, pas forcément aucun redevable à l'IFI.</figcaption></figure>`,
+						carteIFI.NbCommunes, carteIFI.Annee)))
 		}
 		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",

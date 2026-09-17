@@ -1,6 +1,6 @@
 # SCI et holding : quels impôts, lesquels peuvent être évités, et comment
 
-> **Dossier** · version 1 · 17 septembre 2026
+> **Dossier** · version 3 · 17 septembre 2026
 >
 > Une SCI ou une holding ne signifie jamais « absence d'impôt » — mais peut en
 > déplacer le moment, le niveau, ou le rythme. Ce dossier montre le mécanisme
@@ -18,6 +18,7 @@ Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 jui
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
 | holding, pacte Dutreil | 453 | 102 | 21 octobre 2024 | 15 juillet 2026 |
+| IFI | 114 | 46 | 14 octobre 2024 | 28 mai 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
@@ -36,6 +37,7 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 <!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
 - **La loi PME de 2005, qui porte l'exonération du pacte Dutreil à 75 %** (2 août 2005). Son article 28 porte l'exonération de droits de mutation à titre gratuit du pacte Dutreil de la moitié à 75 % de la valeur des titres transmis. — Parlement (loi n° 2005-882) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000000452052) · *officiel*
+- **La loi de finances pour 2018, qui crée l'impôt sur la fortune immobilière (IFI)** (30 décembre 2017). Son article 31 institue l'IFI (seuil d'assujettissement de 1 300 000 €) et exonère les biens immobiliers affectés à l'activité professionnelle réelle du redevable, y compris via une société à l'IS sous conditions de fonction et de détention. — Parlement (loi n° 2017-1837) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000036339197) · *officiel*
 
 <!-- faits:CADRE:fin -->
 
@@ -206,6 +208,43 @@ conservation** de 4 à **6 ans**, portant la durée totale minimale
 le régime l'imposait depuis 2008, pour les transmissions à compter du
 21 février 2026.
 
+### 5. L'IFI : la SCI ne protège pas, la holding professionnelle peut exonérer
+
+L'**impôt sur la fortune immobilière** (IFI, créé par la loi de finances pour
+2018 — voir le Cadre ci-dessus) frappe chaque année les actifs immobiliers
+nets dont la valeur dépasse **1 300 000 €**, quel que soit le montage utilisé
+pour les détenir. C'est là que les deux mécanismes de ce dossier divergent
+nettement.
+
+**La SCI ne protège de rien face à l'IFI.** Que le bien soit détenu en
+direct ou via une SCI (à l'IR ou à l'IS), sa valeur — ou celle des parts
+sociales qui le représentent — entre dans l'assiette taxable de l'associé
+personne physique, à due proportion de sa quote-part. Interposer une SCI ne
+change ni le montant, ni le redevable de l'IFI : c'est un impôt qui regarde
+à travers la structure, par construction (article 965 du CGI).
+
+**La holding, à une condition précise, le peut.** L'article 975 du CGI
+exonère un bien immobilier d'IFI quand il est affecté à l'activité
+professionnelle réelle de son propriétaire — y compris via une société
+soumise à l'IS, à condition que le redevable y exerce une fonction de
+direction effective et rémunérée, et détienne au moins 25 % des droits de
+vote. Un immeuble logé dans une holding qui exploite réellement une
+entreprise peut donc échapper à l'IFI ; le même immeuble logé dans une
+« cash box » qui ne fait qu'accumuler des liquidités, non — l'exonération
+suit l'activité réelle, pas la seule forme juridique.
+
+<!-- schema:carte-ifi -->
+
+**Ce que les chiffres montrent, commune par commune.** La DGFiP publie
+chaque année le nombre de redevables et le patrimoine moyen à l'IFI, mais
+seulement pour les communes de plus de 20 000 habitants comptant plus de
+50 redevables — 237 communes en 2025, loin des 34 875 communes de France.
+Parmi elles, 106 230 foyers redevables sont comptés, avec un patrimoine
+moyen qui varie de 1,8 à 3,8 M€ selon la commune. Sans surprise, les
+arrondissements de l'ouest parisien dominent : Paris 16ᵉ (10 159 redevables),
+Paris 7ᵉ (4 558) et Neuilly-sur-Seine (4 091) concentrent, à eux seuls, plus
+de redevables que la plupart des départements entiers.
+
 ## Contrôles et évaluations
 
 <!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
@@ -216,11 +255,16 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 ## Ce que les données ne disent pas
 
-### 5. Ce qui reste hors de portée de cette version
+### 6. Ce qui reste hors de portée de cette version
 
-- **L'IFI** (impôt sur la fortune immobilière) : un jeu de données réel
-  existe (IFICOM, répartition par commune, data.gouv.fr), pas encore chargé
-  dans ce dépôt.
+- **L'IFI hors des communes publiées** (§ 5) : la DGFiP ne publie ce détail
+  que pour 237 communes sur 34 875 — la répartition nationale complète des
+  redevables et de leur patrimoine reste hors de portée.
+- **Le lien entre une commune IFI et les structures qui y détiennent des
+  biens** (SCI, holdings) : IFICOM compte des foyers redevables, pas des
+  structures juridiques — impossible de savoir, depuis cette seule source,
+  quelle part du patrimoine immobilier taxé est logée dans une SCI plutôt
+  que détenue en direct.
 - **Les droits de succession et de donation réellement perçus, en série** :
   seulement des faits ponctuels (Cour des comptes, DGFiP) cités ici, pas une
   série chargée en base.
@@ -244,16 +288,30 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 - INSEE, répertoire SIRENE (`ref.unite_legale`, déjà chargé dans ce dépôt).
 - Légifrance, code général des impôts, articles 8, 145, 150 VC, 216, 219,
-  223 A, 777, 779, 784, 787 B.
+  223 A, 777, 779, 784, 787 B, 964, 965, 975.
 - Légifrance, loi n° 2005-882 du 2 août 2005 en faveur des petites et
   moyennes entreprises, article 28 (JORFTEXT000000452052).
+- Légifrance, loi n° 2017-1837 du 30 décembre 2017 de finances pour 2018,
+  article 31, créant l'impôt sur la fortune immobilière (JORFTEXT000036339197).
 - Conseil des prélèvements obligatoires (Cour des comptes), *Corriger les
   principales distorsions de l'imposition du patrimoine*, 1er décembre 2025.
 - Cour de cassation, chambre commerciale, 9 février 2022, n° 19-22.861
   (décote de valorisation des parts sociales).
+- DGFiP, IFICOM — répartition communale de l'impôt sur la fortune
+  immobilière, millésimes 2021 à 2025 (`core.ifi_commune`, déjà chargé dans
+  ce dépôt).
 
 ## Versions
 
+- **Version 3** (17 septembre 2026) : l'IFI — la SCI ne protège pas
+  (l'assiette regarde à travers la structure), la holding professionnelle le
+  peut sous conditions précises (article 975 du CGI) ; une carte des 237
+  communes où la DGFiP publie le détail (IFICOM, `core.ifi_commune`,
+  millésimes 2021-2025 chargés).
+- **Version 2** (17 septembre 2026) : l'exemple du régime mère-fille reparti
+  du bénéfice avant IS de la filiale, pas du dividende déjà net — le point
+  manquant identifié dans le débat public (25 000 € d'IS déjà payés avant
+  toute distribution, cumul explicite jusqu'à l'associé personne physique).
 - **Version 1** (17 septembre 2026) : la SCI (transparence fiscale à l'IR,
   amortissement à l'IS, transmission fractionnée) et la holding (régime
   mère-fille, intégration fiscale, Pacte Dutreil), avec des exemples chiffrés

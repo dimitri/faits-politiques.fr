@@ -1962,6 +1962,21 @@ var checks = []check{
 		name: "le type EPTB/EPAGE ne contient que des valeurs connues",
 		query: `SELECT count(*) FROM core.eptb_epage WHERE type NOT IN ('EPTB','EPAGE','EPTB_EPAGE')`,
 	},
+	{
+		// Le seuil de publication de la DGFiP (plus de 50 redevables) doit
+		// rester vrai dans les données chargées : une ligne en dessous
+		// trahirait une erreur de colonne ou un fichier différent de celui
+		// documenté.
+		name: "IFICOM : chaque commune publiée dépasse bien le seuil de 50 redevables",
+		query: `SELECT count(*) FROM core.ifi_commune WHERE nombre_redevables <= 50`,
+	},
+	{
+		// Le patrimoine moyen des redevables IFI d'une commune ne peut pas
+		// être inférieur au seuil d'assujettissement (1,3 M€) : ce serait la
+		// preuve d'une colonne mélangée avec une autre valeur.
+		name: "IFICOM : le patrimoine moyen par commune reste au-dessus du seuil d'assujettissement",
+		query: `SELECT count(*) FROM core.ifi_commune WHERE patrimoine_moyen_eur < 1300000`,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur
