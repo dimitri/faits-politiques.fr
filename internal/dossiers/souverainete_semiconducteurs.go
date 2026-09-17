@@ -9,11 +9,19 @@ package dossiers
 // concertation publié par la CNDP).
 
 const (
-	themeSemi       = "semi-conducteurs"
-	urlCCSemi       = "https://www.ccomptes.fr/sites/default/files/2026-04/20260421-Soutien-filiere-des-semi-conducteurs.pdf"
-	auteurCCSemi    = "Cour des comptes (rapport public thématique « Le soutien à la filière des semi-conducteurs », avril 2026)"
-	urlChipsAct     = "https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32023R1781"
-	urlCOM202245    = "https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:52022DC0045"
+	themeSemi    = "semi-conducteurs"
+	urlCCSemi    = "https://www.ccomptes.fr/sites/default/files/2026-04/20260421-Soutien-filiere-des-semi-conducteurs.pdf"
+	auteurCCSemi = "Cour des comptes (rapport public thématique « Le soutien à la filière des semi-conducteurs », avril 2026)"
+	// EUR-Lex bloque désormais (17 septembre 2026, vérifié directement) tout
+	// le chemin legal-content par un défi WAF (x-amzn-waf-action: challenge),
+	// quel que soit le format ou le user-agent. Remplacés par le document
+	// correspondant tel que transmis au Conseil de l'UE (data.consilium.
+	// europa.eu, un domaine distinct, jamais bloqué) : pour le règlement, sa
+	// proposition initiale par la Commission (COM(2022) 46), dont l'intitulé
+	// cité ici n'a pas changé jusqu'au texte adopté — pas le texte consolidé
+	// final, dont aucune source hors EUR-Lex n'a été trouvée.
+	urlChipsAct     = "https://data.consilium.europa.eu/doc/document/ST-6170-2022-INIT/fr/pdf"
+	urlCOM202245    = "https://data.consilium.europa.eu/doc/document/ST-6169-2022-INIT/fr/pdf"
 	urlDGELiberty   = "https://www.entreprises.gouv.fr/la-dge/actualites/la-mega-usine-de-semi-conducteurs-officiellement-commence-sa-production"
 	urlCNDPCrolles  = "https://www.debatpublic.fr/sites/default/files/2024-03/Dossier_de_concertationSTM_1.pdf"
 	urlBlochCrolles = "https://www.laurentbloch.net/MySpip3/L-usine-microelectronique-STMicro-a-Crolles"
@@ -46,7 +54,7 @@ var faitsSemiConducteurs = []Fait{
 
 	// Cadre : le règlement européen et l'aide d'État française.
 	{ID: "reglement-puces-2023-1781", Dossier: dossierSouv, Section: "CADRE", Theme: themeSemi, Type: "TEXTE", Date: "2023-09-13",
-		Auteur:   "Parlement européen et Conseil (règlement (UE) 2023/1781)",
+		Auteur:   "Parlement européen et Conseil (règlement (UE) 2023/1781, dont l'intitulé cité ici reprend celui de la proposition COM(2022) 46 de la Commission)",
 		Intitule: "Règlement européen sur les puces (« Chips Act »)",
 		Constat: "Le règlement établit un cadre pour renforcer l'écosystème européen des semi-conducteurs, dont l'initiative " +
 			"« Semi-conducteurs pour l'Europe ». La Cour des comptes chiffre à 43 Md€ les subventions prévues, financées principalement par les États membres.",

@@ -11,6 +11,7 @@ import (
 	"context"
 	"fmt"
 	"html"
+	"io"
 	"os"
 	"os/exec"
 	"regexp"
@@ -229,7 +230,19 @@ func IngestFaits(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 						return nil, fmt.Errorf("%s : %w", f.ID, err)
 					}
 					docs[f.URL] = d.DocumentID
-					if ext == ".pdf" {
+					// Certains registres officiels (le registre public du Conseil de
+					// l'UE, par exemple) servent un PDF sans extension .pdf dans
+					// l'URL — se fier à la suite d'octets réelle plutôt qu'au seul
+					// nom, pour ne pas lire un PDF comme du HTML.
+					entete := make([]byte, 5)
+					fEntete, err := os.Open(d.Path)
+					if err != nil {
+						return nil, err
+					}
+					_, err = io.ReadFull(fEntete, entete)
+					fEntete.Close()
+					estPDF := ext == ".pdf" || (err == nil && string(entete) == "%PDF-")
+					if estPDF {
 						if textesDocs[f.URL], err = textePDF(ctx, d.Path); err != nil {
 							return nil, err
 						}

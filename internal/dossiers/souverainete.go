@@ -6,13 +6,18 @@ package dossiers
 // faits du dossier, les mots suivis dans les débats et les acteurs français nommés.
 
 const (
-	dossierSouv   = "souverainete-numerique"
-	urlSenat830   = "https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf"
-	urlDoctrine   = "https://www.numerique.gouv.fr/services/cloud/doctrine/"
-	urlCloudAct   = "https://www.govinfo.gov/content/pkg/PLAW-115publ141/html/PLAW-115publ141.htm"
-	urlFISA702    = "https://www.govinfo.gov/content/pkg/USCODE-2023-title50/html/USCODE-2023-title50-chap36-subchapVI-sec1881a.htm"
-	urlSchremsII  = "https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:62018CJ0311"
-	urlDPF        = "https://eur-lex.europa.eu/legal-content/FR/TXT/HTML/?uri=CELEX:32023D1795"
+	dossierSouv = "souverainete-numerique"
+	urlSenat830 = "https://www.senat.fr/rap/r24-830-1/r24-830-11.pdf"
+	urlDoctrine = "https://www.numerique.gouv.fr/services/cloud/doctrine/"
+	urlCloudAct = "https://www.govinfo.gov/content/pkg/PLAW-115publ141/html/PLAW-115publ141.htm"
+	urlFISA702  = "https://www.govinfo.gov/content/pkg/USCODE-2023-title50/html/USCODE-2023-title50-chap36-subchapVI-sec1881a.htm"
+	// EUR-Lex bloque désormais (17 septembre 2026, vérifié directement) tout
+	// le chemin legal-content par un défi WAF (x-amzn-waf-action: challenge),
+	// quel que soit le format ou le user-agent — pas un blocage ciblé sur ce
+	// dépôt. Remplacés par le communiqué de presse officiel de l'institution
+	// concernée, sur un domaine distinct, jamais par une source secondaire.
+	urlSchremsII  = "https://curia.europa.eu/site/upload/docs/application/pdf/2020-07/cp200091fr.pdf"
+	urlDPF        = "https://ec.europa.eu/commission/presscorner/api/files/document/print/fr/ip_23_3721/IP_23_3721_FR.pdf"
 	urlLatombe    = "https://curia.europa.eu/jcms/upload/docs/application/pdf/2025-09/cp250106fr.pdf"
 	urlDPCMeta    = "https://www.dataprotection.ie/en/news-media/press-releases/Data-Protection-Commission-announces-conclusion-of-inquiry-into-Meta-Ireland"
 	urlCNILGoogle = "https://www.cnil.fr/fr/publicites-inserees-entre-les-courriels-et-cookies-la-cnil-sanctionne-google-dune-amende-de-325"
@@ -63,19 +68,19 @@ var faitsSouverainete = []Fait{
 			"en avril 2024 pour deux ans, et son état après avril 2026 n'est pas vérifié ici.",
 		URL: urlFISA702, Qualite: "OFFICIEL",
 		Attendus: []string{"immediately provide the Government with all information, facilities, or assistance necessary"}},
-	{ID: "cjue-schrems-ii-2020", Dossier: dossierSouv, Section: "ENJEUX", Type: "TEXTE", Theme: "données personnelles", Date: "2020-07-16", Auteur: "Cour de justice de l'Union européenne (affaire C-311/18)",
+	{ID: "cjue-schrems-ii-2020", Dossier: dossierSouv, Section: "ENJEUX", Type: "TEXTE", Theme: "données personnelles", Date: "2020-07-16", Auteur: "Cour de justice de l'Union européenne (affaire C-311/18, communiqué de presse n° 91/20)",
 		Intitule: "Arrêt « Schrems II » : invalidation du bouclier de protection des données UE-États-Unis",
 		Constat: "La Cour invalide la décision d'adéquation de 2016 (Privacy Shield) : les programmes de surveillance fondés sur le droit " +
 			"américain ne limitent pas l'accès aux données transférées au strict nécessaire et n'offrent pas de recours effectif aux " +
 			"personnes concernées.",
 		URL: urlSchremsII, Qualite: "OFFICIEL",
-		Attendus: []string{"est invalide"}},
-	{ID: "ue-adequation-dpf-2023", Dossier: dossierSouv, Section: "CADRE", Type: "TEXTE", Theme: "données personnelles", Date: "2023-07-10", Auteur: "Commission européenne (décision d'exécution (UE) 2023/1795)",
+		Attendus: []string{"la Cour déclare la décision 2016/1250 invalide"}},
+	{ID: "ue-adequation-dpf-2023", Dossier: dossierSouv, Section: "CADRE", Type: "TEXTE", Theme: "données personnelles", Date: "2023-07-10", Auteur: "Commission européenne (décision d'exécution (UE) 2023/1795, communiqué de presse IP/23/3721)",
 		Intitule: "Nouveau cadre de transfert UE-États-Unis (Data Privacy Framework)",
 		Constat: "La Commission constate que les États-Unis assurent un niveau adéquat de protection pour les données transférées vers " +
 			"les organisations inscrites au cadre : les transferts vers ces entreprises sont licites sans autre garantie.",
 		URL: urlDPF, Qualite: "OFFICIEL",
-		Attendus: []string{"les États-Unis assurent un niveau adéquat de protection des données à caractère personnel transférées"}},
+		Attendus: []string{"les États-Unis garantissent un niveau de protection adéquat"}},
 	{ID: "tribunal-latombe-2025", Dossier: dossierSouv, Section: "CADRE", Type: "TEXTE", Theme: "données personnelles", Date: "2025-09-03", Auteur: "Tribunal de l'Union européenne (affaire T-553/23, Latombe/Commission)",
 		Intitule: "Rejet du recours contre le cadre de transfert UE-États-Unis",
 		Constat: "Le Tribunal rejette le recours du député Philippe Latombe et confirme qu'à la date de la décision de 2023 les États-Unis " +
