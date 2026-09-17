@@ -1292,9 +1292,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",
 				`<figure class="schema"><div class="carte-pleine">`+string(schemaHoldingMereFille())+`</div>`+
-					`<figcaption>Exemple pédagogique sur un montant rond (100 000 €) ; les taux (5 % de `+
-					`quote-part, 25 % d'IS, 1 % en cas d'intégration fiscale) sont réels et sourcés — voir `+
-					`le Cadre et les Enjeux ci-dessus.</figcaption></figure>`))
+					`<figcaption>Exemple pédagogique sur un bénéfice initial rond (100 000 €) ; les taux (25 % `+
+					`d'IS, 5 % de quote-part, 1 % en cas d'intégration fiscale, 30 % de PFU) sont réels et `+
+					`sourcés — voir le Cadre et les Enjeux ci-dessus. Le point central : l'IS de la filiale `+
+					`est payé AVANT que le dividende n'existe, pas une fois qu'il est dans la holding.</figcaption></figure>`))
 		}
 		if strings.Contains(string(d.Corps), "<!-- schema:tva-entreprises -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:tva-entreprises -->",

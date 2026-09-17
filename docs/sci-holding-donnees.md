@@ -151,25 +151,49 @@ capital d'une filiale depuis au moins deux ans de recevoir ses dividendes
 totalement : une **quote-part de frais et charges** de 5 % du dividende reçu
 est réintégrée au résultat imposable de la holding et taxée normalement.
 
+**Le point le plus souvent absent du débat public : un dividende n'est
+jamais de l'argent qui n'a pas encore été taxé.** Une filiale ne peut
+distribuer que ce qu'il lui reste après avoir payé l'impôt sur les
+sociétés sur son bénéfice — le régime mère-fille s'applique à cet argent
+déjà amputé de l'IS, pas au bénéfice brut. C'est l'impôt déjà acquitté à
+ce premier étage, presque jamais cité quand on parle du « taux effectif de
+1,25 % » du régime mère-fille, qui change entièrement la lecture du
+mécanisme.
+
 <!-- schema:holding-mere-fille -->
 
 **Ce n'est pas une exonération totale, et le chiffrage exact en est
-vérifiable.** Sur 100 000 € de dividendes remontés, 5 000 € (la quote-part)
-sont taxés à l'IS (25 %), soit 1 250 € — un taux effectif de 1,25 % sur la
-somme remontée, pas zéro. Si la holding et sa filiale optent pour
-l'**intégration fiscale** (article 223 A du CGI, détention d'au moins 95 %),
-la quote-part tombe à 1 %, soit un taux effectif de 0,25 % — la Cour des
-comptes chiffre elle-même cette mécanique dans un rapport de décembre 2025
-sur la fiscalité du patrimoine (voir Enjeux ci-dessus).
+vérifiable, à chaque étage.** Exemple pédagogique : une filiale réalise
+**100 000 € de bénéfice avant impôt**. Elle paie d'abord l'IS au taux
+normal de 25 % (une filiale de cette taille dépasse le seuil de 42 500 €
+de bénéfice au-delà duquel le taux réduit de 15 % réservé aux PME ne
+s'applique plus) — soit **25 000 € d'impôt sur les sociétés, déjà
+acquittés avant qu'un seul euro ne puisse être distribué**. Il ne reste
+que **75 000 €** à distribuer. Sur ces 75 000 € remontés vers la holding,
+5 % (3 750 €, la quote-part) sont taxés à l'IS (25 %), soit 937,50 € —
+un taux effectif de 1,25 % **sur la somme remontée**, pas sur le bénéfice
+initial. **En cumulant les deux étages, l'impôt déjà payé avant même que
+l'argent ne soit dans la holding s'élève à 25 937,50 €, soit près de 26 %
+du bénéfice initial** — très loin du 1,25 % isolément cité. Si la holding
+et sa filiale optent pour l'**intégration fiscale** (article 223 A du CGI,
+détention d'au moins 95 %), la quote-part tombe à 1 %, ramenant le cumul à
+25 187,50 €, environ 25,2 % — la Cour des comptes chiffre elle-même cette
+mécanique dans un rapport de décembre 2025 sur la fiscalité du patrimoine
+(voir Enjeux ci-dessus).
 
 **Le point pédagogique central : la holding déplace QUAND l'impôt est dû, pas
 si.** Tant que l'argent reste dans la holding (une pratique parfois qualifiée
-de « cash box »), seule cette quote-part minime est payée. L'impôt plein
-(prélèvement forfaitaire unique de 30 % sur les dividendes, au niveau de la
-personne physique) n'intervient qu'au moment où l'argent est effectivement
-distribué à l'associé — pas avant. Une holding qui ne distribue jamais rien
-à son actionnaire personne physique ne lui a, par construction, procuré
-aucun revenu taxable — mais ne lui a pas non plus procuré de revenu du tout.
+de « cash box »), l'impôt déjà payé (les ~26 % ci-dessus) reste le seul dû.
+L'impôt plein (prélèvement forfaitaire unique de 30 % sur les dividendes, au
+niveau de la personne physique) n'intervient qu'au moment où l'argent est
+effectivement distribué à l'associé — pas avant. Sur le même exemple, si les
+74 062,50 € restants dans la holding après la quote-part étaient
+intégralement distribués à l'associé personne physique, le PFU ajouterait
+22 218,75 € — portant le total cumulé, du bénéfice initial de la filiale
+jusqu'au revenu net de l'associé, à **48 156,25 €, soit un peu plus de 48 %
+des 100 000 € de départ**. Une holding qui ne distribue jamais rien à son
+actionnaire personne physique ne lui a, par construction, procuré aucun
+revenu taxable — mais ne lui a pas non plus procuré de revenu du tout.
 
 **Le Pacte Dutreil**, pour la transmission de l'entreprise elle-même
 (article 787 B du CGI, exonération portée à **75 %** de la valeur transmise
