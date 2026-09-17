@@ -1115,6 +1115,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaSIPRI, err := chargerSIPRI(ctx, pool)
+	if err != nil {
+		return err
+	}
 	// La carte des médecins généralistes (territoires.go) existait déjà,
 	// utilisée seulement par les onglets de l'accueil — jamais reprise sur
 	// /sujets/sante/, qui n'a par ailleurs aucune carte du tout.
@@ -1378,6 +1382,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		if statsFrancophonie != nil && strings.Contains(string(d.Corps), "<!-- tableau:francophonie-top-nombre -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:francophonie-top-nombre -->",
 				string(statsFrancophonie.TopParNombreTable)))
+		}
+		if schemaSIPRI != "" && strings.Contains(string(d.Corps), "<!-- schema:sipri-milex -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sipri-milex -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaSIPRI)+`</div>`+
+					`<figcaption>Dépense militaire, % du PIB, 1949-2025 — SIPRI. France, Russie et `+
+					`Arabie saoudite nommées (leurs trajectoires sont les plus commentées) ; les six autres `+
+					`pays de la comparaison restent en gris, chacun identifiable au survol de son point final.`+
+					`</figcaption></figure>`))
 		}
 		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",

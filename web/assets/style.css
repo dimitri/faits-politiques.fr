@@ -682,6 +682,21 @@ stroke-linejoin:round;stroke-linecap:round}
 .geo.francophonie .fr-4{fill:#256270}
 .geo.francophonie .fr-5{fill:#12414B}
 
+/* SIPRI, dépense militaire : trois pays nommés, six en gris — nommer les
+   dix aurait produit une légende plus longue que le graphique. */
+.sipri-milex .grille{stroke:var(--filet);stroke-width:1}
+.sipri-milex .ligne-autre{fill:none;stroke:var(--attenue);stroke-width:1.2;opacity:.45}
+.sipri-milex .pt-autre{fill:var(--attenue);opacity:.6}
+.sipri-milex .ligne-fr{fill:none;stroke:var(--accent);stroke-width:2.6}
+.sipri-milex .pt-fr{fill:var(--accent)}
+.sipri-milex .lbl-fr{fill:var(--accent);font:700 .74rem/1 var(--sans)}
+.sipri-milex .ligne-ru{fill:none;stroke:#9A3322;stroke-width:2}
+.sipri-milex .pt-ru{fill:#9A3322}
+.sipri-milex .lbl-ru{fill:#9A3322;font:600 .7rem/1 var(--sans)}
+.sipri-milex .ligne-sa{fill:none;stroke:#B0763A;stroke-width:2}
+.sipri-milex .pt-sa{fill:#B0763A}
+.sipri-milex .lbl-sa{fill:#B0763A;font:600 .7rem/1 var(--sans)}
+
 /* Bandeau d'un candidat : portrait, organisation, nom. */
 .tete .qui{display:flex;gap:.9rem;align-items:center;min-width:0}
 .tete .qui .credit{display:block;font:400 .66rem/1.35 var(--mono);

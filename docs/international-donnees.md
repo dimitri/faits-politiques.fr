@@ -256,6 +256,19 @@ GDP » du classeur officiel) :
 | Canada | 1,63 |
 | Japon | 1,41 |
 
+<!-- schema:sipri-milex -->
+
+La série longue montre ce que l'instantané 2025 ne dit pas : la Russie
+était déjà à 3,85 % du PIB avant l'annexion de la Crimée (2013), reste sous
+5 % jusqu'en 2022 (4,56 %), puis franchit 5 % en 2023 et atteint 7,5 % en
+2025 — une hausse concentrée sur les trois dernières années, pas un niveau
+déjà élevé avant l'invasion de l'Ukraine. L'Arabie saoudite a dépensé bien
+davantage encore par le passé, jusqu'à 19 % du PIB en 1984, plus de deux
+fois le niveau russe actuel. La France, elle, décline presque sans
+interruption depuis le début de la série (7,57 % en 1953, 5,43 % en 1960,
+2,09 % en 2000) jusqu'au plancher de 1,85 % atteint en 2013, avant une
+remontée récente à environ 2 %.
+
 **Ce tableau ne dit pas qui se défend le mieux** (§ 1, règle 3) : la part
 élevée de la Russie reflète un effort de guerre en cours, celle de
 l'Arabie saoudite un contexte régional distinct — deux situations qui
