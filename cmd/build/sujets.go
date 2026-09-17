@@ -84,6 +84,7 @@ var familles = []*Famille{
 			{ID: "agriculture", Nom: "Agriculture et alimentation", Doc: "agriculture-donnees", Pages: []LienPage{{"Agriculture et alimentation, en graphiques", "agriculture/"}}},
 			{ID: "souverainete-numerique", Nom: "Souveraineté numérique", Doc: "souverainete-numerique"},
 			{ID: "evasion-fiscale", Nom: "Évasion fiscale", Doc: "evasion-fiscale-multinationales"},
+			{ID: "fraude-fiscale", Nom: "Fraude fiscale", Doc: "fraude-fiscale-donnees"},
 			{ID: "investissement", Nom: "Investissement et dividendes des entreprises", Doc: "investissement-entreprises-donnees"},
 			{ID: "sci-holding", Nom: "SCI et holdings", Doc: "sci-holding-donnees"},
 			{ID: "emploi", Nom: "Emploi et aides aux entreprises", Doc: "emploi-aides-entreprises-donnees"},

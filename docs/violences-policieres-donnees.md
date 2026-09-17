@@ -1,6 +1,6 @@
 # Violences policières : ce que les sources permettent de dire
 
-> **Dossier** · version 2 · 15 septembre 2026
+> **Dossier** · version 3 · 17 septembre 2026
 >
 > Que mesurent les sources publiques sur les violences commises par des agents des forces
 > de l'ordre, et que ne mesurent-elles pas ? Peu de mesures publiques existent sur ce sujet ; le
@@ -42,6 +42,7 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
+- **Le taux d'élucidation des affaires de violences par PDAP a baissé de 25 points entre 2016 et 2024** (17 novembre 2025). L'association Flagrant déni, à partir de données officielles inédites obtenues de la Chancellerie, constate que le taux d'affaires de violences par personne dépositaire de l'autorité publique élucidées (au moins un auteur retrouvé) a baissé de 25 points entre 2016 et 2024, et chiffre à 700 en 2016 puis 1 110 en 2024 le nombre de ces affaires — une hausse de l'ordre de 60 %. — Flagrant déni, Polices des polices : pourquoi il faut tout changer · [source](https://www.flagrant-deni.fr/wp-content/uploads/2025/11/FD-RAPPORT-numerique-vf.pdf) · *déclaratif*
 - **2 434 réclamations sur la déontologie de la sécurité en 2024** (5 mars 2025). Le Défenseur des droits a reçu 2 434 réclamations en matière de déontologie de la sécurité en 2024. Une réclamation n'est pas un manquement établi. — Défenseur des droits (rapport annuel d'activité 2024) · [source](https://www.defenseurdesdroits.fr/sites/default/files/2025-03/ddd_rapport-annuel-2024_20250305.pdf) · *officiel*
 
 <!-- faits:CONTROLE:fin -->
@@ -57,12 +58,21 @@ sont recensées — l'asymétrie est en elle-même un fait à signaler.
 | source | ce qu'elle donne | limite |
 |---|---|---|
 | **IGPN** | depuis 2017, recensement des personnes blessées ou tuées à l'occasion de missions de police ; depuis 2020, un résumé du contexte de chaque décès | l'IGPN **ne traite qu'environ 10 %** des affaires pénales impliquant des policiers ; elle est saisie, elle ne recense pas |
-| **Ministère de la Justice** (Cassiopée / SDSE) | nombre d'affaires ouvertes pour violences *par* personne dépositaire de l'autorité publique : **700 en 2016, 1 110 en 2024** | **ces chiffres circulent par voie de presse, pas comme série publiée**. L'open data justice porte sur les *décisions*, pas sur les affaires |
+| **Ministère de la Justice** (Cassiopée / SDSE) | nombre d'affaires ouvertes pour violences *par* personne dépositaire de l'autorité publique : **700 en 2016, 1 110 en 2024** | la Chancellerie ne publie pas cette série elle-même — le chiffre est relayé par une association (voir ci-dessous), pas par une série publique interrogeable |
 | Données départementales | — | **inexistantes en accès public** pour cette catégorie |
 
-Conséquence pratique : le chiffre 700 → 1 110 ne peut pas être présenté comme
-une donnée du projet tant qu'on n'a pas remonté la publication d'origine. Il
-est cité ici comme une piste, pas comme un fait chargé.
+**La publication d'origine du chiffre 700 → 1 110 a été retrouvée** :
+l'association Flagrant déni, dans un rapport de novembre 2025 construit à
+partir de données obtenues de la Chancellerie, cite ce même doublement et
+ajoute un second constat, sur les moyens d'enquête plutôt que sur le nombre
+d'affaires : le **taux d'élucidation** de ces affaires (au moins un auteur
+retrouvé) a **baissé de 25 points entre 2016 et 2024**, et l'IGPN ne compte
+que **99 enquêteurs pour 150 000 policiers** (1 pour 1 500 — contre 1 pour
+107 au Luxembourg et 1 pour 1 000 en Belgique), un effectif en baisse depuis
+121 agents en 2022. Une source associative, pas une institution : le chiffre
+lui-même vient de la Chancellerie, mais son traitement et sa mise en
+perspective sont d'une partie, pas d'une autorité publique — voir Contrôles
+et évaluations ci-dessus.
 
 ### 3. Ce que l'Europe publie
 
@@ -148,9 +158,14 @@ libellé abrégé « violences PDAP » est à proscrire : il est ambigu.
 ## Sources
 
 Les sources sont citées dans le texte : statistiques du ministère de l'Intérieur (SSMSI),
-Défenseur des droits, arrêts de la Cour européenne des droits de l'homme chargés dans la base.
+Défenseur des droits, arrêts de la Cour européenne des droits de l'homme chargés dans la base,
+Flagrant déni (*Polices des polices : pourquoi il faut tout changer*, novembre 2025).
 
 ## Versions
 
+- **Version 3** (17 septembre 2026) : la publication d'origine du chiffre 700 → 1 110
+  retrouvée (Flagrant déni, à partir de données de la Chancellerie), avec un second
+  constat sur les moyens d'enquête de l'IGPN (99 enquêteurs, taux d'élucidation en
+  baisse de 25 points).
 - **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (loi organique sur le Défenseur des droits) et réclamations reçues en 2024.
 - **Version 1** (13 septembre 2026) : note de méthode sur les sources.

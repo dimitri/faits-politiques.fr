@@ -22,6 +22,7 @@ const (
 	urlSenatEau        = "https://www.senat.fr/fileadmin/Office_et_delegations/Annexe_-_Essentiel_-_Les_53_propositions.pdf"
 	urlCPOPatrimoine   = "https://www.ccomptes.fr/sites/default/files/2025-12/20251201-Corriger-les-principales-distorsions-de-l-imposition-du-patrimoine.pdf"
 	urlVoiesMoyens2025 = "https://www2.assemblee-nationale.fr/static/17/Annexes-DL/PLF-2025/Voies_et_moyens_Tome_2_2025.pdf"
+	urlDGFiPEcartTVA   = "https://www.impots.gouv.fr/sites/default/files/media/9_statistiques/0_etudes_et_stats/0_publications/dgfip_analyses/2024/num07_09/dgfip_analyses_07_2024.pdf"
 )
 
 // loi : un texte du Journal officiel chargé, relu par son intitulé.
@@ -69,6 +70,7 @@ func init() {
 		Terme{"sci-holding-donnees", "SCI", `\bsci\b`},
 		Terme{"sci-holding-donnees", "holding, pacte Dutreil", `holdings?|pacte dutreil`},
 		Terme{"depenses-fiscales-donnees", "dépenses fiscales, niches fiscales", `dépenses? fiscales?|niches? fiscales?`},
+		Terme{"fraude-fiscale-donnees", "fraude fiscale", `fraude fiscale`},
 		Terme{"cotisations-et-droits", "cotisations sociales", `cotisations sociales`},
 		Terme{"cotisations-et-droits", "exonérations de cotisations", `exonérations? de cotisations`},
 		Terme{"securite-sociale-donnees", "sécurité sociale", `sécurité sociale`},
@@ -277,6 +279,16 @@ func init() {
 				"n'est pas un manquement établi.",
 			URL: urlDDD2024, Qualite: "OFFICIEL",
 			Attendus: []string{"déontologie de la sécurité reçues par le Défenseur des droits en 2024 (N = 2 434)"}},
+		Fait{ID: "flagrant-deni-elucidation-2025", Dossier: "violences-policieres-donnees", Section: "CONTROLE", Theme: "associations", Type: "EVALUATION",
+			Date: "2025-11-17", Auteur: "Flagrant déni, Polices des polices : pourquoi il faut tout changer",
+			Intitule: "Le taux d'élucidation des affaires de violences par PDAP a baissé de 25 points entre 2016 et 2024",
+			Constat: "L'association Flagrant déni, à partir de données officielles inédites obtenues de la Chancellerie, constate que le taux d'affaires de " +
+				"violences par personne dépositaire de l'autorité publique élucidées (au moins un auteur retrouvé) a baissé de 25 points entre 2016 et 2024, " +
+				"et chiffre à 700 en 2016 puis 1 110 en 2024 le nombre de ces affaires — une hausse de l'ordre de 60 %.",
+			URL:     "https://www.flagrant-deni.fr/wp-content/uploads/2025/11/FD-RAPPORT-numerique-vf.pdf",
+			Qualite: "DECLARATIF",
+			Attendus: []string{"le taux d'élucidation des affaires de violences policières a baissé de 25 % entre 2016 et 2024",
+				"alors qu'il était de 700 en 2016, ce nombre d'affaires est de 1110 en 2024, soit une augmentation de l'ordre de 60%"}},
 
 		// Écologie et eau.
 		loiArt("loi-energie-climat-2019", "ecologie-donnees", "CADRE", "2019-11-08", "Parlement (loi n° 2019-1147)",
@@ -353,6 +365,21 @@ func init() {
 			Qualite: "OFFICIEL",
 			Attendus: []string{"ce chiffrage n'intègre pas les effets secondaires d'une dépense fiscale qu'il est impossible de prendre en compte",
 				"les interactions entre les mesures ne peuvent pas être quantifiées"}},
+
+		// Fraude fiscale.
+		loiArt("loi-2018-fraude-publication-noms", "fraude-fiscale-donnees", "CADRE", "2018-10-23", "Parlement (loi n° 2018-898)",
+			"La loi de 2018 contre la fraude, qui permet de publier le nom des fraudeurs les plus graves",
+			"Son article 18 crée dans le CGI la possibilité de publier, pour les manquements les plus graves (au moins 50 000 € de droits fraudés avec manœuvre frauduleuse), la nature et le montant des droits fraudés ainsi que l'identité du contribuable.",
+			"JORFTEXT000037518803", "18", "un minimum de 50 000 € et le recours à une manœuvre frauduleuse"),
+		Fait{ID: "dgfip-ecart-tva-2024", Dossier: "fraude-fiscale-donnees", Section: "ENJEUX", Type: "EVALUATION",
+			Date: "2024-09-01", Auteur: "DGFiP Analyses n°7, Le manque à gagner de TVA en France",
+			Intitule: "L'écart de TVA est estimé entre 6 et 10 Md€, soit 4 à 5 % de la TVA collectée",
+			Constat: "La DGFiP chiffre le manque à gagner de TVA dû à la sous-déclaration des entreprises dans une fourchette de 6 à 10 milliards " +
+				"d'euros, soit 4 à 5 % du montant de TVA effectivement collecté — une méthode validée par une expérience de contrôles aléatoires.",
+			URL:     urlDGFiPEcartTVA,
+			Qualite: "OFFICIEL",
+			Attendus: []string{"compris dans une fourchette de 6 à 10", "soit 4-5% du montant de TVA effectivement collecté",
+				"expérience de contrôles aléatoires"}},
 
 		// Évasion fiscale : le cadre (les contrôles sont dans ref.fait_multinationale).
 		loiArt("loi-taxe-services-numeriques-2019", "evasion-fiscale-multinationales", "CADRE", "2019-07-24", "Parlement (loi n° 2019-759)",
