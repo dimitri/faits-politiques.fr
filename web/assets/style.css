@@ -526,6 +526,7 @@ font-size:.8rem;max-width:none}
 transition:opacity .12s}
 .geo:hover path{opacity:.55}
 .geo path:hover{opacity:1}
+.geo.eptb-epage .fond{fill:var(--papier2);pointer-events:none}
 .echelle{display:flex;gap:.3rem .5rem;flex-wrap:wrap;align-items:center;margin-top:.7rem;
 font-size:.73rem;color:var(--attenue);line-height:1.3}
 .echelle .u{font:500 .66rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase}

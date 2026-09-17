@@ -231,7 +231,7 @@ Loire-Bretagne, 33 769 aides sur 33 770 sont classées « Subvention », une
 seule « Avance » — signe que l'agence a quasiment abandonné l'avance
 remboursable au profit de la subvention directe sur ces deux derniers
 programmes (les avances, plus fréquentes, apparaissent sur le 10ᵉ programme
-2013-2018, non chargé ici — voir § 6).
+2013-2018, non chargé ici — voir § 7).
 
 **Les plus gros bénéficiaires cumulés sont des structures qui portent des
 aides pour d'autres, pas toujours le porteur de travaux final** : sur
@@ -250,20 +250,63 @@ catégorie de bénéficiaire n'est publiée par les agences — seule une raison
 sociale, à catégoriser soi-même si ce dossier est approfondi), ni la part
 de chaque euro de redevance qui revient effectivement au payeur d'origine
 (la chaîne payeur → agence → aide reste bloquée par l'absence de
-redevances par payeur, voir § 6).
+redevances par payeur, voir § 7).
+
+### 6. Où sont les EPTB et les EPAGE
+
+<!-- schema:carte-eptb-epage -->
+
+Aucune agence ni ministère ne publie de périmètre géographique national pour
+les EPTB et les EPAGE (§ 1.2) : chaque DREAL régionale publie, ou non, sa
+propre couche, dans des formats disparates (flux WFS en GML sans GeoJSON,
+portails de téléchargement interactifs sans export direct) — à l'inspection,
+deux régions sur treize seulement avaient un fichier exploitable. Le contour
+affiché ici est reconstruit par un autre chemin : **BANATIC**, le registre
+national des groupements de collectivités (DGCL), déclare pour chaque
+structure si elle est EPTB et/ou EPAGE, et liste ses membres — communes ou
+EPCI, déjà cartographiés ailleurs dans ce dépôt. Le contour de chaque
+structure est l'union des contours de ses membres, pas un périmètre
+officiel téléchargé tel quel.
+
+**67 structures trouvées dans BANATIC** (24 EPTB, 42 EPAGE, 1 avec le double
+statut — un cas réel, pas un doublon). **53 sont affichées sur la carte** :
+en dessous de 80&nbsp;% de membres reconstructibles, l'union serait un
+fragment épars, plus trompeur qu'utile pris pour le territoire entier. Les
+14 non affichées se répartissent en deux cas très différents :
+
+- **2 structures interdépartementales n'ont aucun membre reconstructible** :
+  l'établissement public de la Dordogne et celui de Garonne-Gascogne ont pour
+  seuls membres des départements et des régions, pas des communes ni des
+  EPCI — un niveau de collectivité que ce dépôt ne cartographie pas encore.
+- **12 EPTB fédèrent d'autres structures plutôt que des communes** :
+  l'Établissement public territorial du bassin versant de l'Isère, par
+  exemple, a pour membres onze EPAGE, syndicats mixtes et intercommunalités
+  et quatre départements — seuls quatre de ses quinze membres (des EPCI) sont
+  reconstructibles. **Ce déséquilibre EPTB/EPAGE est net** : 40 EPAGE sur 42
+  s'affichent (95&nbsp;%), contre 12 EPTB sur 24 (50&nbsp;%) — les EPAGE,
+  à l'échelle du sous-bassin, ont le plus souvent des communes ou des EPCI
+  pour membres directs ; les EPTB, à l'échelle du grand bassin, fédèrent
+  plus souvent d'autres structures.
+
+**Les zones grises de la carte n'appartiennent à aucun EPTB/EPAGE
+reconstruit — ce qui ne veut pas dire qu'aucun EPTB/EPAGE réel n'y
+intervient.** Une partie de ces zones a un EPTB ou un EPAGE réel dont le
+contour n'a simplement pas pu être reconstruit (les 14 cas ci-dessus) ; une
+autre partie n'a effectivement aucune structure de ce type.
 
 ## Ce que les données ne disent pas
 
-### 6. Ce qui reste hors de portée de cette version
+### 7. Ce qui reste hors de portée de cette version
 
 - **Les tracés fins des sous-bassins et du réseau hydrographique**
   (rivières, affluents) : BD Topage les publie séparément, à une résolution
   bien supérieure aux sept polygones chargés ici — non chargés, le sujet de
   ce dossier étant la gouvernance par grand bassin, pas la cartographie
   hydrographique détaillée.
-- **Le périmètre exact des EPTB et EPAGE** : identifiés comme mécanisme
-  (§ 1.2), mais leurs contours propres ne sont pas chargés — seule la
-  compétence GEMAPI par EPCI l'est.
+- **Le périmètre officiel des EPTB et EPAGE** (§ 6) : aucune source
+  géographique nationale trouvée — le contour affiché est reconstruit par
+  union de membres déjà chargés (communes, EPCI), pas téléchargé comme tel,
+  et seulement pour 53 des 67 structures trouvées dans BANATIC.
 - **Les redevances par payeur** : les agences publient des barèmes de taux
   et des volumes en m³, jamais un montant réel par payeur (ménage, industriel,
   agriculteur) en open data — le premier maillon de la chaîne
@@ -305,9 +348,17 @@ redevances par payeur, voir § 6).
   2024 et au 26 juin 2026).
 - Agence de l'eau Artois-Picardie, *Conventions de subvention signées*
   (data.gouv.fr, format du décret n° 2017-779 du 5 mai 2017).
+- BANATIC (base nationale sur l'intercommunalité), Direction générale des
+  collectivités locales — export national des groupements, consulté le
+  17 septembre 2026.
 
 ## Versions
 
+- **Version 5** (17 septembre 2026) : où sont les EPTB et les EPAGE — 67
+  structures trouvées dans le registre national BANATIC, contour reconstruit
+  par union des communes et EPCI membres déjà chargés (aucune source
+  géographique nationale n'existe pour ces structures), 53 affichées sur la
+  carte avec disclosure explicite des 14 non reconstructibles.
 - **Version 4** (17 septembre 2026) : qui reçoit les aides des agences de
   l'eau, et pour quoi (Loire-Bretagne 11ᵉ/12ᵉ programmes, Artois-Picardie
   2017-2026) — 42 941 aides, 3,5 Md€, le dernier maillon de la chaîne

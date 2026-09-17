@@ -1095,6 +1095,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	carteEPTBEPAGE, err := chargerCarteEPTBEPAGE(ctx, pool)
+	if err != nil {
+		return err
+	}
 	// La carte des médecins généralistes (territoires.go) existait déjà,
 	// utilisée seulement par les onglets de l'accueil — jamais reprise sur
 	// /sujets/sante/, qui n'a par ailleurs aucune carte du tout.
@@ -1241,6 +1245,25 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`suit aucune limite régionale ou départementale — le bassin Loire-Bretagne, le `+
 					`plus vaste, traverse une douzaine de régions et départements actuels. `+
 					`Source&nbsp;: BD Topage 2025, Sandre/IGN, Licence Ouverte.</figcaption></figure>`))
+		}
+		if carteEPTBEPAGE != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-eptb-epage -->") {
+			legende := fmt.Sprintf(`<div class="repartition-legende">`+
+				`<div><i style="background:%s"></i><span>EPTB (%d)</span></div>`+
+				`<div><i style="background:%s"></i><span>EPAGE (%d)</span></div>`+
+				`<div><i style="background:%s"></i><span>Double statut (%d)</span></div></div>`,
+				couleursTypeEPTBEPAGE["EPTB"], carteEPTBEPAGE.NbEPTB,
+				couleursTypeEPTBEPAGE["EPAGE"], carteEPTBEPAGE.NbEPAGE,
+				couleursTypeEPTBEPAGE["EPTB_EPAGE"], carteEPTBEPAGE.NbDouble)
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-eptb-epage -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(carteEPTBEPAGE.SVG)+`</div>`+
+					legende+
+					fmt.Sprintf(`<figcaption>%d structures sur %d trouvées dans BANATIC affichées ici : `+
+						`en dessous de %.0f%% de membres reconstruits (communes ou EPCI déjà chargés dans `+
+						`ce dépôt), le contour serait un fragment épars, plus trompeur qu'utile. Les zones `+
+						`grises n'appartiennent à aucun EPTB/EPAGE reconstruit — pas forcément à aucun `+
+						`EPTB/EPAGE réel (§ 1.2). Source&nbsp;: BANATIC (DGCL), contour reconstruit par ce `+
+						`dépôt, pas téléchargé comme tel.</figcaption></figure>`,
+						carteEPTBEPAGE.NbAffiches, carteEPTBEPAGE.NbTrouves, seuilResolutionEPTBEPAGE*100)))
 		}
 		if carteMedecins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-medecins-generalistes -->") {
 			c := carteMedecins.Page.Carte

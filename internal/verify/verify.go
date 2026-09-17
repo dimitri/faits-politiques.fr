@@ -1950,6 +1950,18 @@ var checks = []check{
 		          WHERE agence = 'LOIRE_BRETAGNE' GROUP BY annee
 		        ) x WHERE total NOT BETWEEN 50e6 AND 700e6`,
 	},
+	{
+		// Chaque EPTB/EPAGE affiché sur la carte doit avoir un contour
+		// géométrique réel : un contour reconstruit sans membre résolu
+		// n'aurait jamais dû être inséré (garde HAVING count(g.geom)>0 côté
+		// connecteur) — ce contrôle vérifie que ça reste vrai.
+		name: "tout contour EPTB/EPAGE reconstruit couvre au moins un membre",
+		query: `SELECT count(*) FROM geo.contour_eptb_epage WHERE nb_membres_resolus = 0`,
+	},
+	{
+		name: "le type EPTB/EPAGE ne contient que des valeurs connues",
+		query: `SELECT count(*) FROM core.eptb_epage WHERE type NOT IN ('EPTB','EPAGE','EPTB_EPAGE')`,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur
