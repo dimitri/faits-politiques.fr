@@ -1914,6 +1914,24 @@ var checks = []check{
 		        WHERE (dispositif IN ('FB','FNB') AND categorie_payeur <> 'MENAGES')
 		           OR (dispositif IN ('CFE','TASCOM') AND categorie_payeur <> 'ENTREPRISES')`,
 	},
+	{
+		// Garde-fou contre exactement le piège trouvé à l'inspection avant
+		// chargement (p101_1, un taux de conformité microbiologique 0-100,
+		// avait failli passer pour le prix de l'eau) : le prix réel doit
+		// rester dans un ordre de grandeur plausible pour un service français
+		// d'eau potable, pas dans une plage 0-100 qui trahirait un mélange de
+		// colonnes si le format SISPEA changeait de nom de colonne demain.
+		name: "le prix médian de l'eau potable (SISPEA) reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, percentile_cont(0.5) WITHIN GROUP (ORDER BY prix_eur_m3) AS mediane
+		          FROM core.service_eau_potable WHERE prix_eur_m3 IS NOT NULL GROUP BY annee
+		        ) x WHERE mediane NOT BETWEEN 0.5 AND 6`,
+	},
+	{
+		name: "mode_gestion des services d'eau potable ne contient que des valeurs connues",
+		query: `SELECT count(*) FROM core.service_eau_potable
+		        WHERE mode_gestion IS NOT NULL AND mode_gestion NOT IN ('REGIE','DELEGATION')`,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur

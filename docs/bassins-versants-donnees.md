@@ -160,9 +160,57 @@ politico-administrative, de l'autre).
 France métropolitaine — les bassins d'outre-mer (chacun rattaché à un office
 de l'eau local plutôt qu'à une agence) ne sont pas chargés à ce stade.
 
+### 4. Qui gère l'eau potable, à quel prix
+
+Source : SISPEA (observatoire eaufrance.fr, OFB), export par service, 2023 —
+**10 231 services d'eau potable**, France entière. L'API Hub'Eau qui aurait pu
+servir cette donnée a été décommissionnée le 10 septembre 2026 ; le
+remplacement est un export en masse, pas une API.
+
+| Mode de gestion | Services | Population desservie | Prix moyen |
+|---|---:|---:|---:|
+| Régie | 6 905 | 29,7 M habitants | 2,13 €/m³ |
+| Délégation | 3 072 | 36,2 M habitants | 2,77 €/m³ |
+| Non renseigné | 254 | — | — |
+
+**La délégation coûte en moyenne plus cher que la régie** (2,77 € contre
+2,13 € le m³) — un écart de 30 %, mesuré sur les prix réellement déclarés par
+les services eux-mêmes, pas une estimation. Ce n'est pas la preuve d'une
+causalité simple (les services délégués sont aussi, en moyenne, plus grands
+et plus urbains, avec des coûts de réseau différents) mais un fait chiffré,
+pas une opinion répandue sans données.
+
+**Trois opérateurs concentrent l'essentiel de la délégation** : Veolia
+(833 services, 7,9 M habitants desservis), Saur (695 services, 5,2 M
+habitants), Suez (513 services, 5,2 M habitants) — suivis de loin par des
+opérateurs régionaux (Sogedo, Agur, Aqualter…).
+
+**Prix médian national : 2,26 €/m³** (TTC, pour 120 m³ — la définition
+officielle SISPEA), sur les 7 136 services qui publient un prix. Écart
+réel du simple au décuple entre services (de 0 à 9,43 €/m³) — un signe de
+qualité de saisie à surveiller plutôt qu'une vérité physique (six services
+seulement affichent 0 €/m³, une anomalie de saisie plus probable qu'une
+gratuité réelle).
+
+**Piège de colonne trouvé et évité avant chargement, pas après** : le
+classeur SISPEA nomme sa colonne de prix `d102_0`, mais une colonne voisine
+nommée `p101_1` ressemble, par construction de nom, à un candidat plausible
+— c'est en réalité le taux de conformité microbiologique des analyses
+(0 à 100, sans rapport avec un prix). Vérifié contre la définition officielle
+de chaque indicateur (Panorama Sispea 2020, annexe 1) avant tout chargement,
+pas contre la seule ressemblance du nom de colonne.
+
+**Ce que cette première charge ne couvre pas encore** : le millésime 2024
+existe mais dans un format Excel hérité (`.xls` binaire) que ce dépôt ne sait
+pas encore lire — à résoudre séparément. La composition communale des
+services (quelle commune appartient à quel service) n'est pas chargée : sans
+elle, pas de carte par commune ou par département, seulement les chiffres
+nationaux ci-dessus. L'assainissement (collectif et non collectif) suit le
+même export SISPEA mais n'est pas encore chargé.
+
 ## Ce que les données ne disent pas
 
-### 4. Ce qui reste hors de portée de cette première version
+### 5. Ce qui reste hors de portée de cette version
 
 - **Les tracés fins des sous-bassins et du réseau hydrographique**
   (rivières, affluents) : BD Topage les publie séparément, à une résolution
@@ -177,6 +225,12 @@ de l'eau local plutôt qu'à une agence) ne sont pas chargés à ce stade.
   d'une source secondaire, pas d'un jeu de données chargé en base — à faire
   si ce dossier est approfondi.
 - **Les bassins d'outre-mer** (§ 3).
+- **La carte communale/départementale des prix et opérateurs, et
+  l'assainissement** (§ 4) : la donnée service-par-service est chargée, la
+  composition communale des services et l'assainissement ne le sont pas
+  encore.
+- **Le millésime 2024 des services d'eau potable** (§ 4) : format Excel
+  hérité non lu par ce dépôt pour l'instant.
 
 ## Sources
 
@@ -193,5 +247,9 @@ de l'eau local plutôt qu'à une agence) ne sont pas chargés à ce stade.
 
 ## Versions
 
+- **Version 3** (17 septembre 2026) : qui gère l'eau potable et à quel prix
+  (SISPEA, 10 231 services, 2023) — régie contre délégation, opérateurs,
+  prix médian. Premier chiffrage réel de ce que payent les usagers, au-delà
+  de la seule architecture institutionnelle.
 - **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre et contrôle sourcés (loi MAPTAM, mission d'information du Sénat de 2023).
 - **Version 1** (14 septembre 2026) : architecture de la gouvernance de l'eau et carte des bassins hydrographiques.
