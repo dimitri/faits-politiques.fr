@@ -669,6 +669,19 @@ stroke-linejoin:round;stroke-linecap:round}
 .haltere-commerce .pt-debut{fill:var(--papier);stroke:var(--attenue);stroke-width:1.6}
 .haltere-commerce .pt-fin{fill:#8C4B3A}
 
+/* Choroplèthe mondiale : fond neutre pour tous les pays, seuils de bleu-vert
+   croissants pour la part de francophones — une seule teinte, pas un
+   dégradé arc-en-ciel qui suggérerait une échelle continue non étiquetée. */
+.geo.monde .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:.3;pointer-events:none}
+.geo.monde .pays-p{stroke:var(--carte);stroke-width:.3}
+.geo.monde .pays-p:hover{opacity:.8}
+.geo.francophonie .fr-0{fill:#CFE3E6}
+.geo.francophonie .fr-1{fill:#9FC7CD}
+.geo.francophonie .fr-2{fill:#6FABB4}
+.geo.francophonie .fr-3{fill:#448493}
+.geo.francophonie .fr-4{fill:#256270}
+.geo.francophonie .fr-5{fill:#12414B}
+
 /* Bandeau d'un candidat : portrait, organisation, nom. */
 .tete .qui{display:flex;gap:.9rem;align-items:center;min-width:0}
 .tete .qui .credit{display:block;font:400 .66rem/1.35 var(--mono);

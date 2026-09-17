@@ -2038,6 +2038,45 @@ var checks = []check{
 		query: `SELECT count(DISTINCT secteur||code_hs||annee) FROM core.commerce_partenaire_secteur`,
 		min:   8,
 	},
+	{
+		name:  "fond de carte mondial : au moins 200 pays/territoires chargés",
+		query: `SELECT count(*) FROM geo.contour_pays`,
+		min:   200,
+	},
+	{
+		// Une part de francophones est un pourcentage : au-delà de 100, une
+		// colonne a été décalée à la lecture du fichier.
+		name:  "Francophonie : les parts restent des pourcentages plausibles",
+		query: `SELECT count(*) FROM core.francophonie_entite WHERE francophone_pct NOT BETWEEN 0 AND 100`,
+	},
+	{
+		// Le nombre de francophones ne peut jamais dépasser la population de
+		// l'entité : ce serait la preuve d'une colonne mélangée.
+		name: "Francophonie : le nombre de francophones ne dépasse jamais la population",
+		query: `SELECT count(*) FROM core.francophonie_entite
+		        WHERE francophone_milliers IS NOT NULL AND population_2025_milliers IS NOT NULL
+		          AND francophone_milliers > population_2025_milliers`,
+	},
+	{
+		// Reproduit ici la normalisation (accents, apostrophes typographiques)
+		// et les six alias appliqués par cmd/build/francophonie.go, pour
+		// vérifier le taux de rattachement réel plutôt qu'un plancher
+		// arbitraire — si ce nombre baisse, le rendu de la carte a
+		// probablement le même problème.
+		name: "Francophonie : au moins 100 des 102 pays souverains se rattachent au fond de carte mondial",
+		query: `SELECT count(*) FROM core.francophonie_entite f
+		        JOIN geo.contour_pays g ON lower(unaccent(replace(replace(g.nom_fr,'''',''),'’',''))) =
+		          lower(unaccent(replace(replace(CASE f.entite
+		            WHEN 'Cabo Verde' THEN 'Cap-Vert'
+		            WHEN 'Centrafrique' THEN 'République centrafricaine'
+		            WHEN 'Congo' THEN 'République du Congo'
+		            WHEN 'Congo (République démocratique du)' THEN 'République démocratique du Congo'
+		            WHEN 'États-Unis d''Amérique' THEN 'États-Unis'
+		            WHEN 'Fédération de Russie' THEN 'Russie'
+		            ELSE f.entite END, '''', ''), '’', '')))
+		        WHERE f.type_entite='pays'`,
+		min: 100,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur

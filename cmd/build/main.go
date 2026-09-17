@@ -1111,6 +1111,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	statsFrancophonie, err := chargerFrancophonie(ctx, pool)
+	if err != nil {
+		return err
+	}
 	// La carte des médecins généralistes (territoires.go) existait déjà,
 	// utilisée seulement par les onglets de l'accueil — jamais reprise sur
 	// /sujets/sante/, qui n'a par ailleurs aucune carte du tout.
@@ -1358,6 +1362,22 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 								Decimal(marqueur.st.TotalUSDFin/1e9, 1), marqueur.st.AnneeFin)))
 				}
 			}
+		}
+		if statsFrancophonie != nil && strings.Contains(string(d.Corps), "<!-- schema:francophonie-carte -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:francophonie-carte -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(statsFrancophonie.CarteSVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>Part de francophones dans la population, par pays, 2025 — ODSEF/OIF. `+
+						`%d des %d pays souverains du fichier source sont repérés sur ce fond de carte ; les pays en gris `+
+						`n'ont pas de correspondance dans le fond Natural Earth utilisé ici, pas nécessairement aucune donnée.</figcaption></figure>`,
+						statsFrancophonie.NbPaysCartes, statsFrancophonie.NbPaysTotal)))
+		}
+		if statsFrancophonie != nil && strings.Contains(string(d.Corps), "<!-- tableau:francophonie-top-pct -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:francophonie-top-pct -->",
+				string(statsFrancophonie.TopParPctTable)))
+		}
+		if statsFrancophonie != nil && strings.Contains(string(d.Corps), "<!-- tableau:francophonie-top-nombre -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:francophonie-top-nombre -->",
+				string(statsFrancophonie.TopParNombreTable)))
 		}
 		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",
