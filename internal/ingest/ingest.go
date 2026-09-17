@@ -61,7 +61,7 @@ import (
 // router vers ce paquet plutôt que de dupliquer son analyse d'options.
 func Run(args []string) error {
 	fs := flag.NewFlagSet("ingest", flag.ContinueOnError)
-	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | sae | rpps | hydro | eau-potable | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | fiscalite-locale | paie | budget | presidentielle | media | checksums")
+	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | sae | rpps | hydro | eau-potable | eau-aides-loire-bretagne | eau-aides-artois-picardie | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | fiscalite-locale | paie | budget | presidentielle | media | checksums")
 	rawDir := fs.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := fs.String("migrations", "db/migrations", "répertoire des migrations")
 	if err := fs.Parse(args); err != nil {
@@ -483,6 +483,19 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "eau-potable" {
 		fmt.Println("\nservices d'eau potable (SISPEA)")
 		return eau.IngestSISPEAEauPotable(ctx, pool, arch)
+	}
+	// Décisions d'aide des agences de l'eau : Loire-Bretagne (11e/12e
+	// programmes) et Artois-Picardie (format décret n° 2017-779) — voir
+	// docs/bassins-versants-donnees.md et internal/eau/aides.go. Les quatre
+	// autres agences n'ont pas d'export en masse trouvé à l'inspection.
+	// Hors chaîne par défaut.
+	if only == "eau-aides-loire-bretagne" {
+		fmt.Println("\naides de l'agence de l'eau Loire-Bretagne")
+		return eau.IngestAidesLoireBretagne(ctx, pool, arch)
+	}
+	if only == "eau-aides-artois-picardie" {
+		fmt.Println("\naides de l'agence de l'eau Artois-Picardie")
+		return eau.IngestAidesArtoisPicardie(ctx, pool, arch)
 	}
 	// Dépense de protection de l'environnement (CEP/Eurostat), voir
 	// docs/ecologie-donnees.md § 4. Hors chaîne par défaut.

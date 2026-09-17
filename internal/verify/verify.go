@@ -1932,6 +1932,24 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.service_eau_potable
 		        WHERE mode_gestion IS NOT NULL AND mode_gestion NOT IN ('REGIE','DELEGATION')`,
 	},
+	{
+		// Une aide à zéro ou négative trahirait une erreur de colonne (par
+		// exemple un taux en % lu à la place du montant en €) plutôt qu'une
+		// vraie décision d'aide.
+		name: "les aides des agences de l'eau ont toutes un montant strictement positif",
+		query: `SELECT count(*) FROM core.aide_agence_eau WHERE montant_eur <= 0`,
+	},
+	{
+		// Le total annuel Loire-Bretagne (le plus gros des deux bassins
+		// chargés) doit rester dans un ordre de grandeur plausible pour une
+		// seule agence de l'eau, jamais au niveau des ~2 Md€/an des SIX
+		// agences réunies (12e programme national, 2025-2030).
+		name: "le total annuel des aides Loire-Bretagne reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sum(montant_eur) AS total FROM core.aide_agence_eau
+		          WHERE agence = 'LOIRE_BRETAGNE' GROUP BY annee
+		        ) x WHERE total NOT BETWEEN 50e6 AND 700e6`,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur

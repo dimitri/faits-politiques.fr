@@ -59,8 +59,10 @@ perçoivent des redevances auprès de tous les usagers de l'eau (ménages via
 leur facture, industriels, agriculteurs) et les reversent sous forme d'aides
 aux collectivités, aux acteurs économiques et agricoles. Le 12ᵉ programme
 d'intervention (2025-2030) prévoit plus de 13 Md€ d'aides sur la période,
-de l'ordre de 2 Md€ par an — un montant identifié par cette note, pas encore
-chargé en base sous forme de série vérifiable (§ 5).
+de l'ordre de 2 Md€ par an pour les six agences réunies — un montant
+national identifié par cette note ; les aides réellement accordées par deux
+de ces six agences (Loire-Bretagne, Artois-Picardie) sont chargées en base,
+détaillées au § 5.
 
 #### 1.2 GEMAPI : une compétence obligatoire des intercommunalités depuis 2018
 
@@ -208,9 +210,51 @@ elle, pas de carte par commune ou par département, seulement les chiffres
 nationaux ci-dessus. L'assainissement (collectif et non collectif) suit le
 même export SISPEA mais n'est pas encore chargé.
 
+### 5. Qui reçoit les aides, et pour quoi
+
+Source : décisions d'aide publiées par deux des six agences — **Loire-Bretagne**
+(11ᵉ programme 2019-2024 et 12ᵉ programme 2025-2030 en cours) et
+**Artois-Picardie** (conventions publiées au format réglementaire du décret
+n° 2017-779, 2017-2026). Les quatre autres agences (Adour-Garonne, Rhin-Meuse,
+Rhône-Méditerranée-Corse, Seine-Normandie) n'ont pas d'export en masse
+trouvé à l'inspection — seulement des portails de recherche par critères,
+sans fichier téléchargeable — donc pas chargées : un choix documenté, pas un
+oubli.
+
+| Agence | Aides | Bénéficiaires distincts (par raison sociale) | Montant cumulé |
+|---|---:|---:|---:|
+| Loire-Bretagne (11ᵉ + 12ᵉ programmes) | 33 770 | 5 990 | 2,49 Md€ |
+| Artois-Picardie (10ᵉ-11ᵉ + 12ᵉ programmes) | 9 171 | 1 709 | 1,02 Md€ |
+
+**Presque exclusivement des subventions, pas des avances** : sur
+Loire-Bretagne, 33 769 aides sur 33 770 sont classées « Subvention », une
+seule « Avance » — signe que l'agence a quasiment abandonné l'avance
+remboursable au profit de la subvention directe sur ces deux derniers
+programmes (les avances, plus fréquentes, apparaissent sur le 10ᵉ programme
+2013-2018, non chargé ici — voir § 6).
+
+**Les plus gros bénéficiaires cumulés sont des structures qui portent des
+aides pour d'autres, pas toujours le porteur de travaux final** : sur
+Loire-Bretagne, le premier bénéficiaire cumulé (191,7 M€ sur 48 aides) est
+l'ASP (Agence de services et de paiement), qui verse les aides agricoles
+(MAEC) pour le compte de l'agence de l'eau — une aide à l'ASP n'est donc pas
+une aide à un agriculteur nommément identifié, mais un flux qui se
+redistribue en aval, hors du champ de cette charge. Parmi les bénéficiaires
+directs de travaux : Clermont Auvergne Métropole (17,2 M€ pour l'extension
+d'une station de traitement des eaux usées), la Métropole européenne de
+Lille (69,4 M€ sur 247 aides, agence Artois-Picardie).
+
+**Ce que ce chiffrage ne permet pas encore de dire** : ni la part de l'aide
+qui va aux ménages, aux entreprises ou aux collectivités (aucune colonne de
+catégorie de bénéficiaire n'est publiée par les agences — seule une raison
+sociale, à catégoriser soi-même si ce dossier est approfondi), ni la part
+de chaque euro de redevance qui revient effectivement au payeur d'origine
+(la chaîne payeur → agence → aide reste bloquée par l'absence de
+redevances par payeur, voir § 6).
+
 ## Ce que les données ne disent pas
 
-### 5. Ce qui reste hors de portée de cette version
+### 6. Ce qui reste hors de portée de cette version
 
 - **Les tracés fins des sous-bassins et du réseau hydrographique**
   (rivières, affluents) : BD Topage les publie séparément, à une résolution
@@ -220,10 +264,22 @@ même export SISPEA mais n'est pas encore chargé.
 - **Le périmètre exact des EPTB et EPAGE** : identifiés comme mécanisme
   (§ 1.2), mais leurs contours propres ne sont pas chargés — seule la
   compétence GEMAPI par EPCI l'est.
-- **Le montant réel des redevances et aides par agence** (§ 1.1) : le
-  chiffre national (« 12ᵉ programme, plus de 13 Md€ sur 2025-2030 ») vient
-  d'une source secondaire, pas d'un jeu de données chargé en base — à faire
-  si ce dossier est approfondi.
+- **Les redevances par payeur** : les agences publient des barèmes de taux
+  et des volumes en m³, jamais un montant réel par payeur (ménage, industriel,
+  agriculteur) en open data — le premier maillon de la chaîne
+  payeur → agence → aide (§ 5) reste donc hors de portée, à l'inverse du
+  dernier maillon (agence → bénéficiaire), chargé.
+- **Le budget eau des collectivités** : l'eau est en budget annexe
+  (nomenclature M49) ; les données OFGL déjà chargées dans ce dépôt
+  (`core.commune_indicator`) ne couvrent que le budget principal — un pont
+  vers un budget-annexe demanderait une source OFGL différente, non
+  identifiée à ce jour. Un blocage structurel, pas un oubli.
+- **Les aides des quatre autres agences** (§ 5) : Adour-Garonne, Rhin-Meuse,
+  Rhône-Méditerranée-Corse et Seine-Normandie n'ont, à l'inspection, que des
+  portails de recherche par critères — aucun fichier exportable trouvé.
+- **Le 10ᵉ programme Loire-Bretagne (2013-2018)** (§ 5) : chaque millésime a
+  son propre jeu de colonnes (vérifié à l'inspection), un connecteur séparé
+  par année serait nécessaire.
 - **Les bassins d'outre-mer** (§ 3).
 - **La carte communale/départementale des prix et opérateurs, et
   l'assainissement** (§ 4) : la donnée service-par-service est chargée, la
@@ -244,9 +300,19 @@ même export SISPEA mais n'est pas encore chargé.
 - [docs/ecologie-donnees.md](ecologie-donnees.md), pour la fiscalité
   écologique et le budget vert — des prélèvements distincts des redevances
   d'agence de l'eau décrites ici.
+- Agence de l'eau Loire-Bretagne, *Décisions d'aide, 11ᵉ et 12ᵉ programmes*
+  (aides-redevances.eau-loire-bretagne.fr, listes arrêtées au 3 décembre
+  2024 et au 26 juin 2026).
+- Agence de l'eau Artois-Picardie, *Conventions de subvention signées*
+  (data.gouv.fr, format du décret n° 2017-779 du 5 mai 2017).
 
 ## Versions
 
+- **Version 4** (17 septembre 2026) : qui reçoit les aides des agences de
+  l'eau, et pour quoi (Loire-Bretagne 11ᵉ/12ᵉ programmes, Artois-Picardie
+  2017-2026) — 42 941 aides, 3,5 Md€, le dernier maillon de la chaîne
+  payeur → agence → aide, avec les quatre agences non couvertes et les
+  redevances par payeur documentées comme hors de portée.
 - **Version 3** (17 septembre 2026) : qui gère l'eau potable et à quel prix
   (SISPEA, 10 231 services, 2023) — régie contre délégation, opérateurs,
   prix médian. Premier chiffrage réel de ce que payent les usagers, au-delà
