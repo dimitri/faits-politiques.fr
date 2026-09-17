@@ -2023,6 +2023,21 @@ var checks = []check{
 		        WHERE part_champ_general_pct NOT BETWEEN 0 AND 100
 		           OR part_postes_delocalises_pct NOT BETWEEN 0 AND 100`,
 	},
+	{
+		// Le total mondial (code_partenaire=0) doit rester la plus grande
+		// valeur de son (secteur, code_hs, année) : un partenaire ne peut
+		// jamais dépasser le monde entier.
+		name: "commerce par partenaire : le total mondial domine chaque partenaire, secteur par secteur",
+		query: `SELECT count(*) FROM core.commerce_partenaire_secteur c
+		        WHERE c.code_partenaire <> 0 AND c.valeur_usd > (
+		          SELECT m.valeur_usd FROM core.commerce_partenaire_secteur m
+		          WHERE m.secteur=c.secteur AND m.code_hs=c.code_hs AND m.annee=c.annee AND m.code_partenaire=0)`,
+	},
+	{
+		name:  "commerce par partenaire : les trois secteurs et les deux années sont tous chargés",
+		query: `SELECT count(DISTINCT secteur||code_hs||annee) FROM core.commerce_partenaire_secteur`,
+		min:   8,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur

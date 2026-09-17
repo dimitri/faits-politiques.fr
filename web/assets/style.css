@@ -660,6 +660,15 @@ stroke-linejoin:round;stroke-linecap:round}
 .geo.delocalisation .deloc-c{fill:#8C4B3A;fill-opacity:.6;stroke:#5C2E22;stroke-width:600}
 .geo.delocalisation .deloc-c:hover{fill-opacity:.9}
 
+/* Haltère (dumbbell) : un point de départ, un point d'arrivée, reliés — pour
+   montrer un déplacement de part, jamais un volume brut qui masquerait le
+   mouvement derrière les plus gros partenaires historiques. */
+.haltere-commerce{width:100%;height:auto;display:block;max-width:44rem;margin:.4rem 0 .2rem}
+.haltere-commerce .pays{font:500 .78rem/1 var(--sans);fill:var(--encre);text-anchor:end}
+.haltere-commerce .trait{stroke:var(--attenue);stroke-width:2;opacity:.55}
+.haltere-commerce .pt-debut{fill:var(--papier);stroke:var(--attenue);stroke-width:1.6}
+.haltere-commerce .pt-fin{fill:#8C4B3A}
+
 /* Bandeau d'un candidat : portrait, organisation, nom. */
 .tete .qui{display:flex;gap:.9rem;align-items:center;min-width:0}
 .tete .qui .credit{display:block;font:400 .66rem/1.35 var(--mono);

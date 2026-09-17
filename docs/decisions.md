@@ -2563,3 +2563,29 @@ principe de `docs/perimetre.md` de ne jamais fabriquer un chiffre plus précis q
 - La carte départementale (Figure 6 de l'étude) n'utilise, elle, que le scénario central —
   l'étude Insee ne publie pas de bornes par département, donc aucune bande n'est inventée à
   ce niveau ; le texte le précise.
+
+## D-078 — Pas de carte du monde pour les partenaires commerciaux : un graphique en haltère à la place
+
+`docs/appareil-productif-donnees.md` §4, `cmd/build/appareil_productif.go`, `internal/macro/commerce_partenaires.go`.
+
+**Pourquoi.** L'utilisateur a demandé une carte du monde des importations françaises pour
+montrer où la production s'est déplacée (l'exemple donné, Renault/Dacia vers la Roumanie,
+s'est d'ailleurs révélé inexact à la vérification — voir le correctif du §3). Une carte
+choroplèthe classique, colorée par valeur d'import, aurait mécaniquement mis en avant
+l'Allemagne et l'Espagne (vérifié : 20,5 % et 16,3 % des importations automobiles françaises
+en 2024) — les deux grandes puissances automobiles historiques de l'UE, pas des destinations
+de délocalisation. Une carte qui montre involontairement l'inverse du récit qu'elle est censée
+illustrer est un contresens visuel, pas une nuance à corriger en légende.
+
+**Décidé.**
+
+- Remplacement par un graphique en haltère (dumbbell) : un point pour la part 2013, un point
+  pour la part 2024, reliés par un trait, un partenaire par ligne — le déplacement de part se
+  lit directement, sans halo trompeur autour des plus gros volumes absolus.
+- Tous les partenaires disponibles sont chargés en base (pas une sélection de pays choisis
+  pour appuyer le récit) ; le classement des huit partenaires affichés se fait à l'affichage,
+  par valeur à la dernière année — reproductible et vérifiable, pas éditorialisé au chargement.
+- Trois secteurs seulement (automobile, textile-habillement, télévisions/écrans), pas une
+  couverture exhaustive du commerce extérieur : chaque secteur correspond à un récit déjà
+  étayé par un cas concret du §3, et la vérification d'un code HS supplémentaire a un coût
+  reproductible qui ne justifiait pas d'élargir sans un besoin identifié.

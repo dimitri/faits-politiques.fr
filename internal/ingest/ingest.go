@@ -61,7 +61,7 @@ import (
 // router vers ce paquet plutôt que de dupliquer son analyse d'options.
 func Run(args []string) error {
 	fs := flag.NewFlagSet("ingest", flag.ContinueOnError)
-	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | ifi | appareil-productif | sae | rpps | hydro | eau-potable | eau-aides-loire-bretagne | eau-aides-artois-picardie | eau-eptb-epage | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | fiscalite-locale | paie | budget | presidentielle | media | checksums")
+	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | ifi | appareil-productif | commerce-partenaires | sae | rpps | hydro | eau-potable | eau-aides-loire-bretagne | eau-aides-artois-picardie | eau-eptb-epage | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | fiscalite-locale | paie | budget | presidentielle | media | checksums")
 	rawDir := fs.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := fs.String("migrations", "db/migrations", "répertoire des migrations")
 	if err := fs.Parse(args); err != nil {
@@ -478,6 +478,14 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		}
 		fmt.Println("\ndélocalisations d'unités légales et d'emplois (Insee)")
 		return macro.IngestDelocalisationsInsee(ctx, pool, arch)
+	}
+	// D'où viennent les importations françaises, secteur par secteur
+	// (automobile, textile-habillement, télévisions), 2013 vs dernière
+	// année : UN Comtrade. Voir docs/appareil-productif-donnees.md. Hors
+	// chaîne par défaut.
+	if only == "commerce-partenaires" {
+		fmt.Println("\ncommerce extérieur par partenaire (UN Comtrade)")
+		return macro.IngestCommercePartenaires(ctx, pool, arch)
 	}
 	// L'insertion des apprentis : voir docs/jeunesse-donnees.md. Hors chaîne
 	// par défaut, comme les autres blocs thématiques ajoutés au fil des

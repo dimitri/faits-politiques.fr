@@ -23,6 +23,163 @@ type StatsAppareilProductif struct {
 	DelocalisationDeptSVG            template.HTML
 	NbDepartements                   int
 	DelocalisationCSPTable           template.HTML
+	CommerceAutomobile, CommerceTextile, CommerceElectroniqueTV *StatsCommerceSecteur
+}
+
+// PartenairePart : la part d'un pays partenaire dans les importations
+// françaises d'un secteur, à deux dates — le couple, pas la valeur seule,
+// est ce que le graphique en haltère (dumbbell) montre.
+type PartenairePart struct {
+	Nom                  string
+	Part2013, PartDerniere float64
+}
+
+type StatsCommerceSecteur struct {
+	Secteur                        string
+	Libelle                        string
+	AnneeDebut, AnneeFin            int
+	TotalUSDDebut, TotalUSDFin      float64
+	Partenaires                     []PartenairePart
+	SVG                             template.HTML
+}
+
+// chargerCommerceSecteur : additionne, par partenaire, tous les codes HS du
+// secteur (le textile-habillement en a deux — bonneterie et habillement
+// classique — jamais fusionnés au chargement, voir la migration 0125), puis
+// retient les N partenaires les plus importants à la dernière année pour le
+// graphique — le classement se fait ici, sur la donnée complète, pas au
+// chargement.
+func chargerCommerceSecteur(ctx context.Context, pool *pgxpool.Pool, secteur, libelle string, topN int) (*StatsCommerceSecteur, error) {
+	var anneeDebut, anneeFin int
+	if err := pool.QueryRow(ctx, `SELECT min(annee), max(annee) FROM core.commerce_partenaire_secteur WHERE secteur=$1`, secteur).
+		Scan(&anneeDebut, &anneeFin); err != nil {
+		return nil, err
+	}
+	if anneeDebut == 0 {
+		return nil, nil
+	}
+
+	totaux := map[int]float64{}
+	rows, err := pool.Query(ctx, `
+		SELECT annee, sum(valeur_usd) FROM core.commerce_partenaire_secteur
+		WHERE secteur=$1 AND code_partenaire=0 GROUP BY annee`, secteur)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var a int
+		var v float64
+		if err := rows.Scan(&a, &v); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		totaux[a] = v
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	rows.Close()
+	if totaux[anneeDebut] == 0 || totaux[anneeFin] == 0 {
+		return nil, fmt.Errorf("commerce %s : total mondial manquant pour %d ou %d", secteur, anneeDebut, anneeFin)
+	}
+
+	type valeurs struct{ debut, fin float64 }
+	parPartenaire := map[string]*valeurs{}
+	prows, err := pool.Query(ctx, `
+		SELECT nom_partenaire, annee, sum(valeur_usd) FROM core.commerce_partenaire_secteur
+		WHERE secteur=$1 AND code_partenaire<>0 GROUP BY nom_partenaire, annee`, secteur)
+	if err != nil {
+		return nil, err
+	}
+	for prows.Next() {
+		var nom string
+		var annee int
+		var v float64
+		if err := prows.Scan(&nom, &annee, &v); err != nil {
+			prows.Close()
+			return nil, err
+		}
+		if parPartenaire[nom] == nil {
+			parPartenaire[nom] = &valeurs{}
+		}
+		if annee == anneeDebut {
+			parPartenaire[nom].debut = v
+		} else if annee == anneeFin {
+			parPartenaire[nom].fin = v
+		}
+	}
+	if err := prows.Err(); err != nil {
+		prows.Close()
+		return nil, err
+	}
+	prows.Close()
+
+	var tous []PartenairePart
+	for nom, v := range parPartenaire {
+		tous = append(tous, PartenairePart{Nom: nom, Part2013: 100 * v.debut / totaux[anneeDebut], PartDerniere: 100 * v.fin / totaux[anneeFin]})
+	}
+	sort.Slice(tous, func(i, j int) bool { return tous[i].PartDerniere > tous[j].PartDerniere })
+	if len(tous) > topN {
+		tous = tous[:topN]
+	}
+	// Le graphique se lit du plus petit au plus grand de haut en bas d'un
+	// <svg> (y croissant vers le bas) : inverser l'ordre pour que le premier
+	// partenaire apparaisse en haut.
+	for i, j := 0, len(tous)-1; i < j; i, j = i+1, j-1 {
+		tous[i], tous[j] = tous[j], tous[i]
+	}
+
+	st := &StatsCommerceSecteur{
+		Secteur: secteur, Libelle: libelle, AnneeDebut: anneeDebut, AnneeFin: anneeFin,
+		TotalUSDDebut: totaux[anneeDebut], TotalUSDFin: totaux[anneeFin], Partenaires: tous,
+	}
+	st.SVG = dessinerHaltereCommerce(st)
+	return st, nil
+}
+
+// dessinerHaltereCommerce : un graphique en haltère (dumbbell) — un point
+// pour la part de marché de départ, un point pour la part d'arrivée, reliés
+// par un trait — plutôt qu'une carte du monde, qui aurait mis en avant les
+// plus gros volumes absolus (Allemagne, Espagne) plutôt que le déplacement
+// réel vers des partenaires plus récents.
+func dessinerHaltereCommerce(st *StatsCommerceSecteur) template.HTML {
+	if len(st.Partenaires) == 0 {
+		return ""
+	}
+	const largeurEtiquette, mDroite, mHaut, mBas, hauteurLigne = 132.0, 16.0, 10.0, 24.0, 30.0
+	const largeur = 720.0
+	hauteur := mHaut + mBas + hauteurLigne*float64(len(st.Partenaires))
+	largeurAxe := largeur - largeurEtiquette - mDroite
+
+	max := 0.0
+	for _, p := range st.Partenaires {
+		if p.Part2013 > max {
+			max = p.Part2013
+		}
+		if p.PartDerniere > max {
+			max = p.PartDerniere
+		}
+	}
+	max = max * 1.2
+	x := func(pct float64) float64 { return largeurEtiquette + largeurAxe*pct/max }
+
+	var b strings.Builder
+	fmt.Fprintf(&b, `<svg class="haltere-commerce" viewBox="0 0 %.0f %.0f" role="img" `+
+		`aria-label="Part de chaque partenaire dans les importations françaises, %s, %d et %d">`,
+		largeur, hauteur, template.HTMLEscapeString(st.Libelle), st.AnneeDebut, st.AnneeFin)
+	for i, p := range st.Partenaires {
+		cy := mHaut + hauteurLigne*(float64(i)+0.5)
+		fmt.Fprintf(&b, `<text class="pays" x="%.1f" y="%.1f">%s</text>`,
+			largeurEtiquette-10, cy+4, template.HTMLEscapeString(p.Nom))
+		fmt.Fprintf(&b, `<line class="trait" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>`,
+			x(p.Part2013), cy, x(p.PartDerniere), cy)
+		fmt.Fprintf(&b, `<circle class="pt-debut" cx="%.1f" cy="%.1f" r="4.5"><title>%s, %d : %s %%</title></circle>`,
+			x(p.Part2013), cy, template.HTMLEscapeString(p.Nom), st.AnneeDebut, template.HTMLEscapeString(Decimal(p.Part2013, 1)))
+		fmt.Fprintf(&b, `<circle class="pt-fin" cx="%.1f" cy="%.1f" r="4.5"><title>%s, %d : %s %%</title></circle>`,
+			x(p.PartDerniere), cy, template.HTMLEscapeString(p.Nom), st.AnneeFin, template.HTMLEscapeString(Decimal(p.PartDerniere, 1)))
+	}
+	b.WriteString(`</svg>`)
+	return template.HTML(b.String())
 }
 
 type pointSecteur struct {
@@ -81,6 +238,15 @@ func chargerAppareilProductif(ctx context.Context, pool *pgxpool.Pool) (*StatsAp
 		return nil, err
 	}
 	if st.DelocalisationCSPTable, err = tableauDelocalisationCSP(ctx, pool); err != nil {
+		return nil, err
+	}
+	if st.CommerceAutomobile, err = chargerCommerceSecteur(ctx, pool, "automobile", "automobiles (HS 8703)", 8); err != nil {
+		return nil, err
+	}
+	if st.CommerceTextile, err = chargerCommerceSecteur(ctx, pool, "textile-habillement", "textile-habillement (HS 61+62)", 8); err != nil {
+		return nil, err
+	}
+	if st.CommerceElectroniqueTV, err = chargerCommerceSecteur(ctx, pool, "electronique-tv", "télévisions et écrans (HS 8528)", 8); err != nil {
 		return nil, err
 	}
 	return st, nil

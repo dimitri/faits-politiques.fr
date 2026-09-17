@@ -115,6 +115,119 @@ surreprésentés dans une proportion comparable — la délocalisation ne touche
 pas que la chaîne de production, elle touche aussi la conception et
 l'encadrement technique qui l'accompagnent.
 
+### 3. Des usines qui ont fermé, une production partie ailleurs
+
+Aucune administration ne tient de registre des usines fermées et de la
+destination de leur production : les cas ci-dessous viennent d'un
+recoupement de communiqués d'entreprise, de presse professionnelle et
+d'archives, pas d'une base de données unique — le niveau de preuve varie
+d'un cas à l'autre, et c'est signalé pour chacun.
+
+- **Renault Twingo** (Flins → Novo Mesto, Slovénie). La première génération
+  sortait de l'usine de Flins (Yvelines) ; depuis 2007, la Twingo est
+  fabriquée exclusivement chez Revoz, filiale à 100 % de Renault à Novo
+  Mesto. — [Renault Group, page officielle de l'usine](https://www.renaultgroup.com/en/group/locations/novo-mesto-plant-revoz/) · *officiel*
+- **Citroën C3** (Poissy → Trnava, Slovaquie). La troisième génération,
+  dévoilée en 2016, n'a jamais été assemblée en France : elle sort de
+  l'usine PSA/Stellantis de Trnava. — presse professionnelle (L'Usine
+  Nouvelle, Largus.fr, 2016) · *déclaratif*
+- **Sidérurgie, ArcelorMittal Florange** (Moselle). Arrêt définitif des
+  hauts fourneaux annoncé le 17 décembre 2012, 629 postes supprimés sur la
+  filière amont ; le site ne conserve que la galvanisation, alimentée par
+  des brames produites sur d'autres sites du groupe. Citation d'ArcelorMittal :
+  *« ArcelorMittal confirme ne pas vouloir relancer la production d'acier
+  liquide sur le site »*. — presse (franceinfo.fr, Europe 1), questions
+  parlementaires · *déclaratif, citation d'entreprise rapportée*
+- **Pneumatiques, Continental Clairoix** (Oise → Timișoara, Roumanie).
+  Fermeture annoncée le 11 mars 2009, effective le 31 mars 2010 (~1 120
+  emplois, ~8 millions de pneus/an) ; la capacité du site roumain de
+  Timișoara passe dans le même temps de 13 à 30 millions de pneus/an. —
+  presse professionnelle et syndicale (L'Usine Nouvelle) · *déclaratif*
+- **Électroménager, Whirlpool Amiens** (Somme → Łódź, Pologne). Annonce le
+  24 janvier 2017 de cesser la production de sèche-linge à Amiens (286 à
+  290 postes), fermeture effective en juin 2018 ; l'usine polonaise devient
+  le site central de la nouvelle plateforme sèche-linge du groupe — un
+  dossier devenu un sujet de la campagne présidentielle 2017. — presse,
+  questions parlementaires (assemblee-nationale.fr) · *déclaratif*
+- **Petit électroménager, Moulinex**. Dépôt de bilan le 7 septembre 2001,
+  arrêt de l'activité le 11 septembre, cinq usines normandes fermées (environ
+  4 500 licenciements). Actifs repris par SEB le 22 octobre 2001. — étude de
+  cas Eurofound (« Moulinex: chronicle of a death foretold »), étude
+  académique (Cairn.info) · *le mieux sourcé des cas listés ici*
+- **Télévisions, Thomson Multimedia**. Restructurations en cascade des
+  usines françaises dans les années 2000 (Angers, Brest, Gray, Bagneaux) ;
+  TCL-Thomson Electronics annonce en novembre 2006 la fermeture des sites de
+  production européens ; liquidation judiciaire de Technicolor (ex-Thomson)
+  le 11 octobre 2012. — presse professionnelle, collectivités locales ·
+  *déclaratif*
+- **Lingerie, Lejaby** (Haute-Loire → Sfax, Tunisie). Délocalisation
+  progressive depuis 1992 ; à la fermeture de la dernière usine française
+  (Yssingeaux, 93 salariés), 83 % de la production était déjà en Tunisie,
+  10 % en Chine. — presse régionale, question parlementaire · *déclaratif*
+- **Houille, dernière mine française** (La Houve, Creutzwald, Moselle).
+  Extraction arrêtée le 23 avril 2004, terme du « pacte charbonnier » de
+  1994 — ce n'est pas une délocalisation au sens strict (aucune production
+  française n'a été « déplacée », le gisement s'épuisait), mais la demande
+  française de houille est depuis couverte par l'importation. À ne pas
+  confondre avec les cas précédents. — archives INA, Encyclopædia
+  Universalis · *déclaratif*
+
+**Un correctif nécessaire** : contrairement à une idée reçue, aucune source
+ne confirme qu'un modèle Dacia précis remplace une production
+antérieurement française — Dacia (filiale roumaine de Renault, à Mioveni)
+n'a jamais eu de production équivalente rapatriée depuis la France. Le cas
+Renault solide et vérifié est celui de la Twingo (ci-dessus), vers la
+Slovénie, pas la Roumanie.
+
+### 4. D'où viennent aujourd'hui les biens autrefois fabriqués en France : trois secteurs
+
+Une carte du monde des importations françaises, colorée par volume, mettrait
+en avant l'Allemagne et l'Espagne — les deux grandes puissances automobiles
+européennes historiques, pas des destinations de délocalisation. Ce serait
+un contresens visuel. Les graphiques ci-dessous montrent plutôt, pour
+chaque partenaire, la PART qu'il occupait en 2013 et celle qu'il occupe en
+2024 — le déplacement, pas seulement le volume.
+
+**Automobiles (HS 8703)**
+
+<!-- schema:commerce-automobile -->
+
+L'Allemagne et l'Espagne restent, en 2024, les deux premiers fournisseurs
+de voitures de la France — un fait qui contredit tout récit d'une
+disparition pure et simple de l'automobile « occidentale ». Mais parmi les
+partenaires qui montent, le Maroc a multiplié par 5 sa part depuis 2013 et
+la Roumanie par 3,4, tandis que la Slovaquie et la Tchéquie, sites
+d'assemblage de plusieurs constructeurs français et allemands, comptent
+déjà parmi les dix premiers fournisseurs.
+
+**Textile-habillement (HS 61 + 62)**
+
+<!-- schema:commerce-textile -->
+
+Le secteur le plus anciennement délocalisé est aussi le plus concentré :
+Chine et Bangladesh à eux seuls dépassent, en 2024, le quart des
+importations françaises d'habillement. L'Italie reste le seul partenaire du
+classement où l'essentiel de la production se fait encore en Europe de
+l'Ouest.
+
+**Télévisions et écrans (HS 8528)**
+
+<!-- schema:commerce-electronique-tv -->
+
+La Chine domine massivement ce secteur (environ un quart des importations
+françaises en 2024). Les Pays-Bas apparaissent en bonne position sans être
+un site d'assemblage connu : Rotterdam est un point d'entrée et de
+réexpédition majeur pour l'Europe, pas nécessairement le pays de fabrication
+réelle — un biais que Comtrade ne permet pas de lever (le pays déclaré est
+celui de provenance directe, pas toujours celui de fabrication d'origine).
+
+**Sur ces trois graphiques** : les valeurs viennent d'UN Comtrade, un miroir
+onusien des déclarations douanières nationales — PAS les douanes françaises
+elles-mêmes (leur portail, lekiosque.finances.gouv.fr, publie des données
+plus détaillées mais sans API, un chantier d'intégration séparé). Les
+montants sont en **dollars courants**, la convention Comtrade, jamais à
+confondre avec les euros utilisés ailleurs dans ce dépôt.
+
 ## Contrôles et évaluations
 
 <!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
@@ -125,8 +238,20 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 ## Ce que les données ne disent pas
 
-### 3. Ce qui reste hors de portée de cette version
+### 5. Ce qui reste hors de portée de cette version
 
+- **Les huit cas du §3 ne sont pas un échantillon représentatif** : ce sont
+  des cas notoires, documentés parce qu'ils ont fait l'actualité — aucune
+  méthode ne permet de savoir combien de cas comparables, moins médiatisés,
+  ont eu lieu sans laisser de trace publique équivalente.
+- **Les douanes françaises (DGDDI, lekiosque.finances.gouv.fr) ne sont pas
+  chargées** : les graphiques du §4 viennent d'UN Comtrade, un miroir
+  onusien des mêmes déclarations douanières — une source secondaire par
+  rapport à la source primaire française, qui n'a pas d'API et demanderait
+  un connecteur de formulaire séparé.
+- **Le pays déclaré par Comtrade est celui de provenance directe, pas
+  toujours celui de fabrication d'origine** (voir la remarque sur les
+  Pays-Bas au §4) : un bien peut transiter par un pays sans y être produit.
 - **Les délocalisations depuis 2018 ne sont pas mesurées** : l'étude Insee
   s'arrête en 2017, faute d'une méthode équivalente republiée depuis
   (situation vérifiée en septembre 2026). Aucune tendance récente (Covid,
@@ -160,9 +285,22 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
   emplois délocalisés chaque année de 2011 à 2017, avant une chute continue
   du nombre de délocalisations » — Figures 2, 4, 6 et 7 (Ésane, enquête CAM,
   DGDDI/Douanes).
+- UN Comtrade (reporterCode 251, France), importations par partenaire,
+  codes HS 8703 (automobiles), 61 et 62 (textile-habillement), 8528
+  (télévisions et écrans), 2013 et 2024.
+- Renault Group, page officielle de l'usine Revoz (Novo Mesto, Slovénie).
+- Sources de presse et archives pour les huit cas du §3, détaillées ligne
+  par ligne dans le texte (L'Usine Nouvelle, franceinfo.fr, Europe 1,
+  Eurofound, Cairn.info, archives INA, questions parlementaires).
 
 ## Versions
 
+- **Version 2** (17 septembre 2026) : huit cas vérifiés d'usines fermées et
+  de production partie à l'étranger (§3) ; trois graphiques de déplacement
+  des importations françaises par partenaire, automobile/textile/télévisions
+  (§4, UN Comtrade, 2013-2024) — après vérification qu'une carte du monde
+  aurait mis en avant les mauvais pays (Allemagne, Espagne plutôt que les
+  destinations de délocalisation).
 - **Version 1** (17 septembre 2026) : glissement sectoriel de l'emploi
   1975-2025 (Eurostat) ; délocalisations d'unités légales et d'emplois,
   1995-2017, avec la carte départementale et la surreprésentation des

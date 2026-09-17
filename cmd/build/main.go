@@ -1334,6 +1334,31 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:delocalisation-csp -->",
 				string(statsAppareilProductif.DelocalisationCSPTable)))
 		}
+		if statsAppareilProductif != nil {
+			for _, marqueur := range []struct {
+				cle string
+				st  *StatsCommerceSecteur
+			}{
+				{"schema:commerce-automobile", statsAppareilProductif.CommerceAutomobile},
+				{"schema:commerce-textile", statsAppareilProductif.CommerceTextile},
+				{"schema:commerce-electronique-tv", statsAppareilProductif.CommerceElectroniqueTV},
+			} {
+				if marqueur.st == nil {
+					continue
+				}
+				m := "<!-- " + marqueur.cle + " -->"
+				if strings.Contains(string(d.Corps), m) {
+					d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), m,
+						`<figure class="schema"><div class="carte-pleine">`+string(marqueur.st.SVG)+`</div>`+
+							fmt.Sprintf(`<figcaption>Part de chaque partenaire dans les importations françaises de %s, `+
+								`%d (point clair) et %d (point plein) — UN Comtrade, valeurs en dollars courants. `+
+								`Total mondial : %s Md$ en %d, %s Md$ en %d.</figcaption></figure>`,
+								marqueur.st.Libelle, marqueur.st.AnneeDebut, marqueur.st.AnneeFin,
+								Decimal(marqueur.st.TotalUSDDebut/1e9, 1), marqueur.st.AnneeDebut,
+								Decimal(marqueur.st.TotalUSDFin/1e9, 1), marqueur.st.AnneeFin)))
+				}
+			}
+		}
 		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",
 				`<figure class="schema"><div class="carte-pleine">`+string(schemaHoldingMereFille())+`</div>`+
