@@ -1265,6 +1265,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 						`dépôt, pas téléchargé comme tel.</figcaption></figure>`,
 						carteEPTBEPAGE.NbAffiches, carteEPTBEPAGE.NbTrouves, seuilResolutionEPTBEPAGE*100)))
 		}
+		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaHoldingMereFille())+`</div>`+
+					`<figcaption>Exemple pédagogique sur un montant rond (100 000 €) ; les taux (5 % de `+
+					`quote-part, 25 % d'IS, 1 % en cas d'intégration fiscale) sont réels et sourcés — voir `+
+					`le Cadre et les Enjeux ci-dessus.</figcaption></figure>`))
+		}
 		if strings.Contains(string(d.Corps), "<!-- schema:tva-entreprises -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:tva-entreprises -->",
 				`<figure class="schema"><div class="carte-pleine">`+string(schemaTVAEntreprises())+`</div>`+

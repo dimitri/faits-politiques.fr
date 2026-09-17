@@ -20,6 +20,7 @@ const (
 	urlSenatSolid    = "https://www.senat.fr/rap/a25-142-5/a25-142-5-syn.pdf"
 	urlSenatPLFSS    = "https://www.senat.fr/lessentiel/plfss2026.pdf"
 	urlSenatEau      = "https://www.senat.fr/fileadmin/Office_et_delegations/Annexe_-_Essentiel_-_Les_53_propositions.pdf"
+	urlCPOPatrimoine = "https://www.ccomptes.fr/sites/default/files/2025-12/20251201-Corriger-les-principales-distorsions-de-l-imposition-du-patrimoine.pdf"
 )
 
 // loi : un texte du Journal officiel chargé, relu par son intitulé.
@@ -64,6 +65,8 @@ func init() {
 		Terme{"bassins-versants-donnees", "agences de l'eau", `agences? de l.eau`},
 		Terme{"tva-donnees", "TVA", `\mtva\M`},
 		Terme{"tva-donnees", "taux de TVA", `taux (normal |réduits? |intermédiaire )?de (la )?tva`},
+		Terme{"sci-holding-donnees", "SCI", `\bsci\b`},
+		Terme{"sci-holding-donnees", "holding, pacte Dutreil", `holdings?|pacte dutreil`},
 		Terme{"cotisations-et-droits", "cotisations sociales", `cotisations sociales`},
 		Terme{"cotisations-et-droits", "exonérations de cotisations", `exonérations? de cotisations`},
 		Terme{"securite-sociale-donnees", "sécurité sociale", `sécurité sociale`},
@@ -318,6 +321,21 @@ func init() {
 			Qualite: "OFFICIEL",
 			Attendus: []string{"la TVA, principal impôt de rendement corrélé à la croissance",
 				"la TVA ne représente plus que 30 % des recettes fiscales nettes en 2024, contre 53 % en 2018"}},
+
+		// SCI et holdings.
+		loiArt("loi-pme-2005-dutreil-75", "sci-holding-donnees", "CADRE", "2005-08-02", "Parlement (loi n° 2005-882)",
+			"La loi PME de 2005, qui porte l'exonération du pacte Dutreil à 75 %",
+			"Son article 28 porte l'exonération de droits de mutation à titre gratuit du pacte Dutreil de la moitié à 75 % de la valeur des titres transmis.",
+			"JORFTEXT000000452052", "28", "à concurrence de 75 % de leur valeur"),
+		Fait{ID: "cpo-holding-taux-effectif-2025", Dossier: "sci-holding-donnees", Section: "ENJEUX", Type: "EVALUATION",
+			Date: "2025-12-01", Auteur: "Conseil des prélèvements obligatoires (Cour des comptes), Corriger les principales distorsions de l'imposition du patrimoine",
+			Intitule: "Remonter des dividendes d'une filiale vers une holding est imposé à 1,25 % au maximum, pas 0 %",
+			Constat: "Le CPO chiffre le régime mère-fille : la quote-part pour frais et charges (5 % du dividende, taxée à l'IS) fait que le transfert " +
+				"de la filiale vers la holding est imposé à un taux effectif de 1,25 % au maximum — 0,25 % seulement en cas d'intégration fiscale.",
+			URL:     urlCPOPatrimoine,
+			Qualite: "OFFICIEL",
+			Attendus: []string{"le transfert de la fille vers la holding est ainsi imposé à un taux effectif de 1,25 % au maximum",
+				"ce taux effectif est plus faible, à 0,25 %"}},
 
 		// Évasion fiscale : le cadre (les contrôles sont dans ref.fait_multinationale).
 		loiArt("loi-taxe-services-numeriques-2019", "evasion-fiscale-multinationales", "CADRE", "2019-07-24", "Parlement (loi n° 2019-759)",
