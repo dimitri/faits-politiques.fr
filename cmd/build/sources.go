@@ -112,3 +112,105 @@ func loadSources(ctx context.Context, pool *pgxpool.Pool) ([]SourceDetail, error
 	}
 	return out, nil
 }
+
+type TypeFichier struct {
+	Type   string
+	Nombre int64
+	Octets int64
+}
+
+type TableVolumineuse struct {
+	Nom    string
+	Lignes int64
+	Octets int64
+}
+
+// StatsGlobalesSources : de quoi répondre, avant la liste des flux, à
+// « combien de sources, combien de fichiers, combien pèse tout ça » — un
+// chiffre vérifié par introspection PostgreSQL directe, pas une estimation.
+type StatsGlobalesSources struct {
+	NbSources         int64
+	NbFichiers        int64
+	OctetsFichiers    int64
+	TypesFichiers     []TypeFichier
+	NbTables          int64
+	NbLignes          int64
+	OctetsBase        int64
+	PlusGrossesTables []TableVolumineuse
+}
+
+// chargerStatsGlobalesSources : deux mesures de taille distinctes, jamais
+// fusionnées — celle de l'archive scellée (raw.document, les fichiers sources
+// tels que récupérés) et celle de la base (pg_database_size, les données une
+// fois extraites et normalisées). Qu'elles se ressemblent en ordre de
+// grandeur est une coïncidence, pas la même chose : l'une mesure ce qui a été
+// téléchargé, l'autre ce que Postgres stocke une fois structuré.
+func chargerStatsGlobalesSources(ctx context.Context, pool *pgxpool.Pool) (*StatsGlobalesSources, error) {
+	var st StatsGlobalesSources
+
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM raw.source`).Scan(&st.NbSources); err != nil {
+		return nil, err
+	}
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*), coalesce(sum(byte_size),0) FROM raw.document`).
+		Scan(&st.NbFichiers, &st.OctetsFichiers); err != nil {
+		return nil, err
+	}
+
+	rows, err := pool.Query(ctx, `
+		SELECT split_part(lower(content_type),';',1) AS type, count(*), sum(byte_size)
+		FROM raw.document GROUP BY 1 ORDER BY count(*) DESC LIMIT 4`)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var t TypeFichier
+		if err := rows.Scan(&t.Type, &t.Nombre, &t.Octets); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		st.TypesFichiers = append(st.TypesFichiers, t)
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*) FROM pg_tables WHERE schemaname IN ('core','ref','geo','derived','raw')`).
+		Scan(&st.NbTables); err != nil {
+		return nil, err
+	}
+	if err := pool.QueryRow(ctx, `
+		SELECT coalesce(sum(n_live_tup),0) FROM pg_stat_user_tables
+		WHERE schemaname IN ('core','ref','geo','derived','raw')`).
+		Scan(&st.NbLignes); err != nil {
+		return nil, err
+	}
+	if err := pool.QueryRow(ctx, `SELECT pg_database_size(current_database())`).
+		Scan(&st.OctetsBase); err != nil {
+		return nil, err
+	}
+
+	rowsT, err := pool.Query(ctx, `
+		SELECT schemaname||'.'||relname, n_live_tup, pg_total_relation_size(schemaname||'.'||relname) AS taille
+		FROM pg_stat_user_tables WHERE schemaname IN ('core','ref','geo','derived','raw')
+		ORDER BY taille DESC LIMIT 5`)
+	if err != nil {
+		return nil, err
+	}
+	for rowsT.Next() {
+		var t TableVolumineuse
+		if err := rowsT.Scan(&t.Nom, &t.Lignes, &t.Octets); err != nil {
+			rowsT.Close()
+			return nil, err
+		}
+		st.PlusGrossesTables = append(st.PlusGrossesTables, t)
+	}
+	rowsT.Close()
+	if err := rowsT.Err(); err != nil {
+		return nil, err
+	}
+
+	return &st, nil
+}

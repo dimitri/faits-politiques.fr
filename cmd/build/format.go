@@ -89,6 +89,23 @@ func Montant(v float64) string {
 	return Nombre(int(v)) + " €"
 }
 
+// Octets : une taille de fichier ou de table, en unités binaires (Ko = 1024
+// octets) — la convention déjà suivie par pg_size_pretty, pour ne pas
+// afficher un nombre qui ne correspondrait à aucune des deux mesures.
+func Octets(n int64) string {
+	const unite = 1024
+	unites := [...]string{"Ko", "Mo", "Go", "To"}
+	if n < unite {
+		return Nombre(int(n)) + " octets"
+	}
+	div, exp := int64(unite), 0
+	for v := n / unite; v >= unite && exp < len(unites)-1; v /= unite {
+		div *= unite
+		exp++
+	}
+	return Decimal(float64(n)/float64(div), 1) + " " + unites[exp]
+}
+
 var moisLong = [...]string{"", "janvier", "février", "mars", "avril", "mai", "juin",
 	"juillet", "août", "septembre", "octobre", "novembre", "décembre"}
 

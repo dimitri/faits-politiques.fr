@@ -237,7 +237,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 
 	fns := template.FuncMap{"jauge": Jauge, "poleG": PoleGauche, "poleD": PoleDroit,
-		"lower": strings.ToLower, "nb": Nombre, "ico": Icone,
+		"lower": strings.ToLower, "nb": Nombre, "octets": Octets, "ico": Icone,
 		"marque": Marque, "grille": Grille, "pct": Pourcent, "nb64": Nombre64,
 		"mdEur": mdEur, "pctFr": pctFr, "dec": Decimal, "eurHab": eurHab, "montant": Montant,
 		"echelon": func(t string) string { return libelleEchelon[t] },
@@ -467,12 +467,17 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	statsSources, err := chargerStatsGlobalesSources(ctx, pool)
+	if err != nil {
+		return err
+	}
 	l = layout
 	l.Title = "Sources"
 	if err := write(page("sources.gohtml"), filepath.Join(out, "sources", "index.html"), struct {
 		Layout
-		Flux []SourceDetail
-	}{l, sources}); err != nil {
+		Flux  []SourceDetail
+		Stats *StatsGlobalesSources
+	}{l, sources, statsSources}); err != nil {
 		return err
 	}
 

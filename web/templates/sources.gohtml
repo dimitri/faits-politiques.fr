@@ -57,6 +57,23 @@ des organisations au registre CNCCFP et aux référentiels tiers, les coalitions
 chronologie des présidences, les explications françaises des catégories employées par les
 référentiels. Aucune de ces décisions n'est enfouie dans le code.</p>
 
+<h2>Quelques chiffres</h2>
+<p class="small muted">Deux mesures distinctes, jamais additionnées&nbsp;: le poids des fichiers
+sources archivés (téléchargés tels quels, avant toute lecture) et le poids de la base une fois les
+données extraites et normalisées. Qu'elles se ressemblent en ordre de grandeur est une coïncidence.</p>
+<div class="reperes">
+  <div><b>{{nb .Stats.NbSources}}</b><span>sources ingérées</span></div>
+  <div><b>{{nb .Stats.NbFichiers}}</b><span>fichiers sources archivés</span><em>{{octets .Stats.OctetsFichiers}} au total</em></div>
+  <div><b>{{nb .Stats.NbTables}}</b><span>tables en base</span></div>
+  <div><b>{{nb .Stats.NbLignes}}</b><span>lignes en base</span><em>base&nbsp;: {{octets .Stats.OctetsBase}}</em></div>
+</div>
+<p class="small">Types de fichiers les plus fréquents parmi les sources archivées&nbsp;:
+{{range $i, $t := .Stats.TypesFichiers}}{{if $i}}, {{end}}<code>{{$t.Type}}</code> ({{nb $t.Nombre}}, {{octets $t.Octets}}){{end}}.</p>
+<div class="scroll"><table>
+<thead><tr><th>Table les plus volumineuses</th><th class="n">Lignes</th><th class="n">Taille</th></tr></thead>
+<tbody>{{range .Stats.PlusGrossesTables}}<tr><td><code>{{.Nom}}</code></td><td class="n">{{nb .Lignes}}</td><td class="n">{{octets .Octets}}</td></tr>{{end}}</tbody>
+</table></div>
+
 <h2>Flux ingérés</h2>
 <p class="small muted">Une source absente de cette liste n'alimente rien.</p>
 
@@ -71,7 +88,7 @@ référentiels. Aucune de ces décisions n'est enfouie dans le code.</p>
     {{else}}<span class="pos ABSTAIN small"> · exclue des exports</span>{{end}}</dd>
   <dt>Fréquence annoncée</dt><dd>{{if .Cadence}}{{.Cadence}}{{else}}<span class="muted">non précisée</span>{{end}}</dd>
   <dt>Dernière ingestion</dt><dd>{{if .DerniereIngestion}}{{.DerniereIngestion}}{{if .Statut}} <span class="small muted">({{.Statut}})</span>{{end}}{{else}}<span class="muted">jamais</span>{{end}}</dd>
-  <dt>Volume archivé</dt><dd>{{nb .Documents}} documents scellés{{if .Enregistrements}}, {{nb .Enregistrements}} enregistrements extraits{{end}}</dd>
+  <dt>Volume archivé</dt><dd>{{nb .Documents}} documents scellés ({{octets .Octets}}){{if .Enregistrements}}, {{nb .Enregistrements}} enregistrements extraits{{end}}</dd>
   {{if .Empreinte}}<dt>Empreinte du dernier</dt><dd><code>{{.Empreinte}}</code></dd>{{end}}
   <dt>Attribution</dt><dd class="small">{{.Attribution}}</dd>
 </dl>
