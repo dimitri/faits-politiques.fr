@@ -62,6 +62,8 @@ func init() {
 		Terme{"ecologie-donnees", "budget vert", `budget vert`},
 		Terme{"bassins-versants-donnees", "GEMAPI", `\mgemapi\M`},
 		Terme{"bassins-versants-donnees", "agences de l'eau", `agences? de l.eau`},
+		Terme{"tva-donnees", "TVA", `\mtva\M`},
+		Terme{"tva-donnees", "taux de TVA", `taux (normal |réduits? |intermédiaire )?de (la )?tva`},
 		Terme{"cotisations-et-droits", "cotisations sociales", `cotisations sociales`},
 		Terme{"cotisations-et-droits", "exonérations de cotisations", `exonérations? de cotisations`},
 		Terme{"securite-sociale-donnees", "sécurité sociale", `sécurité sociale`},
@@ -298,6 +300,24 @@ func init() {
 				"sur l'ensemble du bassin versant pour les intercommunalités aux ressources faibles.",
 			URL: urlSenatEau, Qualite: "OFFICIEL",
 			Attendus: []string{"Mettre en place une fraction de taxe GEMAPI mutualisée sur l'ensemble du bassin versant", "Renforcer la gouvernance de l'eau"}},
+
+		// TVA.
+		loiArt("loi-lfr-2012-taux-tva-2014", "tva-donnees", "CADRE", "2012-12-29", "Parlement (loi n° 2012-1510)",
+			"La loi de finances rectificative pour 2012, qui fixe les taux actuels de 20 % et 10 %",
+			"Son article 68 relève le taux normal de 19,60 % à 20 % et le taux intermédiaire de 7 % à 10 %, "+
+				"pour les opérations dont le fait générateur intervient à compter du 1er janvier 2014.",
+			"JORFTEXT000026857857", "68", "A la fin de l'article 278, le taux : « 19,60 % » est remplacé par le taux : « 20 % »",
+			"le taux : « 7 % » est remplacé par le taux : « 10 % »"),
+		Fait{ID: "cour-comptes-tva-part-recettes-2024", Dossier: "tva-donnees", Section: "ENJEUX", Type: "EVALUATION",
+			Date: "2025-04-15", Auteur: "Cour des comptes, analyse de l'exécution budgétaire 2024 — Recettes fiscales de l'État",
+			Intitule: "La TVA ne représente plus que 30 % des recettes fiscales nettes de l'État, contre 53 % en 2018",
+			Constat: "La Cour constate que la TVA, \"principal impôt de rendement corrélé à la croissance économique\", fait l'objet depuis 2019 de "+
+				"transferts croissants aux collectivités territoriales et à la Sécurité sociale, si bien qu'elle ne représente plus que 30 % des "+
+				"recettes fiscales nettes de l'État en 2024, contre 53 % en 2018.",
+			URL:     "https://www.ccomptes.fr/sites/default/files/2025-04/NEB-2024-Recettes-fiscales.pdf",
+			Qualite: "OFFICIEL",
+			Attendus: []string{"la TVA, principal impôt de rendement corrélé à la croissance",
+				"la TVA ne représente plus que 30 % des recettes fiscales nettes en 2024, contre 53 % en 2018"}},
 
 		// Évasion fiscale : le cadre (les contrôles sont dans ref.fait_multinationale).
 		loiArt("loi-taxe-services-numeriques-2019", "evasion-fiscale-multinationales", "CADRE", "2019-07-24", "Parlement (loi n° 2019-759)",

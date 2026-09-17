@@ -1265,6 +1265,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 						`dépôt, pas téléchargé comme tel.</figcaption></figure>`,
 						carteEPTBEPAGE.NbAffiches, carteEPTBEPAGE.NbTrouves, seuilResolutionEPTBEPAGE*100)))
 		}
+		if strings.Contains(string(d.Corps), "<!-- schema:tva-entreprises -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:tva-entreprises -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaTVAEntreprises())+`</div>`+
+					`<figcaption>Exemple pédagogique (pas une chaîne de transactions réelles observées, voir `+
+					`« Ce que les données ne disent pas ») : à chaque étage, TVA collectée moins TVA déductible `+
+					`donne la TVA nette versée à l'État — la somme des trois retombe exactement sur la TVA payée `+
+					`par le consommateur final.</figcaption></figure>`))
+		}
 		if carteMedecins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-medecins-generalistes -->") {
 			c := carteMedecins.Page.Carte
 			var echelle strings.Builder

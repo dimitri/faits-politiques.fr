@@ -2512,3 +2512,28 @@ court — ne s'y retrouvait pas.
 - Mécanisme réservé au sujet `collectivites` (`donneesCollectivites`) ; les autres sujets
   qui reprennent une page de données (chômage, dette, agriculture…) gardent
   `donneesDePage`, inchangé.
+
+## D-076 — Le schéma de collecte de la TVA par étages utilise un exemple pédagogique explicitement étiqueté
+
+`docs/tva-donnees.md`, `cmd/build/tva.go`.
+
+**Pourquoi.** Le mécanisme de collecte de la TVA par étages (TVA collectée moins TVA
+déductible égale TVA nette versée, et la somme sur toute la chaîne retombe sur la TVA payée
+par le consommateur final) est un fait de droit vérifiable — mais aucune source ouverte ne
+publie de chaîne de transactions réelles à ce niveau de détail par filière (quel agriculteur
+vend à quel transformateur, à quel prix). Illustrer le mécanisme demande donc des montants
+inventés, ce que le périmètre du projet (`docs/perimetre.md`) interdit de présenter comme un
+constat.
+
+**Décidé.**
+
+- Les montants du schéma (agriculteur 100 € HT, transformateur 250 € HT, distributeur 400 € HT)
+  sont un **exemple pédagogique**, choisis pour que l'arithmétique tombe juste (20 + 30 + 30 =
+  80 € = la TVA payée par le consommateur final), jamais présentés comme une observation.
+  Le texte du dossier et la légende du schéma le disent explicitement à chaque occurrence.
+- Le mécanisme lui-même (droit à déduction, articles 271 et suivants du CGI) reste un fait de
+  droit sourcé normalement — seuls les MONTANTS de l'exemple sont pédagogiques, pas le
+  mécanisme qu'ils illustrent. Une distinction plus étroite que celle de
+  `docs/revenu-universel-microsimulation.md` (qui est un document de travail entier, hors
+  périmètre factuel) : ici, un seul schéma dans un dossier par ailleurs factuel de bout en
+  bout.
