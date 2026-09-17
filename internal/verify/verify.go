@@ -1977,6 +1977,52 @@ var checks = []check{
 		name: "IFICOM : le patrimoine moyen par commune reste au-dessus du seuil d'assujettissement",
 		query: `SELECT count(*) FROM core.ifi_commune WHERE patrimoine_moyen_eur < 1300000`,
 	},
+	{
+		// La branche C (industrie manufacturière) est une SOUS-catégorie de
+		// B-E (industrie y compris énergie) : elle ne peut jamais la
+		// dépasser sans trahir une confusion de colonnes.
+		name: "emploi par secteur NACE : l'industrie manufacturière (C) ne dépasse jamais l'industrie entière (B-E)",
+		query: `SELECT count(*) FROM (
+		          SELECT annee FROM core.emploi_secteur_nace WHERE code_nace='C'
+		        ) c JOIN (
+		          SELECT annee, emploi_milliers FROM core.emploi_secteur_nace WHERE code_nace='B-E'
+		        ) be USING (annee)
+		        JOIN (SELECT annee, emploi_milliers FROM core.emploi_secteur_nace WHERE code_nace='C') cc USING (annee)
+		        WHERE cc.emploi_milliers > be.emploi_milliers`,
+	},
+	{
+		name:  "emploi par secteur NACE : au moins 40 années chargées (série 1975-2025)",
+		query: `SELECT count(DISTINCT annee) FROM core.emploi_secteur_nace`,
+		min:   40,
+	},
+	{
+		// Les trois scénarios (bas/central/haut) sont des bornes d'un même
+		// intervalle : le scénario bas ne peut jamais dépasser le central,
+		// ni le central le haut, sans trahir une inversion de colonnes.
+		name: "délocalisations : le scénario bas ne dépasse jamais le central, ni le central le haut (unités légales)",
+		query: `SELECT count(*) FROM core.delocalisation_annuelle
+		        WHERE unites_legales_bas > unites_legales_central
+		           OR unites_legales_central > unites_legales_haut`,
+	},
+	{
+		name: "délocalisations : le scénario bas ne dépasse jamais le central, ni le central le haut (emplois ETP)",
+		query: `SELECT count(*) FROM core.delocalisation_annuelle
+		        WHERE emplois_etp_bas IS NOT NULL
+		          AND (emplois_etp_bas > emplois_etp_central OR emplois_etp_central > emplois_etp_haut)`,
+	},
+	{
+		name:  "délocalisations : les 96 départements métropolitains sont chargés",
+		query: `SELECT count(*) FROM core.delocalisation_departement`,
+		min:   96,
+	},
+	{
+		// Chaque part est un pourcentage : au-delà de 100, une colonne a été
+		// décalée à la lecture du fichier.
+		name: "délocalisations : les parts par catégorie socioprofessionnelle restent des pourcentages plausibles",
+		query: `SELECT count(*) FROM core.delocalisation_csp
+		        WHERE part_champ_general_pct NOT BETWEEN 0 AND 100
+		           OR part_postes_delocalises_pct NOT BETWEEN 0 AND 100`,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur

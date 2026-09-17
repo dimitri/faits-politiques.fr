@@ -88,6 +88,7 @@ var familles = []*Famille{
 			{ID: "investissement", Nom: "Investissement et dividendes des entreprises", Doc: "investissement-entreprises-donnees"},
 			{ID: "sci-holding", Nom: "SCI et holdings", Doc: "sci-holding-donnees"},
 			{ID: "emploi", Nom: "Emploi et aides aux entreprises", Doc: "emploi-aides-entreprises-donnees"},
+			{ID: "appareil-productif", Nom: "L'appareil productif français", Doc: "appareil-productif-donnees"},
 		}},
 	{ID: "ecole-recherche-culture", Nom: "École, recherche et culture", Base: "sujets",
 		Intro: "L'enseignement scolaire, les universités et la recherche, la culture, le sport.",

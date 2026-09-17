@@ -77,6 +77,8 @@ func init() {
 		Terme{"securite-sociale-donnees", "sécurité sociale", `sécurité sociale`},
 		Terme{"evasion-fiscale-multinationales", "évasion fiscale", `évasion fiscale`},
 		Terme{"evasion-fiscale-multinationales", "taxe sur les services numériques, GAFAM", `taxe sur les services numériques|\mgafam\M`},
+		Terme{"appareil-productif-donnees", "désindustrialisation", `désindustrialisation`},
+		Terme{"appareil-productif-donnees", "délocalisation", `délocalisations?|relocalisations?`},
 	)
 
 	faits = append(faits,

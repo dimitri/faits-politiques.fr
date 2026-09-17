@@ -2537,3 +2537,29 @@ constat.
   `docs/revenu-universel-microsimulation.md` (qui est un document de travail entier, hors
   périmètre factuel) : ici, un seul schéma dans un dossier par ailleurs factuel de bout en
   bout.
+
+## D-077 — Les délocalisations d'emplois sont présentées comme une détection par modèle, jamais comme un comptage
+
+`docs/appareil-productif-donnees.md`, `internal/macro/delocalisations.go`, `cmd/build/appareil_productif.go`.
+
+**Pourquoi.** Aucune statistique publique ne compte directement les emplois délocalisés —
+la seule source disponible (Insee, *Les entreprises en France*, éd. 2022) les détecte par un
+modèle statistique (régression logistique, forêt aléatoire, XGBoost), avec une aire sous la
+courbe ROC de 0,54 à 0,80 selon la méthode. L'Insee publie systématiquement trois scénarios
+(bas/central/haut), jamais un chiffre unique — reprendre un seul de ces trois nombres, ou les
+moyenner, ferait passer une estimation modélisée pour une mesure exacte, contrairement au
+principe de `docs/perimetre.md` de ne jamais fabriquer un chiffre plus précis que sa source.
+
+**Décidé.**
+
+- Les trois scénarios sont chargés tels quels dans `core.delocalisation_annuelle`
+  (colonnes `_bas`/`_central`/`_haut`), jamais réduits à une moyenne ou au seul scénario
+  central au chargement.
+- Le schéma `<!-- schema:delocalisation-annuelle -->` dessine la bande bas-haut ET la ligne
+  centrale, jamais la ligne centrale seule — la fourchette fait partie du fait, pas une note
+  de bas de page.
+- Le texte du dossier nomme explicitement la méthode (modèle de détection, AUC) à chaque
+  occurrence, pour qu'aucun chiffre ne se lise comme un comptage administratif.
+- La carte départementale (Figure 6 de l'étude) n'utilise, elle, que le scénario central —
+  l'étude Insee ne publie pas de bornes par département, donc aucune bande n'est inventée à
+  ce niveau ; le texte le précise.

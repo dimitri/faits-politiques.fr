@@ -1107,6 +1107,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	statsAppareilProductif, err := chargerAppareilProductif(ctx, pool)
+	if err != nil {
+		return err
+	}
 	// La carte des médecins généralistes (territoires.go) existait déjà,
 	// utilisée seulement par les onglets de l'accueil — jamais reprise sur
 	// /sujets/sante/, qui n'a par ailleurs aucune carte du tout.
@@ -1302,6 +1306,33 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 						`redevables ; la couleur est uniforme. Les zones sans cercle n'ont pas de commune `+
 						`publiée à ce niveau, pas forcément aucun redevable à l'IFI.</figcaption></figure>`,
 						carteIFI.NbCommunes, carteIFI.Annee)))
+		}
+		if statsAppareilProductif != nil && strings.Contains(string(d.Corps), "<!-- schema:glissement-sectoriel -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:glissement-sectoriel -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(statsAppareilProductif.GlissementSVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>Part de l'emploi total par secteur, France, %d à %d — Eurostat, `+
+						`nama_10_a10_e. « Services » est ici le complément (total moins agriculture, industrie et `+
+						`construction), pas une addition de branches publiées séparément.</figcaption></figure>`,
+						statsAppareilProductif.AnneeDebutGlissement, statsAppareilProductif.AnneeFinGlissement)))
+		}
+		if statsAppareilProductif != nil && strings.Contains(string(d.Corps), "<!-- schema:delocalisation-annuelle -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:delocalisation-annuelle -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(statsAppareilProductif.DelocalisationAnnuelleSVG)+`</div>`+
+					`<figcaption>Emplois en équivalent temps plein détectés comme délocalisés chaque année, `+
+					`2001-2017 — la bande couvre les scénarios bas à haut du modèle Insee, la ligne est le `+
+					`scénario central. Un chiffre encadré par une fourchette, pas une mesure exacte.</figcaption></figure>`))
+		}
+		if statsAppareilProductif != nil && strings.Contains(string(d.Corps), "<!-- schema:delocalisation-departement -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:delocalisation-departement -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(statsAppareilProductif.DelocalisationDeptSVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>Cumul 1995-2017 des emplois délocalisés (scénario central), par `+
+						`département de résidence de l'entreprise — %d départements métropolitains. La surface de `+
+						`chaque cercle est proportionnelle au nombre d'emplois.</figcaption></figure>`,
+						statsAppareilProductif.NbDepartements)))
+		}
+		if statsAppareilProductif != nil && strings.Contains(string(d.Corps), "<!-- tableau:delocalisation-csp -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:delocalisation-csp -->",
+				string(statsAppareilProductif.DelocalisationCSPTable)))
 		}
 		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",

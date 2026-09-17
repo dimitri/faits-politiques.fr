@@ -633,6 +633,33 @@ stroke-linejoin:round;stroke-linecap:round}
 .courbe .pal.moy{font:600 .74rem/1 var(--sans);fill:var(--encre)}
 .courbe .et.haut{text-anchor:middle}
 
+/* Glissement sectoriel : quatre courbes de part d'emploi, une couleur par
+   secteur — pas de dégradé, chaque secteur doit rester identifiable seul. */
+.glissement-sectoriel .grille{stroke:var(--filet);stroke-width:1}
+.glissement-sectoriel .ligne-agriculture{fill:none;stroke:#4B7A3D;stroke-width:2}
+.glissement-sectoriel .ligne-industrie{fill:none;stroke:#8C4B3A;stroke-width:2}
+.glissement-sectoriel .ligne-construction{fill:none;stroke:#B08B3A;stroke-width:2}
+.glissement-sectoriel .ligne-services{fill:none;stroke:#1E5C69;stroke-width:2.4}
+.glissement-sectoriel .ligne-agriculture-pt{fill:#4B7A3D}
+.glissement-sectoriel .ligne-industrie-pt{fill:#8C4B3A}
+.glissement-sectoriel .ligne-construction-pt{fill:#B08B3A}
+.glissement-sectoriel .ligne-services-pt{fill:#1E5C69}
+.glissement-sectoriel .ligne-agriculture-lbl{fill:#4B7A3D}
+.glissement-sectoriel .ligne-industrie-lbl{fill:#8C4B3A}
+.glissement-sectoriel .ligne-construction-lbl{fill:#B08B3A}
+.glissement-sectoriel .ligne-services-lbl{fill:#1E5C69}
+.glissement-sectoriel [class$="-lbl"]{font:600 .68rem/1 var(--sans)}
+
+/* Délocalisations, série annuelle : une bande bas-haut, pas une seule
+   courbe — le scénario central se lit dedans, jamais seul. */
+.delocalisation-annuelle .bande{fill:var(--accent);opacity:.14;stroke:none}
+.delocalisation-annuelle .ligne-centrale{fill:none;stroke:var(--accent);stroke-width:2}
+.delocalisation-annuelle .pt-central{fill:var(--accent)}
+
+.geo.delocalisation .fond{fill:var(--papier2);pointer-events:none}
+.geo.delocalisation .deloc-c{fill:#8C4B3A;fill-opacity:.6;stroke:#5C2E22;stroke-width:600}
+.geo.delocalisation .deloc-c:hover{fill-opacity:.9}
+
 /* Bandeau d'un candidat : portrait, organisation, nom. */
 .tete .qui{display:flex;gap:.9rem;align-items:center;min-width:0}
 .tete .qui .credit{display:block;font:400 .66rem/1.35 var(--mono);
