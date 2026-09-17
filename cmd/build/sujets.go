@@ -127,6 +127,7 @@ var familles = []*Famille{
 		Cofog: []string{"GF01"}, Sujets: []*Sujet{
 			{ID: "budget", Nom: "Budget de l'État et de la Sécurité sociale", Doc: "budget-donnees", Pages: []LienPage{{"Recettes, dépenses et solde, mois par mois", "budget/"}}},
 			{ID: "tva", Nom: "TVA", Doc: "tva-donnees"},
+			{ID: "depenses-fiscales", Nom: "Dépenses fiscales (niches)", Doc: "depenses-fiscales-donnees"},
 			{ID: "dette", Nom: "Dette publique", Doc: "dette-donnees", Pages: []LienPage{{"La dette, en graphiques", "dette/"}}},
 			{ID: "pouvoirs-publics", Nom: "Coût des pouvoirs publics", Doc: "pouvoirs-publics-donnees"},
 			{ID: "fonction-publique", Nom: "Fonction publique", Doc: "fonction-publique-donnees"},

@@ -7,20 +7,21 @@ package dossiers
 // cadre ils s'inscrivent et ce qu'en ont conclu les institutions de contrôle.
 
 const (
-	urlHCFP2025      = "https://www.hcfp.fr/sites/default/files/2025-10/Avis%20HCFP%202025%20%E2%80%93%205%20PLF-PLFSS%202026_0.pdf"
-	urlCOR2025       = "https://www.cor-retraites.fr/sites/default/files/2025-06/Synth%C3%A8se_Def_.pdf"
-	urlHCC2025       = "https://www.hautconseilclimat.fr/wp-content/uploads/2025/07/HCC_RA_2025-VDEF0207_web.pdf"
-	urlUnedic2026    = "https://www.unedic.org/storage/uploads/2026/03/04/situation-financiere-assurance-chomage-a-horizon-2028_03-mars-2026_uid_69a7f392cd38b.pdf"
-	urlDDD2024       = "https://www.defenseurdesdroits.fr/sites/default/files/2025-03/ddd_rapport-annuel-2024_20250305.pdf"
-	urlSenatDefense  = "https://www.senat.fr/rap/l25-139-38/l25-139-38-syn.pdf"
-	urlSenatPouvoirs = "https://www.senat.fr/rap/l25-139-322/l25-139-322-syn.pdf"
-	urlSenatEduc     = "https://www.senat.fr/rap/a25-144-31/a25-144-31-syn.pdf"
-	urlSenatSecu     = "https://www.senat.fr/rap/a25-145-12/a25-145-12-syn.pdf"
-	urlSenatImmig    = "https://www.senat.fr/rap/l25-139-315/l25-139-315_mono.html"
-	urlSenatSolid    = "https://www.senat.fr/rap/a25-142-5/a25-142-5-syn.pdf"
-	urlSenatPLFSS    = "https://www.senat.fr/lessentiel/plfss2026.pdf"
-	urlSenatEau      = "https://www.senat.fr/fileadmin/Office_et_delegations/Annexe_-_Essentiel_-_Les_53_propositions.pdf"
-	urlCPOPatrimoine = "https://www.ccomptes.fr/sites/default/files/2025-12/20251201-Corriger-les-principales-distorsions-de-l-imposition-du-patrimoine.pdf"
+	urlHCFP2025        = "https://www.hcfp.fr/sites/default/files/2025-10/Avis%20HCFP%202025%20%E2%80%93%205%20PLF-PLFSS%202026_0.pdf"
+	urlCOR2025         = "https://www.cor-retraites.fr/sites/default/files/2025-06/Synth%C3%A8se_Def_.pdf"
+	urlHCC2025         = "https://www.hautconseilclimat.fr/wp-content/uploads/2025/07/HCC_RA_2025-VDEF0207_web.pdf"
+	urlUnedic2026      = "https://www.unedic.org/storage/uploads/2026/03/04/situation-financiere-assurance-chomage-a-horizon-2028_03-mars-2026_uid_69a7f392cd38b.pdf"
+	urlDDD2024         = "https://www.defenseurdesdroits.fr/sites/default/files/2025-03/ddd_rapport-annuel-2024_20250305.pdf"
+	urlSenatDefense    = "https://www.senat.fr/rap/l25-139-38/l25-139-38-syn.pdf"
+	urlSenatPouvoirs   = "https://www.senat.fr/rap/l25-139-322/l25-139-322-syn.pdf"
+	urlSenatEduc       = "https://www.senat.fr/rap/a25-144-31/a25-144-31-syn.pdf"
+	urlSenatSecu       = "https://www.senat.fr/rap/a25-145-12/a25-145-12-syn.pdf"
+	urlSenatImmig      = "https://www.senat.fr/rap/l25-139-315/l25-139-315_mono.html"
+	urlSenatSolid      = "https://www.senat.fr/rap/a25-142-5/a25-142-5-syn.pdf"
+	urlSenatPLFSS      = "https://www.senat.fr/lessentiel/plfss2026.pdf"
+	urlSenatEau        = "https://www.senat.fr/fileadmin/Office_et_delegations/Annexe_-_Essentiel_-_Les_53_propositions.pdf"
+	urlCPOPatrimoine   = "https://www.ccomptes.fr/sites/default/files/2025-12/20251201-Corriger-les-principales-distorsions-de-l-imposition-du-patrimoine.pdf"
+	urlVoiesMoyens2025 = "https://www2.assemblee-nationale.fr/static/17/Annexes-DL/PLF-2025/Voies_et_moyens_Tome_2_2025.pdf"
 )
 
 // loi : un texte du Journal officiel chargé, relu par son intitulé.
@@ -67,6 +68,7 @@ func init() {
 		Terme{"tva-donnees", "taux de TVA", `taux (normal |réduits? |intermédiaire )?de (la )?tva`},
 		Terme{"sci-holding-donnees", "SCI", `\bsci\b`},
 		Terme{"sci-holding-donnees", "holding, pacte Dutreil", `holdings?|pacte dutreil`},
+		Terme{"depenses-fiscales-donnees", "dépenses fiscales, niches fiscales", `dépenses? fiscales?|niches? fiscales?`},
 		Terme{"cotisations-et-droits", "cotisations sociales", `cotisations sociales`},
 		Terme{"cotisations-et-droits", "exonérations de cotisations", `exonérations? de cotisations`},
 		Terme{"securite-sociale-donnees", "sécurité sociale", `sécurité sociale`},
@@ -314,8 +316,8 @@ func init() {
 		Fait{ID: "cour-comptes-tva-part-recettes-2024", Dossier: "tva-donnees", Section: "ENJEUX", Type: "EVALUATION",
 			Date: "2025-04-15", Auteur: "Cour des comptes, analyse de l'exécution budgétaire 2024 — Recettes fiscales de l'État",
 			Intitule: "La TVA ne représente plus que 30 % des recettes fiscales nettes de l'État, contre 53 % en 2018",
-			Constat: "La Cour constate que la TVA, \"principal impôt de rendement corrélé à la croissance économique\", fait l'objet depuis 2019 de "+
-				"transferts croissants aux collectivités territoriales et à la Sécurité sociale, si bien qu'elle ne représente plus que 30 % des "+
+			Constat: "La Cour constate que la TVA, \"principal impôt de rendement corrélé à la croissance économique\", fait l'objet depuis 2019 de " +
+				"transferts croissants aux collectivités territoriales et à la Sécurité sociale, si bien qu'elle ne représente plus que 30 % des " +
 				"recettes fiscales nettes de l'État en 2024, contre 53 % en 2018.",
 			URL:     "https://www.ccomptes.fr/sites/default/files/2025-04/NEB-2024-Recettes-fiscales.pdf",
 			Qualite: "OFFICIEL",
@@ -336,6 +338,21 @@ func init() {
 			Qualite: "OFFICIEL",
 			Attendus: []string{"le transfert de la fille vers la holding est ainsi imposé à un taux effectif de 1,25 % au maximum",
 				"ce taux effectif est plus faible, à 0,25 %"}},
+
+		// Dépenses fiscales.
+		loiArt("lolf-2021-reforme-depenses-fiscales", "depenses-fiscales-donnees", "CADRE", "2021-12-28", "Parlement (loi organique n° 2021-1836)",
+			"La réforme de la LOLF de 2021, qui renforce l'obligation de chiffrer les dépenses fiscales",
+			"Son article 25 impose que l'annexe budgétaire sur les dépenses fiscales comporte l'évaluation de leur montant et le nombre de bénéficiaires, la liste de celles évaluées dans l'année, et l'écart entre exécution et prévision par mission.",
+			"JORFTEXT000044589827", "25", "L'évaluation de leur montant et le nombre de bénéficiaires"),
+		Fait{ID: "plf2025-depenses-fiscales-limites-chiffrage", Dossier: "depenses-fiscales-donnees", Section: "ENJEUX", Type: "TEXTE",
+			Date: "2024-10-01", Auteur: "Direction du budget, Évaluation des voies et moyens tome II — Les dépenses fiscales, annexe au PLF 2025",
+			Intitule: "Le chiffrage officiel n'intègre ni les effets comportementaux ni les interactions entre dispositifs",
+			Constat: "L'administration précise elle-même que ce chiffrage n'intègre pas les effets secondaires d'une dépense fiscale qu'il est " +
+				"impossible de prendre en compte, et que les interactions entre les mesures ne peuvent pas être quantifiées.",
+			URL:     urlVoiesMoyens2025,
+			Qualite: "OFFICIEL",
+			Attendus: []string{"ce chiffrage n'intègre pas les effets secondaires d'une dépense fiscale qu'il est impossible de prendre en compte",
+				"les interactions entre les mesures ne peuvent pas être quantifiées"}},
 
 		// Évasion fiscale : le cadre (les contrôles sont dans ref.fait_multinationale).
 		loiArt("loi-taxe-services-numeriques-2019", "evasion-fiscale-multinationales", "CADRE", "2019-07-24", "Parlement (loi n° 2019-759)",

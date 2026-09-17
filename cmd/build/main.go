@@ -1099,6 +1099,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	statsDepensesFiscales, err := chargerStatsDepensesFiscales(ctx, pool)
+	if err != nil {
+		return err
+	}
 	// La carte des médecins généralistes (territoires.go) existait déjà,
 	// utilisée seulement par les onglets de l'accueil — jamais reprise sur
 	// /sujets/sante/, qui n'a par ailleurs aucune carte du tout.
@@ -1264,6 +1268,26 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 						`EPTB/EPAGE réel (§ 1.2). Source&nbsp;: BANATIC (DGCL), contour reconstruit par ce `+
 						`dépôt, pas téléchargé comme tel.</figcaption></figure>`,
 						carteEPTBEPAGE.NbAffiches, carteEPTBEPAGE.NbTrouves, seuilResolutionEPTBEPAGE*100)))
+		}
+		if statsDepensesFiscales != nil && strings.Contains(string(d.Corps), "<!-- tableau:depenses-fiscales-top -->") {
+			var t strings.Builder
+			t.WriteString(`<div class="scroll"><table><thead><tr><th>Dispositif</th><th>Impôt</th><th>Coût</th></tr></thead><tbody>`)
+			for _, dsp := range statsDepensesFiscales.TopDispositifs {
+				fmt.Fprintf(&t, `<tr><td>%s</td><td>%s</td><td>%s M€</td></tr>`,
+					template.HTMLEscapeString(dsp.Libelle), template.HTMLEscapeString(dsp.Impot), Nombre(int(dsp.MontantM)))
+			}
+			t.WriteString(`</tbody></table></div>`)
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:depenses-fiscales-top -->", t.String()))
+		}
+		if statsDepensesFiscales != nil && strings.Contains(string(d.Corps), "<!-- tableau:depenses-fiscales-impot -->") {
+			var t strings.Builder
+			t.WriteString(`<div class="scroll"><table><thead><tr><th>Impôt</th><th>Dispositifs</th><th>Coût cumulé</th></tr></thead><tbody>`)
+			for _, it := range statsDepensesFiscales.ParImpot {
+				fmt.Fprintf(&t, `<tr><td>%s</td><td>%s</td><td>%s Md€</td></tr>`,
+					template.HTMLEscapeString(it.Impot), Nombre(it.NbDisp), Decimal(it.TotalMdEu, 1))
+			}
+			t.WriteString(`</tbody></table></div>`)
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:depenses-fiscales-impot -->", t.String()))
 		}
 		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",
