@@ -189,6 +189,18 @@ mais davantage détenue en interne, dont 11,8 % par les ménages en direct.
 premier porte sur toute la dette Maastricht en valeur nominale (crédits et dette
 locale compris), le second sur les seuls titres de l'État en valeur de marché.
 
+#### 3.3 La « dette locale compris » du paragraphe précédent, très inégale d'une commune à l'autre
+
+Contrairement à la dette de l'État, qui est une masse unique, la dette des
+communes se répartit très inégalement sur le territoire : la médiane 2025
+s'établit à 386 € par habitant (OFGL), mais l'écart type par commune est
+considérable — une petite commune ayant emprunté pour un seul équipement
+lourd (une station d'épuration, une salle omnisports) peut afficher un
+encours par habitant très supérieur à celui d'une grande ville, sans que
+cela signale la même fragilité budgétaire. **[Voir la carte communale de
+la dette par habitant](/collectivites/carte/dette/)**, construite à partir
+des mêmes données OFGL que le dossier [Collectivités](/sujets/collectivites/).
+
 ### 4. Les échéances
 
 Deux conventions incompatibles coexistent (colonne `base_echeance`) :
@@ -780,6 +792,7 @@ requêtes Eurostat).
 
 ## Versions
 
+- **Version 4** (17 septembre 2026) : lien vers la carte communale de la dette par habitant (§ 3.3), déjà construite pour le dossier Collectivités mais jamais citée ici.
 - **Version 3** (15 septembre 2026) : Chine, Russie et Arabie saoudite ajoutées à la comparaison FMI hors Union (§ 5), pour docs/international-donnees.md § 6 — avec la réserve de méthode que le FMI documente lui-même pour ces deux derniers pays.
 - **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (loi de programmation des finances publiques, procédure européenne) et contrôle du Haut Conseil des finances publiques ; le § 6 ne part plus d'une prémisse sur la Suisse.
 - **Version 1** (14 septembre 2026) : définitions, prix de l'emprunt, détenteurs, échéances, comparaison européenne, Suisse.
