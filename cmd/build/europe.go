@@ -2,6 +2,9 @@ package main
 
 import (
 	"context"
+	"fmt"
+	"html/template"
+	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -21,7 +24,36 @@ type StatsEurope struct {
 	Groupes                      []GroupeEP
 	Derniers                     []Vote
 	Themes                       []ThemeEuroVoc
+	ThemesSVG                    template.HTML
 	Eurodep                      []*Person
+}
+
+// dessinerThemesEuroVoc : les vingt thématiques EuroVoc les plus fréquentes
+// parmi les scrutins chargés — le classement complet (jusqu'à 60 thèmes,
+// seuil à 20 scrutins) reste disponible dans le tableau qui suit le
+// graphique, celui-ci n'en montre que la tête pour rester lisible.
+func dessinerThemesEuroVoc(themes []ThemeEuroVoc) template.HTML {
+	if len(themes) == 0 {
+		return ""
+	}
+	n := len(themes)
+	if n > 20 {
+		n = 20
+	}
+	max := themes[0].Scrutins
+	if max <= 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(`<div class="barres">`)
+	for _, t := range themes[:n] {
+		fmt.Fprintf(&b, `<div class="ligne"><span class="n">%s</span>`+
+			`<span class="piste"><i style="width:%.1f%%"></i></span>`+
+			`<span class="v">%s</span></div>`,
+			template.HTMLEscapeString(t.Label), 100*float64(t.Scrutins)/float64(max), Nombre(t.Scrutins))
+	}
+	b.WriteString(`</div>`)
+	return template.HTML(b.String())
 }
 
 // loadEurope charge le volet européen. Les votes du Parlement européen vivent
@@ -100,6 +132,7 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 		e.Themes = append(e.Themes, t)
 	}
 	rows.Close()
+	e.ThemesSVG = dessinerThemesEuroVoc(e.Themes)
 
 	rows, err = pool.Query(ctx, `
 		SELECT DISTINCT p.slug, p.given_name, p.family_name,

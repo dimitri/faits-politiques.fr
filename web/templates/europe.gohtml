@@ -24,6 +24,20 @@ que sur la part française.
 <td class="pos ABSTAIN" data-l="Abst.">{{nb .Abstention}}</td>
 </tr>{{end}}</tbody></table></div>
 
+<h2>Thèmes des scrutins (EuroVoc)</h2>
+<p class="note proc">Chaque scrutin est rattaché par le Parlement européen lui-même à un ou
+plusieurs thèmes du thésaurus officiel <strong>EuroVoc</strong> — un classement repris tel
+quel, pas construit par ce site. Les libellés restent dans leur langue d'origine
+(anglais). Seuls les thèmes couvrant au moins 20 scrutins sont retenus ; les vingt premiers
+sont représentés ci-dessous, le tableau complet suit.</p>
+{{.E.ThemesSVG}}
+<details class="plus"><summary>Voir les {{len .E.Themes}} thèmes retenus (seuil : 20 scrutins)</summary>
+<div class="scroll"><table class="pile">
+<thead><tr><th>Thème (EuroVoc)</th><th>Scrutins</th></tr></thead>
+<tbody>{{range .E.Themes}}<tr><td>{{.Label}}</td><td data-l="Scrutins">{{nb .Scrutins}}</td></tr>{{end}}</tbody>
+</table></div>
+</details>
+
 <h2>Derniers scrutins</h2>
 <div class="scroll"><table class="pile">
 <thead><tr><th>Date</th><th>Objet</th><th>Nature</th></tr></thead>
