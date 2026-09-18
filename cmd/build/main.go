@@ -1123,6 +1123,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaAgeDepartRetraite, err := chargerAgeDepartRetraite(ctx, pool)
+	if err != nil {
+		return err
+	}
+	schemaTauxRemplacement, err := chargerTauxRemplacement(ctx, pool)
+	if err != nil {
+		return err
+	}
 	// La carte des médecins généralistes (territoires.go) existait déjà,
 	// utilisée seulement par les onglets de l'accueil — jamais reprise sur
 	// /sujets/sante/, qui n'a par ailleurs aucune carte du tout.
@@ -1402,6 +1410,19 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`marquent les changements de champ ou de protocole (métropole puis France, Mayotte incluse `+
 					`en 2014, protocole de collecte revu en 2024) : chaque régime se lit pour lui-même, pas comme `+
 					`une évolution lissée d'un bout à l'autre.</figcaption></figure>`))
+		}
+		if schemaAgeDepartRetraite != "" && strings.Contains(string(d.Corps), "<!-- schema:age-depart-retraite -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:age-depart-retraite -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaAgeDepartRetraite)+`</div>`+
+					`<figcaption>Âge conjoncturel moyen de départ à la retraite, 2004-2022 — Drees. Le creux de 2010 `+
+					`précède la réforme qui recule ensuite progressivement l'âge légal.</figcaption></figure>`))
+		}
+		if schemaTauxRemplacement != "" && strings.Contains(string(d.Corps), "<!-- schema:taux-remplacement-retraite -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:taux-remplacement-retraite -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaTauxRemplacement)+`</div>`+
+					`<figcaption>Dispersion du taux de remplacement (niveau de vie), cohorte 2020 — Drees. Boîte : `+
+					`du 1ᵉʳ au 3ᵉ quartile, avec la médiane ; tige : du 1ᵉʳ au 9ᵉ décile. 100 = pension égale au `+
+					`revenu d'avant la retraite.</figcaption></figure>`))
 		}
 		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",

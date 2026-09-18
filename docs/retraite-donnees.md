@@ -113,6 +113,10 @@ Cette série (Drees, âge CONJONCTUREL moyen de départ — calculé sur les seu
 d'une année donnée, comme un indice conjoncturel de fécondité, pas l'âge réel d'une
 génération) :
 
+<!-- schema:age-depart-retraite -->
+
+Quelques repères de cette série :
+
 | année | femmes | hommes | ensemble |
 |---|---:|---:|---:|
 | 2004 | 61,12 | 60,06 | 60,59 |
@@ -168,6 +172,10 @@ Cette série (Drees, cohortes 2012-2020, quantiles à 10, 25, 50, 75 et 90 %) me
 part du revenu d'avant la retraite que la pension remplace — 100 signifie une pension
 égale au revenu antérieur. Rapporté au **niveau de vie** (qui lisse les revenus au
 sein du ménage, pas seulement le revenu personnel), cohorte 2020 :
+
+<!-- schema:taux-remplacement-retraite -->
+
+En chiffres :
 
 | | q10 | q25 | **médiane** | q75 | q90 |
 |---|---:|---:|---:|---:|---:|

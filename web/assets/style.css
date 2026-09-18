@@ -697,6 +697,16 @@ stroke-linejoin:round;stroke-linecap:round}
 .sipri-milex .pt-sa{fill:#B0763A}
 .sipri-milex .lbl-sa{fill:#B0763A;font:600 .7rem/1 var(--sans)}
 
+/* Boîte à moustaches : tige q10-q90, boîte q25-q75, médiane — la dispersion
+   est le sujet, pas un repère décoratif autour d'une moyenne. */
+.boite-moustaches{width:100%;height:auto;display:block;max-width:44rem;margin:.4rem 0 .2rem}
+.boite-moustaches .cat{font:500 .78rem/1 var(--sans);fill:var(--encre);text-anchor:end}
+.boite-moustaches .tige{stroke:var(--attenue);stroke-width:1.6}
+.boite-moustaches .boite{fill:var(--accent-doux);stroke:var(--accent);stroke-width:1.4}
+.boite-moustaches .mediane{stroke:var(--accent);stroke-width:2.4}
+.boite-moustaches .repere-100{stroke:var(--encre);stroke-width:1;stroke-dasharray:3 3;opacity:.5}
+.boite-moustaches .et-100{font:500 .66rem/1 var(--mono);fill:var(--attenue);text-anchor:middle}
+
 /* Bandeau d'un candidat : portrait, organisation, nom. */
 .tete .qui{display:flex;gap:.9rem;align-items:center;min-width:0}
 .tete .qui .credit{display:block;font:400 .66rem/1.35 var(--mono);
