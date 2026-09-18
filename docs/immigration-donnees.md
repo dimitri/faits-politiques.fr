@@ -279,6 +279,10 @@ Toutes les sections précédentes portent sur un ou deux millésimes récents. C
 l'Insee publie de plus long, chargé dans cette série — trente-deux recensements ou
 estimations, 1921 à 2025 :
 
+<!-- schema:historique-immigration -->
+
+Quelques repères de cette série :
+
 | année | immigrés (%) | étrangers (%) | Français par acquisition (milliers) |
 |---|---:|---:|---:|
 | 1921 | 3,7 | 3,9 | 254 |

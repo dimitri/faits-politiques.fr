@@ -1119,6 +1119,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaHistoriqueImmigration, err := chargerHistoriqueImmigration(ctx, pool)
+	if err != nil {
+		return err
+	}
 	// La carte des médecins généralistes (territoires.go) existait déjà,
 	// utilisée seulement par les onglets de l'accueil — jamais reprise sur
 	// /sujets/sante/, qui n'a par ailleurs aucune carte du tout.
@@ -1390,6 +1394,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`Arabie saoudite nommées (leurs trajectoires sont les plus commentées) ; les six autres `+
 					`pays de la comparaison restent en gris, chacun identifiable au survol de son point final.`+
 					`</figcaption></figure>`))
+		}
+		if schemaHistoriqueImmigration != "" && strings.Contains(string(d.Corps), "<!-- schema:historique-immigration -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:historique-immigration -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaHistoriqueImmigration)+`</div>`+
+					`<figcaption>Part d'immigrés dans la population, 1921-2025 — Insee, recensements. Les bandes `+
+					`marquent les changements de champ ou de protocole (métropole puis France, Mayotte incluse `+
+					`en 2014, protocole de collecte revu en 2024) : chaque régime se lit pour lui-même, pas comme `+
+					`une évolution lissée d'un bout à l'autre.</figcaption></figure>`))
 		}
 		if strings.Contains(string(d.Corps), "<!-- schema:holding-mere-fille -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:holding-mere-fille -->",
