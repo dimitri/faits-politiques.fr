@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"sort"
@@ -339,12 +340,24 @@ func contours(ctx context.Context, pool *pgxpool.Pool, niveau string, tolerance 
 	// La boîte est celle des DÉPARTEMENTS quel que soit le niveau demandé :
 	// régions et départements couvrent le même territoire, et une boîte commune
 	// fait que les deux cartes se superposent exactement à l'écran.
+	//
+	// st_extent est une fonction d'agrégation : elle renvoie toujours une
+	// ligne, même sur zéro contour trouvé (geo.contour pas encore ingéré) — sa
+	// valeur est alors NULL, et la concaténation qui suit hérite de ce NULL.
+	// *string ne peut pas recevoir NULL : passer par sql.NullString et
+	// renvoyer une boîte vide dans ce cas, plutôt que de faire échouer toute
+	// la construction pour une carte qui n'a de toute façon rien à dessiner.
+	var vbNull sql.NullString
 	err = pool.QueryRow(ctx, `
 		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
 		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
 		FROM (SELECT st_extent(st_transform(geom,2154)) e FROM geo.contour
-		      WHERE niveau='DEPARTEMENT' AND srid_rendu = 2154) x`).Scan(&vb)
-	return d, codes, vb, noms, err
+		      WHERE niveau='DEPARTEMENT' AND srid_rendu = 2154) x`).Scan(&vbNull)
+	if err != nil {
+		return nil, nil, "", nil, err
+	}
+	vb = vbNull.String
+	return d, codes, vb, noms, nil
 }
 
 // preparer calcule les classes, les bornes et les teintes — la partie commune
