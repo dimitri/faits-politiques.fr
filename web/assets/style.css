@@ -534,6 +534,17 @@ transition:opacity .12s}
 .geo.musees .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:400;pointer-events:none}
 .geo.musees .musee-c{fill:var(--accent);fill-opacity:.6;stroke:var(--accent);stroke-width:400}
 .geo.musees .musee-c:hover{fill-opacity:.85}
+
+.geo.etudiants .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:400;pointer-events:none}
+.geo.etudiants .etu-c{fill:#4B7A8C;fill-opacity:.6;stroke:#4B7A8C;stroke-width:300}
+.geo.etudiants .etu-c:hover{fill-opacity:.85}
+
+.geo.sru .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:400;pointer-events:none}
+.geo.sru .sru-c{stroke-width:300}
+.geo.sru .sru-conforme{fill:#4B7A3D;fill-opacity:.55;stroke:#4B7A3D}
+.geo.sru .sru-deficitaire{fill:#B0763A;fill-opacity:.6;stroke:#B0763A}
+.geo.sru .sru-carencee{fill:#9A3322;fill-opacity:.7;stroke:#9A3322}
+.geo.sru .sru-c:hover{fill-opacity:.9}
 .echelle{display:flex;gap:.3rem .5rem;flex-wrap:wrap;align-items:center;margin-top:.7rem;
 font-size:.73rem;color:var(--attenue);line-height:1.3}
 .echelle .u{font:500 .66rem/1 var(--mono);letter-spacing:.09em;text-transform:uppercase}
@@ -773,6 +784,17 @@ table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 .sipri-milex .ligne-sa{fill:none;stroke:#B0763A;stroke-width:2}
 .sipri-milex .pt-sa{fill:#B0763A}
 .sipri-milex .lbl-sa{fill:#B0763A;font:600 .7rem/1 var(--sans)}
+
+/* Effort de recherche : DIRD/PIB, deux lignes seulement (France, UE27). */
+.effort-recherche .grille{stroke:var(--filet);stroke-width:1}
+.effort-recherche .ligne-fr{fill:none;stroke:var(--accent);stroke-width:2.6}
+.effort-recherche .pt-fr{fill:var(--accent)}
+.effort-recherche .lbl-fr{fill:var(--accent);font:700 .74rem/1 var(--sans)}
+.effort-recherche .ligne-ue{fill:none;stroke:var(--attenue);stroke-width:2}
+.effort-recherche .pt-ue{fill:var(--attenue)}
+.effort-recherche .lbl-ue{fill:var(--attenue);font:600 .7rem/1 var(--sans)}
+.effort-recherche .pt-fr.estim{fill:var(--papier);stroke:var(--accent);stroke-width:1.4}
+.effort-recherche .pt-ue.estim{fill:var(--papier);stroke:var(--attenue);stroke-width:1.4}
 
 /* Boîte à moustaches : tige q10-q90, boîte q25-q75, médiane — la dispersion
    est le sujet, pas un repère décoratif autour d'une moyenne. */

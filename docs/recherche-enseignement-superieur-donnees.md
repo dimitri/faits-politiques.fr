@@ -1,6 +1,6 @@
 # Recherche et enseignement supérieur : programmation et moyens
 
-> **Dossier** · version 1 · 15 septembre 2026
+> **Dossier** · version 2 · 19 septembre 2026
 >
 > Les crédits des universités, des organismes de recherche et de la vie étudiante ; la loi de programmation de la recherche 2021-2030 et ses objectifs ; les constats du contrôle parlementaire sur le budget 2026. Le dossier ne part d'aucune thèse et suit le plan commun des dossiers.
 
@@ -75,6 +75,28 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 <!-- faits:BUDGET:fin -->
 
+### L'effort de recherche : la DIRD rapportée au PIB, France et Union européenne
+
+<!-- schema:effort-recherche -->
+
+La loi de programmation 2021-2030 fixe pour objectif de porter la dépense
+intérieure de recherche et développement (DIRD) à **3 % du PIB**. La série
+Insee (sources MESR-SIES pour la France, OCDE pour l'UE27) montre où la
+France se situe : au-dessus de la moyenne de l'Union européenne sur toute la
+période, mais loin de l'objectif de 3 %, et sans tendance nette à la hausse
+depuis 2020. Le dernier point de chaque série (2023) est une **estimation**,
+signalée comme telle par la source elle-même — pas une mesure définitive.
+
+### Les effectifs étudiants, commune par commune
+
+<!-- schema:carte-etudiants -->
+
+Le Sénat cite une hausse de 15 % des effectifs étudiants en dix ans au
+niveau national ; la carte ci-dessus la rend géographique, commune par
+commune, à partir de la même source (SIES) que le rapport parlementaire.
+Paris apparaît par arrondissement, comme dans le fichier source — aucune
+agrégation n'a été appliquée.
+
 ### Constats chiffrés cités
 
 <!-- faits:SITUATION:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
@@ -91,8 +113,8 @@ La partie semi-conducteurs du dossier [souverainete-numerique.md](souverainete-n
 
 ## Ce que les données ne disent pas
 
-- **La dépense intérieure de recherche et développement rapportée au PIB**, indicateur de l'objectif de 3 % : publiée par le service statistique du ministère, non chargée (`NOT_LOADED`).
-- **Les effectifs étudiants par établissement et par filière** : non chargés ; le dossier ne cite que l'évolution donnée par le Sénat.
+- **La dépense intérieure de recherche et développement rapportée au PIB**, indicateur de l'objectif de 3 % : chargée pour la première fois dans cette version (voir « L'effort de recherche » ci-dessus), France et UE27, 1990-2023.
+- **Les effectifs étudiants par commune** : chargés pour la première fois dans cette version (voir la carte ci-dessus) ; le détail par établissement et par filière individuels reste non chargé.
 - **Le crédit d'impôt recherche** par secteur : cité pour la microélectronique par la Cour des comptes, non chargé en série.
 - **L'exécution par mission et par programme** : seuls les projets de loi de finances 2024 et 2025 sont chargés ; les rapports annuels de performances et la situation mensuelle par mission ne le sont pas (`NOT_LOADED`).
 - **La série longue** : avant 2024, les jeux de la Direction du budget changent de nom et de schéma ; non chargés à ce stade.
@@ -122,7 +144,12 @@ La partie semi-conducteurs du dossier [souverainete-numerique.md](souverainete-n
 | [Loi n° 2020-1674 de programmation de la recherche](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000042738027) | PRIMARY_OFFICIAL |
 | Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
 | Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
+| Insee, « L'effort de recherche », d'après MESR-SIES (France) et OCDE (UE27) | PRIMARY_OFFICIAL |
+| SIES (ministère de l'Enseignement supérieur et de la Recherche), effectifs d'étudiants inscrits par commune d'établissement | PRIMARY_OFFICIAL |
 
 ## Versions
 
+- **Version 2** (19 septembre 2026) : DIRD/PIB France et UE27, 1990-2023
+  (Insee/MESR-SIES/OCDE) ; carte des effectifs étudiants par commune, rentrée
+  la plus récente (SIES).
 - **Version 1** (15 septembre 2026) : crédits par programme, textes, constats du Sénat sur le projet de loi de finances pour 2026, mots suivis dans les débats.

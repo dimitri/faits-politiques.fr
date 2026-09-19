@@ -2119,6 +2119,45 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.etablissement_penitentiaire WHERE densite_pct < 0`,
 	},
 	{
+		name:  "SRU : au moins 2000 communes chargées",
+		query: `SELECT count(*) FROM core.sru_commune`,
+		min:   2000,
+	},
+	{
+		// La carte (cmd/build/logement.go) joint core.sru_commune à
+		// geo.contour_cog par code Insee, avec un repli par nom pour les
+		// quelques communes nouvelles dont le code diverge entre les deux
+		// sources. Si ce repli devient ambigu (plusieurs communes de même
+		// nom dans le même département), la jointure duplique des lignes ;
+		// si le code du COG change sans mise à jour du repli, elle en perd.
+		// Les deux comptes doivent rester strictement égaux.
+		name: "SRU : la jointure vers geo.contour_cog ne perd ni ne duplique de commune",
+		query: `SELECT count(*) - (
+			SELECT count(*) FROM core.sru_commune s
+			JOIN geo.contour_cog g ON g.niveau='COMMUNE' AND g.cog_millesime=2026
+				AND (g.code=s.code_insee
+					OR (upper(unaccent(g.nom))=upper(unaccent(s.commune))
+						AND g.code_departement = left(s.code_insee, CASE WHEN left(s.code_insee,2)='97' THEN 3 ELSE 2 END)))
+		) FROM core.sru_commune`,
+	},
+	{
+		name:  "Effectifs étudiants : au moins 1000 couples commune/rentrée chargés",
+		query: `SELECT count(*) FROM core.effectifs_etudiants_commune`,
+		min:   1000,
+	},
+	{
+		name:  "Effort de recherche : au moins 25 années chargées",
+		query: `SELECT count(*) FROM core.effort_recherche`,
+		min:   25,
+	},
+	{
+		// Le DIRD/PIB français reste dans une fourchette de 1,5 à 3 % sur
+		// toute la série connue (1990-2023) ; une valeur hors de cette plage
+		// signalerait une colonne mal alignée à la lecture du classeur.
+		name:  "Effort de recherche : DIRD/PIB France dans une fourchette plausible",
+		query: `SELECT count(*) FROM core.effort_recherche WHERE dird_pib_fr NOT BETWEEN 1.5 AND 3.0`,
+	},
+	{
 		name:  "Outre-mer : l'écart de prix couvre les cinq DOM en 2022",
 		query: `SELECT count(*) FROM core.ecart_prix_dom WHERE annee=2022`,
 		min:   5,

@@ -518,6 +518,24 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\npopulation détenue par établissement (ministère de la Justice)")
 		return macro.IngestEtablissementsPenitentiaires(ctx, pool, arch)
 	}
+	// L'inventaire SRU par commune. Voir docs/logement-territoires-donnees.md.
+	// Hors chaîne par défaut.
+	if only == "sru" {
+		fmt.Println("\ninventaire SRU par commune (DGALN/DHUP)")
+		return macro.IngestSRU(ctx, pool, arch)
+	}
+	// Les effectifs étudiants par commune (SIES). Voir
+	// docs/recherche-enseignement-superieur-donnees.md. Hors chaîne par défaut.
+	if only == "effectifs-etudiants" {
+		fmt.Println("\neffectifs étudiants par commune (SIES)")
+		return macro.IngestEffectifsEtudiants(ctx, pool, arch)
+	}
+	// L'effort de recherche (DIRD/PIB), France et UE27. Voir
+	// docs/recherche-enseignement-superieur-donnees.md. Hors chaîne par défaut.
+	if only == "effort-recherche" {
+		fmt.Println("\neffort de recherche, DIRD/PIB (Insee)")
+		return macro.IngestEffortRecherche(ctx, pool, arch)
+	}
 	// L'écart de prix entre les DOM et la France métropolitaine (Insee
 	// ECSP 2022). Voir docs/outre-mer-donnees.md. Hors chaîne par défaut.
 	if only == "ecart-prix-dom" {

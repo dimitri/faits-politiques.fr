@@ -1,6 +1,6 @@
 # Logement, hébergement et territoires : la mission « Cohésion des territoires »
 
-> **Dossier** · version 1 · 15 septembre 2026
+> **Dossier** · version 2 · 19 septembre 2026
 >
 > Les aides personnelles au logement, l'hébergement d'urgence, la rénovation de l'habitat, la politique de la ville et l'aménagement du territoire : ce que demande l'État pour ces politiques, les lois qui les fondent et les constats du contrôle parlementaire. Le dossier ne part d'aucune thèse et suit le plan commun des dossiers.
 
@@ -72,6 +72,25 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 <!-- faits:BUDGET:fin -->
 
+### La loi SRU, commune par commune
+
+<!-- schema:carte-sru -->
+
+Sur les 2 196 communes soumises à l'article 55 de la loi SRU au 1ᵉʳ janvier
+2025, **la majorité respecte ou dépasse son taux cible de logements
+sociaux** — mais une minorité substantielle en reste loin, avec deux
+statuts que le dossier ne confond jamais : les communes **déficitaires**
+(sous leur objectif, sans sanction renforcée) et les communes
+**carencées** (déficitaires de façon jugée durable et volontaire par le
+préfet, soumises à un prélèvement majoré et à d'autres sanctions). La
+carte distingue les trois statuts plutôt que de réduire la loi SRU à un
+seul chiffre national de conformité.
+
+**Le taux cible n'est pas le même pour toutes les communes** : 20 % ou
+25 % selon la tension du marché local — un dépassement du taux national
+moyen ne dit donc rien du respect, par une commune donnée, de son propre
+objectif.
+
 ### Constats chiffrés cités
 
 <!-- faits:SITUATION:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
@@ -86,7 +105,9 @@ Les budgets des communes et intercommunalités, qui portent une part de ces poli
 
 ## Ce que les données ne disent pas
 
-- **Le nombre de logements sociaux par commune et le respect du taux fixé par la loi SRU** : publiés par le ministère, non chargés (`NOT_LOADED`).
+- **Le nombre de logements sociaux par commune et le respect du taux fixé par la loi SRU** : chargé pour la première fois dans cette version (voir « La loi SRU, commune par commune » ci-dessus).
+- **Le répertoire complet du parc locatif social (RPLS)**, avec le type de financement (PLAI/PLUS/PLS) par logement : identifié (SDES, 430 000 lignes), non chargé dans cette version — le nom du bailleur social n'y figure d'ailleurs pas, seulement le type de financement.
+- **Les permis de construire par commune (Sitadel3)** : identifié comme structuré et à jour mensuellement, non chargé dans cette version.
 - **Les bénéficiaires des aides au logement par territoire** : non chargés ; le dossier cite le total donné par le Sénat.
 - **Les dépenses fiscales du logement** (11,68 Md€ selon le Sénat) ligne par ligne :
   non rapprochées de cette série.
@@ -118,7 +139,13 @@ Les budgets des communes et intercommunalités, qui portent une part de ces poli
 | [Rapport spécial du Sénat, « Cohésion des territoires » — politique des territoires, PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-35-2/l25-139-35-2-syn.pdf) | PRIMARY_OFFICIAL |
 | Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
 | Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
+| DGALN/DHUP, inventaire SRU par commune au 1ᵉʳ janvier 2025, data.gouv.fr | PRIMARY_OFFICIAL |
 
 ## Versions
 
+- **Version 2** (19 septembre 2026) : carte des 2 196 communes soumises à la
+  loi SRU, par statut (carencée, déficitaire, conforme) — le nombre de
+  logements sociaux et le taux SRU par commune, chargés pour la première
+  fois. RPLS et Sitadel3 identifiés comme pistes structurées pour une
+  version future.
 - **Version 1** (15 septembre 2026) : crédits par programme, textes, constats du Sénat sur le projet de loi de finances pour 2026, mots suivis dans les débats.

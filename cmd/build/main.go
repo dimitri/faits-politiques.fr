@@ -1176,6 +1176,18 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	carteEtudiants, err := chargerCarteEtudiants(ctx, pool)
+	if err != nil {
+		return err
+	}
+	carteSRU, err := chargerCarteSRU(ctx, pool)
+	if err != nil {
+		return err
+	}
+	effortRecherche, err := chargerEffortRecherche(ctx, pool)
+	if err != nil {
+		return err
+	}
 	schemaSIPRI, err := chargerSIPRI(ctx, pool)
 	if err != nil {
 		return err
@@ -1588,6 +1600,37 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 				`<figure class="schema"><div class="carte-pleine">`+string(schemaAlimentaireDOM)+`</div>`+
 					`<figcaption>Écart général contre écart sur les seuls produits alimentaires et boissons non `+
 					`alcoolisées, 2022 (Insee) — les deux séries ne se ressemblent pas, jamais à confondre.</figcaption></figure>`))
+		}
+		if carteEtudiants != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-etudiants -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-etudiants -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(carteEtudiants.SVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>%s étudiants répartis sur %d communes, rentrée %d (SIES) — la surface `+
+						`de chaque cercle est proportionnelle à l'effectif. Paris apparaît par arrondissement, comme `+
+						`dans la source.</figcaption></figure>`,
+						Nombre(int(carteEtudiants.Total)), carteEtudiants.NbCommunes, carteEtudiants.Annee)))
+		}
+		if carteSRU != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-sru -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-sru -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(carteSRU.SVG)+`</div>`+
+					`<div class="echelle"><span><i class="sru-conforme"></i>Conforme ou au-delà</span>`+
+					`<span><i class="sru-deficitaire"></i>Déficitaire</span>`+
+					`<span><i class="sru-carencee"></i>Carencée</span></div>`+
+					fmt.Sprintf(`<figcaption>%d communes soumises à la loi SRU au 1ᵉʳ janvier 2025 (DGALN/DHUP), dont `+
+						`%d carencées et %d déficitaires non carencées. Taille du cercle proportionnelle à la `+
+						`population.</figcaption></figure>`, carteSRU.NbCommunes, carteSRU.NbCarencees, carteSRU.NbDeficitaires)))
+		}
+		if effortRecherche != nil && strings.Contains(string(d.Corps), "<!-- schema:effort-recherche -->") {
+			estim := ""
+			if effortRecherche.Estimation {
+				estim = " (dernier point estimé par l'OCDE)"
+			}
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:effort-recherche -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(effortRecherche.SVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>DIRD (dépense intérieure de recherche et développement) rapportée au PIB, `+
+						`%d à %d (Insee, sources MESR-SIES et OCDE)%s. En %d, la part portée par les entreprises seules `+
+						`(DIRDE/PIB) est de %s %% en France contre %s %% en UE27.</figcaption></figure>`,
+						effortRecherche.AnneeDebut, effortRecherche.AnneeFin, estim, effortRecherche.AnneeFin,
+						Decimal(effortRecherche.DirdeFrDernier, 2), Decimal(effortRecherche.DirdeUeDernier, 2))))
 		}
 		if schemaSIPRI != "" && strings.Contains(string(d.Corps), "<!-- schema:sipri-milex -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sipri-milex -->",
