@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"strconv"
@@ -41,14 +42,21 @@ func carteMaillee(ctx context.Context, pool *pgxpool.Pool,
 	argsSrid := append(append([]any{}, args...), srid)
 	pSrid := len(args) + 1
 
-	var vb string
+	// st_extent est une agrégation : la ligne existe même sans contour trouvé,
+	// avec une valeur NULL (voir cmd/build/carte.go) — aucun tracé possible
+	// alors, comme pour srid ci-dessus.
+	var vbN sql.NullString
 	if err := pool.QueryRow(ctx, fmt.Sprintf(`
 		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
 		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
 		FROM (SELECT st_extent(st_transform(geom,$%d::int)) e FROM geo.contour_cog
-		      WHERE niveau='COMMUNE' AND %s) x`, pSrid, whereCommunes), argsSrid...).Scan(&vb); err != nil {
+		      WHERE niveau='COMMUNE' AND %s) x`, pSrid, whereCommunes), argsSrid...).Scan(&vbN); err != nil {
 		return "", 0, err
 	}
+	if !vbN.Valid {
+		return "", 0, nil
+	}
+	vb := vbN.String
 	champs := strings.Fields(vb)
 	largeur, _ := strconv.ParseFloat(champs[2], 64)
 	if largeur <= 0 {
@@ -178,14 +186,21 @@ func chargerContexteDept(ctx context.Context, pool *pgxpool.Pool, codeDept strin
 		return nil, nil // département sans contour dans ce millésime : repli sur carteCommunesEPCI
 	}
 
+	// st_extent est une agrégation : la ligne existe même sans contour trouvé,
+	// avec une valeur NULL (voir cmd/build/carte.go).
+	var viewBoxN sql.NullString
 	if err := pool.QueryRow(ctx, `
 		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
 		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
 		FROM (SELECT st_extent(st_transform(geom,$1::int)) e FROM geo.contour_cog
 		      WHERE niveau='COMMUNE' AND code_departement=$2 AND cog_millesime=$3) x`,
-		c.Srid, codeDept, millesime).Scan(&c.ViewBox); err != nil {
+		c.Srid, codeDept, millesime).Scan(&viewBoxN); err != nil {
 		return nil, err
 	}
+	if !viewBoxN.Valid {
+		return nil, nil // département sans contour dans ce millésime : repli sur carteCommunesEPCI
+	}
+	c.ViewBox = viewBoxN.String
 	champs := strings.Fields(c.ViewBox)
 	c.Largeur, _ = strconv.ParseFloat(champs[2], 64)
 	if c.Largeur <= 0 {
