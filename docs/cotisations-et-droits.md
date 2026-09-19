@@ -1,6 +1,6 @@
 # Ce qu'une cotisation achète : retraites, chômage et autres droits sociaux
 
-> **Dossier** · version 2 · 15 septembre 2026
+> **Dossier** · version 3 · 19 septembre 2026
 >
 > Quand on cotise, qu'obtient-on, et qu'est-ce qui le garantit ? La réponse tient en deux
 > distinctions : comment un droit est financé (répartition ou capitalisation), et ce qui
@@ -229,6 +229,8 @@ Classement des prestations de protection sociale 2024 (DREES, comptes de la
 protection sociale), à partir de la nomenclature de niveau 3. Les 37 postes
 partitionnent exactement le total de **932,5 Md€**.
 
+<!-- schema:contributif-non-contributif -->
+
 | risque | contributif | non contributif | mixte ou non classé | total |
 |---|---:|---:|---:|---:|
 | Vieillesse-survie | **402,9** | 16,2 | 7,5 | 426,7 |
@@ -301,5 +303,11 @@ autres sont citées section par section. Le chiffrage d'un socle universel, qui 
 
 ## Versions
 
+- **Version 3** (19 septembre 2026) : le tableau contributif/non contributif par
+  risque (§ 4) est désormais aussi une barre empilée, à partir des mêmes chiffres
+  déjà publiés — pas une reclassification poste par poste rejouée depuis
+  `core.protection_sociale`, que ce paragraphe qualifie lui-même de décision de
+  lecture. Un second exemple de bulletin (profil différent) reste à faire, hors
+  de cette version.
 - **Version 2** (15 septembre 2026) : plan commun des dossiers ; le § 7, hypothèse chiffrée d'un socle universel, rejoint le document Hypothèse chiffrée qui le prolongeait ; cadre et contrôle sourcés.
 - **Version 1** (14 septembre 2026) : distinctions, poids de chaque nature de droit, bulletin de paie (§ 3 bis).

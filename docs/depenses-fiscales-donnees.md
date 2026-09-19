@@ -1,6 +1,6 @@
 # Les dépenses fiscales : combien coûte chaque niche, et à qui elle profite
 
-> **Dossier** · version 1 · 17 septembre 2026
+> **Dossier** · version 2 · 19 septembre 2026
 >
 > Une dépense fiscale, c'est une réduction d'impôt qui ne dit jamais son nom
 > dans le budget de dépenses — un crédit d'impôt recherche coûte autant à
@@ -57,6 +57,22 @@ Pour 2025 (dernière année d'exécution disponible dans ce millésime) :
   nécessaires) et 41 « négligeables » (coût estimé à moins de 0,5 million
   d'euros) — des catégories définies par l'annexe elle-même, pas une absence
   de méthode.
+
+<!-- schema:depenses-fiscales-tendance -->
+
+**Le total exécuté oscille entre 82,9 et 99,9 Md€ sur les sept années
+disponibles (2018-2024), sans tendance continue dans un sens ou dans
+l'autre** : un creux en 2021-2023 (89,6 puis 85,6 puis 82,9 Md€) précède une
+remontée à 89,4 Md€ en 2024, la dernière année d'exécution chiffrée dans le
+millésime PLF 2026. **Une rupture réelle, non expliquée par ce dépôt** :
+le nombre de dispositifs recensés en exécution recule fortement à partir
+du millésime PLF 2024 (471 puis 465 dispositifs recensés dans les
+millésimes 2022-2023, contre 343 puis 328 puis 327 dans les millésimes
+2024 à 2026) — sans que l'annexe budgétaire elle-même, telle que chargée
+ici, n'explique ce changement de périmètre. Le total en euros reste
+comparable d'un millésime à l'autre (chaque millésime somme les
+dispositifs qu'il liste), mais un nombre de dispositifs qui recule d'un
+quart sans explication documentée est signalé plutôt que lissé.
 
 ### 2. Les dix dispositifs les plus coûteux (2025)
 
@@ -124,6 +140,11 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 ## Versions
 
+- **Version 2** (19 septembre 2026) : courbe du total exécuté 2018-2024 (les
+  sept millésimes chargés donnent sept années d'exécution distinctes,
+  jamais révisées) — une rupture réelle et non expliquée dans le nombre de
+  dispositifs recensés à partir du millésime PLF 2024 est signalée plutôt
+  que lissée.
 - **Version 1** (17 septembre 2026) : les dispositifs les plus coûteux, la
   répartition par impôt et par catégorie de bénéficiaires, la légende
   officielle du chiffrage (ε, non chiffrable, sans incidence).

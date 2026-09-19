@@ -716,6 +716,17 @@ table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 .ports-fr .ligne-nantes{fill:none;stroke:#7A6A2F;stroke-width:2}
 .ports-fr .pt-nantes,.ports-fr .lbl-nantes{fill:#7A6A2F}
 
+/* Protection sociale, contributif/non contributif : même patron que
+   .secteurs-bloc (Union européenne), trois catégories au lieu de trois
+   secteurs. */
+.barres-contributif{width:100%;height:auto;display:block;max-width:44rem;margin:.4rem 0 .2rem}
+.barres-contributif .cat{font:500 .74rem/1 var(--sans);fill:var(--encre);text-anchor:end}
+.barres-contributif .an{font:400 .68rem/1 var(--mono);fill:var(--attenue)}
+.barres-contributif .contrib{fill:#1E5C69}
+.barres-contributif .noncontrib{fill:#8C4B3A}
+.barres-contributif .mixte{fill:#A8A396}
+.barres-contributif .et-seg{font:600 .66rem/1 var(--sans);fill:var(--carte);text-anchor:middle}
+
 /* Semi-conducteurs : cinq sites, un seul marqueur — pas de taille
    proportionnelle, l'aide publique n'étant connue que pour deux sites sur
    cinq (voir le commentaire de cmd/build/souverainete_carte.go). */

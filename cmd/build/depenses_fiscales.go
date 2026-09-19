@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"html/template"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -100,4 +101,36 @@ func chargerStatsDepensesFiscales(ctx context.Context, pool *pgxpool.Pool) (*Sta
 	}
 
 	return s, nil
+}
+
+// chargerTendanceDepensesFiscales : le total exécuté, année par année —
+// chaque millésime du PLF ne publie l'exécution que pour une seule année
+// (l'avant-dernière), jamais révisée dans un millésime ultérieur : sept
+// millésimes donnent donc sept années d'exécution distinctes, sans doublon
+// ni superposition à trancher.
+func chargerTendanceDepensesFiscales(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT annee, sum(montant_eur)/1e9 FROM core.depense_fiscale
+		WHERE stade='EXECUTION' AND montant_eur IS NOT NULL
+		GROUP BY annee ORDER BY annee`)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	var pts []PointAnnee
+	for rows.Next() {
+		var p PointAnnee
+		if err := rows.Scan(&p.Annee, &p.Valeur); err != nil {
+			return "", err
+		}
+		pts = append(pts, p)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	if len(pts) == 0 {
+		return "", nil
+	}
+	format := func(v float64) string { return Decimal(v, 1) + " Md€" }
+	return courbe(pts, format), nil
 }

@@ -1119,6 +1119,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaTendanceDepensesFiscales, err := chargerTendanceDepensesFiscales(ctx, pool)
+	if err != nil {
+		return err
+	}
 	statsDepensesFiscales, err := chargerStatsDepensesFiscales(ctx, pool)
 	if err != nil {
 		return err
@@ -1159,6 +1163,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaContributifNonContributif := dessinerContributifNonContributif()
 	schemaSIPRI, err := chargerSIPRI(ctx, pool)
 	if err != nil {
 		return err
@@ -1391,6 +1396,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 						`dépôt, pas téléchargé comme tel.</figcaption></figure>`,
 						carteEPTBEPAGE.NbAffiches, carteEPTBEPAGE.NbTrouves, seuilResolutionEPTBEPAGE*100)))
 		}
+		if schemaTendanceDepensesFiscales != "" && strings.Contains(string(d.Corps), "<!-- schema:depenses-fiscales-tendance -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:depenses-fiscales-tendance -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaTendanceDepensesFiscales)+`</div>`+
+					`<figcaption>Total exécuté, année par année — chaque millésime du PLF ne publie l'exécution `+
+					`que pour une seule année, jamais révisée dans un millésime ultérieur : sept millésimes, `+
+					`sept années, sans doublon à trancher.</figcaption></figure>`))
+		}
 		if statsDepensesFiscales != nil && strings.Contains(string(d.Corps), "<!-- tableau:depenses-fiscales-top -->") {
 			var t strings.Builder
 			t.WriteString(`<div class="scroll"><table><thead><tr><th>Dispositif</th><th>Impôt</th><th>Coût</th></tr></thead><tbody>`)
@@ -1536,6 +1548,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`<figcaption>Cinq sites de production identifiés par leur unité légale Sirene, géocodés à la `+
 					`commune — pas à l'adresse exacte de l'usine. La Cour des comptes relève elle-même l'absence de `+
 					`cartographie officielle de cette filière (§ 2).</figcaption></figure>`))
+		}
+		if strings.Contains(string(d.Corps), "<!-- schema:contributif-non-contributif -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:contributif-non-contributif -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaContributifNonContributif)+`</div>`+
+					`<figcaption>Protection sociale par risque, 2024 (DREES) — la vieillesse est presque `+
+					`entièrement contributive, les soins et la famille presque entièrement non contributifs. `+
+					`Classement discuté poste par poste au paragraphe suivant.</figcaption></figure>`))
 		}
 		if schemaSIPRI != "" && strings.Contains(string(d.Corps), "<!-- schema:sipri-milex -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sipri-milex -->",
