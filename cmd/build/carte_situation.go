@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"os"
@@ -142,10 +143,13 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 		}
 	}
 
-	var mill int
-	if err := pool.QueryRow(ctx, `SELECT max(cog_millesime) FROM geo.contour_cog WHERE niveau='COMMUNE'`).Scan(&mill); err != nil {
+	// max(...) est une agrégation : la ligne existe même sans contour encore
+	// ingéré, avec un millésime NULL.
+	var millN sql.NullInt64
+	if err := pool.QueryRow(ctx, `SELECT max(cog_millesime) FROM geo.contour_cog WHERE niveau='COMMUNE'`).Scan(&millN); err != nil {
 		return nil, err
 	}
+	mill := int(millN.Int64)
 	rows, err := pool.Query(ctx, `
 		SELECT niveau, code, nom, coalesce(code_departement,''), coalesce(code_region,''), srid_rendu,
 		       st_assvg(st_transform(st_simplifypreservetopology(geom,$2),srid_rendu),1,0),
