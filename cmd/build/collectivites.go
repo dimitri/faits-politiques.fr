@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"sort"
@@ -298,10 +299,14 @@ var fusionConnue = map[string]struct{ code, niveau, libelle string }{
 
 func loadCollectivites(ctx context.Context, pool *pgxpool.Pool) (*StatsCollectivites, error) {
 	st := &StatsCollectivites{EPCIParDept: map[string][]*Groupement{}}
+	// max(...) est une agrégation : la ligne existe même sans budget de
+	// collectivité encore ingéré, avec un exercice NULL.
+	var exerciceN sql.NullInt64
 	if err := pool.QueryRow(ctx, `SELECT max(exercice) FROM core.collectivite_budget`).
-		Scan(&st.Exercice); err != nil {
+		Scan(&exerciceN); err != nil {
 		return nil, err
 	}
+	st.Exercice = int(exerciceN.Int64)
 	st.Indicateurs = indicsCollectivite
 
 	// --- poids relatif des quatre niveaux
