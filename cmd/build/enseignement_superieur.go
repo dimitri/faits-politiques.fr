@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"math"
@@ -29,22 +30,28 @@ type CarteEtudiants struct {
 // intermédiaire). Paris apparaît par arrondissement, comme dans la source :
 // pas d'agrégation ici, à la différence de la carte de l'IFI.
 func chargerCarteEtudiants(ctx context.Context, pool *pgxpool.Pool) (*CarteEtudiants, error) {
-	var annee int
-	if err := pool.QueryRow(ctx, `SELECT max(rentree) FROM core.effectifs_etudiants_commune`).Scan(&annee); err != nil {
+	// max(...) est une agrégation : la ligne existe même sans effectif encore
+	// ingéré, avec une rentrée NULL.
+	var anneeN sql.NullInt64
+	if err := pool.QueryRow(ctx, `SELECT max(rentree) FROM core.effectifs_etudiants_commune`).Scan(&anneeN); err != nil {
 		return nil, err
 	}
-	if annee == 0 {
+	if !anneeN.Valid {
 		return nil, nil
 	}
+	annee := int(anneeN.Int64)
 
-	var vb string
+	// st_extent est une agrégation : la ligne existe même sans contour
+	// encore ingéré, avec une valeur NULL (voir cmd/build/carte.go).
+	var vbN sql.NullString
 	if err := pool.QueryRow(ctx, `
 		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
 		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
 		FROM (SELECT st_extent(st_transform(geom,2154)) e FROM geo.contour
-		      WHERE niveau='DEPARTEMENT' AND srid_rendu=2154) x`).Scan(&vb); err != nil {
+		      WHERE niveau='DEPARTEMENT' AND srid_rendu=2154) x`).Scan(&vbN); err != nil {
 		return nil, err
 	}
+	vb := vbN.String
 
 	rows, err := pool.Query(ctx, `
 		SELECT commune, effectif, st_x(st_transform(geom,2154)), st_y(st_transform(geom,2154))
