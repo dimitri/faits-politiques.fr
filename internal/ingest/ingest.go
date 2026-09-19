@@ -61,7 +61,7 @@ import (
 // router vers ce paquet plutôt que de dupliquer son analyse d'options.
 func Run(args []string) error {
 	fs := flag.NewFlagSet("ingest", flag.ContinueOnError)
-	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | ifi | appareil-productif | commerce-partenaires | contour-pays | francophonie | accord-paris | sae | rpps | hydro | eau-potable | eau-aides-loire-bretagne | eau-aides-artois-picardie | eau-aides-rhin-meuse | eau-eptb-epage | sous-bassins | assainissement | eau-budget-annexe | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | fiscalite-locale | paie | budget | presidentielle | media | checksums")
+	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | ifi | appareil-productif | commerce-partenaires | contour-pays | francophonie | accord-paris | sae | hopital-finances | rpps | hydro | eau-potable | eau-aides-loire-bretagne | eau-aides-artois-picardie | eau-aides-rhin-meuse | eau-eptb-epage | sous-bassins | assainissement | eau-budget-annexe | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | fiscalite-locale | paie | budget | presidentielle | media | checksums")
 	rawDir := fs.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := fs.String("migrations", "db/migrations", "répertoire des migrations")
 	if err := fs.Parse(args); err != nil {
@@ -693,8 +693,14 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	// que ce seul connecteur exige le binaire 7z sur la machine — voir
 	// internal/sante/sae.go. Voir docs/sante-donnees.md.
 	if only == "sae" {
-		fmt.Println("\nSAE : personnel par fonction (bordereau Q24)")
+		fmt.Println("\nSAE : personnel par fonction (Q24) et passages aux urgences (URGENCES2)")
 		return sante.IngestSAE(ctx, pool, arch)
+	}
+	// Situation économique et financière des hôpitaux publics (Drees,
+	// Panorama ES) — voir internal/sante/hopital_finances.go.
+	if only == "hopital-finances" {
+		fmt.Println("\nhôpitaux publics : compte de résultat et déficit par catégorie (Drees)")
+		return sante.IngestHopitalFinances(ctx, pool, arch)
 	}
 	// RPPS (Annuaire Santé) : à part de "sante" parce que ce seul connecteur
 	// télécharge et relit un fichier plat de ~820 Mo (2,4 millions de

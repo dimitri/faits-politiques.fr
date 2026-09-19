@@ -130,7 +130,12 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 			req.Header.Add(k, v)
 		}
 	}
-	req.Header.Set("User-Agent", "faits-politiques.fr (ingestion open data)")
+	// Un appelant qui fournit déjà un User-Agent (contournement d'un pare-feu
+	// applicatif qui rejette l'identification par défaut, ex. Drees) garde le
+	// sien — le défaut ne s'applique que si l'en-tête est absent.
+	if req.Header.Get("User-Agent") == "" {
+		req.Header.Set("User-Agent", "faits-politiques.fr (ingestion open data)")
+	}
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Minute}
 	}

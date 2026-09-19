@@ -1196,25 +1196,73 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.budget_annexe_eau WHERE type_collectivite NOT IN ('COMMUNE','EPCI')`,
 	},
 	{
-		name:  "le personnel SAE couvre au moins 3 000 établissements",
-		query: `SELECT count(*) FROM core.sae_personnel_fonction`,
-		min:   3000,
+		name:  "le personnel SAE couvre au moins 3 000 établissements par exercice, sur au moins 10 exercices",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, count(*) AS n FROM core.sae_personnel_fonction GROUP BY annee HAVING count(*) >= 3000
+		        ) x`,
+		min: 10,
 	},
 	{
-		// Un établissement ne doit apparaître qu'une fois : le fichier source
-		// publie une ligne par discipline PLUS un total (discipline 9999) —
-		// seul ce total est chargé (internal/sante/sae.go). Un doublon
-		// signalerait qu'une ligne de détail s'est glissée à côté du total.
-		name:  "chaque établissement SAE n'apparaît qu'une fois",
-		query: `SELECT count(*) FROM (SELECT nofinesset FROM core.sae_personnel_fonction GROUP BY 1 HAVING count(*) > 1) x`,
+		// Un établissement ne doit apparaître qu'une fois PAR EXERCICE : le
+		// fichier source publie une ligne par discipline PLUS un total
+		// (discipline 9999) — seul ce total est chargé (internal/sante/sae.go),
+		// et la table couvre maintenant plusieurs années (2013-2024, sauf
+		// 2020). Un doublon sur (nofinesset, annee) signalerait qu'une ligne
+		// de détail s'est glissée à côté du total.
+		name:  "chaque établissement SAE n'apparaît qu'une fois par exercice",
+		query: `SELECT count(*) FROM (SELECT nofinesset, annee FROM core.sae_personnel_fonction GROUP BY 1,2 HAVING count(*) > 1) x`,
 	},
 	{
 		// Le total national de personnel non médical hospitalier est de
-		// l'ordre du million — un multiple de ce nombre signalerait le retour
-		// du bug de double comptage par discipline déjà rencontré une fois.
-		name: "le total national de personnel SAE reste dans un ordre de grandeur plausible",
-		query: `SELECT count(*) FROM (SELECT sum(etp_total_pnm) AS t FROM core.sae_personnel_fonction) x
-		         WHERE t NOT BETWEEN 700000 AND 1500000`,
+		// l'ordre du million, CHAQUE ANNÉE — un multiple de ce nombre
+		// signalerait le retour du bug de double comptage par discipline déjà
+		// rencontré une fois, ou un mélange d'exercices dans la même somme.
+		name: "le total annuel de personnel SAE reste dans un ordre de grandeur plausible, chaque exercice",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sum(etp_total_pnm) AS t FROM core.sae_personnel_fonction GROUP BY annee
+		        ) x WHERE t NOT BETWEEN 700000 AND 1500000`,
+	},
+	{
+		name:  "les passages aux urgences (SAE) couvrent au moins 10 exercices, 2013-2024",
+		query: `SELECT count(DISTINCT annee) FROM core.sae_urgences_passages`,
+		min:   10,
+	},
+	{
+		// Le total national de passages aux urgences est de l'ordre de
+		// 18 à 23 millions par an sur la période — un écart large
+		// signalerait une colonne différente de PASSU ou un mélange
+		// d'exercices dans la même somme.
+		name: "le total annuel de passages aux urgences reste dans un ordre de grandeur plausible, chaque exercice",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sum(passages) AS t FROM core.sae_urgences_passages GROUP BY annee
+		        ) x WHERE t NOT BETWEEN 15000000 AND 26000000`,
+	},
+	{
+		name:  "type_urgence (SAE) ne contient que des valeurs connues",
+		query: `SELECT count(*) FROM core.sae_urgences_passages WHERE type_urgence NOT IN ('GEN','PED','AMU')`,
+	},
+	{
+		name:  "le compte de résultat des hôpitaux publics couvre au moins 15 exercices, sur les quatre indicateurs",
+		query: `SELECT count(DISTINCT annee) FROM core.hopital_public_resultat`,
+		min:   15,
+	},
+	{
+		// Vérifié à l'ingestion (chargerCompteResultat), revérifié ici :
+		// résultat net = exploitation + financier + exceptionnel, à l'arrondi
+		// près (la source arrondit chaque indicateur séparément).
+		name: "résultat net des hôpitaux publics = exploitation + financier + exceptionnel, à l'arrondi près",
+		query: `SELECT count(*) FROM (
+		          SELECT annee,
+		                 sum(montant_meur) FILTER (WHERE indicateur IN
+		                   ('RESULTAT_EXPLOITATION','RESULTAT_FINANCIER','RESULTAT_EXCEPTIONNEL')) AS somme_3,
+		                 max(montant_meur) FILTER (WHERE indicateur = 'RESULTAT_NET') AS net
+		          FROM core.hopital_public_resultat GROUP BY annee
+		        ) x WHERE abs(somme_3 - net) > 2`,
+	},
+	{
+		name:  "le déficit par catégorie d'hôpitaux publics couvre au moins 8 catégories",
+		query: `SELECT count(DISTINCT categorie) FROM core.hopital_public_deficit_categorie`,
+		min:   8,
 	},
 	{
 		// Une tranche de pension ou de chômage manquante décale silencieusement
