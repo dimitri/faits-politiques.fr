@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"html/template"
 	"strings"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -119,12 +122,14 @@ func loadRichesse(ctx context.Context, pool *pgxpool.Pool) (*StatsRichesse, erro
 	// la plus récente (§ 2) — la population de référence doit être la même
 	// année, jamais la plus récente disponible par ailleurs.
 	const anneeReference = 2021
+	var populationApprox sql.NullInt64
 	if err := pool.QueryRow(ctx, `
 		SELECT $1::smallint, sum(population) FROM core.population_age_departement
 		WHERE code_departement !~ '^97' AND annee = $1`, anneeReference).
-		Scan(&st.AnneePopulation, &st.PopulationApprox); err != nil {
+		Scan(&st.AnneePopulation, &populationApprox); err != nil {
 		return nil, err
 	}
+	st.PopulationApprox = int(populationApprox.Int64)
 
 	for _, code := range ordreSeuil {
 		if s, ok := parSeuil[code]; ok {
@@ -255,20 +260,25 @@ func loadRichesse(ctx context.Context, pool *pgxpool.Pool) (*StatsRichesse, erro
 		}
 	}
 
+	var heriteEnsemble, heriteHaut, donationEnsemble, donationHaut sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		SELECT max(part_herite_pct) FILTER (WHERE categorie='ENSEMBLE'),
 		       max(part_herite_pct) FILTER (WHERE categorie='HAUT_PATRIMOINE_ET_NIVEAU_VIE'),
 		       max(part_donation_pct) FILTER (WHERE categorie='ENSEMBLE'),
 		       max(part_donation_pct) FILTER (WHERE categorie='HAUT_PATRIMOINE_ET_NIVEAU_VIE')
 		FROM core.menage_heritage WHERE tranche_age = 'TOUS_AGES'`).
-		Scan(&st.HeriteEnsemble, &st.HeriteHaut, &st.DonationEnsemble, &st.DonationHaut); err != nil {
+		Scan(&heriteEnsemble, &heriteHaut, &donationEnsemble, &donationHaut); err != nil {
 		return nil, err
 	}
+	st.HeriteEnsemble, st.HeriteHaut = heriteEnsemble.Float64, heriteHaut.Float64
+	st.DonationEnsemble, st.DonationHaut = donationEnsemble.Float64, donationHaut.Float64
 
+	// ORDER BY ... LIMIT 1 sur une table pas encore chargée ne renvoie aucune
+	// ligne (pgx.ErrNoRows), pas une ligne NULL.
 	if err := pool.QueryRow(ctx, `
 		SELECT indice_patrimoine, indice_niveau_vie FROM core.gini_patrimoine_niveau_vie
 		ORDER BY annee DESC LIMIT 1`).
-		Scan(&st.GiniPatrimoine, &st.GiniNiveauVie); err != nil {
+		Scan(&st.GiniPatrimoine, &st.GiniNiveauVie); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
 
