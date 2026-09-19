@@ -93,6 +93,13 @@ func Themes(ctx context.Context, pool *pgxpool.Pool) error {
 		{"PARLEMENT_EUROPEEN", "scrutins_avec_theme"},
 		{"SENAT", "scrutins_avec_theme"},
 	} {
+		// HAVING count(*) > 0 : un dénominateur nul violerait
+		// coverage_denominator_check, à raison — une couverture sur zéro
+		// scrutin ne veut rien dire. Ce n'est pas une anomalie : cette
+		// institution n'a simplement pas encore été ingérée (l'ordre du
+		// pipeline place le Sénat avant le Parlement européen). Ne rien
+		// insérer plutôt que forcer une ligne creuse ; la prochaine
+		// exécution, une fois la source chargée, l'ajoutera normalement.
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO derived.coverage
 			  (scope, metric, numerator, denominator, method_version)
@@ -101,6 +108,7 @@ func Themes(ctx context.Context, pool *pgxpool.Pool) error {
 			                                       WHERE st.scrutin_id = sc.id)),
 			       count(*), $3
 			  FROM core.scrutin sc WHERE sc.institution = $4::core.institution
+			HAVING count(*) > 0
 			ON CONFLICT DO NOTHING`, c.scope, c.metric, ThemeMethodVersion, c.scope); err != nil {
 			return fmt.Errorf("couverture %s : %w", c.scope, err)
 		}

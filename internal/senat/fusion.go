@@ -139,6 +139,24 @@ func Fusionner(ctx context.Context, pool *pgxpool.Pool) error {
 		 WHERE m.person_id = f.sen_id AND c.person_id = f.canon_id AND c.kind = m.kind`); err != nil {
 		return fmt.Errorf("médias en double : %w", err)
 	}
+	// ref.elu_recherche : une ligne par personne (person_id est sa clé). Le
+	// jeton du côté canonique l'emporte s'il existe déjà — c'est déjà
+	// l'identité que la recherche doit retrouver.
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM ref.elu_recherche e USING fusion f
+		 WHERE e.person_id = f.sen_id
+		   AND EXISTS (SELECT 1 FROM ref.elu_recherche c WHERE c.person_id = f.canon_id)`); err != nil {
+		return fmt.Errorf("recherche élus en double : %w", err)
+	}
+	// jo.acte_elu : clé (texte_id, person_id). Un même acte peut déjà citer les
+	// deux fiches — la citation côté canonique l'emporte, la mention du côté
+	// sénat existe toujours après la fusion (elle porte sur la même personne).
+	if _, err := tx.Exec(ctx, `
+		DELETE FROM jo.acte_elu a USING fusion f, jo.acte_elu c
+		 WHERE a.person_id = f.sen_id AND c.person_id = f.canon_id
+		   AND c.texte_id = a.texte_id`); err != nil {
+		return fmt.Errorf("mentions JO en double : %w", err)
+	}
 
 	// Le déplacement lui-même. Toute table qui référence core.person y figure :
 	// une table oubliée serait soit effacée en cascade, soit orpheline, et dans
@@ -148,8 +166,9 @@ func Fusionner(ctx context.Context, pool *pgxpool.Pool) error {
 		"core.acte_jo_mention", "core.affiliation", "core.amendement_author",
 		"core.ballot", "core.ballot_group_exception", "core.compte_campagne",
 		"core.declaration", "core.deport", "core.dossier_author",
-		"core.intervention", "core.mandate", "core.media",
+		"core.gouvernement_membre", "core.intervention", "core.mandate", "core.media",
 		"core.person_identifier", "core.texte_author",
+		"jo.acte_elu", "ref.elu_recherche", "ref.fait_dossier",
 	}
 	var manquantes []string
 	if err := tx.QueryRow(ctx, `
