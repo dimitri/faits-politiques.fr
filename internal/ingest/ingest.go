@@ -652,6 +652,20 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\nEPTB/EPAGE (BANATIC)")
 		return eau.IngestEPTBEPAGE(ctx, pool, arch)
 	}
+	// Les sous-bassins versants topographiques (BD Topage), une résolution
+	// bien plus fine que les 7 grands bassins — voir
+	// internal/hydro/sous_bassins.go. Hors chaîne par défaut.
+	if only == "sous-bassins" {
+		fmt.Println("\nsous-bassins versants topographiques")
+		return hydro.IngestSousBassins(ctx, pool, arch)
+	}
+	// La composition communale des services d'assainissement collectif et
+	// non collectif (SISPEA 2023) — voir internal/eau/assainissement.go.
+	// Hors chaîne par défaut.
+	if only == "assainissement" {
+		fmt.Println("\nassainissement collectif et non collectif, par commune (SISPEA)")
+		return eau.IngestAssainissement(ctx, pool, arch)
+	}
 	// Dépense de protection de l'environnement (CEP/Eurostat), voir
 	// docs/ecologie-donnees.md § 4. Hors chaîne par défaut.
 	if only == "ecologie" {

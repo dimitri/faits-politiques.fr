@@ -1138,6 +1138,24 @@ var checks = []check{
 		query: `SELECT count(*) FROM geo.cours_eau WHERE NOT (geom && ST_MakeEnvelope(-5.5, 41, 9.7, 51.5, 4326))`,
 	},
 	{
+		name:  "au moins 5 000 sous-bassins versants topographiques sont chargés",
+		query: `SELECT count(*) FROM geo.contour_sous_bassin`,
+		min:   5000,
+	},
+	{
+		// Chaque sous-bassin doit se rattacher à l'un des 7 grands bassins
+		// déjà chargés : un code orphelin signalerait un décalage entre les
+		// deux millésimes Sandre.
+		name:  "chaque sous-bassin se rattache à un grand bassin connu",
+		query: `SELECT count(*) FROM geo.contour_sous_bassin sb
+		        WHERE NOT EXISTS (SELECT 1 FROM geo.contour_bassin b WHERE b.code = sb.code_bassin)`,
+	},
+	{
+		name:  "assainissement : au moins 5 000 communes chargées (collectif + non collectif)",
+		query: `SELECT count(*) FROM core.service_assainissement`,
+		min:   5000,
+	},
+	{
 		name:  "le personnel SAE couvre au moins 3 000 établissements",
 		query: `SELECT count(*) FROM core.sae_personnel_fonction`,
 		min:   3000,

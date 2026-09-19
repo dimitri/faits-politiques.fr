@@ -1,6 +1,6 @@
 # Bassins versants : la gouvernance de l'eau qui existe déjà
 
-> **Dossier** · version 5 · 17 septembre 2026
+> **Dossier** · version 6 · 19 septembre 2026
 >
 > Comment la gestion de l'eau est-elle organisée en France, à quelle échelle, et
 > par qui ? Le dossier décrit l'architecture qui existe — comités de bassin, agences de
@@ -231,7 +231,7 @@ Loire-Bretagne, 33 769 aides sur 33 770 sont classées « Subvention », une
 seule « Avance » — signe que l'agence a quasiment abandonné l'avance
 remboursable au profit de la subvention directe sur ces deux derniers
 programmes (les avances, plus fréquentes, apparaissent sur le 10ᵉ programme
-2013-2018, non chargé ici — voir § 7).
+2013-2018, non chargé ici — voir § 9).
 
 **Les plus gros bénéficiaires cumulés sont des structures qui portent des
 aides pour d'autres, pas toujours le porteur de travaux final** : sur
@@ -250,7 +250,7 @@ catégorie de bénéficiaire n'est publiée par les agences — seule une raison
 sociale, à catégoriser soi-même si ce dossier est approfondi), ni la part
 de chaque euro de redevance qui revient effectivement au payeur d'origine
 (la chaîne payeur → agence → aide reste bloquée par l'absence de
-redevances par payeur, voir § 7).
+redevances par payeur, voir § 9).
 
 ### 6. Où sont les EPTB et les EPAGE
 
@@ -294,15 +294,74 @@ intervient.** Une partie de ces zones a un EPTB ou un EPAGE réel dont le
 contour n'a simplement pas pu être reconstruit (les 14 cas ci-dessus) ; une
 autre partie n'a effectivement aucune structure de ce type.
 
+### 7. Les sous-bassins versants, une résolution bien plus fine
+
+Source : Sandre/IGN, *BD Topage — bassins versants topographiques*,
+millésime 2025, France métropolitaine. **6 190 sous-bassins**, chacun
+rattaché à l'un des sept grands bassins de la carte du § 3 :
+
+| Bassin | Sous-bassins |
+|---|---:|
+| Adour-Garonne | 1 982 |
+| Loire-Bretagne | 1 409 |
+| Seine-Normandie | 986 |
+| Rhin-Meuse | 707 |
+| Rhône-Méditerranée | 836 |
+| Artois-Picardie | 190 |
+| Corse | 80 |
+
+Le nom associé à chaque sous-bassin (`TopoOH`) est, la plupart du temps,
+celui du tronçon de cours d'eau qui le structure plutôt qu'un toponyme de
+sous-bassin standardisé — laissé tel quel dans les données chargées, jamais
+reconstruit ou renommé. Chaque sous-bassin est vérifié rattaché à un des
+sept grands bassins déjà chargés (aucun code orphelin, `fpctl verify data`).
+Le réseau hydrographique linéaire (cours d'eau eux-mêmes) reste couvert par
+les 19 cours d'eau majeurs chargés séparément (§ 3), pas par cette table de
+polygones.
+
+### 8. L'assainissement, commune par commune
+
+Source : SISPEA (eaufrance.fr, OFB), exports « collectif » et « non
+collectif » 2023 — les mêmes jeux « exploités pour les rapports nationaux »
+que l'eau potable (§ 4), mais publiés au niveau de la commune plutôt que du
+service : la composition communale que l'export eau potable ne donne pas.
+
+| Compétence | Communes | Régie | Délégation | Non renseigné |
+|---|---:|---:|---:|---:|
+| Assainissement collectif | 7 426 | 6 239 | 1 099 | 242 |
+| Assainissement non collectif | 852 | 727 | 88 | 42 |
+
+**Même écart régie/délégation que pour l'eau potable** (§ 4), à une échelle
+plus modeste : Veolia (250 communes en délégation), Saur (236) et Suez (172)
+concentrent l'essentiel de la délégation en assainissement collectif, dans
+le même ordre que pour l'eau potable.
+
+**Ce que cette charge ne couvre pas** : seuls les champs d'identification et
+de gestion (commune, service, opérateur, mode de gestion, population
+desservie) sont chargés. Les colonnes d'indicateur (prix de
+l'assainissement, taux de conformité des stations d'épuration...) ne le
+sont pas : leur code exact (`d201_0`, `d301_0`...) n'a pas été vérifié
+contre sa définition officielle au moment de cette charge, à la différence
+de `d101_0`/`d102_0` déjà vérifiés pour l'eau potable (§ 4) — un chargement
+ultérieur est possible, pas deviné ici.
+
 ## Ce que les données ne disent pas
 
-### 7. Ce qui reste hors de portée de cette version
+### 9. Ce qui reste hors de portée de cette version
 
-- **Les tracés fins des sous-bassins et du réseau hydrographique**
-  (rivières, affluents) : BD Topage les publie séparément, à une résolution
-  bien supérieure aux sept polygones chargés ici — non chargés, le sujet de
-  ce dossier étant la gouvernance par grand bassin, pas la cartographie
-  hydrographique détaillée.
+- **Le millésime 2024 des services d'eau potable et d'assainissement** :
+  l'export bascule, pour les trois compétences (eau potable, assainissement
+  collectif, assainissement non collectif), d'un format `.xlsx` à un binaire
+  Excel hérité (`.xls`, OLE2/CFBF) — vérifié à l'exécution (commande `file`
+  sur le fichier extrait). Une bibliothèque tierce pure Go
+  (`github.com/extrame/xls`) permet de le lire techniquement, mais l'en-tête
+  de ce millésime s'est révélé désaligné des colonnes de données à
+  l'inspection : la colonne 14, intitulée « Nom de l'entité de gestion »,
+  contient en réalité la valeur « eau potable » (un type de compétence, pas
+  un nom) — signe de cellules d'en-tête fusionnées dans le classeur source.
+  Un mappage fiable demanderait de reconstruire les positions réelles
+  colonne par colonne, plus de vérification que ce chantier n'en a fait :
+  documenté précisément plutôt que deviné, à traiter séparément.
 - **Le périmètre officiel des EPTB et EPAGE** (§ 6) : aucune source
   géographique nationale trouvée — le contour affiché est reconstruit par
   union de membres déjà chargés (communes, EPCI), pas téléchargé comme tel,
@@ -320,16 +379,15 @@ autre partie n'a effectivement aucune structure de ce type.
 - **Les aides des quatre autres agences** (§ 5) : Adour-Garonne, Rhin-Meuse,
   Rhône-Méditerranée-Corse et Seine-Normandie n'ont, à l'inspection, que des
   portails de recherche par critères — aucun fichier exportable trouvé.
-- **Le 10ᵉ programme Loire-Bretagne (2013-2018)** (§ 5) : chaque millésime a
-  son propre jeu de colonnes (vérifié à l'inspection), un connecteur séparé
-  par année serait nécessaire.
+- **Le 10ᵉ programme Loire-Bretagne (2013-2018)** (§ 5) : le portail dédié
+  (donnees-documents.eau-loire-bretagne.fr) n'a pas répondu à l'inspection
+  (délai dépassé à deux reprises, requêtes directes et via navigateur) —
+  seul un sous-dispositif agricole (PCAE 2018, un fichier de 52 Ko) a pu être
+  atteint, pas le fichier des décisions du 10ᵉ programme dans son ensemble.
+  Chaque millésime ayant, par ailleurs, son propre jeu de colonnes (vérifié
+  sur les programmes déjà chargés), un connecteur séparé par programme
+  resterait de toute façon nécessaire.
 - **Les bassins d'outre-mer** (§ 3).
-- **La carte communale/départementale des prix et opérateurs, et
-  l'assainissement** (§ 4) : la donnée service-par-service est chargée, la
-  composition communale des services et l'assainissement ne le sont pas
-  encore.
-- **Le millésime 2024 des services d'eau potable** (§ 4) : format Excel
-  hérité non lu par ce dépôt pour l'instant.
 
 ## Sources
 
@@ -351,9 +409,22 @@ autre partie n'a effectivement aucune structure de ce type.
 - BANATIC (base nationale sur l'intercommunalité), Direction générale des
   collectivités locales — export national des groupements, consulté le
   17 septembre 2026.
+- Sandre / IGN-OFB, *BD Topage — Bassins versants topographiques*,
+  millésime 2025.
+- SISPEA (Observatoire des services publics d'eau et d'assainissement,
+  OFB, eaufrance.fr), exports « assainissement collectif » et « non
+  collectif », millésime 2023.
 
 ## Versions
 
+- **Version 6** (19 septembre 2026) : les sous-bassins versants (6 190
+  polygones, une résolution bien plus fine que les sept grands bassins) et
+  l'assainissement commune par commune (7 426 communes en collectif, 852 en
+  non collectif) — deux manques comblés du § 9 précédent. Diagnostic
+  précisé sur le millésime 2024 SISPEA (format lisible techniquement, mais
+  en-têtes désalignés des données à l'inspection — documenté plutôt que
+  deviné) et sur le 10ᵉ programme Loire-Bretagne (portail hors service à
+  l'inspection, un sous-dispositif seulement confirmé accessible).
 - **Version 5** (17 septembre 2026) : où sont les EPTB et les EPAGE — 67
   structures trouvées dans le registre national BANATIC, contour reconstruit
   par union des communes et EPCI membres déjà chargés (aucune source
