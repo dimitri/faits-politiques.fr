@@ -1164,6 +1164,18 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		return err
 	}
 	schemaContributifNonContributif := dessinerContributifNonContributif()
+	carteMusees, err := chargerCarteMusees(ctx, pool)
+	if err != nil {
+		return err
+	}
+	schemaEcartPrixDOM, err := chargerEcartPrixDOM(ctx, pool)
+	if err != nil {
+		return err
+	}
+	schemaAlimentaireDOM, err := chargerAlimentaireDOM(ctx, pool)
+	if err != nil {
+		return err
+	}
 	schemaSIPRI, err := chargerSIPRI(ctx, pool)
 	if err != nil {
 		return err
@@ -1555,6 +1567,27 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`<figcaption>Protection sociale par risque, 2024 (DREES) — la vieillesse est presque `+
 					`entièrement contributive, les soins et la famille presque entièrement non contributifs. `+
 					`Classement discuté poste par poste au paragraphe suivant.</figcaption></figure>`))
+		}
+		if carteMusees != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-musees -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-musees -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(carteMusees.SVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>%d musées labellisés « Musée de France » (Muséofile, ministère de la `+
+						`Culture), répartis sur %d départements — la surface de chaque cercle est proportionnelle `+
+						`au nombre de musées, pas à leur taille ou à leur fréquentation.</figcaption></figure>`,
+						carteMusees.NbMusees, carteMusees.NbDepartements)))
+		}
+		if schemaEcartPrixDOM != "" && strings.Contains(string(d.Corps), "<!-- schema:ecart-prix-dom -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:ecart-prix-dom -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaEcartPrixDOM)+`</div>`+
+					`<figcaption>Écart de prix (indice de Fisher) avec la France métropolitaine, 2010 et 2022 `+
+					`— Insee, enquête de comparaison spatiale des prix. Mayotte : donnée 2010 non disponible dans `+
+					`la source.</figcaption></figure>`))
+		}
+		if schemaAlimentaireDOM != "" && strings.Contains(string(d.Corps), "<!-- schema:alimentaire-dom -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:alimentaire-dom -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaAlimentaireDOM)+`</div>`+
+					`<figcaption>Écart général contre écart sur les seuls produits alimentaires et boissons non `+
+					`alcoolisées, 2022 (Insee) — les deux séries ne se ressemblent pas, jamais à confondre.</figcaption></figure>`))
 		}
 		if schemaSIPRI != "" && strings.Contains(string(d.Corps), "<!-- schema:sipri-milex -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sipri-milex -->",

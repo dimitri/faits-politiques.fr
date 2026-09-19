@@ -518,6 +518,24 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\npopulation détenue par établissement (ministère de la Justice)")
 		return macro.IngestEtablissementsPenitentiaires(ctx, pool, arch)
 	}
+	// L'écart de prix entre les DOM et la France métropolitaine (Insee
+	// ECSP 2022). Voir docs/outre-mer-donnees.md. Hors chaîne par défaut.
+	if only == "ecart-prix-dom" {
+		fmt.Println("\nécart de prix DOM/métropole (Insee ECSP)")
+		return macro.IngestEcartPrixDOM(ctx, pool, arch)
+	}
+	// Le revenu agricole réel par unité de travail, France et UE. Voir
+	// docs/agriculture-donnees.md. Hors chaîne par défaut.
+	if only == "revenu-agricole" {
+		fmt.Println("\nrevenu agricole réel par UTA (Eurostat)")
+		return macro.IngestRevenuAgricole(ctx, pool, arch)
+	}
+	// Les musées labellisés Musée de France (Muséofile). Voir
+	// docs/culture-donnees.md. Hors chaîne par défaut.
+	if only == "museofile" {
+		fmt.Println("\nmusées labellisés Musée de France (Muséofile)")
+		return macro.IngestMuseesFrance(ctx, pool, arch)
+	}
 	// Le trafic des ports français et la comparaison européenne. Voir
 	// docs/ports-donnees.md. Hors chaîne par défaut.
 	if only == "ports" {

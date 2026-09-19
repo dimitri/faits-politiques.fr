@@ -2119,6 +2119,21 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.etablissement_penitentiaire WHERE densite_pct < 0`,
 	},
 	{
+		name:  "Outre-mer : l'écart de prix couvre les cinq DOM en 2022",
+		query: `SELECT count(*) FROM core.ecart_prix_dom WHERE annee=2022`,
+		min:   5,
+	},
+	{
+		name:  "Musées : au moins 1000 musées labellisés Musée de France chargés",
+		query: `SELECT count(*) FROM core.musee_france`,
+		min:   1000,
+	},
+	{
+		name:  "Revenu agricole : France et Union européenne chargées",
+		query: `SELECT count(DISTINCT geo_code) FROM core.revenu_agricole_reel`,
+		min:   2,
+	},
+	{
 		name:  "Ports : au moins 40 ports français chargés (SDES)",
 		query: `SELECT count(DISTINCT port) FROM core.trafic_portuaire`,
 		min:   40,
