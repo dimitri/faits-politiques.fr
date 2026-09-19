@@ -2615,3 +2615,26 @@ réel plutôt que celle qui semblait la plus évidente au départ.
   son export en masse, et son API SDMX moderne renvoie une erreur serveur malgré sa présence
   au catalogue — vérifié directement, pas supposé. Les totaux agrégés de l'OCDE sont cités en
   prose (§3), jamais présentés comme une série chargée.
+
+## D-080 — Le dossier Première Guerre mondiale reporté : l'export en masse de Mémoire des Hommes est bloqué au moment de l'écriture
+
+**Pourquoi.** Le dossier « Première Guerre mondiale » (famille La France dans le Monde) devait
+s'appuyer sur la base « Morts pour la France » de Mémoire des Hommes (ministère des Armées) —
+un export documenté de 56 fichiers CSV avec département de naissance, seule source identifiée
+permettant une vraie carte territoriale des pertes (l'opportunité principale de ce dossier).
+Vérifié directement le 19 septembre 2026 : `memoiredeshommes.sga.defense.gouv.fr` répond avec
+un certificat TLS expiré (notAfter 20 novembre 2025) puis un 403 ; le domaine alternatif
+`memoiredeshommes.defense.gouv.fr` répond, mais la page de téléchargement des fichiers renvoie
+un 503 « site en maintenance ». Aucune alternative structurée équivalente trouvée : le jeu
+data.gouv.fr le plus proche (MémorialGenWeb, « départements de naissance ») a été téléchargé et
+inspecté — 226 octets, une page de présentation du service, aucune donnée ; le jeu Réseau
+Canopé ne couvre qu'une quatre-vingtaine de communes, pas une agrégation nationale. Aucun
+shapefile de ligne de front ou de zones dévastées trouvé en open data.
+
+**Décidé.** Le dossier est reporté, pas abandonné : les chiffres globaux couramment cités
+(mobilisés, morts, blessés, prisonniers) existent dans la littérature historiographique
+(INSEE rétrospectif 1966, SHD, articles académiques) mais aucun n'est une donnée structurée
+vérifiable ligne à ligne — les publier sans le tableau département par département reviendrait
+à construire ce dossier sans sa carte, l'élément qui en justifiait la priorité dans l'ordre
+convenu. Ordre de construction ajusté : Empire colonial français passe devant Première Guerre
+mondiale ; à retenter dès que le site de Mémoire des Hommes sort de maintenance.
