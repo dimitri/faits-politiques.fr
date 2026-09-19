@@ -117,6 +117,11 @@ func dateFr(t time.Time) string {
 		t.Year(), t.Hour(), t.Minute())
 }
 
+// dateJourFr : « 5 juillet 1962 », sans heure — pour les dates historiques.
+func dateJourFr(t time.Time) string {
+	return fmt.Sprintf("%d %s %d", t.Day(), moisLong[int(t.Month())], t.Year())
+}
+
 // NomPropre : « Emmanuel MACRON » devient « Emmanuel Macron ».
 //
 // Le Journal officiel et les proclamations du Conseil constitutionnel écrivent

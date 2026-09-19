@@ -123,6 +123,7 @@ var familles = []*Famille{
 			{ID: "diplomatie", Nom: "Diplomatie et aide au développement", Doc: "action-exterieure-donnees"},
 			{ID: "international", Nom: "Comparaisons internationales", Doc: "international-donnees"},
 			{ID: "union-europeenne", Nom: "Union européenne", Doc: "union-europeenne-donnees", Pages: []LienPage{{"Les votes des eurodéputés français", "europe/"}}},
+			{ID: "empire-colonial", Nom: "La France coloniale", Doc: "empire-colonial-donnees"},
 			{ID: "francophonie", Nom: "La Francophonie", Doc: "francophonie-donnees"},
 			{ID: "climat-international", Nom: "La France et le climat : accords de Paris, COP21", Doc: "climat-international-donnees"},
 		}},

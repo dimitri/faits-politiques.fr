@@ -499,6 +499,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\nFrancophonie (ODSEF/OIF)")
 		return macro.IngestFrancophonie(ctx, pool, arch)
 	}
+	// L'empire colonial français : géographie (CShapes) et chronologie
+	// (vérifiée territoire par territoire) de 22 territoires. Voir
+	// docs/empire-colonial-donnees.md. Hors chaîne par défaut.
+	if only == "empire-colonial" {
+		fmt.Println("\nEmpire colonial français (CShapes 2.0)")
+		return geo.IngestTerritoireColonial(ctx, pool, arch)
+	}
 	// L'Accord de Paris : signature et ratification, pays par pays (ONU).
 	// Voir docs/climat-international-donnees.md. Hors chaîne par défaut.
 	if only == "accord-paris" {

@@ -1135,6 +1135,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	statsEmpireColonial, err := chargerEmpireColonial(ctx, pool)
+	if err != nil {
+		return err
+	}
 	schemaSIPRI, err := chargerSIPRI(ctx, pool)
 	if err != nil {
 		return err
@@ -1464,6 +1468,20 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		if statsFrancophonie != nil && strings.Contains(string(d.Corps), "<!-- tableau:francophonie-top-nombre -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:francophonie-top-nombre -->",
 				string(statsFrancophonie.TopParNombreTable)))
+		}
+		if statsEmpireColonial != nil && strings.Contains(string(d.Corps), "<!-- schema:empire-colonial-carte -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:empire-colonial-carte -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(statsEmpireColonial.CarteSVG)+`</div>`+
+					`<div class="echelle"><span><i class="vague-1"></i>1953-1956</span>`+
+					`<span><i class="vague-2"></i>1958-1962</span>`+
+					`<span><i class="vague-3"></i>1975-1977</span></div>`+
+					fmt.Sprintf(`<figcaption>%d des %d territoires listés ont une géométrie CShapes ; `+
+						`survolez chaque territoire pour sa date d'indépendance exacte.</figcaption></figure>`,
+						statsEmpireColonial.NbCartes, statsEmpireColonial.NbTotal)))
+		}
+		if statsEmpireColonial != nil && strings.Contains(string(d.Corps), "<!-- tableau:empire-colonial-territoires -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:empire-colonial-territoires -->",
+				string(statsEmpireColonial.Table)))
 		}
 		if schemaSIPRI != "" && strings.Contains(string(d.Corps), "<!-- schema:sipri-milex -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sipri-milex -->",

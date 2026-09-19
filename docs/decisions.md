@@ -2638,3 +2638,40 @@ vérifiable ligne à ligne — les publier sans le tableau département par dép
 à construire ce dossier sans sa carte, l'élément qui en justifiait la priorité dans l'ordre
 convenu. Ordre de construction ajusté : Empire colonial français passe devant Première Guerre
 mondiale ; à retenter dès que le site de Mémoire des Hommes sort de maintenance.
+
+## D-081 — Empire colonial français : deux sources croisées territoire par territoire, deux chiffres laissés contestés
+
+`docs/empire-colonial-donnees.md`, `internal/geo/empire_colonial.go`, migration 0128.
+
+**Pourquoi une vérification territoire par territoire plutôt qu'une seule requête
+automatisée.** Wikidata classe les anciennes possessions françaises sous trois classes
+distinctes et incohérentes entre elles pour cet usage : « colonie » (Q133156), « protectorat »
+(Q164142) et « mandat de la Société des Nations » (Q426759) — une requête sur une seule classe
+manque les deux autres, et le Cameroun et le Togo (mandats) ne portent même pas de déclaration
+« pays = France » (P17), un choix de modélisation de Wikidata qui aurait fait disparaître deux
+territoires réels d'une requête filtrée sur ce critère. Vérifié en interrogeant les trois
+classes séparément puis chaque territoire individuellement (dates P571/P576), plutôt que de
+publier le résultat d'une seule requête large sans en vérifier les trous.
+
+**Pourquoi CShapes 2.0 pour la géométrie plutôt qu'un fond de carte existant.** Le jeu est un
+panel à précision journalière (pas seulement annuelle) des frontières historiques, vérifié
+directement (44 Mo, 710 lignes, licence CC BY-NC-SA 4.0) — mais son plancher de 1886 pour
+toutes les entités signifie que la conquête de l'Algérie (1830) n'y apparaît pas comme un
+changement de frontière. Documenté dans le dossier plutôt que masqué par une géométrie
+retouchée.
+
+**Décidé.**
+
+- La carte colore chaque territoire par vague de décolonisation (1953-1956, 1958-1962,
+  1975-1977) — un regroupement qui ressort directement des dates chargées, pas une convention
+  choisie a priori — plutôt que par région ou par régime juridique, moins parlant pour le fait
+  que ces données montrent le mieux : la concentration de quatorze indépendances sur trois mois
+  en 1960.
+- Les bilans des répressions de Sétif-Guelma-Kherrata (1945) et de Madagascar (1947) sont
+  montrés en fourchettes côte à côte, jamais résolus à un chiffre unique — même principe que
+  celui déjà retenu pour le bilan contesté de la guerre d'Algérie (dossier dédié aux guerres de
+  décolonisation, à traiter séparément) : aucune base de données ne consolide ces désaccords, seuls des travaux
+  d'historiens aux fourchettes divergentes existent.
+- La démographie coloniale (recensements Gallica, numérisés mais non structurés) et l'économie
+  coloniale (CEPII TRADHIST, piste identifiée mais non vérifiée dans le temps disponible) restent
+  non chargées — signalées comme telles plutôt que remplacées par une estimation non vérifiée.

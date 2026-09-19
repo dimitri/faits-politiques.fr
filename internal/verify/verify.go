@@ -2090,6 +2090,19 @@ var checks = []check{
 		          AND date_ratification < date_signature`,
 	},
 	{
+		name:  "Empire colonial : les 22 territoires vérifiés sont chargés",
+		query: `SELECT count(*) FROM geo.territoire_colonial`,
+		min:   22,
+	},
+	{
+		// L'indépendance ne peut jamais précéder l'année de rattachement —
+		// ce serait la preuve d'une ligne mal recopiée entre les deux dates
+		// saisies à la main (migration 0128).
+		name: "Empire colonial : aucune indépendance antérieure au rattachement",
+		query: `SELECT count(*) FROM geo.territoire_colonial
+		        WHERE extract(year FROM date_independance) < annee_rattachement`,
+	},
+	{
 		name:  "poids économique mondial : l'UE est chargée aux côtés des dix pays de comparaison",
 		query: `SELECT count(DISTINCT indicateur) FROM core.indicateur_mondial WHERE pays_code='EU'`,
 		min:   10,
