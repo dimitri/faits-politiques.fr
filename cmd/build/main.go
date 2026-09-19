@@ -1155,6 +1155,18 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	carteInfrastructurePorts, err := chargerCarteInfrastructurePorts(ctx, pool)
+	if err != nil {
+		return err
+	}
+	schemaReportModalPort, err := chargerReportModal(ctx, pool)
+	if err != nil {
+		return err
+	}
+	schemaReportModalConteneurs, err := chargerReportModalConteneurs(ctx, pool)
+	if err != nil {
+		return err
+	}
 	statsJustice, err := chargerJustice(ctx, pool)
 	if err != nil {
 		return err
@@ -1558,6 +1570,29 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 				`<figure class="schema"><div class="carte-pleine">`+string(schemaPortsEurope)+`</div>`+
 					`<figcaption>Trafic total, dernière année disponible par port (Eurostat, mar_go_aa) — `+
 					`l'année diffère selon le port, indiquée entre parenthèses.</figcaption></figure>`))
+		}
+		if carteInfrastructurePorts != nil && strings.Contains(string(d.Corps), "<!-- schema:ports-infrastructure -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:ports-infrastructure -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(carteInfrastructurePorts.SVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>Autoroutes (%d tronçons) et voies ferrées classées « voie portuaire » `+
+						`par SNCF Réseau (%d tronçons) à moins de 80 km de chacun des quatre ports (OpenStreetMap, `+
+						`SNCF Réseau) — un accès physique, pas une mesure de trafic : aucune donnée ouverte ne `+
+						`distingue le fret des voyageurs sur le réseau ferré français.</figcaption></figure>`,
+						carteInfrastructurePorts.NbAutoroutes, carteInfrastructurePorts.NbVoiesFerrees)))
+		}
+		if schemaReportModalPort != "" && strings.Contains(string(d.Corps), "<!-- schema:report-modal-port -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:report-modal-port -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaReportModalPort)+`</div>`+
+					`<figcaption>Part du fer et du fleuve dans le pré- et post-acheminement des marchandises, `+
+					`2023 (DGITM, Observatoire de la performance portuaire) — un seul millésime, pas une série. `+
+					`Marseille-Fos n'a publié qu'un plafond, pas un chiffre exact.</figcaption></figure>`))
+		}
+		if schemaReportModalConteneurs != "" && strings.Contains(string(d.Corps), "<!-- schema:report-modal-conteneurs -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:report-modal-conteneurs -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaReportModalConteneurs)+`</div>`+
+					`<figcaption>Répartition modale du transport de CONTENEURS vers l'arrière-pays — jamais à `+
+					`comparer aux chiffres tous-trafics ci-dessus. HAROPA et Hambourg ne publient pas de `+
+					`répartition conteneurs seuls vérifiable.</figcaption></figure>`))
 		}
 		if statsJustice != nil && strings.Contains(string(d.Corps), "<!-- schema:justice-surpeuplement -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:justice-surpeuplement -->",

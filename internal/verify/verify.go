@@ -2175,6 +2175,35 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.effort_recherche WHERE dird_pib_fr NOT BETWEEN 1.5 AND 3.0`,
 	},
 	{
+		name:  "Ports : au moins 500 tronçons autoroutiers proches des quatre ports chargés",
+		query: `SELECT count(*) FROM geo.autoroute_portuaire`,
+		min:   500,
+	},
+	{
+		name:  "Ports : au moins 50 tronçons de voie ferrée portuaire chargés",
+		query: `SELECT count(*) FROM geo.voie_ferree_portuaire`,
+		min:   50,
+	},
+	{
+		name:  "Ports : le report modal est chargé pour les quatre ports suivis",
+		query: `SELECT count(*) FROM core.report_modal_port`,
+		min:   4,
+	},
+	{
+		// Un pourcentage ne peut jamais dépasser 100, qu'il s'agisse d'un
+		// chiffre exact ou d'un plafond déclaré.
+		name:  "Ports : aucun pourcentage de report modal hors de 0-100",
+		query: `SELECT count(*) FROM core.report_modal_port WHERE part_massifiee_pct NOT BETWEEN 0 AND 100`,
+	},
+	{
+		// Les trois modes doivent sommer à 100 (à l'arrondi près) pour
+		// chaque port de la comparaison conteneurs — sinon une valeur a été
+		// mal recopiée depuis la source.
+		name: "Ports : la répartition modale conteneurs somme à 100 % par port",
+		query: `SELECT count(*) FROM core.report_modal_conteneurs
+		        WHERE abs(part_fer_pct + part_fleuve_pct + part_route_pct - 100) > 0.2`,
+	},
+	{
 		name:  "Outre-mer : l'écart de prix couvre les cinq DOM en 2022",
 		query: `SELECT count(*) FROM core.ecart_prix_dom WHERE annee=2022`,
 		min:   5,

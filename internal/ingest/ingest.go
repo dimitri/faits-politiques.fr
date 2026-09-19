@@ -564,6 +564,25 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\ntrafic portuaire européen (Eurostat)")
 		return macro.IngestTraficPortuaireEurope(ctx, pool, arch)
 	}
+	// L'accès terrestre aux quatre grands ports (autoroutes, voies ferrées
+	// portuaires) et le report modal (DGITM, comparaison conteneurs
+	// européenne). Voir docs/ports-donnees.md. Hors chaîne par défaut.
+	if only == "ports-infra" {
+		fmt.Println("\nautoroutes proches des grands ports (OSM)")
+		if err := macro.IngestAutoroutesPortuaires(ctx, pool, arch); err != nil {
+			return err
+		}
+		fmt.Println("\nvoies ferrées portuaires (SNCF Réseau)")
+		if err := macro.IngestVoiesFerreesPortuaires(ctx, pool, arch); err != nil {
+			return err
+		}
+		fmt.Println("\nreport modal par port (DGITM)")
+		if err := macro.IngestReportModalPort(ctx, pool, arch); err != nil {
+			return err
+		}
+		fmt.Println("\nreport modal conteneurs, comparaison européenne")
+		return macro.IngestReportModalConteneurs(ctx, pool, arch)
+	}
 	// L'Accord de Paris : signature et ratification, pays par pays (ONU).
 	// Voir docs/climat-international-donnees.md. Hors chaîne par défaut.
 	if only == "accord-paris" {
