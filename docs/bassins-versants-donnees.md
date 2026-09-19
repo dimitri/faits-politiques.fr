@@ -1,6 +1,6 @@
 # Bassins versants : la gouvernance de l'eau qui existe déjà
 
-> **Dossier** · version 6 · 19 septembre 2026
+> **Dossier** · version 7 · 19 septembre 2026
 >
 > Comment la gestion de l'eau est-elle organisée en France, à quelle échelle, et
 > par qui ? Le dossier décrit l'architecture qui existe — comités de bassin, agences de
@@ -212,19 +212,25 @@ même export SISPEA mais n'est pas encore chargé.
 
 ### 5. Qui reçoit les aides, et pour quoi
 
-Source : décisions d'aide publiées par deux des six agences — **Loire-Bretagne**
-(11ᵉ programme 2019-2024 et 12ᵉ programme 2025-2030 en cours) et
+Source : décisions d'aide publiées par trois des six agences — **Loire-Bretagne**
+(11ᵉ programme 2019-2024 et 12ᵉ programme 2025-2030 en cours),
 **Artois-Picardie** (conventions publiées au format réglementaire du décret
-n° 2017-779, 2017-2026). Les quatre autres agences (Adour-Garonne, Rhin-Meuse,
-Rhône-Méditerranée-Corse, Seine-Normandie) n'ont pas d'export en masse
-trouvé à l'inspection — seulement des portails de recherche par critères,
-sans fichier téléchargeable — donc pas chargées : un choix documenté, pas un
-oubli.
+n° 2017-779, 2017-2026) et **Rhin-Meuse** (bilan consolidé publié par
+l'agence elle-même, 2000-2026 sans interruption). Les trois agences
+restantes (Adour-Garonne, Rhône-Méditerranée-Corse, Seine-Normandie) ne
+publient, à l'inspection, aucun export en masse exploitable — voir § 9 pour
+le détail par agence.
 
-| Agence | Aides | Bénéficiaires distincts (par raison sociale) | Montant cumulé |
-|---|---:|---:|---:|
-| Loire-Bretagne (11ᵉ + 12ᵉ programmes) | 33 770 | 5 990 | 2,49 Md€ |
-| Artois-Picardie (10ᵉ-11ᵉ + 12ᵉ programmes) | 9 171 | 1 709 | 1,02 Md€ |
+| Agence | Aides | Bénéficiaires distincts (par raison sociale) | Montant cumulé | Période couverte |
+|---|---:|---:|---:|---|
+| Rhin-Meuse | 40 245 | 7 107 | 2,64 Md€ | 2000-2026 |
+| Loire-Bretagne (11ᵉ + 12ᵉ programmes) | 33 770 | 5 990 | 2,49 Md€ | 2019-2026 |
+| Artois-Picardie (10ᵉ-11ᵉ + 12ᵉ programmes) | 9 171 | 1 709 | 1,02 Md€ | 2017-2026 |
+
+**Les montants cumulés ne se comparent pas directement** : Rhin-Meuse couvre
+27 ans de programmes (IX à XII), quand Loire-Bretagne et Artois-Picardie
+n'en couvrent que les deux ou trois derniers — un montant cumulé plus élevé
+peut refléter une période plus longue, pas une agence plus généreuse par an.
 
 **Presque exclusivement des subventions, pas des avances** : sur
 Loire-Bretagne, 33 769 aides sur 33 770 sont classées « Subvention », une
@@ -239,18 +245,37 @@ Loire-Bretagne, le premier bénéficiaire cumulé (191,7 M€ sur 48 aides) est
 l'ASP (Agence de services et de paiement), qui verse les aides agricoles
 (MAEC) pour le compte de l'agence de l'eau — une aide à l'ASP n'est donc pas
 une aide à un agriculteur nommément identifié, mais un flux qui se
-redistribue en aval, hors du champ de cette charge. Parmi les bénéficiaires
-directs de travaux : Clermont Auvergne Métropole (17,2 M€ pour l'extension
-d'une station de traitement des eaux usées), la Métropole européenne de
-Lille (69,4 M€ sur 247 aides, agence Artois-Picardie).
+redistribue en aval, hors du champ de cette charge. Le même mécanisme
+apparaît sur Rhin-Meuse : l'ASP y est aussi le premier bénéficiaire cumulé
+(166,4 M€ sur 160 aides), suivie de l'Eurométropole de Strasbourg
+(108,1 M€) et du SDEA Alsace Moselle, syndicat des eaux (155 M€ sur deux
+raisons sociales proches). Parmi les bénéficiaires directs de travaux hors
+structures redistributrices : Clermont Auvergne Métropole (17,2 M€ pour
+l'extension d'une station de traitement des eaux usées), la Métropole
+européenne de Lille (69,4 M€ sur 247 aides, agence Artois-Picardie).
 
-**Ce que ce chiffrage ne permet pas encore de dire** : ni la part de l'aide
-qui va aux ménages, aux entreprises ou aux collectivités (aucune colonne de
-catégorie de bénéficiaire n'est publiée par les agences — seule une raison
-sociale, à catégoriser soi-même si ce dossier est approfondi), ni la part
-de chaque euro de redevance qui revient effectivement au payeur d'origine
-(la chaîne payeur → agence → aide reste bloquée par l'absence de
-redevances par payeur, voir § 9).
+**Rhin-Meuse comble une partie du manque signalé sur la catégorie de
+bénéficiaire** : à la différence de Loire-Bretagne et Artois-Picardie, ce
+fichier publie un type de maître d'ouvrage pour chaque aide —
+
+| Type de bénéficiaire | Aides | Montant cumulé |
+|---|---:|---:|
+| Collectivité | 16 087 | 1 120,4 M€ |
+| Territoriale (syndicats, EPTB/EPAGE...) | 10 420 | 816,7 M€ |
+| Autre | 8 343 | 398,2 M€ |
+| Autres entités | 3 874 | 119,9 M€ |
+| Entreprise | 1 521 | 188,7 M€ |
+
+— une collectivité au sens large (les deux premières lignes) reçoit ainsi
+plus des deux tiers du montant cumulé sur ce seul bassin. Cette
+catégorisation n'existe que pour Rhin-Meuse : elle ne peut pas, à ce stade,
+être étendue aux deux autres agences chargées, ni servir à estimer une
+répartition nationale.
+
+**Ce que ce chiffrage ne permet toujours pas de dire** : la part de chaque
+euro de redevance qui revient effectivement au payeur d'origine (la chaîne
+payeur → agence → aide reste bloquée par l'absence de redevances par
+payeur, voir § 9).
 
 ### 6. Où sont les EPTB et les EPAGE
 
@@ -376,9 +401,18 @@ ultérieur est possible, pas deviné ici.
   (`core.commune_indicator`) ne couvrent que le budget principal — un pont
   vers un budget-annexe demanderait une source OFGL différente, non
   identifiée à ce jour. Un blocage structurel, pas un oubli.
-- **Les aides des quatre autres agences** (§ 5) : Adour-Garonne, Rhin-Meuse,
-  Rhône-Méditerranée-Corse et Seine-Normandie n'ont, à l'inspection, que des
-  portails de recherche par critères — aucun fichier exportable trouvé.
+- **Les aides des trois agences restantes** (§ 5), chacune pour une raison
+  différente, vérifiée à l'inspection plutôt que supposée commune :
+  **Rhône-Méditerranée-Corse** publie une base de recherche par critères
+  (eaurmc.fr, aides depuis 2013) sans export téléchargeable ; **Adour-Garonne**
+  n'a, à l'inspection de son site et de son organisation data.gouv.fr, aucun
+  fichier de décisions d'aide (seulement un portail de dépôt de dossiers,
+  Rivage) ; **Seine-Normandie** publie des bilans par année, mais fragmentés
+  (plusieurs fichiers par millésime, parfois dupliqués), avec des cellules
+  d'en-tête fusionnées comme le millésime 2024 SISPEA (la colonne « Année »
+  n'est renseignée qu'une ligne sur N) et sans mise à jour au-delà de 2021 —
+  un chargement demanderait de reconstruire le report de valeur ligne par
+  ligne pour un historique déjà vieux de cinq ans, non fait ici.
 - **Le 10ᵉ programme Loire-Bretagne (2013-2018)** (§ 5) : le portail dédié
   (donnees-documents.eau-loire-bretagne.fr) n'a pas répondu à l'inspection
   (délai dépassé à deux reprises, requêtes directes et via navigateur) —
@@ -414,9 +448,18 @@ ultérieur est possible, pas deviné ici.
 - SISPEA (Observatoire des services publics d'eau et d'assainissement,
   OFB, eaufrance.fr), exports « assainissement collectif » et « non
   collectif », millésime 2023.
+- Agence de l'eau Rhin-Meuse, *Bilan des aides accordées*
+  (eau-rhin-meuse.fr, consulté le 19 septembre 2026).
 
 ## Versions
 
+- **Version 7** (19 septembre 2026) : les aides de l'agence de l'eau
+  Rhin-Meuse (40 245 aides, 2,64 Md€, 2000-2026 — un bilan consolidé plutôt
+  qu'un fichier par programme), avec un type de bénéficiaire que ni
+  Loire-Bretagne ni Artois-Picardie ne publient. Diagnostic précisé pour les
+  trois agences restantes (Adour-Garonne, Rhône-Méditerranée-Corse,
+  Seine-Normandie), chacune pour une raison différente et vérifiée
+  séparément.
 - **Version 6** (19 septembre 2026) : les sous-bassins versants (6 190
   polygones, une résolution bien plus fine que les sept grands bassins) et
   l'assainissement commune par commune (7 426 communes en collectif, 852 en

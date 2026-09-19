@@ -61,7 +61,7 @@ import (
 // router vers ce paquet plutôt que de dupliquer son analyse d'options.
 func Run(args []string) error {
 	fs := flag.NewFlagSet("ingest", flag.ContinueOnError)
-	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | ifi | appareil-productif | commerce-partenaires | contour-pays | francophonie | accord-paris | sae | rpps | hydro | eau-potable | eau-aides-loire-bretagne | eau-aides-artois-picardie | eau-eptb-epage | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | fiscalite-locale | paie | budget | presidentielle | media | checksums")
+	only := fs.String("only", "", "migrate | download | partis | europe | senat | normalize | carto | communes | cog | rne | epci | collectivites | associations | ssmsi | municipales2020 | entreprises | agriculture | exposes | exposes-reparse | promulgation | deports | amendements | interventions | campagne | jorf | jorf-complet | jorf-elus | jorf-gouvernement | gouvernement-membres | senat-repertoire | senat-mandats | senat-commissions | senat-fusion | senat-presentations | hatvp | macro | prefets | contours | circonscriptions | socle | immigration | education | sante | vieillesse | jeunesse | population-age | richesse | heritage | ifi | appareil-productif | commerce-partenaires | contour-pays | francophonie | accord-paris | sae | rpps | hydro | eau-potable | eau-aides-loire-bretagne | eau-aides-artois-picardie | eau-aides-rhin-meuse | eau-eptb-epage | sous-bassins | assainissement | ecologie | international | decp | damir | dette | aides | aides-urssaf | sirene | aides-nominatives | tam | ademe | minimis | fiscalite | fiscalite-locale | paie | budget | presidentielle | media | checksums")
 	rawDir := fs.String("raw", "raw", "répertoire de l'archive scellée")
 	migDir := fs.String("migrations", "db/migrations", "répertoire des migrations")
 	if err := fs.Parse(args); err != nil {
@@ -644,6 +644,10 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 	if only == "eau-aides-artois-picardie" {
 		fmt.Println("\naides de l'agence de l'eau Artois-Picardie")
 		return eau.IngestAidesArtoisPicardie(ctx, pool, arch)
+	}
+	if only == "eau-aides-rhin-meuse" {
+		fmt.Println("\naides de l'agence de l'eau Rhin-Meuse")
+		return eau.IngestAidesRhinMeuse(ctx, pool, arch)
 	}
 	// EPTB/EPAGE : reconstruits depuis BANATIC (DGCL), faute de périmètre
 	// géographique national publié — voir internal/eau/eptb_epage.go. Hors

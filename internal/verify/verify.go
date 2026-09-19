@@ -1968,11 +1968,14 @@ var checks = []check{
 		        WHERE mode_gestion IS NOT NULL AND mode_gestion NOT IN ('REGIE','DELEGATION')`,
 	},
 	{
-		// Une aide à zéro ou négative trahirait une erreur de colonne (par
-		// exemple un taux en % lu à la place du montant en €) plutôt qu'une
-		// vraie décision d'aide.
-		name: "les aides des agences de l'eau ont toutes un montant strictement positif",
-		query: `SELECT count(*) FROM core.aide_agence_eau WHERE montant_eur <= 0`,
+		// Une aide négative trahirait une erreur de colonne (par exemple un
+		// taux en % lu à la place du montant en €) plutôt qu'une vraie
+		// décision d'aide. Un montant à zéro, en revanche, existe réellement
+		// dans le fichier Rhin-Meuse : 40 dossiers « Soldé » à 0 € (vérifié
+		// à l'inspection, voir SourceAidesRhinMeuse.Notes) — pas une erreur
+		// de chargement, donc pas rejeté ici.
+		name: "les aides des agences de l'eau n'ont jamais un montant négatif",
+		query: `SELECT count(*) FROM core.aide_agence_eau WHERE montant_eur < 0`,
 	},
 	{
 		// Le total annuel Loire-Bretagne (le plus gros des deux bassins
@@ -1984,6 +1987,15 @@ var checks = []check{
 		          SELECT annee, sum(montant_eur) AS total FROM core.aide_agence_eau
 		          WHERE agence = 'LOIRE_BRETAGNE' GROUP BY annee
 		        ) x WHERE total NOT BETWEEN 50e6 AND 700e6`,
+	},
+	{
+		name:  "au moins 35 000 aides Rhin-Meuse sont chargées",
+		query: `SELECT count(*) FROM core.aide_agence_eau WHERE agence = 'RHIN_MEUSE'`,
+		min:   35000,
+	},
+	{
+		name:  "aide_agence_eau.agence ne contient que des valeurs connues",
+		query: `SELECT count(*) FROM core.aide_agence_eau WHERE agence NOT IN ('LOIRE_BRETAGNE','ARTOIS_PICARDIE','RHIN_MEUSE')`,
 	},
 	{
 		// Chaque EPTB/EPAGE affiché sur la carte doit avoir un contour
