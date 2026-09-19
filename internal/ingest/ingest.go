@@ -512,6 +512,16 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\nLigne de démarcation (Département de l'Ain)")
 		return geo.IngestLigneDemarcation(ctx, pool, arch)
 	}
+	// Le trafic des ports français et la comparaison européenne. Voir
+	// docs/ports-donnees.md. Hors chaîne par défaut.
+	if only == "ports" {
+		fmt.Println("\ntrafic portuaire français (SDES)")
+		if err := macro.IngestTraficPortuaire(ctx, pool, arch); err != nil {
+			return err
+		}
+		fmt.Println("\ntrafic portuaire européen (Eurostat)")
+		return macro.IngestTraficPortuaireEurope(ctx, pool, arch)
+	}
 	// L'Accord de Paris : signature et ratification, pays par pays (ONU).
 	// Voir docs/climat-international-donnees.md. Hors chaîne par défaut.
 	if only == "accord-paris" {

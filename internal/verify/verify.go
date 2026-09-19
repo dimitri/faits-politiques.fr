@@ -2108,6 +2108,25 @@ var checks = []check{
 		min:   1,
 	},
 	{
+		name:  "Ports : au moins 40 ports français chargés (SDES)",
+		query: `SELECT count(DISTINCT port) FROM core.trafic_portuaire`,
+		min:   40,
+	},
+	{
+		// tonnage_tot inclut la tare (poids des contenants) : les
+		// sous-totaux de marchandises seules (vracs, conteneurs) ne
+		// peuvent jamais le dépasser, sous peine de colonnes inversées.
+		name: "Ports : les sous-totaux de marchandises ne dépassent jamais le tonnage total",
+		query: `SELECT count(*) FROM core.trafic_portuaire
+		        WHERE tonnage_tot IS NOT NULL AND vracs_liquides IS NOT NULL
+		          AND vracs_liquides > tonnage_tot`,
+	},
+	{
+		name:  "Ports : la comparaison européenne couvre les six ports nommés",
+		query: `SELECT count(DISTINCT code_port) FROM core.trafic_portuaire_europe`,
+		min:   6,
+	},
+	{
 		name:  "poids économique mondial : l'UE est chargée aux côtés des dix pays de comparaison",
 		query: `SELECT count(DISTINCT indicateur) FROM core.indicateur_mondial WHERE pays_code='EU'`,
 		min:   10,

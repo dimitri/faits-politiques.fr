@@ -700,6 +700,30 @@ table tr.vague-1 td:first-child{border-left:3px solid #C97B4A}
 table tr.vague-2 td:first-child{border-left:3px solid #8C4B3A}
 table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 
+/* Ports français : quatre grands ports maritimes, chacun sa couleur — pas
+   de gris/nommé comme SIPRI, quatre lignes seulement restent lisibles. */
+.ports-fr .grille{stroke:var(--filet);stroke-width:1}
+.ports-fr .et{font:500 .62rem/1 var(--mono);fill:var(--attenue);text-anchor:end}
+.ports-fr .an{font:500 .66rem/1 var(--mono);fill:var(--attenue)}
+.ports-fr .lbl-haropa,.ports-fr .lbl-marseille,.ports-fr .lbl-dunkerque,.ports-fr .lbl-nantes{
+  font:600 .66rem/1 var(--sans)}
+.ports-fr .ligne-haropa{fill:none;stroke:var(--accent);stroke-width:2.4}
+.ports-fr .pt-haropa,.ports-fr .lbl-haropa{fill:var(--accent)}
+.ports-fr .ligne-marseille{fill:none;stroke:#9A3322;stroke-width:2}
+.ports-fr .pt-marseille,.ports-fr .lbl-marseille{fill:#9A3322}
+.ports-fr .ligne-dunkerque{fill:none;stroke:#2F6B7A;stroke-width:2}
+.ports-fr .pt-dunkerque,.ports-fr .lbl-dunkerque{fill:#2F6B7A}
+.ports-fr .ligne-nantes{fill:none;stroke:#7A6A2F;stroke-width:2}
+.ports-fr .pt-nantes,.ports-fr .lbl-nantes{fill:#7A6A2F}
+
+/* Comparaison européenne : la France en accent, les trois ports du range
+   nord-européen en neutre — le contraste de longueur des barres est le
+   fait, pas besoin de couleurs distinctes pour Rotterdam/Anvers/Hambourg. */
+.barres-ports-europe .cat{font:600 .68rem/1 var(--sans);text-anchor:end}
+.barres-ports-europe .val{font:500 .66rem/1 var(--mono);fill:var(--attenue)}
+.barres-ports-europe .barre-fr{fill:var(--accent)}
+.barres-ports-europe .barre-autre{fill:var(--attenue)}
+
 /* Seconde Guerre mondiale : la France en silhouette, la ligne de
    démarcation par-dessus — pas de remplissage par zone, aucune géométrie
    de zone vérifiée n'ayant été trouvée (voir le dossier). */

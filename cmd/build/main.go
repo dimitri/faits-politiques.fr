@@ -1143,6 +1143,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaPortsFrancais, err := chargerPortsFrancais(ctx, pool)
+	if err != nil {
+		return err
+	}
+	schemaPortsEurope, err := chargerPortsEurope(ctx, pool)
+	if err != nil {
+		return err
+	}
 	schemaSIPRI, err := chargerSIPRI(ctx, pool)
 	if err != nil {
 		return err
@@ -1494,6 +1502,18 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 						`1940-1942 (%s km) — Département de l'Ain. Ni l'annexion de fait de l'Alsace-Moselle ni `+
 						`la zone d'occupation italienne (à partir de novembre 1942) n'ont de géométrie vérifiée `+
 						`trouvée ; non représentées ici, voir § 2.</figcaption></figure>`, Decimal(statsSGM.LongueurKm, 0))))
+		}
+		if schemaPortsFrancais != "" && strings.Contains(string(d.Corps), "<!-- schema:ports-francais -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:ports-francais -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaPortsFrancais)+`</div>`+
+					`<figcaption>Trafic total (marchandises et tare, entrées et sorties confondues), `+
+					`quatre grands ports maritimes, 2000-2025 — SDES.</figcaption></figure>`))
+		}
+		if schemaPortsEurope != "" && strings.Contains(string(d.Corps), "<!-- schema:ports-europe -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:ports-europe -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaPortsEurope)+`</div>`+
+					`<figcaption>Trafic total, dernière année disponible par port (Eurostat, mar_go_aa) — `+
+					`l'année diffère selon le port, indiquée entre parenthèses.</figcaption></figure>`))
 		}
 		if schemaSIPRI != "" && strings.Contains(string(d.Corps), "<!-- schema:sipri-milex -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sipri-milex -->",
