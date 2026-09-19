@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"math"
@@ -50,14 +51,17 @@ type StatsCommerceSecteur struct {
 // graphique — le classement se fait ici, sur la donnée complète, pas au
 // chargement.
 func chargerCommerceSecteur(ctx context.Context, pool *pgxpool.Pool, secteur, libelle string, topN int) (*StatsCommerceSecteur, error) {
-	var anneeDebut, anneeFin int
+	// min/max sont des agrégations : la ligne existe même sans ce secteur
+	// encore ingéré, avec des bornes NULL.
+	var anneeDebutN, anneeFinN sql.NullInt64
 	if err := pool.QueryRow(ctx, `SELECT min(annee), max(annee) FROM core.commerce_partenaire_secteur WHERE secteur=$1`, secteur).
-		Scan(&anneeDebut, &anneeFin); err != nil {
+		Scan(&anneeDebutN, &anneeFinN); err != nil {
 		return nil, err
 	}
-	if anneeDebut == 0 {
+	if !anneeDebutN.Valid {
 		return nil, nil
 	}
+	anneeDebut, anneeFin := int(anneeDebutN.Int64), int(anneeFinN.Int64)
 
 	totaux := map[int]float64{}
 	rows, err := pool.Query(ctx, `
@@ -395,14 +399,17 @@ func dessinerDelocalisationDept(ctx context.Context, pool *pgxpool.Pool) (templa
 		return "", 0, nil
 	}
 
-	var vb string
+	// st_extent est une agrégation : la ligne existe même sans contour
+	// encore ingéré, avec une valeur NULL (voir cmd/build/carte.go).
+	var vbN sql.NullString
 	if err := pool.QueryRow(ctx, `
 		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
 		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
 		FROM (SELECT st_extent(st_transform(geom,2154)) e FROM geo.contour
-		      WHERE niveau='DEPARTEMENT' AND srid_rendu=2154) x`).Scan(&vb); err != nil {
+		      WHERE niveau='DEPARTEMENT' AND srid_rendu=2154) x`).Scan(&vbN); err != nil {
 		return "", 0, err
 	}
+	vb := vbN.String
 
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo delocalisation" role="img" `+
