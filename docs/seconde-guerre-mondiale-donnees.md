@@ -1,6 +1,6 @@
 # La France dans la Seconde Guerre mondiale : occupation, pertes, déportation
 
-> **Dossier** · version 1 · 19 septembre 2026
+> **Dossier** · version 2 · 19 septembre 2026
 >
 > Où passait la ligne de démarcation, combien de militaires français sont
 > morts, combien de personnes ont été déportées depuis la France : ce
@@ -30,11 +30,35 @@
 
 <!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Aucun texte n'est encore chargé pour ce dossier.
-
 <!-- faits:CADRE:fin -->
 
-### 1. La France coupée en zones : un seul tracé vérifié, trois autres cités sans carte
+### 1. L'appareil légal de Vichy et de la Libération, à partir du corpus du Journal officiel déjà chargé par ce dépôt
+
+Ce dépôt archive déjà l'intégralité du Journal officiel, y compris la
+période 1939-1945 : plutôt que de chercher une nouvelle source, ce dossier
+cite directement, par leur identifiant permanent, quatre textes qui jalonnent
+la période — deux mesures d'exclusion antisémite de 1940, l'institution du
+travail obligatoire en 1943, une ordonnance de l'épuration à la Libération :
+
+- **Loi du 3 octobre 1940 portant statut des Juifs** (3 octobre 1940). Exclut les
+  Juifs de la fonction publique et de nombreuses professions — la première
+  loi antisémite édictée par le régime de Vichy de sa seule initiative,
+  sans exigence allemande. — Gouvernement de Vichy · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000000869361) · *officiel*
+- **Loi du 7 octobre 1940 portant abrogation du décret Crémieux** (7 octobre 1940).
+  Abroge le décret du 24 octobre 1870 qui avait accordé la citoyenneté
+  française aux Juifs d'Algérie — plus de 100 000 personnes perdent leur
+  citoyenneté du jour au lendemain. — Gouvernement de Vichy · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000000504352) · *officiel*
+- **Loi du 16 février 1943 portant institution du service du travail obligatoire**
+  (16 février 1943). Rend obligatoire le départ en Allemagne de classes
+  d'âge entières de jeunes hommes pour y travailler — plusieurs centaines
+  de milliers de personnes concernées, chiffre exact non chargé (voir § 7). — Gouvernement de Vichy · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000000516981) · *officiel*
+- **Ordonnance du 26 août 1944 instituant l'indignité nationale** (26 août 1944).
+  Crée une peine spécifique pour les faits de collaboration ne relevant pas
+  du droit pénal ordinaire — le fondement légal de l'épuration judiciaire
+  dont les chiffres sont cités au § 5. — Gouvernement provisoire de la
+  République française · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000000504738) · *officiel*
+
+### 2. La France coupée en zones : un seul tracé vérifié, trois autres cités sans carte
 
 <!-- schema:sgm-ligne-demarcation -->
 
@@ -66,7 +90,7 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 ## Situation chiffrée
 
-### 2. Les pertes militaires : deux méthodes, deux chiffres, jamais résolus en un seul
+### 3. Les pertes militaires : deux méthodes, deux chiffres, jamais résolus en un seul
 
 **La base nominative du ministère des Armées** (Mémoire des Hommes,
 « Militaires décédés au cours de la Seconde Guerre mondiale ») recense
@@ -88,7 +112,7 @@ que d'en choisir un** : l'écart (environ 15 000) tient à la méthode — une
 base de fiches nominatives d'un côté, une reconstruction agrégée par
 catégorie de l'autre — pas à un désaccord sur les faits eux-mêmes.
 
-### 3. La déportation : le bilan de Serge Klarsfeld, cité avec ses deux éditions
+### 4. La déportation : le bilan de Serge Klarsfeld, cité avec ses deux éditions
 
 Le travail de référence sur la déportation des Juifs de France reste celui
 de Serge Klarsfeld (*Mémorial de la déportation des Juifs de France*),
@@ -108,7 +132,7 @@ circule et s'appuie sur ce même travail, mais ce dossier ne l'a pas
 vérifiée ligne par ligne dans le temps disponible — à reprendre si ce
 niveau de détail devient nécessaire.
 
-### 4. Prisonniers de guerre, bilan civil et Résistance : trois bilans « mous », assumés comme tels
+### 5. Prisonniers de guerre, bilan civil et Résistance : trois bilans « mous », assumés comme tels
 
 **Les prisonniers de guerre de 1940** : le chiffre d'environ 1,8 million,
 le plus souvent cité, est un ordre de grandeur d'historiens, pas le
@@ -140,63 +164,107 @@ exécutées après jugement — auxquelles s'ajoute, **selon une fourchette que
 les historiens ne s'accordent pas à resserrer**, 8 000 à 9 000 exécutions
 sommaires, hors procédure judiciaire.
 
+### 6. Le choc démographique des deux guerres : ce que dit la population, ce qu'elle ne dit pas
+
+<!-- schema:population-guerres -->
+
+La série longue de la population française (recensements, 1876-1999)
+donne une mesure du choc de la Première Guerre mondiale complètement
+indépendante des dénombrements militaires du § 3 : entre les recensements
+de 1911 et de 1921, la population recule nettement — un creux net,
+directement lisible sur la courbe, qui n'a pas d'équivalent ailleurs sur
+tout le reste de la série.
+
+**Ce même graphique montre aussi une limite de la source, pas seulement un
+fait** : aucun recul comparable n'apparaît entre 1936 et 1954 pour la
+Seconde Guerre mondiale. Ce n'est pas que la guerre n'a pas eu d'effet
+démographique — c'est que le recensement de 1946, le seul point qui
+aurait pu le montrer, n'existe pas dans cette série (elle saute directement
+de 1936 à 1954, où la reprise de la natalité d'après-guerre masque déjà
+tout recul antérieur). **Ce dossier ne force donc pas ce graphique à
+« montrer » la Seconde Guerre mondiale : il montre ce que la source montre
+réellement, et dit explicitement ce qu'elle ne peut pas montrer.**
+
 ## Ce que les données ne disent pas
 
-### 5. Ce qui reste hors de portée de cette version
+### 7. Ce qui reste hors de portée de cette version
 
 - **L'export en masse de la base des militaires décédés 1939-1945** :
   piste identifiée, techniquement inaccessible au moment de l'écriture
   (même blocage que pour la base 1914-1918, voir docs/decisions.md D-080)
   — à retenter.
+- **Le nombre exact de personnes requises au titre du STO** : la loi qui
+  l'institue est citée (§ 1), pas de base chargée dénombrant les personnes
+  effectivement parties.
+- **Les bâtiments endommagés en 1939-1945, département par département** :
+  une source géolocalisée existerait pour le Calvados (open data
+  départemental), mais le portail testé (data.calvados.fr) renvoyait une
+  erreur 403/404 sur toutes les routes essayées au moment de l'écriture —
+  non chargée, à retenter plutôt qu'à deviner.
+- **Le recensement de 1946** : absent de la série Insee utilisée au § 6 —
+  aucune autre source identifiée ne le comble à ce stade.
 - **Le détail convoi par convoi de la déportation** : le bilan agrégé de
-  Klarsfeld est cité (§ 3), le détail par convoi ne l'est pas, faute d'une
+  Klarsfeld est cité (§ 4), le détail par convoi ne l'est pas, faute d'une
   vérification ligne par ligne dans le temps disponible.
 - **Les géométries de l'annexion de l'Alsace-Moselle et de la zone
-  d'occupation italienne** : citées en prose (§ 1), aucune géométrie
+  d'occupation italienne** : citées en prose (§ 2), aucune géométrie
   ouverte vérifiée trouvée.
 - **Les dates de libération par département** : aucune donnée structurée
   identifiée, seulement des chronologies narratives — un chantier distinct
   si le besoin se précise.
 - **Le nombre de victimes civiles totalisé indépendamment** : la base 2023
-  du ministère des Armées (§ 4) existe mais n'est pas exportable en masse.
+  du ministère des Armées (§ 5) existe mais n'est pas exportable en masse.
 
 ## Sources
 
 - Ministère des Armées, Mémoire des Hommes, *Militaires décédés au cours de
-  la Seconde Guerre mondiale* (§ 2).
+  la Seconde Guerre mondiale* (§ 3).
 - Estimation académique des pertes militaires françaises 1939-1945,
-  décomposition par catégorie (§ 2).
+  décomposition par catégorie (§ 3).
 - Serge Klarsfeld, *Mémorial de la déportation des Juifs de France*, 1978 et
-  préface de l'édition révisée de 2012 (§ 3).
+  préface de l'édition révisée de 2012 (§ 4).
 - Ministère des Armées, Mémoire des Hommes, base des victimes civiles
   (2023), et base des titres et homologations de faits de résistance
-  (§ 4).
-- Historiographie de l'épuration à la Libération (§ 4).
+  (§ 5).
+- Historiographie de l'épuration à la Libération (§ 5).
 - Département de l'Ain, tracé de la ligne de démarcation, republié sur
-  data.gouv.fr, licence Ouverte 2.0 (§ 1).
+  data.gouv.fr, licence Ouverte 2.0 (§ 2).
 - Ined, *1939-1945, une démographie dans la tourmente* (méthode de
-  reconstruction démographique, citation, § 4).
+  reconstruction démographique, citation, § 5).
+- Journal officiel de la République française, corpus déjà archivé par ce
+  dépôt (§ 1).
+- Insee, séries historiques de population par commune, 1876-2023 (§ 6).
 
 ## Annexe technique
 
-### 6. Ce qui est chargé
+### 8. Ce qui est chargé
 
 | # | Source | Table | Volume |
 |---|---|---|---|
 | 1 | Département de l'Ain, ligne de démarcation | `geo.ligne_demarcation` | 1 tracé, 1 219 km |
+| 2 | Journal officiel, 4 textes cités par identifiant permanent | `jo.texte` (déjà chargé) | 4 actes cités |
+| 3 | Insee, population communale historique | `core.population_historique_commune` | 657 333 lignes, 19 millésimes (1876-1999) |
 
 **Non chargé, et pourquoi :**
 
 - Pertes militaires 1939-1945 par fiche nominative : export en masse non
-  accessible au moment de l'écriture (§ 2, § 5).
-- Déportation convoi par convoi : non vérifiée ligne par ligne (§ 3, § 5).
+  accessible au moment de l'écriture (§ 3, § 7).
+- Déportation convoi par convoi : non vérifiée ligne par ligne (§ 4, § 7).
 - Victimes civiles, Résistance homologuée : bases réelles, consultables
-  fiche par fiche seulement, pas d'export en masse identifié (§ 4).
+  fiche par fiche seulement, pas d'export en masse identifié (§ 5).
 - Zones d'annexion et d'occupation italienne : aucune géométrie ouverte
-  trouvée (§ 1, § 5).
+  trouvée (§ 2, § 7).
+- Bâtiments endommagés (Calvados) : source identifiée, portail
+  inaccessible au moment de l'écriture (§ 7).
 
 ## Versions
 
+- **Version 2** (19 septembre 2026) : cadre légal de Vichy et de la
+  Libération cité à partir du corpus JO déjà archivé par ce dépôt (§ 1,
+  aucune nouvelle source) ; population communale 1876-1999 chargée
+  (Insee), montrant le creux démographique de 1911-1921 et l'absence de
+  recensement en 1946 (§ 6) ; piste Calvados (bâtiments endommagés)
+  identifiée mais portail inaccessible, documentée comme telle.
 - **Version 1** (19 septembre 2026) : premier chargement — tracé de la
   ligne de démarcation, pertes militaires (deux méthodes, deux chiffres,
   non résolus), bilan de la déportation selon Klarsfeld, prisonniers de

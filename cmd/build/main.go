@@ -1147,6 +1147,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	populationGuerres, err := chargerPopulationGuerres(ctx, pool)
+	if err != nil {
+		return err
+	}
 	schemaPortsFrancais, err := chargerPortsFrancais(ctx, pool)
 	if err != nil {
 		return err
@@ -1558,6 +1562,16 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 						`1940-1942 (%s km) — Département de l'Ain. Ni l'annexion de fait de l'Alsace-Moselle ni `+
 						`la zone d'occupation italienne (à partir de novembre 1942) n'ont de géométrie vérifiée `+
 						`trouvée ; non représentées ici, voir § 2.</figcaption></figure>`, Decimal(statsSGM.LongueurKm, 0))))
+		}
+		if populationGuerres != nil && strings.Contains(string(d.Corps), "<!-- schema:population-guerres -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:population-guerres -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(populationGuerres.SVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>Population de la France (hors Mayotte), recensements 1876-1999 (Insee) — `+
+						`entre 1911 et 1921, la population recule de %s à %s habitants, soit %s (%s %%). Aucun recul `+
+						`comparable n'est visible entre 1936 et 1954 : la source ne publie aucun point en 1946, l'année `+
+						`où le recul de la Seconde Guerre mondiale aurait été le plus visible.</figcaption></figure>`,
+						Nombre(int(populationGuerres.Pop1911)), Nombre(int(populationGuerres.Pop1921)),
+						Nombre(int(populationGuerres.BaisseAbsolue)), Decimal(populationGuerres.BaissePct, 1))))
 		}
 		if schemaPortsFrancais != "" && strings.Contains(string(d.Corps), "<!-- schema:ports-francais -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:ports-francais -->",

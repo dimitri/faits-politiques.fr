@@ -440,6 +440,14 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\npopulation par département et âge")
 		return communes.IngestPopulationAgeDepartement(ctx, pool, arch)
 	}
+	// La population communale 1876-1999 (Insee) : encadre les pertes de
+	// population des deux guerres mondiales (1911→1921, 1936→1954). Voir
+	// docs/seconde-guerre-mondiale-donnees.md et
+	// docs/premiere-guerre-mondiale-donnees.md. Hors chaîne par défaut.
+	if only == "population-historique" {
+		fmt.Println("\npopulation communale historique (1876-1999)")
+		return communes.IngestPopulationHistorique(ctx, pool, arch)
+	}
 	// Qui paie, via quel mécanisme fiscal nommé (foncier bâti/non bâti, CFE,
 	// TASCOM) — pas seulement quel niveau de collectivité reçoit. Voir
 	// docs/collectivites-donnees.md et internal/communes/fiscalite_locale.go.

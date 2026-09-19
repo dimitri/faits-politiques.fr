@@ -2204,6 +2204,33 @@ var checks = []check{
 		        WHERE abs(part_fer_pct + part_fleuve_pct + part_route_pct - 100) > 0.2`,
 	},
 	{
+		name:  "Population historique : au moins 15 millésimes chargés",
+		query: `SELECT count(DISTINCT annee) FROM core.population_historique_commune`,
+		min:   15,
+	},
+	{
+		// La population totale de la France (hors Mayotte) n'est jamais
+		// descendue sous 35 M ni montée au-dessus de 65 M sur 1876-1999 :
+		// une valeur hors de cette plage signalerait une agrégation erronée
+		// (doublon de commune, unité mal lue).
+		name: "Population historique : le total national par année reste plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sum(population) total FROM core.population_historique_commune GROUP BY annee
+		        ) x WHERE total NOT BETWEEN 35000000 AND 65000000`,
+	},
+	{
+		// Le creux démographique de la Première Guerre mondiale (1911→1921)
+		// est le fait central du § population du dossier Seconde Guerre
+		// mondiale : si la source changeait de sens à ce sujet, la baisse ne
+		// serait plus vérifiée.
+		name: "Population historique : la population recule bien entre 1911 et 1921",
+		query: `SELECT count(*) FROM (
+		          SELECT
+		            (SELECT sum(population) FROM core.population_historique_commune WHERE annee=1911) p1911,
+		            (SELECT sum(population) FROM core.population_historique_commune WHERE annee=1921) p1921
+		        ) x WHERE p1921 >= p1911`,
+	},
+	{
 		name:  "Outre-mer : l'écart de prix couvre les cinq DOM en 2022",
 		query: `SELECT count(*) FROM core.ecart_prix_dom WHERE annee=2022`,
 		min:   5,
