@@ -2,13 +2,13 @@
 
 > **Dossier** · version 1 · 15 septembre 2026
 >
-> Un argument récurrent : alléger le coût du travail ou baisser l'impôt des entreprises
-> crée des emplois. Le Crédit d'impôt pour la compétitivité et l'emploi (CICE, 2013-2018)
-> en est l'exemple le plus documenté : un objectif chiffré a été publiquement fixé, une
-> évaluation officielle indépendante a mesuré l'effet réel. Ce dossier met les deux en
-> regard, ajoute l'évolution de l'emploi total sur cinquante ans, et explique le mécanisme
-> économique que les évaluations mobilisent pour dire pourquoi une baisse de charges ne se
-> traduit pas mécaniquement en embauches.
+> Un argument récurrent : réduire les prélèvements sur le travail salarié ou baisser
+> l'impôt des entreprises crée des emplois. Le Crédit d'impôt pour la compétitivité et
+> l'emploi (CICE, 2013-2018) en est l'exemple le plus documenté : un objectif chiffré a
+> été publiquement fixé, une évaluation officielle indépendante a mesuré l'effet réel. Ce
+> dossier met les deux en regard, ajoute l'évolution de l'emploi total sur cinquante ans,
+> et explique le mécanisme économique que les évaluations mobilisent pour dire pourquoi
+> une baisse de cotisations ne se traduit pas mécaniquement en embauches.
 
 ---
 
@@ -22,9 +22,9 @@
   rectificative du 29 décembre 2012) n'a jamais inscrit d'objectif d'emploi dans son texte :
   c'est un crédit d'impôt assis sur la masse salariale, sans contrepartie chiffrée en
   droit. Le chiffre d'« un million d'emplois » vient d'ailleurs : le président du Medef,
-  Pierre Gattaz, l'a fixé comme objectif en octobre 2013, en échange d'un allègement du
-  coût du travail que le gouvernement négociait alors (CICE, puis Pacte de responsabilité
-  à partir de 2014). Interrogé sur France 2 le 21 janvier 2014, il a lui-même précisé la
+  Pierre Gattaz, l'a fixé comme objectif en octobre 2013, en échange d'un allègement des
+  cotisations patronales que le gouvernement négociait alors (CICE, puis Pacte de
+  responsabilité à partir de 2014). Interrogé sur France 2 le 21 janvier 2014, il a lui-même précisé la
   nature de cet objectif : « c'est un objectif, ce n'est pas un engagement ferme » — le
   Medef a explicitement refusé d'en faire une contrepartie chiffrée et contraignante du
   Pacte de responsabilité. Ce dossier cite ce chiffre pour ce qu'il est : un objectif
@@ -90,8 +90,9 @@ Quelques années, sur les 51 chargées :
 | 2025 | 30 638 | 27 133 | 3 505 |
 
 **Les non-salariés (indépendants, artisans, exploitants agricoles) sont hors du champ de
-toute exonération de cotisation employeur** : une baisse du coût du travail salarié ne les
-concerne pas directement, puisqu'ils n'emploient pas nécessairement de salarié. Leur
+toute exonération de cotisation employeur** : une baisse des cotisations sur le travail
+salarié ne les concerne pas directement, puisqu'ils n'emploient pas nécessairement de
+salarié. Leur
 nombre a baissé jusqu'en 2000 puis remonte sans discontinuer depuis, une tendance dont ce
 dossier ne dispose pas des données pour l'attribuer à une cause précise (statut auto-
 entrepreneur créé en 2009, plateformes numériques, autre) — un chantier distinct.
@@ -134,7 +135,7 @@ révisions).
 
 ## Ce que les données ne disent pas
 
-### 4. Pourquoi une baisse de charges ne crée pas mécaniquement un emploi
+### 4. Pourquoi une baisse de cotisations ne crée pas mécaniquement un emploi
 
 Aucune donnée chargée dans ce dossier ne mesure directement ce mécanisme — c'est un
 raisonnement économique, pas un chiffre à vérifier, que ce dossier rapporte avec ses
@@ -150,9 +151,9 @@ Stratégie elle-même) tient en deux conditions, qui doivent être réunies ense
    indicateur, le **taux d'utilisation des capacités de production** (enquête de
    conjoncture dans l'industrie) : il s'établissait autour de 80 % fin 2024, proche de sa
    moyenne de longue période (environ 77 %) — ni exceptionnellement tendu, ni
-   exceptionnellement lâche. Une baisse du coût du travail n'augmente pas le carnet de
-   commandes : elle change seulement le coût de la réponse à une demande qui doit déjà
-   exister.
+   exceptionnellement lâche. Une baisse des cotisations patronales n'augmente pas le
+   carnet de commandes : elle change seulement le coût de la réponse à une demande qui
+   doit déjà exister.
 2. **Une capacité à investir pour que grandir soit rentable.** Répondre à une demande
    durable au-delà de la capacité existante suppose souvent d'investir (machines, locaux,
    recrutement et formation) avant que le supplément de chiffre d'affaires ne soit
@@ -164,11 +165,12 @@ Stratégie elle-même) tient en deux conditions, qui doivent être réunies ense
    taux de refus ou d'obtention partielle systématiquement plus élevés pour les plus
    petites structures. **C'est le point que ce dossier ne peut pas chiffrer précisément
    pour les indépendants, artisans et exploitants agricoles du § 2** : une baisse de
-   charges qui ne s'accompagne pas d'un accès au financement de l'investissement ne lève
-   pas cette seconde contrainte, quelle que soit la première.
+   cotisations qui ne s'accompagne pas d'un accès au financement de l'investissement ne
+   lève pas cette seconde contrainte, quelle que soit la première.
 
-**Ce que cela implique pour la lecture du § 1** : une exonération de cotisations réduit le
-coût du travail (elle agit sur la rentabilité d'une embauche déjà décidée), mais ne crée ni
+**Ce que cela implique pour la lecture du § 1** : une exonération de cotisations réduit la
+dépense salariale de l'entreprise (elle agit sur la rentabilité d'une embauche déjà
+décidée), mais ne crée ni
 la demande ni, seule, la capacité à investir qui la rend rentable — ce que les évaluateurs
 eux-mêmes avancent pour expliquer un effet mesuré très inférieur à un objectif fixé sans
 ces deux conditions. Ce dossier rapporte ce mécanisme avec ses sources ; il n'en tire

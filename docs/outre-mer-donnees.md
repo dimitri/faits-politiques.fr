@@ -92,7 +92,7 @@ La mission ne retrace qu'une partie de l'effort de l'État dans les outre-mer : 
 2. **Autorisations d'engagement et crédits de paiement.** Une autorisation d'engagement permet de signer un engagement pluriannuel ; le crédit de paiement est ce qui peut être décaissé dans l'année. Une forte baisse des premières annonce moins de projets nouveaux, pas une baisse immédiate des paiements.
 3. **Les crédits de personnel incluent les pensions.** La contribution des ministères au compte « Pensions » est comptée dans leurs crédits : une hausse de ce taux gonfle une mission sans un euro de plus pour le service rendu.
 4. **Un programme peut changer de périmètre.** Un transfert entre programmes ou entre missions d'une année sur l'autre crée des écarts qui ne sont ni des hausses ni des baisses de moyens ; un tiret dans la colonne « évolution » signale un programme absent de l'un des deux exercices.
-5. **Une baisse de crédits qui n'est pas une baisse d'aide.** La mission compense à la Sécurité sociale des exonérations de cotisations propres aux outre-mer : réformer ces exonérations fait baisser les crédits de la mission et augmenter le coût du travail des entreprises.
+5. **Une baisse de crédits qui n'est pas une baisse d'aide.** La mission compense à la Sécurité sociale des exonérations de cotisations propres aux outre-mer : réformer ces exonérations fait baisser les crédits de la mission et augmenter les cotisations dues par les entreprises.
 
 ## Glossaire
 
