@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"strings"
@@ -30,15 +31,20 @@ type StatsJustice struct {
 // une erreur de lecture) est exclue du classement et comptée à part.
 func chargerJustice(ctx context.Context, pool *pgxpool.Pool) (*StatsJustice, error) {
 	st := &StatsJustice{}
+	// sum(...) est une agrégation : la ligne existe même sans établissement
+	// encore ingéré, avec des sommes NULL — count(*) reste, lui, toujours 0
+	// dans ce cas, d'où le garde-fou qui suit.
+	var totalDetenus, totalCapacite sql.NullInt64
 	if err := pool.QueryRow(ctx, `
 		SELECT count(*), sum(ecroues_detenus), sum(capacite_operationnelle)
 		FROM core.etablissement_penitentiaire`).
-		Scan(&st.NbLignes, &st.TotalDetenus, &st.TotalCapacite); err != nil {
+		Scan(&st.NbLignes, &totalDetenus, &totalCapacite); err != nil {
 		return nil, err
 	}
 	if st.NbLignes == 0 {
 		return nil, nil
 	}
+	st.TotalDetenus, st.TotalCapacite = int(totalDetenus.Int64), int(totalCapacite.Int64)
 	if err := pool.QueryRow(ctx, `
 		SELECT count(*) FROM core.etablissement_penitentiaire
 		WHERE capacite_operationnelle = 0 AND ecroues_detenus > 0`).Scan(&st.NbAnomalies); err != nil {
