@@ -1091,6 +1091,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaTauxPauvrete, err := chargerTauxPauvreteSerie(ctx, pool)
+	if err != nil {
+		return err
+	}
 	carteBassins, err := chargerCarteBassins(ctx, pool)
 	if err != nil {
 		return err
@@ -1259,6 +1263,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`le chevauche — cohérent avec un taux de pauvreté à 60&nbsp;% légèrement `+
 					`supérieur à 10&nbsp;%. L'axe part de zéro.`+
 					`</figcaption></figure>`))
+		}
+		if schemaTauxPauvrete != "" && strings.Contains(string(d.Corps), "<!-- schema:taux-pauvrete-serie -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:taux-pauvrete-serie -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaTauxPauvrete)+`</div>`+
+					`<figcaption>Taux de pauvreté (seuil à 60 % du niveau de vie médian), 1996-2023 — `+
+					`Insee. La refonte de l'enquête en 2021 (ERFS nouvelle formule) rend les deux `+
+					`périodes non strictement comparables.</figcaption></figure>`))
 		}
 		if carteBassins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-bassins -->") {
 			var legende strings.Builder

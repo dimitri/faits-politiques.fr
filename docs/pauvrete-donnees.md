@@ -91,6 +91,10 @@ une borne précise pour « modeste » comme elle le fait pour « pauvre ».
 
 Cette série (Insee, enquêtes Revenus fiscaux et sociaux, déjà chargé) :
 
+<!-- schema:taux-pauvrete-serie -->
+
+Quelques années récentes :
+
 | Année | Seuil à 60 % (€/mois) | Taux de pauvreté | Seuil à 50 % (€/mois) | Taux (50 %) |
 |---|---:|---:|---:|---:|
 | 2019 | 1 258 | 14,3 % | 1 049 | 8,1 % |

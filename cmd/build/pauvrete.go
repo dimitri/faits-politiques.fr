@@ -70,6 +70,41 @@ func chargerSeuilsPauvrete(ctx context.Context, pool *pgxpool.Pool) (*SeuilsPauv
 	return st, nil
 }
 
+// chargerTauxPauvreteSerie : la série 1996-2023 (56 lignes, deux seuils)
+// était chargée mais réduite à cinq années récentes en tableau — la
+// question posée (« quelle part de la population ») justifie un axe ancré
+// à zéro, donc courbePaliers convient tel quel, sans l'adaptation faite pour
+// l'âge de départ à la retraite (une variable d'échelle, pas une part).
+func chargerTauxPauvreteSerie(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT annee, taux_pauvrete_pct FROM core.pauvrete_seuil_annuel
+		WHERE seuil_relatif = 0.6 ORDER BY annee`)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	var pts []PointAnnee
+	for rows.Next() {
+		var p PointAnnee
+		if err := rows.Scan(&p.Annee, &p.Valeur); err != nil {
+			return "", err
+		}
+		pts = append(pts, p)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	if len(pts) == 0 {
+		return "", nil
+	}
+	paliers := []Palier{
+		{De: pts[0].Annee, A: 2020, Libelle: "Avant la refonte ERFS"},
+		{De: 2021, A: pts[len(pts)-1].Annee, Libelle: "Après 2021"},
+	}
+	format := func(v float64) string { return Decimal(v, 1) + " %" }
+	return courbePaliers(pts, paliers, format), nil
+}
+
 // dessinerSeuilsPauvrete : neuf barres (les plafonds de chaque décile de
 // niveau de vie, D1 à D9, sur une échelle qui part de zéro — jamais tronquée,
 // comme partout ailleurs sur ce site) et deux lignes pointillées, aux seuils
