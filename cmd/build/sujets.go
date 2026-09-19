@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"os"
@@ -276,11 +277,15 @@ func loadAccueil(ctx context.Context, pool *pgxpool.Pool, terr *StatsTerritoires
 	// divisions seulement (« GF01 » à « GF10 ») : les groupes à quatre
 	// chiffres (« GF1002 », vieillesse) sont leurs sous-fonctions, et les
 	// compter ensemble ferait deux fois la même dépense.
+	// max(...) est une agrégation : la ligne existe même si aucune année n'a
+	// encore ses dix fonctions complètes, avec une valeur NULL.
+	var anneeN sql.NullInt64
 	if err := pool.QueryRow(ctx, `
 		SELECT max(annee) FROM (SELECT annee FROM core.macro_value WHERE serie_code ~ '^depense\.GF[0-9]{2}$'
-		GROUP BY annee HAVING count(*) = 10) t`).Scan(&a.Annee); err != nil {
+		GROUP BY annee HAVING count(*) = 10) t`).Scan(&anneeN); err != nil {
 		return nil, fmt.Errorf("dépense par fonction : %w", err)
 	}
+	a.Annee = int(anneeN.Int64)
 	rows, err := pool.Query(ctx, `
 		SELECT replace(v.serie_code, 'depense.', ''), replace(s.label, 'Dépense publique — ', ''), v.valeur::float8
 		FROM core.macro_value v JOIN ref.macro_serie s ON s.code = v.serie_code
