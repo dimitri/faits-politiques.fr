@@ -718,6 +718,17 @@ stroke-linejoin:round;stroke-linecap:round}
 .emploi-total .salarie-pt{fill:var(--accent)}
 .emploi-total .salarie-lbl{fill:var(--accent);font:600 .74rem/1 var(--sans)}
 
+/* Structure sectorielle par bloc : une barre empilée, trois teintes fixes
+   (primaire/secondaire/tertiaire) pour que la même couleur désigne le même
+   secteur d'un bloc à l'autre. */
+.secteurs-bloc{width:100%;height:auto;display:block;max-width:44rem;margin:.4rem 0 .2rem}
+.secteurs-bloc .cat{font:500 .78rem/1 var(--sans);fill:var(--encre);text-anchor:end}
+.secteurs-bloc .an{font:400 .7rem/1 var(--mono);fill:var(--attenue)}
+.secteurs-bloc .primaire{fill:#4B7A3D}
+.secteurs-bloc .secondaire{fill:#8C4B3A}
+.secteurs-bloc .tertiaire{fill:#1E5C69}
+.secteurs-bloc .et-seg{font:600 .68rem/1 var(--sans);fill:var(--carte);text-anchor:middle}
+
 /* Bandeau d'un candidat : portrait, organisation, nom. */
 .tete .qui{display:flex;gap:.9rem;align-items:center;min-width:0}
 .tete .qui .credit{display:block;font:400 .66rem/1.35 var(--mono);

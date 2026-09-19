@@ -121,7 +121,7 @@ var familles = []*Famille{
 			{ID: "immigration", Nom: "Immigration", Doc: "immigration-donnees"},
 			{ID: "diplomatie", Nom: "Diplomatie et aide au développement", Doc: "action-exterieure-donnees"},
 			{ID: "international", Nom: "Comparaisons internationales", Doc: "international-donnees"},
-			{ID: "union-europeenne", Nom: "Union européenne", Pages: []LienPage{{"Les votes des eurodéputés français", "europe/"}}},
+			{ID: "union-europeenne", Nom: "Union européenne", Doc: "union-europeenne-donnees", Pages: []LienPage{{"Les votes des eurodéputés français", "europe/"}}},
 			{ID: "francophonie", Nom: "La Francophonie", Doc: "francophonie-donnees"},
 			{ID: "climat-international", Nom: "La France et le climat : accords de Paris, COP21", Doc: "climat-international-donnees"},
 		}},

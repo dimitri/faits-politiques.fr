@@ -1107,6 +1107,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	statsUnionEuropeenne, err := chargerUnionEuropeenne(ctx, pool)
+	if err != nil {
+		return err
+	}
 	carteBassins, err := chargerCarteBassins(ctx, pool)
 	if err != nil {
 		return err
@@ -1303,6 +1307,28 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 						`collection des traités. %d pays au total, dont %d n'ont jamais ratifié (signature seule, `+
 						`ou aucune des deux).</figcaption></figure>`,
 						statsClimatInternational.NbPays, statsClimatInternational.NbJamaisRatifie)))
+		}
+		if statsUnionEuropeenne != nil {
+			if statsUnionEuropeenne.PIBSVG != "" && strings.Contains(string(d.Corps), "<!-- schema:pib-blocs -->") {
+				d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:pib-blocs -->",
+					`<figure class="schema">`+string(statsUnionEuropeenne.PIBSVG)+
+						fmt.Sprintf(`<figcaption>PIB, dollars courants, %d — Banque mondiale.</figcaption></figure>`,
+							statsUnionEuropeenne.AnneePIB)))
+			}
+			if statsUnionEuropeenne.SecteursSVG != "" && strings.Contains(string(d.Corps), "<!-- schema:secteurs-blocs -->") {
+				d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:secteurs-blocs -->",
+					`<figure class="schema"><div class="carte-pleine">`+string(statsUnionEuropeenne.SecteursSVG)+`</div>`+
+						fmt.Sprintf(`<figcaption>Valeur ajoutée par secteur, %% du PIB, %d — Banque mondiale.`+
+							`</figcaption></figure>`, statsUnionEuropeenne.AnneeSecteurs)))
+			}
+			if statsUnionEuropeenne.CommerceTable != "" && strings.Contains(string(d.Corps), "<!-- tableau:commerce-blocs -->") {
+				d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:commerce-blocs -->",
+					string(statsUnionEuropeenne.CommerceTable)))
+			}
+			if statsUnionEuropeenne.SecteursUSTable != "" && strings.Contains(string(d.Corps), "<!-- tableau:secteurs-us -->") {
+				d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:secteurs-us -->",
+					string(statsUnionEuropeenne.SecteursUSTable)))
+			}
 		}
 		if carteBassins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-bassins -->") {
 			var legende strings.Builder

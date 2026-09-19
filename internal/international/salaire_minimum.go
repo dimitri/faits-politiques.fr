@@ -110,6 +110,9 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err := IngestPIBEpargneNette(ctx, pool, arch); err != nil {
 		return err
 	}
+	if err := IngestCommerceExtraUE(ctx, pool, arch); err != nil {
+		return err
+	}
 	if err := IngestSanteOCDE(ctx, pool, arch); err != nil {
 		return err
 	}

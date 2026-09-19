@@ -19,24 +19,36 @@ import (
 // la Banque mondiale corrige précisément cet angle mort — voir
 // docs/international-donnees.md § 4.
 var SourcePIBEpargneNette = archive.Source{
-	Slug: "banque-mondiale-pib-epargne-nette", Label: "Banque mondiale — PIB, épargne nette ajustée, épuisement des ressources",
+	Slug: "banque-mondiale-pib-epargne-nette", Label: "Banque mondiale — PIB, commerce extérieur et structure sectorielle des économies",
 	Publisher: "Banque mondiale", Tier: "PRIMARY_OFFICIAL",
 	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Banque mondiale, World Development Indicators",
 	Cadence:     "annuelle",
-	Notes: "Dix pays de comparaison (G8 historique, Chine, Arabie saoudite). NY.ADJ.SVNG.GN.ZS " +
-		"(épargne nette ajustée) et NY.ADJ.DRES.GN.ZS (épuisement des ressources naturelles) " +
-		"sont des pourcentages du revenu national brut, jamais des montants — ne pas les " +
-		"comparer en valeur absolue au PIB (NY.GDP.MKTP.CD, en dollars courants).",
+	Notes: "Dix pays de comparaison (G8 historique, Chine, Arabie saoudite) plus l'Union " +
+		"européenne (agrégat Banque mondiale, code EU/EUU) pour comparer la zone à monnaie " +
+		"unique aux États-Unis et à la Chine. NY.ADJ.SVNG.GN.ZS (épargne nette ajustée) et " +
+		"NY.ADJ.DRES.GN.ZS (épuisement des ressources naturelles) sont des pourcentages du " +
+		"revenu national brut ; NV.AGR/IND/SRV.TOTL.ZS (valeur ajoutée par secteur primaire, " +
+		"secondaire, tertiaire) sont des pourcentages du PIB — aucun n'est un montant, jamais " +
+		"à comparer en valeur absolue au PIB (NY.GDP.MKTP.CD, en dollars courants). Les États-Unis " +
+		"n'ont pas de valeur récente pour la ventilation sectorielle (dernière année disponible : " +
+		"2021, pas 2023 ou 2024 comme les autres) — chaque comparaison cite son année exacte, " +
+		"jamais une même année supposée pour tous.",
 }
 
 // Le G8 historique (avant l'exclusion de la Russie en 2014), plus la Chine
-// (première économie par le PIB en parité de pouvoir d'achat, absente du G8)
-// et l'Arabie saoudite (économie dont l'épuisement pétrolier illustre le
-// mieux ce que le PIB ne mesure pas).
-var paysComparaisonMondiale = []string{"FR", "US", "JP", "DE", "GB", "IT", "CA", "RU", "CN", "SA"}
+// (première économie par le PIB en parité de pouvoir d'achat, absente du G8),
+// l'Arabie saoudite (économie dont l'épuisement pétrolier illustre le mieux
+// ce que le PIB ne mesure pas) et l'Union européenne (la seule zone à
+// monnaie unique de cette liste, comparée comme bloc à la Chine et aux
+// États-Unis).
+var paysComparaisonMondiale = []string{"FR", "US", "JP", "DE", "GB", "IT", "CA", "RU", "CN", "SA", "EU"}
 
-var indicateursMondiaux = []string{"NY.GDP.MKTP.CD", "NY.ADJ.SVNG.GN.ZS", "NY.ADJ.DRES.GN.ZS"}
+var indicateursMondiaux = []string{
+	"NY.GDP.MKTP.CD", "NY.ADJ.SVNG.GN.ZS", "NY.ADJ.DRES.GN.ZS",
+	"NE.EXP.GNFS.CD", "NE.IMP.GNFS.CD",
+	"NV.AGR.TOTL.ZS", "NV.IND.TOTL.ZS", "NV.SRV.TOTL.ZS",
+}
 
 const worldBankBase = "https://api.worldbank.org/v2/country/"
 
@@ -67,13 +79,17 @@ func IngestPIBEpargneNette(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.indicateur_mondial`); err != nil {
+	// Scopé aux indicateurs de CE connecteur : core.indicateur_mondial est
+	// partagée avec SIPRI (internal/international/sipri.go), dont les lignes
+	// (indicateur='SIPRI_DEPENSE_MILITAIRE_PIB') ne doivent pas disparaître
+	// simplement parce que ce connecteur-ci a été relancé seul.
+	if _, err := tx.Exec(ctx, `DELETE FROM core.indicateur_mondial WHERE indicateur = ANY($1)`, indicateursMondiaux); err != nil {
 		return fail(err)
 	}
 
 	var total int64
 	for _, ind := range indicateursMondiaux {
-		url := worldBankBase + pays + "/indicator/" + ind + "?format=json&per_page=1000&date=2000:2024"
+		url := worldBankBase + pays + "/indicator/" + ind + "?format=json&per_page=1000&date=2000:2025"
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".json")
 		if err != nil {
 			return fail(err)

@@ -2089,6 +2089,25 @@ var checks = []check{
 		        WHERE date_ratification IS NOT NULL AND date_signature IS NOT NULL
 		          AND date_ratification < date_signature`,
 	},
+	{
+		name:  "poids économique mondial : l'UE est chargée aux côtés des dix pays de comparaison",
+		query: `SELECT count(DISTINCT indicateur) FROM core.indicateur_mondial WHERE pays_code='EU'`,
+		min:   10,
+	},
+	{
+		// Le commerce extra-UE ne peut jamais dépasser le PIB de l'UE — ce
+		// serait la preuve d'une confusion entre biens+services et biens
+		// seuls, ou entre millions et unités.
+		name: "commerce extra-UE : les exportations et importations restent sous le PIB de l'UE",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, valeur*1e6 AS export_eur FROM core.indicateur_mondial
+		          WHERE pays_code='EU' AND indicateur='EU_EXTRA_EXPORT_MEUR'
+		        ) e JOIN (
+		          SELECT annee, valeur AS pib FROM core.indicateur_mondial
+		          WHERE pays_code='EU' AND indicateur='NY.GDP.MKTP.CD'
+		        ) g USING (annee)
+		        WHERE e.export_eur > g.pib`,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur
