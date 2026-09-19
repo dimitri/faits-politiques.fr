@@ -124,7 +124,11 @@ a publié en 2023 une base de 104 363 fiches de victimes civiles
 (bombardements et actes de guerre, fonds du Service historique de la
 Défense) — mais sa consultation reste fiche par fiche, sans export en
 masse identifié, ce qui empêche ce dossier d'en tirer un total vérifié
-indépendamment des publications déjà citées.
+indépendamment des publications déjà citées. L'Institut national d'études
+démographiques (INED) a consacré une étude méthodologique dédiée à ce
+bilan (*1939-1945, une démographie dans la tourmente*) — une référence
+citable pour la méthode de reconstruction démographique employée, pas un
+fichier de données brutes.
 
 **La Résistance homologuée** représente environ 600 000 dossiers
 nominatifs (titres et homologations de faits de résistance, ministère des
@@ -170,6 +174,8 @@ sommaires, hors procédure judiciaire.
 - Historiographie de l'épuration à la Libération (§ 4).
 - Département de l'Ain, tracé de la ligne de démarcation, republié sur
   data.gouv.fr, licence Ouverte 2.0 (§ 1).
+- Ined, *1939-1945, une démographie dans la tourmente* (méthode de
+  reconstruction démographique, citation, § 4).
 
 ## Annexe technique
 
