@@ -1104,21 +1104,40 @@ var checks = []check{
 	},
 	{
 		name:  "les sept bassins hydrographiques métropolitains sont chargés",
-		query: `SELECT count(*) FROM geo.contour_bassin`,
+		query: `SELECT count(*) FROM geo.contour_bassin WHERE territoire = 'metropole'`,
 		min:   7,
+	},
+	{
+		name:  "les deux bassins d'outre-mer disponibles (Martinique, Mayotte) sont chargés",
+		query: `SELECT count(*) FROM geo.contour_bassin WHERE territoire = 'outremer'`,
+		min:   2,
 	},
 	{
 		name:  "tous les contours de bassin sont des géométries valides",
 		query: `SELECT count(*) FROM geo.contour_bassin WHERE NOT ST_IsValid(geom)`,
 	},
 	{
-		// La somme des 7 bassins doit rester dans l'ordre de grandeur de la
-		// superficie de la France métropolitaine (543 940 km²) — un écart
-		// large signalerait une reprojection Lambert-93/WGS84 ratée.
-		name: "la surface totale des bassins reste dans l'ordre de grandeur de la métropole",
+		// La somme des 7 bassins métropolitains doit rester dans l'ordre de
+		// grandeur de la superficie de la France métropolitaine
+		// (543 940 km²) — un écart large signalerait une reprojection
+		// Lambert-93/WGS84 ratée. Filtré à la métropole : les bassins
+		// d'outre-mer, avec leur propre SRID, n'ont pas leur place dans
+		// cette même vérification (voir la probe dédiée juste après).
+		name: "la surface totale des bassins métropolitains reste dans l'ordre de grandeur de la métropole",
 		query: `SELECT count(*) FROM (
 		          SELECT sum(ST_Area(geom::geography)) / 1e6 AS km2 FROM geo.contour_bassin
+		          WHERE territoire = 'metropole'
 		        ) x WHERE km2 NOT BETWEEN 450000 AND 650000`,
+	},
+	{
+		// Martinique (≈ 1 128 km²) et Mayotte (≈ 374 km²) réunis : un écart
+		// large signalerait la même erreur de reprojection que ci-dessus,
+		// mais sur les SRID ultramarins (5490, 4471) cette fois.
+		name: "la surface des deux bassins d'outre-mer reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT sum(ST_Area(geom::geography)) / 1e6 AS km2 FROM geo.contour_bassin
+		          WHERE territoire = 'outremer'
+		        ) x WHERE km2 NOT BETWEEN 500 AND 3000`,
 	},
 	{
 		name:  "au moins 15 des grands cours d'eau retenus sont chargés",

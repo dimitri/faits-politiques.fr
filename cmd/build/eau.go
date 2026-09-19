@@ -30,17 +30,23 @@ type CarteBassins struct {
 }
 
 func chargerCarteBassins(ctx context.Context, pool *pgxpool.Pool) (*CarteBassins, error) {
+	// Filtré à la métropole : les deux bassins d'outre-mer (Martinique,
+	// Mayotte, § 3) ne sont ni adjacents à la métropole ni valides en
+	// Lambert-93 — un st_extent qui les inclurait ferait exploser le
+	// cadrage de cette carte pour un gain visuel nul (des points minuscules
+	// à des milliers de km). Ils sont listés à part, pas sur cette carte.
 	var vb string
 	if err := pool.QueryRow(ctx, `
 		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
 		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
-		FROM (SELECT st_extent(st_transform(geom,2154)) e FROM geo.contour_bassin) x`).Scan(&vb); err != nil {
+		FROM (SELECT st_extent(st_transform(geom,2154)) e FROM geo.contour_bassin
+		      WHERE territoire = 'metropole') x`).Scan(&vb); err != nil {
 		return nil, err
 	}
 
 	rows, err := pool.Query(ctx, `
 		SELECT code, nom, st_assvg(st_transform(st_simplifypreservetopology(geom,$1),2154),1,0)
-		FROM geo.contour_bassin ORDER BY code`, tolBassins)
+		FROM geo.contour_bassin WHERE territoire = 'metropole' ORDER BY code`, tolBassins)
 	if err != nil {
 		return nil, err
 	}

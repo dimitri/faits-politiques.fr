@@ -1,6 +1,6 @@
 # Bassins versants : la gouvernance de l'eau qui existe déjà
 
-> **Dossier** · version 7 · 19 septembre 2026
+> **Dossier** · version 8 · 19 septembre 2026
 >
 > Comment la gestion de l'eau est-elle organisée en France, à quelle échelle, et
 > par qui ? Le dossier décrit l'architecture qui existe — comités de bassin, agences de
@@ -158,9 +158,24 @@ zonage qui ne se sont jamais alignées, chacune légitime pour ce qu'elle
 mesure (le relief et l'écoulement de l'eau, d'un côté ; l'organisation
 politico-administrative, de l'autre).
 
-**Hors métropole** : le fichier source (millésime 2025) ne couvre que la
-France métropolitaine — les bassins d'outre-mer (chacun rattaché à un office
-de l'eau local plutôt qu'à une agence) ne sont pas chargés à ce stade.
+**Outre-mer** : le catalogue Sandre (millésime 2025) ne publie, à ce thème,
+un extrait que pour deux territoires — vérifié par requête directe sur
+chacun des six territoires possibles, pas supposé :
+
+| Bassin | Territoire | Superficie (km²) |
+|---|---|---:|
+| Martinique | outre-mer | 1 105 |
+| Mayotte | outre-mer | 362 |
+
+Guadeloupe, Guyane et Réunion n'ont pas d'extrait à ce thème du catalogue
+(404 pour les trois à l'inspection) — absents, pas oubliés (§ 9). Chacun
+des bassins d'outre-mer est, comme en métropole, rattaché à un office de
+l'eau local plutôt qu'à une agence ; leur superficie et leur position
+géographique (Caraïbes, canal du Mozambique) n'ont pas leur place sur la
+carte des sept bassins métropolitains ci-dessus — un même cadrage forcerait
+soit une carte illisible, soit une reprojection sans validité pour ces
+territoires (chacun a son propre système de coordonnées natif, jamais
+confondu avec le Lambert-93 de la métropole).
 
 ### 4. Qui gère l'eau potable, à quel prix
 
@@ -421,7 +436,10 @@ ultérieur est possible, pas deviné ici.
   Chaque millésime ayant, par ailleurs, son propre jeu de colonnes (vérifié
   sur les programmes déjà chargés), un connecteur séparé par programme
   resterait de toute façon nécessaire.
-- **Les bassins d'outre-mer** (§ 3).
+- **Les bassins d'outre-mer de Guadeloupe, Guyane et Réunion** (§ 3) :
+  absents du thème BassinHydrographique du catalogue Sandre au moment de ce
+  chargement (vérifié directement, 404 pour les trois) — Martinique et
+  Mayotte, elles, sont chargées.
 
 ## Sources
 
@@ -450,8 +468,17 @@ ultérieur est possible, pas deviné ici.
   collectif », millésime 2023.
 - Agence de l'eau Rhin-Meuse, *Bilan des aides accordées*
   (eau-rhin-meuse.fr, consulté le 19 septembre 2026).
+- Sandre / IGN-OFB, *BD Topage — Bassins hydrographiques, Martinique et
+  Mayotte*, millésime 2025.
 
 ## Versions
+
+- **Version 8** (19 septembre 2026) : deux bassins hydrographiques
+  d'outre-mer (Martinique, Mayotte), les seuls disponibles au thème
+  BassinHydrographique du catalogue Sandre à l'inspection — chacun avec son
+  propre système de coordonnées natif, listés à part de la carte
+  métropolitaine plutôt que fondus dans son cadrage. Guadeloupe, Guyane et
+  Réunion restent absents, vérifié plutôt que supposé.
 
 - **Version 7** (19 septembre 2026) : les aides de l'agence de l'eau
   Rhin-Meuse (40 245 aides, 2,64 Md€, 2000-2026 — un bilan consolidé plutôt
