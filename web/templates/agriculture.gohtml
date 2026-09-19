@@ -83,6 +83,22 @@ part à l'export, ce qui passe par le bétail et ce qui est importé. Il mesure 
 rapportée à une surface, pas une productivité.</p>
 {{end}}
 
+{{if .A.CourbeRevenu}}
+<h2>Le revenu agricole réel, par actif</h2>
+<p class="q">Revenu réel des facteurs de production en agriculture par unité de travail annuel
+(UTA), en euros constants 2015 — France, {{.A.RevenuFrance | len}} années (Eurostat). En
+{{.A.AnneeRevenu}}&nbsp;: {{nb (int .A.RevenuDernierFR)}}&nbsp;€ par UTA en France, contre
+{{nb (int .A.RevenuDernierUE)}}&nbsp;€ pour la moyenne de l'Union européenne.</p>
+{{.A.CourbeRevenu}}
+<p class="note abs"><strong>Un agrégat macroéconomique par actif, pas un revenu personnel
+observé&nbsp;:</strong> cet indicateur divise un agrégat national (le revenu des facteurs de
+production en agriculture) par le nombre d'unités de travail annuel, une mesure théorique du
+temps de travail — il ne vient pas d'une enquête sur les ménages agricoles et ne dit rien de la
+dispersion réelle des revenus entre exploitations. La série est aussi volatile d'une année sur
+l'autre que les prix agricoles et les aléas climatiques qui la déterminent : une seule année ne
+résume pas une tendance.</p>
+{{end}}
+
 {{if .A.Autonomie}}
 <h2>Production rapportée à la disponibilité intérieure</h2>
 <p class="q">Production divisée par disponibilité intérieure, en {{.A.AnneeBilan}}, pour les produits

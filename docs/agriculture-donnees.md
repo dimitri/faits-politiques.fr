@@ -1,6 +1,6 @@
 # Agriculture et alimentation : les crédits de l'État
 
-> **Dossier** · version 1 · 15 septembre 2026
+> **Dossier** · version 2 · 19 septembre 2026
 >
 > La mission « Agriculture, alimentation, forêt et affaires rurales » (filières, sécurité sanitaire, cofinancement de la politique agricole commune, allègements de cotisations) et le compte « Développement agricole et rural » ; les lois EGalim et d'orientation de 2025 ; les constats du contrôle parlementaire. Le dossier ne part d'aucune thèse et suit le plan commun des dossiers.
 
@@ -89,13 +89,20 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 ### Autres données
 
-Les indicateurs agricoles communaux et nationaux, le bilan alimentaire et l'autonomie
-alimentaire alimentent la page /agriculture du site ; leur méthode est dans
-[agriculture-carte-conception.md](agriculture-carte-conception.md).
+Les indicateurs agricoles communaux et nationaux, le bilan alimentaire, l'autonomie
+alimentaire et, depuis cette version, le revenu agricole réel par actif (Eurostat,
+France et Union européenne, 1973-2025) alimentent la page /agriculture du site ; leur
+méthode est dans [agriculture-carte-conception.md](agriculture-carte-conception.md).
+**Ce revenu est un agrégat macroéconomique par unité de travail annuel, pas un revenu
+personnel observé par enquête** — voir la réserve publiée sur la page elle-même.
 
 ## Ce que les données ne disent pas
 
-- **Les aides de la politique agricole commune par exploitation** : publiées par l'Agence de services et de paiement, non chargées (`NOT_LOADED`).
+- **Les aides de la politique agricole commune par exploitation** : l'outil officiel de
+  l'Agence de services et de paiement (agriculture.gouv.fr/les-beneficiaires-des-aides-de-la-pac)
+  publie bien ces données, mais comme une application interactive, pas comme un fichier à
+  une adresse fixe — non chargé dans cette version (`NOT_LOADED`). Les jeux data.gouv.fr
+  correspondants sont, eux, obsolètes (2005-2012).
 - **Les crédits européens** de la politique agricole commune : hors budget de l'État, non chargés.
 - **L'exécution par mission et par programme** : seuls les projets de loi de finances 2024 et 2025 sont chargés ; les rapports annuels de performances et la situation mensuelle par mission ne le sont pas (`NOT_LOADED`).
 - **La série longue** : avant 2024, les jeux de la Direction du budget changent de nom et de schéma ; non chargés à ce stade.
@@ -124,7 +131,13 @@ alimentaire alimentent la page /agriculture du site ; leur méthode est dans
 | [Rapport spécial du Sénat, mission « Agriculture, alimentation, forêt et affaires rurales », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-33/l25-139-33-syn.pdf) | PRIMARY_OFFICIAL |
 | Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
 | Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
+| Eurostat, `aact_eaa06` (revenu agricole réel par unité de travail annuel) | PRIMARY_OFFICIAL |
 
 ## Versions
 
+- **Version 2** (19 septembre 2026) : revenu agricole réel par actif ajouté (Eurostat,
+  France 1973-2025 et Union européenne, page /agriculture) — un agrégat macroéconomique
+  par unité de travail annuel, pas un revenu personnel observé, avec cette réserve
+  publiée explicitement ; l'outil PAC par bénéficiaire de l'ASP identifié comme
+  application interactive, pas un fichier à adresse fixe, donc non chargé.
 - **Version 1** (15 septembre 2026) : crédits par programme, textes, constats du Sénat sur le projet de loi de finances pour 2026, mots suivis dans les débats.

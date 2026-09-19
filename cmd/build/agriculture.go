@@ -52,6 +52,12 @@ type StatsAgri struct {
 	NourrisPar1k float64
 	SurfaceHa    float64
 	Autonomie    []LigneAutonomie
+
+	RevenuFrance    []PointAnnee
+	CourbeRevenu    template.HTML
+	RevenuDernierFR float64
+	RevenuDernierUE float64
+	AnneeRevenu     int
 }
 
 // Le taux d'auto-approvisionnement : production ÷ disponibilité intérieure.
@@ -188,6 +194,30 @@ func loadAgriculture(ctx context.Context, pool *pgxpool.Pool, dataDir string) (*
 		st.Autonomie = append(st.Autonomie, a)
 	}
 	arows.Close()
+
+	rrows2, err := pool.Query(ctx, `
+		SELECT annee, euro_par_uta FROM core.revenu_agricole_reel
+		WHERE geo_code='FR' ORDER BY annee`)
+	if err != nil {
+		return nil, err
+	}
+	for rrows2.Next() {
+		var p PointAnnee
+		if err := rrows2.Scan(&p.Annee, &p.Valeur); err != nil {
+			break
+		}
+		st.RevenuFrance = append(st.RevenuFrance, p)
+	}
+	rrows2.Close()
+	if len(st.RevenuFrance) > 1 {
+		st.CourbeRevenu = courbe(st.RevenuFrance, func(v float64) string { return Nombre(int(v)) + " €" })
+		dernier := st.RevenuFrance[len(st.RevenuFrance)-1]
+		st.AnneeRevenu = dernier.Annee
+		st.RevenuDernierFR = dernier.Valeur
+		_ = pool.QueryRow(ctx, `
+			SELECT euro_par_uta FROM core.revenu_agricole_reel WHERE geo_code='EU27_2020' AND annee=$1`,
+			st.AnneeRevenu).Scan(&st.RevenuDernierUE)
+	}
 
 	produits, err := loadProduitsAlimentaires(dataDir + "/produits-alimentaires.csv")
 	if err != nil {
