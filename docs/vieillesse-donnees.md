@@ -175,7 +175,7 @@ taux de couverture plutôt qu'un simple effet de structure démographique.
   branche à ce niveau de détail (D-048), le chiffre COR (§ 2) reste la
   seule mesure agrégée disponible.
 - **L'âge de départ à la retraite comparé à l'étranger** — identifié dans
-  `docs/international-donnees.md` § 9 (OCDE *Pensions at a Glance*),
+  `docs/international-donnees.md` § 10 (OCDE *Pensions at a Glance*),
   introuvable en série continue diffusée par API.
 - **Le détail par GIR (groupe iso-ressources) de l'APA** — la DREES le
   publie par ailleurs (fichiers séparés, non chargés ici), ce qui

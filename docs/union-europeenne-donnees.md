@@ -35,11 +35,61 @@ Aucun texte n'est encore chargé pour ce dossier.
 
 <!-- faits:CADRE:fin -->
 
-### 1. Le Parlement européen : les votes des eurodéputés français
+### 1. Le Parlement européen : élection, présidence, votes des eurodéputés français
+
+**Comment on devient eurodéputé.** Les élections européennes ont lieu tous
+les cinq ans, au suffrage universel direct dans chaque État membre, chacun
+fixant ses propres règles de scrutin dans le cadre fixé par l'Union.
+En France, depuis la loi n° 2018-509 du 25 juin 2018 — dont l'article 1ᵉʳ
+réécrit l'article 4 de la loi fondatrice de 1977 : *« La République forme
+une circonscription unique »* — les eurodéputés français sont élus sur une
+liste nationale unique, à la représentation proportionnelle, avec un seuil
+de 5 % des suffrages exprimés pour obtenir des sièges. Un choix qui n'a
+pas toujours prévalu : de 2004 à 2019, la loi du 11 avril 2003 avait
+découpé la France en huit circonscriptions interrégionales, avant un
+retour à la circonscription unique pour l'élection de 2019.
+
+**La présidence du Parlement, une élection à part.** Le président du
+Parlement européen est élu par les eurodéputés eux-mêmes, à bulletin
+secret, pour un mandat de deux ans et demi renouvelable — la moitié de la
+législature de cinq ans, une règle appliquée sans interruption depuis la
+première élection du Parlement au suffrage universel direct en 1979.
+Jusqu'à trois tours, la majorité absolue des suffrages exprimés est
+requise ; à défaut, un quatrième tour oppose les deux candidats arrivés en
+tête, celui qui obtient le plus de voix l'emportant (règlement intérieur
+du Parlement européen, article relatif à l'élection du président — cité
+ici d'après l'analyse du service de recherche du Parlement européen,
+EPRS, faute d'avoir pu vérifier directement le texte réglementaire, dont
+l'accès en ligne s'est révélé bloqué au moment de la rédaction).
+
+La première présidente, en 1979, fut une Française : **Simone Veil**
+(1979-1982). Depuis, aucun Français n'a occupé la fonction. Les cinq
+derniers présidents : Jerzy Buzek (Pologne, PPE, 2009-2012), Martin Schulz
+(Allemagne, S&D, 2012-2017 — premier président réélu pour un second
+mandat), Antonio Tajani (Italie, PPE, 2017-2019), David Sassoli (Italie,
+S&D, 2019-2022, décédé en fonction), et l'actuelle présidente, **Roberta
+Metsola** (Malte, PPE), élue le 18 janvier 2022 pour achever le mandat de
+David Sassoli, puis réélue le 16 juillet 2024 pour la première moitié de
+la législature 2024-2029 — une reconduction inédite pour un même mandat.
+
+**Une alternance entre les deux principaux groupes, réelle mais aujourd'hui
+contestée.** Depuis 1979, la présidence alterne le plus souvent entre le
+PPE (droite européenne) et les socialistes (S&D), selon un accord informel
+entre les deux plus grands groupes — documenté, mais jamais gravé dans le
+règlement lui-même. Pour la législature actuelle, cet accord prévoirait un
+passage de témoin du PPE vers le S&D en 2027 ; la presse spécialisée
+rapportait toutefois, à l'été 2026, que le PPE cherchait à obtenir un
+troisième mandat pour Mme Metsola plutôt que d'appliquer cette alternance
+— un désaccord politique en cours, pas un fait acquis dans un sens ou dans
+l'autre.
 
 Une page dédiée présente les scrutins du Parlement européen, filtrés sur
 les seuls eurodéputés français, avec leur répartition par groupe politique
 et par thème (thésaurus EuroVoc) : **[voir la page complète →](/europe/)**
+Chaque eurodéputé français a sa propre fiche, avec son groupe politique et
+son historique de vote — par exemple **[Séverine Werbrouck](/depute/severine-werbrouck/)**,
+du groupe Patriots for Europe, le plus nombreux parmi les eurodéputés
+français élus en 2024.
 
 ### 2. Le poids économique : l'UE face aux États-Unis et à la Chine
 

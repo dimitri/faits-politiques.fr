@@ -333,9 +333,38 @@ au 1ᵉʳ janvier par convention — quand l'Allemagne et les États-Unis ont
 systématiquement le jour exact. Ce dossier affiche l'année seule plutôt que
 de laisser croire à une précision que la source n'a pas.
 
+### 8. La France, pays hôte du G7/G8
+
+Un chantier distinct de la comparaison économique du § 3 (le « G8
+historique » y sert de panier de comparaison, pas de sujet en soi) : la
+France a accueilli huit sommets du format G6/G7/G8 depuis sa création,
+sur une liste de dates et de lieux vérifiable auprès de l'Élysée et du
+ministère des Affaires étrangères — un simple repère chronologique, pas
+une série chiffrée :
+
+| Année | Lieu |
+|---|---|
+| 1975 | Rambouillet (premier sommet, format G6) |
+| 1982 | Versailles |
+| 1989 | Paris (Arche de la Défense) |
+| 1996 | Lyon |
+| 2003 | Évian-les-Bains |
+| 2011 | Deauville |
+| 2019 | Biarritz |
+| 2026 | Évian-les-Bains (deuxième accueil) |
+
+**Aucun chiffre disaggrégé propre à l'accueil français n'a été identifié**
+(engagements pris par sommet, aide effectivement décaissée) : le seul
+suivi chiffré et régulier du format, le *G7 Accountability Report*, mesure
+les engagements du G7 dans son ensemble, pas la part de chaque présidence
+— et s'appuie lui-même sur les statistiques d'aide de l'OCDE (le panier de
+comparaison du § 3), pas sur un jeu de données propre au G7. Ce tableau
+reste donc une chronologie, pas une base à enrichir sans une source
+nouvelle identifiée.
+
 ## Ce que les données ne disent pas
 
-### 8. Un sujet exploré et écarté : les heures travaillées
+### 9. Un sujet exploré et écarté : les heures travaillées
 
 **L'OCDE publie bien un jeu « heures travaillées par an », mais sa
 couverture s'est révélée trop incohérente pour être chargée.** Le connecteur
@@ -357,7 +386,7 @@ dix à vingt-cinq ans pour un état présent — exactement ce que
 publication plus récente de l'OCDE sous un autre identifiant de flux,
 non retrouvée à ce stade) resterait à identifier avant de rouvrir ce sujet.
 
-### 9. Six autres sujets : chacun testé, chacun bloqué pour une raison précise
+### 10. Six autres sujets : chacun testé, chacun bloqué pour une raison précise
 
 Chacun des six sujets suivants a été concrètement interrogé (téléchargement
 tenté, API requêtée, page de licence lue, parfois un compte créé) et
@@ -395,7 +424,7 @@ bloque sur un obstacle vérifié, pas supposé :
 
 ## Annexe technique
 
-### 10. Ce qui est chargé
+### 11. Ce qui est chargé
 
 | # | Source | Volume |
 | --- | --- | --- |
