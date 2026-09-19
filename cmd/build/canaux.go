@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"strings"
@@ -235,12 +236,16 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 		// cette année-là, pas un solde cumulé).
 		CompensationTVA: 56.972e9, CompensationCiblees: 7.702e9, AnneeCompensation: 2022,
 	}
+	// max/min sont des agrégations : la ligne existe même sans exonération
+	// encore ingérée, avec des bornes NULL.
+	var anneeExoN, anneeDebutN sql.NullInt64
 	err := pool.QueryRow(ctx, `
 		SELECT max(annee), min(annee) FROM core.exoneration_cotisation`).
-		Scan(&c.AnneeExo, &c.AnneeDebut)
+		Scan(&anneeExoN, &anneeDebutN)
 	if err != nil {
 		return nil, err
 	}
+	c.AnneeExo, c.AnneeDebut = int(anneeExoN.Int64), int(anneeDebutN.Int64)
 	_ = pool.QueryRow(ctx, `
 		SELECT sum(montant_eur) FILTER (WHERE annee=$1),
 		       sum(montant_eur) FILTER (WHERE annee=$2),
@@ -425,10 +430,14 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	// pour la dernière année où les encaissements existent — 2022 au moment de
 	// l'écriture, pas 2025. Comparer des chiffres de la même source à des
 	// années différentes serait aussi trompeur que de mélanger les sources.
+	// max(...) est une agrégation : la ligne existe même sans encaissement
+	// encore ingéré, avec une année NULL.
+	var anneeCotisationsURSSAFN sql.NullInt64
 	if err := pool.QueryRow(ctx, `
-		SELECT max(annee) FROM core.encaissement_urssaf`).Scan(&c.AnneeCotisationsURSSAF); err != nil {
+		SELECT max(annee) FROM core.encaissement_urssaf`).Scan(&anneeCotisationsURSSAFN); err != nil {
 		return nil, err
 	}
+	c.AnneeCotisationsURSSAF = int(anneeCotisationsURSSAFN.Int64)
 	if err := pool.QueryRow(ctx, `
 		SELECT coalesce(sum(montant_eur) FILTER (WHERE categorie_entreprise), 0)
 		  FROM core.encaissement_urssaf WHERE annee = $1`, c.AnneeCotisationsURSSAF).
