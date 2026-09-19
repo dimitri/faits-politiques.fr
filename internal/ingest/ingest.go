@@ -506,6 +506,12 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\nEmpire colonial français (CShapes 2.0)")
 		return geo.IngestTerritoireColonial(ctx, pool, arch)
 	}
+	// La ligne de démarcation, 1940-1942. Voir
+	// docs/seconde-guerre-mondiale-donnees.md. Hors chaîne par défaut.
+	if only == "ligne-demarcation" {
+		fmt.Println("\nLigne de démarcation (Département de l'Ain)")
+		return geo.IngestLigneDemarcation(ctx, pool, arch)
+	}
 	// L'Accord de Paris : signature et ratification, pays par pays (ONU).
 	// Voir docs/climat-international-donnees.md. Hors chaîne par défaut.
 	if only == "accord-paris" {

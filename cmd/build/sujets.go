@@ -126,6 +126,8 @@ var familles = []*Famille{
 			{ID: "empire-colonial", Nom: "La France coloniale", Doc: "empire-colonial-donnees"},
 			{ID: "francophonie", Nom: "La Francophonie", Doc: "francophonie-donnees"},
 			{ID: "climat-international", Nom: "La France et le climat : accords de Paris, COP21", Doc: "climat-international-donnees"},
+			{ID: "seconde-guerre-mondiale", Nom: "La France dans la Seconde Guerre mondiale", Doc: "seconde-guerre-mondiale-donnees"},
+			{ID: "guerres-decolonisation", Nom: "Les guerres de décolonisation : Algérie et Indochine", Doc: "guerres-decolonisation-donnees"},
 		}},
 	// Les finances publiques elles-mêmes : l'entrée « Argent public » du menu.
 	{ID: "argent-public", Nom: "Argent public et État", Base: "argent-public",

@@ -1139,6 +1139,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	statsSGM, err := chargerSecondeGuerreMondiale(ctx, pool)
+	if err != nil {
+		return err
+	}
 	schemaSIPRI, err := chargerSIPRI(ctx, pool)
 	if err != nil {
 		return err
@@ -1482,6 +1486,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		if statsEmpireColonial != nil && strings.Contains(string(d.Corps), "<!-- tableau:empire-colonial-territoires -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:empire-colonial-territoires -->",
 				string(statsEmpireColonial.Table)))
+		}
+		if statsSGM != nil && strings.Contains(string(d.Corps), "<!-- schema:sgm-ligne-demarcation -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sgm-ligne-demarcation -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(statsSGM.CarteSVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>Tracé de la ligne de démarcation entre zone occupée et zone libre, `+
+						`1940-1942 (%s km) — Département de l'Ain. Ni l'annexion de fait de l'Alsace-Moselle ni `+
+						`la zone d'occupation italienne (à partir de novembre 1942) n'ont de géométrie vérifiée `+
+						`trouvée ; non représentées ici, voir § 2.</figcaption></figure>`, Decimal(statsSGM.LongueurKm, 0))))
 		}
 		if schemaSIPRI != "" && strings.Contains(string(d.Corps), "<!-- schema:sipri-milex -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sipri-milex -->",

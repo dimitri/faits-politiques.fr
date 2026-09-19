@@ -2103,6 +2103,11 @@ var checks = []check{
 		        WHERE extract(year FROM date_independance) < annee_rattachement`,
 	},
 	{
+		name:  "Seconde Guerre mondiale : la ligne de démarcation est chargée",
+		query: `SELECT count(*) FROM geo.ligne_demarcation`,
+		min:   1,
+	},
+	{
 		name:  "poids économique mondial : l'UE est chargée aux côtés des dix pays de comparaison",
 		query: `SELECT count(DISTINCT indicateur) FROM core.indicateur_mondial WHERE pays_code='EU'`,
 		min:   10,

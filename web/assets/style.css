@@ -700,6 +700,12 @@ table tr.vague-1 td:first-child{border-left:3px solid #C97B4A}
 table tr.vague-2 td:first-child{border-left:3px solid #8C4B3A}
 table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 
+/* Seconde Guerre mondiale : la France en silhouette, la ligne de
+   démarcation par-dessus — pas de remplissage par zone, aucune géométrie
+   de zone vérifiée n'ayant été trouvée (voir le dossier). */
+.geo.france.sgm .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:.04}
+.geo.france.sgm .ligne-demarcation{fill:none;stroke:var(--accent);stroke-width:.09}
+
 /* SIPRI, dépense militaire : trois pays nommés, six en gris — nommer les
    dix aurait produit une légende plus longue que le graphique. */
 .sipri-milex .grille{stroke:var(--filet);stroke-width:1}
