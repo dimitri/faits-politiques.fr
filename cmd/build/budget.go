@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"sort"
@@ -71,15 +72,20 @@ func mdEur(v float64) string { return Decimal(v/1e9, 1) + "\u202fMd€" }
 
 func loadBudget(ctx context.Context, pool *pgxpool.Pool) (*StatsBudget, error) {
 	st := &StatsBudget{}
-	var arrete string
+	// max(...) est une agrégation : la ligne existe même sans exécution
+	// budgétaire encore ingérée, avec des valeurs NULL.
+	var arreteN sql.NullString
+	var moisN, exerciceN sql.NullInt64
 	err := pool.QueryRow(ctx, `
 		SELECT to_char(max(date_arrete),'YYYY-MM-DD'),
 		       extract(month FROM max(date_arrete))::int,
 		       max(exercice)::int
-		FROM core.execution_etat`).Scan(&arrete, &st.Mois, &st.Exercice)
-	if err != nil || arrete == "" {
+		FROM core.execution_etat`).Scan(&arreteN, &moisN, &exerciceN)
+	if err != nil || !arreteN.Valid {
 		return nil, err
 	}
+	arrete := arreteN.String
+	st.Mois, st.Exercice = int(moisN.Int64), int(exerciceN.Int64)
 	st.MoisNom = moisFr[st.Mois]
 	st.Arrete = st.MoisNom + " " + fmt.Sprint(st.Exercice)
 
@@ -324,12 +330,16 @@ func loadSocial(ctx context.Context, pool *pgxpool.Pool) (*StatsSocial, error) {
 	// Debut est celui de la SÉRIE affichée, pas de la table : le compte remonte
 	// à 1959 pour certains postes, mais le total tous régimes ne commence qu'en
 	// 1981. Titrer « depuis 1959 » sur une courbe qui part de 1981 serait faux.
+	// max(...) est une agrégation : la ligne existe même sans protection
+	// sociale encore ingérée, avec une année NULL.
+	var anneeN sql.NullInt64
 	err := pool.QueryRow(ctx, `
 		SELECT max(annee)::int, count(DISTINCT regime) FROM core.protection_sociale`).
-		Scan(&st.Annee, &st.NbRegimes)
+		Scan(&anneeN, &st.NbRegimes)
 	if err != nil {
 		return nil, err
 	}
+	st.Annee = int(anneeN.Int64)
 
 	// « Tous régimes » et le niveau 1 : six risques qui se somment exactement au
 	// total. Descendre plus bas ou mélanger les niveaux double-compterait.
@@ -513,11 +523,15 @@ type LigneFinancement struct {
 
 func loadSecteurs(ctx context.Context, pool *pgxpool.Pool) (*StatsSecteurs, error) {
 	st := &StatsSecteurs{Series: map[string][]SerieSecteur{}}
+	// max/min sont des agrégations : la ligne existe même sans ce dérivé
+	// encore calculé, avec des bornes NULL.
+	var anneeN, debutN sql.NullInt64
 	if err := pool.QueryRow(ctx,
 		`SELECT max(annee), min(annee) FROM derived.budget_sous_secteur`).
-		Scan(&st.Annee, &st.Debut); err != nil {
+		Scan(&anneeN, &debutN); err != nil {
 		return nil, err
 	}
+	st.Annee, st.Debut = int(anneeN.Int64), int(debutN.Int64)
 	rows, err := pool.Query(ctx, `
 		SELECT annee, secteur, perimetre_label,
 		       depenses_meur::float8*1e6, recettes_meur::float8*1e6, solde_meur::float8*1e6
