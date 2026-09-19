@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"strconv"
@@ -150,19 +151,22 @@ func loadJeunesse(ctx context.Context, pool *pgxpool.Pool) (*StatsJeunesse, erro
 		return nil, err
 	}
 
+	// sum(...) FILTER(...) est une agrégation : la ligne existe même sans
+	// budget encore ingéré, avec des sommes NULL.
+	var enseignementSup, vieEtudiante, cej2024, cej2025 sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		SELECT sum(credit_paiement) FILTER (WHERE programme_libelle = 'Formations supérieures et recherche universitaire' AND exercice=2025),
 		       sum(credit_paiement) FILTER (WHERE programme_libelle = 'Vie étudiante' AND exercice=2025),
 		       sum(credit_paiement) FILTER (WHERE action_libelle ILIKE '%Contrat d''engagement jeunes%' AND exercice=2024),
 		       sum(credit_paiement) FILTER (WHERE action_libelle ILIKE '%Contrat d''engagement jeunes%' AND exercice=2025)
 		FROM core.budget_programme`).
-		Scan(&st.EnseignementSup, &st.VieEtudiante, &st.CEJ2024, &st.CEJ2025); err != nil {
+		Scan(&enseignementSup, &vieEtudiante, &cej2024, &cej2025); err != nil {
 		return nil, err
 	}
-	st.EnseignementSup /= 1e9
-	st.VieEtudiante /= 1e9
-	st.CEJ2024 /= 1e9
-	st.CEJ2025 /= 1e9
+	st.EnseignementSup = enseignementSup.Float64 / 1e9
+	st.VieEtudiante = vieEtudiante.Float64 / 1e9
+	st.CEJ2024 = cej2024.Float64 / 1e9
+	st.CEJ2025 = cej2025.Float64 / 1e9
 
 	// Carte : taux d'emploi médian par région, promotion la plus récente —
 	// une médiane des CFA de la région, jamais une moyenne pondérée par
