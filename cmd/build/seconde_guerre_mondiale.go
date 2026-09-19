@@ -33,29 +33,36 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 		return nil, nil
 	}
 
+	fleuves, err := fleuvesSVG(ctx, pool, 4326, 0, 4)
+	if err != nil {
+		return nil, err
+	}
+
 	var ligneChemin string
 	var longueurM float64
-	err := pool.QueryRow(ctx, `
+	err = pool.QueryRow(ctx, `
 		SELECT st_assvg(geom, 0, 4), longueur_m FROM geo.ligne_demarcation LIMIT 1`).
 		Scan(&ligneChemin, &longueurM)
 	if err != nil {
-		return &StatsSecondeGuerreMondiale{CarteSVG: dessinerCarteSGM(fondChemin, "")}, nil
+		return &StatsSecondeGuerreMondiale{CarteSVG: dessinerCarteSGM(fondChemin, fleuves, "")}, nil
 	}
 
 	st := &StatsSecondeGuerreMondiale{LongueurKm: longueurM / 1000}
-	st.CarteSVG = dessinerCarteSGM(fondChemin, ligneChemin)
+	st.CarteSVG = dessinerCarteSGM(fondChemin, fleuves, ligneChemin)
 	return st, nil
 }
 
-// dessinerCarteSGM : la France (fond neutre) et le tracé de la ligne de
-// démarcation par-dessus — pas de remplissage par zone (occupée/libre),
-// parce qu'aucune géométrie de zone vérifiée n'a été trouvée, seulement le
-// tracé de la ligne elle-même (voir § 2 du dossier).
-func dessinerCarteSGM(fond, ligne string) template.HTML {
+// dessinerCarteSGM : la France (fond neutre), les grands cours d'eau comme
+// repère, et le tracé de la ligne de démarcation par-dessus — pas de
+// remplissage par zone (occupée/libre), parce qu'aucune géométrie de zone
+// vérifiée n'a été trouvée, seulement le tracé de la ligne elle-même (voir
+// § 2 du dossier).
+func dessinerCarteSGM(fond, fleuves, ligne string) template.HTML {
 	var b strings.Builder
 	b.WriteString(`<svg viewBox="-6 -52 16 12" class="geo france sgm" role="img" ` +
 		`aria-label="Tracé de la ligne de démarcation, 1940-1942">`)
 	fmt.Fprintf(&b, `<path class="fond" d="%s"/>`, fond)
+	b.WriteString(fleuves)
 	if ligne != "" {
 		fmt.Fprintf(&b, `<path class="ligne-demarcation" d="%s"><title>Ligne de démarcation, 1940-1942</title></path>`, ligne)
 	}

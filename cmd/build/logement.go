@@ -126,6 +126,11 @@ func chargerCarteSRU(ctx context.Context, pool *pgxpool.Pool) (*CarteSRU, error)
 		return nil, err
 	}
 	depRows.Close()
+	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	b.WriteString(fleuves)
 
 	rayon := func(pop int) float64 { return 1300 + 90*math.Sqrt(float64(pop)) }
 	// Conformes d'abord dessous, puis déficitaires, puis carencées par-dessus :

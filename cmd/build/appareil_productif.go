@@ -426,6 +426,11 @@ func dessinerDelocalisationDept(ctx context.Context, pool *pgxpool.Pool) (templa
 		return "", 0, err
 	}
 	depRows.Close()
+	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	if err != nil {
+		return "", 0, err
+	}
+	b.WriteString(fleuves)
 
 	rayon := func(nb int) float64 { return 1800 + 130*math.Sqrt(float64(nb)) }
 	for _, v := range cs {

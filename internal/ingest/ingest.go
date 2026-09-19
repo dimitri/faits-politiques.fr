@@ -585,6 +585,13 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\nbassins hydrographiques")
 		return hydro.Ingest(ctx, pool, arch)
 	}
+	// Le tracé des grands cours d'eau (BD Topage) : calque de repère pour les
+	// cartes existantes, voir internal/hydro/cours_eau.go. Hors chaîne par
+	// défaut.
+	if only == "cours-eau" {
+		fmt.Println("\ncours d'eau (repère cartographique)")
+		return hydro.IngestCoursEau(ctx, pool, arch)
+	}
 	// Services publics d'eau potable (SISPEA) : qui gère, à quel prix — voir
 	// docs/bassins-versants-donnees.md et internal/eau/sispea.go. Hors
 	// chaîne par défaut.

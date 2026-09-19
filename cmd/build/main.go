@@ -1746,6 +1746,15 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		if err := redirection(filepath.Join(out, "comprendre", d.Slug, "index.html"), root+"/"+s.URL()); err != nil {
 			return err
 		}
+		// La famille « Fiscalité » a regroupé cinq sujets auparavant répartis
+		// entre « Argent public » et « Travail, économie » : deux d'entre eux
+		// (tva, depenses-fiscales) changent donc d'adresse. Un lien externe ou
+		// un signet vers l'ancienne adresse ne doit jamais tomber en erreur.
+		if ancienneBase, deplace := anciennesBasesSujets[s.ID]; deplace {
+			if err := redirection(filepath.Join(out, ancienneBase, s.ID, "index.html"), root+"/"+s.URL()); err != nil {
+				return err
+			}
+		}
 	}
 
 	l = layout

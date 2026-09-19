@@ -1121,6 +1121,23 @@ var checks = []check{
 		        ) x WHERE km2 NOT BETWEEN 450000 AND 650000`,
 	},
 	{
+		name:  "au moins 15 des grands cours d'eau retenus sont chargés",
+		query: `SELECT count(DISTINCT nom) FROM geo.cours_eau`,
+		min:   15,
+	},
+	{
+		name:  "tous les tronçons de cours d'eau sont des géométries valides",
+		query: `SELECT count(*) FROM geo.cours_eau WHERE NOT ST_IsValid(geom)`,
+	},
+	{
+		// L'emprise des tronçons chargés doit rester dans le rectangle de la
+		// métropole (Corse comprise) — une valeur hors de cette plage
+		// signalerait une reprojection Lambert-93/WGS84 ratée, comme pour
+		// les bassins hydrographiques.
+		name:  "l'emprise des cours d'eau reste dans le rectangle de la métropole",
+		query: `SELECT count(*) FROM geo.cours_eau WHERE NOT (geom && ST_MakeEnvelope(-5.5, 41, 9.7, 51.5, 4326))`,
+	},
+	{
 		name:  "le personnel SAE couvre au moins 3 000 établissements",
 		query: `SELECT count(*) FROM core.sae_personnel_fonction`,
 		min:   3000,

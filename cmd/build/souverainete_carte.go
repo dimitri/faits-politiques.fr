@@ -52,14 +52,19 @@ func chargerCarteSemiConducteurs(ctx context.Context, pool *pgxpool.Pool) (templ
 	if err != nil || fondChemin == "" {
 		return "", err
 	}
-	return dessinerCarteSemiConducteurs(fondChemin), nil
+	fleuves, err := fleuvesSVG(ctx, pool, 4326, 0, 4)
+	if err != nil {
+		return "", err
+	}
+	return dessinerCarteSemiConducteurs(fondChemin, fleuves), nil
 }
 
-func dessinerCarteSemiConducteurs(fond string) template.HTML {
+func dessinerCarteSemiConducteurs(fond string, fleuves string) template.HTML {
 	var b strings.Builder
 	b.WriteString(`<svg viewBox="-6 -52 16 12" class="geo france semi-conducteurs" role="img" ` +
 		`aria-label="Sites français de production de semi-conducteurs">`)
 	fmt.Fprintf(&b, `<path class="fond" d="%s"/>`, fond)
+	b.WriteString(fleuves)
 	for _, s := range sitesSemiConducteurs {
 		x, y := s.Lon, -s.Lat
 		titre := fmt.Sprintf("%s, %s — %s", s.Nom, s.Commune, s.Note)

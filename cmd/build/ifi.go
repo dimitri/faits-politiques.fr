@@ -111,6 +111,11 @@ func chargerCarteIFI(ctx context.Context, pool *pgxpool.Pool) (*CarteIFI, error)
 		return nil, err
 	}
 	depRows.Close()
+	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	b.WriteString(fleuves)
 
 	// Rayon en racine carrée du nombre de redevables (surface proportionnelle,
 	// pas le rayon) : calé pour que la plus petite commune publiée (51

@@ -123,6 +123,11 @@ func chargerCarteMusees(ctx context.Context, pool *pgxpool.Pool) (*CarteMusees, 
 		return nil, err
 	}
 	fondRows.Close()
+	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	b.WriteString(fleuves)
 
 	rayon := func(nb int) float64 { return 2000 + 1900*math.Sqrt(float64(nb)) }
 	for _, d := range deps {

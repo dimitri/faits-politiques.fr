@@ -44,7 +44,7 @@ unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304
   --encre:#17181D; --attenue:#5A5850; --filet:#E4E0D6; --filet2:#EFEBE2;
   --accent:#125863; --accent-doux:#E3EEF0;
   --pour:#1C6B45; --contre:#A32C2A; --abst:#7E5C0E; --absent:#6B675F;
-  --absent-f:#E2DFD9; --seuil:#17181D;
+  --absent-f:#E2DFD9; --seuil:#17181D; --eau:#6E9CB5;
   --rayon:12px; --rayon-s:7px;
   --sans:Plex,ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
   --mono:PlexMono,ui-monospace,SFMono-Regular,Menlo,monospace;
@@ -55,14 +55,14 @@ unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304
   --encre:#EEEBE4; --attenue:#9C988F; --filet:#2A2B33; --filet2:#212229;
   --accent:#74C3D3; --accent-doux:#16323A;
   --pour:#58C089; --contre:#E87D76; --abst:#DAAE45; --absent:#918D85;
-  --absent-f:#2B2A28; --seuil:#EEEBE4;
+  --absent-f:#2B2A28; --seuil:#EEEBE4; --eau:#5E93B0;
 }}
 [data-theme=dark]{
   --papier:#131419; --papier2:#0E0F14; --carte:#1B1C22;
   --encre:#EEEBE4; --attenue:#9C988F; --filet:#2A2B33; --filet2:#212229;
   --accent:#74C3D3; --accent-doux:#16323A;
   --pour:#58C089; --contre:#E87D76; --abst:#DAAE45; --absent:#918D85;
-  --absent-f:#2B2A28; --seuil:#EEEBE4;
+  --absent-f:#2B2A28; --seuil:#EEEBE4; --eau:#5E93B0;
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
@@ -526,6 +526,16 @@ font-size:.8rem;max-width:none}
 transition:opacity .12s}
 .geo:hover path{opacity:.55}
 .geo path:hover{opacity:1}
+/* Les grands cours d'eau : un calque de repère commun à toutes les cartes de
+   métropole (fleuvesSVG, cmd/build/carte.go) — jamais interactif, toujours
+   entre le fond et les données pour ne recouvrir ni l'un ni l'autre. */
+.geo .fleuve{fill:none;stroke:var(--eau);stroke-width:700;stroke-linejoin:round;
+pointer-events:none;opacity:.6}
+/* Les cartes en degrés (France seule, échelle ~16 unités de large) ont un
+   ordre de grandeur de coordonnées totalement différent des cartes en
+   Lambert-93 (échelle ~1 000 000 d'unités) : un même stroke-width de 700
+   y noierait tout le tracé sous un aplat plein. */
+.geo.france .fleuve{stroke-width:.05}
 .geo.eptb-epage .fond{fill:var(--papier2);pointer-events:none}
 .geo.ifi .fond{fill:var(--papier2);pointer-events:none}
 .geo.ifi .ifi-c{fill:#7A3B8C;fill-opacity:.65;stroke:#4A215C;stroke-width:600}

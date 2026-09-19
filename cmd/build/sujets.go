@@ -77,20 +77,31 @@ var familles = []*Famille{
 			{ID: "cotisations", Nom: "Cotisations et droits", Doc: "cotisations-et-droits"},
 		}},
 	{ID: "travail-economie", Nom: "Travail, économie et entreprises", Base: "sujets",
-		Intro: "Aides aux entreprises, investissement public, agriculture, fiscalité des multinationales.",
+		Intro: "Aides aux entreprises, investissement public, agriculture, appareil productif.",
 		Cofog: []string{"GF04"}, Sujets: []*Sujet{
 			{ID: "economie", Nom: "Économie et participations de l'État", Doc: "economie-participations-donnees", Pages: []LienPage{{"Dividendes et participations", "dividendes/"}}},
 			{ID: "france-2030", Nom: "France 2030", Doc: "france-2030-donnees"},
 			{ID: "agriculture", Nom: "Agriculture et alimentation", Doc: "agriculture-donnees", Pages: []LienPage{{"Agriculture et alimentation, en graphiques", "agriculture/"}}},
 			{ID: "souverainete-numerique", Nom: "Souveraineté numérique", Doc: "souverainete-numerique"},
-			{ID: "evasion-fiscale", Nom: "Évasion fiscale", Doc: "evasion-fiscale-multinationales"},
-			{ID: "fraude-fiscale", Nom: "Fraude fiscale", Doc: "fraude-fiscale-donnees"},
 			{ID: "investissement", Nom: "Investissement et dividendes des entreprises", Doc: "investissement-entreprises-donnees"},
-			{ID: "sci-holding", Nom: "SCI et holdings", Doc: "sci-holding-donnees"},
 			{ID: "nationalisation-privatisation", Nom: "Nationalisations et privatisations", Doc: "nationalisation-privatisation-donnees"},
 			{ID: "emploi", Nom: "Emploi et aides aux entreprises", Doc: "emploi-aides-entreprises-donnees"},
 			{ID: "appareil-productif", Nom: "L'appareil productif français", Doc: "appareil-productif-donnees"},
 			{ID: "ports", Nom: "Les grands ports maritimes français", Doc: "ports-donnees"},
+		}},
+	// Regroupe des sujets qui répondaient tous, jusqu'ici séparément, à la
+	// même question (qui échappe à l'impôt, par quel mécanisme, pour quel
+	// coût) et qui se citaient déjà mutuellement dans leurs sections
+	// « Ce que les données ne disent pas » — auparavant éclatés entre
+	// « Travail, économie et entreprises » et « Argent public et État ».
+	{ID: "fiscalite", Nom: "Fiscalité", Base: "sujets",
+		Intro: "La TVA, les niches fiscales, la fraude et l'évasion, les montages patrimoniaux.",
+		Sujets: []*Sujet{
+			{ID: "tva", Nom: "TVA", Doc: "tva-donnees"},
+			{ID: "depenses-fiscales", Nom: "Dépenses fiscales (niches)", Doc: "depenses-fiscales-donnees"},
+			{ID: "fraude-fiscale", Nom: "Fraude fiscale", Doc: "fraude-fiscale-donnees"},
+			{ID: "evasion-fiscale", Nom: "Évasion fiscale", Doc: "evasion-fiscale-multinationales"},
+			{ID: "sci-holding", Nom: "SCI et holdings", Doc: "sci-holding-donnees"},
 		}},
 	{ID: "ecole-recherche-culture", Nom: "École, recherche et culture", Base: "sujets",
 		Intro: "L'enseignement scolaire, les universités et la recherche, la culture, le sport.",
@@ -136,12 +147,19 @@ var familles = []*Famille{
 		Intro: "Les budgets, la dette, le coût des institutions et de la fonction publique.",
 		Cofog: []string{"GF01"}, Sujets: []*Sujet{
 			{ID: "budget", Nom: "Budget de l'État et de la Sécurité sociale", Doc: "budget-donnees", Pages: []LienPage{{"Recettes, dépenses et solde, mois par mois", "budget/"}}},
-			{ID: "tva", Nom: "TVA", Doc: "tva-donnees"},
-			{ID: "depenses-fiscales", Nom: "Dépenses fiscales (niches)", Doc: "depenses-fiscales-donnees"},
 			{ID: "dette", Nom: "Dette publique", Doc: "dette-donnees", Pages: []LienPage{{"La dette, en graphiques", "dette/"}}},
 			{ID: "pouvoirs-publics", Nom: "Coût des pouvoirs publics", Doc: "pouvoirs-publics-donnees"},
 			{ID: "fonction-publique", Nom: "Fonction publique", Doc: "fonction-publique-donnees"},
 		}},
+}
+
+// anciennesBasesSujets : les sujets qui ont changé de Base (donc d'adresse)
+// en rejoignant la famille « Fiscalité ». evasion-fiscale, fraude-fiscale et
+// sci-holding en faisaient déjà partie sous Base "sujets" et n'apparaissent
+// donc pas ici — seuls tva et depenses-fiscales venaient de "argent-public".
+var anciennesBasesSujets = map[string]string{
+	"tva":               "argent-public",
+	"depenses-fiscales": "argent-public",
 }
 
 func init() {

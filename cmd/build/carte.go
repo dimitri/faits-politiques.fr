@@ -33,7 +33,47 @@ const absentFill = "#EFEBE2"
 const (
 	tolApercu = 0.04
 	tolPleine = 0.012
+	// Un peu plus fin que tolPleine : les grands méandres d'un fleuve
+	// (la Loire, en particulier) portent une information de reconnaissance
+	// que la tolérance des contours administratifs aplatirait.
+	tolCoursEau = 0.006
 )
+
+// fleuvesSVG rend les grands cours d'eau chargés (geo.cours_eau) comme un
+// calque de repère commun à toutes les cartes de France métropolitaine — à
+// écrire juste après le fond (départements/communes) et avant les données,
+// jamais avant ni après : ni caché sous la terre, ni recouvrant un point ou
+// une teinte. `srid` doit être celui déjà utilisé pour le fond de la même
+// carte, pour que les deux calques se superposent exactement ; `rel` et
+// `digits` doivent reprendre exactement les mêmes valeurs que l'appel
+// st_assvg du fond (1,0 en Lambert-93 sur les cartes départementales ; 0,4
+// sur les petites cartes en degrés comme la carte des semi-conducteurs ou
+// la ligne de démarcation, où une précision à zéro décimale écraserait le
+// tracé).
+func fleuvesSVG(ctx context.Context, pool *pgxpool.Pool, srid, rel, digits int) (string, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT st_assvg(st_transform(st_simplifypreservetopology(geom, $1), $2::int), $3::int, $4::int)
+		FROM geo.cours_eau`, tolCoursEau, srid, rel, digits)
+	if err != nil {
+		return "", err
+	}
+	defer rows.Close()
+	var b strings.Builder
+	for rows.Next() {
+		var d string
+		if err := rows.Scan(&d); err != nil {
+			return "", err
+		}
+		if d == "" {
+			continue
+		}
+		fmt.Fprintf(&b, `<path class="fleuve" d="%s"/>`, d)
+	}
+	if err := rows.Err(); err != nil {
+		return "", err
+	}
+	return b.String(), nil
+}
 
 type CaseCarte struct {
 	Code, Nom string

@@ -94,6 +94,11 @@ func chargerCarteEtudiants(ctx context.Context, pool *pgxpool.Pool) (*CarteEtudi
 		return nil, err
 	}
 	depRows.Close()
+	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	b.WriteString(fleuves)
 
 	rayon := func(nb int64) float64 { return 1400 + 130*math.Sqrt(float64(nb)) }
 	for _, c := range communes {

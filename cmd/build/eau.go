@@ -68,6 +68,11 @@ func chargerCarteBassins(ctx context.Context, pool *pgxpool.Pool) (*CarteBassins
 	if len(ct.Bassins) == 0 {
 		return nil, nil // table absente ou vide : le schéma est simplement omis
 	}
+	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	b.WriteString(fleuves)
 	b.WriteString(`</svg>`)
 	ct.SVG = template.HTML(b.String())
 	return ct, nil
@@ -136,6 +141,11 @@ func chargerCarteEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool) (*CarteEPTBE
 		return nil, err
 	}
 	depRows.Close()
+	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	if err != nil {
+		return nil, err
+	}
+	b.WriteString(fleuves)
 
 	rows, err := pool.Query(ctx, `
 		SELECT e.nom, e.type, c.nb_membres_resolus, c.nb_membres_total,
