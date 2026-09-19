@@ -1,6 +1,6 @@
 # Bassins versants : la gouvernance de l'eau qui existe déjà
 
-> **Dossier** · version 8 · 19 septembre 2026
+> **Dossier** · version 9 · 19 septembre 2026
 >
 > Comment la gestion de l'eau est-elle organisée en France, à quelle échelle, et
 > par qui ? Le dossier décrit l'architecture qui existe — comités de bassin, agences de
@@ -168,7 +168,7 @@ chacun des six territoires possibles, pas supposé :
 | Mayotte | outre-mer | 362 |
 
 Guadeloupe, Guyane et Réunion n'ont pas d'extrait à ce thème du catalogue
-(404 pour les trois à l'inspection) — absents, pas oubliés (§ 9). Chacun
+(404 pour les trois à l'inspection) — absents, pas oubliés (§ 10). Chacun
 des bassins d'outre-mer est, comme en métropole, rattaché à un office de
 l'eau local plutôt qu'à une agence ; leur superficie et leur position
 géographique (Caraïbes, canal du Mozambique) n'ont pas leur place sur la
@@ -233,7 +233,7 @@ Source : décisions d'aide publiées par trois des six agences — **Loire-Breta
 n° 2017-779, 2017-2026) et **Rhin-Meuse** (bilan consolidé publié par
 l'agence elle-même, 2000-2026 sans interruption). Les trois agences
 restantes (Adour-Garonne, Rhône-Méditerranée-Corse, Seine-Normandie) ne
-publient, à l'inspection, aucun export en masse exploitable — voir § 9 pour
+publient, à l'inspection, aucun export en masse exploitable — voir § 10 pour
 le détail par agence.
 
 | Agence | Aides | Bénéficiaires distincts (par raison sociale) | Montant cumulé | Période couverte |
@@ -252,7 +252,7 @@ Loire-Bretagne, 33 769 aides sur 33 770 sont classées « Subvention », une
 seule « Avance » — signe que l'agence a quasiment abandonné l'avance
 remboursable au profit de la subvention directe sur ces deux derniers
 programmes (les avances, plus fréquentes, apparaissent sur le 10ᵉ programme
-2013-2018, non chargé ici — voir § 9).
+2013-2018, non chargé ici — voir § 10).
 
 **Les plus gros bénéficiaires cumulés sont des structures qui portent des
 aides pour d'autres, pas toujours le porteur de travaux final** : sur
@@ -290,7 +290,7 @@ répartition nationale.
 **Ce que ce chiffrage ne permet toujours pas de dire** : la part de chaque
 euro de redevance qui revient effectivement au payeur d'origine (la chaîne
 payeur → agence → aide reste bloquée par l'absence de redevances par
-payeur, voir § 9).
+payeur, voir § 10).
 
 ### 6. Où sont les EPTB et les EPAGE
 
@@ -385,9 +385,52 @@ contre sa définition officielle au moment de cette charge, à la différence
 de `d101_0`/`d102_0` déjà vérifiés pour l'eau potable (§ 4) — un chargement
 ultérieur est possible, pas deviné ici.
 
+### 9. Le budget annexe eau, enfin accessible
+
+Source : OFGL (Observatoire des finances et de la gestion publique locales),
+jeux *Comptes des communes* et *Comptes des groupements à fiscalité
+propre*, 2018-2025. L'eau et l'assainissement sont un budget **annexe**
+(nomenclature comptable M49/M49A) — les données OFGL déjà chargées ailleurs
+dans ce dépôt (`core.commune_indicator`, § 1.3) ne couvrent que le budget
+**principal**, ce qui avait fait documenter ce pont comme un blocage
+structurel dans une version précédente. Vérification directe faite : l'OFGL
+publie en réalité le budget annexe séparément, par nomenclature — un accès
+qui existait, pas un fichier nouvellement mis en ligne.
+
+| Collectivité | Communes/EPCI avec un budget M49 (2023) | Dépenses totales (2023) |
+|---|---:|---:|
+| Communes | 8 334 | 1 511,5 M€ |
+| EPCI | 905 | 7 269,7 M€ |
+
+**Le transfert vers l'intercommunalité, visible dans les chiffres eux-mêmes,
+pas seulement décrit en principe (§ 1.3)** : entre 2018 et 2025, le nombre
+de communes avec un budget annexe M49 recule de 12 370 à 7 266 (-41 %),
+tandis que le nombre d'EPCI avec un tel budget reste stable (863 puis 912)
+et que leurs dépenses cumulées progressent de 4,92 Md€ à 8,00 Md€ — la
+même compétence, de plus en plus portée par l'intercommunalité plutôt que
+par la commune, exactement dans le sens que la loi NOTRe organise depuis
+2018.
+
+**Dépenses et recettes s'équilibrent, comme l'exige la nomenclature M49** :
+1 511,5 M€ de dépenses pour 1 511,8 M€ de recettes côté communes en 2023,
+7 269,7 M€ pour 7 074,7 M€ côté EPCI — un écart naturel (report d'une année
+sur l'autre), pas une anomalie de lecture.
+
+**Ce que ce chargement ne permet pas de faire** : seuls deux agrégats sont
+chargés (dépenses et recettes totales) sur les 41 que l'API OFGL publie —
+pas de détail par nature de dépense (achats, personnel, investissement) à
+ce stade. Le libellé du budget (`nom_budget`, par exemple « EAU-AUTRECHE »
+ou « SPANC CCRAPC ») permet de deviner eau ou assainissement pour beaucoup
+de lignes, mais reste un texte libre de la collectivité, jamais recatégorisé
+en un champ structuré. Une collectivité qui délègue entièrement le service à
+un opérateur privé peut ne pas avoir de budget annexe M49, ou en avoir un
+réduit à la seule part publique : cette table ne capture pas le chiffre
+d'affaires de l'opérateur lui-même, seulement ce qui transite par le budget
+public.
+
 ## Ce que les données ne disent pas
 
-### 9. Ce qui reste hors de portée de cette version
+### 10. Ce qui reste hors de portée de cette version
 
 - **Le millésime 2024 des services d'eau potable et d'assainissement** :
   l'export bascule, pour les trois compétences (eau potable, assainissement
@@ -411,11 +454,11 @@ ultérieur est possible, pas deviné ici.
   agriculteur) en open data — le premier maillon de la chaîne
   payeur → agence → aide (§ 5) reste donc hors de portée, à l'inverse du
   dernier maillon (agence → bénéficiaire), chargé.
-- **Le budget eau des collectivités** : l'eau est en budget annexe
-  (nomenclature M49) ; les données OFGL déjà chargées dans ce dépôt
-  (`core.commune_indicator`) ne couvrent que le budget principal — un pont
-  vers un budget-annexe demanderait une source OFGL différente, non
-  identifiée à ce jour. Un blocage structurel, pas un oubli.
+- **Le détail par nature du budget annexe eau** (§ 9) : seuls deux agrégats
+  (dépenses et recettes totales) sont chargés sur les 41 que l'API OFGL
+  publie — pas encore de détail par nature de dépense (personnel,
+  investissement...) ni de distinction fiable eau/assainissement (le
+  libellé du budget est un texte libre, jamais recatégorisé).
 - **Les aides des trois agences restantes** (§ 5), chacune pour une raison
   différente, vérifiée à l'inspection plutôt que supposée commune :
   **Rhône-Méditerranée-Corse** publie une base de recherche par critères
@@ -470,8 +513,20 @@ ultérieur est possible, pas deviné ici.
   (eau-rhin-meuse.fr, consulté le 19 septembre 2026).
 - Sandre / IGN-OFB, *BD Topage — Bassins hydrographiques, Martinique et
   Mayotte*, millésime 2025.
+- OFGL (Observatoire des finances et de la gestion publique locales),
+  *Comptes des communes* et *Comptes des groupements à fiscalité propre*,
+  budgets annexes M49/M49A, 2018-2025.
 
 ## Versions
+
+- **Version 9** (19 septembre 2026) : le budget annexe eau (nomenclature
+  M49/M49A), communes et EPCI, 2018-2025 — un manque documenté comme
+  structurellement bloqué dans une version précédente, résolu par
+  vérification directe de l'API OFGL. Le transfert de la compétence vers
+  l'intercommunalité, déjà décrit en principe au § 1.3, se lit maintenant
+  dans les chiffres eux-mêmes (nombre de communes avec un budget M49 en
+  baisse de 41 % entre 2018 et 2025, dépenses des EPCI en hausse de 62 %
+  sur la même période).
 
 - **Version 8** (19 septembre 2026) : deux bassins hydrographiques
   d'outre-mer (Martinique, Mayotte), les seuls disponibles au thème

@@ -1175,6 +1175,27 @@ var checks = []check{
 		min:   5000,
 	},
 	{
+		name:  "budget annexe eau (M49) : au moins 150 000 lignes chargées",
+		query: `SELECT count(*) FROM core.budget_annexe_eau`,
+		min:   150000,
+	},
+	{
+		// Le total 2023 (communes + EPCI, dépenses totales) doit rester dans
+		// un ordre de grandeur plausible pour le secteur eau/assainissement
+		// français porté par le public — 6,6 Md€ mesuré à l'inspection : un
+		// écart large signalerait un mélange d'agrégat (ex. un agrégat par
+		// habitant confondu avec un montant total).
+		name: "le total 2023 du budget annexe eau reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT sum(montant_eur) AS total FROM core.budget_annexe_eau
+		          WHERE annee = 2023 AND agregat = 'DEPENSES_TOTALES'
+		        ) x WHERE total NOT BETWEEN 3e9 AND 20e9`,
+	},
+	{
+		name:  "budget annexe eau : le type de collectivité ne contient que des valeurs connues",
+		query: `SELECT count(*) FROM core.budget_annexe_eau WHERE type_collectivite NOT IN ('COMMUNE','EPCI')`,
+	},
+	{
 		name:  "le personnel SAE couvre au moins 3 000 établissements",
 		query: `SELECT count(*) FROM core.sae_personnel_fonction`,
 		min:   3000,
