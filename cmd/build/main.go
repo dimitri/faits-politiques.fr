@@ -1095,6 +1095,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaDepenseEnv, err := chargerDepenseEnvironnementale(ctx, pool)
+	if err != nil {
+		return err
+	}
 	carteBassins, err := chargerCarteBassins(ctx, pool)
 	if err != nil {
 		return err
@@ -1270,6 +1274,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`<figcaption>Taux de pauvreté (seuil à 60 % du niveau de vie médian), 1996-2023 — `+
 					`Insee. La refonte de l'enquête en 2021 (ERFS nouvelle formule) rend les deux `+
 					`périodes non strictement comparables.</figcaption></figure>`))
+		}
+		if schemaDepenseEnv != "" && strings.Contains(string(d.Corps), "<!-- schema:depense-environnementale -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:depense-environnementale -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaDepenseEnv)+`</div>`+
+					`<figcaption>Dépense de protection de l'environnement, ensemble de l'économie — `+
+					`Eurostat (env_epea_neep), millions d'euros courants convertis en milliards.`+
+					`</figcaption></figure>`))
 		}
 		if carteBassins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-bassins -->") {
 			var legende strings.Builder

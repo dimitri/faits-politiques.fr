@@ -111,6 +111,10 @@ appliquer.
 Cette série, Eurostat (`env_epea_neep`), France, 2012-2025 — la nomenclature CEP
 (l'évolution de CEPA/CReMA à partir de la collecte 2025) :
 
+<!-- schema:depense-environnementale -->
+
+Deux années, par secteur :
+
 | Secteur | 2020 (Md€) | 2023 (Md€) |
 |---|---:|---:|
 | Total économie | 46,77 | 55,76 |
