@@ -1155,6 +1155,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaCarteSemiConducteurs, err := chargerCarteSemiConducteurs(ctx, pool)
+	if err != nil {
+		return err
+	}
 	schemaSIPRI, err := chargerSIPRI(ctx, pool)
 	if err != nil {
 		return err
@@ -1525,6 +1529,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					fmt.Sprintf(`<figcaption>Les vingt quartiers d'établissement les plus densément peuplés sur %d `+
 						`lignes chargées (établissement × quartier), ministère de la Justice, dernière donnée mensuelle. `+
 						`La ligne verticale marque 100 %% (capacité atteinte).</figcaption></figure>`, statsJustice.NbLignes)))
+		}
+		if schemaCarteSemiConducteurs != "" && strings.Contains(string(d.Corps), "<!-- schema:semi-conducteurs-carte -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:semi-conducteurs-carte -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaCarteSemiConducteurs)+`</div>`+
+					`<figcaption>Cinq sites de production identifiés par leur unité légale Sirene, géocodés à la `+
+					`commune — pas à l'adresse exacte de l'usine. La Cour des comptes relève elle-même l'absence de `+
+					`cartographie officielle de cette filière (§ 2).</figcaption></figure>`))
 		}
 		if schemaSIPRI != "" && strings.Contains(string(d.Corps), "<!-- schema:sipri-milex -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sipri-milex -->",

@@ -716,6 +716,12 @@ table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 .ports-fr .ligne-nantes{fill:none;stroke:#7A6A2F;stroke-width:2}
 .ports-fr .pt-nantes,.ports-fr .lbl-nantes{fill:#7A6A2F}
 
+/* Semi-conducteurs : cinq sites, un seul marqueur — pas de taille
+   proportionnelle, l'aide publique n'étant connue que pour deux sites sur
+   cinq (voir le commentaire de cmd/build/souverainete_carte.go). */
+.geo.france.semi-conducteurs .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:.04}
+.geo.france.semi-conducteurs .site{fill:var(--accent);stroke:var(--carte);stroke-width:.03}
+
 /* Établissements pénitentiaires : un seuil à 100 %, une seule teinte pour
    les vingt barres — c'est le classement qui informe, pas une couleur. */
 .barres-surpeuplement .cat{font:500 .62rem/1 var(--sans);text-anchor:end}

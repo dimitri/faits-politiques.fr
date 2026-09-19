@@ -1,6 +1,6 @@
 # Souveraineté numérique de l'État
 
-> **Dossier** · version 4 · 15 septembre 2026
+> **Dossier** · version 5 · 19 septembre 2026
 >
 > Que recouvre la souveraineté numérique dans l'action publique, pourquoi l'État s'en est
 > donné des règles, lesquelles, ce qu'en ont vérifié le Sénat et les juridictions, et ce
@@ -109,6 +109,13 @@ Capgemini, technologies Microsoft) n'y figure pas. Trois services qualifiés rep
 sur une technologie américaine opérée sous licence (colonne `technologie_tierce`) :
 S3NS et deux offres VMware (OVH, Cloud Temple).
 
+**Pas de carte pour cette série** : le catalogue de l'ANSSI ne publie ni adresse ni
+localisation des services qualifiés (seulement fournisseur, service, type, dates) ; la
+page des prestataires en cours de qualification donne une adresse postale, mais c'est
+celle du candidat, pas nécessairement celle d'un site de données, et ces offres ne sont
+pas encore qualifiées — les deux listes ne sont donc pas assez comparables pour une
+carte commune, signalé ici plutôt que contourné par un rapprochement approximatif.
+
 ### 2. Les solutions françaises
 
 Cette série (29 acteurs, rattachement vérifié au chargement), fiche cette série
@@ -122,6 +129,8 @@ Cette série (29 acteurs, rattachement vérifié au chargement), fiche cette sé
 | **Intelligence artificielle** | Mistral AI | Unité légale Sirene, aides d'État publiées (14,5 M€ d'équivalent-subvention). |
 | **Pôles de compétitivité** | Systematic Paris-Region (Île-de-France), Cap Digital (Paris), Minalogic (Auvergne-Rhône-Alpes), Images & Réseaux (Bretagne, Pays de la Loire) | Associations Sirene ; chacune se présente comme pôle (qualité *déclaratif*). La liste officielle des pôles n'est pas publiée en données ouvertes à jour : le site du ministère refuse les téléchargements automatisés. |
 | **Filière et utilisateurs** | Hexatrust, Conseil national du logiciel libre, AFUL, Numeum | Associations et syndicat professionnel. |
+
+<!-- schema:semi-conducteurs-carte -->
 
 **Semi-conducteurs : la place de la France.** Point de départ : deux articles de Laurent
 Bloch, ancien chef du service d'informatique scientifique de l'Institut Pasteur, sur l'usine
@@ -344,6 +353,11 @@ dont il reprend les contrats documentés sans les recopier.
 
 ## Versions
 
+- **Version 5** (19 septembre 2026) : carte des cinq sites français de production de
+  semi-conducteurs (Crolles, Rousset, Tours, Grenoble, Bernin), géocodés à la commune —
+  la Cour des comptes elle-même relevait l'absence de cartographie officielle de cette
+  filière (§ 2) ; le catalogue SecNumCloud, lui, reste non géolocalisable (aucune adresse
+  publiée par l'ANSSI pour les services qualifiés), signalé plutôt que contourné.
 - **Version 4** (15 septembre 2026) : semi-conducteurs (Cour des comptes 2026, règlement
   européen sur les puces, projet « Liberty », concertation de Crolles), à partir des articles
   de Laurent Bloch, cités comme analyses signées.
