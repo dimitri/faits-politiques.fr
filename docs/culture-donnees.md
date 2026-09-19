@@ -1,6 +1,6 @@
 # Culture, médias et audiovisuel public : les crédits de l'État
 
-> **Dossier** · version 1 · 15 septembre 2026
+> **Dossier** · version 2 · 19 septembre 2026
 >
 > Ce que l'État consacre au patrimoine, à la création, à la transmission des savoirs, à la presse, au livre et à l'audiovisuel public ; les textes qui encadrent ces politiques et les constats du contrôle parlementaire sur le budget 2026. Le dossier ne part d'aucune thèse et suit le plan commun des dossiers.
 
@@ -104,6 +104,44 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 <!-- faits:BUDGET:fin -->
 
+### Les musées labellisés « Musée de France » : une carte par département
+
+<!-- schema:carte-musees -->
+
+Le label « Musée de France », attribué par le ministère de la Culture,
+couvre 1 216 établissements sur l'ensemble du territoire — de très grands
+musées nationaux aux petits musées associatifs, comptés chacun pour un.
+**Ce label est un statut administratif** (accès à des aides de l'État,
+obligations de conservation), **pas une mesure de taille ou de
+fréquentation** : Paris concentre logiquement le plus grand nombre
+d'établissements, mais la carte ne dit rien de leur importance relative.
+
+**Les dépenses culturelles des collectivités territoriales**, en
+revanche, sont désormais chiffrées : **10,7 milliards d'euros en 2023**
+(8,5 Md€ de fonctionnement, 2,2 Md€ d'investissement), soit **156 € par
+habitant** — un effort porté à 81 % par les communes et leurs
+groupements, l'État n'intervenant qu'en complément dans la plupart des
+domaines. La conservation et la diffusion du patrimoine concentrent 37 %
+de cette dépense, la part la plus importante devant le spectacle vivant.
+**Ce chiffre vient d'un document du ministère (DEPS), cité précisément,
+pas d'une série chargée en base** : les fichiers structurés identifiés sur
+data.gouv.fr ne couvrent, à ce jour, que l'échelon départemental
+séparément des communes et des régions.
+
+**Le cinéma dispose, lui, d'une statistique publique bien plus fine** :
+le Centre national du cinéma (CNC) publie une fréquentation mensuelle par
+région, département et commune — 181,3 millions d'entrées en France en
+2024 selon ses chiffres de communication. Ce dossier ne charge pas encore
+le détail territorial de cette série, identifiée mais non vérifiée ligne
+par ligne dans cette version.
+
+**En comparaison européenne**, la dépense publique culturelle de
+l'ensemble de l'Union européenne s'élevait à 87,8 Md€ en 2024 (Eurostat,
+comptes COFOG, fonction « services culturels ») — une donnée qui permet de
+situer la France, mais que ce dossier ne rapproche pas encore de ses
+propres masses budgétaires (millésimes et champs administratifs
+différents entre COFOG et les missions du budget de l'État).
+
 ### Constats chiffrés cités
 
 <!-- faits:SITUATION:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
@@ -116,7 +154,9 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 ## Ce que les données ne disent pas
 
-- **Les dépenses culturelles des collectivités** : non chargées ici (`NOT_LOADED`) ; la comparaison avec l'effort de l'État n'est donc pas possible dans ce dossier.
+- **Les dépenses culturelles des collectivités** : le total 2023 est désormais cité précisément (voir ci-dessus), mais pas chargé en base par échelon (commune, EPCI, département, région) — seul un jeu départemental a été identifié à ce jour, non chargé (`NOT_LOADED`).
+- **La fréquentation cinématographique par territoire** (CNC) : source identifiée et structurée, non vérifiée ligne par ligne dans cette version (`NOT_LOADED`).
+- **Le pass Culture** : montants et répartition par catégorie de biens culturels cités par des rapports parlementaires, pas de série ouverte vérifiée directement identifiée.
 - **Le budget du Centre national du cinéma** : financé par des taxes affectées, il n'apparaît pas dans les missions ; seul le constat du Sénat en donne l'ordre de grandeur.
 - **Les dépenses fiscales rattachées** (taux réduits de TVA, crédits d'impôt) mission
   par mission : citées par le Sénat, non rapprochées de cette série.
@@ -148,7 +188,15 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 | [Rapport spécial du Sénat, mission « Médias, livre et industries culturelles », PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-318/l25-139-318-syn.pdf) | PRIMARY_OFFICIAL |
 | Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
 | Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
+| Ministère de la Culture, Muséofile (répertoire des musées labellisés), data.culture.gouv.fr | PRIMARY_OFFICIAL |
+| Ministère de la Culture (DEPS), *Tableau de bord des dépenses culturelles des collectivités territoriales*, édition 2025 | PRIMARY_OFFICIAL |
+| Eurostat, `gov_10a_exp` (COFOG, services culturels) | PRIMARY_OFFICIAL |
 
 ## Versions
 
+- **Version 2** (19 septembre 2026) : carte des 1 216 musées labellisés « Musée
+  de France » par département (Muséofile) ; dépenses culturelles des
+  collectivités (10,7 Md€ en 2023, DEPS) citées précisément ; fréquentation
+  cinématographique (CNC) et comparaison européenne (Eurostat) identifiées
+  et citées, pas encore chargées en base.
 - **Version 1** (15 septembre 2026) : crédits par programme, textes, constats du Sénat sur le projet de loi de finances pour 2026, mots suivis dans les débats.
