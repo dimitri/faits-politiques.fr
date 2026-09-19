@@ -2077,6 +2077,18 @@ var checks = []check{
 		        WHERE f.type_entite='pays'`,
 		min: 100,
 	},
+	{
+		name:  "Accord de Paris : au moins 190 pays chargés",
+		query: `SELECT count(*) FROM core.ratification_accord_paris`,
+		min:   190,
+	},
+	{
+		// La ratification ne peut jamais précéder la signature.
+		name: "Accord de Paris : aucune ratification antérieure à la signature",
+		query: `SELECT count(*) FROM core.ratification_accord_paris
+		        WHERE date_ratification IS NOT NULL AND date_signature IS NOT NULL
+		          AND date_ratification < date_signature`,
+	},
 }
 
 // ErrAnomalies signale qu'au moins un contrôle a échoué — déjà détaillé sur

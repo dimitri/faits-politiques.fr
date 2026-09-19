@@ -1103,6 +1103,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	statsClimatInternational, err := chargerClimatInternational(ctx, pool)
+	if err != nil {
+		return err
+	}
 	carteBassins, err := chargerCarteBassins(ctx, pool)
 	if err != nil {
 		return err
@@ -1291,6 +1295,14 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 				`<figure class="schema"><div class="carte-pleine">`+string(schemaEmploiTotal)+`</div>`+
 					`<figcaption>Emploi total et salarié, France, 1975-2025 — Eurostat (nama_10_pe). `+
 					`L'écart entre les deux courbes est le nombre de non-salariés.</figcaption></figure>`))
+		}
+		if statsClimatInternational != nil && strings.Contains(string(d.Corps), "<!-- schema:ratification-accord-paris -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:ratification-accord-paris -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(statsClimatInternational.CourbeRatificationSVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>Nombre cumulé de pays ayant ratifié l'Accord de Paris — ONU, `+
+						`collection des traités. %d pays au total, dont %d n'ont jamais ratifié (signature seule, `+
+						`ou aucune des deux).</figcaption></figure>`,
+						statsClimatInternational.NbPays, statsClimatInternational.NbJamaisRatifie)))
 		}
 		if carteBassins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-bassins -->") {
 			var legende strings.Builder

@@ -123,6 +123,7 @@ var familles = []*Famille{
 			{ID: "international", Nom: "Comparaisons internationales", Doc: "international-donnees"},
 			{ID: "union-europeenne", Nom: "Union européenne", Pages: []LienPage{{"Les votes des eurodéputés français", "europe/"}}},
 			{ID: "francophonie", Nom: "La Francophonie", Doc: "francophonie-donnees"},
+			{ID: "climat-international", Nom: "La France et le climat : accords de Paris, COP21", Doc: "climat-international-donnees"},
 		}},
 	// Les finances publiques elles-mêmes : l'entrée « Argent public » du menu.
 	{ID: "argent-public", Nom: "Argent public et État", Base: "argent-public",

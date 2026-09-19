@@ -2589,3 +2589,29 @@ illustrer est un contresens visuel, pas une nuance à corriger en légende.
   couverture exhaustive du commerce extérieur : chaque secteur correspond à un récit déjà
   étayé par un cas concret du §3, et la vérification d'un code HS supplémentaire a un coût
   reproductible qui ne justifiait pas d'élargir sans un besoin identifié.
+
+## D-079 — Pas de carte du monde pour la ratification de l'Accord de Paris : une courbe cumulative à la place
+
+`docs/climat-international-donnees.md` §2, `cmd/build/climat_international.go`.
+
+**Pourquoi.** L'Accord de Paris a été ratifié par 195 des 198 signataires et adhérents
+chargés — une adoption quasi universelle en quelques années. Une carte du monde colorée par
+statut de ratification serait presque entièrement d'une seule couleur : les trois exceptions
+réelles (Iran, Libye, Yémen) y seraient visuellement anecdotiques, et la carte ne dirait rien
+de la VITESSE d'adoption (l'essentiel en 2016-2017), qui est le fait le plus intéressant que
+la donnée permette de montrer. Même logique que D-078 (le graphique en haltère plutôt qu'une
+carte du monde pour le commerce extérieur) : préférer la visualisation qui montre le fait
+réel plutôt que celle qui semblait la plus évidente au départ.
+
+**Décidé.**
+
+- Un graphique en courbe cumulative (nombre de pays ratifiés, par année) remplace la carte
+  envisagée initialement — il montre directement que 171 des 198 avaient déjà ratifié fin
+  2017, et que le rythme ralentit ensuite parce qu'il ne reste presque personne à convaincre,
+  pas parce que l'adhésion faiblit.
+- Le financement climatique international (l'autre volet initialement prévu pour une carte
+  par pays receveur) reste non chargé : le jeu de données OCDE identifié (marqueurs de Rio /
+  Climate-Related Development Finance) s'est révélé protégé par un contrôle anti-robot sur
+  son export en masse, et son API SDMX moderne renvoie une erreur serveur malgré sa présence
+  au catalogue — vérifié directement, pas supposé. Les totaux agrégés de l'OCDE sont cités en
+  prose (§3), jamais présentés comme une série chargée.
