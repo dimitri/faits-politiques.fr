@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"math"
@@ -34,22 +35,28 @@ type CarteIFI struct {
 }
 
 func chargerCarteIFI(ctx context.Context, pool *pgxpool.Pool) (*CarteIFI, error) {
-	var annee int
-	if err := pool.QueryRow(ctx, `SELECT max(annee) FROM core.ifi_commune`).Scan(&annee); err != nil {
+	// max(...) est une agrégation : la ligne existe même sans IFI encore
+	// ingéré, avec une année NULL.
+	var anneeN sql.NullInt64
+	if err := pool.QueryRow(ctx, `SELECT max(annee) FROM core.ifi_commune`).Scan(&anneeN); err != nil {
 		return nil, err
 	}
-	if annee == 0 {
+	if !anneeN.Valid {
 		return nil, nil // table absente ou vide : le schéma est simplement omis
 	}
+	annee := int(anneeN.Int64)
 
-	var vb string
+	// st_extent est une agrégation : la ligne existe même sans contour
+	// encore ingéré, avec une valeur NULL (voir cmd/build/carte.go).
+	var vbN sql.NullString
 	if err := pool.QueryRow(ctx, `
 		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
 		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
 		FROM (SELECT st_extent(st_transform(geom,2154)) e FROM geo.contour
-		      WHERE niveau='DEPARTEMENT' AND srid_rendu=2154) x`).Scan(&vb); err != nil {
+		      WHERE niveau='DEPARTEMENT' AND srid_rendu=2154) x`).Scan(&vbN); err != nil {
 		return nil, err
 	}
+	vb := vbN.String
 
 	rows, err := pool.Query(ctx, `
 		WITH agrege AS (
