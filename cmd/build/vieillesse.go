@@ -2,9 +2,12 @@ package main
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"html/template"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -74,28 +77,32 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 		st.CourbeSVG = courbe(pts, func(v float64) string { return Decimal(v, 1) + " Md€" })
 	}
 
+	// sum(...) FILTER (...) est une agrégation : la ligne existe même sans
+	// budget 2025 encore ingéré, avec des sommes NULL — sql.NullFloat64 pour
+	// ne pas faire échouer toute la page pour une donnée pas encore chargée.
+	var casPensions, regimesSpeciaux sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		SELECT sum(credit_paiement) FILTER (WHERE mission_libelle = 'Pensions'),
 		       sum(credit_paiement) FILTER (WHERE mission_libelle = 'Régimes sociaux et de retraite')
 		FROM core.budget_programme WHERE exercice = 2025`).
-		Scan(&st.CasPensions, &st.RegimesSpeciaux); err != nil {
+		Scan(&casPensions, &regimesSpeciaux); err != nil {
 		return nil, err
 	}
-	st.CasPensions /= 1e9
-	st.RegimesSpeciaux /= 1e9
+	st.CasPensions = casPensions.Float64 / 1e9
+	st.RegimesSpeciaux = regimesSpeciaux.Float64 / 1e9
 
 	if len(pts) > 0 {
 		st.CofogTotal = pts[len(pts)-1].Valeur
 	}
-	var totalPublic float64
+	var totalPublic sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		SELECT sum(mv.valeur)/1e3 FROM core.macro_value mv JOIN ref.macro_serie rs ON rs.code = mv.serie_code
 		WHERE rs.cofog IN ('GF01','GF02','GF03','GF04','GF05','GF06','GF07','GF08','GF09','GF10')
 		  AND mv.annee = $1`, st.Fin).Scan(&totalPublic); err != nil {
 		return nil, err
 	}
-	if totalPublic > 0 {
-		st.PartCofog = 100 * st.CofogTotal / totalPublic
+	if totalPublic.Float64 > 0 {
+		st.PartCofog = 100 * st.CofogTotal / totalPublic.Float64
 	}
 	st.TotalEtat = st.CasPensions + st.RegimesSpeciaux
 	if st.CofogTotal > 0 {
@@ -103,25 +110,32 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 		st.EcartSecu = st.CofogTotal - st.TotalEtat
 	}
 
+	// ORDER BY ... LIMIT 1 sur une table pas encore chargée ne renvoie aucune
+	// ligne (pgx.ErrNoRows), pas une ligne à valeurs NULL — pas de donnée
+	// disponible, pas une raison de faire échouer toute la page.
 	if err := pool.QueryRow(ctx, `
 		SELECT annee, ratio_demographique FROM core.cotisants_retraites_ratio
 		ORDER BY annee DESC LIMIT 1`).
-		Scan(&st.RatioAnnee, &st.RatioCotisantsRetraites); err != nil {
+		Scan(&st.RatioAnnee, &st.RatioCotisantsRetraites); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
 	if err := pool.QueryRow(ctx, `
 		SELECT annee, age_ensemble, age_femmes, age_hommes FROM core.age_depart_retraite
 		ORDER BY annee DESC LIMIT 1`).
-		Scan(&st.AgeAnnee, &st.AgeEnsemble, &st.AgeFemmes, &st.AgeHommes); err != nil {
+		Scan(&st.AgeAnnee, &st.AgeEnsemble, &st.AgeFemmes, &st.AgeHommes); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
 
+	var apaBeneficiaires sql.NullInt64
+	var apaDepenses sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		SELECT sum(nb_beneficiaires), sum(depenses_total_eur)/1e9
 		FROM core.apa_domicile WHERE annee = 2024`).
-		Scan(&st.APABeneficiaires, &st.APADepenses); err != nil {
+		Scan(&apaBeneficiaires, &apaDepenses); err != nil {
 		return nil, err
 	}
+	st.APABeneficiaires = int(apaBeneficiaires.Int64)
+	st.APADepenses = apaDepenses.Float64
 
 	// Carte : bénéficiaires de l'APA à domicile pour 100 habitants de 75 ans
 	// ou plus, par département — le dénominateur qui manquait (docs/
