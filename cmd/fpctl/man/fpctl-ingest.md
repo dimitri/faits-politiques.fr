@@ -3,7 +3,7 @@ title: FPCTL-INGEST
 section: 1
 header: Manuel fpctl
 footer: faits-politiques.fr
-date: 2026-09-16
+date: 2026-09-19
 ---
 
 # NOM
@@ -12,40 +12,78 @@ fpctl-ingest - télécharge, archive et charge les jeux de données sources
 
 # SYNOPSIS
 
-**fpctl ingest data** [**-only** *source*]
+**fpctl ingest all**
+
+**fpctl ingest** *catégorie*
+
+**fpctl ingest** *catégorie* **all**
+
+**fpctl ingest** *catégorie* *source*
+
+**fpctl ingest migrate**
 
 # DESCRIPTION
 
-Sans **-only**, recharge toutes les sources dans l'ordre attendu par leurs
-dépendances (référentiels avant ce qui les utilise, par exemple), puis
-recalcule les empreintes de section que **fpctl build** compare avant de
-décider de recopier ou reconstruire (**core.section_checksum**).
+Chaque source est rangée dans une catégorie plutôt qu'exposée comme une
+valeur d'un flag plat — voir **CATÉGORIES** ci-dessous. Le catalogue
+(**internal/ingest/catalogue.go**) reste la référence unique des noms et
+des descriptions : cette page en résume la forme, pas le détail, qui
+s'obtient à jour avec :
+
+    fpctl ingest -h                    la liste des catégories
+    fpctl ingest <catégorie> -h        les sources d'une catégorie
+
+**fpctl ingest all** recharge le socle habituel — pas littéralement chaque
+source du catalogue : plusieurs sont délibérément hors chaîne par défaut
+(coûteuses, ponctuelles, ou exigeant une clé ou un binaire particulier).
+**fpctl ingest** *catégorie* **all** est plus large : toutes les sources de
+cette catégorie, y compris ce qu'elle a de plus coûteux — une décision
+explicite du côté de qui la lance, pas un oubli du côté de fpctl.
 
 Chaque téléchargement passe par l'archive scellée (**internal/archive**) :
 un document est identifié par l'empreinte de ses octets, jamais écrasé,
 toute récupération est datée — voir docs/perimetre.md §2.5.
 
+# CATÉGORIES
+
+**parlement**
+:   Assemblée nationale, Sénat, Parlement européen, votes, textes,
+    élections nationales.
+
+**collectivites**
+:   Communes, intercommunalités, élections locales, finances locales.
+
+**budget**
+:   Finances publiques, aides aux entreprises, paie.
+
+**social**
+:   Santé, vieillesse, jeunesse, pauvreté/richesse, éducation, logement,
+    justice, culture.
+
+**environnement**
+:   Eau, écologie, agriculture, géographie hydrologique.
+
+**economie**
+:   Appareil productif, commerce extérieur, commande publique.
+
+**transparence**
+:   Intégrité publique, fiscalité comparée, souveraineté numérique, moteur
+    « dossiers/faits ».
+
+**international**
+:   Comparaisons internationales et géopolitique.
+
+**systeme**
+:   Infrastructure partagée, pas propre à un dossier (migrations, contours
+    de base, empreintes de section, médias).
+
 # OPTIONS
 
-**-only** *source*
-:   Ne recharge que cette source. Valeurs notables :
+**--raw** *répertoire*
+:   Répertoire de l'archive scellée. Par défaut **raw**.
 
-    **migrate**
-    :   Applique les migrations de schéma en attente.
-
-    **checksums**
-    :   Recalcule seulement les empreintes de section
-        (**core.section_checksum**) sans rien recharger — rarement
-        nécessaire seul, une ingestion complète le fait déjà en dernière
-        étape.
-
-    *un connecteur*
-    :   Le nom d'une source précise (communes, senat, hatvp,
-        presidentielle, budget, macro, vieillesse, jeunesse, sante,
-        rpps...). La liste complète, tenue à jour dans le code plutôt que
-        recopiée ici, s'obtient avec :
-
-            fpctl ingest data -h
+**--migrations** *répertoire*
+:   Répertoire des migrations. Par défaut **db/migrations**.
 
 # VOIR AUSSI
 

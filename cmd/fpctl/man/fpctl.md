@@ -32,9 +32,9 @@ Dans les deux cas, fpctl ne réimplémente rien.
 **build site** [options]
 :   Génère le site statique et le met en place. Voir **fpctl-build**(1).
 
-**ingest data** [options]
-:   Télécharge, archive et charge les jeux de données sources.
-    Voir **fpctl-ingest**(1).
+**ingest all** | **ingest** *catégorie* [**all**|*source*]
+:   Télécharge, archive et charge les jeux de données sources, rangées par
+    catégorie thématique. Voir **fpctl-ingest**(1).
 
 **verify data**
 :   Contrôles de cohérence des données chargées, avant publication.
