@@ -716,6 +716,13 @@ table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 .ports-fr .ligne-nantes{fill:none;stroke:#7A6A2F;stroke-width:2}
 .ports-fr .pt-nantes,.ports-fr .lbl-nantes{fill:#7A6A2F}
 
+/* Établissements pénitentiaires : un seuil à 100 %, une seule teinte pour
+   les vingt barres — c'est le classement qui informe, pas une couleur. */
+.barres-surpeuplement .cat{font:500 .62rem/1 var(--sans);text-anchor:end}
+.barres-surpeuplement .val{font:600 .66rem/1 var(--mono)}
+.barres-surpeuplement .barre{fill:var(--accent)}
+.barres-surpeuplement .seuil{stroke:var(--contre);stroke-width:1;stroke-dasharray:3 3}
+
 /* Comparaison européenne : la France en accent, les trois ports du range
    nord-européen en neutre — le contraste de longueur des barres est le
    fait, pas besoin de couleurs distinctes pour Rotterdam/Anvers/Hambourg. */

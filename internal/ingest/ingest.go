@@ -512,6 +512,12 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\nLigne de démarcation (Département de l'Ain)")
 		return geo.IngestLigneDemarcation(ctx, pool, arch)
 	}
+	// La population détenue par établissement pénitentiaire. Voir
+	// docs/justice-donnees.md. Hors chaîne par défaut.
+	if only == "etablissements-penitentiaires" {
+		fmt.Println("\npopulation détenue par établissement (ministère de la Justice)")
+		return macro.IngestEtablissementsPenitentiaires(ctx, pool, arch)
+	}
 	// Le trafic des ports français et la comparaison européenne. Voir
 	// docs/ports-donnees.md. Hors chaîne par défaut.
 	if only == "ports" {

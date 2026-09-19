@@ -1,6 +1,6 @@
 # La justice : moyens, programmation et délais
 
-> **Dossier** · version 1 · 15 septembre 2026
+> **Dossier** · version 2 · 19 septembre 2026
 >
 > Ce que coûte le service public de la justice (tribunaux, prisons, protection judiciaire de la jeunesse, aide juridictionnelle), ce que la loi de programmation 2023-2027 a promis, et ce qu'en dit le contrôle parlementaire. Le dossier ne part d'aucune thèse et suit le plan commun des dossiers.
 
@@ -73,6 +73,36 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 <!-- faits:BUDGET:fin -->
 
+### La population détenue par établissement : où la surpopulation se concentre
+
+<!-- schema:justice-surpeuplement -->
+
+Le ministère de la Justice publie chaque mois la population détenue et la
+capacité opérationnelle de chaque établissement (et de chaque quartier au
+sein d'un même établissement — un centre pénitentiaire peut compter
+plusieurs quartiers de régimes différents, chacun sa propre densité). Le
+taux national (détenus / places, calculé par la source elle-même) est de
+**89 556 détenus pour 63 246 places, soit une densité de 141,6 %** au 1ᵉʳ
+août 2026 — cohérent avec l'ordre de grandeur de 120 à 150 % le plus
+souvent cité, mais ce dossier va plus loin en montrant où cette moyenne
+nationale se concentre : les vingt quartiers les plus denses dépassent
+tous 200 %, essentiellement des maisons d'arrêt (MA/QMA), jamais des
+centres de détention ou des maisons centrales, dont le régime de peines
+longues implique un numerus clausus plus strict.
+
+**Une anomalie réelle de la source, signalée plutôt que corrigée** : un
+quartier (CP Vendin-le-Vieil, quartier maison centrale) est publié avec
+une capacité opérationnelle de zéro place pour 104 détenus réels — un
+artefact d'enregistrement de la source elle-même (une densité « infinie »
+n'a pas de sens), exclu du classement ci-dessus mais compté dans le total
+national de détenus.
+
+**Cette version ne cartographie pas les établissements** : le fichier
+source ne publie ni identifiant officiel ni coordonnées géographiques,
+seulement un nom d'établissement — un géocodage par nom et commune serait
+nécessaire pour une carte, non fait dans cette version faute de temps de
+vérification suffisant pour environ 180 établissements.
+
 ### Constats chiffrés cités
 
 <!-- faits:SITUATION:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
@@ -84,7 +114,8 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 ## Ce que les données ne disent pas
 
 - **Les délais de jugement par juridiction** : publiés par le ministère dans ses annuaires statistiques, non chargés (`NOT_LOADED`).
-- **La population carcérale et le taux d'occupation par établissement** : statistiques mensuelles de l'administration pénitentiaire, non chargées ; le dossier ne cite que le constat du Sénat sur les maisons d'arrêt.
+- **La géolocalisation des établissements pénitentiaires** : la population détenue par établissement est chargée (voir « La population détenue par établissement » ci-dessus), mais sans identifiant officiel ni coordonnées dans la source — pas de carte dans cette version.
+- **La série longue de la population carcérale nationale** (1980-2026) : identifiée (*Séries statistiques des personnes placées sous main de justice*, ministère de la Justice) mais non chargée dans cette version.
 - **Les comparaisons européennes** autrement que par le rapport du Sénat : les données de la CEPEJ ne sont pas chargées.
 - **L'exécution par mission et par programme** : seuls les projets de loi de finances 2024 et 2025 sont chargés ; les rapports annuels de performances et la situation mensuelle par mission ne le sont pas (`NOT_LOADED`).
 - **La série longue** : avant 2024, les jeux de la Direction du budget changent de nom et de schéma ; non chargés à ce stade.
@@ -114,7 +145,9 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 | [Loi n° 2023-1059 d'orientation et de programmation du ministère de la justice](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000048430512) | PRIMARY_OFFICIAL |
 | Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
 | Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
+| Ministère de la Justice, statistique mensuelle des établissements pénitentiaires (GENESIS/DGAP) | PRIMARY_OFFICIAL |
 
 ## Versions
 
+- **Version 2** (19 septembre 2026) : population détenue chargée par établissement et par quartier (ministère de la Justice, 272 lignes, dix directions interrégionales) — les vingt quartiers les plus densément peuplés, et l'écart entre densité nationale et concentration réelle du surpeuplement.
 - **Version 1** (15 septembre 2026) : crédits par programme, textes, constats du Sénat sur le projet de loi de finances pour 2026, mots suivis dans les débats.

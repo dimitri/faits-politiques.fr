@@ -2108,6 +2108,17 @@ var checks = []check{
 		min:   1,
 	},
 	{
+		name:  "Justice : les dix directions interrégionales sont chargées",
+		query: `SELECT count(DISTINCT direction_interregionale) FROM core.etablissement_penitentiaire`,
+		min:   10,
+	},
+	{
+		// La densité (détenus/capacité) ne peut être négative ; une valeur
+		// négative signalerait une colonne mal alignée à la lecture.
+		name:  "Justice : aucune densité carcérale négative",
+		query: `SELECT count(*) FROM core.etablissement_penitentiaire WHERE densite_pct < 0`,
+	},
+	{
 		name:  "Ports : au moins 40 ports français chargés (SDES)",
 		query: `SELECT count(DISTINCT port) FROM core.trafic_portuaire`,
 		min:   40,

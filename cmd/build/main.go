@@ -1151,6 +1151,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	statsJustice, err := chargerJustice(ctx, pool)
+	if err != nil {
+		return err
+	}
 	schemaSIPRI, err := chargerSIPRI(ctx, pool)
 	if err != nil {
 		return err
@@ -1514,6 +1518,13 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 				`<figure class="schema"><div class="carte-pleine">`+string(schemaPortsEurope)+`</div>`+
 					`<figcaption>Trafic total, dernière année disponible par port (Eurostat, mar_go_aa) — `+
 					`l'année diffère selon le port, indiquée entre parenthèses.</figcaption></figure>`))
+		}
+		if statsJustice != nil && strings.Contains(string(d.Corps), "<!-- schema:justice-surpeuplement -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:justice-surpeuplement -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(statsJustice.TopSurpeuplementSVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>Les vingt quartiers d'établissement les plus densément peuplés sur %d `+
+						`lignes chargées (établissement × quartier), ministère de la Justice, dernière donnée mensuelle. `+
+						`La ligne verticale marque 100 %% (capacité atteinte).</figcaption></figure>`, statsJustice.NbLignes)))
 		}
 		if schemaSIPRI != "" && strings.Contains(string(d.Corps), "<!-- schema:sipri-milex -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sipri-milex -->",
