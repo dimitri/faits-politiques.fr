@@ -93,7 +93,8 @@ var familles = []*Famille{
 	{ID: "ecole-recherche-culture", Nom: "École, recherche et culture", Base: "sujets",
 		Intro: "L'enseignement scolaire, les universités et la recherche, la culture, le sport.",
 		Cofog: []string{"GF09", "GF08"}, Sujets: []*Sujet{
-			{ID: "education", Nom: "Éducation nationale", Doc: "education-donnees", Pages: []LienPage{{"La jeunesse : études supérieures, apprentissage, premiers emplois", "jeunesse/"}}},
+			{ID: "education", Nom: "Éducation nationale", Doc: "education-donnees"},
+			{ID: "jeunesse", Nom: "Jeunesse : études, apprentissage, insertion", Doc: "jeunesse-donnees", Pages: []LienPage{{"La jeunesse : études supérieures, apprentissage, premiers emplois", "jeunesse/"}}},
 			{ID: "recherche", Nom: "Recherche et universités", Doc: "recherche-enseignement-superieur-donnees"},
 			{ID: "culture", Nom: "Culture et audiovisuel public", Doc: "culture-donnees"},
 			{ID: "sport", Nom: "Sport et vie associative", Doc: "sport-vie-associative-donnees"},
