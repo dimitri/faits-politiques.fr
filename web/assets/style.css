@@ -707,6 +707,17 @@ stroke-linejoin:round;stroke-linecap:round}
 .boite-moustaches .repere-100{stroke:var(--encre);stroke-width:1;stroke-dasharray:3 3;opacity:.5}
 .boite-moustaches .et-100{font:500 .66rem/1 var(--mono);fill:var(--attenue);text-anchor:middle}
 
+/* Emploi total vs salarié : l'écart entre les deux EST le nombre de
+   non-salariés — pas de troisième trait à cette échelle (voir le
+   commentaire de chargerEmploiTotalSalarie). */
+.emploi-total .grille{stroke:var(--filet);stroke-width:1}
+.emploi-total .total{fill:none;stroke:var(--encre);stroke-width:2}
+.emploi-total .total-pt{fill:var(--encre)}
+.emploi-total .total-lbl{fill:var(--encre);font:700 .74rem/1 var(--sans)}
+.emploi-total .salarie{fill:none;stroke:var(--accent);stroke-width:2}
+.emploi-total .salarie-pt{fill:var(--accent)}
+.emploi-total .salarie-lbl{fill:var(--accent);font:600 .74rem/1 var(--sans)}
+
 /* Bandeau d'un candidat : portrait, organisation, nom. */
 .tete .qui{display:flex;gap:.9rem;align-items:center;min-width:0}
 .tete .qui .credit{display:block;font:400 .66rem/1.35 var(--mono);

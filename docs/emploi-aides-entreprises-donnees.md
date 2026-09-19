@@ -72,6 +72,10 @@ Comptabilité nationale (Insee/Eurostat, `nama_10_pe`), concept intérieur — l
 produisant sur le territoire français, y compris les non-résidents, quel que soit leur
 statut :
 
+<!-- schema:emploi-total-salarie -->
+
+Quelques années, sur les 51 chargées :
+
 | Année | Emploi total (milliers) | Emploi salarié (milliers) | Non-salariés (milliers) |
 |---|---:|---:|---:|
 | 1975 | 21 832 | 18 036 | 3 796 |

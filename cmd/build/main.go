@@ -1099,6 +1099,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	schemaEmploiTotal, err := chargerEmploiTotalSalarie(ctx, pool)
+	if err != nil {
+		return err
+	}
 	carteBassins, err := chargerCarteBassins(ctx, pool)
 	if err != nil {
 		return err
@@ -1281,6 +1285,12 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 					`<figcaption>Dépense de protection de l'environnement, ensemble de l'économie — `+
 					`Eurostat (env_epea_neep), millions d'euros courants convertis en milliards.`+
 					`</figcaption></figure>`))
+		}
+		if schemaEmploiTotal != "" && strings.Contains(string(d.Corps), "<!-- schema:emploi-total-salarie -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:emploi-total-salarie -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(schemaEmploiTotal)+`</div>`+
+					`<figcaption>Emploi total et salarié, France, 1975-2025 — Eurostat (nama_10_pe). `+
+					`L'écart entre les deux courbes est le nombre de non-salariés.</figcaption></figure>`))
 		}
 		if carteBassins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-bassins -->") {
 			var legende strings.Builder
