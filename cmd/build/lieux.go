@@ -140,7 +140,15 @@ func chargerResolveur(ctx context.Context, pool *pgxpool.Pool, root string,
 	}
 	crows.Close()
 	for _, d := range col.Departements {
-		r.deptPage[d.Code] = true
+		// Un département fusionné (Alsace 67/68, Corse 2A/2B, Martinique
+		// 972, Guyane 973 — voir fusionConnue) reste dans col.Departements
+		// pour être listé comme tel, mais n'a pas sa propre page écrite sur
+		// le disque : le marquer ici comme "page existante" produirait un
+		// lien mort (repéré sur les pages de député d'Alsace, qui pointaient
+		// vers /collectivites/departement/67/, jamais générée).
+		if !d.SansBudgetPropre {
+			r.deptPage[d.Code] = true
+		}
 		if r.depts[d.Code] == "" {
 			r.depts[d.Code] = d.Nom
 		}
@@ -204,6 +212,15 @@ func (r *Resolveur) urlEPCI(siren string) string {
 func (r *Resolveur) urlDept(code string) string {
 	if r.deptPage[code] {
 		return r.root + "/collectivites/departement/" + code + "/"
+	}
+	// Un département fusionné (voir fusionConnue, cmd/build/collectivites.go)
+	// n'a pas sa propre page : renvoyer vers la collectivité qui tient
+	// désormais son budget plutôt qu'un lien mort ou une absence de lien.
+	if f, ok := fusionConnue[code]; ok {
+		if f.niveau == "REGION" {
+			return r.urlRegion(f.code)
+		}
+		return r.urlDept(f.code)
 	}
 	return ""
 }

@@ -1115,7 +1115,12 @@ func pagesCollectivites(ctx context.Context, pool *pgxpool.Pool, st *StatsCollec
 				p.Lignes = append(p.Lignes, l)
 			}
 			for _, autre := range jeu.liste {
-				if autre.Code == c.Code {
+				// Un département fusionné (SansBudgetPropre) n'a pas sa
+				// propre page : l'omettre ici plutôt que produire un lien
+				// mort — la collectivité qui tient désormais son budget
+				// (ex. "67A" pour le Bas-Rhin) apparaît de toute façon comme
+				// sa propre entrée dans jeu.liste, à sa place.
+				if autre.Code == c.Code || autre.SansBudgetPropre {
 					continue
 				}
 				s := autre.Slug

@@ -906,18 +906,11 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	// Les cartes de situation : un fond commun écrit une fois, un calque par page.
 	// Sur la carte de situation, chaque département mène à sa page ; un
 	// département fusionné (Alsace, Corse, Martinique, Guyane) mène à la
-	// collectivité qui tient son budget. Mandataire pour d'autres sections
-	// (région, département) : chargé qu'importe si « communes » est recopiée.
+	// collectivité qui tient son budget — Resolveur.urlDept résout déjà ce
+	// repli via fusionConnue. Mandataire pour d'autres sections (région,
+	// département) : chargé qu'importe si « communes » est recopiée.
 	lienDept := func(code string) string {
-		u := lieux.urlDept(code)
-		if f, ok := fusionConnue[code]; ok && u == "" {
-			if f.niveau == "DEPARTEMENT" {
-				u = lieux.urlDept(f.code)
-			} else {
-				u = lieux.urlRegion(f.code)
-			}
-		}
-		return strings.TrimPrefix(u, root+"/")
+		return strings.TrimPrefix(lieux.urlDept(code), root+"/")
 	}
 	fond, err := chargerFondSituation(ctx, pool, out, root, col.Exercice, lienDept)
 	if err != nil {
