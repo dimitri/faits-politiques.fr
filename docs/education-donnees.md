@@ -1,6 +1,6 @@
 # L'Éducation nationale : budget, effectifs, organisation
 
-> **Dossier** · version 4 · 15 septembre 2026
+> **Dossier** · version 5 · 19 septembre 2026
 >
 > Que coûte l'enseignement scolaire, combien de personnes y travaillent par
 > établissement, et comment l'autorité et la rémunération des enseignants sont-elles
@@ -165,11 +165,61 @@ moyenne par établissement) que dans le public (8,5 %)** — une mesure qui, ell
 porte sur la même catégorie de personnel (les enseignants payés par l'État)
 dans les deux secteurs, donc réellement comparable.
 
+### 7. La France en comparaison européenne : taille des classes, résultats PISA
+
+**La taille des classes** : Eurostat publiait une série comparable
+(`educ_iste`), mais elle s'est arrêtée en 2012 — dernière valeur française
+disponible, 22,7 élèves par classe dans le premier degré, un chiffre
+aujourd'hui trop ancien pour une comparaison actuelle. La source la plus
+récente est l'OCDE, *Regards sur l'éducation 2025* (données 2023, note
+pays France) : la France compte environ **21,6 à 22 élèves par classe dans
+le premier degré, contre une moyenne OCDE de 20,6** — une classe française
+de primaire compte donc, en moyenne, un élève de plus qu'ailleurs dans
+l'OCDE. Dans le secondaire privé, la moyenne monte jusqu'à 27, ce qu'une
+moyenne nationale unique masquerait si elle confondait public et privé.
+**Ces deux chiffres sont cités avec leur source précise, pas chargés comme
+une série requêtable** : ni Eurostat (série arrêtée) ni l'OCDE (publication
+en rapport et notes pays, pas de jeu de données ouvert structuré identifié
+pour cet indicateur) ne permettent une table vérifiable ligne à ligne.
+
+**Les résultats PISA 2022** (OCDE, *Résultats du PISA 2022*, volume I,
+tableau I.1) : la France obtient **474 points en mathématiques, 474 en
+compréhension de l'écrit et 487 en sciences**, à comparer aux moyennes
+OCDE de 472, 476 et 485 — une France proche de la moyenne dans les trois
+domaines, légèrement au-dessus en mathématiques et en sciences, légèrement
+en dessous en compréhension de l'écrit. **Une nuance que le niveau 2022
+seul ne montre pas** : la baisse par rapport à 2018 a été plus marquée en
+France que dans le reste de l'OCDE — mathématiques −21 points (OCDE −15),
+compréhension de l'écrit −19 points (OCDE −10), sciences −6 points (OCDE
+−2). Être dans la moyenne en niveau et avoir décroché plus vite que la
+moyenne sont deux faits distincts, tous deux réels, qu'il ne faut pas
+résumer par un seul qualificatif.
+
+**Un lien entre taille de classe et résultats scolaires n'est pas établi
+par l'OCDE elle-même** : dans son propre commentaire de ces données,
+l'OCDE relève que la Finlande (classes parmi les plus petites) et la
+Corée du Sud (classes parmi les plus grandes, plus de 34 élèves) figurent
+toutes deux parmi les pays les mieux classés à PISA, et avance que la
+qualité et la rémunération des enseignants pèsent davantage que l'effectif
+par classe. Ce dossier ne prétend donc pas relier les deux chiffres
+ci-dessus par une causalité que la source elle-même ne retient pas.
+
+**Deux pièges de comparabilité, réels** : la définition d'une « classe »
+n'est pas harmonisée d'un pays à l'autre (groupe-classe fixe ou groupe
+pédagogique variable selon les enseignements) ; et PISA teste des jeunes
+de 15 ans indépendamment de leur niveau scolaire — le redoublement, plus
+fréquent en France que dans la moyenne OCDE, modifie la composition d'âge
+des classes sans que les statistiques de taille de classe par niveau
+scolaire (fondées sur l'année d'étude, pas sur l'âge) le reflètent de la
+même manière.
+
 ## Ce que les données ne disent pas
 
 Les effectifs d'AESH, la dépense par élève et les séries longues ne sont pas
 disponibles en jeu de données ouvert structuré : la liste « Non chargé, et pourquoi » de
-l'annexe technique (§ 6) le détaille source par source.
+l'annexe technique (§ 6) le détaille source par source. La comparaison européenne du § 7
+repose sur des citations sourcées précisément, pas sur des séries chargées en base : voir
+ce paragraphe pour le détail de cette limite.
 
 ## Sources
 
@@ -183,6 +233,11 @@ l'annexe technique (§ 6) le détaille source par source.
 - Légifrance, Code de l'éducation, articles D. 422-5 à D. 422-11.
 - Cour des comptes, rapport sur les AESH, septembre 2024 (ordre de grandeur
   cité § 6, non chargé en base).
+- Eurostat, `educ_iste` (taille des classes, série arrêtée en 2012, citation
+  § 7).
+- OCDE, *Regards sur l'éducation 2025*, note pays France (taille des classes,
+  citation § 7).
+- OCDE, *Résultats du PISA 2022*, volume I, tableau I.1 (citation § 7).
 - [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
 
 ## Annexe technique
@@ -222,6 +277,12 @@ l'annexe technique (§ 6) le détaille source par source.
 
 ## Versions
 
+- **Version 5** (19 septembre 2026) : positionnement européen ajouté (§ 7) —
+  taille des classes (Eurostat, série arrêtée en 2012 ; OCDE, *Regards sur
+  l'éducation 2025*) et résultats PISA 2022 (OCDE, volume I), les deux cités
+  avec leur source précise plutôt que chargés en série requêtable ; l'absence
+  de lien établi entre taille de classe et résultats, relevée par l'OCDE
+  elle-même, y est signalée plutôt que passée sous silence.
 - **Version 4** (15 septembre 2026) : effectifs d'élèves du premier degré
   chargés (Depp, 2009-2025) — la baisse d'ETP enseignants du § 2 est deux
   fois moins rapide que la baisse d'effectifs, une question laissée ouverte
