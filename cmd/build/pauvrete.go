@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"strings"
@@ -27,11 +28,14 @@ type pointDecile struct {
 }
 
 func chargerSeuilsPauvrete(ctx context.Context, pool *pgxpool.Pool) (*SeuilsPauvrete, error) {
-	var annee int
+	// max(...) est une agrégation : la ligne existe même sans Filosofi encore
+	// ingéré, avec une année NULL.
+	var anneeN sql.NullInt64
 	if err := pool.QueryRow(ctx,
-		`SELECT max(annee) FROM core.filosofi_decile_national`).Scan(&annee); err != nil {
+		`SELECT max(annee) FROM core.filosofi_decile_national`).Scan(&anneeN); err != nil {
 		return nil, err
 	}
+	annee := int(anneeN.Int64)
 
 	rows, err := pool.Query(ctx, `
 		SELECT decile, niveau_vie_mensuel FROM core.filosofi_decile_national
@@ -57,13 +61,17 @@ func chargerSeuilsPauvrete(ctx context.Context, pool *pgxpool.Pool) (*SeuilsPauv
 	}
 
 	st := &SeuilsPauvrete{Annee: annee}
+	// max(...) FILTER(...) est une agrégation : la ligne existe même sans
+	// seuil encore ingéré pour cette année, avec des valeurs NULL.
+	var seuil50, seuil60 sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		SELECT max(seuil_euros) FILTER (WHERE seuil_relatif = 0.5),
 		       max(seuil_euros) FILTER (WHERE seuil_relatif = 0.6)
 		FROM core.pauvrete_seuil_annuel WHERE annee = $1`, annee).
-		Scan(&st.Seuil50, &st.Seuil60); err != nil {
+		Scan(&seuil50, &seuil60); err != nil {
 		return nil, err
 	}
+	st.Seuil50, st.Seuil60 = seuil50.Float64, seuil60.Float64
 
 	format := func(v float64) string { return Decimal(v, 0) + " €" }
 	st.SVG = dessinerSeuilsPauvrete(deciles, st.Seuil50, st.Seuil60, format)
