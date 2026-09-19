@@ -591,6 +591,12 @@ func run(ctx context.Context, only, rawDir, migDir string) error {
 		fmt.Println("\nreport modal conteneurs, comparaison européenne")
 		return macro.IngestReportModalConteneurs(ctx, pool, arch)
 	}
+	// Les résultats du contrôle fiscal (notifié/encaissé), 2015-2024. Voir
+	// docs/fraude-fiscale-donnees.md. Hors chaîne par défaut.
+	if only == "controle-fiscal" {
+		fmt.Println("\ncontrôle fiscal (résultats, 2015-2024)")
+		return macro.IngestControleFiscal(ctx, pool, arch)
+	}
 	// L'Accord de Paris : signature et ratification, pays par pays (ONU).
 	// Voir docs/climat-international-donnees.md. Hors chaîne par défaut.
 	if only == "accord-paris" {

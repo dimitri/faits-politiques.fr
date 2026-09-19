@@ -1,6 +1,6 @@
 # Fraude fiscale : ce qu'on sait chiffrer, ce qu'on ne sait pas
 
-> **Dossier** · version 1 · 17 septembre 2026
+> **Dossier** · version 2 · 19 septembre 2026
 >
 > « 30 à 100 milliards d'euros » : le chiffre le plus cité sur la fraude
 > fiscale en France n'est établi par aucune institution — les estimations
@@ -51,20 +51,28 @@ mécanisme réel, distinct de la question du chiffrage global des § 3 et 4
 ci-dessous : il dit ce qui est **sanctionné publiquement**, pas ce qui
 **existe** en fraude non détectée.
 
-### 2. Le contrôle fiscal : aucun jeu de données ouvert trouvé
+### 2. Le contrôle fiscal réel : ce qui est notifié, ce qui est encaissé
 
-Le nombre de contrôles fiscaux, les droits rappelés et les pénalités
-appliquées chaque année sont des chiffres réels, publiés — mais **pas en
-open data**. Vérifié directement : le jeu de données « Tableaux
-statistiques » de la DGFiP sur data.gouv.fr (17 fichiers, 2004-2022) ne
-couvre que l'assiette et les recettes fiscales (IR, IS, TVA, CFE-CVAE, IFI,
-DMTO), jamais le contrôle fiscal ; une recherche en texte intégral sur
-data.gouv.fr pour « contrôle fiscal » et pour « fraude fiscale » ne retourne
-aucun jeu de données. Ces chiffres existent uniquement sous forme d'articles
-de presse institutionnelle (economie.gouv.fr) et d'indicateurs de
-performance dans les annexes budgétaires (programme 156), publiés en HTML
-ou PDF, pas en tableau exploitable. **Non chargé, faute de source
-structurée — pas un oubli.**
+<!-- schema:controle-fiscal -->
+
+Le nombre de contrôles fiscaux n'existe dans aucune source ouverte trouvée
+à ce jour (voir § 5) — mais les **montants**, eux, sont vérifiables :
+vérifié directement, le jeu de données « Tableaux statistiques » de la
+DGFiP sur data.gouv.fr ne couvre que l'assiette et les recettes fiscales
+(IR, IS, TVA, CFE-CVAE, IFI, DMTO), jamais l'activité de contrôle, et
+economie.gouv.fr bloque l'accès direct à ses communiqués (pare-feu). Les
+montants ci-dessus viennent de trois rapports du Sénat (commission des
+finances), recoupés entre eux sur les années communes.
+
+**Deux chiffres, jamais confondus** : le **notifié** (droits et pénalités
+mis en recouvrement, avant recours et négociation) et l'**encaissé**
+(ce que l'État perçoit effectivement) ne mesurent pas la même chose — sur
+2015-2021, l'écart entre les deux atteint en moyenne près de 30 %. **Le
+notifié 2022 et 2023 n'a été retrouvé dans aucune des trois sources
+consultées** : la ligne s'interrompt sur ces deux années sur le graphique
+plutôt que d'être devinée ou interpolée. Le notifié 2024 (16,6 Md€) est
+**déduit** de l'écart notifié/encaissé que le rapport 2025 publie
+explicitement (11,4 + 5,2 Md€), pas cité tel quel par la source.
 
 ### 3. L'écart de TVA : un chiffrage réel, méthodologiquement validé
 
@@ -116,8 +124,16 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 ### 5. Ce qui reste hors de portée de cette version
 
-- **Le contrôle fiscal réel** (§ 2) : nombre de contrôles, droits rappelés,
-  pénalités — aucune source structurée trouvée en open data à ce jour.
+- **Le nombre de contrôles fiscaux réalisés chaque année** (§ 2) : les
+  montants notifiés et encaissés sont chargés, pas le nombre de contrôles
+  (sur place, sur pièces) — aucune source structurée trouvée à ce jour.
+- **Le notifié 2022 et 2023** (§ 2) : non retrouvé dans les trois rapports
+  du Sénat consultés — un chiffre existe sans doute quelque part, pas
+  vérifié directement au moment du chargement.
+- **La part des contrôles ciblés par datamining/IA** : citée dans un des
+  rapports (56 % des contrôles professionnels en 2024, contre 22 % en
+  2019) mais seulement deux points de repère, pas une série continue —
+  non chargée en table pour cette raison.
 - **L'écart fiscal total, tous impôts confondus** : seul l'écart de TVA
   (§ 3) est chiffré avec une méthode publiée et validée ; rien d'équivalent
   n'a été trouvé pour l'impôt sur le revenu, l'impôt sur les sociétés ou les
@@ -135,12 +151,25 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 - data.gouv.fr, jeu de données *Tableaux statistiques de la Direction
   générale des finances publiques (DGFiP)* — vérifié pour son absence de
   données de contrôle fiscal.
+- Sénat, commission des finances, rapport d'information n° 72 (2022-2023),
+  *Fraude et évasion fiscales : faire les comptes et intensifier la lutte*
+  (§ 2, montants 2015-2021).
+- Sénat, commission des finances, rapport n° l24-034-215-1 (2024), sur les
+  résultats de la gestion et l'approbation des comptes de l'État pour 2023
+  (§ 2, montants 2022-2023).
+- Sénat, commission des finances, rapport n° l25-139-314, projet de loi de
+  finances pour 2026 (§ 2, montants 2024).
 - Conseil des prélèvements obligatoires, rapport 2007 sur la fraude fiscale.
 - Solidaires Finances Publiques, rapport 2018 sur le coût social de la
   fraude fiscale et sociale.
 
 ## Versions
 
+- **Version 2** (19 septembre 2026) : résultats du contrôle fiscal chargés
+  (notifié et encaissé, 2015-2024, trois rapports du Sénat recoupés) — le
+  premier vrai chiffrage de l'activité de contrôle dans ce dossier, au-delà
+  de l'écart de TVA. Le notifié 2022-2023, non retrouvé dans une source
+  primaire, reste explicitement absent plutôt que deviné.
 - **Version 1** (17 septembre 2026) : l'écart de TVA (6 à 10 Md€, DGFiP,
   méthode validée par contrôles aléatoires) distingué explicitement du
   chiffre médiatique 30-100 Md€, jamais établi par une institution ;

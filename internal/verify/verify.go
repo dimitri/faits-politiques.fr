@@ -2231,6 +2231,24 @@ var checks = []check{
 		        ) x WHERE p1921 >= p1911`,
 	},
 	{
+		name:  "Contrôle fiscal : au moins 10 années chargées, 2015-2024",
+		query: `SELECT count(*) FROM core.controle_fiscal_resultats WHERE annee BETWEEN 2015 AND 2024`,
+		min:   10,
+	},
+	{
+		// Le notifié 2022 et 2023 n'a jamais été retrouvé dans une source
+		// primaire : si une valeur apparaissait un jour à cette place, ce
+		// serait un ajout à vérifier, pas un chargement silencieux.
+		name:  "Contrôle fiscal : le notifié 2022 et 2023 reste bien non chargé",
+		query: `SELECT count(*) FROM core.controle_fiscal_resultats WHERE annee IN (2022,2023) AND montant_notifie_m IS NOT NULL`,
+	},
+	{
+		// L'encaissé ne peut jamais dépasser le notifié : on ne recouvre pas
+		// plus que ce qui a été mis en recouvrement.
+		name:  "Contrôle fiscal : l'encaissé ne dépasse jamais le notifié",
+		query: `SELECT count(*) FROM core.controle_fiscal_resultats WHERE montant_notifie_m IS NOT NULL AND montant_encaisse_m > montant_notifie_m`,
+	},
+	{
 		name:  "Outre-mer : l'écart de prix couvre les cinq DOM en 2022",
 		query: `SELECT count(*) FROM core.ecart_prix_dom WHERE annee=2022`,
 		min:   5,

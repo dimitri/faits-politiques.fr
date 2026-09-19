@@ -807,6 +807,19 @@ table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 .population-guerres .ligne-pop{fill:none;stroke:var(--accent);stroke-width:2.2}
 .population-guerres .pt-pop{fill:var(--accent)}
 
+/* Contrôle fiscal : notifié (avant recours) contre encaissé (effectivement
+   recouvré) — le notifié est en pointillés, un chiffre annoncé plutôt que
+   perçu ; les deux années sans notifié coupent la ligne (traceSegments,
+   cmd/build/fraude_fiscale.go), pas une droite qui inventerait la donnée. */
+.controle-fiscal .grille{stroke:var(--filet);stroke-width:1}
+.controle-fiscal .ligne-notifie{fill:none;stroke:var(--attenue);stroke-width:2;stroke-dasharray:4 3}
+.controle-fiscal .ligne-encaisse{fill:none;stroke:var(--accent);stroke-width:2.4}
+.controle-fiscal .pt-notifie{fill:var(--attenue)}
+.controle-fiscal .pt-notifie.calcule{fill:var(--papier);stroke:var(--attenue);stroke-width:1.2}
+.controle-fiscal .pt-encaisse{fill:var(--accent)}
+.controle-fiscal .lbl-notifie{font:600 .7rem/1 var(--sans);fill:var(--attenue)}
+.controle-fiscal .lbl-encaisse{font:700 .74rem/1 var(--sans);fill:var(--accent)}
+
 /* SIPRI, dépense militaire : trois pays nommés, six en gris — nommer les
    dix aurait produit une légende plus longue que le graphique. */
 .sipri-milex .grille{stroke:var(--filet);stroke-width:1}

@@ -1,6 +1,6 @@
 # Bassins versants : la gouvernance de l'eau qui existe déjà
 
-> **Dossier** · version 2 · 15 septembre 2026
+> **Dossier** · version 5 · 17 septembre 2026
 >
 > Comment la gestion de l'eau est-elle organisée en France, à quelle échelle, et
 > par qui ? Le dossier décrit l'architecture qui existe — comités de bassin, agences de

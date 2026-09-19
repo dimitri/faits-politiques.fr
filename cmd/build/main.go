@@ -1144,6 +1144,10 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err != nil {
 		return err
 	}
+	controleFiscal, err := chargerControleFiscal(ctx, pool)
+	if err != nil {
+		return err
+	}
 	schemaPortsFrancais, err := chargerPortsFrancais(ctx, pool)
 	if err != nil {
 		return err
@@ -1565,6 +1569,20 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 						`où le recul de la Seconde Guerre mondiale aurait été le plus visible.</figcaption></figure>`,
 						Nombre(int(populationGuerres.Pop1911)), Nombre(int(populationGuerres.Pop1921)),
 						Nombre(int(populationGuerres.BaisseAbsolue)), Decimal(populationGuerres.BaissePct, 1))))
+		}
+		if controleFiscal != nil && strings.Contains(string(d.Corps), "<!-- schema:controle-fiscal -->") {
+			calcule := ""
+			if controleFiscal.DernierNotifieCalcule {
+				calcule = " (déduit de l'écart notifié/encaissé publié, non cité tel quel par la source)"
+			}
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:controle-fiscal -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(controleFiscal.SVG)+`</div>`+
+					fmt.Sprintf(`<figcaption>Résultats du contrôle fiscal, France entière, 2015-%d (Sénat, commission `+
+						`des finances) — en %d, %s Md€ notifiés%s contre %s Md€ effectivement encaissés. Le notifié `+
+						`2022 et 2023 n'a été retrouvé dans aucune des trois sources primaires consultées : la ligne `+
+						`pointillée s'interrompt sur ces deux années plutôt que d'être devinée.</figcaption></figure>`,
+						controleFiscal.DernierAnnee, controleFiscal.DernierAnnee,
+						Decimal(controleFiscal.DernierNotifie, 1), calcule, Decimal(controleFiscal.DernierEncaisse, 1))))
 		}
 		if schemaPortsFrancais != "" && strings.Contains(string(d.Corps), "<!-- schema:ports-francais -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:ports-francais -->",
