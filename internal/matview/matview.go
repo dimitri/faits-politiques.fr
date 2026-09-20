@@ -216,6 +216,31 @@ var Catalogue = []Definition{
 	GROUP BY code, exercice`,
 	},
 	{
+		Nom:    "dept_budget_commune",
+		Tables: []string{"core.commune_indicator", "ref.commune"},
+		SQL: `SELECT rc.code_departement,
+	     f.period_year,
+	     coalesce(sum(f.value*p.value) FILTER (WHERE f.indicator_code='ofgl.fonctionnement_par_hab'),0)::float8 AS fonctionnement,
+	     coalesce(sum(f.value*p.value) FILTER (WHERE f.indicator_code='ofgl.investissement_par_hab'),0)::float8 AS investissement
+	FROM core.commune_indicator f
+	JOIN core.commune_indicator p ON p.commune_code=f.commune_code AND p.period_year=f.period_year
+	 AND p.indicator_code='ofgl.population_totale'
+	JOIN ref.commune rc ON rc.code_insee=f.commune_code AND rc.cog_millesime=f.cog_millesime
+	WHERE f.indicator_code IN ('ofgl.fonctionnement_par_hab','ofgl.investissement_par_hab')
+	GROUP BY rc.code_departement, f.period_year`,
+	},
+	{
+		Nom:    "dept_budget_epci",
+		Tables: []string{"core.collectivite_budget", "core.epci"},
+		SQL: `SELECT e.code_departement,
+	     b.exercice,
+	     coalesce(sum(b.montant) FILTER (WHERE b.indicator_code='ofgl.fonctionnement_par_hab'),0)::float8 AS fonctionnement,
+	     coalesce(sum(b.montant) FILTER (WHERE b.indicator_code='ofgl.investissement_par_hab'),0)::float8 AS investissement
+	FROM core.collectivite_budget b JOIN core.epci e ON e.siren=b.code
+	WHERE b.niveau='GROUPEMENT' AND e.code_departement IS NOT NULL
+	GROUP BY e.code_departement, b.exercice`,
+	},
+	{
 		Nom:    "population_nationale_annee",
 		Tables: []string{"core.population_historique_commune"},
 		SQL: `SELECT annee, sum(population) AS population

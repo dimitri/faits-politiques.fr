@@ -207,17 +207,12 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	nrows.Close()
 
 	// Budgets agrégés par département : communes (montant par habitant ×
-	// population) et groupements à fiscalité propre (montant publié).
+	// population) et groupements à fiscalité propre (montant publié) — mv.
+	// dept_budget_commune/mv.dept_budget_epci (internal/matview) remplacent
+	// le calcul.
 	crows, err := pool.Query(ctx, `
-		SELECT rc.code_departement,
-		       coalesce(sum(f.value*p.value) FILTER (WHERE f.indicator_code='ofgl.fonctionnement_par_hab'),0)::float8,
-		       coalesce(sum(f.value*p.value) FILTER (WHERE f.indicator_code='ofgl.investissement_par_hab'),0)::float8
-		FROM core.commune_indicator f
-		JOIN core.commune_indicator p ON p.commune_code=f.commune_code AND p.period_year=f.period_year
-		 AND p.indicator_code='ofgl.population_totale'
-		JOIN ref.commune rc ON rc.code_insee=f.commune_code AND rc.cog_millesime=f.cog_millesime
-		WHERE f.period_year=$1 AND f.indicator_code IN ('ofgl.fonctionnement_par_hab','ofgl.investissement_par_hab')
-		GROUP BY 1`, exercice)
+		SELECT code_departement, fonctionnement, investissement
+		FROM mv.dept_budget_commune WHERE period_year=$1`, exercice)
 	if err != nil {
 		return nil, err
 	}
@@ -230,12 +225,8 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	}
 	crows.Close()
 	erows, err := pool.Query(ctx, `
-		SELECT e.code_departement,
-		       coalesce(sum(b.montant) FILTER (WHERE b.indicator_code='ofgl.fonctionnement_par_hab'),0)::float8,
-		       coalesce(sum(b.montant) FILTER (WHERE b.indicator_code='ofgl.investissement_par_hab'),0)::float8
-		FROM core.collectivite_budget b JOIN core.epci e ON e.siren=b.code
-		WHERE b.niveau='GROUPEMENT' AND b.exercice=$1 AND e.code_departement IS NOT NULL
-		GROUP BY 1`, exercice)
+		SELECT code_departement, fonctionnement, investissement
+		FROM mv.dept_budget_epci WHERE exercice=$1`, exercice)
 	if err != nil {
 		return nil, err
 	}
