@@ -3,18 +3,22 @@ package main
 import (
 	"context"
 	"fmt"
+	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/pipeline"
 	"github.com/faits-politiques/faits-politiques/internal/sources"
 	"github.com/faits-politiques/faits-politiques/internal/stats"
 	"github.com/faits-politiques/faits-politiques/internal/store"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/spf13/cobra"
 )
 
 // commandeList : fpctl list sources, fpctl list connectors, fpctl list
-// stats — trois vues différentes sur la même question, « qu'est-ce qui est
-// chargé et par quoi » : les sources déclarées (raw.source), le code qui
-// les charge (les fonctions Ingest* d'internal/), et ce que ça pèse une
-// fois en base.
+// stats, fpctl list deps — quatre vues différentes sur la même question,
+// « qu'est-ce qui est chargé et par quoi » : les sources déclarées
+// (raw.source), le code qui les charge (les fonctions Ingest* d'internal/),
+// ce que ça pèse une fois en base, et — pour le seul socle parlementaire
+// audité (voir fpctl-ingest(1), LE SOCLE PARLEMENTAIRE) — dans quel ordre.
 func commandeList() *cobra.Command {
 	cmd := &cobra.Command{Use: "list", Short: "Liste une collection"}
 	cmd.AddCommand(
@@ -62,8 +66,132 @@ func commandeList() *cobra.Command {
 				return executerInterne(cmd.Context(), afficherStats(cmd.Context()))
 			},
 		},
+		&cobra.Command{
+			Use:   "deps",
+			Short: "Graphe de dépendances du socle parlementaire, tel que publié en base",
+			Long: "Le socle parlementaire (download, partis, normalize, carto, senat,\n" +
+				"europe, themes) est la seule partie du catalogue d'ingestion dont\n" +
+				"les dépendances sont déclarées et vérifiées — voir internal/pipeline\n" +
+				"et fpctl-ingest(1). Republié à chaque exécution touchant ce socle\n" +
+				"(fpctl ingest parlement ... ou l'une de ces sept sources) ; vide\n" +
+				"avant la première.",
+			Args: cobra.NoArgs,
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				return executerInterne(cmd.Context(), afficherDeps(cmd.Context()))
+			},
+		},
 	)
 	return cmd
+}
+
+// composantesEtape : ce que chaque étape du socle parlementaire remplit,
+// pour afficher combien ça pèse à côté du graphe — tenu à la main, comme
+// ingestPrealables (cmd/fpctl/build.go) : ces sept étapes sont assez rares
+// et assez stables pour que ça reste à jour sans registre séparé.
+//
+// SlugsSources : les documents archivés (raw.document, via raw.retrieval)
+// que cette étape télécharge — vide pour une étape qui n'en télécharge
+// aucun. Tables : ce qu'elle écrit dans core/derived, mesuré par
+// pg_total_relation_size — une table peut apparaître sous plusieurs étapes
+// (carto.IngestPresidents écrit dans core.person/core.mandate, que
+// normalize remplit aussi) : la taille affichée est alors celle de TOUTE
+// la table, pas la part de cette seule étape — une approximation
+// assumée pour un résumé de terminal, pas une comptabilité exacte.
+var composantesEtape = map[string]struct {
+	SlugsSources []string
+	Tables       []string
+}{
+	"download":  {SlugsSources: []string{"an-amo", "an-amo-15", "an-amo-16", "an-dossiers", "an-scrutins"}},
+	"partis":    {SlugsSources: []string{"ches-2024", "cnccfp-comptes", "populist-v4"}},
+	"senat":     {SlugsSources: []string{"senat-dosleg", "senat-senateurs"}},
+	"europe":    {SlugsSources: []string{"howtheyvote"}},
+	"normalize": {Tables: []string{"core.person", "core.organization", "core.mandate", "core.affiliation", "core.scrutin", "core.ballot", "core.dossier", "core.texte"}},
+	"carto":     {Tables: []string{"core.party_group_link", "core.party_referential_link", "core.mapping_lineage", "core.mapping_revision", "core.gouvernement"}},
+	"themes":    {Tables: []string{"derived.scrutin_topic", "derived.coverage"}},
+}
+
+// tailleEtape additionne les octets archivés (SlugsSources) et occupés en
+// base (Tables) d'une étape — 0, sans erreur, pour une étape non déclarée
+// dans composantesEtape (rien à afficher plutôt qu'un blocage).
+func tailleEtape(ctx context.Context, pool *pgxpool.Pool, nom string) (archive, base int64, err error) {
+	c, ok := composantesEtape[nom]
+	if !ok {
+		return 0, 0, nil
+	}
+	if len(c.SlugsSources) > 0 {
+		if err := pool.QueryRow(ctx, `
+			SELECT coalesce(sum(d.byte_size), 0) FROM raw.document d WHERE d.id IN (
+				SELECT DISTINCT r.document_id FROM raw.retrieval r JOIN raw.source s ON s.id = r.source_id
+				WHERE s.slug = ANY($1) AND r.document_id IS NOT NULL)`,
+			c.SlugsSources).Scan(&archive); err != nil {
+			return 0, 0, err
+		}
+	}
+	for _, t := range c.Tables {
+		// to_regclass plutôt que caster directement en regclass : une table
+		// qui n'existe pas encore (base pas à jour) ne doit pas faire
+		// échouer tout l'affichage du graphe, juste compter pour 0 ici.
+		var o *int64
+		if err := pool.QueryRow(ctx, `SELECT pg_total_relation_size(to_regclass($1))`, t).Scan(&o); err != nil {
+			return 0, 0, fmt.Errorf("taille de %s : %w", t, err)
+		}
+		if o != nil {
+			base += *o
+		}
+	}
+	return archive, base, nil
+}
+
+func afficherDeps(ctx context.Context) error {
+	pool, err := store.Open(ctx)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	// core.pipeline_etape (migration récente) peut manquer sur une base pas
+	// encore migrée par cette version de fpctl — un « list » reste
+	// délibérément en lecture seule, il n'applique jamais de migration lui-
+	// même (contrairement à fpctl ingest, qui le fait toujours en premier) :
+	// dire clairement quoi lancer plutôt que remonter l'erreur SQL brute.
+	var existe bool
+	if err := pool.QueryRow(ctx, `SELECT to_regclass('core.pipeline_etape') IS NOT NULL`).Scan(&existe); err != nil {
+		return fmt.Errorf("vérification du schéma : %w", err)
+	}
+	if !existe {
+		return fmt.Errorf("core.pipeline_etape n'existe pas encore sur cette base — lancez d'abord « fpctl ingest migrate »")
+	}
+
+	etapes, err := pipeline.LireTopologie(ctx, pool)
+	if err != nil {
+		return err
+	}
+	if len(etapes) == 0 {
+		fmt.Println("rien à afficher — lancez « fpctl ingest parlement all » (ou l'une de ses sources) au moins une fois")
+		return nil
+	}
+	for _, e := range etapes {
+		derniere := "jamais exécutée avec succès"
+		if e.DerniereExecutionReussie != nil {
+			derniere = e.DerniereExecutionReussie.Local().Format("2006-01-02 15:04")
+		}
+		archive, base, err := tailleEtape(ctx, pool, e.Nom)
+		if err != nil {
+			return fmt.Errorf("%s : %w", e.Nom, err)
+		}
+		fmt.Printf("%s — %s", e.Nom, derniere)
+		if archive > 0 || base > 0 {
+			fmt.Printf("  (archive %s, base %s)", tailleLisible(archive), tailleLisible(base))
+		}
+		fmt.Println()
+		if e.Description != "" {
+			fmt.Printf("  %s\n", e.Description)
+		}
+		if len(e.DependDe) > 0 {
+			fmt.Printf("  dépend de : %s\n", strings.Join(e.DependDe, ", "))
+		}
+	}
+	return nil
 }
 
 func listerConnecteurs() error {

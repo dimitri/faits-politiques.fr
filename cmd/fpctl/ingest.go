@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
 	"fmt"
-	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/ingest"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
-	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/spf13/cobra"
 )
 
@@ -36,7 +33,7 @@ func commandeIngest() *cobra.Command {
 			"« fpctl ingest <catégorie> all » les recharge toutes (y compris ce\n" +
 			"qu'elle a de plus coûteux, hors chaîne par défaut), « fpctl ingest\n" +
 			"<catégorie> <source> » ne recharge que celle-là — voir « fpctl help\n" +
-			"ingest ». « fpctl ingest deps » affiche le graphe de dépendances du\n" +
+			"ingest ». « fpctl list deps » affiche le graphe de dépendances du\n" +
 			"socle parlementaire, tel que publié en base.",
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
@@ -73,21 +70,6 @@ func commandeIngest() *cobra.Command {
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return executerInterne(cmd.Context(), ingest.RunSource(cmd.Context(), rawDir, migDir, "migrate"))
-		},
-	})
-
-	cmd.AddCommand(&cobra.Command{
-		Use:   "deps",
-		Short: "Graphe de dépendances du socle parlementaire, tel que publié en base",
-		Long: "Le socle parlementaire (download, partis, normalize, carto, senat,\n" +
-			"europe, themes) est la seule partie du catalogue dont les\n" +
-			"dépendances sont déclarées et vérifiées — voir internal/pipeline.\n" +
-			"Republié à chaque exécution touchant ce socle (fpctl ingest\n" +
-			"parlement ... ou l'une de ces sept sources) ; vide avant la\n" +
-			"première.",
-		Args: cobra.NoArgs,
-		RunE: func(cmd *cobra.Command, _ []string) error {
-			return executerInterne(cmd.Context(), afficherDeps(cmd.Context()))
 		},
 	})
 
@@ -131,34 +113,4 @@ func commandeIngestCategorie(categorie string, rawDir, migDir *string, opts func
 	}
 
 	return catCmd
-}
-
-func afficherDeps(ctx context.Context) error {
-	pool, err := store.Open(ctx)
-	if err != nil {
-		return err
-	}
-	defer pool.Close()
-	etapes, err := pipeline.LireTopologie(ctx, pool)
-	if err != nil {
-		return err
-	}
-	if len(etapes) == 0 {
-		fmt.Println("rien à afficher — lancez « fpctl ingest parlement all » (ou l'une de ses sources) au moins une fois")
-		return nil
-	}
-	for _, e := range etapes {
-		derniere := "jamais exécutée avec succès"
-		if e.DerniereExecutionReussie != nil {
-			derniere = e.DerniereExecutionReussie.Local().Format("2006-01-02 15:04")
-		}
-		fmt.Printf("%s — %s\n", e.Nom, derniere)
-		if e.Description != "" {
-			fmt.Printf("  %s\n", e.Description)
-		}
-		if len(e.DependDe) > 0 {
-			fmt.Printf("  dépend de : %s\n", strings.Join(e.DependDe, ", "))
-		}
-	}
-	return nil
 }

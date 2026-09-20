@@ -17,9 +17,11 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"sort"
 	"strings"
 	"time"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -126,7 +128,63 @@ func Run(ctx context.Context, args []string) error {
 		return err
 	}
 	fmt.Printf("catalogue écrit : %s (%d sources)\n", *out, cat.NombreSources)
+	afficherTailles(cat.Sources)
 	return nil
+}
+
+// afficherTailles résume, sur le terminal, ce que le catalogue JSON détaille
+// déjà par source (Source.TailleLocaleOctets, Source.Tables[].TailleOctets)
+// — le fichier reste la référence, ceci n'en est qu'une lecture rapide : les
+// dix sources qui pèsent le plus, archive scellée et tables core/ref
+// confondues, plus le total sur l'ensemble du catalogue.
+func afficherTailles(src []Source) {
+	type ligne struct {
+		slug          string
+		archive, base int64
+		documents     int64
+	}
+	lignes := make([]ligne, len(src))
+	var totalArchive, totalBase int64
+	for i, s := range src {
+		var base int64
+		for _, t := range s.Tables {
+			base += t.TailleOctets
+		}
+		lignes[i] = ligne{slug: s.Slug, archive: s.TailleLocaleOctets, base: base, documents: s.NombreDocuments}
+		totalArchive += s.TailleLocaleOctets
+		totalBase += base
+	}
+	sort.Slice(lignes, func(i, j int) bool {
+		return lignes[i].archive+lignes[i].base > lignes[j].archive+lignes[j].base
+	})
+
+	fmt.Printf("\n%-28s %10s %14s %14s\n", "source", "documents", "archive (raw)", "base (core/ref)")
+	n := len(lignes)
+	if n > 10 {
+		n = 10
+	}
+	for _, l := range lignes[:n] {
+		fmt.Printf("%-28s %10d %14s %14s\n", l.slug, l.documents, tailleLisible(l.archive), tailleLisible(l.base))
+	}
+	if len(lignes) > n {
+		fmt.Printf("... et %d autres sources (voir le catalogue JSON pour le détail)\n", len(lignes)-n)
+	}
+	fmt.Printf("%-28s %10s %14s %14s\n", "total", "", tailleLisible(totalArchive), tailleLisible(totalBase))
+}
+
+// tailleLisible : un nombre d'octets en unité lisible, la même échelle que
+// fpctl list stats (cmd/fpctl/list.go) — dupliquée plutôt que partagée : un
+// paquet interne n'a pas à dépendre de cmd/fpctl pour cinq lignes.
+func tailleLisible(octets int64) string {
+	const unite = 1024.0
+	v := float64(octets)
+	for _, suffixe := range []string{"o", "Ko", "Mo", "Go", "To"} {
+		if v < unite {
+			return fmt.Sprintf("%.1f %s", v, suffixe)
+		}
+		v /= unite
+	}
+	return fmt.Sprintf("%.1f Po", v)
 }
 
 func construire(ctx context.Context, pool *pgxpool.Pool, racine, nomStockageVerifie string, empreintes EmpreintesStockage) (*Catalogue, error) {
@@ -176,8 +234,15 @@ func construire(ctx context.Context, pool *pgxpool.Pool, racine, nomStockageVeri
 		Table
 		parSource map[int64]int64
 	}
+	// Le seul endroit lent de cette commande : un GROUP BY, un COUNT/taille
+	// et une emprise historique PAR TABLE — jusqu'à une minute, sur des
+	// tables à plusieurs millions de lignes (délinquance, corpus JO), et
+	// rien à montrer avant la toute fin sans ce log : un terminal silencieux
+	// dix secondes ne se distingue pas d'un outil planté.
+	logs.Notice("mesure des tables", "total", logs.Plural(len(tablesParSource), "table"))
 	var tablesEnrichies []tableEnrichie
-	for _, t := range tablesParSource {
+	for i, t := range tablesParSource {
+		logs.Notice(fmt.Sprintf("[%d/%d] %s.%s", i+1, len(tablesParSource), t.Schema, t.Table))
 		parSource, err := comptageParSourceGroupe(ctx, pool, t.Schema, t.Table)
 		if err != nil {
 			return nil, fmt.Errorf("%s.%s : %w", t.Schema, t.Table, err)
