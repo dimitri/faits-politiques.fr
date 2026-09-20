@@ -103,5 +103,5 @@ Elles sont dispersées dans le journal ; les voici rassemblées.
 
 ## État du chargement
 
-`fpctl verify data` vérifie la cohérence avant toute publication. Les étapes
-d'ingestion sont listées par `fpctl ingest data -h`.
+`fpctl verify data` vérifie la cohérence avant toute publication. Les
+catégories et sources d'ingestion sont listées par `fpctl ingest -h`.

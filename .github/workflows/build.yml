@@ -53,7 +53,7 @@ jobs:
           restore-keys: raw-
 
       - name: Ingestion
-        run: ./bin/fpctl ingest data
+        run: ./bin/fpctl ingest all
 
       # Porte 1 : les garanties structurelles tournent sur la base RÉELLEMENT
       # chargée, pas sur une base vide. Une donnée qui violerait une règle

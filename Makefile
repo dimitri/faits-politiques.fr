@@ -76,10 +76,10 @@ man:              ## régénère les pages de manuel de fpctl (nécessite pandoc
 	done
 
 migrate: db-up fpctl    ## applique les migrations
-	./bin/fpctl ingest -only=migrate
+	./bin/fpctl ingest migrate
 
 ingest: db-up fpctl     ## télécharge, archive et charge les jeux de données
-	./bin/fpctl ingest
+	./bin/fpctl ingest all
 
 build: fpctl            ## génère le site statique dans ./site
 	./bin/fpctl build
