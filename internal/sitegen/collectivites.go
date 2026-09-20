@@ -454,13 +454,15 @@ func loadCollectivites(ctx context.Context, pool *pgxpool.Pool) (*StatsCollectiv
 	// --- exécutifs. Le code de la collectivité se lit dans la circonscription
 	// du mandat : « 44 Grand Est » pour une région, « 0114 Nantua » — le canton
 	// — pour un département, dont les deux premiers caractères sont le numéro.
+	// mv.mandat_executif_local (internal/matview) — 13 044 lignes en poste sur
+	// 617 196 mandats, plus le GROUP BY sur la totalité de core.mandate que
+	// cette fonction refaisait à chaque construction.
 	elus := func(role string, longueur int, idx map[string]*Collectivite, vice bool) error {
 		rows, err := pool.Query(ctx, `
-			SELECT left(m.constituency,$2), p.given_name||' '||p.family_name, p.slug,
-			       m.role, to_char(lower(m.validity),'DD/MM/YYYY')
-			FROM core.mandate m JOIN core.person p ON p.id=m.person_id
-			WHERE m.role LIKE $1 AND m.constituency IS NOT NULL
-			  AND upper(m.validity) IS NULL`, role, longueur)
+			SELECT left(constituency,$2), person_given_name||' '||person_family_name, person_slug,
+			       role, to_char(depuis,'DD/MM/YYYY')
+			FROM mv.mandat_executif_local
+			WHERE role LIKE $1`, role, longueur)
 		if err != nil {
 			return err
 		}
@@ -498,11 +500,12 @@ func loadCollectivites(ctx context.Context, pool *pgxpool.Pool) (*StatsCollectiv
 	trierVices(idxReg)
 	trierVices(idxDep)
 
+	// mv.mandat_local_compte (internal/matview) porte déjà ce décompte par
+	// (type de mandat, territoire).
 	compte := func(mandat string, longueur int, idx map[string]*Collectivite) error {
 		rows, err := pool.Query(ctx, `
-			SELECT left(constituency,$2), count(*) FROM core.mandate
-			WHERE mandate_type::text=$1 AND constituency IS NOT NULL
-			  AND upper(validity) IS NULL GROUP BY 1`, mandat, longueur)
+			SELECT left(code_territoire,$2), nombre_elus FROM mv.mandat_local_compte
+			WHERE mandate_type=$1`, mandat, longueur)
 		if err != nil {
 			return err
 		}
@@ -739,8 +742,8 @@ type ResumeEPCIBudget struct {
 
 // chargerResumeEPCIBudget : budget cumulé (derived.poids_des_niveaux, déjà
 // chargé dans st.Poids) et nombre d'élus communautaires en mandat
-// (core.mandate) — deux chiffres qu'aucune des cartes de dépenses plus bas
-// ne met en avant à ce niveau de la page.
+// (mv.mandat_local_compte, internal/matview) — deux chiffres qu'aucune des
+// cartes de dépenses plus bas ne met en avant à ce niveau de la page.
 func chargerResumeEPCIBudget(ctx context.Context, pool *pgxpool.Pool, st *StatsCollectivites, nombre int, population float64) (*ResumeEPCIBudget, error) {
 	r := &ResumeEPCIBudget{Nombre: nombre, Population: population}
 	var fonctCommunes float64
@@ -757,8 +760,8 @@ func chargerResumeEPCIBudget(ctx context.Context, pool *pgxpool.Pool, st *StatsC
 		r.PartBlocCommunal = 100 * r.Fonctionnement / total
 	}
 	if err := pool.QueryRow(ctx, `
-		SELECT count(*) FROM core.mandate
-		WHERE mandate_type='CONSEILLER_COMMUNAUTAIRE' AND upper(validity) IS NULL`).Scan(&r.Elus); err != nil {
+		SELECT nombre_elus FROM mv.mandat_local_compte
+		WHERE mandate_type='CONSEILLER_COMMUNAUTAIRE'`).Scan(&r.Elus); err != nil {
 		return nil, err
 	}
 	return r, nil

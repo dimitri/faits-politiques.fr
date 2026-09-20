@@ -293,6 +293,37 @@ var Catalogue = []Definition{
 	FROM core.ballot
 	GROUP BY 1, 2`,
 	},
+	// Président/vice-présidents des conseils régionaux/départementaux/
+	// communautaires : un rôle très spécifique parmi 617 196 mandats — 13 044
+	// lignes en poste, moins de 3% de la table.
+	{
+		Nom:    "mandat_executif_local",
+		Tables: []string{"core.mandate", "core.person"},
+		SQL: `SELECT m.constituency, m.role, p.slug AS person_slug,
+	     p.given_name AS person_given_name, p.family_name AS person_family_name,
+	     lower(m.validity) AS depuis
+	FROM core.mandate m JOIN core.person p ON p.id = m.person_id
+	WHERE m.role LIKE '%résident%conseil%' AND m.constituency IS NOT NULL
+	  AND upper(m.validity) IS NULL`,
+	},
+	// Effectifs des conseils régionaux/départementaux (par territoire) et
+	// communautaires (total national) : trois GROUP BY que collectivites.go
+	// refaisait sur la totalité de core.mandate à chaque construction.
+	{
+		Nom:    "mandat_local_compte",
+		Tables: []string{"core.mandate"},
+		SQL: `SELECT mandate_type::text AS mandate_type, left(constituency,2) AS code_territoire,
+	     count(*)::int AS nombre_elus
+	FROM core.mandate
+	WHERE mandate_type IN ('CONSEILLER_REGIONAL','CONSEILLER_DEPARTEMENTAL')
+	  AND constituency IS NOT NULL AND upper(validity) IS NULL
+	GROUP BY 1, 2
+	UNION ALL
+	SELECT mandate_type::text, NULL, count(*)::int
+	FROM core.mandate
+	WHERE mandate_type = 'CONSEILLER_COMMUNAUTAIRE' AND upper(validity) IS NULL
+	GROUP BY 1`,
+	},
 	{
 		Nom:    "commune_association_count",
 		Tables: []string{"core.association"},
@@ -352,6 +383,16 @@ var TablesDirectes = []TableDirecte{
 	{"core.macro_value", "lu par serie_code dans onze fichiers, jamais agrégé — 1 988 lignes"},
 	{"ref.macro_serie", "table de libellés pour macro_value — 61 lignes"},
 	{"core.organization", "table de référence (nom, slug, type) largement réutilisée, sans agrégation dominante — 5 650 lignes"},
+	// core.mandate/core.person : le sous-ensemble « national » (députés,
+	// sénateurs, ministres...) est réductible et sert de base à mv.
+	// person_actif/mandate_actif/affiliation_actif ci-dessus. Mais l'écrasante
+	// majorité des lignes (conseillers municipaux, communautaires — 605 654
+	// sur 617 196 mandats, quasi toutes actives : aucun filtre de validité ne
+	// les réduit) sert les pages locales (internal/sitegen/lieux_pages.go,
+	// candidat_local.go) qui ont besoin de CHAQUE élu en poste, commune par
+	// commune — une matvue n'y changerait rien, ce serait le même volume.
+	{"core.mandate", "élus locaux en poste (conseillers municipaux/communautaires) lus wholesale par lieux_pages.go/candidat_local.go — 605 654 lignes actives sur 617 196"},
+	{"core.person", "identité des élus locaux, jointe 1:1 sur core.mandate wholesale dans les mêmes fichiers — 515 374 lignes"},
 }
 
 // Perimetre : le nom qualifié de chaque objet nécessaire pour reconstruire
