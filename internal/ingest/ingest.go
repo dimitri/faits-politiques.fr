@@ -84,9 +84,16 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		if !ok {
 			panic(fmt.Sprintf("ingest : %q déclaré dans socleParlementaire mais absent du catalogue", nom))
 		}
+		// Copie propre à cette étape, pas le pointeur partagé : plusieurs
+		// étapes du socle tournent de front dans une même vague
+		// (internal/pipeline, Concurrence) — muter arch.Etape sur l'original
+		// serait une course. Root/Pool restent partagés (immuables après
+		// construction), seul Etape diffère par copie.
+		archEtape := *arch
+		archEtape.Etape = source.Nom
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
-			Executer: func(ctx context.Context) error { return source.Executer(ctx, pool, arch, rawDir) },
+			Executer: func(ctx context.Context) error { return source.Executer(ctx, pool, &archEtape, rawDir) },
 		})
 	}
 	if err := reg.Publier(ctx); err != nil {
@@ -154,7 +161,9 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		return fmt.Errorf("-dry-run n'est pas pris en charge pour %s (hors du socle audité, voir socleParlementaire)", nom)
 	}
 	logs.Notice(source.Description)
-	return source.Executer(ctx, pool, arch, rawDir)
+	archEtape := *arch
+	archEtape.Etape = source.Nom
+	return source.Executer(ctx, pool, &archEtape, rawDir)
 }
 
 // RunCategorie exécute toutes les sources d'une catégorie — un choix
@@ -209,7 +218,9 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 			continue
 		}
 		logs.Notice(s.Description)
-		if err := s.Executer(ctx, pool, arch, rawDir); err != nil {
+		archEtape := *arch
+		archEtape.Etape = s.Nom
+		if err := s.Executer(ctx, pool, &archEtape, rawDir); err != nil {
 			return fmt.Errorf("%s : %w", s.Nom, err)
 		}
 	}

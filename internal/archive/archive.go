@@ -23,6 +23,19 @@ import (
 type Archive struct {
 	Root string
 	Pool *pgxpool.Pool
+	// Etape : le nom (internal/ingest.Source.Nom) de l'étape du catalogue
+	// pour le compte de laquelle tourne cet appel — écrit dans
+	// raw.source.etape par EnsureSource, pour que « fpctl list deps »
+	// calcule les octets à télécharger par étape sans liste tenue à la
+	// main. Vide pour un appel hors du catalogue (tests, scripts ponctuels)
+	// : EnsureSource laisse alors la colonne NULL plutôt que d'écrire une
+	// chaîne vide. Une étape qui appelle plusieurs connecteurs (download)
+	// partage la même valeur pour tous : c'est le but, elles comptent
+	// ensemble. En concurrence (le socle parlementaire, internal/pipeline),
+	// chaque étape reçoit sa PROPRE copie de l'Archive plutôt que de muter
+	// ce champ sur un pointeur partagé — voir registreParlement,
+	// internal/ingest/ingest.go.
+	Etape string
 }
 
 // Source décrit un flux, avec sa licence : elle alimente le bandeau
@@ -40,15 +53,21 @@ type Source struct {
 }
 
 func (a *Archive) EnsureSource(ctx context.Context, s Source) (int64, error) {
+	// nil (colonne NULL), pas "" : un appel hors du catalogue (a.Etape
+	// jamais renseigné) ne doit pas se lire comme une étape nommée "".
+	var etape any
+	if a.Etape != "" {
+		etape = a.Etape
+	}
 	var id int64
 	err := a.Pool.QueryRow(ctx, `
 		INSERT INTO raw.source (slug, label, publisher, tier, licence, reuse_class,
-		                        attribution_text, expected_cadence, notes)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
-		ON CONFLICT (slug) DO UPDATE SET label = EXCLUDED.label
+		                        attribution_text, expected_cadence, notes, etape)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+		ON CONFLICT (slug) DO UPDATE SET label = EXCLUDED.label, etape = EXCLUDED.etape
 		RETURNING id`,
 		s.Slug, s.Label, s.Publisher, s.Tier, s.Licence, s.ReuseClass,
-		s.Attribution, s.Cadence, s.Notes).Scan(&id)
+		s.Attribution, s.Cadence, s.Notes, etape).Scan(&id)
 	return id, err
 }
 

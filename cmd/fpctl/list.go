@@ -128,20 +128,22 @@ func commandeDeps() *cobra.Command {
 	return cmd
 }
 
-// composantesEtape : ce que chaque étape du socle parlementaire remplit,
-// pour afficher combien ça pèse à côté du graphe — tenu à la main, comme
-// ingestPrealables (cmd/fpctl/build.go) : ces sept étapes sont assez rares
-// et assez stables pour que ça reste à jour sans registre séparé.
-//
-// SlugsSources : les documents archivés (raw.document, via raw.retrieval)
-// que cette étape télécharge — vide pour une étape qui n'en télécharge
-// aucun. Tables : ce qu'elle écrit dans core/derived, mesuré par
-// pg_total_relation_size — une table peut apparaître sous plusieurs étapes
-// (carto.IngestPresidents écrit dans core.person/core.mandate, que
-// normalize remplit aussi) : la taille affichée est alors celle de TOUTE
-// la table, pas la part de cette seule étape — une approximation
-// assumée pour un résumé de terminal, pas une comptabilité exacte.
+// composantesEtape : les tables que chaque étape du socle parlementaire
+// écrit, pour afficher combien ça pèse en base à côté du graphe — tenu à la
+// main, comme ingestPrealables (cmd/fpctl/build.go) : sept étapes assez
+// rares et assez stables pour que ça reste à jour sans registre séparé.
+// Contrairement aux octets archivés (voir tailleEtape), il n'existe pas de
+// reflet générique pour la base : une table peut apparaître sous plusieurs
+// étapes (carto.IngestPresidents écrit dans core.person/core.mandate, que
+// normalize remplit aussi) — la taille affichée est alors celle de TOUTE la
+// table, pas la part de cette seule étape, une approximation assumée pour
+// un résumé de terminal, pas une comptabilité exacte.
 var composantesEtape = map[string]struct {
+	// SlugsSources : repli pour des octets archivés avant que
+	// raw.source.etape existe, ou ingérés par RunTout (la chaîne
+	// historique, qui n'étiquette pas ses sources — voir
+	// internal/ingest.RunTout) ; ignoré dès que la colonne renvoie un total
+	// non nul pour l'étape.
 	SlugsSources []string
 	Tables       []string
 }{
@@ -154,19 +156,32 @@ var composantesEtape = map[string]struct {
 	"themes":    {Tables: []string{"derived.scrutin_topic", "derived.coverage"}},
 }
 
-// tailleEtape additionne les octets archivés (SlugsSources) et occupés en
-// base (Tables) d'une étape — 0, sans erreur, pour une étape non déclarée
-// dans composantesEtape (rien à afficher plutôt qu'un blocage), ou quand
-// aucune base n'est joignable (pool nil : voir ouvrirBaseBrievement).
+// tailleEtape additionne les octets archivés et occupés en base d'une étape
+// — 0, sans erreur, quand aucune base n'est joignable (pool nil : voir
+// ouvrirBaseBrievement).
+//
+// Les octets archivés viennent de raw.source.etape (internal/archive.
+// Archive.Etape, écrit par EnsureSource à chaque ingestion via RunSource ou
+// RunCategorie) : un reflet générique, qui couvre N'IMPORTE QUELLE étape du
+// catalogue, pas seulement les sept du socle — c'est ce qui permet de
+// chiffrer une page entière (fpctl list deps --pages) sans registre tenu à
+// la main pour chacune des dizaines de sources qu'elle peut requérir. Le
+// repli sur composantesEtape[nom].SlugsSources ne joue que si cette requête
+// renvoie 0 : données jamais réingérées depuis la colonne, ou chargées par
+// RunTout (qui ne l'écrit pas).
 func tailleEtape(ctx context.Context, pool *pgxpool.Pool, nom string) (archive, base int64, err error) {
 	if pool == nil {
 		return 0, 0, nil
 	}
-	c, ok := composantesEtape[nom]
-	if !ok {
-		return 0, 0, nil
+	if err := pool.QueryRow(ctx, `
+		SELECT coalesce(sum(d.byte_size), 0) FROM raw.document d WHERE d.id IN (
+			SELECT DISTINCT r.document_id FROM raw.retrieval r JOIN raw.source s ON s.id = r.source_id
+			WHERE s.etape = $1 AND r.document_id IS NOT NULL)`,
+		nom).Scan(&archive); err != nil {
+		return 0, 0, err
 	}
-	if len(c.SlugsSources) > 0 {
+	c := composantesEtape[nom]
+	if archive == 0 && len(c.SlugsSources) > 0 {
 		if err := pool.QueryRow(ctx, `
 			SELECT coalesce(sum(d.byte_size), 0) FROM raw.document d WHERE d.id IN (
 				SELECT DISTINCT r.document_id FROM raw.retrieval r JOIN raw.source s ON s.id = r.source_id
@@ -236,6 +251,47 @@ type noeud struct {
 	ArchiveOctets            int64      `json:"archive_octets"`
 	BaseOctets               int64      `json:"base_octets"`
 	DependDe                 []string   `json:"depend_de"`
+	// ArchiveOctetsTransitif/BaseOctetsTransitif : le total, DÉPENDANCES
+	// COMPRISES (une fois chacune, quel que soit le nombre de chemins qui y
+	// mènent), à ingérer pour amener ce nœud à jour depuis rien — ce qu'une
+	// décision « cette page rentre-t-elle dans le budget de la CI ? » lit
+	// directement, sans redérouler l'arbre. Toujours 0 pour une étape
+	// (Type == "etape") : ArchiveOctets/BaseOctets seuls suffisent, une
+	// étape n'a jamais qu'un parent direct à elle-même. Calculé seulement
+	// pour une page (Type == "page", voir ajouterNoeudPage) — c'est là que
+	// la question se pose.
+	ArchiveOctetsTransitif int64 `json:"archive_octets_transitif,omitempty"`
+	BaseOctetsTransitif    int64 `json:"base_octets_transitif,omitempty"`
+}
+
+// tailleTransitiveMulti additionne ArchiveOctets/BaseOctets de chaque racine
+// et de tout ce dont elles dépendent, transitivement — une seule fois par
+// nœud même si plusieurs racines ou plusieurs chemins y mènent (normalize,
+// sous senat ET europe ; ou requis directement par une page ET par l'une de
+// ses autres dépendances), pour ne jamais compter un même jeu de données
+// deux fois dans le total.
+func tailleTransitiveMulti(noeuds map[string]noeud, racines []string) (archive, base int64) {
+	vus := map[string]bool{}
+	var visiter func(nom string)
+	visiter = func(nom string) {
+		if vus[nom] {
+			return
+		}
+		vus[nom] = true
+		n, ok := noeuds[nom]
+		if !ok {
+			return
+		}
+		archive += n.ArchiveOctets
+		base += n.BaseOctets
+		for _, d := range n.DependDe {
+			visiter(d)
+		}
+	}
+	for _, r := range racines {
+		visiter(r)
+	}
+	return
 }
 
 // clePage préfixe la clé interne d'un nœud « page » : « communes » nomme à
@@ -281,10 +337,19 @@ func ajouterNoeudPage(ctx context.Context, pool *pgxpool.Pool, noeuds map[string
 			return err
 		}
 	}
+	// Le total se calcule sur les préalables (DependDe), pas sur la page
+	// elle-même : une page n'a pas d'ArchiveOctets/BaseOctets en propre, ce
+	// serait compter à vide. Une seule marche (tailleTransitiveMulti,
+	// vus partagé) sur TOUS les préalables à la fois — pas un total par
+	// préalable additionné ensuite, qui recompterait une dépendance
+	// partagée entre deux d'entre eux.
+	archiveTotal, baseTotal := tailleTransitiveMulti(noeuds, prealables)
 	noeuds[clePage(nomSection)] = noeud{
 		Nom: nomSection, Type: "page",
 		Commande: "fpctl build " + nomSection, Description: description,
-		DependDe: prealables,
+		DependDe:               prealables,
+		ArchiveOctetsTransitif: archiveTotal,
+		BaseOctetsTransitif:    baseTotal,
 	}
 	return nil
 }
@@ -492,6 +557,10 @@ func imprimerArbre(pool *pgxpool.Pool, noeuds map[string]noeud, nom, prefixe str
 	}
 	if n.Description != "" {
 		fmt.Println(suite + "    " + n.Description)
+	}
+	if n.Type == "page" && (n.ArchiveOctetsTransitif > 0 || n.BaseOctetsTransitif > 0) {
+		fmt.Printf(suite+"    ≈ %s à télécharger, %s en base (préalables compris)\n",
+			tailleLisible(n.ArchiveOctetsTransitif), tailleLisible(n.BaseOctetsTransitif))
 	}
 	for i, d := range n.DependDe {
 		imprimerArbre(pool, noeuds, d, suite, i == len(n.DependDe)-1, false)

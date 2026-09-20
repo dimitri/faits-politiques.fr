@@ -18,7 +18,7 @@ fpctl-list - liste une collection (sources, connecteurs, statistiques, graphe de
 
 **fpctl list stats**
 
-**fpctl list deps** [*nom*]
+**fpctl list deps** [*nom*] [**--json**] [**--pages**]
 
 # DESCRIPTION
 
@@ -51,27 +51,61 @@ fpctl-list - liste une collection (sources, connecteurs, statistiques, graphe de
     schéma applicatif (**core**, **ref**, **geo**, **raw**, **derived**...),
     puis les dix tables les plus lourdes tous schémas confondus.
 
-**deps** [*nom*]
+**deps** [*nom*] [**--json**] [**--pages**]
 :   Le graphe de dépendances du socle parlementaire (**download**,
     **partis**, **normalize**, **carto**, **senat**, **europe**,
-    **themes** — voir **fpctl-ingest**(1), LE SOCLE PARLEMENTAIRE), tel que
-    publié en base par **internal/pipeline** : dernière exécution réussie
-    de chaque étape, sa taille (archive scellée pour ce qu'elle télécharge,
-    tables **core**/**derived** pour ce qu'elle écrit), et ce dont elle
-    dépend.
+    **themes** — voir **fpctl-ingest**(1), LE SOCLE PARLEMENTAIRE) vient du
+    code (**internal/ingest**, **Source.Dependances**) : cette commande n'a
+    besoin d'aucune base pour l'afficher. Si une base est joignable et
+    migrée, elle enrichit chaque étape de sa dernière exécution réussie et
+    de ce qu'elle pèse — jamais l'inverse, la base n'est qu'un REFLET
+    républié par **internal/pipeline** ; sinon un avertissement le dit et
+    le graphe s'affiche quand même, sans ces deux colonnes.
 
-    Sans argument, les sept étapes. Avec le nom de l'une d'elles, cette
-    étape seule et la chaîne complète de ce dont elle dépend,
-    transitivement — chacune une seule fois, même si plusieurs chemins y
-    mènent. Avec le nom d'une section de **fpctl build** (**scrutin**,
-    **communes**, **reste**), ce qu'elle ingère d'abord (voir
-    **fpctl-build**(1), SECTIONS) : chaque préalable qui appartient au
-    socle est développé à son tour, un préalable hors du socle est
-    simplement nommé avec sa description.
+    Chaque nœud s'affiche par sa vraie commande (**fpctl ingest parlement
+    download**, **fpctl build communes**), jamais un nom nu : deux
+    commandes différentes peuvent partager un nom (la section **communes**
+    de **fpctl build** et la source **collectivites communes** de **fpctl
+    ingest**) — la carte interne ne les confond pas, l'affichage non plus.
 
-    Échoue avec la liste des noms valides si *nom* n'est ni l'un ni
-    l'autre. Nécessite que **core.pipeline_etape** existe déjà (une
-    migration récente) — sinon, lance d'abord **fpctl ingest migrate**.
+    C'est un graphe orienté acyclique, pas un arbre (**normalize** a deux
+    parents, **senat** et **europe**), à plusieurs racines (**carto** et
+    **themes**, dans le socle complet). Rendu comme un arbre (**├──**,
+    **└──**, **│**) une fois déroulé : une étape partagée réapparaît sous
+    chacun de ses parents plutôt que d'être fusionnée en un seul nœud.
+
+    Sans argument, deux arbres : le socle parlementaire, puis — sous
+    l'en-tête « pages du site (fpctl build) » — chaque section de **fpctl
+    build** (**scrutin**, **communes**, **reste**) comme racine de ses
+    préalables d'ingestion (voir **fpctl-build**(1), SECTIONS), avec le
+    total à télécharger et à charger en base pour l'amener à jour depuis
+    rien (dépendances comprises, chacune comptée une seule fois même si
+    plusieurs chemins y mènent). Avec le nom d'une des sept étapes du
+    socle, cette étape seule et sa chaîne de dépendances. Avec le nom d'une
+    section de **fpctl build**, cette section seule, dans la même forme.
+    Échoue avec la liste des noms valides sur tout autre nom.
+
+    **--json**
+    :   Écrit les nœuds concernés à plat (un objet par nœud : **nom**,
+        **type** — **etape** ou **page** —, **commande**, **description**,
+        **depend_de**, **archive_octets**/**base_octets** propres au nœud,
+        et pour une page **archive_octets_transitif**/
+        **base_octets_transitif**, le total dépendances comprises) plutôt
+        que l'arbre déroulé.
+
+    **--pages**
+    :   N'affiche que le second arbre (les pages du site et leurs
+        préalables), sans argument.
+
+    **Tailles** : les octets archivés viennent de **raw.source.etape**
+    (écrit par **internal/archive.Archive.Etape** à chaque ingestion via
+    **fpctl ingest \<source|catégorie\>** — pas **fpctl ingest all**, la
+    chaîne historique, qui n'étiquette pas ses sources) : un reflet
+    générique qui couvre n'importe quelle étape du catalogue, pas
+    seulement les sept du socle — c'est ce qui permet de chiffrer le coût
+    d'ingestion d'une page entière. Les octets en base restent une liste de
+    tables tenue à la main (**cmd/fpctl/list.go**, **composantesEtape**),
+    à ce jour limitée aux sept étapes du socle.
 
 # VOIR AUSSI
 

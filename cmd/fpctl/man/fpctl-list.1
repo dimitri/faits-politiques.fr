@@ -12,7 +12,8 @@ graphe de dépendances)
 .PP
 \f[B]fpctl list stats\f[R]
 .PP
-\f[B]fpctl list deps\f[R] [\f[I]nom\f[R]]
+\f[B]fpctl list deps\f[R] [\f[I]nom\f[R]] [\f[B]\[en]json\f[R]]
+[\f[B]\[en]pages\f[R]]
 .SH DESCRIPTION
 .TP
 \f[B]sources\f[R]
@@ -52,31 +53,72 @@ disque, par schéma applicatif (\f[B]core\f[R], \f[B]ref\f[R],
 \f[B]geo\f[R], \f[B]raw\f[R], \f[B]derived\f[R]\&...), puis les dix
 tables les plus lourdes tous schémas confondus.
 .TP
-\f[B]deps\f[R] [\f[I]nom\f[R]]
+\f[B]deps\f[R] [\f[I]nom\f[R]] [\f[B]\[en]json\f[R]] [\f[B]\[en]pages\f[R]]
 Le graphe de dépendances du socle parlementaire (\f[B]download\f[R],
 \f[B]partis\f[R], \f[B]normalize\f[R], \f[B]carto\f[R], \f[B]senat\f[R],
 \f[B]europe\f[R], \f[B]themes\f[R] \[em] voir
-\f[B]fpctl\-ingest\f[R](1), LE SOCLE PARLEMENTAIRE), tel que publié en
-base par \f[B]internal/pipeline\f[R] : dernière exécution réussie de
-chaque étape, sa taille (archive scellée pour ce qu\[cq]elle télécharge,
-tables \f[B]core\f[R]/\f[B]derived\f[R] pour ce qu\[cq]elle écrit), et
-ce dont elle dépend.
+\f[B]fpctl\-ingest\f[R](1), LE SOCLE PARLEMENTAIRE) vient du code
+(\f[B]internal/ingest\f[R], \f[B]Source.Dependances\f[R]) : cette
+commande n\[cq]a besoin d\[cq]aucune base pour l\[cq]afficher.
+Si une base est joignable et migrée, elle enrichit chaque étape de sa
+dernière exécution réussie et de ce qu\[cq]elle pèse \[em] jamais
+l\[cq]inverse, la base n\[cq]est qu\[cq]un REFLET républié par
+\f[B]internal/pipeline\f[R] ; sinon un avertissement le dit et le graphe
+s\[cq]affiche quand même, sans ces deux colonnes.
 .RS
 .PP
-Sans argument, les sept étapes.
-Avec le nom de l\[cq]une d\[cq]elles, cette étape seule et la chaîne
-complète de ce dont elle dépend, transitivement \[em] chacune une seule
-fois, même si plusieurs chemins y mènent.
-Avec le nom d\[cq]une section de \f[B]fpctl build\f[R]
-(\f[B]scrutin\f[R], \f[B]communes\f[R], \f[B]reste\f[R]), ce qu\[cq]elle
-ingère d\[cq]abord (voir \f[B]fpctl\-build\f[R](1), SECTIONS) : chaque
-préalable qui appartient au socle est développé à son tour, un préalable
-hors du socle est simplement nommé avec sa description.
+Chaque nœud s\[cq]affiche par sa vraie commande (\f[B]fpctl ingest
+parlement download\f[R], \f[B]fpctl build communes\f[R]), jamais un nom
+nu : deux commandes différentes peuvent partager un nom (la section
+\f[B]communes\f[R] de \f[B]fpctl build\f[R] et la source
+\f[B]collectivites communes\f[R] de \f[B]fpctl ingest\f[R]) \[em] la
+carte interne ne les confond pas, l\[cq]affichage non plus.
 .PP
-Échoue avec la liste des noms valides si \f[I]nom\f[R] n\[cq]est ni
-l\[cq]un ni l\[cq]autre.
-Nécessite que \f[B]core.pipeline_etape\f[R] existe déjà (une migration
-récente) \[em] sinon, lance d\[cq]abord \f[B]fpctl ingest migrate\f[R].
+C\[cq]est un graphe orienté acyclique, pas un arbre (\f[B]normalize\f[R]
+a deux parents, \f[B]senat\f[R] et \f[B]europe\f[R]), à plusieurs
+racines (\f[B]carto\f[R] et \f[B]themes\f[R], dans le socle complet).
+Rendu comme un arbre (\f[B]├──\f[R], \f[B]└──\f[R], \f[B]│\f[R]) une
+fois déroulé : une étape partagée réapparaît sous chacun de ses parents
+plutôt que d\[cq]être fusionnée en un seul nœud.
+.PP
+Sans argument, deux arbres : le socle parlementaire, puis \[em] sous
+l\[cq]en\-tête « pages du site (fpctl build) » \[em] chaque section de
+\f[B]fpctl build\f[R] (\f[B]scrutin\f[R], \f[B]communes\f[R],
+\f[B]reste\f[R]) comme racine de ses préalables d\[cq]ingestion (voir
+\f[B]fpctl\-build\f[R](1), SECTIONS), avec le total à télécharger et à
+charger en base pour l\[cq]amener à jour depuis rien (dépendances
+comprises, chacune comptée une seule fois même si plusieurs chemins y
+mènent).
+Avec le nom d\[cq]une des sept étapes du socle, cette étape seule et sa
+chaîne de dépendances.
+Avec le nom d\[cq]une section de \f[B]fpctl build\f[R], cette section
+seule, dans la même forme.
+Échoue avec la liste des noms valides sur tout autre nom.
+.TP
+\f[B]\[en]json\f[R]
+Écrit les nœuds concernés à plat (un objet par nœud : \f[B]nom\f[R],
+\f[B]type\f[R] \[em] \f[B]etape\f[R] ou \f[B]page\f[R] \[em],
+\f[B]commande\f[R], \f[B]description\f[R], \f[B]depend_de\f[R],
+\f[B]archive_octets\f[R]/\f[B]base_octets\f[R] propres au nœud, et pour
+une page \f[B]archive_octets_transitif\f[R]/
+\f[B]base_octets_transitif\f[R], le total dépendances comprises) plutôt
+que l\[cq]arbre déroulé.
+.TP
+\f[B]\[en]pages\f[R]
+N\[cq]affiche que le second arbre (les pages du site et leurs
+préalables), sans argument.
+.PP
+\f[B]Tailles\f[R] : les octets archivés viennent de
+\f[B]raw.source.etape\f[R] (écrit par
+\f[B]internal/archive.Archive.Etape\f[R] à chaque ingestion via
+\f[B]fpctl ingest <source|catégorie>\f[R] \[em] pas \f[B]fpctl ingest
+all\f[R], la chaîne historique, qui n\[cq]étiquette pas ses sources) :
+un reflet générique qui couvre n\[cq]importe quelle étape du catalogue,
+pas seulement les sept du socle \[em] c\[cq]est ce qui permet de
+chiffrer le coût d\[cq]ingestion d\[cq]une page entière.
+Les octets en base restent une liste de tables tenue à la main
+(\f[B]cmd/fpctl/list.go\f[R], \f[B]composantesEtape\f[R]), à ce jour
+limitée aux sept étapes du socle.
 .RE
 .SH VOIR AUSSI
 \f[B]fpctl\f[R](1), \f[B]fpctl\-ingest\f[R](1)
