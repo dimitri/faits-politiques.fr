@@ -22,6 +22,8 @@ fpctl-ingest - télécharge, archive et charge les jeux de données sources
 
 **fpctl ingest migrate**
 
+**fpctl ingest deps**
+
 # DESCRIPTION
 
 Chaque source est rangée dans une catégorie plutôt qu'exposée comme une
@@ -43,6 +45,23 @@ explicite du côté de qui la lance, pas un oubli du côté de fpctl.
 Chaque téléchargement passe par l'archive scellée (**internal/archive**) :
 un document est identifié par l'empreinte de ses octets, jamais écrasé,
 toute récupération est datée — voir docs/perimetre.md §2.5.
+
+# LE SOCLE PARLEMENTAIRE
+
+Sept sources de la catégorie **parlement** (**download**, **partis**,
+**normalize**, **carto**, **senat**, **europe**, **themes**) ont leurs
+dépendances déclarées et vérifiées (**internal/pipeline**) — le reste du
+catalogue, non encore audité, garde l'ordre implicite qu'il a toujours eu.
+Demander l'une de ces sept résout et exécute d'abord ce qu'elle exige :
+**fpctl ingest parlement normalize** sur une base neuve enchaîne
+**download** puis **partis** sans qu'on ait à les nommer. **--dry-run**
+affiche le plan par vagues sans rien exécuter ; **-j** *n* exécute jusqu'à
+*n* étapes indépendantes d'une même vague de front (**carto**, **senat** et
+**europe** ne dépendent que de **normalize**, jamais l'une de l'autre).
+Les deux options échouent plutôt que de s'appliquer en silence en dehors de
+ce socle. La topologie exécutée est republiée en base à chaque appel qui le
+touche — **fpctl ingest deps** l'affiche, dépendances et dernière exécution
+réussie de chaque étape.
 
 # CATÉGORIES
 
@@ -84,6 +103,15 @@ toute récupération est datée — voir docs/perimetre.md §2.5.
 
 **--migrations** *répertoire*
 :   Répertoire des migrations. Par défaut **db/migrations**.
+
+**--dry-run**
+:   Affiche l'ordre d'exécution par vagues sans rien exécuter — le socle
+    parlementaire seulement (voir **LE SOCLE PARLEMENTAIRE**) ; refuse
+    plutôt que d'exécuter en silence pour le reste du catalogue.
+
+**-j** *n*
+:   Jusqu'à *n* étapes indépendantes (même vague) exécutées de front — le
+    socle parlementaire seulement. 1 par défaut (séquentiel).
 
 # VOIR AUSSI
 

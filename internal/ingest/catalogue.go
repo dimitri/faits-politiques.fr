@@ -11,6 +11,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/associations"
 	"github.com/faits-politiques/faits-politiques/internal/budget"
 	"github.com/faits-politiques/faits-politiques/internal/campagne"
+	"github.com/faits-politiques/faits-politiques/internal/carto"
 	"github.com/faits-politiques/faits-politiques/internal/communes"
 	"github.com/faits-politiques/faits-politiques/internal/damir"
 	"github.com/faits-politiques/faits-politiques/internal/decp"
@@ -76,6 +77,16 @@ func Categories() []string {
 type Source struct {
 	Nom, Categorie, Description string
 	Executer                    func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error
+	// Dependances : les autres sources qui doivent avoir réussi avant
+	// celle-ci — vide pour la quasi-totalité du catalogue (des connecteurs
+	// indépendants les uns des autres), déclarée seulement pour le socle
+	// parlementaire (download, partis, normalize, carto, senat, europe,
+	// themes), le seul audité et exécuté via internal/pipeline.Registre
+	// (résolution automatique, concurrence, simulation) — voir
+	// registreParlement() dans ingest.go. Une source hors de ce socle garde
+	// l'ordre implicite qu'elle a toujours eu (le nom de sa catégorie ne
+	// suffit pas à garantir qu'elle est indépendante des autres).
+	Dependances []string
 }
 
 // SourcesDeCategorie : les sources d'une catégorie, dans l'ordre du
@@ -120,25 +131,23 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return telechargerAssemblee(ctx, pool, arch)
 		}},
-	{Nom: "partis", Categorie: CategorieParlement,
+	{Nom: "partis", Categorie: CategorieParlement, Dependances: []string{"download"},
 		Description: "référentiels sur les organisations politiques (comptes de campagne, PopuList, CHES)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return ingestPartis(ctx, pool, arch)
 		}},
-	{Nom: "normalize", Categorie: CategorieParlement,
-		Description: "normalisation raw -> core (Assemblée), puis cartographie éditoriale",
+	{Nom: "normalize", Categorie: CategorieParlement, Dependances: []string{"download", "partis"},
+		Description: "normalisation raw -> core (Assemblée)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			if err := normaliserAssemblee(ctx, pool); err != nil {
-				return err
-			}
-			return cartographie(ctx, pool)
+			return normaliserAssemblee(ctx, pool)
 		}},
-	{Nom: "carto", Categorie: CategorieParlement,
-		Description: "cartographie éditoriale seule (partis -> groupes, gouvernements, présidences, thèmes)",
+	{Nom: "carto", Categorie: CategorieParlement, Dependances: []string{"normalize"},
+		Description: "cartographie éditoriale (partis -> groupes, gouvernements, présidences)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return cartographie(ctx, pool)
 		}},
-	{Nom: "senat", Categorie: CategorieParlement, Description: "Sénat : scrutins, sénateurs, fusion, mandats, commissions, thèmes",
+	{Nom: "senat", Categorie: CategorieParlement, Dependances: []string{"normalize"},
+		Description: "Sénat : scrutins, sénateurs, fusion, mandats, commissions",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return ingestSenat(ctx, pool, arch, rawDir)
 		}},
@@ -162,9 +171,19 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.NormalizePresentations(ctx, pool)
 		}},
-	{Nom: "europe", Categorie: CategorieParlement, Description: "Parlement européen : scrutins et votes des eurodéputés français",
+	{Nom: "europe", Categorie: CategorieParlement, Dependances: []string{"normalize"},
+		Description: "Parlement européen : scrutins et votes des eurodéputés français",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return europe.Ingest(ctx, pool, arch)
+		}},
+	// La couverture PARLEMENT_EUROPEEN d'un thème dépend des scrutins
+	// européens déjà chargés — un thème calculé avant que l'Europe ait
+	// tourné manquait cette couverture en silence (le bug qui a motivé ce
+	// nœud séparé plutôt qu'un appel logé dans senat ou carto).
+	{Nom: "themes", Categorie: CategorieParlement, Dependances: []string{"senat", "europe"},
+		Description: "thèmes applicables aux scrutins (dépend du Sénat ET de l'Europe)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return carto.Themes(ctx, pool)
 		}},
 	{Nom: "amendements", Categorie: CategorieParlement, Description: "amendements et exposés sommaires",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {

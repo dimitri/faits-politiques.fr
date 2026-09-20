@@ -16,7 +16,7 @@ fpctl-build - génère le site statique, en entier ou par section
 [**-data** *répertoire*] [**-root** *préfixe*]
 [**-max-scrutins** *n*] [**-cpuprofile** *fichier*]
 
-**fpctl build** **scrutin**|**communes**|**reste** [mêmes options]
+**fpctl build** **scrutin**|**communes**|**reste** [**-dry-run**] [mêmes options]
 
 # DESCRIPTION
 
@@ -42,6 +42,14 @@ ne reconstruisent qu'une partie du site — bien plus rapide pour itérer sur
 une seule section, sans attendre le reste. **reste** est tout ce que
 scrutin et communes ne couvrent pas (accueil, dossiers, thèmes,
 gouvernement, budget...).
+
+Chacune ingère d'abord ce qu'elle déclare nécessiter (**scrutin** :
+**normalize**, **exposes** ; **communes** : **normalize**, **communes**,
+**associations** ; **reste** : **normalize** — voir **ingestPrealables**
+dans **cmd/fpctl/build.go**), idempotent : relancer ne refait pas ce qui
+est déjà à jour, et **normalize** résout lui-même ses propres préalables
+(voir **fpctl-ingest**(1), LE SOCLE PARLEMENTAIRE). **-dry-run** affiche
+ces préalables sans rien ingérer ni construire.
 
 Le site produit par une section est **délibérément incomplet** : jamais mis
 en place automatiquement, jamais ce que doit servir le domaine réel —

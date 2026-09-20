@@ -34,12 +34,54 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
 	"github.com/faits-politiques/faits-politiques/internal/partis"
+	"github.com/faits-politiques/faits-politiques/internal/pipeline"
 	"github.com/faits-politiques/faits-politiques/internal/prefets"
 	"github.com/faits-politiques/faits-politiques/internal/presidentielle"
 	"github.com/faits-politiques/faits-politiques/internal/senat"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+// socleParlementaire : les seules sources du catalogue dont les dépendances
+// sont déclarées et vérifiées (Source.Dependances) — le socle audité une
+// bonne fois pour toutes (voir internal/pipeline et le commentaire de
+// Source.Dependances), pas encore tout le catalogue. RunSource/RunCategorie
+// les résolvent et les exécutent via un pipeline.Registre (vagues
+// topologiques, concurrence, simulation) plutôt qu'un simple appel direct.
+var socleParlementaire = []string{"download", "partis", "normalize", "carto", "senat", "europe", "themes"}
+
+func estSurLeSocle(nom string) bool {
+	for _, n := range socleParlementaire {
+		if n == nom {
+			return true
+		}
+	}
+	return false
+}
+
+// registreParlement construit le pipeline.Registre du socle parlementaire à
+// partir du catalogue — une seule référence (catalogue.go) pour les deux :
+// la liste plate que "fpctl ingest parlement" affiche, et le graphe que ce
+// même socle exécute. Publie aussitôt la topologie en base
+// (core.pipeline_etape/pipeline_dependance) : « fpctl ingest deps » reste à
+// jour même si l'appel qui suit ne cible qu'une seule de ces sources.
+func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) (*pipeline.Registre, error) {
+	reg := pipeline.NouveauRegistre(pool)
+	for _, nom := range socleParlementaire {
+		source, ok := SourceParNom(nom)
+		if !ok {
+			panic(fmt.Sprintf("ingest : %q déclaré dans socleParlementaire mais absent du catalogue", nom))
+		}
+		reg.Ajouter(pipeline.Etape{
+			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
+			Executer: func(ctx context.Context) error { return source.Executer(ctx, pool, arch, rawDir) },
+		})
+	}
+	if err := reg.Publier(ctx); err != nil {
+		return nil, fmt.Errorf("publication de la topologie : %w", err)
+	}
+	return reg, nil
+}
 
 // contexte : ce que chaque point d'entrée (RunTout/RunSource/RunCategorie)
 // ouvre avant de faire quoi que ce soit — les migrations en attente, le
@@ -63,8 +105,14 @@ func contexte(ctx context.Context, rawDir, migDir string) (pool *pgxpool.Pool, a
 	return pool, &archive.Archive{Root: rawDir, Pool: pool}, pool.Close, nil
 }
 
-// RunSource exécute une seule source du catalogue, par son nom.
-func RunSource(ctx context.Context, rawDir, migDir, nom string) error {
+// RunSource exécute une seule source du catalogue, par son nom. Une source
+// du socle parlementaire (voir socleParlementaire) résout et exécute
+// d'abord ses dépendances — « fpctl ingest parlement normalize » sur une
+// base neuve déclenche automatiquement download puis partis, dans l'ordre,
+// sans qu'on ait à les nommer soi-même ; opts porte -dry-run/-j pour ce
+// même socle (ignorés, silencieusement, pour tout le reste du catalogue,
+// qui reste à exécution simple).
+func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline.Options) error {
 	if nom == "migrate" {
 		pool, err := store.Open(ctx)
 		if err != nil {
@@ -83,17 +131,34 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string) error {
 		return err
 	}
 	defer fermer()
+	if estSurLeSocle(nom) {
+		reg, err := registreParlement(ctx, pool, arch, rawDir)
+		if err != nil {
+			return err
+		}
+		return reg.Executer(ctx, []string{nom}, opts...)
+	}
+	if len(opts) > 0 && opts[0].DryRun {
+		return fmt.Errorf("-dry-run n'est pas pris en charge pour %s (hors du socle audité, voir socleParlementaire)", nom)
+	}
 	fmt.Printf("\n%s\n", source.Description)
 	return source.Executer(ctx, pool, arch, rawDir)
 }
 
-// RunCategorie exécute toutes les sources d'une catégorie, dans l'ordre du
-// catalogue — un choix délibéré, plus large que la chaîne par défaut
-// (RunTout) : une source marquée « hors chaîne par défaut » (coûteuse, ou
-// exigeant une clé/un binaire particulier) reste hors de RunTout mais fait
-// pleinement partie de sa catégorie ici — demander une catégorie entière est
-// une décision explicite, pas un oubli.
-func RunCategorie(ctx context.Context, rawDir, migDir, categorie string) error {
+// RunCategorie exécute toutes les sources d'une catégorie — un choix
+// délibéré, plus large que la chaîne par défaut (RunTout) : une source
+// marquée « hors chaîne par défaut » (coûteuse, ou exigeant une clé/un
+// binaire particulier) reste hors de RunTout mais fait pleinement partie de
+// sa catégorie ici — demander une catégorie entière est une décision
+// explicite, pas un oubli.
+//
+// Les sources du socle parlementaire présentes dans la catégorie (voir
+// socleParlementaire) passent d'abord, ensemble, par internal/pipeline :
+// vagues topologiques, jusqu'à opts[0].Concurrence de front par vague — pour
+// « parlement », ça place « editorial, senat, europe » dans une même vague,
+// concurremment. Le reste de la catégorie suit, dans l'ordre du catalogue,
+// à exécution simple.
+func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ...pipeline.Options) error {
 	sources := SourcesDeCategorie(categorie)
 	if len(sources) == 0 {
 		return fmt.Errorf("catégorie inconnue : %s (voir « fpctl ingest » pour la liste)", categorie)
@@ -104,7 +169,33 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string) error {
 	}
 	defer fermer()
 	start := time.Now()
+
+	var socle []string
 	for _, s := range sources {
+		if estSurLeSocle(s.Nom) {
+			socle = append(socle, s.Nom)
+		}
+	}
+	if len(socle) > 0 {
+		reg, err := registreParlement(ctx, pool, arch, rawDir)
+		if err != nil {
+			return err
+		}
+		if err := reg.Executer(ctx, socle, opts...); err != nil {
+			return err
+		}
+	}
+	if len(opts) > 0 && opts[0].DryRun {
+		if len(socle) == len(sources) {
+			return nil
+		}
+		return fmt.Errorf("-dry-run n'est pas pris en charge pour le reste de %s (hors du socle audité)", categorie)
+	}
+
+	for _, s := range sources {
+		if estSurLeSocle(s.Nom) {
+			continue
+		}
 		fmt.Printf("\n%s\n", s.Description)
 		if err := s.Executer(ctx, pool, arch, rawDir); err != nil {
 			return fmt.Errorf("%s : %w", s.Nom, err)
@@ -249,6 +340,14 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 	if err := cartographie(ctx, pool); err != nil {
 		return err
 	}
+	// Après senat ET europe, jamais avant : un thème calculé avant que
+	// l'Europe ait tourné manquait toute la couverture PARLEMENT_EUROPEEN —
+	// le bug qui a motivé le graphe de dépendances déclaré (voir la source
+	// « themes » du catalogue et internal/pipeline).
+	fmt.Println("\nthèmes applicables aux scrutins")
+	if err := carto.Themes(ctx, pool); err != nil {
+		return err
+	}
 
 	fmt.Println("\nportraits et logos librement réutilisables")
 	if err := ingestMedia(ctx, pool, arch, "data", "web/media"); err != nil {
@@ -329,11 +428,7 @@ func ingestSenat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	if err := senat.IngestCommissions(ctx, pool, arch); err != nil {
 		return err
 	}
-	if err := senat.NormalizePresentations(ctx, pool); err != nil {
-		return err
-	}
-	fmt.Println("\nthèmes applicables aux scrutins")
-	return carto.Themes(ctx, pool)
+	return senat.NormalizePresentations(ctx, pool)
 }
 
 // ingestMacro : les grandes séries nationales, plus la représentation de
@@ -430,6 +525,10 @@ func recalculerEmpreintes(ctx context.Context, pool *pgxpool.Pool) error {
 // cartographie charge les décisions de rattachement puis en déduit le thème
 // applicable à chaque scrutin. Les deux vont ensemble : sans le rattachement
 // parti -> groupe, un thème ne se relie à aucune famille politique.
+// cartographie charge les décisions de rattachement (partis -> groupes,
+// gouvernements, présidences) — mais PAS les thèmes : ceux-ci dépendent du
+// Sénat ET de l'Europe (voir la source « themes » du catalogue), jamais
+// prêts au même moment que cette seule cartographie éditoriale.
 func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 	fmt.Println("\ncartographie éditoriale")
 	if err := carto.Ingest(ctx, pool, filepath.Join("data", "organisations.csv")); err != nil {
@@ -440,11 +539,7 @@ func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 	fmt.Println("\nprésidences de la République")
-	if err := carto.IngestPresidents(ctx, pool, filepath.Join("data", "presidents.csv")); err != nil {
-		return err
-	}
-	fmt.Println("\nthèmes applicables aux scrutins")
-	return carto.Themes(ctx, pool)
+	return carto.IngestPresidents(ctx, pool, filepath.Join("data", "presidents.csv"))
 }
 
 // dimensionLocale charge la dimension communale, dans un ordre contraint :

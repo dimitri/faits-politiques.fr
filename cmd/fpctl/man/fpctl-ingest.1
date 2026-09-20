@@ -14,6 +14,8 @@ sources
 \f[B]fpctl ingest\f[R] \f[I]catégorie\f[R] \f[I]source\f[R]
 .PP
 \f[B]fpctl ingest migrate\f[R]
+.PP
+\f[B]fpctl ingest deps\f[R]
 .SH DESCRIPTION
 Chaque source est rangée dans une catégorie plutôt qu\[cq]exposée comme
 une valeur d\[cq]un flag plat \[em] voir \f[B]CATÉGORIES\f[R]
@@ -40,6 +42,26 @@ Chaque téléchargement passe par l\[cq]archive scellée
 (\f[B]internal/archive\f[R]) : un document est identifié par
 l\[cq]empreinte de ses octets, jamais écrasé, toute récupération est
 datée \[em] voir docs/perimetre.md §2.5.
+.SH LE SOCLE PARLEMENTAIRE
+Sept sources de la catégorie \f[B]parlement\f[R] (\f[B]download\f[R],
+\f[B]partis\f[R], \f[B]normalize\f[R], \f[B]carto\f[R], \f[B]senat\f[R],
+\f[B]europe\f[R], \f[B]themes\f[R]) ont leurs dépendances déclarées et
+vérifiées (\f[B]internal/pipeline\f[R]) \[em] le reste du catalogue, non
+encore audité, garde l\[cq]ordre implicite qu\[cq]il a toujours eu.
+Demander l\[cq]une de ces sept résout et exécute d\[cq]abord ce
+qu\[cq]elle exige : \f[B]fpctl ingest parlement normalize\f[R] sur une
+base neuve enchaîne \f[B]download\f[R] puis \f[B]partis\f[R] sans
+qu\[cq]on ait à les nommer.
+\f[B]\[en]dry\-run\f[R] affiche le plan par vagues sans rien exécuter ;
+\f[B]\-j\f[R] \f[I]n\f[R] exécute jusqu\[cq]à \f[I]n\f[R] étapes
+indépendantes d\[cq]une même vague de front (\f[B]carto\f[R],
+\f[B]senat\f[R] et \f[B]europe\f[R] ne dépendent que de
+\f[B]normalize\f[R], jamais l\[cq]une de l\[cq]autre).
+Les deux options échouent plutôt que de s\[cq]appliquer en silence en
+dehors de ce socle.
+La topologie exécutée est republiée en base à chaque appel qui le touche
+\[em] \f[B]fpctl ingest deps\f[R] l\[cq]affiche, dépendances et dernière
+exécution réussie de chaque étape.
 .SH CATÉGORIES
 .TP
 \f[B]parlement\f[R]
@@ -81,6 +103,17 @@ Par défaut \f[B]raw\f[R].
 \f[B]\[en]migrations\f[R] \f[I]répertoire\f[R]
 Répertoire des migrations.
 Par défaut \f[B]db/migrations\f[R].
+.TP
+\f[B]\[en]dry\-run\f[R]
+Affiche l\[cq]ordre d\[cq]exécution par vagues sans rien exécuter \[em]
+le socle parlementaire seulement (voir \f[B]LE SOCLE PARLEMENTAIRE\f[R])
+; refuse plutôt que d\[cq]exécuter en silence pour le reste du
+catalogue.
+.TP
+\f[B]\-j\f[R] \f[I]n\f[R]
+Jusqu\[cq]à \f[I]n\f[R] étapes indépendantes (même vague) exécutées de
+front \[em] le socle parlementaire seulement.
+1 par défaut (séquentiel).
 .SH VOIR AUSSI
 \f[B]fpctl\f[R](1), \f[B]fpctl\-build\f[R](1),
 \f[B]fpctl\-verify\f[R](1)

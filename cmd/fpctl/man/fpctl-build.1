@@ -11,7 +11,8 @@ fpctl\-build \- génère le site statique, en entier ou par section
 \f[I]fichier\f[R]]
 .PP
 \f[B]fpctl build\f[R]
-\f[B]scrutin\f[R]|\f[B]communes\f[R]|\f[B]reste\f[R] [mêmes options]
+\f[B]scrutin\f[R]|\f[B]communes\f[R]|\f[B]reste\f[R]
+[\f[B]\-dry\-run\f[R]] [mêmes options]
 .SH DESCRIPTION
 \f[B]fpctl build site\f[R] construit le site dans
 \f[B]<out>.construction/\f[R], puis le met en place d\[cq]un coup à la
@@ -37,6 +38,17 @@ requêtes et ne construit rien du tout.
 le reste.
 \f[B]reste\f[R] est tout ce que scrutin et communes ne couvrent pas
 (accueil, dossiers, thèmes, gouvernement, budget\&...).
+.PP
+Chacune ingère d\[cq]abord ce qu\[cq]elle déclare nécessiter
+(\f[B]scrutin\f[R] : \f[B]normalize\f[R], \f[B]exposes\f[R] ;
+\f[B]communes\f[R] : \f[B]normalize\f[R], \f[B]communes\f[R],
+\f[B]associations\f[R] ; \f[B]reste\f[R] : \f[B]normalize\f[R] \[em]
+voir \f[B]ingestPrealables\f[R] dans \f[B]cmd/fpctl/build.go\f[R]),
+idempotent : relancer ne refait pas ce qui est déjà à jour, et
+\f[B]normalize\f[R] résout lui\-même ses propres préalables (voir
+\f[B]fpctl\-ingest\f[R](1), LE SOCLE PARLEMENTAIRE).
+\f[B]\-dry\-run\f[R] affiche ces préalables sans rien ingérer ni
+construire.
 .PP
 Le site produit par une section est \f[B]délibérément incomplet\f[R] :
 jamais mis en place automatiquement, jamais ce que doit servir le
