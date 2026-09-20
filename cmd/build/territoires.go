@@ -50,12 +50,14 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 	poser := func(c CarteTerritoire, cases []CaseCarte, unite string,
 		format func(float64) string) CarteTerritoire {
 		c.Apercu = apercu(vign, cases, unite, format)
+		rangs := classement(cases, vign.Noms, format)
 		c.Page = PageCarte{
 			Slug: c.Slug, Titre: c.Titre, Question: c.Question,
 			Source: c.Source, Note: c.Note,
 			Section: "Collectivités", SectionURL: "collectivites/carte", SectionIndexURL: "collectivites",
 			Carte:      pleine(fin2, cases, unite, format),
-			Classement: classement(cases, vign.Noms, format),
+			Resume:     resumerClassement(rangs),
+			Classement: rangs,
 		}
 		return c
 	}

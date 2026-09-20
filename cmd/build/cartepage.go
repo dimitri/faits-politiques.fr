@@ -23,14 +23,44 @@ type PageCarte struct {
 	// mais leur fil d'Ariane doit pointer vers /collectivites/, l'index réel.
 	SectionIndexURL string
 	Carte           Carte
-	Classement      []Rang
-	Serie           []PointAnnee
-	SerieLegende    string
-	Courbe          template.HTML
-	Voisines        []LienCarte
+	// Resume : nombre de départements, médiane, maximum et minimum — le
+	// résumé chiffré posé à côté de LA carte, sur le modèle de la colonne
+	// de droite de « Trois niveaux, trois cartes » sur
+	// /sujets/collectivites/ (dl.legende-situation), plutôt qu'une simple
+	// légende de couleurs renvoyant au classement complet plus bas.
+	Resume       *ResumeClassement
+	Classement   []Rang
+	Serie        []PointAnnee
+	SerieLegende string
+	Courbe       template.HTML
+	Voisines     []LienCarte
 }
 
 type LienCarte struct{ Slug, Titre string }
+
+// ResumeClassement : nombre de départements couverts, médiane, maximum et
+// minimum — tirés directement du classement déjà trié et déjà mis en forme
+// par classement() (Rang.Valeur porte l'unité et les décimales choisies par
+// l'appelant), plutôt que recalculés sur les valeurs brutes : jamais deux
+// formatages différents du même chiffre sur une même page.
+type ResumeClassement struct {
+	Nombre            int
+	MedianeValeur     string
+	MaxNom, MaxValeur string
+	MinNom, MinValeur string
+}
+
+func resumerClassement(rangs []Rang) *ResumeClassement {
+	if len(rangs) == 0 {
+		return nil
+	}
+	r := &ResumeClassement{Nombre: len(rangs)}
+	r.MaxNom, r.MaxValeur = rangs[0].Nom, rangs[0].Valeur
+	dernier := rangs[len(rangs)-1]
+	r.MinNom, r.MinValeur = dernier.Nom, dernier.Valeur
+	r.MedianeValeur = rangs[len(rangs)/2].Valeur
+	return r
+}
 
 type Rang struct {
 	Rang      int

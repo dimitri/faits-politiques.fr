@@ -288,8 +288,13 @@ type DonneesAccueil struct {
 	SoldePIB                  float64
 	Reperes                   []Repere
 	Familles                  []*Famille
-	Argent                    *Famille
-	Onglets                   []OngletCarte
+	// NbSujets : total des sujets des neuf familles de campagne, hors
+	// « argent public » qui n'en est pas une (voir familleArgent) — le
+	// chiffre du bandeau d'ouverture de l'accueil, jamais recompté à la
+	// main dans le gabarit.
+	NbSujets int
+	Argent   *Famille
+	Onglets  []OngletCarte
 }
 
 // Le détail sous chaque fonction dit ce que la nomenclature y range, parce
@@ -310,6 +315,9 @@ var detailCofog = map[string]string{
 
 func loadAccueil(ctx context.Context, pool *pgxpool.Pool, terr *StatsTerritoires, sec *StatsSecurite) (*DonneesAccueil, error) {
 	a := &DonneesAccueil{Familles: famillesSujets(), Argent: familleArgent()}
+	for _, fam := range a.Familles {
+		a.NbSujets += len(fam.Sujets)
+	}
 
 	// Dépense par fonction : la dernière année où les dix fonctions sont
 	// publiées, pour que le total soit celui d'une même année. Les dix
