@@ -269,7 +269,14 @@ type Repere struct{ Valeur, Libelle, Source string }
 
 type OngletCarte struct {
 	Libelle, Titre, Question, Source, URL string
-	Apercu                                Carte
+	// Carte : la carte PLEINE (tracés en clair, infobulles au survol), pas la
+	// vignette décorative des grilles d'index — depuis la refonte du
+	// 20 septembre 2026, l'accueil affiche la même carte que la page de
+	// détail vers laquelle il pointe, à la même échelle que
+	// /sujets/collectivites/ (le nouveau standard du site), pas une
+	// miniature. Le calcul ne coûte rien de plus : PageCarte.Carte est déjà
+	// produit pour la page de détail elle-même.
+	Carte Carte
 }
 
 type DonneesAccueil struct {
@@ -283,7 +290,6 @@ type DonneesAccueil struct {
 	Familles                  []*Famille
 	Argent                    *Famille
 	Onglets                   []OngletCarte
-	Defs                      template.HTML
 }
 
 // Le détail sous chaque fonction dit ce que la nomenclature y range, parce
@@ -441,21 +447,20 @@ func loadAccueil(ctx context.Context, pool *pgxpool.Pool, terr *StatsTerritoires
 		return nil
 	}
 	if c := carteTerr("medecins-generalistes"); c != nil {
-		a.Onglets = append(a.Onglets, OngletCarte{"Santé", c.Titre, c.Question, c.Source, "collectivites/carte/" + c.Slug + "/", c.Apercu})
+		a.Onglets = append(a.Onglets, OngletCarte{"Santé", c.Titre, c.Question, c.Source, "collectivites/carte/" + c.Slug + "/", c.Page.Carte})
 	}
 	if c := carteTerr("rsa"); c != nil {
-		a.Onglets = append(a.Onglets, OngletCarte{"Solidarité", c.Titre, c.Question, c.Source, "collectivites/carte/" + c.Slug + "/", c.Apercu})
+		a.Onglets = append(a.Onglets, OngletCarte{"Solidarité", c.Titre, c.Question, c.Source, "collectivites/carte/" + c.Slug + "/", c.Page.Carte})
 	}
 	for _, ind := range sec.Indicateurs {
 		if ind.Code == "cambriolages_de_logement" {
 			a.Onglets = append(a.Onglets, OngletCarte{"Sécurité", ind.Libelle + " pour 1 000 habitants", ind.Question,
-				ind.Page.Source + ", " + fmt.Sprint(sec.Annee), "securite/" + ind.Slug + "/", ind.Apercu})
+				ind.Page.Source + ", " + fmt.Sprint(sec.Annee), "securite/" + ind.Slug + "/", ind.Page.Carte})
 		}
 	}
 	if c := carteTerr("dette"); c != nil {
-		a.Onglets = append(a.Onglets, OngletCarte{"Finances locales", c.Titre, c.Question, c.Source, "collectivites/carte/" + c.Slug + "/", c.Apercu})
+		a.Onglets = append(a.Onglets, OngletCarte{"Finances locales", c.Titre, c.Question, c.Source, "collectivites/carte/" + c.Slug + "/", c.Page.Carte})
 	}
-	a.Defs = terr.Defs
 	return a, nil
 }
 

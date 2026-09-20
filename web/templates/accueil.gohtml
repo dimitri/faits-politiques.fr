@@ -54,26 +54,31 @@
     <h2 class="h2">Les sujets de campagne, département par département</h2></div>
     <a class="plus" href="{{.Root}}/collectivites/">Toutes les cartes →</a></div>
   {{/* Onglets sans script : des boutons radio, un panneau par onglet. Chaque
-       panneau reprend l'affichage « en ligne » des cartes départementales —
-       vignette à gauche, légende, cartons d'outre-mer et source à droite. */}}
+       panneau affiche la carte PLEINE de la page de détail vers laquelle il
+       pointe (tracés en clair, infobulle au survol) — la même échelle et le
+       même standard que /sujets/collectivites/, pas une vignette
+       décorative : voir le commentaire d'OngletCarte.Carte. Ratio
+       carte/légende 1.15fr/1fr comme .cartes-empilees, via le modificateur
+       .grandes (jamais .cartes-empilees lui-même, réservé à
+       /collectivites/ — voir l'avertissement au-dessus de sa règle CSS). */}}
   <div class="onglets-carte">
     {{range $i, $o := $a.Onglets}}<input type="radio" name="onglet-carte" id="oc{{add $i 1}}" class="vh"{{if eq $i 0}} checked{{end}}>{{end}}
     <div class="etiquettes" role="presentation">
       {{range $i, $o := $a.Onglets}}<label for="oc{{add $i 1}}">{{$o.Libelle}}</label>{{end}}
     </div>
-    <div class="panneaux cartes-lignes">
+    <div class="panneaux cartes-lignes grandes">
       {{range $i, $o := $a.Onglets}}<a class="bloc-carte ligne p{{add $i 1}}" href="{{$.Root}}/{{$o.URL}}">
-        {{if $o.Apercu.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}{{$o.Apercu.SVG}}{{end}}
+        {{if $o.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}{{$o.Carte.SVG}}{{end}}
         <div>
           <h3>{{$o.Titre}}</h3>
           <p class="q">{{$o.Question}}</p>
-          {{if not $o.Apercu.Vide}}
-          {{$t := $o.Apercu.Teintes}}<span class="echelle"><span class="u">{{$o.Apercu.Unite}}</span>
-            {{range $j, $b := $o.Apercu.Bornes}}<span><i style="background:{{index $t $j}}"></i>{{$b}}</span>{{end}}
+          {{if not $o.Carte.Vide}}
+          {{$t := $o.Carte.Teintes}}<span class="echelle"><span class="u">{{$o.Carte.Unite}}</span>
+            {{range $j, $b := $o.Carte.Bornes}}<span><i style="background:{{index $t $j}}"></i>{{$b}}</span>{{end}}
           </span>
           {{end}}
-          {{template "cartons" $o.Apercu.Cartons}}
-          <span class="src">{{$o.Source}}{{if $o.Apercu.NbAbsents}} · {{$o.Apercu.NbAbsents}} départements sans donnée{{end}}</span>
+          {{template "cartons" $o.Carte.Cartons}}
+          <span class="src">{{$o.Source}}{{if $o.Carte.NbAbsents}} · {{$o.Carte.NbAbsents}} départements sans donnée{{end}}</span>
           <span class="voir">La carte, le classement des départements et la méthode →</span>
         </div>
       </a>{{end}}
@@ -81,7 +86,6 @@
   </div>
   <p class="src-bloc">Une carte situe, elle n'explique pas&nbsp;: un écart entre départements n'est pas
   l'effet d'une politique. Contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0.</p>
-  {{$a.Defs}}
 </section>
 {{end}}
 
