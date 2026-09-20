@@ -67,6 +67,14 @@ func execBinaire(ctx context.Context, nom, pkg string, args []string) error {
 		Env: append(os.Environ(), logs.ActorEnv+"="+nom),
 	}.Run()
 	if err != nil {
+		// ctx annulé (signal) avant tout : un enfant tué par le SIGTERM que
+		// toolrun lui a envoyé remonte un ExitCode() de -1 (« terminé par un
+		// signal », voir os/exec), qui deviendrait 255 une fois passé par
+		// os.Exit — pas le code conventionnel (130) que main() attend pour
+		// dire qu'on s'est arrêté proprement parce qu'on le lui a demandé.
+		if ctx.Err() != nil {
+			os.Exit(logs.ExitCode)
+		}
 		if exitErr, ok := err.(*exec.ExitError); ok {
 			os.Exit(exitErr.ExitCode())
 		}
