@@ -339,7 +339,7 @@ func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bo
 // pour le principe (mv ne se rafraîchit jamais depuis internal/sitegen).
 func nominalVotes(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool) (map[int64][]VoteLigne, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT scrutin_id, person_slug, person_nom,
+		SELECT scrutin_id, person_slug, person_family_name, person_given_name,
 		       organisation_nom, organisation_slug, position, rectifiee
 		FROM mv.scrutin_vote_nominal
 		ORDER BY scrutin_id, person_family_name`)
@@ -352,9 +352,11 @@ func nominalVotes(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool
 	for rows.Next() {
 		var sid int64
 		var v VoteLigne
-		if err := rows.Scan(&sid, &v.Slug, &v.Nom, &v.Groupe, &v.GroupeSlug, &v.Position, &v.Rectifiee); err != nil {
+		var familyName, givenName string
+		if err := rows.Scan(&sid, &v.Slug, &familyName, &givenName, &v.Groupe, &v.GroupeSlug, &v.Position, &v.Rectifiee); err != nil {
 			return nil, err
 		}
+		v.Nom = familyName + ", " + givenName
 		if !wanted[sid] {
 			continue
 		}

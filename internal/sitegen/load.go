@@ -121,13 +121,14 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 
 	// Le groupe courant est celui du DERNIER vote enregistré : c'est une donnée
 	// de relevé, datée et sourcée, là où les fichiers de mandats publiés ne
-	// portent pas les groupes de la 17e législature.
+	// portent pas les groupes de la 17e législature. mv.scrutin_vote_nominal
+	// (internal/matview) remplace le JOIN sur la totalité de core.ballot.
 	rows, err = pool.Query(ctx, `
-		SELECT DISTINCT ON (b.person_id) b.person_id, coalesce(o.short_name, o.name)
-		FROM core.ballot b
-		JOIN core.scrutin s ON s.id = b.scrutin_id
-		JOIN core.organization o ON o.id = b.organization_id
-		ORDER BY b.person_id, s.date_seance DESC`)
+		SELECT DISTINCT ON (mv.person_id) mv.person_id, mv.organisation_nom
+		FROM mv.scrutin_vote_nominal mv
+		JOIN core.scrutin s ON s.id = mv.scrutin_id
+		WHERE mv.organization_id IS NOT NULL
+		ORDER BY mv.person_id, s.date_seance DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -143,6 +144,12 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	}
 	rows.Close()
 
+	// PAS mv.scrutin_vote_nominal ici, à la différence des autres requêtes de
+	// ce fichier : ce décompte veut la position D'ORIGINE (position, sans
+	// coalesce avec position_rectifiee) — la matvue, elle, porte déjà la
+	// correction (comme groupBreakdown/nominalVotes le veulent, eux). Les
+	// deux sont des choix légitimes mais différents ; les confondre
+	// changerait silencieusement le décompte de 1 612 bulletins rectifiés.
 	rows, err = pool.Query(ctx, `
 		SELECT person_id, position::text, count(*)
 		FROM core.ballot GROUP BY 1,2`)
@@ -190,15 +197,20 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	return persons, nil
 }
 
-// loadVotesBulk charge les derniers votes de TOUTES les personnes en une
-// seule requête (fenêtrage SQL, une partition par personne), au lieu d'une
-// requête par personne. Sur 3 400+ députés et candidats, l'ancienne version
-// — une requête par fiche — dominait le temps de construction de cette
-// section à elle seule ; le fenêtrage fait le même travail à la source, en un
-// aller-retour. La liste par personne reste bornée : une fiche n'a pas
-// vocation à reproduire 8 000 lignes, et le total exprimé est affiché à côté
-// pour que la troncature soit visible.
+// loadVotesBulk lit mv.person_dernier_vote (internal/matview) — plus le
+// fenêtrage SQL sur la totalité de core.ballot/core.scrutin que cette
+// fonction refaisait à chaque construction (déjà en un seul aller-retour,
+// pas une requête par personne, mais toujours un passage complet sur le
+// fait brut). La matvue plafonne à 100 rangs ; limit (60 aujourd'hui) reste
+// le tri final affiché.
 func loadVotesBulk(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Person, limit int) error {
+	if limit > 100 {
+		// mv.person_dernier_vote (db/migrations/0156) ne garde que les 100
+		// premiers rangs par personne : au-delà, silencieusement tronquer
+		// serait servir une page fausse. Une vraie limite plus haute
+		// demande d'abord d'élargir la matvue (une nouvelle migration).
+		return fmt.Errorf("loadVotesBulk : limite %d > 100, la matvue mv.person_dernier_vote n'en garde pas plus", limit)
+	}
 	var ids []int64
 	byID := map[int64]*Person{}
 	for _, p := range persons {
@@ -211,17 +223,9 @@ func loadVotesBulk(ctx context.Context, pool *pgxpool.Pool, persons map[string]*
 		return nil
 	}
 	rows, err := pool.Query(ctx, `
-		SELECT person_id, slug, objet, date_txt, position, rectifiee, resultat FROM (
-			SELECT b.person_id, s.slug, s.objet,
-			       to_char(s.date_seance,'DD/MM/YYYY') AS date_txt,
-			       coalesce(b.position_rectifiee, b.position)::text AS position,
-			       b.position_rectifiee IS NOT NULL AS rectifiee,
-			       coalesce(s.resultat,'') AS resultat,
-			       row_number() OVER (PARTITION BY b.person_id
-			                          ORDER BY s.date_seance DESC, s.numero DESC) AS rang
-			FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
-			WHERE b.person_id = ANY($1)
-		) t WHERE rang <= $2
+		SELECT person_id, scrutin_slug, objet, date_txt, position, rectifiee, resultat
+		FROM mv.person_dernier_vote
+		WHERE person_id = ANY($1) AND rang <= $2
 		ORDER BY person_id, rang`, ids, limit)
 	if err != nil {
 		return err

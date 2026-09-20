@@ -60,11 +60,15 @@ func dessinerThemesEuroVoc(themes []ThemeEuroVoc) template.HTML {
 // dans les mêmes tables que ceux de l'Assemblée, distingués par leur
 // institution — mais ils ne sont JAMAIS agrégés avec eux : ce sont deux espaces
 // de vote distincts, non superposables.
+// loadEurope lit mv.scrutin_vote_nominal (internal/matview) au lieu de
+// core.ballot directement — le JOIN sur core.scrutin (institution) reste
+// applicatif, mais porte sur une table de quelques dizaines de milliers de
+// lignes, pas sur le fait 4,9 millions de lignes.
 func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 	e := &StatsEurope{}
 	if err := pool.QueryRow(ctx, `
 		SELECT (SELECT count(*) FROM core.scrutin WHERE institution='PARLEMENT_EUROPEEN'),
-		       (SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id=b.scrutin_id
+		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
 		         WHERE s.institution='PARLEMENT_EUROPEEN'),
 		       (SELECT count(*) FROM core.person_identifier WHERE scheme='EP_MEP')`).
 		Scan(&e.Scrutins, &e.Votes, &e.Eurodeputes); err != nil {
@@ -73,13 +77,13 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 
 	rows, err := pool.Query(ctx, `
 		SELECT o.slug, o.name, coalesce(o.short_name,''),
-		       count(DISTINCT b.person_id),
-		       count(*) FILTER (WHERE b.position='FOR'),
-		       count(*) FILTER (WHERE b.position='AGAINST'),
-		       count(*) FILTER (WHERE b.position='ABSTAIN')
-		FROM core.ballot b
-		JOIN core.scrutin s ON s.id = b.scrutin_id AND s.institution='PARLEMENT_EUROPEEN'
-		JOIN core.organization o ON o.id = b.organization_id
+		       count(DISTINCT mv.person_slug),
+		       count(*) FILTER (WHERE mv.position='FOR'),
+		       count(*) FILTER (WHERE mv.position='AGAINST'),
+		       count(*) FILTER (WHERE mv.position='ABSTAIN')
+		FROM mv.scrutin_vote_nominal mv
+		JOIN core.scrutin s ON s.id = mv.scrutin_id AND s.institution='PARLEMENT_EUROPEEN'
+		JOIN core.organization o ON o.id = mv.organization_id
 		GROUP BY o.slug, o.name, o.short_name
 		ORDER BY 4 DESC`)
 	if err != nil {

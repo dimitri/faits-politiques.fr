@@ -21,14 +21,18 @@ type StatsSenat struct {
 	Senateurs2                 []*Person
 }
 
+// loadSenat lit mv.scrutin_vote_nominal (internal/matview) au lieu de
+// core.ballot directement — le JOIN sur core.scrutin (institution) reste
+// applicatif, mais porte sur une table de quelques dizaines de milliers de
+// lignes, pas sur le fait 4,9 millions de lignes.
 func loadSenat(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Person) (*StatsSenat, error) {
 	st := &StatsSenat{}
 	if err := pool.QueryRow(ctx, `
 		SELECT (SELECT count(*) FROM core.scrutin WHERE institution='SENAT'),
-		       (SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id=b.scrutin_id
+		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
 		         WHERE s.institution='SENAT'),
-		       (SELECT count(DISTINCT b.person_id) FROM core.ballot b
-		         JOIN core.scrutin s ON s.id=b.scrutin_id WHERE s.institution='SENAT'),
+		       (SELECT count(DISTINCT mv.person_slug) FROM mv.scrutin_vote_nominal mv
+		         JOIN core.scrutin s ON s.id=mv.scrutin_id WHERE s.institution='SENAT'),
 		       coalesce((SELECT to_char(min(date_seance),'DD/MM/YYYY') FROM core.scrutin
 		         WHERE institution='SENAT'),''),
 		       coalesce((SELECT to_char(max(date_seance),'DD/MM/YYYY') FROM core.scrutin
@@ -63,9 +67,8 @@ func loadSenat(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Pers
 	}
 
 	srows, err := pool.Query(ctx, `
-		SELECT DISTINCT p.slug FROM core.ballot b
-		JOIN core.scrutin s ON s.id = b.scrutin_id
-		JOIN core.person p ON p.id = b.person_id
+		SELECT DISTINCT mv.person_slug FROM mv.scrutin_vote_nominal mv
+		JOIN core.scrutin s ON s.id = mv.scrutin_id
 		WHERE s.institution='SENAT'`)
 	if err != nil {
 		return nil, err

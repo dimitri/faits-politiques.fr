@@ -71,9 +71,11 @@ var Catalogue = []Definition{
 		Nom:    "scrutin_vote_nominal",
 		Tables: []string{"core.ballot", "core.person", "core.organization"},
 		SQL: `SELECT b.scrutin_id,
+	     p.id                                                 AS person_id,
 	     p.slug                                              AS person_slug,
-	     p.family_name || ', ' || p.given_name               AS person_nom,
 	     p.family_name                                       AS person_family_name,
+	     p.given_name                                        AS person_given_name,
+	     o.id                                                 AS organization_id,
 	     coalesce(o.short_name, o.name, '')                  AS organisation_nom,
 	     coalesce(o.slug, '')                                AS organisation_slug,
 	     coalesce(b.position_rectifiee, b.position)::text    AS position,
@@ -81,6 +83,25 @@ var Catalogue = []Definition{
 	FROM core.ballot b
 	JOIN core.person p ON p.id = b.person_id
 	LEFT JOIN core.organization o ON o.id = b.organization_id`,
+	},
+	{
+		Nom:    "person_dernier_vote",
+		Tables: []string{"core.ballot", "core.scrutin"},
+		SQL: `SELECT person_id, rang, scrutin_slug, objet, date_txt, position, rectifiee, resultat
+	FROM (
+	  SELECT b.person_id,
+	         row_number() OVER (PARTITION BY b.person_id
+	                             ORDER BY s.date_seance DESC, s.numero DESC) AS rang,
+	         s.slug                                              AS scrutin_slug,
+	         s.objet,
+	         to_char(s.date_seance,'DD/MM/YYYY')                  AS date_txt,
+	         coalesce(b.position_rectifiee, b.position)::text    AS position,
+	         b.position_rectifiee IS NOT NULL                    AS rectifiee,
+	         coalesce(s.resultat,'')                              AS resultat
+	    FROM core.ballot b
+	    JOIN core.scrutin s ON s.id = b.scrutin_id
+	) x
+	WHERE rang <= 100`,
 	},
 }
 

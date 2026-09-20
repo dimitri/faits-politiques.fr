@@ -82,17 +82,22 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 
 	// Ventilation par groupe, thème par thème. Descriptif seulement : aucun
 	// classement, aucune comparaison, aucun score de proximité.
+	//
+	// mv.scrutin_groupe_vote (internal/matview) remplace le JOIN sur la
+	// totalité de core.ballot : déjà un total par (scrutin, groupe,
+	// position), sommer par thème ne rescanne jamais le fait brut.
 	grows, err := pool.Query(ctx, `
-		SELECT t.topic_code, coalesce(o.short_name, o.name), o.slug,
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text='FOR'),
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text='AGAINST'),
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text='ABSTAIN'),
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text
-		                        NOT IN ('FOR','AGAINST','ABSTAIN'))
+		SELECT t.topic_code, mv.organisation_nom, mv.organisation_slug,
+		       -- coalesce(...,0), pas sum() nu : voir groupBreakdown ou
+		       -- loadScrutinsGroupe (groupes.go) pour la raison — sum() sur
+		       -- un FILTER sans ligne rend NULL, jamais 0.
+		       coalesce(sum(mv.n) FILTER (WHERE mv.position='FOR'), 0),
+		       coalesce(sum(mv.n) FILTER (WHERE mv.position='AGAINST'), 0),
+		       coalesce(sum(mv.n) FILTER (WHERE mv.position='ABSTAIN'), 0),
+		       coalesce(sum(mv.n) FILTER (WHERE mv.position NOT IN ('FOR','AGAINST','ABSTAIN')), 0)
 		FROM derived.scrutin_topic t
 		JOIN ref.topic r ON r.code = t.topic_code AND r.taxonomy_version = 'senat'
-		JOIN core.ballot b ON b.scrutin_id = t.scrutin_id
-		JOIN core.organization o ON o.id = b.organization_id
+		JOIN mv.scrutin_groupe_vote mv ON mv.scrutin_id = t.scrutin_id
 		GROUP BY 1,2,3`)
 	if err != nil {
 		return nil, err
@@ -144,19 +149,19 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 		t.Derniers = append(t.Derniers, f)
 	}
 
-	// Vote des candidats déclarés à 2027, thème par thème.
+	// Vote des candidats déclarés à 2027, thème par thème — mv.
+	// scrutin_vote_nominal (internal/matview) remplace le JOIN
+	// ballot/person sur la totalité de core.ballot.
 	crows, err := pool.Query(ctx, `
-		SELECT t.topic_code, p.slug, p.given_name||' '||p.family_name,
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text='FOR'),
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text='AGAINST'),
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text='ABSTAIN'),
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)::text
-		                        NOT IN ('FOR','AGAINST','ABSTAIN'))
+		SELECT t.topic_code, mv.person_slug, mv.person_given_name || ' ' || mv.person_family_name,
+		       count(*) FILTER (WHERE mv.position='FOR'),
+		       count(*) FILTER (WHERE mv.position='AGAINST'),
+		       count(*) FILTER (WHERE mv.position='ABSTAIN'),
+		       count(*) FILTER (WHERE mv.position NOT IN ('FOR','AGAINST','ABSTAIN'))
 		FROM derived.scrutin_topic t
 		JOIN ref.topic r ON r.code=t.topic_code AND r.taxonomy_version='senat'
-		JOIN core.ballot b ON b.scrutin_id=t.scrutin_id
-		JOIN core.person p ON p.id=b.person_id
-		WHERE p.slug = ANY($1)
+		JOIN mv.scrutin_vote_nominal mv ON mv.scrutin_id=t.scrutin_id
+		WHERE mv.person_slug = ANY($1)
 		GROUP BY 1,2,3`, candidatSlugs)
 	if err != nil {
 		return nil, err

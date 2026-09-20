@@ -67,11 +67,12 @@ func loadGroupes(ctx context.Context, pool *pgxpool.Pool) (map[string]*Groupe, e
 	}
 	rows.Close()
 
-	// Décompte agrégé et couverture.
+	// Décompte agrégé et couverture — mv.scrutin_groupe_vote (internal/
+	// matview) porte déjà un total par scrutin ; sommé sur tous les
+	// scrutins, il donne le total par groupe sans rescanner core.ballot.
 	rows, err = pool.Query(ctx, `
-		SELECT b.organization_id, coalesce(b.position_rectifiee, b.position)::text, count(*)
-		FROM core.ballot b
-		WHERE b.organization_id IS NOT NULL
+		SELECT organization_id, position, sum(n)::int
+		FROM mv.scrutin_groupe_vote
 		GROUP BY 1,2`)
 	if err != nil {
 		return nil, err
@@ -114,16 +115,19 @@ func loadGroupes(ctx context.Context, pool *pgxpool.Pool) (map[string]*Groupe, e
 	return out, nil
 }
 
+// loadMembres lit mv.scrutin_vote_nominal (internal/matview) — plus le JOIN
+// ballot/person et le GROUP BY sur la totalité de core.ballot que cette
+// fonction refaisait à chaque construction.
 func loadMembres(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe) error {
 	rows, err := pool.Query(ctx, `
-		SELECT b.organization_id, p.slug, p.given_name || ' ' || p.family_name,
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position) = 'FOR'),
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position) = 'AGAINST'),
-		       count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position) = 'ABSTAIN')
-		FROM core.ballot b JOIN core.person p ON p.id = b.person_id
-		WHERE b.organization_id IS NOT NULL
-		GROUP BY 1,2,3
-		ORDER BY 1, 3`)
+		SELECT organization_id, person_slug, person_given_name, person_family_name,
+		       count(*) FILTER (WHERE position = 'FOR'),
+		       count(*) FILTER (WHERE position = 'AGAINST'),
+		       count(*) FILTER (WHERE position = 'ABSTAIN')
+		FROM mv.scrutin_vote_nominal
+		WHERE organization_id IS NOT NULL
+		GROUP BY 1,2,3,4
+		ORDER BY 1, person_given_name || ' ' || person_family_name`)
 	if err != nil {
 		return err
 	}
@@ -131,9 +135,11 @@ func loadMembres(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe
 	for rows.Next() {
 		var id int64
 		var m MembreGroupe
-		if err := rows.Scan(&id, &m.Slug, &m.Nom, &m.Pour, &m.Contre, &m.Abstention); err != nil {
+		var givenName, familyName string
+		if err := rows.Scan(&id, &m.Slug, &givenName, &familyName, &m.Pour, &m.Contre, &m.Abstention); err != nil {
 			return err
 		}
+		m.Nom = givenName + " " + familyName
 		g, ok := byID[id]
 		if !ok {
 			continue
@@ -145,16 +151,26 @@ func loadMembres(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe
 	return rows.Err()
 }
 
+// loadScrutinsGroupe lit mv.scrutin_groupe_vote (internal/matview), pivotée
+// par position — plus le GROUP BY sur la totalité de core.ballot que cette
+// fonction refaisait à chaque construction ; le JOIN sur core.scrutin reste
+// applicatif, mais porte sur une table de quelques dizaines de milliers de
+// lignes, pas sur le fait 4,9 millions de lignes.
 func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe) error {
 	rows, err := pool.Query(ctx, `
 		SELECT x.organization_id, s.slug, s.objet, to_char(s.date_seance,'DD/MM/YYYY'),
 		       x.pour, x.contre, x.abst
 		FROM (
-		  SELECT b.organization_id, b.scrutin_id,
-		         count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)='FOR')     pour,
-		         count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)='AGAINST') contre,
-		         count(*) FILTER (WHERE coalesce(b.position_rectifiee,b.position)='ABSTAIN') abst
-		  FROM core.ballot b WHERE b.organization_id IS NOT NULL
+		  SELECT organization_id, scrutin_id,
+		         -- coalesce(...,0), pas sum() nu : mv.scrutin_groupe_vote
+		         -- n'a de ligne QUE pour les positions réellement observées
+		         -- — un scrutin sans abstention dans ce groupe n'a aucune
+		         -- ligne 'ABSTAIN' du tout, et sum() sur un ensemble vide
+		         -- rend NULL, jamais 0 (contrairement à count()).
+		         coalesce(sum(n) FILTER (WHERE position='FOR'), 0)     AS pour,
+		         coalesce(sum(n) FILTER (WHERE position='AGAINST'), 0) AS contre,
+		         coalesce(sum(n) FILTER (WHERE position='ABSTAIN'), 0) AS abst
+		  FROM mv.scrutin_groupe_vote
 		  GROUP BY 1,2) x
 		JOIN core.scrutin s ON s.id = x.scrutin_id
 		ORDER BY x.organization_id, s.date_seance DESC, s.numero DESC`)
@@ -237,14 +253,20 @@ type PartiDeclare struct {
 // PRÉCÉDENTE par des députés qui siègent aujourd'hui dans ce groupe. C'est une
 // indication, pas la composition actuelle, et le dire est la seule façon de ne
 // pas induire en erreur.
+// loadPartisDeclares part de la liste (organisation, personne) de mv.
+// scrutin_vote_nominal, DISTINCT — plus le JOIN sur la totalité de
+// core.ballot que cette fonction refaisait à chaque construction pour
+// obtenir seulement cette liste d'appartenances, avant de la croiser avec
+// core.affiliation (une table de quelques milliers de lignes).
 func loadPartisDeclares(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe) error {
 	rows, err := pool.Query(ctx, `
-		SELECT b.organization_id, o.name, count(DISTINCT a.person_id),
+		SELECT g.organization_id, o.name, count(DISTINCT a.person_id),
 		       min(lower(a.validity))::text, max(coalesce(upper(a.validity)::text,''))
-		FROM core.ballot b
-		JOIN core.affiliation a ON a.person_id = b.person_id AND a.organization_kind = 'PARTY'
+		FROM (SELECT DISTINCT organization_id, person_slug FROM mv.scrutin_vote_nominal
+		      WHERE organization_id IS NOT NULL) g
+		JOIN core.person p ON p.slug = g.person_slug
+		JOIN core.affiliation a ON a.person_id = p.id AND a.organization_kind = 'PARTY'
 		JOIN core.organization o ON o.id = a.organization_id
-		WHERE b.organization_id IS NOT NULL
 		GROUP BY 1,2
 		HAVING count(DISTINCT a.person_id) > 0
 		ORDER BY 1, 3 DESC`)

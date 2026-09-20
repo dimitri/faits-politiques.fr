@@ -2202,8 +2202,12 @@ func coverage(ctx context.Context, pool *pgxpool.Pool) (Coverage, error) {
 	// l'Assemblée, pas les députés : la page annonçait 3 127 députés pour une
 	// assemblée qui en compte 577. Le décompte porte désormais sur les
 	// personnes ayant effectivement détenu un mandat de député.
+	// mv.scrutin_vote_nominal (internal/matview) remplace core.ballot ici :
+	// aucune de ces trois requêtes ne distingue position/position_rectifiee
+	// (seulement des count(*)/count(DISTINCT)), donc rien à préserver de ce
+	// côté — voir loadPersons (load.go) pour le cas où ça compterait.
 	err := pool.QueryRow(ctx, `
-		SELECT (SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id=b.scrutin_id
+		SELECT (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
 		         WHERE s.institution='ASSEMBLEE_NATIONALE'),
 		       (SELECT count(DISTINCT person_id) FROM core.mandate WHERE mandate_type = 'DEPUTE'),
 		       (SELECT count(*) FROM core.organization),
@@ -2218,10 +2222,10 @@ func coverage(ctx context.Context, pool *pgxpool.Pool) (Coverage, error) {
 		       (SELECT count(*) FROM core.scrutin WHERE institution='PARLEMENT_EUROPEEN'),
 		       (SELECT count(DISTINCT topic_code) FROM core.topic_assignment),
 		       (SELECT count(*) FROM core.scrutin WHERE institution='SENAT'),
-		       (SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id=b.scrutin_id
+		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
 		         WHERE s.institution='SENAT'),
-		       (SELECT count(DISTINCT b.person_id) FROM core.ballot b
-		         JOIN core.scrutin s ON s.id=b.scrutin_id WHERE s.institution='SENAT'),
+		       (SELECT count(DISTINCT mv.person_id) FROM mv.scrutin_vote_nominal mv
+		         JOIN core.scrutin s ON s.id=mv.scrutin_id WHERE s.institution='SENAT'),
 		       (SELECT count(*) FROM ref.topic WHERE taxonomy_version='senat'),
 		       (SELECT count(DISTINCT commune_code) FROM core.commune_indicator)`).
 		Scan(&c.Documents, &c.ScrutinsPE, &c.Themes,
