@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/ingest"
+	"github.com/faits-politiques/faits-politiques/internal/matview"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
 	"github.com/faits-politiques/faits-politiques/internal/sources"
 	"github.com/faits-politiques/faits-politiques/internal/stats"
@@ -73,6 +74,24 @@ func commandeList() *cobra.Command {
 			},
 		},
 		commandeDeps(),
+		&cobra.Command{
+			Use:   "matviews",
+			Short: "État des matvues du schéma mv (internal/matview)",
+			Long: "Le catalogue des matérialisations Postgres (voir internal/matview) —\n" +
+				"pour chacune, quand elle a été actualisée pour la dernière fois et\n" +
+				"sur combien de lignes. Lit mv.etat tel quel : ne recalcule PAS\n" +
+				"l'empreinte des tables source (plusieurs secondes sur core.ballot),\n" +
+				"donc ne dit pas si une matvue est périmée — seulement son dernier\n" +
+				"état connu. « fpctl ingest systeme matviews » l'actualise pour de\n" +
+				"vrai, en sautant tout REFRESH inutile.",
+			DisableFlagParsing: true,
+			RunE: func(cmd *cobra.Command, args []string) error {
+				if estDemandeAide(args) {
+					return afficherManuel("fpctl-list")
+				}
+				return executerInterne(cmd.Context(), afficherMatviews(cmd.Context()))
+			},
+		},
 	)
 	return cmd
 }
@@ -619,6 +638,30 @@ func afficherStats(ctx context.Context) error {
 	fmt.Printf("\nplus grosses tables :\n")
 	for _, t := range grosses {
 		fmt.Printf("  %-10s %-40s %12d lignes  %10s\n", t.Schema, t.Nom, t.LignesEstimee, tailleLisible(t.Octets))
+	}
+	return nil
+}
+
+func afficherMatviews(ctx context.Context) error {
+	pool, err := store.Open(ctx)
+	if err != nil {
+		return err
+	}
+	defer pool.Close()
+
+	etats, err := matview.Lister(ctx, pool)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("%-24s %10s %20s  %s\n", "matvue", "lignes", "actualisée le", "tables source")
+	for _, e := range etats {
+		nom := "mv." + e.Nom
+		if !e.Connue {
+			fmt.Printf("%-24s %10s %20s  %s\n", nom, "—", "jamais", strings.Join(e.Tables, ", "))
+			continue
+		}
+		fmt.Printf("%-24s %10d %20s  %s\n", nom, e.Lignes,
+			e.ActualiseeLe.Local().Format("2006-01-02 15:04"), strings.Join(e.Tables, ", "))
 	}
 	return nil
 }

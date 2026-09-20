@@ -33,6 +33,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/jorf"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
+	"github.com/faits-politiques/faits-politiques/internal/matview"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
 	"github.com/faits-politiques/faits-politiques/internal/partis"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
@@ -453,6 +454,12 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 	// touché une table dont dépend une section du cache de cmd/build
 	// (core.texte_expose fait partie de la section « scrutin »).
 	if err := recalculerEmpreintes(ctx, pool); err != nil {
+		return err
+	}
+	// Même logique, un étage plus haut (voir internal/matview) : une
+	// matvue n'est réellement REFRESHée que si ses tables source ou sa
+	// définition ont changé depuis la dernière fois.
+	if err := matview.ActualiserToutes(ctx, pool); err != nil {
 		return err
 	}
 

@@ -31,6 +31,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/jeunesse"
 	"github.com/faits-politiques/faits-politiques/internal/jorf"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
+	"github.com/faits-politiques/faits-politiques/internal/matview"
 	"github.com/faits-politiques/faits-politiques/internal/numerique"
 	"github.com/faits-politiques/faits-politiques/internal/paie"
 	"github.com/faits-politiques/faits-politiques/internal/prefets"
@@ -636,6 +637,10 @@ var catalogue = []Source{
 	{Nom: "checksums", Categorie: CategorieSysteme, Description: "recalcule seulement les empreintes de section (core.section_checksum)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return recalculerEmpreintes(ctx, pool)
+		}},
+	{Nom: "matviews", Categorie: CategorieSysteme, Description: "actualise les matvues du schéma mv si leurs données ou leur définition ont changé (voir internal/matview)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return matview.ActualiserToutes(ctx, pool)
 		}},
 	{Nom: "contours", Categorie: CategorieSysteme, Description: "contours IGN par millésime du COG",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {

@@ -259,13 +259,17 @@ func chargerExposes(ctx context.Context, pool *pgxpool.Pool) (map[int64]*ExposeM
 	return out, rows.Err()
 }
 
+// groupBreakdown lit mv.scrutin_groupe_vote (internal/matview) — un SELECT
+// à plat, plus le GROUP BY sur la totalité de core.ballot (4,9 millions de
+// lignes) que cette fonction refaisait à chaque construction alors que
+// core.ballot ne change qu'à l'ingestion. La matvue se rafraîchit via
+// « fpctl ingest systeme matviews » (ou la chaîne complète, RunTout), pas
+// ici : cmd/build ne fait jamais de REFRESH, seulement des SELECT — même
+// principe que core.section_checksum pour le cache de construction.
 func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool) (map[int64][]GroupeLigne, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT b.scrutin_id, coalesce(o.short_name, o.name), o.slug,
-		       coalesce(b.position_rectifiee, b.position)::text, count(*)
-		FROM core.ballot b
-		JOIN core.organization o ON o.id = b.organization_id
-		GROUP BY 1,2,3,4`)
+		SELECT scrutin_id, organisation_nom, organisation_slug, position, n
+		FROM mv.scrutin_groupe_vote`)
 	if err != nil {
 		return nil, err
 	}
