@@ -68,18 +68,15 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 	pour1000 := func(v float64) string { return Decimal(v, 1) + " ‰" }
 	pct := func(v float64) string { return Decimal(v, 0) + " %" }
 
-	// Indicateurs financiers : moyenne pondérée par la population, ce qui
-	// revient à reconstituer le total puis à le diviser par les habitants.
+	// Indicateurs financiers : moyenne pondérée par la population, déjà
+	// calculée dans mv.dept_indicateur_communal (internal/matview) — plus le
+	// double JOIN sur core.commune_indicator que cette fermeture refaisait
+	// une fois par indicateur, à chaque construction.
 	fin := func(code string) ([]CaseCarte, error) {
 		rows, err := pool.Query(ctx, `
-			SELECT c.code_departement, max(c.nom_clair),
-			       sum(d.value*p.value)/nullif(sum(p.value),0)
-			FROM core.commune_indicator d
-			JOIN core.commune_indicator p ON p.commune_code=d.commune_code
-			 AND p.period_year=d.period_year AND p.indicator_code='ofgl.population_totale'
-			JOIN ref.commune c ON c.code_insee=d.commune_code AND c.cog_millesime=d.cog_millesime
-			WHERE d.indicator_code=$1 AND d.period_year=2023
-			GROUP BY 1`, code)
+			SELECT code_departement, nom_departement, valeur_par_hab
+			FROM mv.dept_indicateur_communal
+			WHERE indicator_code=$1 AND period_year=2023`, code)
 		if err != nil {
 			return nil, err
 		}
@@ -125,18 +122,11 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 		}, cases, "€ par habitant", eur))
 	}
 
-	// Densité associative : un fait sur la vie locale, sans jugement possible.
+	// Densité associative : un fait sur la vie locale, sans jugement possible
+	// — mv.dept_association_densite (internal/matview) remplace le calcul.
 	rows, err := pool.Query(ctx, `
-		SELECT c.code_departement, max(c.nom_clair),
-		       1000.0*count(a.rna_id)/nullif(sum(DISTINCT 0)+max(pop.p),0)
-		FROM ref.commune c
-		JOIN (SELECT code_departement AS dep, sum(value) p
-		      FROM core.commune_indicator ci
-		      JOIN ref.commune rc ON rc.code_insee=ci.commune_code AND rc.cog_millesime=ci.cog_millesime
-		      WHERE ci.indicator_code='ofgl.population_totale' AND ci.period_year=2023
-		      GROUP BY 1) pop ON pop.dep=c.code_departement
-		LEFT JOIN core.association a ON a.commune_code=c.code_insee
-		GROUP BY c.code_departement`)
+		SELECT code_departement, nom_departement, pour_mille
+		FROM mv.dept_association_densite`)
 	if err == nil {
 		var cases []CaseCarte
 		for rows.Next() {
@@ -180,22 +170,10 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 	// PostgreSQL réduit une chaîne déjà plus longue que la cible au lieu de la
 	// laisser telle quelle. Un CASE, pas lpad, pour ne padder que les codes à
 	// un seul chiffre.
+	// mv.dept_medecin_generaliste (internal/matview) remplace le calcul.
 	mgrows, err := pool.Query(ctx, `
-		SELECT m.dep, max(m.libelle_departement),
-		       100000.0*sum(m.effectif)/nullif(max(pop.p),0)
-		FROM (SELECT *, CASE WHEN code_departement ~ '^[0-9]$'
-		                 THEN '0'||code_departement ELSE code_departement END AS dep
-		        FROM core.medecin_secteur_effectif) m
-		JOIN (SELECT code_departement AS dep, sum(value) p
-		      FROM core.commune_indicator ci
-		      JOIN ref.commune rc ON rc.code_insee=ci.commune_code AND rc.cog_millesime=ci.cog_millesime
-		      WHERE ci.indicator_code='ofgl.population_totale' AND ci.period_year=2023
-		      GROUP BY 1) pop ON pop.dep=m.dep
-		WHERE m.annee=2024 AND m.code_departement<>'999'
-		  AND m.profession_sante IN
-		    ('Médecins généralistes (hors médecins à expertise particulière - MEP)',
-		     'Médecins généralistes à expertise particulière (MEP)')
-		GROUP BY m.dep`)
+		SELECT dep, nom_departement, pour_100k
+		FROM mv.dept_medecin_generaliste`)
 	if err != nil {
 		return nil, err
 	}
@@ -234,17 +212,9 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 
 	// Part des sièges municipaux dont la nuance nomme un parti. C'est la carte
 	// qui dit pourquoi une « carte des partis » n'existe pas.
+	// mv.dept_part_partisane (internal/matview) remplace le calcul.
 	prows, err := pool.Query(ctx, `
-		WITH s AS (
-		  SELECT c.code_departement dep, max(c.nom_clair) nom, ml.nuance_code nc, sum(ml.sieges_cm) sg
-		  FROM core.municipal_list ml
-		  JOIN ref.commune c ON c.code_insee=ml.commune_code AND c.cog_millesime=ml.cog_millesime
-		  WHERE ml.scrutin_annee=2026 AND ml.sieges_cm>0
-		    AND ml.nuance_code IS NOT NULL AND ml.nuance_code<>''
-		  GROUP BY 1,3)
-		SELECT dep, max(nom), 100.0*coalesce(sum(sg) FILTER (WHERE nc IN
-		  ('LLR','LRN','LSOC','LFI','LCOM','LVEC','LUDR','LUXD','LEXD','LECO')),0)/sum(sg)
-		FROM s GROUP BY 1`)
+		SELECT dep, nom_departement, pct FROM mv.dept_part_partisane`)
 	if err == nil {
 		var cases []CaseCarte
 		for prows.Next() {
@@ -272,17 +242,10 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 	// chargé pour lui-même (RSA, PPA, AAH, ASS, aides au logement, tous mensuels
 	// depuis 2017), mais jamais encore cartographié. Le RSA est le foyer, pas la
 	// personne : c'est ainsi que la CNAF elle-même compte ses allocataires.
+	// mv.dept_rsa (internal/matview) remplace le calcul.
 	rsrows, err := pool.Query(ctx, `
-		SELECT p.code_geo, p.nom_geo, to_char(p.mois,'YYYY-MM'), 1000.0*p.valeur/nullif(pop.p,0)
-		FROM core.prestation_solidarite p
-		JOIN (SELECT code_departement AS dep, sum(value) p
-		      FROM core.commune_indicator ci
-		      JOIN ref.commune rc ON rc.code_insee=ci.commune_code AND rc.cog_millesime=ci.cog_millesime
-		      WHERE ci.indicator_code='ofgl.population_totale' AND ci.period_year=2023
-		      GROUP BY 1) pop ON pop.dep=p.code_geo
-		WHERE p.niveau='DEPARTEMENT' AND p.serie='RSA_beneficiaires'
-		  AND p.mois=(SELECT max(mois) FROM core.prestation_solidarite
-		              WHERE serie='RSA_beneficiaires' AND niveau='DEPARTEMENT')`)
+		SELECT code_geo, nom_geo, to_char(mois,'YYYY-MM'), pour_mille
+		FROM mv.dept_rsa`)
 	if err != nil {
 		return nil, err
 	}

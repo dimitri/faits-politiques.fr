@@ -103,6 +103,98 @@ var Catalogue = []Definition{
 	) x
 	WHERE rang <= 100`,
 	},
+	// Les six matvues de loadTerritoires (internal/sitegen/territoires.go).
+	// dept_population EN PREMIER : les quatre suivantes la lisent par SELECT
+	// (une matvue construite sur une autre, voir la migration 0157) — REFRESH
+	// ne cascade pas tout seul, ActualiserToutes doit donc la rafraîchir
+	// avant elles. Un vrai graphe de dépendances (comme internal/pipeline
+	// pour l'ingestion) remplacera cet ordre tenu à la main quand le nombre
+	// de matvues le justifiera.
+	{
+		Nom:    "dept_population",
+		Tables: []string{"core.commune_indicator", "ref.commune"},
+		SQL: `SELECT c.code_departement,
+	     max(c.nom_clair)  AS nom_departement,
+	     d.period_year,
+	     sum(d.value)       AS population
+	FROM core.commune_indicator d
+	JOIN ref.commune c ON c.code_insee = d.commune_code AND c.cog_millesime = d.cog_millesime
+	WHERE d.indicator_code = 'ofgl.population_totale'
+	GROUP BY c.code_departement, d.period_year`,
+	},
+	{
+		Nom:    "dept_indicateur_communal",
+		Tables: []string{"core.commune_indicator", "ref.commune"},
+		SQL: `SELECT c.code_departement,
+	     max(c.nom_clair)                                       AS nom_departement,
+	     d.indicator_code,
+	     d.period_year,
+	     sum(d.value * p.value) / nullif(sum(p.value), 0)        AS valeur_par_hab
+	FROM core.commune_indicator d
+	JOIN core.commune_indicator p ON p.commune_code = d.commune_code
+	 AND p.period_year = d.period_year AND p.indicator_code = 'ofgl.population_totale'
+	JOIN ref.commune c ON c.code_insee = d.commune_code AND c.cog_millesime = d.cog_millesime
+	WHERE d.indicator_code IN ('ofgl.dette_par_hab', 'ofgl.investissement_par_hab',
+	                            'ofgl.epargne_brute_par_hab', 'ofgl.masse_salariale_par_hab')
+	GROUP BY c.code_departement, d.indicator_code, d.period_year`,
+	},
+	{
+		Nom:    "dept_association_densite",
+		Tables: []string{"ref.commune", "core.association", "mv.dept_population"},
+		SQL: `SELECT c.code_departement,
+	     max(c.nom_clair)                                           AS nom_departement,
+	     1000.0 * count(a.rna_id) / nullif(max(pop.population), 0)  AS pour_mille
+	FROM ref.commune c
+	JOIN mv.dept_population pop ON pop.code_departement = c.code_departement AND pop.period_year = 2023
+	LEFT JOIN core.association a ON a.commune_code = c.code_insee
+	GROUP BY c.code_departement`,
+	},
+	{
+		Nom:    "dept_medecin_generaliste",
+		Tables: []string{"core.medecin_secteur_effectif", "mv.dept_population"},
+		SQL: `SELECT m.dep,
+	     max(m.libelle_departement)                                  AS nom_departement,
+	     100000.0 * sum(m.effectif) / nullif(max(pop.population), 0) AS pour_100k
+	FROM (SELECT *, CASE WHEN code_departement ~ '^[0-9]$'
+	                 THEN '0' || code_departement ELSE code_departement END AS dep
+	        FROM core.medecin_secteur_effectif) m
+	JOIN mv.dept_population pop ON pop.code_departement = m.dep AND pop.period_year = 2023
+	WHERE m.annee = 2024 AND m.code_departement <> '999'
+	  AND m.profession_sante IN
+	    ('Médecins généralistes (hors médecins à expertise particulière - MEP)',
+	     'Médecins généralistes à expertise particulière (MEP)')
+	GROUP BY m.dep`,
+	},
+	{
+		Nom:    "dept_part_partisane",
+		Tables: []string{"core.municipal_list", "ref.commune"},
+		SQL: `WITH s AS (
+	  SELECT c.code_departement AS dep, max(c.nom_clair) AS nom, ml.nuance_code AS nc, sum(ml.sieges_cm) AS sg
+	    FROM core.municipal_list ml
+	    JOIN ref.commune c ON c.code_insee = ml.commune_code AND c.cog_millesime = ml.cog_millesime
+	   WHERE ml.scrutin_annee = 2026 AND ml.sieges_cm > 0
+	     AND ml.nuance_code IS NOT NULL AND ml.nuance_code <> ''
+	   GROUP BY 1, 3)
+	SELECT dep,
+	     max(nom)                                                      AS nom_departement,
+	     100.0 * coalesce(sum(sg) FILTER (WHERE nc IN
+	       ('LLR','LRN','LSOC','LFI','LCOM','LVEC','LUDR','LUXD','LEXD','LECO')), 0) / sum(sg) AS pct
+	FROM s
+	GROUP BY 1`,
+	},
+	{
+		Nom:    "dept_rsa",
+		Tables: []string{"core.prestation_solidarite", "mv.dept_population"},
+		SQL: `SELECT p.code_geo,
+	     p.nom_geo,
+	     p.mois,
+	     1000.0 * p.valeur / nullif(pop.population, 0) AS pour_mille
+	FROM core.prestation_solidarite p
+	JOIN mv.dept_population pop ON pop.code_departement = p.code_geo AND pop.period_year = 2023
+	WHERE p.niveau = 'DEPARTEMENT' AND p.serie = 'RSA_beneficiaires'
+	  AND p.mois = (SELECT max(mois) FROM core.prestation_solidarite
+	                 WHERE serie = 'RSA_beneficiaires' AND niveau = 'DEPARTEMENT')`,
+	},
 }
 
 func sqlHash(sql string) string {
