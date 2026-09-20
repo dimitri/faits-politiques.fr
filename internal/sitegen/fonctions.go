@@ -66,7 +66,7 @@ func chargerFonctions(ctx context.Context, pool *pgxpool.Pool, a *DonneesAccueil
 	}
 
 	rows, err := pool.Query(ctx, `
-		SELECT serie_code, annee, valeur::float8 FROM core.macro_value
+		SELECT serie_code, annee, valeur::float8 FROM mv.macro_value
 		WHERE serie_code ~ '^depense\.GF[0-9]{2}$' ORDER BY serie_code, annee`)
 	if err != nil {
 		return nil, err

@@ -20,7 +20,7 @@ import (
 // sans troisième trait.
 func chargerEmploiTotalSalarie(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT annee, serie_code, valeur FROM core.macro_value
+		SELECT annee, serie_code, valeur FROM mv.macro_value
 		WHERE serie_code IN ('emploi.total', 'emploi.salarie') ORDER BY annee`)
 	if err != nil {
 		return "", err

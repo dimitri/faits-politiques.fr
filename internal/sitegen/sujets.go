@@ -328,14 +328,14 @@ func loadAccueil(ctx context.Context, pool *pgxpool.Pool, terr *StatsTerritoires
 	// encore ses dix fonctions complètes, avec une valeur NULL.
 	var anneeN sql.NullInt64
 	if err := pool.QueryRow(ctx, `
-		SELECT max(annee) FROM (SELECT annee FROM core.macro_value WHERE serie_code ~ '^depense\.GF[0-9]{2}$'
+		SELECT max(annee) FROM (SELECT annee FROM mv.macro_value WHERE serie_code ~ '^depense\.GF[0-9]{2}$'
 		GROUP BY annee HAVING count(*) = 10) t`).Scan(&anneeN); err != nil {
 		return nil, fmt.Errorf("dépense par fonction : %w", err)
 	}
 	a.Annee = int(anneeN.Int64)
 	rows, err := pool.Query(ctx, `
 		SELECT replace(v.serie_code, 'depense.', ''), replace(s.label, 'Dépense publique — ', ''), v.valeur::float8
-		FROM core.macro_value v JOIN ref.macro_serie s ON s.code = v.serie_code
+		FROM mv.macro_value v JOIN mv.macro_serie s ON s.code = v.serie_code
 		WHERE v.serie_code ~ '^depense\.GF[0-9]{2}$' AND v.annee = $1
 		ORDER BY v.valeur DESC`, a.Annee)
 	if err != nil {
@@ -420,7 +420,7 @@ func loadAccueil(ctx context.Context, pool *pgxpool.Pool, terr *StatsTerritoires
 		Scan(&a.Recettes, &a.Depenses, &a.Solde); err != nil {
 		return nil, fmt.Errorf("solde public : %w", err)
 	}
-	_ = pool.QueryRow(ctx, `SELECT valeur::float8 FROM core.macro_value WHERE serie_code='solde.public.pib' AND annee=$1`, a.Annee).Scan(&a.SoldePIB)
+	_ = pool.QueryRow(ctx, `SELECT valeur::float8 FROM mv.macro_value WHERE serie_code='solde.public.pib' AND annee=$1`, a.Annee).Scan(&a.SoldePIB)
 
 	// Repères : la dernière valeur publiée de chaque série, avec son année.
 	reperes := []struct {
@@ -436,7 +436,7 @@ func loadAccueil(ctx context.Context, pool *pgxpool.Pool, terr *StatsTerritoires
 	for _, r := range reperes {
 		var annee int
 		var v float64
-		if err := pool.QueryRow(ctx, `SELECT annee, valeur::float8 FROM core.macro_value
+		if err := pool.QueryRow(ctx, `SELECT annee, valeur::float8 FROM mv.macro_value
 			WHERE serie_code = $1 ORDER BY annee DESC LIMIT 1`, r.code).Scan(&annee, &v); err != nil {
 			continue
 		}

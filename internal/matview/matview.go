@@ -255,6 +255,16 @@ var Catalogue = []Definition{
 	GROUP BY d.indicateur_code, c.code_departement, d.annee`,
 	},
 	{
+		Nom:    "macro_value",
+		Tables: []string{"core.macro_value"},
+		SQL:    `SELECT serie_code, annee, valeur, statut FROM core.macro_value`,
+	},
+	{
+		Nom:    "macro_serie",
+		Tables: []string{"ref.macro_serie"},
+		SQL:    `SELECT code, label, unite, producteur, definition, famille, cofog FROM ref.macro_serie`,
+	},
+	{
 		Nom:    "commune_association_count",
 		Tables: []string{"core.association"},
 		SQL: `SELECT commune_code, count(*) AS n

@@ -12,7 +12,7 @@ import (
 
 // Le taux de chômage au sens du BIT, trimestre par trimestre, depuis l'INSEE
 // directement (core.chomage_taux_trimestriel) — pas la republication annuelle
-// d'Eurostat qu'utilise la frise (chomage.taux dans core.macro_value). C'est
+// d'Eurostat qu'utilise la frise (chomage.taux dans mv.macro_value). C'est
 // la mesure que les gouvernements et les médias citent à chaque publication
 // trimestrielle, et la page que /frise/ renvoie pour le détail.
 type PointTrimestre struct {
@@ -84,7 +84,7 @@ func loadChomage(ctx context.Context, pool *pgxpool.Pool) (*StatsChomage, error)
 	crows, err := pool.Query(ctx, `
 		SELECT t.annee, avg(t.taux)::float8, e.valeur::float8
 		FROM core.chomage_taux_trimestriel t
-		JOIN core.macro_value e ON e.annee=t.annee AND e.serie_code='chomage.taux'
+		JOIN mv.macro_value e ON e.annee=t.annee AND e.serie_code='chomage.taux'
 		GROUP BY t.annee, e.valeur HAVING count(*)=4
 		ORDER BY t.annee`)
 	if err != nil {
