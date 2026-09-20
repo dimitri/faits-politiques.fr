@@ -12,16 +12,29 @@
 package main
 
 import (
-	"fmt"
+	"log/slog"
 	"os"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/spf13/cobra"
 )
 
 func main() {
+	logs.Setup()
+
+	// Un seul contexte pour toute l'exécution, annulé par le premier
+	// SIGINT, SIGTERM ou SIGHUP — repris par cmd.Context() dans chaque
+	// commande, jusqu'aux pools pgx et aux binaires exécutés (fpbuild,
+	// docker), plutôt qu'un context.Background() propre à chacun qui
+	// laisserait un Ctrl-C sans effet sur l'ingestion ou la construction
+	// en cours. Voir internal/logs.Context pour ce qu'un signal doit
+	// nettoyer ici, et pourquoi la réponse est « presque rien ».
+	ctx, stop := logs.Context()
+	defer stop()
+
 	racine, err := racineDepot()
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "fpctl : %v\n", err)
+		slog.Error(err.Error())
 		os.Exit(1)
 	}
 	// Comme git : les commandes se comportent pareil qu'on les lance depuis
@@ -30,7 +43,7 @@ func main() {
 	// des paquets routés (web/templates, docs, data, raw...) restent alors
 	// relatifs à la racine, jamais au répertoire d'appel.
 	if err := os.Chdir(racine); err != nil {
-		fmt.Fprintf(os.Stderr, "fpctl : %v\n", err)
+		slog.Error(err.Error())
 		os.Exit(1)
 	}
 
@@ -64,8 +77,14 @@ func main() {
 	// comporter comme « git help », pas comme --help.
 	racineCmd.SetHelpCommand(commandeHelp())
 
-	if err := racineCmd.Execute(); err != nil {
-		fmt.Fprintf(os.Stderr, "fpctl : %v\n", err)
+	if err := racineCmd.ExecuteContext(ctx); err != nil {
+		// Un contexte déjà annulé (Ctrl-C pendant l'exécution) a sa
+		// propre convention de sortie — l'erreur qu'il a fait remonter
+		// est déjà celle du signal, pas la peine de la répéter.
+		if ctx.Err() != nil {
+			os.Exit(logs.ExitCode)
+		}
+		slog.Error(err.Error())
 		os.Exit(1)
 	}
 }

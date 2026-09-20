@@ -2455,12 +2455,14 @@ var checks = []check{
 var ErrAnomalies = errors.New("des anomalies ont été trouvées")
 
 // Run exécute la commande verify. Ne prend aucune option ; args n'existe que
-// pour l'uniformité avec les autres commandes routées par fpctl.
-func Run(args []string) error {
+// pour l'uniformité avec les autres commandes routées par fpctl. ctx est
+// celui de fpctl (cmd.Context()), déjà annulé au premier signal — un
+// Ctrl-C pendant les contrôles interrompt la requête en cours plutôt que
+// d'attendre qu'elle se termine.
+func Run(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("verify ne prend aucune option (%q inattendu)", args[0])
 	}
-	ctx := context.Background()
 	pool, err := store.Open(ctx)
 	if err != nil {
 		return err

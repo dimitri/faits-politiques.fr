@@ -18,11 +18,11 @@ func commandeIngest() *cobra.Command {
 			"entre sources. Avec -only=<source> (migrate, checksums, ou l'un des\n" +
 			"connecteurs), ne recharge que celle-là — voir « fpctl help ingest ».",
 		DisableFlagParsing: true,
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if estDemandeAide(args) {
 				return afficherManuel("fpctl-ingest")
 			}
-			return executerInterne(ingest.Run(args))
+			return executerInterne(cmd.Context(), ingest.Run(cmd.Context(), args))
 		},
 	})
 	return cmd

@@ -110,12 +110,12 @@ type ligne struct {
 }
 
 // Run exécute la commande bulletin. Ne prend aucune option ; args n'existe
-// que pour l'uniformité avec les autres commandes routées par fpctl.
-func Run(args []string) error {
+// que pour l'uniformité avec les autres commandes routées par fpctl. ctx
+// est celui de fpctl (cmd.Context()), déjà annulé au premier signal.
+func Run(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("bulletin ne prend aucune option (%q inattendu)", args[0])
 	}
-	ctx := context.Background()
 	pool, err := store.Open(ctx)
 	if err != nil {
 		return err

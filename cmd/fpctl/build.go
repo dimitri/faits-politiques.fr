@@ -18,11 +18,11 @@ func commandeBuild() *cobra.Command {
 			"construction précédente les sections dont ni les données ni le code\n" +
 			"n'ont changé — voir « fpctl help build » pour le détail des options.",
 		DisableFlagParsing: true,
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if estDemandeAide(args) {
 				return afficherManuel("fpctl-build")
 			}
-			return execBinaire("fpbuild", "cmd/build", args)
+			return execBinaire(cmd.Context(), "fpbuild", "cmd/build", args)
 		},
 	})
 	return cmd
