@@ -39,11 +39,7 @@ func commandeBuild() *cobra.Command {
 			return execBinaire(cmd.Context(), "fpbuild", "cmd/build", args)
 		},
 	})
-	for _, section := range []struct{ nom, description string }{
-		{"scrutin", "reconstruit seulement les pages de scrutin"},
-		{"communes", "reconstruit seulement les pages communes/EPCI"},
-		{"reste", "reconstruit tout SAUF scrutin et communes (accueil, dossiers, thèmes, gouvernement, budget...)"},
-	} {
+	for _, section := range buildSections {
 		section := section
 		cmd.AddCommand(&cobra.Command{
 			Use:   section.nom + " [options]",
@@ -65,6 +61,16 @@ func commandeBuild() *cobra.Command {
 		})
 	}
 	return cmd
+}
+
+// buildSections : les pages du site que fpbuild sait reconstruire seules
+// (-only=<nom>) — partagé avec « fpctl list deps », qui les affiche comme
+// autant de racines dépendant de ce qu'ingestPrealables déclare pour
+// chacune (voir fpctl-list(1)).
+var buildSections = []struct{ nom, description string }{
+	{"scrutin", "reconstruit seulement les pages de scrutin"},
+	{"communes", "reconstruit seulement les pages communes/EPCI"},
+	{"reste", "reconstruit tout SAUF scrutin et communes (accueil, dossiers, thèmes, gouvernement, budget...)"},
 }
 
 // ingestPrealables : ce qu'une section du site a besoin de trouver déjà

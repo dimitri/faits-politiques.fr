@@ -78,10 +78,10 @@ func commandeList() *cobra.Command {
 }
 
 func commandeDeps() *cobra.Command {
-	var enJSON bool
+	var enJSON, enPages bool
 	cmd := &cobra.Command{
 		Use:   "deps [nom]",
-		Short: "Graphe de dépendances du socle parlementaire (download, partis, normalize, carto, senat, europe, themes)",
+		Short: "Graphe de dépendances du socle parlementaire, et des pages du site qui en dépendent",
 		Long: "Le graphe lui-même (download, partis, normalize, carto, senat,\n" +
 			"europe, themes, et ce que chacune exige) vient du code\n" +
 			"(internal/ingest, Source.Dependances) : cette commande n'a besoin\n" +
@@ -92,29 +92,39 @@ func commandeDeps() *cobra.Command {
 			"jamais la référence) ; sinon un avertissement le dit (voir\n" +
 			"internal/logs) et le graphe s'affiche quand même, sans ces deux\n" +
 			"colonnes.\n\n" +
+			"Chaque nœud s'affiche par sa vraie commande (« fpctl ingest\n" +
+			"parlement download », « fpctl build communes »), jamais un nom nu\n" +
+			"— deux commandes différentes peuvent partager le même nom (la\n" +
+			"section communes de fpctl build et la source collectivites\n" +
+			"communes de fpctl ingest, par exemple) : la carte ne les confond\n" +
+			"pas, l'affichage ne les distingue pas moins.\n\n" +
 			"Affiché en arbre : c'est un graphe orienté acyclique, pas un arbre\n" +
 			"(normalize a deux « parents », senat et europe, tous deux exigés par\n" +
 			"themes), à plusieurs racines (ce dont rien ne dépend — carto et\n" +
 			"themes, dans le socle complet). Rendu quand même comme un arbre, ce\n" +
 			"qu'il redevient une fois déroulé : une étape partagée réapparaît sous\n" +
 			"chacun de ses parents plutôt que d'être fusionnée en un seul nœud.\n\n" +
-			"Avec un nom, limite l'affichage à une seule chose : l'une des sept\n" +
-			"étapes (racine de son propre arbre), ou une section de fpctl build\n" +
-			"(scrutin, communes, reste — une racine par préalable d'ingestion).\n\n" +
-			"--json écrit la liste des étapes concernées à plat (un objet par\n" +
-			"étape, depend_de nommant les autres par leur nom) plutôt que\n" +
-			"l'arbre déroulé — la forme qu'un outil reconstruit plus facilement\n" +
-			"que des lignes indentées.",
+			"Sans nom, affiche ensuite un second arbre : les pages du site que\n" +
+			"fpctl build sait reconstruire seules (scrutin, communes, reste),\n" +
+			"chacune comme racine de ses préalables d'ingestion (ingestPrealables,\n" +
+			"cmd/fpctl/build.go) — --pages n'affiche que celui-là. Avec un nom,\n" +
+			"limite l'affichage à une seule chose : l'une des sept étapes du\n" +
+			"socle, ou une page (--pages ignoré, déjà implicite).\n\n" +
+			"--json écrit la liste des nœuds concernés à plat (un objet par\n" +
+			"nœud, depend_de nommant les autres par leur nom, commande portant\n" +
+			"l'invocation exacte) plutôt que l'arbre déroulé — la forme qu'un\n" +
+			"outil reconstruit plus facilement que des lignes indentées.",
 		Args: cobra.MaximumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			var nom string
 			if len(args) > 0 {
 				nom = args[0]
 			}
-			return executerInterne(cmd.Context(), afficherDeps(cmd.Context(), nom, enJSON))
+			return executerInterne(cmd.Context(), afficherDeps(cmd.Context(), nom, enJSON, enPages))
 		},
 	}
-	cmd.Flags().BoolVar(&enJSON, "json", false, "écrit la liste des étapes à plat, en JSON, plutôt que l'arbre")
+	cmd.Flags().BoolVar(&enJSON, "json", false, "écrit les nœuds à plat, en JSON, plutôt que l'arbre")
+	cmd.Flags().BoolVar(&enPages, "pages", false, "n'affiche que les pages du site (fpctl build) et leurs préalables d'ingestion")
 	return cmd
 }
 
@@ -212,8 +222,15 @@ func ouvrirBaseBrievement(ctx context.Context) *pgxpool.Pool {
 // champs JSON nomment les autres étapes par leur Nom (depend_de) plutôt que
 // de les imbriquer : la forme qu'un outil reconstruit le plus facilement,
 // et celle qui n'a pas à choisir quelle branche dupliquer un nœud partagé.
+// noeud.Type : "etape" (une étape d'ingestion, internal/ingest.Source) ou
+// "page" (une section de fpctl build, cmd/fpctl/build.go — une page ou un
+// groupe de pages du site). Une page ne dépend jamais d'une autre page :
+// seulement d'étapes, jamais l'inverse — le graphe reste un DAG à deux
+// niveaux, données puis pages, pas un DAG général entre les deux.
 type noeud struct {
 	Nom                      string     `json:"nom"`
+	Type                     string     `json:"type"`
+	Commande                 string     `json:"commande"`
 	Description              string     `json:"description"`
 	DerniereExecutionReussie *time.Time `json:"derniere_execution_reussie"`
 	ArchiveOctets            int64      `json:"archive_octets"`
@@ -221,7 +238,58 @@ type noeud struct {
 	DependDe                 []string   `json:"depend_de"`
 }
 
-func afficherDeps(ctx context.Context, nom string, enJSON bool) error {
+// clePage préfixe la clé interne d'un nœud « page » : « communes » nomme à
+// la fois une section de fpctl build et une source de la catégorie
+// collectivites (fpctl ingest collectivites communes) — deux choses
+// différentes qui doivent pouvoir coexister dans la même carte sans que
+// l'une écrase l'autre. Nom et Commande, eux, restent la forme lisible
+// (« communes », « fpctl build communes ») : seule cette clé de carte est
+// préfixée.
+func clePage(nomSection string) string { return "page:" + nomSection }
+
+// ajouterNoeudEtape ajoute, si elle n'y est pas déjà, l'étape d'ingestion n
+// à noeuds — connue du catalogue (internal/ingest) ou non (un préalable
+// hors du socle audité, comme « exposes » : on affiche alors le nom seul,
+// sans description ni dépendance plus profonde, plutôt que de refuser).
+func ajouterNoeudEtape(ctx context.Context, pool *pgxpool.Pool, noeuds map[string]noeud, n string) error {
+	if _, ok := noeuds[n]; ok {
+		return nil
+	}
+	description, commande := n, n
+	var dependDe []string
+	if s, ok := ingest.SourceParNom(n); ok {
+		description = s.Description
+		commande = fmt.Sprintf("fpctl ingest %s %s", s.Categorie, s.Nom)
+		dependDe = s.Dependances
+	}
+	archive, base, err := tailleEtape(ctx, pool, n)
+	if err != nil {
+		return fmt.Errorf("%s : %w", n, err)
+	}
+	noeuds[n] = noeud{Nom: n, Type: "etape", Commande: commande, Description: description, DependDe: dependDe, ArchiveOctets: archive, BaseOctets: base}
+	return nil
+}
+
+// ajouterNoeudPage ajoute la section de fpctl build nomSection à noeuds,
+// avec pour dépendances ses préalables d'ingestion (ingestPrealables,
+// cmd/fpctl/build.go) — ajoutés eux aussi si besoin, pour que le nœud page
+// pointe vers des étapes qui existent vraiment dans la carte.
+func ajouterNoeudPage(ctx context.Context, pool *pgxpool.Pool, noeuds map[string]noeud, nomSection, description string) error {
+	prealables := ingestPrealables[nomSection]
+	for _, p := range prealables {
+		if err := ajouterNoeudEtape(ctx, pool, noeuds, p); err != nil {
+			return err
+		}
+	}
+	noeuds[clePage(nomSection)] = noeud{
+		Nom: nomSection, Type: "page",
+		Commande: "fpctl build " + nomSection, Description: description,
+		DependDe: prealables,
+	}
+	return nil
+}
+
+func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 	// Le graphe lui-même vient du code, jamais de la base — internal/
 	// pipeline le republie à chaque exécution, mais un REFLET ne se lit pas
 	// à la place de la référence.
@@ -231,15 +299,9 @@ func afficherDeps(ctx context.Context, nom string, enJSON bool) error {
 	}
 	noeuds := map[string]noeud{}
 	for _, n := range ingest.SocleParlementaire() {
-		s, ok := ingest.SourceParNom(n)
-		if !ok {
-			return fmt.Errorf("%s déclaré dans le socle parlementaire mais absent du catalogue", n)
+		if err := ajouterNoeudEtape(ctx, pool, noeuds, n); err != nil {
+			return err
 		}
-		archive, base, err := tailleEtape(ctx, pool, n)
-		if err != nil {
-			return fmt.Errorf("%s : %w", n, err)
-		}
-		noeuds[n] = noeud{Nom: n, Description: s.Description, DependDe: s.Dependances, ArchiveOctets: archive, BaseOctets: base}
 	}
 	if pool != nil {
 		// Seule la dernière exécution vient de la base ; la structure
@@ -264,30 +326,52 @@ func afficherDeps(ctx context.Context, nom string, enJSON bool) error {
 	// pas un arbre avant qu'on le déroule.
 	var racines []string
 	switch {
-	case nom == "":
+	case nom == "" && !enPages:
 		racines = calculerRacines(noeuds, ingest.SocleParlementaire())
+	case nom == "" && enPages:
+		for _, section := range buildSections {
+			if err := ajouterNoeudPage(ctx, pool, noeuds, section.nom, section.description); err != nil {
+				return err
+			}
+			racines = append(racines, clePage(section.nom))
+		}
 	case ingest.EstSurLeSocle(nom):
 		racines = []string{nom}
 	default:
-		prealables, ok := ingestPrealables[nom]
-		if !ok {
+		trouve := false
+		for _, section := range buildSections {
+			if section.nom == nom {
+				trouve = true
+				if err := ajouterNoeudPage(ctx, pool, noeuds, nom, section.description); err != nil {
+					return err
+				}
+				racines = []string{clePage(nom)}
+			}
+		}
+		if !trouve {
 			connus := ingest.SocleParlementaire()
-			for s := range ingestPrealables {
-				connus = append(connus, s)
+			for _, section := range buildSections {
+				connus = append(connus, section.nom)
 			}
 			sort.Strings(connus)
 			return fmt.Errorf("%s inconnu (attendu : %s)", nom, strings.Join(connus, ", "))
 		}
-		for _, p := range prealables {
-			if _, ok := noeuds[p]; !ok {
-				description := p
-				if s, ok := ingest.SourceParNom(p); ok {
-					description = s.Description
-				}
-				noeuds[p] = noeud{Nom: p, Description: description}
-			}
+	}
+
+	if !enJSON && nom == "" && !enPages {
+		if err := afficherDepsArbre(pool, noeuds, racines); err != nil {
+			return err
 		}
-		racines = prealables
+		fmt.Println()
+		fmt.Println("pages du site (fpctl build) :")
+		var racinesPages []string
+		for _, section := range buildSections {
+			if err := ajouterNoeudPage(ctx, pool, noeuds, section.nom, section.description); err != nil {
+				return err
+			}
+			racinesPages = append(racinesPages, clePage(section.nom))
+		}
+		return afficherDepsArbre(pool, noeuds, racinesPages)
 	}
 
 	if enJSON {
@@ -365,26 +449,33 @@ func imprimerArbre(pool *pgxpool.Pool, noeuds map[string]noeud, nom, prefixe str
 	default:
 		ligne.WriteString(prefixe + "├── ")
 	}
-	ligne.WriteString(nom)
-
 	n, connu := noeuds[nom]
 	if !connu {
-		fmt.Println(ligne.String() + " — inconnu")
+		ligne.WriteString(nom + " — inconnu")
+		fmt.Println(ligne.String())
 		return
 	}
-	ligne.WriteString(" — ")
+	if n.Commande != "" {
+		ligne.WriteString(n.Commande)
+	} else {
+		ligne.WriteString(n.Nom)
+	}
 	switch {
+	case n.Type == "page":
+		// Une section de fpctl build n'a pas, pour l'instant, de dernière
+		// exécution suivie pour elle seule (contrairement aux étapes
+		// d'ingestion, voir internal/pipeline) — rien à ajouter ici.
 	case pool == nil && n.DependDe == nil && n.Description == "":
 		// Un préalable hors du socle (ex. "exposes") : pas de dernière
 		// exécution suivie pour lui, jamais une raison d'écrire « aucune
 		// base joignable » pour une donnée qu'on ne calcule de toute façon
 		// pas.
 	case pool == nil:
-		ligne.WriteString("dernière exécution inconnue (aucune base joignable)")
+		ligne.WriteString(" — dernière exécution inconnue (aucune base joignable)")
 	case n.DerniereExecutionReussie != nil:
-		ligne.WriteString(n.DerniereExecutionReussie.Local().Format("2006-01-02 15:04"))
+		ligne.WriteString(" — " + n.DerniereExecutionReussie.Local().Format("2006-01-02 15:04"))
 	default:
-		ligne.WriteString("jamais exécutée avec succès")
+		ligne.WriteString(" — jamais exécutée avec succès")
 	}
 	if n.ArchiveOctets > 0 || n.BaseOctets > 0 {
 		fmt.Fprintf(&ligne, "  (archive %s, base %s)", tailleLisible(n.ArchiveOctets), tailleLisible(n.BaseOctets))
