@@ -14,10 +14,11 @@ L\[cq]arbre de commandes suit un seul principe, comme \f[B]git\f[R] :
 chaque verbe s\[cq]applique à un nom \[em] \f[B]fpctl build site\f[R],
 jamais \f[B]fpctl build\f[R] seul ni \f[B]fpctl site\f[R].
 .PP
-La plupart des verbes routent directement vers le paquet
-\f[B]internal/\f[R] correspondant ; \f[B]build site\f[R] reste un
-binaire séparé, compilé à la volée.
-Dans les deux cas, fpctl ne réimplémente rien.
+Chaque verbe route directement vers le paquet correspondant
+(\f[B]internal/\f[R] pour la plupart, \f[B]internal/sitegen\f[R] pour
+\f[B]build\f[R]) \[em] un seul binaire, un seul \f[CR]go build\f[R],
+jamais un second exécutable compilé à la volée.
+fpctl ne réimplémente rien.
 .SH VERBES
 .TP
 \f[B]build site\f[R] options | \f[B]build\f[R] \f[I]section\f[R] | \f[B]build page\f[R] \f[I]nom\f[R]
@@ -53,10 +54,9 @@ Voir \f[B]fpctl\-sync\f[R](1).
 \f[B]help\f[R] [\f[I]verbe\f[R]]
 Affiche cette page, ou la page de manuel d\[cq]un verbe précis.
 .SH OPTIONS
-Chaque nom transmet ses propres options telles quelles au paquet ou au
-binaire qu\[cq]il route \[em] \f[B]\-h\f[R] ou \f[B]\[en]help\f[R] en
-première position ouvre la page de manuel dédiée plutôt que de les
-transmettre.
+Chaque nom transmet ses propres options telles quelles au paquet
+qu\[cq]il route \[em] \f[B]\-h\f[R] ou \f[B]\[en]help\f[R] en première
+position ouvre la page de manuel dédiée plutôt que de les transmettre.
 .SH CONVENTIONS
 fpctl doit être lancé depuis n\[cq]importe où \f[B]à
 l\[cq]intérieur\f[R] du dépôt : il retrouve la racine par lui\-même (via

@@ -42,7 +42,7 @@ construit rien du tout.
 
 Chaque section ne reconstruit qu'une partie du site — bien plus rapide
 pour itérer sur une seule chose, sans attendre le reste. Il n'y a plus de
-fourre-tout unique : **cmd/build/main.go** donne son propre nom **-only**
+fourre-tout unique : **internal/sitegen/main.go** donne son propre nom **-only**
 à chacune des pages qu'il sait écrire (voir la fonction **ecrire()**, qui
 remplace **write()** partout sauf **scrutin**/**communes** et les quelques
 pages toujours écrites — **404**, le plan du site...), et les groupes
@@ -75,11 +75,11 @@ ci-dessous en couvrent les plus utiles à nommer ensemble :
     chaque sujet pris individuellement, voir **fpctl build page**.
 
 **page** *nom*
-:   N'importe quel autre nom **-only** que **cmd/build/main.go** connaît
+:   N'importe quel autre nom **-only** que **internal/sitegen/main.go** connaît
     et qu'aucun groupe ci-dessus ne couvre déjà — une page d'indicateur en
     particulier, ou un sujet de campagne par son identifiant (**eau**,
     **fraude-fiscale**, **appareil-productif**... voir
-    **cmd/build/sujets.go**). Sans préalable déclaré pour ce nom précis
+    **internal/sitegen/sujets.go**). Sans préalable déclaré pour ce nom précis
     (voir **ingestPrealables**), ingère le socle parlementaire complet par
     défaut.
 

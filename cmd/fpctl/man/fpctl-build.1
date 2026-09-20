@@ -37,13 +37,13 @@ requêtes et ne construit rien du tout.
 .SH SECTIONS
 Chaque section ne reconstruit qu\[cq]une partie du site \[em] bien plus
 rapide pour itérer sur une seule chose, sans attendre le reste.
-Il n\[cq]y a plus de fourre\-tout unique : \f[B]cmd/build/main.go\f[R]
-donne son propre nom \f[B]\-only\f[R] à chacune des pages qu\[cq]il sait
-écrire (voir la fonction \f[B]ecrire()\f[R], qui remplace
-\f[B]write()\f[R] partout sauf \f[B]scrutin\f[R]/\f[B]communes\f[R] et
-les quelques pages toujours écrites \[em] \f[B]404\f[R], le plan du
-site\&...), et les groupes ci\-dessous en couvrent les plus utiles à
-nommer ensemble :
+Il n\[cq]y a plus de fourre\-tout unique :
+\f[B]internal/sitegen/main.go\f[R] donne son propre nom \f[B]\-only\f[R]
+à chacune des pages qu\[cq]il sait écrire (voir la fonction
+\f[B]ecrire()\f[R], qui remplace \f[B]write()\f[R] partout sauf
+\f[B]scrutin\f[R]/\f[B]communes\f[R] et les quelques pages toujours
+écrites \[em] \f[B]404\f[R], le plan du site\&...), et les groupes
+ci\-dessous en couvrent les plus utiles à nommer ensemble :
 .TP
 \f[B]scrutin\f[R]
 Les pages de scrutin.
@@ -73,11 +73,11 @@ chaque sujet pris individuellement, voir \f[B]fpctl build page\f[R].
 .TP
 \f[B]page\f[R] \f[I]nom\f[R]
 N\[cq]importe quel autre nom \f[B]\-only\f[R] que
-\f[B]cmd/build/main.go\f[R] connaît et qu\[cq]aucun groupe ci\-dessus ne
-couvre déjà \[em] une page d\[cq]indicateur en particulier, ou un sujet
-de campagne par son identifiant (\f[B]eau\f[R],
+\f[B]internal/sitegen/main.go\f[R] connaît et qu\[cq]aucun groupe
+ci\-dessus ne couvre déjà \[em] une page d\[cq]indicateur en
+particulier, ou un sujet de campagne par son identifiant (\f[B]eau\f[R],
 \f[B]fraude\-fiscale\f[R], \f[B]appareil\-productif\f[R]\&...
-voir \f[B]cmd/build/sujets.go\f[R]).
+voir \f[B]internal/sitegen/sujets.go\f[R]).
 Sans préalable déclaré pour ce nom précis (voir
 \f[B]ingestPrealables\f[R]), ingère le socle parlementaire complet par
 défaut.

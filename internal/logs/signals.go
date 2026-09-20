@@ -25,7 +25,7 @@ import (
 //     source is simply retried next time, from wherever its own
 //     idempotent upserts left off.
 //
-//   - cmd/build's mettreEnPlace never sees a construction that did not
+//   - internal/sitegen's mettreEnPlace never sees a construction that did not
 //     finish: a killed build leaves <out>.construction/ half-written and
 //     <out> itself untouched, exactly the same guarantee an ordinary
 //     build failure already gives.

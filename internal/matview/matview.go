@@ -8,15 +8,15 @@
 //     archive.Archive.Etape) : ce qui a été téléchargé.
 //  2. données en base (core/ref/geo) : ce que l'ingestion en a tiré —
 //     mesuré par internal/checksum.Section, DÉJÀ utilisée pour le cache de
-//     construction (core.section_checksum, cmd/build/cache.go).
+//     construction (core.section_checksum, internal/sitegen/cache.go).
 //  3. matvue (mv.*) : ce qu'une agrégation en a calculé — mesurée ici,
 //     mv.etat, par le même principe (une empreinte des tables source, plus
 //     une empreinte du SELECT qui définit la matvue).
 //
-// cmd/build ne doit plus jamais recalculer lui-même une agrégation qu'une
+// internal/sitegen ne doit plus jamais recalculer lui-même une agrégation qu'une
 // matvue de ce paquet couvre : un simple SELECT dans le schéma mv, jamais
 // un GROUP BY sur une table brute à la construction (voir la revue qui a
-// mené à ce paquet — cmd/build/scrutins.go, groupBreakdown, un GROUP BY sur
+// mené à ce paquet — internal/sitegen/scrutins.go, groupBreakdown, un GROUP BY sur
 // la totalité de core.ballot À CHAQUE CONSTRUCTION).
 package matview
 
@@ -66,6 +66,21 @@ var Catalogue = []Definition{
 	FROM core.ballot b
 	JOIN core.organization o ON o.id = b.organization_id
 	GROUP BY 1, 2, 3, 4, 5`,
+	},
+	{
+		Nom:    "scrutin_vote_nominal",
+		Tables: []string{"core.ballot", "core.person", "core.organization"},
+		SQL: `SELECT b.scrutin_id,
+	     p.slug                                              AS person_slug,
+	     p.family_name || ', ' || p.given_name               AS person_nom,
+	     p.family_name                                       AS person_family_name,
+	     coalesce(o.short_name, o.name, '')                  AS organisation_nom,
+	     coalesce(o.slug, '')                                AS organisation_slug,
+	     coalesce(b.position_rectifiee, b.position)::text    AS position,
+	     b.position_rectifiee IS NOT NULL                    AS rectifiee
+	FROM core.ballot b
+	JOIN core.person p ON p.id = b.person_id
+	LEFT JOIN core.organization o ON o.id = b.organization_id`,
 	},
 }
 

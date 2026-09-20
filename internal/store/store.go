@@ -25,15 +25,15 @@ func DSN() string {
 // partagée (cf. docs/decisions.md D-012). Cette hypothèse ne tient plus pour
 // le déploiement réel (une seule machine, sa propre Postgres) mais rien ne
 // prouve encore qu'elle ne tiendra jamais : OpenWithMaxConns existe pour les
-// commandes qui, comme cmd/build, ont un besoin ponctuel et mesuré de plus de
+// commandes qui, comme internal/sitegen, ont un besoin ponctuel et mesuré de plus de
 // parallélisme, sans changer ce défaut pour tout le monde.
 func Open(ctx context.Context) (*pgxpool.Pool, error) {
 	return OpenWithMaxConns(ctx, 4)
 }
 
 // OpenWithMaxConns : comme Open, avec un nombre de connexions choisi par
-// l'appelant. cmd/build s'en sert pour paralléliser plusieurs requêtes
-// indépendantes (cmd/build/lieux_pages.go) — un connecteur d'ingestion
+// l'appelant. internal/sitegen s'en sert pour paralléliser plusieurs requêtes
+// indépendantes (internal/sitegen/lieux_pages.go) — un connecteur d'ingestion
 // ordinaire n'a pas cette raison de s'écarter du défaut.
 func OpenWithMaxConns(ctx context.Context, maxConns int32) (*pgxpool.Pool, error) {
 	cfg, err := pgxpool.ParseConfig(DSN())

@@ -29,7 +29,7 @@ var SourceComtradeFrance = archive.Source{
 // secteursCommerce : un secteur peut regrouper plusieurs codes HS (le
 // textile-habillement additionne bonneterie et habillement classique) —
 // chaque code est chargé et stocké séparément, sommé seulement à
-// l'affichage (cmd/build), pour ne jamais masquer la composition.
+// l'affichage (internal/sitegen), pour ne jamais masquer la composition.
 var secteursCommerce = []struct {
 	Secteur string
 	CodesHS []string

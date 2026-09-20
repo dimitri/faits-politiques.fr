@@ -45,7 +45,7 @@ type Cmd struct {
 	Env []string
 	// Ctx cancels the command. Without one, a Ctrl-C during "fpctl
 	// build site" left fpbuild — and anything it had itself started,
-	// such as the OG-image rasterizer in cmd/build/social.go — running
+	// such as the OG-image rasterizer in internal/sitegen/social.go — running
 	// after fpctl had exited. exec.CommandContext kills the child when
 	// the context is done, which is the one piece of OS cleanup a
 	// signal here genuinely has to do.
@@ -109,7 +109,7 @@ func (c Cmd) Run() error {
 	// just the child.
 	//
 	// exec.CommandContext kills only the process it started. fpbuild
-	// itself shells out (cmd/build/social.go's OG-image rasterizer,
+	// itself shells out (internal/sitegen/social.go's OG-image rasterizer,
 	// some ingest connectors' own external tools), so killing only
 	// fpbuild would leave those running — confirmed the same way
 	// app.taop.xyz's own version of this package confirmed it for
@@ -121,7 +121,7 @@ func (c Cmd) Run() error {
 			return nil
 		}
 		// TERM first: a program gets the chance to leave a resumable
-		// state (cmd/build never publishes a half-built site regardless,
+		// state (internal/sitegen never publishes a half-built site regardless,
 		// but its own children — a rasterizer, a downloader — may still
 		// have a temp file worth closing cleanly).
 		pgid := cmd.Process.Pid

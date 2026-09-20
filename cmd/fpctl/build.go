@@ -6,36 +6,35 @@ import (
 
 	"github.com/faits-politiques/faits-politiques/internal/ingest"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
+	"github.com/faits-politiques/faits-politiques/internal/sitegen"
 	"github.com/spf13/cobra"
 )
 
 // commandeBuild : fpctl build site | scrutin | communes | <groupe> | page
-// <nom>. Reste un binaire séparé (compilé et exécuté par execBinaire), pas
-// un import direct comme les autres verbes : cmd/build fait 16 000 lignes
-// activement modifiées par d'autres sessions en parallèle de celle-ci —
-// l'importer forcerait fpctl à recompiler l'un dans l'autre, couplage
-// qu'aucune des deux commandes ne demande, pour un paquet dont la seule
-// interface utile est déjà sa ligne de commande.
+// <nom>. internal/sitegen (l'ancien binaire séparé fpbuild) est importé
+// directement — un seul binaire, plus de recompilation à la volée ni de
+// second exécutable dans bin/.
 //
 // site est la seule construction complète, jamais filtrée : c'est ce que
-// mettreEnPlace (cmd/build) doit voir pour ne jamais publier un site
+// mettreEnPlace (internal/sitegen) doit voir pour ne jamais publier un site
 // incomplet. Chaque groupe et chaque page ingèrent d'abord ce qu'ils
 // déclarent nécessiter (ingestPrealables, idempotent — via
 // internal/ingest.RunSources, qui les ingère TOUS ENSEMBLE plutôt qu'un
 // par un : la plupart des sources n'ont aucune dépendance déclarée entre
-// elles, donc tournent de front) puis passent -only=<nom> au binaire — et
-// ne mettent JAMAIS en place : réservés à l'itération locale.
+// elles, donc tournent de front) puis appellent sitegen.Run(-only=<nom>) —
+// et ne mettent JAMAIS en place : réservés à l'itération locale.
 //
 // « fpctl build reste » n'existe plus : ce fourre-tout couvrait environ
 // cinquante pages indépendantes, toujours reconstruites ensemble, cache
 // invalidé dès qu'UNE SEULE ingestion avait tourné n'importe où (voir
-// l'ancien resteInchange, cmd/build/cache.go). cmd/build/main.go donne
-// maintenant son propre nom -only à chacune de ces pages (voir la
-// fonction ecrire(), qui remplace write() partout sauf scrutin/communes
-// et les quelques pages toujours écrites — 404, sitemap...) : les groupes
-// ci-dessous en couvrent les plus utiles pour l'itération locale, « page
-// <nom> » atteint n'importe laquelle des autres (un sujet en particulier,
-// par exemple — voir cmd/build/sujets.go pour les identifiants).
+// l'ancien resteInchange, internal/sitegen/cache.go). internal/sitegen/
+// main.go donne maintenant son propre nom -only à chacune de ces pages
+// (voir la fonction ecrire(), qui remplace write() partout sauf
+// scrutin/communes et les quelques pages toujours écrites — 404,
+// sitemap...) : les groupes ci-dessous en couvrent les plus utiles pour
+// l'itération locale, « page <nom> » atteint n'importe laquelle des
+// autres (un sujet en particulier, par exemple — voir
+// internal/sitegen/sujets.go pour les identifiants).
 func commandeBuild() *cobra.Command {
 	var concurrence int
 	cmd := &cobra.Command{Use: "build", Short: "Construit le site, ou une section limitée pour itérer localement"}
@@ -53,7 +52,7 @@ func commandeBuild() *cobra.Command {
 			if estDemandeAide(args) {
 				return afficherManuel("fpctl-build")
 			}
-			return execBinaire(cmd.Context(), "fpbuild", "cmd/build", args)
+			return executerInterne(cmd.Context(), sitegen.Run(cmd.Context(), args))
 		},
 	})
 	for _, section := range buildSections {
@@ -72,7 +71,7 @@ func commandeBuild() *cobra.Command {
 				if estDemandeAide(args) {
 					return afficherManuel("fpctl-build")
 				}
-				return construireSection(cmd, section.nom, section.only, args, concurrence)
+				return executerInterne(cmd.Context(), construireSection(cmd, section.nom, section.only, args, concurrence))
 			},
 		})
 	}
@@ -80,10 +79,10 @@ func commandeBuild() *cobra.Command {
 		Use:   "page <nom> [options]",
 		Short: "Reconstruit une seule page ou un seul sujet, par son nom -only",
 		Long: "Comme les autres sections (voir SECTIONS), mais pour n'importe quel\n" +
-			"nom -only que cmd/build/main.go connaît et qu'aucun groupe ci-dessus\n" +
+			"nom -only que internal/sitegen/main.go connaît et qu'aucun groupe ci-dessus\n" +
 			"ne couvre déjà — une page d'indicateur (dette, chomage, eau...) ou\n" +
 			"un sujet de campagne par son identifiant (fraude-fiscale,\n" +
-			"appareil-productif... voir cmd/build/sujets.go). Sans préalable\n" +
+			"appareil-productif... voir internal/sitegen/sujets.go). Sans préalable\n" +
 			"déclaré pour ce nom précis (voir ingestPrealables), ingère le socle\n" +
 			"parlementaire complet par défaut : presque toutes les pages du site\n" +
 			"en dépendent au moins pour les fiches de personnes qu'elles citent.",
@@ -93,7 +92,7 @@ func commandeBuild() *cobra.Command {
 			if estDemandeAide(args) || len(args) == 0 {
 				return afficherManuel("fpctl-build")
 			}
-			return construireSection(cmd, args[0], args[0], args[1:], concurrence)
+			return executerInterne(cmd.Context(), construireSection(cmd, args[0], args[0], args[1:], concurrence))
 		},
 	})
 	return cmd
@@ -123,7 +122,7 @@ var buildSections = []struct{ nom, description, only string }{
 // ingéré avant que la construire ait un sens. Tenue à la main, comme
 // internal/checksum.Sections dont elle prolonge l'esprit — sous-couvrir
 // cette liste ne fait jamais servir une page fausse (le cache par
-// empreinte de cmd/build s'en assure déjà), au pire une construction sans
+// empreinte de internal/sitegen s'en assure déjà), au pire une construction sans
 // les toutes dernières données. Nommer une seule source suffit pour toute
 // sa chaîne : internal/ingest.RunSources résout les dépendances déclarées
 // de proche en proche (« themes » entraîne senat, europe, normalize,
@@ -142,7 +141,7 @@ var ingestPrealables = map[string][]string{
 // construireSection ingère les préalables de nom (déclarés dans
 // ingestPrealables, ou le socle complet par défaut) puis construit
 // -only=only — nom identifie la section pour l'utilisateur et pour
-// ingestPrealables ; only est ce que cmd/build/main.go reconnaît vraiment
+// ingestPrealables ; only est ce que internal/sitegen/main.go reconnaît vraiment
 // (un nom seul, ou la liste que couvre un groupe de buildSections).
 func construireSection(cmd *cobra.Command, nom, only string, args []string, concurrence int) error {
 	prealables, ok := ingestPrealables[nom]
@@ -171,5 +170,5 @@ func construireSection(cmd *cobra.Command, nom, only string, args []string, conc
 		fmt.Printf("  puis : fpctl build site -only=%s\n", only)
 		return nil
 	}
-	return execBinaire(cmd.Context(), "fpbuild", "cmd/build", append([]string{"-only=" + only}, reste...))
+	return sitegen.Run(cmd.Context(), append([]string{"-only=" + only}, reste...))
 }

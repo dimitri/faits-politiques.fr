@@ -1808,7 +1808,7 @@ var checks = []check{
 		// hors la ligne pseudo-département "999" (totaux déjà agrégés), les
 		// généralistes doivent couvrir les 101 départements sans exception —
 		// c'est précisément ce qui a fait préférer cette source au RPPS pour
-		// la carte de densité (cmd/build/territoires.go).
+		// la carte de densité (internal/sitegen/territoires.go).
 		name: "les généralistes du secteur conventionnel couvrent les 101 départements, chaque exercice depuis 2013",
 		query: `SELECT count(*) FROM (
 		          SELECT annee, count(DISTINCT code_departement) AS nb
@@ -2224,7 +2224,7 @@ var checks = []check{
 	},
 	{
 		// Reproduit ici la normalisation (accents, apostrophes typographiques)
-		// et les six alias appliqués par cmd/build/francophonie.go, pour
+		// et les six alias appliqués par internal/sitegen/francophonie.go, pour
 		// vérifier le taux de rattachement réel plutôt qu'un plancher
 		// arbitraire — si ce nombre baisse, le rendu de la carte a
 		// probablement le même problème.
@@ -2289,7 +2289,7 @@ var checks = []check{
 		min:   2000,
 	},
 	{
-		// La carte (cmd/build/logement.go) joint core.sru_commune à
+		// La carte (internal/sitegen/logement.go) joint core.sru_commune à
 		// geo.contour_cog par code Insee, avec un repli par nom pour les
 		// quelques communes nouvelles dont le code diverge entre les deux
 		// sources. Si ce repli devient ambigu (plusieurs communes de même

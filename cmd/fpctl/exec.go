@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/logs"
-	"github.com/faits-politiques/faits-politiques/internal/toolrun"
 )
 
 // estDemandeAide : le premier argument brut d'une commande à options
@@ -37,50 +36,6 @@ func racineDepot() (string, error) {
 		return "", fmt.Errorf("fpctl doit être lancé depuis le dépôt faits-politiques.fr (aucun go.mod trouvé)")
 	}
 	return filepath.Dir(gomod), nil
-}
-
-// execBinaire compile pkg (un chemin cmd/... du même module) puis l'exécute
-// avec args, terminaux et code de sortie transmis tels quels. Le répertoire
-// de travail est déjà la racine du dépôt (main a fait le chdir), donc "./"+pkg
-// et bin/nom y résolvent correctement quel que soit le répertoire d'où fpctl
-// a été appelé.
-//
-// Toujours recompiler, jamais un test de fraîcheur maison (mtime du binaire
-// contre celui des sources) : le cache de compilation de Go rend une
-// recompilation à l'identique quasi instantanée, alors qu'un test de
-// fraîcheur qui oublierait un paquet interne modifié exécuterait un binaire
-// périmé sans le dire — le genre d'erreur qu'aucune vitesse gagnée ne vaut.
-func execBinaire(ctx context.Context, nom, pkg string, args []string) error {
-	chemin := filepath.Join("bin", nom)
-
-	compiler := exec.CommandContext(ctx, "go", "build", "-o", chemin, "./"+pkg)
-	compiler.Stdout, compiler.Stderr = os.Stderr, os.Stderr
-	if err := compiler.Run(); err != nil {
-		return fmt.Errorf("compilation de %s : %w", pkg, err)
-	}
-
-	// FPCTL_LOG_ACTOR : nom annonce ce binaire dans la colonne que son pid
-	// occuperait sinon — utile dès que fpbuild écrit sur le même stderr
-	// que fpctl (ses propres avertissements, par exemple).
-	err := toolrun.Cmd{
-		Name: chemin, Args: args, Ctx: ctx,
-		Env: append(os.Environ(), logs.ActorEnv+"="+nom),
-	}.Run()
-	if err != nil {
-		// ctx annulé (signal) avant tout : un enfant tué par le SIGTERM que
-		// toolrun lui a envoyé remonte un ExitCode() de -1 (« terminé par un
-		// signal », voir os/exec), qui deviendrait 255 une fois passé par
-		// os.Exit — pas le code conventionnel (130) que main() attend pour
-		// dire qu'on s'est arrêté proprement parce qu'on le lui a demandé.
-		if ctx.Err() != nil {
-			os.Exit(logs.ExitCode)
-		}
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			os.Exit(exitErr.ExitCode())
-		}
-		return err
-	}
-	return nil
 }
 
 // executerInterne traduit l'erreur d'un paquet interne (déjà importé, déjà

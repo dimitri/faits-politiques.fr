@@ -451,7 +451,7 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 
 	// En dernier : bon marché (quelques secondes, mesuré), et une exécution
 	// partielle (une seule catégorie, par exemple) peut très bien avoir
-	// touché une table dont dépend une section du cache de cmd/build
+	// touché une table dont dépend une section du cache de internal/sitegen
 	// (core.texte_expose fait partie de la section « scrutin »).
 	if err := recalculerEmpreintes(ctx, pool); err != nil {
 		return err
@@ -595,8 +595,8 @@ func ingestSocle(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 }
 
 // recalculerEmpreintes met à jour core.section_checksum pour chaque section
-// que cmd/build sait recopier plutôt que reconstruire (checksum.Sections).
-// Ne décide de rien côté construction — seulement ce que cmd/build lira pour
+// que internal/sitegen sait recopier plutôt que reconstruire (checksum.Sections).
+// Ne décide de rien côté construction — seulement ce que internal/sitegen lira pour
 // décider, lui, si les données d'une section ont changé.
 func recalculerEmpreintes(ctx context.Context, pool *pgxpool.Pool) error {
 	logs.Notice("empreintes des sections (cache de construction)")
