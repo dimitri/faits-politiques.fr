@@ -19,8 +19,11 @@ package toolrun
 
 import (
 	"context"
+	"log/slog"
 	"os"
 	"os/exec"
+	"strconv"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -137,12 +140,47 @@ func (c Cmd) Run() error {
 	// the write end would hold Wait open past the kill above.
 	cmd.WaitDelay = killDelay + time.Second
 
+	// Avant, pas après : l'annonce existe pour l'attente qui suit — sans
+	// elle, "fpctl provision db" ne dit jamais lui-même qu'il est en train
+	// de lancer docker, seule la propre sortie de docker apparaît.
+	//
+	// NOTICE, pas INFO (le choix d'app.taop.xyz pour ce même paquet) :
+	// là-bas la sortie de l'outil est capturée et tue jusqu'à l'échec, donc
+	// l'annonce est la seule chose que l'INFO par défaut y masquerait vaut
+	// la peine de garder visible ; ici la sortie de l'outil est déjà en
+	// direct sur le terminal (fpbuild, docker), donc l'annonce n'a de sens
+	// qu'au même niveau par défaut que le reste de la narration de fpctl.
+	logs.Notice("$ " + CommandLine(c.Name, c.Args...))
+
 	runErr := cmd.Start()
 	if runErr != nil {
+		slog.Error(c.Name+" : impossible de démarrer", "erreur", runErr)
 		return runErr
 	}
 	trackGroup(cmd.Process.Pid)
 	runErr = cmd.Wait()
 	untrackGroup(cmd.Process.Pid)
+
+	// Le contexte annulé (signal) a déjà son propre message
+	// (internal/logs.Context, "stopping") : le répéter ici serait un echo,
+	// pas une information de plus.
+	if runErr != nil && ctx.Err() == nil {
+		slog.Error(c.Name+" : terminé en échec", "erreur", runErr)
+	}
 	return runErr
+}
+
+// CommandLine renders a command the way a reader could retype it, quoting
+// any argument that would otherwise be ambiguous.
+func CommandLine(name string, args ...string) string {
+	out := make([]string, 0, len(args)+1)
+	out = append(out, name)
+	for _, a := range args {
+		if a == "" || strings.ContainsAny(a, " \t\"'$&|<>();*?[]#~") {
+			out = append(out, strconv.Quote(a))
+			continue
+		}
+		out = append(out, a)
+	}
+	return strings.Join(out, " ")
 }

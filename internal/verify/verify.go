@@ -11,8 +11,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"log/slog"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 )
 
@@ -2469,29 +2470,33 @@ func Run(ctx context.Context, args []string) error {
 	}
 	defer pool.Close()
 
+	logs.Notice("contrôles de cohérence", "total", logs.Plural(len(checks), "contrôle"))
 	failed := false
 	for _, c := range checks {
 		var n int
 		if err := pool.QueryRow(ctx, c.query).Scan(&n); err != nil {
-			fmt.Fprintf(os.Stderr, "  ECHEC  %s : %v\n", c.name, err)
+			slog.Error("contrôle en échec", "controle", c.name, "erreur", err)
 			failed = true
 			continue
 		}
 		switch {
 		case c.min > 0 && n < c.min:
-			fmt.Fprintf(os.Stderr, "  ECHEC  %s : %d (minimum attendu %d)\n", c.name, n, c.min)
+			slog.Error("contrôle en échec", "controle", c.name, "valeur", n, "minimum_attendu", c.min)
 			failed = true
 		case c.min == 0 && n != 0:
-			fmt.Fprintf(os.Stderr, "  ECHEC  %s : %d anomalie(s)\n", c.name, n)
+			slog.Error("contrôle en échec", "controle", c.name, "anomalies", n)
 			failed = true
 		default:
-			fmt.Printf("  ok     %s\n", c.name)
+			// 293 contrôles et grandissant : un par un à INFO (le détail
+			// pour qui cherche lequel a tourné), le compte à NOTICE ci-
+			// dessus et ci-dessous est le jalon qui compte par défaut.
+			slog.Info("contrôle ok", "controle", c.name)
 		}
 	}
 	if failed {
-		fmt.Fprintln(os.Stderr, "\nPublication bloquée : les données chargées ne concordent pas.")
+		slog.Error("publication bloquée : les données chargées ne concordent pas")
 		return ErrAnomalies
 	}
-	fmt.Println("\ncohérence vérifiée")
+	logs.Notice("cohérence vérifiée", "controles", len(checks))
 	return nil
 }

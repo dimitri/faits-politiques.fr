@@ -31,6 +31,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/geo"
 	"github.com/faits-politiques/faits-politiques/internal/hatvp"
 	"github.com/faits-politiques/faits-politiques/internal/jorf"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
 	"github.com/faits-politiques/faits-politiques/internal/partis"
@@ -50,7 +51,18 @@ import (
 // topologiques, concurrence, simulation) plutôt qu'un simple appel direct.
 var socleParlementaire = []string{"download", "partis", "normalize", "carto", "senat", "europe", "themes"}
 
-func estSurLeSocle(nom string) bool {
+// SocleParlementaire : les noms du socle, dans un ordre qui place déjà
+// chaque source après ce dont elle dépend — pour un affichage (fpctl list
+// deps) qui n'a besoin ni de pool ni de base : la structure du graphe est
+// dans le code (Source.Dependances), la base n'en garde qu'un REFLET
+// (dernière exécution, taille), jamais la référence.
+func SocleParlementaire() []string {
+	return append([]string(nil), socleParlementaire...)
+}
+
+// EstSurLeSocle : nom fait-il partie des sept sources dont les dépendances
+// sont déclarées et vérifiées ?
+func EstSurLeSocle(nom string) bool {
 	for _, n := range socleParlementaire {
 		if n == nom {
 			return true
@@ -93,7 +105,7 @@ func contexte(ctx context.Context, rawDir, migDir string) (pool *pgxpool.Pool, a
 	if err != nil {
 		return nil, nil, nil, err
 	}
-	fmt.Println("migrations")
+	logs.Notice("migrations")
 	if err := migrate.Up(ctx, pool, migDir); err != nil {
 		pool.Close()
 		return nil, nil, nil, err
@@ -119,7 +131,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 			return err
 		}
 		defer pool.Close()
-		fmt.Println("migrations")
+		logs.Notice("migrations")
 		return migrate.Up(ctx, pool, migDir)
 	}
 	source, ok := SourceParNom(nom)
@@ -131,7 +143,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		return err
 	}
 	defer fermer()
-	if estSurLeSocle(nom) {
+	if EstSurLeSocle(nom) {
 		reg, err := registreParlement(ctx, pool, arch, rawDir)
 		if err != nil {
 			return err
@@ -141,7 +153,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 	if len(opts) > 0 && opts[0].DryRun {
 		return fmt.Errorf("-dry-run n'est pas pris en charge pour %s (hors du socle audité, voir socleParlementaire)", nom)
 	}
-	fmt.Printf("\n%s\n", source.Description)
+	logs.Notice(source.Description)
 	return source.Executer(ctx, pool, arch, rawDir)
 }
 
@@ -172,7 +184,7 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 
 	var socle []string
 	for _, s := range sources {
-		if estSurLeSocle(s.Nom) {
+		if EstSurLeSocle(s.Nom) {
 			socle = append(socle, s.Nom)
 		}
 	}
@@ -193,15 +205,15 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	}
 
 	for _, s := range sources {
-		if estSurLeSocle(s.Nom) {
+		if EstSurLeSocle(s.Nom) {
 			continue
 		}
-		fmt.Printf("\n%s\n", s.Description)
+		logs.Notice(s.Description)
 		if err := s.Executer(ctx, pool, arch, rawDir); err != nil {
 			return fmt.Errorf("%s : %w", s.Nom, err)
 		}
 	}
-	fmt.Printf("\ncatégorie %s terminée en %s\n", categorie, time.Since(start).Round(time.Second))
+	logs.Notice("catégorie terminée", "categorie", categorie, "duree", time.Since(start).Round(time.Second))
 	return nil
 }
 
@@ -219,12 +231,12 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 	}
 	defer fermer()
 
-	fmt.Println("\ntéléchargement et scellement")
+	logs.Notice("téléchargement et scellement")
 	if err := telechargerAssemblee(ctx, pool, arch); err != nil {
 		return err
 	}
 
-	fmt.Println("\nréférentiels sur les organisations politiques")
+	logs.Notice("référentiels sur les organisations politiques")
 	if err := ingestPartis(ctx, pool, arch); err != nil {
 		return err
 	}
@@ -236,17 +248,17 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 	// gardait rien — le RNE arrivait le premier avec sa version pauvre, sans
 	// circonscription ni date de fin, et la contrainte d'exclusion faisait
 	// rejeter celle de l'Assemblée. En silence.
-	fmt.Println("\nnormalisation raw -> core")
+	logs.Notice("normalisation raw -> core")
 	if err := normaliserAssemblee(ctx, pool); err != nil {
 		return err
 	}
 
-	fmt.Println("\nSénat")
+	logs.Notice("Sénat")
 	if err := ingestSenat(ctx, pool, arch, rawDir); err != nil {
 		return err
 	}
 
-	fmt.Println("\nParlement européen")
+	logs.Notice("Parlement européen")
 	if err := europe.Ingest(ctx, pool, arch); err != nil {
 		return err
 	}
@@ -255,17 +267,17 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 		return err
 	}
 
-	fmt.Println("\ntissu associatif")
+	logs.Notice("tissu associatif")
 	if err := associations.Ingest(ctx, pool, arch); err != nil {
 		return err
 	}
 
-	fmt.Println("\ndéclarations d'intérêts et de patrimoine")
+	logs.Notice("déclarations d'intérêts et de patrimoine")
 	if err := hatvp.Ingest(ctx, pool, arch); err != nil {
 		return err
 	}
 
-	fmt.Println("\nélection présidentielle, population par âge, participation comparée")
+	logs.Notice("élection présidentielle, population par âge, participation comparée")
 	if err := presidentielle.Ingest(ctx, pool, arch); err != nil {
 		return err
 	}
@@ -276,12 +288,12 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 		return err
 	}
 
-	fmt.Println("\nbudget de l'État et de la Sécurité sociale")
+	logs.Notice("budget de l'État et de la Sécurité sociale")
 	if err := budget.Ingest(ctx, pool, arch); err != nil {
 		return err
 	}
 
-	fmt.Println("\ngrandes séries nationales")
+	logs.Notice("grandes séries nationales")
 	if err := ingestMacro(ctx, pool, arch); err != nil {
 		return err
 	}
@@ -293,46 +305,46 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 	// bloc communes (dimensionLocale) a déjà chargé le COG courant : inutile
 	// de le recharger ici (contrairement à la source « contours » invoquée
 	// seule, catégorie systeme, qui le recharge elle-même).
-	fmt.Println("\ncontours IGN par millésime")
+	logs.Notice("contours IGN par millésime")
 	if err := geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime); err != nil {
 		return err
 	}
 
-	fmt.Println("\nbilans alimentaires et appareil de production agricole")
+	logs.Notice("bilans alimentaires et appareil de production agricole")
 	if err := agriculture.Ingest(ctx, pool, arch); err != nil {
 		return err
 	}
 
-	fmt.Println("\ncomptes déposés des grandes sociétés")
+	logs.Notice("comptes déposés des grandes sociétés")
 	if err := entreprises.Ingest(ctx, pool, arch); err != nil {
 		return err
 	}
 
 	// Les travaux qui s'appuient sur core.texte et core.dossier viennent après
 	// la normalisation, jamais avant : ils y font référence par clé étrangère.
-	fmt.Println("\namendements et exposés sommaires")
+	logs.Notice("amendements et exposés sommaires")
 	if err := an.IngestAmendements(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\nexposés des motifs")
+	logs.Notice("exposés des motifs")
 	if err := an.IngestExposes(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\ninterventions en séance")
+	logs.Notice("interventions en séance")
 	if err := an.IngestInterventions(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\ncomptes de campagne")
+	logs.Notice("comptes de campagne")
 	if err := campagne.Ingest(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\nactes nominatifs du Journal officiel")
+	logs.Notice("actes nominatifs du Journal officiel")
 	if err := jorf.Ingest(ctx, pool, arch, 60); err != nil {
 		return err
 	}
 	// Après jorf.Ingest, jamais avant : le rattachement compare la référence
 	// NOR publiée par l'Assemblée à jo.texte.nor, qui vient d'être rempli.
-	fmt.Println("\nrattachement des dossiers à la loi promulguée")
+	logs.Notice("rattachement des dossiers à la loi promulguée")
 	if err := an.PromulgationDossiers(ctx, pool); err != nil {
 		return err
 	}
@@ -344,12 +356,12 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 	// l'Europe ait tourné manquait toute la couverture PARLEMENT_EUROPEEN —
 	// le bug qui a motivé le graphe de dépendances déclaré (voir la source
 	// « themes » du catalogue et internal/pipeline).
-	fmt.Println("\nthèmes applicables aux scrutins")
+	logs.Notice("thèmes applicables aux scrutins")
 	if err := carto.Themes(ctx, pool); err != nil {
 		return err
 	}
 
-	fmt.Println("\nportraits et logos librement réutilisables")
+	logs.Notice("portraits et logos librement réutilisables")
 	if err := ingestMedia(ctx, pool, arch, "data", "web/media"); err != nil {
 		return err
 	}
@@ -362,7 +374,7 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 		return err
 	}
 
-	fmt.Printf("\nterminé en %s\n", time.Since(start).Round(time.Second))
+	logs.Notice("terminé", "duree", time.Since(start).Round(time.Second))
 	return nil
 }
 
@@ -375,13 +387,13 @@ func telechargerAssemblee(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	if err != nil {
 		return err
 	}
-	fmt.Println("\nextraction vers raw.record")
+	logs.Notice("extraction vers raw.record")
 	for slug, f := range fetched {
 		n, err := an.Extract(ctx, pool, f)
 		if err != nil {
 			return fmt.Errorf("%s : %w", slug, err)
 		}
-		fmt.Printf("  %-12s %d enregistrements\n", slug, n)
+		logs.Notice("extrait vers raw.record", "source", slug, "enregistrements", n)
 	}
 	return nil
 }
@@ -498,7 +510,7 @@ func ingestSocle(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 // Ne décide de rien côté construction — seulement ce que cmd/build lira pour
 // décider, lui, si les données d'une section ont changé.
 func recalculerEmpreintes(ctx context.Context, pool *pgxpool.Pool) error {
-	fmt.Println("\nempreintes des sections (cache de construction)")
+	logs.Notice("empreintes des sections (cache de construction)")
 	noms := make([]string, 0, len(checksum.Sections))
 	for section := range checksum.Sections {
 		noms = append(noms, section)
@@ -517,7 +529,7 @@ func recalculerEmpreintes(ctx context.Context, pool *pgxpool.Pool) error {
 			section, h); err != nil {
 			return err
 		}
-		fmt.Printf("  %s : %s\n", section, h[:12])
+		logs.Notice("empreinte", "section", section, "hash", h[:12])
 	}
 	return nil
 }
@@ -530,15 +542,15 @@ func recalculerEmpreintes(ctx context.Context, pool *pgxpool.Pool) error {
 // Sénat ET de l'Europe (voir la source « themes » du catalogue), jamais
 // prêts au même moment que cette seule cartographie éditoriale.
 func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
-	fmt.Println("\ncartographie éditoriale")
+	logs.Notice("cartographie éditoriale")
 	if err := carto.Ingest(ctx, pool, filepath.Join("data", "organisations.csv")); err != nil {
 		return err
 	}
-	fmt.Println("\ngouvernements de la Ve République")
+	logs.Notice("gouvernements de la Ve République")
 	if err := carto.IngestGouvernements(ctx, pool, filepath.Join("data", "gouvernements.csv")); err != nil {
 		return err
 	}
-	fmt.Println("\nprésidences de la République")
+	logs.Notice("présidences de la République")
 	return carto.IngestPresidents(ctx, pool, filepath.Join("data", "presidents.csv"))
 }
 
@@ -546,34 +558,34 @@ func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 // ref.commune est référencé par tout le reste, et les résultats électoraux ne
 // peuvent pas être rattachés à une commune qui n'existe pas encore.
 func dimensionLocale(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	fmt.Println("\nréférentiel géographique")
+	logs.Notice("référentiel géographique")
 	if err := communes.IngestCOG(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\nmaires")
+	logs.Notice("maires")
 	if err := communes.IngestRNE(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\nélections municipales")
+	logs.Notice("élections municipales")
 	if err := communes.IngestMunicipales(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\ncomptes des communes")
+	logs.Notice("comptes des communes")
 	if err := communes.IngestOFGL(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\nintercommunalités et compétences")
+	logs.Notice("intercommunalités et compétences")
 	if err := communes.IngestBANATIC(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\nélections municipales 2020")
+	logs.Notice("élections municipales 2020")
 	if err := communes.IngestMunicipales2020(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\ncomptes des régions, départements et groupements")
+	logs.Notice("comptes des régions, départements et groupements")
 	if err := communes.IngestCollectivites(ctx, pool, arch); err != nil {
 		return err
 	}
-	fmt.Println("\ndélinquance enregistrée par commune")
+	logs.Notice("délinquance enregistrée par commune")
 	return communes.IngestSSMSI(ctx, pool, arch)
 }

@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
+	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/ingest"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
@@ -70,13 +72,16 @@ func commandeList() *cobra.Command {
 		},
 		&cobra.Command{
 			Use:   "deps [nom]",
-			Short: "Graphe de dépendances du socle parlementaire, tel que publié en base",
-			Long: "Le socle parlementaire (download, partis, normalize, carto, senat,\n" +
-				"europe, themes) est la seule partie du catalogue d'ingestion dont\n" +
-				"les dépendances sont déclarées et vérifiées — voir internal/pipeline\n" +
-				"et fpctl-ingest(1). Republié à chaque exécution touchant ce socle\n" +
-				"(fpctl ingest parlement ... ou l'une de ces sept sources) ; vide\n" +
-				"avant la première.\n\n" +
+			Short: "Graphe de dépendances du socle parlementaire (download, partis, normalize, carto, senat, europe, themes)",
+			Long: "Le graphe lui-même (download, partis, normalize, carto, senat,\n" +
+				"europe, themes, et ce que chacune exige) vient du code\n" +
+				"(internal/ingest, Source.Dependances) : cette commande n'a besoin\n" +
+				"d'aucune base pour l'afficher — voir fpctl-ingest(1), LE SOCLE\n" +
+				"PARLEMENTAIRE. Si une base est joignable et migrée, elle enrichit\n" +
+				"chaque étape de sa dernière exécution réussie et de ce qu'elle pèse\n" +
+				"(la base n'est jamais qu'un REFLET republié par internal/pipeline,\n" +
+				"jamais la référence) ; sinon un avertissement le dit et le graphe\n" +
+				"s'affiche quand même, sans ces deux colonnes.\n\n" +
 				"Avec un nom, limite l'affichage à une seule chose : l'une des sept\n" +
 				"étapes (avec la chaîne complète de ce dont elle dépend,\n" +
 				"transitivement), ou une section de fpctl build (scrutin, communes,\n" +
@@ -123,8 +128,12 @@ var composantesEtape = map[string]struct {
 
 // tailleEtape additionne les octets archivés (SlugsSources) et occupés en
 // base (Tables) d'une étape — 0, sans erreur, pour une étape non déclarée
-// dans composantesEtape (rien à afficher plutôt qu'un blocage).
+// dans composantesEtape (rien à afficher plutôt qu'un blocage), ou quand
+// aucune base n'est joignable (pool nil : voir ouvrirBaseBrievement).
 func tailleEtape(ctx context.Context, pool *pgxpool.Pool, nom string) (archive, base int64, err error) {
+	if pool == nil {
+		return 0, 0, nil
+	}
 	c, ok := composantesEtape[nom]
 	if !ok {
 		return 0, 0, nil
@@ -153,42 +162,65 @@ func tailleEtape(ctx context.Context, pool *pgxpool.Pool, nom string) (archive, 
 	return archive, base, nil
 }
 
-func afficherDeps(ctx context.Context, nom string) error {
-	pool, err := store.Open(ctx)
+// ouvrirBaseBrievement tente une connexion courte (2s, pas les 30s de
+// nouvelles tentatives de store.Open — une commande d'AFFICHAGE n'a aucune
+// raison de faire attendre qui la lance pour une base qui met du temps à
+// démarrer) pour enrichir le graphe statique d'informations qu'IL n'a pas :
+// dernière exécution, taille. nil sans erreur si la base est injoignable ou
+// pas encore migrée par cette version de fpctl — un avertissement le dit,
+// le graphe déclaré dans le code reste affichable quand même.
+func ouvrirBaseBrievement(ctx context.Context) *pgxpool.Pool {
+	cctx, cancel := context.WithTimeout(ctx, 2*time.Second)
+	defer cancel()
+	pool, err := store.Open(cctx)
 	if err != nil {
-		return err
-	}
-	defer pool.Close()
-
-	// core.pipeline_etape (migration récente) peut manquer sur une base pas
-	// encore migrée par cette version de fpctl — un « list » reste
-	// délibérément en lecture seule, il n'applique jamais de migration lui-
-	// même (contrairement à fpctl ingest, qui le fait toujours en premier) :
-	// dire clairement quoi lancer plutôt que remonter l'erreur SQL brute.
-	var existe bool
-	if err := pool.QueryRow(ctx, `SELECT to_regclass('core.pipeline_etape') IS NOT NULL`).Scan(&existe); err != nil {
-		return fmt.Errorf("vérification du schéma : %w", err)
-	}
-	if !existe {
-		return fmt.Errorf("core.pipeline_etape n'existe pas encore sur cette base — lancez d'abord « fpctl ingest migrate »")
-	}
-
-	etapes, err := pipeline.LireTopologie(ctx, pool)
-	if err != nil {
-		return err
-	}
-	if len(etapes) == 0 {
-		fmt.Println("rien à afficher — lancez « fpctl ingest parlement all » (ou l'une de ses sources) au moins une fois")
+		slog.Warn("base injoignable : affichage du graphe déclaré dans le code seul, sans dernière exécution ni taille",
+			"erreur", err)
 		return nil
 	}
+	var existe bool
+	if err := pool.QueryRow(ctx, `SELECT to_regclass('core.pipeline_etape') IS NOT NULL`).Scan(&existe); err != nil || !existe {
+		slog.Warn("core.pipeline_etape n'existe pas encore sur cette base : dernière exécution et taille non affichées — lancez « fpctl ingest migrate » pour les avoir")
+		pool.Close()
+		return nil
+	}
+	return pool
+}
+
+func afficherDeps(ctx context.Context, nom string) error {
+	// Le graphe lui-même vient du code, jamais de la base — internal/
+	// pipeline le republie à chaque exécution, mais un REFLET ne se lit pas
+	// à la place de la référence.
 	parNom := map[string]pipeline.EtapePubliee{}
-	for _, e := range etapes {
-		parNom[e.Nom] = e
+	for _, n := range ingest.SocleParlementaire() {
+		s, ok := ingest.SourceParNom(n)
+		if !ok {
+			return fmt.Errorf("%s déclaré dans le socle parlementaire mais absent du catalogue", n)
+		}
+		parNom[n] = pipeline.EtapePubliee{Nom: s.Nom, Description: s.Description, DependDe: s.Dependances}
+	}
+
+	pool := ouvrirBaseBrievement(ctx)
+	if pool != nil {
+		defer pool.Close()
+		etapes, err := pipeline.LireTopologie(ctx, pool)
+		if err != nil {
+			return err
+		}
+		// Seule la dernière exécution vient de la base ; la structure
+		// (Description, DependDe) reste celle du code, au cas où le reflet
+		// publié daterait d'une version antérieure du catalogue.
+		for _, e := range etapes {
+			if s, ok := parNom[e.Nom]; ok {
+				s.DerniereExecutionReussie = e.DerniereExecutionReussie
+				parNom[e.Nom] = s
+			}
+		}
 	}
 
 	if nom == "" {
-		for _, e := range etapes {
-			if err := imprimerEtape(ctx, pool, e, ""); err != nil {
+		for _, n := range ingest.SocleParlementaire() {
+			if err := imprimerEtape(ctx, pool, parNom[n], ""); err != nil {
 				return err
 			}
 		}
@@ -226,10 +258,7 @@ func afficherDeps(ctx context.Context, nom string) error {
 		return nil
 	}
 
-	var connus []string
-	for _, e := range etapes {
-		connus = append(connus, e.Nom)
-	}
+	connus := ingest.SocleParlementaire()
 	for s := range ingestPrealables {
 		connus = append(connus, s)
 	}
@@ -263,6 +292,9 @@ func imprimerTransitivement(ctx context.Context, pool *pgxpool.Pool, parNom map[
 
 func imprimerEtape(ctx context.Context, pool *pgxpool.Pool, e pipeline.EtapePubliee, indent string) error {
 	derniere := "jamais exécutée avec succès"
+	if pool == nil {
+		derniere = "dernière exécution inconnue (aucune base joignable)"
+	}
 	if e.DerniereExecutionReussie != nil {
 		derniere = e.DerniereExecutionReussie.Local().Format("2006-01-02 15:04")
 	}

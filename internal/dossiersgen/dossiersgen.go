@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -203,7 +204,7 @@ func Run(ctx context.Context, args []string) error {
 		if err := os.WriteFile(chemin, src, 0o644); err != nil {
 			return err
 		}
-		fmt.Printf("  %-40s %d faits\n", chemin, len(parDossier[d]))
+		logs.Notice("dossier régénéré", "fichier", chemin, "faits", len(parDossier[d]))
 	}
 	return nil
 }

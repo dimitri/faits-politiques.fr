@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -141,7 +142,7 @@ func Run(ctx context.Context, args []string) error {
 	if err := os.WriteFile(doc, out.Bytes(), 0o644); err != nil {
 		return err
 	}
-	fmt.Printf("%s : figure régénérée (%d octets)\n", doc, len(frag))
+	logs.Notice("figure régénérée", "document", doc, "octets", len(frag))
 	return nil
 }
 
