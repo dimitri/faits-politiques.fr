@@ -46,7 +46,7 @@ func commandeIngest() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&migDir, "migrations", "db/migrations", "répertoire des migrations")
 	cmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false,
 		"affiche l'ordre d'exécution par vagues sans rien exécuter (socle parlementaire seulement)")
-	cmd.PersistentFlags().IntVar(&concurrence, "j", 1,
+	cmd.PersistentFlags().IntVarP(&concurrence, "concurrence", "j", 1,
 		"étapes indépendantes exécutées de front, par vague (socle parlementaire seulement)")
 	opts := func() pipeline.Options { return pipeline.Options{DryRun: dryRun, Concurrence: concurrence} }
 
