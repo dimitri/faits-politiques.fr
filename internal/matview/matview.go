@@ -324,6 +324,20 @@ var Catalogue = []Definition{
 	WHERE mandate_type = 'CONSEILLER_COMMUNAUTAIRE' AND upper(validity) IS NULL
 	GROUP BY 1`,
 	},
+	// Un count(*) par source, page /sources (chargerStatsGlobalesSources
+	// et la boucle Enregistrements de sources.go) — remplace un JOIN à
+	// quatre tables filtré par slug, rejoué une fois par source (166 fois),
+	// sur la totalité de raw.record (489 Mo, 177 026 lignes).
+	{
+		Nom:    "source_enregistrements",
+		Tables: []string{"raw.record", "raw.document", "raw.retrieval", "raw.source"},
+		SQL: `SELECT s.slug AS source_slug, count(*)::int AS nombre_enregistrements
+	FROM raw.record rec
+	JOIN raw.document d ON d.id = rec.document_id
+	JOIN raw.retrieval r ON r.document_id = d.id
+	JOIN raw.source s ON s.id = r.source_id
+	GROUP BY s.slug`,
+	},
 	{
 		Nom:    "commune_association_count",
 		Tables: []string{"core.association"},
@@ -393,6 +407,15 @@ var TablesDirectes = []TableDirecte{
 	// commune — une matvue n'y changerait rien, ce serait le même volume.
 	{"core.mandate", "élus locaux en poste (conseillers municipaux/communautaires) lus wholesale par lieux_pages.go/candidat_local.go — 605 654 lignes actives sur 617 196"},
 	{"core.person", "identité des élus locaux, jointe 1:1 sur core.mandate wholesale dans les mêmes fichiers — 515 374 lignes"},
+	// Deux tables de contrôle, pas de contenu éditorial : lues sans
+	// condition au tout début de main.go (page Sources, cache de
+	// construction), avant même qu'-only choisisse quoi ÉCRIRE — donc
+	// nécessaires au périmètre CI quelle que soit la section demandée.
+	{"raw.source", "métadonnées des flux archivés, page /sources — 166 lignes"},
+	{"raw.retrieval", "historique des relevés par source, page /sources — 15 330 lignes"},
+	{"raw.document", "un document par relevé, page /sources — 4 482 lignes"},
+	{"raw.fetch_run", "dernier statut d'ingestion par source, page /sources — 734 lignes"},
+	{"core.section_checksum", "empreintes du cache de construction (internal/sitegen/cache.go) — 2 lignes"},
 }
 
 // Perimetre : le nom qualifié de chaque objet nécessaire pour reconstruire

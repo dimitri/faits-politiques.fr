@@ -103,12 +103,12 @@ func loadSources(ctx context.Context, pool *pgxpool.Pool) ([]SourceDetail, error
 			out[i].Empreinte = out[i].Empreinte[:20] + "…"
 		}
 
+		// mv.source_enregistrements (internal/matview) — plus le JOIN à
+		// quatre tables sur la totalité de raw.record (489 Mo) rejoué une
+		// fois par source.
 		_ = pool.QueryRow(ctx, `
-			SELECT count(*) FROM raw.record rec
-			JOIN raw.document d ON d.id = rec.document_id
-			JOIN raw.retrieval r ON r.document_id = d.id
-			JOIN raw.source s ON s.id = r.source_id
-			WHERE s.slug = $1`, out[i].Slug).Scan(&out[i].Enregistrements)
+			SELECT nombre_enregistrements FROM mv.source_enregistrements
+			WHERE source_slug = $1`, out[i].Slug).Scan(&out[i].Enregistrements)
 	}
 	return out, nil
 }
