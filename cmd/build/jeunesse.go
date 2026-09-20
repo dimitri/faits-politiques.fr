@@ -212,6 +212,7 @@ func loadJeunesse(ctx context.Context, pool *pgxpool.Pool) (*StatsJeunesse, erro
 	}
 	if len(cases) > 0 {
 		format := func(v float64) string { return Decimal(v, 0) + " %" }
+		rangs := classement(cases, fin.Noms, format)
 		st.CarteInsertion = CarteTerritoire{
 			Slug: "insertion-apprentissage", Titre: "Taux d'emploi médian à 6 mois après un contrat d'apprentissage",
 			Question: "Où l'insertion après l'apprentissage est-elle la meilleure ?",
@@ -225,7 +226,8 @@ func loadJeunesse(ctx context.Context, pool *pgxpool.Pool) (*StatsJeunesse, erro
 				Source:   "DEPP, enquête InserJeunes, promotion la plus récente",
 				Section:  "Jeunesse", SectionURL: "jeunesse", SectionIndexURL: "jeunesse",
 				Carte:      pleine(fin, cases, "% médian", format),
-				Classement: classement(cases, fin.Noms, format),
+				Resume:     resumerClassement(rangs),
+				Classement: rangs,
 			},
 		}
 	}

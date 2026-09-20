@@ -99,6 +99,7 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 		}
 		rows.Close()
 
+		rangs := classement(cases, vign.Noms, tx)
 		ind := IndicSecurite{Code: code, Libelle: lib[0], Question: lib[1],
 			Slug:   strings.ReplaceAll(code, "_", "-"),
 			Apercu: apercu(vign, cases, "faits pour 1 000 habitants", tx)}
@@ -109,7 +110,8 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 			SectionURL:      "securite",
 			SectionIndexURL: "securite",
 			Carte:           pleine(fin, cases, "faits pour 1 000 habitants", tx),
-			Classement:      classement(cases, vign.Noms, tx),
+			Resume:          resumerClassement(rangs),
+			Classement:      rangs,
 		}
 
 		srows, err := pool.Query(ctx, `

@@ -167,6 +167,7 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 					rows.Close()
 					fmtPct := func(v float64) string { return Decimal(v, 1) + " %" }
 					k.Apercu = apercu(vign, cases, "part des voix nuancées", fmtPct)
+					rangs := classement(cases, vign.Noms, fmtPct)
 					k.Page = &PageCarte{
 						Slug:  strings.ToLower(nu[0]),
 						Titre: "Municipales 2026 — voix de la nuance " + nu[0],
@@ -181,7 +182,8 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 						SectionURL:      "2027",
 						SectionIndexURL: "2027",
 						Carte:           pleine(fin, cases, "part des voix nuancées", fmtPct),
-						Classement:      classement(cases, vign.Noms, fmtPct),
+						Resume:          resumerClassement(rangs),
+						Classement:      rangs,
 					}
 				}
 			}

@@ -184,6 +184,7 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 		titre := "Bénéficiaires de l'APA à domicile pour 100 personnes de 75 ans ou plus"
 		question := "Où l'allocation personnalisée d'autonomie à domicile couvre-t-elle la plus grande part des personnes de 75 ans ou plus ?"
 		source := "DREES, enquête Aide sociale, 2024 ; Insee, estimations de population 2024"
+		rangs := classement(cases, fin.Noms, format)
 		st.CarteAPA = CarteTerritoire{
 			Slug: "apa-domicile", Titre: titre, Question: question,
 			Note: fmt.Sprintf("Compte une présence, pas un besoin couvert : un taux élevé peut aussi "+
@@ -196,7 +197,8 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 				Slug: "apa-domicile", Titre: titre, Question: question, Source: source,
 				Section: "Vieillesse", SectionURL: "vieillesse", SectionIndexURL: "vieillesse",
 				Carte:      pleine(fin, cases, "pour 100 personnes de 75 ans ou plus", format),
-				Classement: classement(cases, fin.Noms, format),
+				Resume:     resumerClassement(rangs),
+				Classement: rangs,
 			},
 		}
 	}
