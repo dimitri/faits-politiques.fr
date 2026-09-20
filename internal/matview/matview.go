@@ -255,6 +255,14 @@ var Catalogue = []Definition{
 	GROUP BY d.indicateur_code, c.code_departement, d.annee`,
 	},
 	{
+		Nom:    "commune_association_count",
+		Tables: []string{"core.association"},
+		SQL: `SELECT commune_code, count(*) AS n
+	FROM core.association
+	WHERE commune_code IS NOT NULL
+	GROUP BY commune_code`,
+	},
+	{
 		Nom:    "population_nationale_annee",
 		Tables: []string{"core.population_historique_commune"},
 		SQL: `SELECT annee, sum(population) AS population

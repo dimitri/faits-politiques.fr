@@ -285,11 +285,12 @@ func chargerPagesCommunes(ctx context.Context, pool *pgxpool.Pool, r *Resolveur,
 		return nil
 	})
 
-	// 5. Associations déclarées.
+	// 5. Associations déclarées — mv.commune_association_count (internal/
+	// matview) remplace le GROUP BY sur la totalité de core.association
+	// (1,18 million de lignes).
 	g.Go(func() error {
 		arows, err := pool.Query(gctx, `
-			SELECT commune_code, count(*) FROM core.association
-			WHERE commune_code IS NOT NULL GROUP BY 1`)
+			SELECT commune_code, n FROM mv.commune_association_count`)
 		if err != nil {
 			return err
 		}
