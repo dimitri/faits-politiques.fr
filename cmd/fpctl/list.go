@@ -2,8 +2,10 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"log/slog"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -70,33 +72,49 @@ func commandeList() *cobra.Command {
 				return executerInterne(cmd.Context(), afficherStats(cmd.Context()))
 			},
 		},
-		&cobra.Command{
-			Use:   "deps [nom]",
-			Short: "Graphe de dépendances du socle parlementaire (download, partis, normalize, carto, senat, europe, themes)",
-			Long: "Le graphe lui-même (download, partis, normalize, carto, senat,\n" +
-				"europe, themes, et ce que chacune exige) vient du code\n" +
-				"(internal/ingest, Source.Dependances) : cette commande n'a besoin\n" +
-				"d'aucune base pour l'afficher — voir fpctl-ingest(1), LE SOCLE\n" +
-				"PARLEMENTAIRE. Si une base est joignable et migrée, elle enrichit\n" +
-				"chaque étape de sa dernière exécution réussie et de ce qu'elle pèse\n" +
-				"(la base n'est jamais qu'un REFLET republié par internal/pipeline,\n" +
-				"jamais la référence) ; sinon un avertissement le dit et le graphe\n" +
-				"s'affiche quand même, sans ces deux colonnes.\n\n" +
-				"Avec un nom, limite l'affichage à une seule chose : l'une des sept\n" +
-				"étapes (avec la chaîne complète de ce dont elle dépend,\n" +
-				"transitivement), ou une section de fpctl build (scrutin, communes,\n" +
-				"reste — ses préalables d'ingestion, chacun développé à son tour s'il\n" +
-				"appartient lui-même au socle).",
-			Args: cobra.MaximumNArgs(1),
-			RunE: func(cmd *cobra.Command, args []string) error {
-				var nom string
-				if len(args) > 0 {
-					nom = args[0]
-				}
-				return executerInterne(cmd.Context(), afficherDeps(cmd.Context(), nom))
-			},
-		},
+		commandeDeps(),
 	)
+	return cmd
+}
+
+func commandeDeps() *cobra.Command {
+	var enJSON bool
+	cmd := &cobra.Command{
+		Use:   "deps [nom]",
+		Short: "Graphe de dépendances du socle parlementaire (download, partis, normalize, carto, senat, europe, themes)",
+		Long: "Le graphe lui-même (download, partis, normalize, carto, senat,\n" +
+			"europe, themes, et ce que chacune exige) vient du code\n" +
+			"(internal/ingest, Source.Dependances) : cette commande n'a besoin\n" +
+			"d'aucune base pour l'afficher — voir fpctl-ingest(1), LE SOCLE\n" +
+			"PARLEMENTAIRE. Si une base est joignable et migrée, elle enrichit\n" +
+			"chaque étape de sa dernière exécution réussie et de ce qu'elle pèse\n" +
+			"(la base n'est jamais qu'un REFLET républié par internal/pipeline,\n" +
+			"jamais la référence) ; sinon un avertissement le dit (voir\n" +
+			"internal/logs) et le graphe s'affiche quand même, sans ces deux\n" +
+			"colonnes.\n\n" +
+			"Affiché en arbre : c'est un graphe orienté acyclique, pas un arbre\n" +
+			"(normalize a deux « parents », senat et europe, tous deux exigés par\n" +
+			"themes), à plusieurs racines (ce dont rien ne dépend — carto et\n" +
+			"themes, dans le socle complet). Rendu quand même comme un arbre, ce\n" +
+			"qu'il redevient une fois déroulé : une étape partagée réapparaît sous\n" +
+			"chacun de ses parents plutôt que d'être fusionnée en un seul nœud.\n\n" +
+			"Avec un nom, limite l'affichage à une seule chose : l'une des sept\n" +
+			"étapes (racine de son propre arbre), ou une section de fpctl build\n" +
+			"(scrutin, communes, reste — une racine par préalable d'ingestion).\n\n" +
+			"--json écrit la liste des étapes concernées à plat (un objet par\n" +
+			"étape, depend_de nommant les autres par leur nom) plutôt que\n" +
+			"l'arbre déroulé — la forme qu'un outil reconstruit plus facilement\n" +
+			"que des lignes indentées.",
+		Args: cobra.MaximumNArgs(1),
+		RunE: func(cmd *cobra.Command, args []string) error {
+			var nom string
+			if len(args) > 0 {
+				nom = args[0]
+			}
+			return executerInterne(cmd.Context(), afficherDeps(cmd.Context(), nom, enJSON))
+		},
+	}
+	cmd.Flags().BoolVar(&enJSON, "json", false, "écrit la liste des étapes à plat, en JSON, plutôt que l'arbre")
 	return cmd
 }
 
@@ -187,133 +205,206 @@ func ouvrirBaseBrievement(ctx context.Context) *pgxpool.Pool {
 	return pool
 }
 
-func afficherDeps(ctx context.Context, nom string) error {
+// noeud : une étape du graphe, telle qu'affichée ou exportée — le code pour
+// la structure (Nom, Description, DependDe), la base pour l'enrichir quand
+// elle est joignable (DerniereExecutionReussie, ArchiveOctets, BaseOctets ;
+// tous à zéro/nil sinon, jamais une raison de refuser l'affichage). Les
+// champs JSON nomment les autres étapes par leur Nom (depend_de) plutôt que
+// de les imbriquer : la forme qu'un outil reconstruit le plus facilement,
+// et celle qui n'a pas à choisir quelle branche dupliquer un nœud partagé.
+type noeud struct {
+	Nom                      string     `json:"nom"`
+	Description              string     `json:"description"`
+	DerniereExecutionReussie *time.Time `json:"derniere_execution_reussie"`
+	ArchiveOctets            int64      `json:"archive_octets"`
+	BaseOctets               int64      `json:"base_octets"`
+	DependDe                 []string   `json:"depend_de"`
+}
+
+func afficherDeps(ctx context.Context, nom string, enJSON bool) error {
 	// Le graphe lui-même vient du code, jamais de la base — internal/
 	// pipeline le republie à chaque exécution, mais un REFLET ne se lit pas
 	// à la place de la référence.
-	parNom := map[string]pipeline.EtapePubliee{}
+	pool := ouvrirBaseBrievement(ctx)
+	if pool != nil {
+		defer pool.Close()
+	}
+	noeuds := map[string]noeud{}
 	for _, n := range ingest.SocleParlementaire() {
 		s, ok := ingest.SourceParNom(n)
 		if !ok {
 			return fmt.Errorf("%s déclaré dans le socle parlementaire mais absent du catalogue", n)
 		}
-		parNom[n] = pipeline.EtapePubliee{Nom: s.Nom, Description: s.Description, DependDe: s.Dependances}
+		archive, base, err := tailleEtape(ctx, pool, n)
+		if err != nil {
+			return fmt.Errorf("%s : %w", n, err)
+		}
+		noeuds[n] = noeud{Nom: n, Description: s.Description, DependDe: s.Dependances, ArchiveOctets: archive, BaseOctets: base}
 	}
-
-	pool := ouvrirBaseBrievement(ctx)
 	if pool != nil {
-		defer pool.Close()
+		// Seule la dernière exécution vient de la base ; la structure
+		// (Description, DependDe) reste celle du code, au cas où le reflet
+		// publié daterait d'une version antérieure du catalogue.
 		etapes, err := pipeline.LireTopologie(ctx, pool)
 		if err != nil {
 			return err
 		}
-		// Seule la dernière exécution vient de la base ; la structure
-		// (Description, DependDe) reste celle du code, au cas où le reflet
-		// publié daterait d'une version antérieure du catalogue.
 		for _, e := range etapes {
-			if s, ok := parNom[e.Nom]; ok {
-				s.DerniereExecutionReussie = e.DerniereExecutionReussie
-				parNom[e.Nom] = s
+			if n, ok := noeuds[e.Nom]; ok {
+				n.DerniereExecutionReussie = e.DerniereExecutionReussie
+				noeuds[e.Nom] = n
 			}
 		}
 	}
 
-	if nom == "" {
-		for _, n := range ingest.SocleParlementaire() {
-			if err := imprimerEtape(ctx, pool, parNom[n], ""); err != nil {
-				return err
-			}
-		}
-		return nil
-	}
-
-	if e, ok := parNom[nom]; ok {
-		if err := imprimerEtape(ctx, pool, e, ""); err != nil {
-			return err
-		}
-		vus := map[string]bool{nom: true}
-		return imprimerTransitivement(ctx, pool, parNom, e.DependDe, vus, "  ")
-	}
-
-	if prealables, ok := ingestPrealables[nom]; ok {
-		fmt.Printf("fpctl build %s ingère d'abord :\n", nom)
-		vus := map[string]bool{}
-		for _, p := range prealables {
-			if e, ok := parNom[p]; ok {
-				if err := imprimerEtape(ctx, pool, e, "  "); err != nil {
-					return err
-				}
-				vus[p] = true
-				if err := imprimerTransitivement(ctx, pool, parNom, e.DependDe, vus, "    "); err != nil {
-					return err
-				}
-				continue
-			}
-			description := p
-			if s, ok := ingest.SourceParNom(p); ok {
-				description = s.Description
-			}
-			fmt.Printf("  %s — %s\n", p, description)
-		}
-		return nil
-	}
-
-	connus := ingest.SocleParlementaire()
-	for s := range ingestPrealables {
-		connus = append(connus, s)
-	}
-	sort.Strings(connus)
-	return fmt.Errorf("%s inconnu (attendu : %s)", nom, strings.Join(connus, ", "))
-}
-
-// imprimerTransitivement développe, dans l'ordre, ce dont dépendent (encore)
-// les noms donnés — chacun une fois (vus), pour ne jamais boucler ni
-// répéter une étape déjà remontée par un autre chemin.
-func imprimerTransitivement(ctx context.Context, pool *pgxpool.Pool, parNom map[string]pipeline.EtapePubliee,
-	noms []string, vus map[string]bool, indent string) error {
-	for _, n := range noms {
-		if vus[n] {
-			continue
-		}
-		vus[n] = true
-		e, ok := parNom[n]
+	// racines : dans la portée demandée, ce dont rien d'autre dans cette
+	// même portée ne dépend — le sommet de chaque arbre qu'on va dérouler.
+	// « fpctl list deps » sans argument affiche le socle complet : deux
+	// racines (carto, themes), pas une seule, parce que ce n'est justement
+	// pas un arbre avant qu'on le déroule.
+	var racines []string
+	switch {
+	case nom == "":
+		racines = calculerRacines(noeuds, ingest.SocleParlementaire())
+	case ingest.EstSurLeSocle(nom):
+		racines = []string{nom}
+	default:
+		prealables, ok := ingestPrealables[nom]
 		if !ok {
-			continue
+			connus := ingest.SocleParlementaire()
+			for s := range ingestPrealables {
+				connus = append(connus, s)
+			}
+			sort.Strings(connus)
+			return fmt.Errorf("%s inconnu (attendu : %s)", nom, strings.Join(connus, ", "))
 		}
-		if err := imprimerEtape(ctx, pool, e, indent); err != nil {
-			return err
+		for _, p := range prealables {
+			if _, ok := noeuds[p]; !ok {
+				description := p
+				if s, ok := ingest.SourceParNom(p); ok {
+					description = s.Description
+				}
+				noeuds[p] = noeud{Nom: p, Description: description}
+			}
 		}
-		if err := imprimerTransitivement(ctx, pool, parNom, e.DependDe, vus, indent+"  "); err != nil {
-			return err
+		racines = prealables
+	}
+
+	if enJSON {
+		return afficherDepsJSON(noeuds, racines)
+	}
+	return afficherDepsArbre(pool, noeuds, racines)
+}
+
+// calculerRacines : parmi noms, ceux qu'aucun autre (dans ce même ensemble)
+// ne cite dans son DependDe.
+func calculerRacines(noeuds map[string]noeud, noms []string) []string {
+	dependant := map[string]bool{}
+	for _, n := range noms {
+		for _, d := range noeuds[n].DependDe {
+			dependant[d] = true
 		}
+	}
+	var racines []string
+	for _, n := range noms {
+		if !dependant[n] {
+			racines = append(racines, n)
+		}
+	}
+	return racines
+}
+
+func afficherDepsJSON(noeuds map[string]noeud, racines []string) error {
+	// Chaque racine ET tout ce dont elle dépend, transitivement — une seule
+	// fois par nom même si plusieurs racines ou plusieurs chemins y mènent,
+	// puisqu'ici (contrairement à l'arbre) rien n'a besoin d'être dupliqué.
+	vus := map[string]bool{}
+	var portee []noeud
+	var visiter func(nom string)
+	visiter = func(nom string) {
+		if vus[nom] {
+			return
+		}
+		vus[nom] = true
+		n, ok := noeuds[nom]
+		if !ok {
+			return
+		}
+		portee = append(portee, n)
+		for _, d := range n.DependDe {
+			visiter(d)
+		}
+	}
+	for _, r := range racines {
+		visiter(r)
+	}
+	sort.Slice(portee, func(i, j int) bool { return portee[i].Nom < portee[j].Nom })
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	return enc.Encode(portee)
+}
+
+func afficherDepsArbre(pool *pgxpool.Pool, noeuds map[string]noeud, racines []string) error {
+	for i, r := range racines {
+		imprimerArbre(pool, noeuds, r, "", i == len(racines)-1, true)
 	}
 	return nil
 }
 
-func imprimerEtape(ctx context.Context, pool *pgxpool.Pool, e pipeline.EtapePubliee, indent string) error {
-	derniere := "jamais exécutée avec succès"
-	if pool == nil {
-		derniere = "dernière exécution inconnue (aucune base joignable)"
+// imprimerArbre dessine nom et ce dont il dépend, récursivement, avec les
+// caractères de branche habituels (├──, └──, │) — une étape partagée par
+// plusieurs branches y réapparaît sous chacune, dépliant le graphe en arbre
+// plutôt que de fusionner ses nœuds partagés (voir le commentaire de
+// afficherDeps).
+func imprimerArbre(pool *pgxpool.Pool, noeuds map[string]noeud, nom, prefixe string, dernier, racine bool) {
+	var ligne strings.Builder
+	switch {
+	case racine:
+	case dernier:
+		ligne.WriteString(prefixe + "└── ")
+	default:
+		ligne.WriteString(prefixe + "├── ")
 	}
-	if e.DerniereExecutionReussie != nil {
-		derniere = e.DerniereExecutionReussie.Local().Format("2006-01-02 15:04")
+	ligne.WriteString(nom)
+
+	n, connu := noeuds[nom]
+	if !connu {
+		fmt.Println(ligne.String() + " — inconnu")
+		return
 	}
-	archive, base, err := tailleEtape(ctx, pool, e.Nom)
-	if err != nil {
-		return fmt.Errorf("%s : %w", e.Nom, err)
+	ligne.WriteString(" — ")
+	switch {
+	case pool == nil && n.DependDe == nil && n.Description == "":
+		// Un préalable hors du socle (ex. "exposes") : pas de dernière
+		// exécution suivie pour lui, jamais une raison d'écrire « aucune
+		// base joignable » pour une donnée qu'on ne calcule de toute façon
+		// pas.
+	case pool == nil:
+		ligne.WriteString("dernière exécution inconnue (aucune base joignable)")
+	case n.DerniereExecutionReussie != nil:
+		ligne.WriteString(n.DerniereExecutionReussie.Local().Format("2006-01-02 15:04"))
+	default:
+		ligne.WriteString("jamais exécutée avec succès")
 	}
-	fmt.Printf("%s%s — %s", indent, e.Nom, derniere)
-	if archive > 0 || base > 0 {
-		fmt.Printf("  (archive %s, base %s)", tailleLisible(archive), tailleLisible(base))
+	if n.ArchiveOctets > 0 || n.BaseOctets > 0 {
+		fmt.Fprintf(&ligne, "  (archive %s, base %s)", tailleLisible(n.ArchiveOctets), tailleLisible(n.BaseOctets))
 	}
-	fmt.Println()
-	if e.Description != "" {
-		fmt.Printf("%s  %s\n", indent, e.Description)
+	fmt.Println(ligne.String())
+
+	var suite string
+	if !racine {
+		if dernier {
+			suite = prefixe + "    "
+		} else {
+			suite = prefixe + "│   "
+		}
 	}
-	if len(e.DependDe) > 0 {
-		fmt.Printf("%s  dépend de : %s\n", indent, strings.Join(e.DependDe, ", "))
+	if n.Description != "" {
+		fmt.Println(suite + "    " + n.Description)
 	}
-	return nil
+	for i, d := range n.DependDe {
+		imprimerArbre(pool, noeuds, d, suite, i == len(n.DependDe)-1, false)
+	}
 }
 
 func listerConnecteurs() error {
