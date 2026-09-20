@@ -3,25 +3,28 @@ title: FPCTL-BUILD
 section: 1
 header: Manuel fpctl
 footer: faits-politiques.fr
-date: 2026-09-16
+date: 2026-09-20
 ---
 
 # NOM
 
-fpctl-build - génère le site statique et le met en place
+fpctl-build - génère le site statique, en entier ou par section
 
 # SYNOPSIS
 
 **fpctl build site** [**-out** *répertoire*] [**-templates** *répertoire*]
 [**-data** *répertoire*] [**-root** *préfixe*]
-[**-max-scrutins** *n*] [**-only** *liste*] [**-cpuprofile** *fichier*]
+[**-max-scrutins** *n*] [**-cpuprofile** *fichier*]
+
+**fpctl build** **scrutin**|**communes**|**reste** [mêmes options]
 
 # DESCRIPTION
 
-Construit le site dans **\<out\>.construction/**, puis le met en place d'un
-coup à la place de **\<out\>** : le domaine réel n'est jamais servi à moitié
-reconstruit, et si la construction échoue, le site en ligne n'est pas
-touché.
+**fpctl build site** construit le site dans **\<out\>.construction/**, puis
+le met en place d'un coup à la place de **\<out\>** : le domaine réel n'est
+jamais servi à moitié reconstruit, et si la construction échoue, le site en
+ligne n'est pas touché. C'est la SEULE construction complète — la seule
+jamais mise en place automatiquement.
 
 Avant de reconstruire une section coûteuse (communes/EPCI, scrutins), fpctl
 build compare l'empreinte des données sources (calculée par **fpctl
@@ -32,10 +35,23 @@ n'a changé (données, code, gabarits, CSV éditoriaux, dossiers
 documentaires), la commande le constate en quelques requêtes et ne
 construit rien du tout.
 
+# SECTIONS
+
+**fpctl build scrutin**, **fpctl build communes** et **fpctl build reste**
+ne reconstruisent qu'une partie du site — bien plus rapide pour itérer sur
+une seule section, sans attendre le reste. **reste** est tout ce que
+scrutin et communes ne couvrent pas (accueil, dossiers, thèmes,
+gouvernement, budget...).
+
+Le site produit par une section est **délibérément incomplet** : jamais mis
+en place automatiquement, jamais ce que doit servir le domaine réel —
+réservé à l'itération locale, à écrire dans un **-out** distinct de celui
+servi en production.
+
 # OPTIONS
 
 **-out** *répertoire*
-:   Répertoire de sortie publié. Par défaut **site**.
+:   Répertoire de sortie. Par défaut **site**.
 
 **-templates** *répertoire*
 :   Gabarits HTML. Par défaut **web/templates**.
@@ -50,12 +66,6 @@ construit rien du tout.
 :   Limite le nombre de pages scrutin construites (0 = toutes). Réservé à
     l'itération locale : une construction tronquée n'alimente jamais le
     cache de la section scrutins.
-
-**-only** *liste*
-:   Limite les sections coûteuses reconstruites (**scrutin**,
-    **communes**, ou les deux séparées par une virgule). Produit un site
-    **délibérément incomplet** : jamais mis en place automatiquement,
-    jamais ce que doit servir le domaine réel.
 
 **-cpuprofile** *fichier*
 :   Écrit un profil CPU pprof à ce chemin (diagnostic).
