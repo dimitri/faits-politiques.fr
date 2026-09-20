@@ -8,7 +8,7 @@ date: 2026-09-16
 
 # NOM
 
-fpctl-list - liste une collection (sources, connecteurs, statistiques)
+fpctl-list - liste une collection (sources, connecteurs, statistiques, graphe de dépendances)
 
 # SYNOPSIS
 
@@ -17,6 +17,8 @@ fpctl-list - liste une collection (sources, connecteurs, statistiques)
 **fpctl list connectors**
 
 **fpctl list stats**
+
+**fpctl list deps** [*nom*]
 
 # DESCRIPTION
 
@@ -48,6 +50,28 @@ fpctl-list - liste une collection (sources, connecteurs, statistiques)
     (**n_live_tup**, pas un **COUNT(\*)** exact) et taille sur disque, par
     schéma applicatif (**core**, **ref**, **geo**, **raw**, **derived**...),
     puis les dix tables les plus lourdes tous schémas confondus.
+
+**deps** [*nom*]
+:   Le graphe de dépendances du socle parlementaire (**download**,
+    **partis**, **normalize**, **carto**, **senat**, **europe**,
+    **themes** — voir **fpctl-ingest**(1), LE SOCLE PARLEMENTAIRE), tel que
+    publié en base par **internal/pipeline** : dernière exécution réussie
+    de chaque étape, sa taille (archive scellée pour ce qu'elle télécharge,
+    tables **core**/**derived** pour ce qu'elle écrit), et ce dont elle
+    dépend.
+
+    Sans argument, les sept étapes. Avec le nom de l'une d'elles, cette
+    étape seule et la chaîne complète de ce dont elle dépend,
+    transitivement — chacune une seule fois, même si plusieurs chemins y
+    mènent. Avec le nom d'une section de **fpctl build** (**scrutin**,
+    **communes**, **reste**), ce qu'elle ingère d'abord (voir
+    **fpctl-build**(1), SECTIONS) : chaque préalable qui appartient au
+    socle est développé à son tour, un préalable hors du socle est
+    simplement nommé avec sa description.
+
+    Échoue avec la liste des noms valides si *nom* n'est ni l'un ni
+    l'autre. Nécessite que **core.pipeline_etape** existe déjà (une
+    migration récente) — sinon, lance d'abord **fpctl ingest migrate**.
 
 # VOIR AUSSI
 

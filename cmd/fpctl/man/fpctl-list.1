@@ -2,7 +2,8 @@
 .\"
 .TH "FPCTL\-LIST" "1" "2026\-09\-16" "faits\-politiques.fr" "Manuel fpctl"
 .SH NOM
-fpctl\-list \- liste une collection (sources, connecteurs, statistiques)
+fpctl\-list \- liste une collection (sources, connecteurs, statistiques,
+graphe de dépendances)
 .SH SYNOPSIS
 \f[B]fpctl list sources\f[R] [\f[B]\-out\f[R] \f[I]fichier\f[R]]
 [\f[B]\-raw\-root\f[R] \f[I]répertoire\f[R]]
@@ -10,6 +11,8 @@ fpctl\-list \- liste une collection (sources, connecteurs, statistiques)
 \f[B]fpctl list connectors\f[R]
 .PP
 \f[B]fpctl list stats\f[R]
+.PP
+\f[B]fpctl list deps\f[R] [\f[I]nom\f[R]]
 .SH DESCRIPTION
 .TP
 \f[B]sources\f[R]
@@ -48,5 +51,32 @@ Résumé du contenu de la base : nombre de tables, lignes estimées
 disque, par schéma applicatif (\f[B]core\f[R], \f[B]ref\f[R],
 \f[B]geo\f[R], \f[B]raw\f[R], \f[B]derived\f[R]\&...), puis les dix
 tables les plus lourdes tous schémas confondus.
+.TP
+\f[B]deps\f[R] [\f[I]nom\f[R]]
+Le graphe de dépendances du socle parlementaire (\f[B]download\f[R],
+\f[B]partis\f[R], \f[B]normalize\f[R], \f[B]carto\f[R], \f[B]senat\f[R],
+\f[B]europe\f[R], \f[B]themes\f[R] \[em] voir
+\f[B]fpctl\-ingest\f[R](1), LE SOCLE PARLEMENTAIRE), tel que publié en
+base par \f[B]internal/pipeline\f[R] : dernière exécution réussie de
+chaque étape, sa taille (archive scellée pour ce qu\[cq]elle télécharge,
+tables \f[B]core\f[R]/\f[B]derived\f[R] pour ce qu\[cq]elle écrit), et
+ce dont elle dépend.
+.RS
+.PP
+Sans argument, les sept étapes.
+Avec le nom de l\[cq]une d\[cq]elles, cette étape seule et la chaîne
+complète de ce dont elle dépend, transitivement \[em] chacune une seule
+fois, même si plusieurs chemins y mènent.
+Avec le nom d\[cq]une section de \f[B]fpctl build\f[R]
+(\f[B]scrutin\f[R], \f[B]communes\f[R], \f[B]reste\f[R]), ce qu\[cq]elle
+ingère d\[cq]abord (voir \f[B]fpctl\-build\f[R](1), SECTIONS) : chaque
+préalable qui appartient au socle est développé à son tour, un préalable
+hors du socle est simplement nommé avec sa description.
+.PP
+Échoue avec la liste des noms valides si \f[I]nom\f[R] n\[cq]est ni
+l\[cq]un ni l\[cq]autre.
+Nécessite que \f[B]core.pipeline_etape\f[R] existe déjà (une migration
+récente) \[em] sinon, lance d\[cq]abord \f[B]fpctl ingest migrate\f[R].
+.RE
 .SH VOIR AUSSI
 \f[B]fpctl\f[R](1), \f[B]fpctl\-ingest\f[R](1)

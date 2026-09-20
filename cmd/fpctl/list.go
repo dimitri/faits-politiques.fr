@@ -3,8 +3,10 @@ package main
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/ingest"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
 	"github.com/faits-politiques/faits-politiques/internal/sources"
 	"github.com/faits-politiques/faits-politiques/internal/stats"
@@ -67,17 +69,26 @@ func commandeList() *cobra.Command {
 			},
 		},
 		&cobra.Command{
-			Use:   "deps",
+			Use:   "deps [nom]",
 			Short: "Graphe de dépendances du socle parlementaire, tel que publié en base",
 			Long: "Le socle parlementaire (download, partis, normalize, carto, senat,\n" +
 				"europe, themes) est la seule partie du catalogue d'ingestion dont\n" +
 				"les dépendances sont déclarées et vérifiées — voir internal/pipeline\n" +
 				"et fpctl-ingest(1). Republié à chaque exécution touchant ce socle\n" +
 				"(fpctl ingest parlement ... ou l'une de ces sept sources) ; vide\n" +
-				"avant la première.",
-			Args: cobra.NoArgs,
-			RunE: func(cmd *cobra.Command, _ []string) error {
-				return executerInterne(cmd.Context(), afficherDeps(cmd.Context()))
+				"avant la première.\n\n" +
+				"Avec un nom, limite l'affichage à une seule chose : l'une des sept\n" +
+				"étapes (avec la chaîne complète de ce dont elle dépend,\n" +
+				"transitivement), ou une section de fpctl build (scrutin, communes,\n" +
+				"reste — ses préalables d'ingestion, chacun développé à son tour s'il\n" +
+				"appartient lui-même au socle).",
+			Args: cobra.MaximumNArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				var nom string
+				if len(args) > 0 {
+					nom = args[0]
+				}
+				return executerInterne(cmd.Context(), afficherDeps(cmd.Context(), nom))
 			},
 		},
 	)
@@ -142,7 +153,7 @@ func tailleEtape(ctx context.Context, pool *pgxpool.Pool, nom string) (archive, 
 	return archive, base, nil
 }
 
-func afficherDeps(ctx context.Context) error {
+func afficherDeps(ctx context.Context, nom string) error {
 	pool, err := store.Open(ctx)
 	if err != nil {
 		return err
@@ -170,26 +181,105 @@ func afficherDeps(ctx context.Context) error {
 		fmt.Println("rien à afficher — lancez « fpctl ingest parlement all » (ou l'une de ses sources) au moins une fois")
 		return nil
 	}
+	parNom := map[string]pipeline.EtapePubliee{}
 	for _, e := range etapes {
-		derniere := "jamais exécutée avec succès"
-		if e.DerniereExecutionReussie != nil {
-			derniere = e.DerniereExecutionReussie.Local().Format("2006-01-02 15:04")
+		parNom[e.Nom] = e
+	}
+
+	if nom == "" {
+		for _, e := range etapes {
+			if err := imprimerEtape(ctx, pool, e, ""); err != nil {
+				return err
+			}
 		}
-		archive, base, err := tailleEtape(ctx, pool, e.Nom)
-		if err != nil {
-			return fmt.Errorf("%s : %w", e.Nom, err)
+		return nil
+	}
+
+	if e, ok := parNom[nom]; ok {
+		if err := imprimerEtape(ctx, pool, e, ""); err != nil {
+			return err
 		}
-		fmt.Printf("%s — %s", e.Nom, derniere)
-		if archive > 0 || base > 0 {
-			fmt.Printf("  (archive %s, base %s)", tailleLisible(archive), tailleLisible(base))
+		vus := map[string]bool{nom: true}
+		return imprimerTransitivement(ctx, pool, parNom, e.DependDe, vus, "  ")
+	}
+
+	if prealables, ok := ingestPrealables[nom]; ok {
+		fmt.Printf("fpctl build %s ingère d'abord :\n", nom)
+		vus := map[string]bool{}
+		for _, p := range prealables {
+			if e, ok := parNom[p]; ok {
+				if err := imprimerEtape(ctx, pool, e, "  "); err != nil {
+					return err
+				}
+				vus[p] = true
+				if err := imprimerTransitivement(ctx, pool, parNom, e.DependDe, vus, "    "); err != nil {
+					return err
+				}
+				continue
+			}
+			description := p
+			if s, ok := ingest.SourceParNom(p); ok {
+				description = s.Description
+			}
+			fmt.Printf("  %s — %s\n", p, description)
 		}
-		fmt.Println()
-		if e.Description != "" {
-			fmt.Printf("  %s\n", e.Description)
+		return nil
+	}
+
+	var connus []string
+	for _, e := range etapes {
+		connus = append(connus, e.Nom)
+	}
+	for s := range ingestPrealables {
+		connus = append(connus, s)
+	}
+	sort.Strings(connus)
+	return fmt.Errorf("%s inconnu (attendu : %s)", nom, strings.Join(connus, ", "))
+}
+
+// imprimerTransitivement développe, dans l'ordre, ce dont dépendent (encore)
+// les noms donnés — chacun une fois (vus), pour ne jamais boucler ni
+// répéter une étape déjà remontée par un autre chemin.
+func imprimerTransitivement(ctx context.Context, pool *pgxpool.Pool, parNom map[string]pipeline.EtapePubliee,
+	noms []string, vus map[string]bool, indent string) error {
+	for _, n := range noms {
+		if vus[n] {
+			continue
 		}
-		if len(e.DependDe) > 0 {
-			fmt.Printf("  dépend de : %s\n", strings.Join(e.DependDe, ", "))
+		vus[n] = true
+		e, ok := parNom[n]
+		if !ok {
+			continue
 		}
+		if err := imprimerEtape(ctx, pool, e, indent); err != nil {
+			return err
+		}
+		if err := imprimerTransitivement(ctx, pool, parNom, e.DependDe, vus, indent+"  "); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+func imprimerEtape(ctx context.Context, pool *pgxpool.Pool, e pipeline.EtapePubliee, indent string) error {
+	derniere := "jamais exécutée avec succès"
+	if e.DerniereExecutionReussie != nil {
+		derniere = e.DerniereExecutionReussie.Local().Format("2006-01-02 15:04")
+	}
+	archive, base, err := tailleEtape(ctx, pool, e.Nom)
+	if err != nil {
+		return fmt.Errorf("%s : %w", e.Nom, err)
+	}
+	fmt.Printf("%s%s — %s", indent, e.Nom, derniere)
+	if archive > 0 || base > 0 {
+		fmt.Printf("  (archive %s, base %s)", tailleLisible(archive), tailleLisible(base))
+	}
+	fmt.Println()
+	if e.Description != "" {
+		fmt.Printf("%s  %s\n", indent, e.Description)
+	}
+	if len(e.DependDe) > 0 {
+		fmt.Printf("%s  dépend de : %s\n", indent, strings.Join(e.DependDe, ", "))
 	}
 	return nil
 }
