@@ -346,15 +346,16 @@ func loadCollectivites(ctx context.Context, pool *pgxpool.Pool) (*StatsCollectiv
 		}
 	}
 
-	// --- régions et départements, avec leurs cinq indicateurs
+	// --- régions et départements, avec leurs cinq indicateurs — mv.
+	// collectivite_budget_pivot (internal/matview) remplace le pivot
+	// jsonb_object_agg que cette fermeture refaisait une fois par niveau à
+	// chaque construction.
 	charger := func(niveau string) ([]*Collectivite, map[string]*Collectivite, error) {
 		rows, err := pool.Query(ctx, `
-			SELECT code, max(nom), max(population),
-			       jsonb_object_agg(indicator_code, montant),
-			       jsonb_object_agg(indicator_code, euros_par_hab)
-			FROM core.collectivite_budget
+			SELECT code, nom, population, totaux, par_hab
+			FROM mv.collectivite_budget_pivot
 			WHERE niveau=$1 AND exercice=$2
-			GROUP BY code ORDER BY max(nom)`, niveau, st.Exercice)
+			ORDER BY nom`, niveau, st.Exercice)
 		if err != nil {
 			return nil, nil, err
 		}
@@ -571,20 +572,18 @@ func loadCollectivites(ctx context.Context, pool *pgxpool.Pool) (*StatsCollectiv
 
 	// Les groupements à fiscalité propre, rangés par département : c'est
 	// l'échelon que le lecteur habite, et il n'a pas de page à lui ailleurs.
+	// mv.epci / mv.epci_budget_exercice (internal/matview) remplacent le
+	// pivot jsonb_object_agg (et sa sous-requête de comptage de
+	// compétences) que cette requête refaisait sur les ~9 000 EPCI à
+	// chaque construction. LEFT JOIN, pas INNER : un EPCI sans budget pour
+	// CET exercice doit rester dans la liste, par_hab vide — comme avant.
 	grows, err := pool.Query(ctx, `
-		SELECT e.siren, e.nom, e.nature_juridique, coalesce(e.code_departement,''),
-		       coalesce(e.population_totale,0), coalesce(e.nb_membres,0),
-		       trim(coalesce(e.president_prenom,'')||' '||coalesce(e.president_nom,'')),
-		       (SELECT count(*) FROM core.epci_competence x WHERE x.epci_siren=e.siren),
-		       coalesce(jsonb_object_agg(b.indicator_code, b.euros_par_hab)
-		                FILTER (WHERE b.indicator_code IS NOT NULL), '{}'::jsonb)
-		FROM core.epci e
-		LEFT JOIN core.collectivite_budget b
-		  ON b.niveau='GROUPEMENT' AND b.code=e.siren AND b.exercice=$1
-		WHERE e.nature_juridique = ANY($2)
-		GROUP BY e.siren
-		ORDER BY e.code_departement, e.nom`, st.Exercice,
-		[]string{"CC", "CA", "CU", "METRO", "MET69", "EPT"})
+		SELECT e.siren, e.nom, e.nature_juridique, e.code_departement,
+		       e.population, e.nb_membres, e.president, e.nb_competences,
+		       coalesce(b.par_hab, '{}'::jsonb)
+		FROM mv.epci e
+		LEFT JOIN mv.epci_budget_exercice b ON b.siren = e.siren AND b.exercice = $1
+		ORDER BY e.code_departement, e.nom`, st.Exercice)
 	if err != nil {
 		return nil, err
 	}

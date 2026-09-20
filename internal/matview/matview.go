@@ -183,6 +183,39 @@ var Catalogue = []Definition{
 	GROUP BY 1`,
 	},
 	{
+		Nom:    "collectivite_budget_pivot",
+		Tables: []string{"core.collectivite_budget"},
+		SQL: `SELECT niveau, code, exercice,
+	     max(nom)                                    AS nom,
+	     max(population)                              AS population,
+	     jsonb_object_agg(indicator_code, montant)     AS totaux,
+	     jsonb_object_agg(indicator_code, euros_par_hab) AS par_hab
+	FROM core.collectivite_budget
+	WHERE niveau IN ('REGION', 'DEPARTEMENT')
+	GROUP BY niveau, code, exercice`,
+	},
+	{
+		Nom:    "epci",
+		Tables: []string{"core.epci", "core.epci_competence"},
+		SQL: `SELECT e.siren, e.nom, e.nature_juridique,
+	     coalesce(e.code_departement, '')                                          AS code_departement,
+	     coalesce(e.population_totale, 0)                                          AS population,
+	     coalesce(e.nb_membres, 0)                                                  AS nb_membres,
+	     trim(coalesce(e.president_prenom, '') || ' ' || coalesce(e.president_nom, '')) AS president,
+	     (SELECT count(*) FROM core.epci_competence x WHERE x.epci_siren = e.siren)  AS nb_competences
+	FROM core.epci e
+	WHERE e.nature_juridique = ANY(ARRAY['CC','CA','CU','METRO','MET69','EPT'])`,
+	},
+	{
+		Nom:    "epci_budget_exercice",
+		Tables: []string{"core.collectivite_budget"},
+		SQL: `SELECT code AS siren, exercice,
+	     jsonb_object_agg(indicator_code, euros_par_hab) AS par_hab
+	FROM core.collectivite_budget
+	WHERE niveau = 'GROUPEMENT'
+	GROUP BY code, exercice`,
+	},
+	{
 		Nom:    "population_nationale_annee",
 		Tables: []string{"core.population_historique_commune"},
 		SQL: `SELECT annee, sum(population) AS population
