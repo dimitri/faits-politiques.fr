@@ -149,15 +149,16 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	}
 	rows.Close()
 
-	// PAS mv.scrutin_vote_nominal ici, à la différence des autres requêtes de
-	// ce fichier : ce décompte veut la position D'ORIGINE (position, sans
-	// coalesce avec position_rectifiee) — la matvue, elle, porte déjà la
-	// correction (comme groupBreakdown/nominalVotes le veulent, eux). Les
+	// mv.person_position_brute (internal/matview) — PAS mv.scrutin_vote_nominal
+	// ici, à la différence des autres requêtes de ce fichier : ce décompte
+	// veut la position D'ORIGINE (position, sans coalesce avec
+	// position_rectifiee) — la matvue scrutin_vote_nominal, elle, porte déjà
+	// la correction (comme groupBreakdown/nominalVotes le veulent, eux). Les
 	// deux sont des choix légitimes mais différents ; les confondre
 	// changerait silencieusement le décompte de 1 612 bulletins rectifiés.
 	rows, err = pool.Query(ctx, `
-		SELECT person_id, position::text, count(*)
-		FROM core.ballot GROUP BY 1,2`)
+		SELECT person_id, position, nombre_votes
+		FROM mv.person_position_brute`)
 	if err != nil {
 		return nil, err
 	}

@@ -282,6 +282,17 @@ var Catalogue = []Definition{
 	JOIN core.organization o ON o.id = a.organization_id
 	WHERE a.person_id IN (SELECT id FROM mv.person_actif)`,
 	},
+	// Décompte sur la position D'ORIGINE (pas position_rectifiee) : distinct
+	// de mv.scrutin_vote_nominal à dessein, voir loadPersons (internal/
+	// sitegen/load.go) — confondre les deux changerait silencieusement le
+	// décompte de 1 612 bulletins rectifiés.
+	{
+		Nom:    "person_position_brute",
+		Tables: []string{"core.ballot"},
+		SQL: `SELECT person_id, position::text AS position, count(*)::int AS nombre_votes
+	FROM core.ballot
+	GROUP BY 1, 2`,
+	},
 	{
 		Nom:    "commune_association_count",
 		Tables: []string{"core.association"},

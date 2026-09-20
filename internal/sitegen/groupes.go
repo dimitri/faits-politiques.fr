@@ -50,7 +50,7 @@ func loadGroupes(ctx context.Context, pool *pgxpool.Pool) (map[string]*Groupe, e
 		JOIN core.organization_identifier i
 		  ON i.organization_id = o.id AND i.scheme = 'AN_ORGANE'
 		WHERE o.kind = 'PARLIAMENTARY_GROUP'
-		  AND EXISTS (SELECT 1 FROM core.ballot b WHERE b.organization_id = o.id)`)
+		  AND EXISTS (SELECT 1 FROM mv.scrutin_groupe_vote v WHERE v.organization_id = o.id)`)
 	if err != nil {
 		return nil, err
 	}
