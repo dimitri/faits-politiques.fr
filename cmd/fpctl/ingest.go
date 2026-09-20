@@ -1,7 +1,6 @@
 package main
 
 import (
-	"context"
 	"fmt"
 
 	"github.com/faits-politiques/faits-politiques/internal/ingest"
@@ -43,8 +42,8 @@ func commandeIngest() *cobra.Command {
 			"catégorie entière, y compris ce qu'elle a de plus coûteux, voir\n" +
 			"« fpctl ingest <catégorie> all ».",
 		Args: cobra.NoArgs,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return executerInterne(ingest.RunTout(context.Background(), rawDir, migDir))
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executerInterne(cmd.Context(), ingest.RunTout(cmd.Context(), rawDir, migDir))
 		},
 	})
 
@@ -52,8 +51,8 @@ func commandeIngest() *cobra.Command {
 		Use:   "migrate",
 		Short: "Applique les migrations de schéma en attente",
 		Args:  cobra.NoArgs,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return executerInterne(ingest.RunSource(context.Background(), rawDir, migDir, "migrate"))
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executerInterne(cmd.Context(), ingest.RunSource(cmd.Context(), rawDir, migDir, "migrate"))
 		},
 	})
 
@@ -79,8 +78,8 @@ func commandeIngestCategorie(categorie string, rawDir, migDir *string) *cobra.Co
 		Use:   "all",
 		Short: fmt.Sprintf("Recharge toutes les sources de %s", categorie),
 		Args:  cobra.NoArgs,
-		RunE: func(_ *cobra.Command, _ []string) error {
-			return executerInterne(ingest.RunCategorie(context.Background(), *rawDir, *migDir, categorie))
+		RunE: func(cmd *cobra.Command, _ []string) error {
+			return executerInterne(cmd.Context(), ingest.RunCategorie(cmd.Context(), *rawDir, *migDir, categorie))
 		},
 	})
 
@@ -90,8 +89,8 @@ func commandeIngestCategorie(categorie string, rawDir, migDir *string) *cobra.Co
 			Use:   s.Nom,
 			Short: s.Description,
 			Args:  cobra.NoArgs,
-			RunE: func(_ *cobra.Command, _ []string) error {
-				return executerInterne(ingest.RunSource(context.Background(), *rawDir, *migDir, s.Nom))
+			RunE: func(cmd *cobra.Command, _ []string) error {
+				return executerInterne(cmd.Context(), ingest.RunSource(cmd.Context(), *rawDir, *migDir, s.Nom))
 			},
 		})
 	}

@@ -25,11 +25,11 @@ func commandeBuild() *cobra.Command {
 			"construction précédente les sections dont ni les données ni le code\n" +
 			"n'ont changé — voir « fpctl help build » pour le détail des options.",
 		DisableFlagParsing: true,
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if estDemandeAide(args) {
 				return afficherManuel("fpctl-build")
 			}
-			return execBinaire("fpbuild", "cmd/build", args)
+			return execBinaire(cmd.Context(), "fpbuild", "cmd/build", args)
 		},
 	})
 	for _, section := range []struct{ nom, seul, description string }{
@@ -47,11 +47,11 @@ func commandeBuild() *cobra.Command {
 				"ce que doit servir le domaine réel — voir « fpctl help build » pour\n" +
 				"le détail des options (-out, -max-scrutins...).",
 			DisableFlagParsing: true,
-			RunE: func(_ *cobra.Command, args []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
 					return afficherManuel("fpctl-build")
 				}
-				return execBinaire("fpbuild", "cmd/build", append([]string{"-only=" + section.seul}, args...))
+				return execBinaire(cmd.Context(), "fpbuild", "cmd/build", append([]string{"-only=" + section.seul}, args...))
 			},
 		})
 	}

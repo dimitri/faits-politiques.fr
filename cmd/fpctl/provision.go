@@ -1,9 +1,9 @@
 package main
 
 import (
-	"os"
-	"os/exec"
+	"context"
 
+	"github.com/faits-politiques/faits-politiques/internal/toolrun"
 	"github.com/spf13/cobra"
 )
 
@@ -21,8 +21,8 @@ func commandeProvision() *cobra.Command {
 			Long: "Démarre le conteneur Postgres du projet et attend son healthcheck\n" +
 				"(jusqu'à 180s au premier démarrage : initdb puis les extensions).\n" +
 				"Idempotent — un conteneur déjà en place n'est pas recréé.",
-			RunE: func(_ *cobra.Command, args []string) error {
-				return dockerComposeUpWait("db", args)
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return dockerComposeUpWait(cmd.Context(), "db", args)
 			},
 		},
 		&cobra.Command{
@@ -31,17 +31,15 @@ func commandeProvision() *cobra.Command {
 			Long: "Démarre un MinIO local, compatible S3 — API sur :9090, console sur\n" +
 				":9091. Sert à fpctl sync archive et fpctl sync site ; identifiants et\n" +
 				"point d'accès par défaut lisibles dans internal/objectstore.",
-			RunE: func(_ *cobra.Command, args []string) error {
-				return dockerComposeUpWait("minio", args)
+			RunE: func(cmd *cobra.Command, args []string) error {
+				return dockerComposeUpWait(cmd.Context(), "minio", args)
 			},
 		},
 	)
 	return cmd
 }
 
-func dockerComposeUpWait(service string, extra []string) error {
+func dockerComposeUpWait(ctx context.Context, service string, extra []string) error {
 	args := append([]string{"compose", "up", "-d", "--wait", service}, extra...)
-	cmd := exec.Command("docker", args...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	return cmd.Run()
+	return toolrun.Cmd{Name: "docker", Args: args, Ctx: ctx}.Run()
 }

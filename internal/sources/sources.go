@@ -79,8 +79,9 @@ type Catalogue struct {
 }
 
 // Run exécute la commande sources. Appelée par fpctl, qui route vers ce
-// paquet plutôt que de dupliquer son analyse d'options.
-func Run(args []string) error {
+// paquet plutôt que de dupliquer son analyse d'options. ctx est celui de
+// fpctl (cmd.Context()), déjà annulé au premier signal.
+func Run(ctx context.Context, args []string) error {
 	fs := flag.NewFlagSet("sources", flag.ContinueOnError)
 	out := fs.String("out", "docs/catalogue-sources.json", "fichier JSON à écrire")
 	racine := fs.String("raw-root", "raw", "racine locale de l'archive scellée")
@@ -91,7 +92,6 @@ func Run(args []string) error {
 		return err
 	}
 
-	ctx := context.Background()
 	pool, err := store.Open(ctx)
 	if err != nil {
 		return err

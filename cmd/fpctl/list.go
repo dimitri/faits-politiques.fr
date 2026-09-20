@@ -26,11 +26,11 @@ func commandeList() *cobra.Command {
 				"date de la dernière collecte réussie. Par défaut dans\n" +
 				"docs/catalogue-sources.json (voir -out).",
 			DisableFlagParsing: true,
-			RunE: func(_ *cobra.Command, args []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
 					return afficherManuel("fpctl-list")
 				}
-				return executerInterne(sources.Run(args))
+				return executerInterne(cmd.Context(), sources.Run(cmd.Context(), args))
 			},
 		},
 		&cobra.Command{
@@ -40,11 +40,11 @@ func commandeList() *cobra.Command {
 				"cette commande cherche directement, dans internal/, toute fonction\n" +
 				"exportée dont le nom commence par Ingest, et les groupe par paquet.",
 			DisableFlagParsing: true,
-			RunE: func(_ *cobra.Command, args []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
 					return afficherManuel("fpctl-list")
 				}
-				return executerInterne(listerConnecteurs())
+				return executerInterne(cmd.Context(), listerConnecteurs())
 			},
 		},
 		&cobra.Command{
@@ -55,11 +55,11 @@ func commandeList() *cobra.Command {
 				"pas un COUNT(*) exact), taille sur disque. Puis les dix tables les\n" +
 				"plus lourdes, tous schémas confondus.",
 			DisableFlagParsing: true,
-			RunE: func(_ *cobra.Command, args []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
 					return afficherManuel("fpctl-list")
 				}
-				return executerInterne(afficherStats())
+				return executerInterne(cmd.Context(), afficherStats(cmd.Context()))
 			},
 		},
 	)
@@ -91,8 +91,7 @@ func nombrePaquets(cs []sources.Connecteur) int {
 	return len(vus)
 }
 
-func afficherStats() error {
-	ctx := context.Background()
+func afficherStats(ctx context.Context) error {
 	pool, err := store.Open(ctx)
 	if err != nil {
 		return err
