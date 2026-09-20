@@ -94,6 +94,12 @@ type JeuContours struct {
 	Codes   []string
 	Noms    map[string]string
 	traces  map[string]string
+	// fleuves : le calque des grands cours d'eau (voir fleuvesSVG), chargé une
+	// fois ici plutôt qu'à chaque apercu()/pleine() — département, région ou
+	// EPCI partagent tous la même projection (Lambert-93) et donc le même
+	// tracé de fleuves, vérifié une fois pour toutes les cartes qui utilisent
+	// ce jeu de contours plutôt que pour chacune séparément.
+	fleuves string
 	// Outre-mer : chacun dans SA projection, donc dans son propre repère. Les
 	// poser dans le Lambert-93 de l'hexagone leur donnerait une forme et une
 	// échelle fausses — la Guyane y ferait la taille d'un timbre déformé.
@@ -147,10 +153,16 @@ func jeuContours(ctx context.Context, pool *pgxpool.Pool, niveau string, toleran
 	for _, o := range om {
 		noms[o.Code] = o.Nom
 	}
+	// Même projection (Lambert-93, coordonnées relatives) quel que soit le
+	// niveau territorial : un seul tracé de fleuves sert aux trois.
+	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	if err != nil {
+		return nil, err
+	}
 	return &JeuContours{
 		Defs: template.HTML(`<svg width="0" height="0" aria-hidden="true" ` +
 			`style="position:absolute"><defs>` + b.String() + `</defs></svg>`),
-		ViewBox: vb, Niveau: niveau, Codes: codes, Noms: noms, traces: d,
+		ViewBox: vb, Niveau: niveau, Codes: codes, Noms: noms, traces: d, fleuves: fleuves,
 		outremer: om,
 	}, nil
 }
@@ -233,6 +245,9 @@ func apercu(j *JeuContours, cases []CaseCarte, unite string, format func(float64
 	for _, code := range j.Codes {
 		fmt.Fprintf(&b, `<use href="#%s%s" fill="%s"/>`, pre, code, c.remplissage(byCode[code]))
 	}
+	// Les fleuves en dernier : un calque de repère par-dessus les teintes,
+	// jamais dessous où la couleur de la donnée les masquerait.
+	b.WriteString(j.fleuves)
 	c.SVG = j.envelopper(b.String(), true)
 	c.Cartons = j.cartons(c, byCode, format)
 	return c
@@ -256,6 +271,9 @@ func pleine(j *JeuContours, cases []CaseCarte, unite string, format func(float64
 		fmt.Fprintf(&b, `<path d="%s" fill="%s"><title>%s</title></path>`,
 			j.traces[code], c.remplissage(cc), template.HTMLEscapeString(titre))
 	}
+	// Les fleuves en dernier : un calque de repère par-dessus les teintes,
+	// jamais dessous où la couleur de la donnée les masquerait.
+	b.WriteString(j.fleuves)
 	c.SVG = j.envelopper(b.String(), false)
 	c.Cartons = j.cartons(c, byCode, format)
 	return c

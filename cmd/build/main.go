@@ -761,14 +761,20 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		return err
 	}
 	l = layout
-	l.Title = "Présidentielle 2027 : les sujets de campagne et le budget réel"
+	l.Title = "Le budget réel de la France, sujet par sujet de la campagne 2027"
 	l.Hero = true
-	l.HeroTitre = "Présidentielle 2027 : les sujets de campagne et le budget réel de la France"
-	// Le titre place la campagne en tête ; le chapeau dit ce que le lecteur
-	// reçoit pour chaque sujet, et à quoi cela lui sert.
-	l.HeroLede = "Retraites, santé, école, sécurité, immigration, dette : pour chaque sujet dont " +
-		"parlent les candidats, ce que dépense l'argent public, d'où il vient, les règles et les " +
-		"contrôles. De quoi suivre les débats et se faire son opinion, chiffres en main."
+	l.HeroTitre = "Le budget réel de la France, sujet par sujet de la campagne 2027"
+	// Révision du 20 septembre 2026 (revue de la copie d'accueil, option A) :
+	// le titre met en avant le vrai différenciateur du site — le budget réel,
+	// pas un cadrage générique de campagne — comme le font Our World in Data
+	// ou l'ONS avec leur mission en tête plutôt qu'une accroche. Le chapeau
+	// énonce quatre réponses courtes (dépense, origine, décision, contrôle)
+	// plutôt qu'un vague appel à « se faire son opinion », qui tranchait avec
+	// le reste du registre (SHA-256, contrôles, sources). La date de
+	// fraîcheur n'y est pas répétée : elle est déjà le premier repère du
+	// bandeau juste en dessous (« Données arrêtées au »).
+	l.HeroLede = "Retraites, santé, école, sécurité, immigration, dette : ce que l'État dépense, " +
+		"d'où vient l'argent, qui décide et qui contrôle — sourcé document par document."
 	l.HeroVisuel = heroMille(acc, root)
 	layoutAccueil := l // le hero est prêt ; la page s'écrit plus bas, une fois
 	// les dossiers de sujet chargés (acc.Familles[].Sujets[].D), pour afficher

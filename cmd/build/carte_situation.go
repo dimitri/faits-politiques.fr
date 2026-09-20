@@ -127,6 +127,11 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	for _, c := range f.regs.Codes {
 		fmt.Fprintf(&b, `<path d="%s"/>`, f.regs.traces[c])
 	}
+	// Les fleuves en dernier, par-dessus départements et régions — ce fichier
+	// est un <img> statique, il ne lit pas les variables CSS du thème
+	// (comme le reste de ce fond) : couleur fixe plutôt que var(--eau).
+	b.WriteString(`</g><g fill="none" stroke="#5E93B0" stroke-opacity=".55" stroke-width="700" stroke-linejoin="round" pointer-events="none">`)
+	b.WriteString(f.deps.fleuves)
 	b.WriteString(`</g></svg>`)
 	if err := os.MkdirAll(filepath.Join(out, "media"), 0o755); err != nil {
 		return nil, err
