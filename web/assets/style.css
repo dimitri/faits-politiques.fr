@@ -1257,6 +1257,20 @@ text-decoration:none;color:var(--encre)}
 .famille h3 a:hover{color:var(--accent)}
 .famille .poids{display:block;font:400 .74rem/1.4 var(--mono);color:var(--attenue);margin-bottom:.65rem}
 
+/* Page /sujets/ : les mêmes cartes de famille que l'accueil, en plus grand
+   (neuf familles à parcourir plutôt que neuf sections empilées pleine
+   largeur) — une jauge de poids remplace le seul chiffre pour situer une
+   famille d'un coup d'œil parmi les autres. */
+.familles-page{grid-template-columns:repeat(auto-fill,minmax(21rem,1fr));gap:1.2rem;margin-top:1.6rem}
+.famille-carte{padding:1.2rem 1.3rem 1.3rem;scroll-margin-top:5rem}
+.famille-carte h2{margin:0 0 .15rem;font:500 1.22rem/1.28 var(--titre)}
+.famille-carte h2 a{color:var(--encre);text-decoration:none}
+.famille-carte h2 a:hover{color:var(--accent)}
+.famille-carte .poids{display:block;font:400 .74rem/1.4 var(--mono);color:var(--attenue);margin-bottom:.4rem}
+.famille-carte .q{margin:.7rem 0 .8rem;font-size:.88rem;color:var(--attenue);line-height:1.5}
+.jauge{display:block;height:4px;border-radius:2px;background:var(--filet2);overflow:hidden;max-width:14rem}
+.jauge span{display:block;height:100%;background:var(--accent);border-radius:inherit}
+
 /* Liste de sujets : une ligne par sujet, un nom et sa question, sans pastille
    ni pilule — le format d'un sommaire, pas d'un nuage de mots-clés. Utilisé
    sur l'accueil (compact, dans une carte de famille) et sur /sujets/ (grande,
@@ -1270,6 +1284,7 @@ padding:.4rem .2rem;text-decoration:none;color:inherit}
 .liste-sujets a:hover .nom{color:var(--accent)}
 .liste-sujets .nom{font-weight:500;font-size:.92rem;flex:0 0 auto}
 .liste-sujets .d{color:var(--attenue);font-size:.8rem;flex:1 1 auto}
+.liste-sujets .ext{flex:0 0 100%;font:400 .72rem var(--mono);color:var(--accent)}
 .liste-sujets.grande a{padding:.7rem .3rem;gap:.15rem 1.2rem}
 .liste-sujets.grande .nom{font:500 1rem/1.3 var(--titre);flex:0 0 13rem}
 .liste-sujets.grande .d{font-size:.86rem}

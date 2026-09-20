@@ -62,47 +62,65 @@ type Famille struct {
 	// situe, il ne s'additionne pas.
 	Cofog    []string
 	ParMille int
-	Sujets   []*Sujet
+	// Largeur : ParMille rapporté à la famille la plus lourde, en % — calculé
+	// par loadAccueil une fois tous les ParMille connus. Sert à la barre de
+	// poids des cartes de famille (accueil et /sujets/), jamais au texte lui
+	// seul, qui reste le chiffre exact.
+	Largeur float64
+	Sujets  []*Sujet
 }
 
 var familles = []*Famille{
-	{ID: "protection-sociale-sante", Nom: "Protection sociale et santé", Base: "sujets",
+	{ID: "protection-sociale-sante", Nom: "Retraites, santé et protection sociale", Base: "sujets",
 		Intro: "Retraites, maladie, chômage, famille, pauvreté : plus de la moitié de la dépense publique.",
 		Cofog: []string{"GF10", "GF07"}, Sujets: []*Sujet{
 			{ID: "retraites", Nom: "Retraites", Doc: "retraite-donnees", Pages: []LienPage{{"La vieillesse au-delà des retraites : dépendance, APA", "vieillesse/"}}},
 			{ID: "sante", Nom: "Santé et hôpitaux", Doc: "sante-donnees"},
 			{ID: "chomage", Nom: "Chômage", Doc: "chomage-donnees", Pages: []LienPage{{"Chômage et minima sociaux, en graphiques", "chomage/"}}},
 			{ID: "pauvrete", Nom: "Pauvreté", Doc: "pauvrete-donnees"},
-			{ID: "richesse", Nom: "Répartition de la richesse", Doc: "repartition-richesse-donnees", Pages: []LienPage{{"La répartition de la richesse, en graphiques", "richesse/"}}},
 			{ID: "securite-sociale", Nom: "Sécurité sociale", Doc: "securite-sociale-donnees", Pages: []LienPage{{"La protection sociale depuis 1959", "protection-sociale/"}}},
 			{ID: "cotisations", Nom: "Cotisations et droits", Doc: "cotisations-et-droits"},
-		}},
-	{ID: "travail-economie", Nom: "Travail, économie et entreprises", Base: "sujets",
-		Intro: "Aides aux entreprises, investissement public, agriculture, appareil productif.",
-		Cofog: []string{"GF04"}, Sujets: []*Sujet{
-			{ID: "economie", Nom: "Économie et participations de l'État", Doc: "economie-participations-donnees", Pages: []LienPage{{"Dividendes et participations", "dividendes/"}}},
-			{ID: "france-2030", Nom: "France 2030", Doc: "france-2030-donnees"},
-			{ID: "agriculture", Nom: "Agriculture et alimentation", Doc: "agriculture-donnees", Pages: []LienPage{{"Agriculture et alimentation, en graphiques", "agriculture/"}}},
-			{ID: "souverainete-numerique", Nom: "Souveraineté numérique", Doc: "souverainete-numerique"},
-			{ID: "investissement", Nom: "Investissement et dividendes des entreprises", Doc: "investissement-entreprises-donnees"},
-			{ID: "nationalisation-privatisation", Nom: "Nationalisations et privatisations", Doc: "nationalisation-privatisation-donnees"},
-			{ID: "emploi", Nom: "Emploi et aides aux entreprises", Doc: "emploi-aides-entreprises-donnees"},
-			{ID: "appareil-productif", Nom: "L'appareil productif français", Doc: "appareil-productif-donnees"},
-			{ID: "ports", Nom: "Les grands ports maritimes français", Doc: "ports-donnees"},
 		}},
 	// Regroupe des sujets qui répondaient tous, jusqu'ici séparément, à la
 	// même question (qui échappe à l'impôt, par quel mécanisme, pour quel
 	// coût) et qui se citaient déjà mutuellement dans leurs sections
 	// « Ce que les données ne disent pas » — auparavant éclatés entre
 	// « Travail, économie et entreprises » et « Argent public et État ».
-	{ID: "fiscalite", Nom: "Fiscalité", Base: "sujets",
-		Intro: "La TVA, les niches fiscales, la fraude et l'évasion, les montages patrimoniaux.",
+	// La répartition de la richesse les a rejoints (20 septembre 2026,
+	// réorganisation en 9 familles) : la question qu'elle pose (qui détient
+	// quoi) se lit avec celles de ce groupe (qui paie quoi, par quel
+	// montage), pas avec les prestations de protection sociale d'où elle
+	// venait.
+	{ID: "fiscalite", Nom: "Fiscalité et patrimoine", Base: "sujets",
+		Intro: "La TVA, les niches fiscales, la fraude et l'évasion, les montages patrimoniaux, la richesse.",
 		Sujets: []*Sujet{
 			{ID: "tva", Nom: "TVA", Doc: "tva-donnees"},
 			{ID: "depenses-fiscales", Nom: "Dépenses fiscales (niches)", Doc: "depenses-fiscales-donnees"},
 			{ID: "fraude-fiscale", Nom: "Fraude fiscale", Doc: "fraude-fiscale-donnees"},
 			{ID: "evasion-fiscale", Nom: "Évasion fiscale", Doc: "evasion-fiscale-multinationales"},
 			{ID: "sci-holding", Nom: "SCI et holdings", Doc: "sci-holding-donnees"},
+			{ID: "richesse", Nom: "Répartition de la richesse", Doc: "repartition-richesse-donnees", Pages: []LienPage{{"La répartition de la richesse, en graphiques", "richesse/"}}},
+		}},
+	// Scindé de l'ancienne famille « Travail, économie et entreprises »
+	// (9 sujets, la plus chargée) le 20 septembre 2026 : d'un côté l'État
+	// actionnaire et employeur (ce chantier), de l'autre la politique
+	// industrielle et les filières stratégiques (« Industrie et
+	// souveraineté », juste après).
+	{ID: "economie-entreprises", Nom: "Économie et entreprises", Base: "sujets",
+		Intro: "L'État actionnaire, l'investissement public, l'emploi et les aides aux entreprises.",
+		Cofog: []string{"GF04"}, Sujets: []*Sujet{
+			{ID: "economie", Nom: "Économie et participations de l'État", Doc: "economie-participations-donnees", Pages: []LienPage{{"Dividendes et participations", "dividendes/"}}},
+			{ID: "investissement", Nom: "Investissement et dividendes des entreprises", Doc: "investissement-entreprises-donnees"},
+			{ID: "nationalisation-privatisation", Nom: "Nationalisations et privatisations", Doc: "nationalisation-privatisation-donnees"},
+			{ID: "emploi", Nom: "Emploi et aides aux entreprises", Doc: "emploi-aides-entreprises-donnees"},
+		}},
+	{ID: "industrie-souverainete", Nom: "Industrie et souveraineté", Base: "sujets",
+		Intro: "France 2030, souveraineté numérique, l'appareil productif, les grands ports.",
+		Sujets: []*Sujet{
+			{ID: "france-2030", Nom: "France 2030", Doc: "france-2030-donnees"},
+			{ID: "souverainete-numerique", Nom: "Souveraineté numérique", Doc: "souverainete-numerique"},
+			{ID: "appareil-productif", Nom: "L'appareil productif français", Doc: "appareil-productif-donnees"},
+			{ID: "ports", Nom: "Les grands ports maritimes français", Doc: "ports-donnees"},
 		}},
 	{ID: "ecole-recherche-culture", Nom: "École, recherche et culture", Base: "sujets",
 		Intro: "L'enseignement scolaire, les universités et la recherche, la culture, le sport.",
@@ -121,25 +139,40 @@ var familles = []*Famille{
 			{ID: "violences-policieres", Nom: "Violences policières", Doc: "violences-policieres-donnees"},
 			{ID: "defense", Nom: "Défense", Doc: "defense-donnees"},
 		}},
-	{ID: "territoires-environnement", Nom: "Territoires, logement et environnement", Base: "sujets",
-		Intro: "Collectivités, logement, outre-mer, climat et eau.",
+	// L'agriculture a rejoint ce groupe (20 septembre 2026) : elle en
+	// partage la logique de territoire et de ruralité, plutôt que celle,
+	// industrielle, d'« Industrie et souveraineté » d'où elle vient — son
+	// vrai poids budgétaire (GF04) y reste néanmoins attaché, pas ici :
+	// le classement thématique et la fonction COFOG divergent sciemment.
+	{ID: "territoires-environnement", Nom: "Territoires, ruralité et environnement", Base: "sujets",
+		Intro: "Collectivités, logement, outre-mer, agriculture, climat et eau.",
 		Cofog: []string{"GF06", "GF05"}, Sujets: []*Sujet{
 			{ID: "collectivites", Nom: "Collectivités", Doc: "collectivites-donnees", Pages: []LienPage{{"Budgets et cartes des collectivités", "collectivites/"}}},
 			{ID: "logement", Nom: "Logement et territoires", Doc: "logement-territoires-donnees"},
 			{ID: "outre-mer", Nom: "Outre-mer", Doc: "outre-mer-donnees"},
+			{ID: "agriculture", Nom: "Agriculture et alimentation", Doc: "agriculture-donnees", Pages: []LienPage{{"Agriculture et alimentation, en graphiques", "agriculture/"}}},
 			{ID: "ecologie", Nom: "Écologie et climat", Doc: "ecologie-donnees"},
 			{ID: "eau", Nom: "Eau", Doc: "bassins-versants-donnees"},
 		}},
-	{ID: "france-monde", Nom: "La France et le monde", Base: "sujets",
-		Intro: "Population et migrations, diplomatie et aide au développement, comparaisons internationales.",
+	{ID: "france-monde", Nom: "Immigration, Europe et diplomatie", Base: "sujets",
+		Intro: "Population et migrations, diplomatie et aide au développement, l'Union européenne, la Francophonie.",
 		Sujets: []*Sujet{
 			{ID: "immigration", Nom: "Immigration", Doc: "immigration-donnees"},
 			{ID: "diplomatie", Nom: "Diplomatie et aide au développement", Doc: "action-exterieure-donnees"},
 			{ID: "international", Nom: "Comparaisons internationales", Doc: "international-donnees"},
 			{ID: "union-europeenne", Nom: "Union européenne", Doc: "union-europeenne-donnees", Pages: []LienPage{{"Les votes des eurodéputés français", "europe/"}}},
-			{ID: "empire-colonial", Nom: "La France coloniale", Doc: "empire-colonial-donnees"},
 			{ID: "francophonie", Nom: "La Francophonie", Doc: "francophonie-donnees"},
 			{ID: "climat-international", Nom: "La France et le climat : accords de Paris, COP21", Doc: "climat-international-donnees"},
+		}},
+	// Séparé de « La France et le monde » (20 septembre 2026) : ces trois
+	// dossiers regardent en arrière, pas les relations internationales
+	// actuelles — un lecteur qui cherche l'immigration ou l'UE n'a plus à
+	// traverser la Seconde Guerre mondiale et la décolonisation pour les
+	// trouver, et réciproquement.
+	{ID: "histoire", Nom: "Histoire", Base: "sujets",
+		Intro: "L'Empire colonial, la Seconde Guerre mondiale, les guerres de décolonisation.",
+		Sujets: []*Sujet{
+			{ID: "empire-colonial", Nom: "La France coloniale", Doc: "empire-colonial-donnees"},
 			{ID: "seconde-guerre-mondiale", Nom: "La France dans la Seconde Guerre mondiale", Doc: "seconde-guerre-mondiale-donnees"},
 			{ID: "guerres-decolonisation", Nom: "Les guerres de décolonisation : Algérie et Indochine", Doc: "guerres-decolonisation-donnees"},
 		}},
@@ -171,7 +204,7 @@ func init() {
 	}
 }
 
-// famillesSujets : les six familles de l'entrée « Sujets », sans l'argent public.
+// famillesSujets : les neuf familles de l'entrée « Sujets », sans l'argent public.
 func famillesSujets() []*Famille {
 	var out []*Famille
 	for _, f := range familles {
@@ -322,6 +355,22 @@ func loadAccueil(ctx context.Context, pool *pgxpool.Pool, terr *StatsTerritoires
 					fam.ParMille += f.ParMille
 				}
 			}
+		}
+	}
+	// Largeur de la barre de poids : relative à la famille « Sujets » la plus
+	// lourde (l'argent public a sa propre entrée, pas de sens de la comparer
+	// ici). Les familles sans fonction COFOG (Fiscalité, Histoire...) restent
+	// à 0 — la carte l'indique en texte (« hors fonctions de dépense »), pas
+	// une barre vide qu'on pourrait lire comme un poids nul.
+	var maxParMilleSujets int
+	for _, fam := range famillesSujets() {
+		if fam.ParMille > maxParMilleSujets {
+			maxParMilleSujets = fam.ParMille
+		}
+	}
+	if maxParMilleSujets > 0 {
+		for _, fam := range famillesSujets() {
+			fam.Largeur = 100 * float64(fam.ParMille) / float64(maxParMilleSujets)
 		}
 	}
 
