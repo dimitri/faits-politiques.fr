@@ -1073,6 +1073,35 @@ var checks = []check{
 		           AND etp_total < etp_enseignants - 0.5`,
 	},
 	{
+		name:  "les personnels non enseignants par catégorie couvrent les 18 lignes attendues",
+		query: `SELECT count(*) FROM core.education_personnel_categorie WHERE annee = 2024`,
+		min:   18,
+	},
+	{
+		// Chaque sous-total (déjà revérifié à l'ingestion contre ses
+		// composantes) doit rester cohérent au moment de la lecture aussi —
+		// une seconde vérification indépendante du calcul fait par le
+		// connecteur, comme pour le compte de résultat des hôpitaux publics.
+		name: "le total des personnels non enseignants reste la somme de ses quatre grandes filières",
+		query: `SELECT count(*) FROM (
+		          SELECT
+		            (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='NON_ENSEIGNANTS_TOTAL') AS total,
+		            (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='ENCADREMENT_TOTAL')
+		            + (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='VIE_SCOLAIRE_TOTAL')
+		            + (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='ASS_TOTAL')
+		            + (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='ITRF') AS somme
+		        ) x WHERE total IS DISTINCT FROM somme`,
+	},
+	{
+		name:  "AESH et AED s'additionnent exactement au total assistance éducative",
+		query: `SELECT count(*) FROM (
+		          SELECT
+		            (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='ASSISTANCE_EDUCATIVE_TOTAL') AS total,
+		            (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='AESH')
+		            + (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='AED') AS somme
+		        ) x WHERE total IS DISTINCT FROM somme`,
+	},
+	{
 		name:  "le référentiel FINESS couvre au moins 100 000 établissements",
 		query: `SELECT count(*) FROM ref.finess_etablissement`,
 		min:   100000,
