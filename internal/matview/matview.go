@@ -241,6 +241,20 @@ var Catalogue = []Definition{
 	GROUP BY e.code_departement, b.exercice`,
 	},
 	{
+		Nom:    "securite_dept_annee",
+		Tables: []string{"core.commune_delinquance", "ref.commune"},
+		SQL: `SELECT d.indicateur_code,
+	     c.code_departement,
+	     max(c.nom_clair) AS nom_departement,
+	     d.annee,
+	     sum(d.nombre)     AS nombre,
+	     sum(d.population) AS population
+	FROM core.commune_delinquance d
+	JOIN ref.commune c ON c.code_insee = d.commune_code AND c.cog_millesime = d.cog_millesime
+	WHERE d.diffuse
+	GROUP BY d.indicateur_code, c.code_departement, d.annee`,
+	},
+	{
 		Nom:    "population_nationale_annee",
 		Tables: []string{"core.population_historique_commune"},
 		SQL: `SELECT annee, sum(population) AS population

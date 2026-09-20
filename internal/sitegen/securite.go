@@ -72,13 +72,15 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 		// Taux pour 1 000 habitants, agrégé au département : on additionne les
 		// FAITS et les HABITANTS, jamais les taux — une moyenne de taux
 		// donnerait le même poids à une commune de 200 âmes et à Marseille.
+		// mv.securite_dept_annee (internal/matview) porte déjà nombre/
+		// population sommés — plus le scan de core.commune_delinquance
+		// (5,2 millions de lignes) que cette requête refaisait deux fois
+		// par indicateur (ici, et pour la série nationale plus bas).
 		rows, err := pool.Query(ctx, `
-			SELECT c.code_departement, max(c.nom_clair),
-			       1000.0*sum(d.nombre)/nullif(sum(d.population),0)
-			FROM core.commune_delinquance d
-			JOIN ref.commune c ON c.code_insee=d.commune_code AND c.cog_millesime=d.cog_millesime
-			WHERE d.indicateur_code=$1 AND d.annee=$2 AND d.diffuse
-			GROUP BY 1`, code, st.Annee)
+			SELECT code_departement, nom_departement,
+			       1000.0*nombre/nullif(population,0)
+			FROM mv.securite_dept_annee
+			WHERE indicateur_code=$1 AND annee=$2`, code, st.Annee)
 		if err != nil {
 			return nil, err
 		}
@@ -116,7 +118,7 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 
 		srows, err := pool.Query(ctx, `
 			SELECT annee, 1000.0*sum(nombre)/nullif(sum(population),0)
-			FROM core.commune_delinquance WHERE indicateur_code=$1 AND diffuse
+			FROM mv.securite_dept_annee WHERE indicateur_code=$1
 			GROUP BY 1 ORDER BY 1`, code)
 		if err != nil {
 			return nil, err
