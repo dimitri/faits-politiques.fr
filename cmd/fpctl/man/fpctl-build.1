@@ -11,7 +11,10 @@ fpctl\-build \- génère le site statique, en entier ou par section
 \f[I]fichier\f[R]]
 .PP
 \f[B]fpctl build\f[R]
-\f[B]scrutin\f[R]|\f[B]communes\f[R]|\f[B]reste\f[R]
+\f[B]scrutin\f[R]|\f[B]communes\f[R]|\f[B]identite\f[R]|\f[B]indicateurs\f[R]|\f[B]gouvernance\f[R]|\f[B]fiches\f[R]|\f[B]dossiers\f[R]
+[\f[B]\-j\f[R] \f[I]n\f[R]] [\f[B]\-dry\-run\f[R]] [mêmes options]
+.PP
+\f[B]fpctl build page\f[R] \f[I]nom\f[R] [\f[B]\-j\f[R] \f[I]n\f[R]]
 [\f[B]\-dry\-run\f[R]] [mêmes options]
 .SH DESCRIPTION
 \f[B]fpctl build site\f[R] construit le site dans
@@ -32,23 +35,66 @@ Si rien nulle part n\[cq]a changé (données, code, gabarits, CSV
 éditoriaux, dossiers documentaires), la commande le constate en quelques
 requêtes et ne construit rien du tout.
 .SH SECTIONS
-\f[B]fpctl build scrutin\f[R], \f[B]fpctl build communes\f[R] et
-\f[B]fpctl build reste\f[R] ne reconstruisent qu\[cq]une partie du site
-\[em] bien plus rapide pour itérer sur une seule section, sans attendre
-le reste.
-\f[B]reste\f[R] est tout ce que scrutin et communes ne couvrent pas
-(accueil, dossiers, thèmes, gouvernement, budget\&...).
+Chaque section ne reconstruit qu\[cq]une partie du site \[em] bien plus
+rapide pour itérer sur une seule chose, sans attendre le reste.
+Il n\[cq]y a plus de fourre\-tout unique : \f[B]cmd/build/main.go\f[R]
+donne son propre nom \f[B]\-only\f[R] à chacune des pages qu\[cq]il sait
+écrire (voir la fonction \f[B]ecrire()\f[R], qui remplace
+\f[B]write()\f[R] partout sauf \f[B]scrutin\f[R]/\f[B]communes\f[R] et
+les quelques pages toujours écrites \[em] \f[B]404\f[R], le plan du
+site\&...), et les groupes ci\-dessous en couvrent les plus utiles à
+nommer ensemble :
+.TP
+\f[B]scrutin\f[R]
+Les pages de scrutin.
+.TP
+\f[B]communes\f[R]
+Les pages communes et EPCI.
+.TP
+\f[B]identite\f[R]
+Candidats, partis, Assemblée, sources, Parlement européen, thèmes,
+Sénat.
+.TP
+\f[B]indicateurs\f[R]
+Frise chronologique, dette, chômage, vieillesse, jeunesse, richesse,
+dividendes, sécurité, agriculture, protection sociale.
+.TP
+\f[B]gouvernance\f[R]
+Qui décide, présidentielle 2027, gouvernement, collectivités,
+circonscriptions, argent public (les fonctions de la dépense).
+.TP
+\f[B]fiches\f[R]
+Fiches personnes, candidats, organisations, référentiels, groupes
+parlementaires.
+.TP
+\f[B]dossiers\f[R]
+Accueil, index des sujets de campagne, documents de méthode \[em] pas
+chaque sujet pris individuellement, voir \f[B]fpctl build page\f[R].
+.TP
+\f[B]page\f[R] \f[I]nom\f[R]
+N\[cq]importe quel autre nom \f[B]\-only\f[R] que
+\f[B]cmd/build/main.go\f[R] connaît et qu\[cq]aucun groupe ci\-dessus ne
+couvre déjà \[em] une page d\[cq]indicateur en particulier, ou un sujet
+de campagne par son identifiant (\f[B]eau\f[R],
+\f[B]fraude\-fiscale\f[R], \f[B]appareil\-productif\f[R]\&...
+voir \f[B]cmd/build/sujets.go\f[R]).
+Sans préalable déclaré pour ce nom précis (voir
+\f[B]ingestPrealables\f[R]), ingère le socle parlementaire complet par
+défaut.
 .PP
-Chacune ingère d\[cq]abord ce qu\[cq]elle déclare nécessiter
-(\f[B]scrutin\f[R] : \f[B]normalize\f[R], \f[B]exposes\f[R] ;
-\f[B]communes\f[R] : \f[B]normalize\f[R], \f[B]communes\f[R],
-\f[B]associations\f[R] ; \f[B]reste\f[R] : \f[B]normalize\f[R] \[em]
-voir \f[B]ingestPrealables\f[R] dans \f[B]cmd/fpctl/build.go\f[R]),
-idempotent : relancer ne refait pas ce qui est déjà à jour, et
-\f[B]normalize\f[R] résout lui\-même ses propres préalables (voir
-\f[B]fpctl\-ingest\f[R](1), LE SOCLE PARLEMENTAIRE).
-\f[B]\-dry\-run\f[R] affiche ces préalables sans rien ingérer ni
-construire.
+Chaque groupe (ou page) ingère d\[cq]abord ce qu\[cq]il déclare
+nécessiter (voir \f[B]ingestPrealables\f[R] dans
+\f[B]cmd/fpctl/build.go\f[R]) \[em] TOUS ENSEMBLE plutôt qu\[cq]un par
+un : la plupart des sources n\[cq]ont aucune dépendance déclarée entre
+elles (\f[B]internal/ingest.RunSources\f[R]), donc tournent de front
+jusqu\[cq]à \f[B]\-j\f[R] ; nommer une seule source suffit pour toute sa
+chaîne (\f[B]themes\f[R] entraîne \f[B]senat\f[R], \f[B]europe\f[R],
+\f[B]normalize\f[R], \f[B]download\f[R] et \f[B]partis\f[R]).
+Idempotent : relancer ne refait pas ce qui est déjà à jour.
+\f[B]\-dry\-run\f[R] affiche le plan d\[cq]ingestion (vagues,
+concurrence) sans rien ingérer ni construire ; \f[B]\-j\f[R] \f[I]n\f[R]
+(par défaut 4) borne le nombre de préalables indépendants exécutés de
+front.
 .PP
 Le site produit par une section est \f[B]délibérément incomplet\f[R] :
 jamais mis en place automatiquement, jamais ce que doit servir le

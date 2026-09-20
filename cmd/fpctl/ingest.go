@@ -15,11 +15,13 @@ import (
 // l'ancien -only l'était, mais nommé et rangé par thème au lieu d'un flag
 // plat à deviner.
 //
-// -dry-run et -j ne s'appliquent qu'au socle parlementaire audité (voir
-// internal/ingest.socleParlementaire) : le reste du catalogue, non encore
-// vérifié pour des dépendances implicites, continue de s'exécuter en
-// séquence — demander -dry-run ou -j>1 en dehors du socle échoue plutôt
-// que de faire silencieusement comme si de rien n'était.
+// -dry-run et -j s'appliquent à tout le catalogue : le socle parlementaire
+// audité (voir internal/ingest.socleParlementaire) passe par son registre
+// publié, le reste d'une catégorie par un registre générique construit à
+// la volée (internal/ingest.registreDe) — la quasi-totalité de ces sources
+// n'ont aucune dépendance déclarée entre elles, donc partagent une seule
+// vague et tournent de front jusqu'à -j, là où elles s'exécutaient
+// jusqu'ici une par une dans l'ordre du catalogue.
 func commandeIngest() *cobra.Command {
 	var rawDir, migDir string
 	var dryRun bool

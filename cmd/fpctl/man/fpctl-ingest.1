@@ -106,13 +106,15 @@ Par défaut \f[B]db/migrations\f[R].
 .TP
 \f[B]\[en]dry\-run\f[R]
 Affiche l\[cq]ordre d\[cq]exécution par vagues sans rien exécuter \[em]
-le socle parlementaire seulement (voir \f[B]LE SOCLE PARLEMENTAIRE\f[R])
-; refuse plutôt que d\[cq]exécuter en silence pour le reste du
-catalogue.
+pour tout le catalogue : le socle parlementaire passe par son registre
+publié (voir \f[B]LE SOCLE PARLEMENTAIRE\f[R]), le reste d\[cq]une
+catégorie par un registre générique construit à la volée (la
+quasi\-totalité de ces sources n\[cq]ont aucune dépendance déclarée
+entre elles, donc une seule vague).
 .TP
 \f[B]\-j\f[R] \f[I]n\f[R]
 Jusqu\[cq]à \f[I]n\f[R] étapes indépendantes (même vague) exécutées de
-front \[em] le socle parlementaire seulement.
+front \[em] pour tout le catalogue, socle ou non.
 1 par défaut (séquentiel).
 .SH VOIR AUSSI
 \f[B]fpctl\f[R](1), \f[B]fpctl\-build\f[R](1),

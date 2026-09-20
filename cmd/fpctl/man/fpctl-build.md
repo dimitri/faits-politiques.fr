@@ -16,7 +16,10 @@ fpctl-build - génère le site statique, en entier ou par section
 [**-data** *répertoire*] [**-root** *préfixe*]
 [**-max-scrutins** *n*] [**-cpuprofile** *fichier*]
 
-**fpctl build** **scrutin**|**communes**|**reste** [**-dry-run**] [mêmes options]
+**fpctl build** **scrutin**|**communes**|**identite**|**indicateurs**|**gouvernance**|**fiches**|**dossiers**
+[**-j** *n*] [**-dry-run**] [mêmes options]
+
+**fpctl build page** *nom* [**-j** *n*] [**-dry-run**] [mêmes options]
 
 # DESCRIPTION
 
@@ -37,19 +40,59 @@ construit rien du tout.
 
 # SECTIONS
 
-**fpctl build scrutin**, **fpctl build communes** et **fpctl build reste**
-ne reconstruisent qu'une partie du site — bien plus rapide pour itérer sur
-une seule section, sans attendre le reste. **reste** est tout ce que
-scrutin et communes ne couvrent pas (accueil, dossiers, thèmes,
-gouvernement, budget...).
+Chaque section ne reconstruit qu'une partie du site — bien plus rapide
+pour itérer sur une seule chose, sans attendre le reste. Il n'y a plus de
+fourre-tout unique : **cmd/build/main.go** donne son propre nom **-only**
+à chacune des pages qu'il sait écrire (voir la fonction **ecrire()**, qui
+remplace **write()** partout sauf **scrutin**/**communes** et les quelques
+pages toujours écrites — **404**, le plan du site...), et les groupes
+ci-dessous en couvrent les plus utiles à nommer ensemble :
 
-Chacune ingère d'abord ce qu'elle déclare nécessiter (**scrutin** :
-**normalize**, **exposes** ; **communes** : **normalize**, **communes**,
-**associations** ; **reste** : **normalize** — voir **ingestPrealables**
-dans **cmd/fpctl/build.go**), idempotent : relancer ne refait pas ce qui
-est déjà à jour, et **normalize** résout lui-même ses propres préalables
-(voir **fpctl-ingest**(1), LE SOCLE PARLEMENTAIRE). **-dry-run** affiche
-ces préalables sans rien ingérer ni construire.
+**scrutin**
+:   Les pages de scrutin.
+
+**communes**
+:   Les pages communes et EPCI.
+
+**identite**
+:   Candidats, partis, Assemblée, sources, Parlement européen, thèmes,
+    Sénat.
+
+**indicateurs**
+:   Frise chronologique, dette, chômage, vieillesse, jeunesse, richesse,
+    dividendes, sécurité, agriculture, protection sociale.
+
+**gouvernance**
+:   Qui décide, présidentielle 2027, gouvernement, collectivités,
+    circonscriptions, argent public (les fonctions de la dépense).
+
+**fiches**
+:   Fiches personnes, candidats, organisations, référentiels, groupes
+    parlementaires.
+
+**dossiers**
+:   Accueil, index des sujets de campagne, documents de méthode — pas
+    chaque sujet pris individuellement, voir **fpctl build page**.
+
+**page** *nom*
+:   N'importe quel autre nom **-only** que **cmd/build/main.go** connaît
+    et qu'aucun groupe ci-dessus ne couvre déjà — une page d'indicateur en
+    particulier, ou un sujet de campagne par son identifiant (**eau**,
+    **fraude-fiscale**, **appareil-productif**... voir
+    **cmd/build/sujets.go**). Sans préalable déclaré pour ce nom précis
+    (voir **ingestPrealables**), ingère le socle parlementaire complet par
+    défaut.
+
+Chaque groupe (ou page) ingère d'abord ce qu'il déclare nécessiter (voir
+**ingestPrealables** dans **cmd/fpctl/build.go**) — TOUS ENSEMBLE plutôt
+qu'un par un : la plupart des sources n'ont aucune dépendance déclarée
+entre elles (**internal/ingest.RunSources**), donc tournent de front
+jusqu'à **-j** ; nommer une seule source suffit pour toute sa chaîne
+(**themes** entraîne **senat**, **europe**, **normalize**, **download** et
+**partis**). Idempotent : relancer ne refait pas ce qui est déjà à jour.
+**-dry-run** affiche le plan d'ingestion (vagues, concurrence) sans rien
+ingérer ni construire ; **-j** *n* (par défaut 4) borne le nombre de
+préalables indépendants exécutés de front.
 
 Le site produit par une section est **délibérément incomplet** : jamais mis
 en place automatiquement, jamais ce que doit servir le domaine réel —

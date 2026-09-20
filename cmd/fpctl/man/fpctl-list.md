@@ -76,7 +76,7 @@ fpctl-list - liste une collection (sources, connecteurs, statistiques, graphe de
 
     Sans argument, deux arbres : le socle parlementaire, puis — sous
     l'en-tête « pages du site (fpctl build) » — chaque section de **fpctl
-    build** (**scrutin**, **communes**, **reste**) comme racine de ses
+    build** (voir **fpctl-build**(1), SECTIONS) comme racine de ses
     préalables d'ingestion (voir **fpctl-build**(1), SECTIONS), avec le
     total à télécharger et à charger en base pour l'amener à jour depuis
     rien (dépendances comprises, chacune comptée une seule fois même si

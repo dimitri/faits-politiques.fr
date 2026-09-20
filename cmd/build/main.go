@@ -109,7 +109,9 @@ func main() {
 	dataDir := flag.String("data", "data", "décisions éditoriales")
 	root := flag.String("root", "", "préfixe d'URL")
 	maxScrutins := flag.Int("max-scrutins", 0, "limite de pages scrutin (0 = toutes)")
-	only := flag.String("only", "", "limite les sections coûteuses reconstruites : scrutin | communes | scrutin,communes (vide = tout). "+
+	only := flag.String("only", "", "limite les pages reconstruites à cette liste (séparée par des virgules) : scrutin, communes, "+
+		"ou l'un des noms de page filtrés par ecrire() plus bas (dette, chomage, securite, sujet:<id>, comprendre:<slug>...) — "+
+		"voir cmd/fpctl/build.go, SECTIONS pour les regroupements par catégorie (fpctl build <catégorie>). Vide = tout. "+
 		"À réserver à l'itération locale — un site construit avec -only est incomplet et ne doit jamais être mis en place tel quel.")
 	cpuProfile := flag.String("cpuprofile", "", "écrit un profil CPU pprof à ce chemin (diagnostic, pas d'usage courant)")
 	flag.Parse()
@@ -191,6 +193,20 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	// doit voir ; -only sert à l'itération locale, jamais au déploiement.
 	exclu := func(section string) bool {
 		return only != "" && !strings.Contains(","+only+",", ","+section+",")
+	}
+	// ecrire : un filtre posé sur write(), pas un bloc à ré-indenter — chaque
+	// page garde son chargement de données inchangé (il tourne toujours,
+	// -only ne fait jamais gagner de temps sur ce qui est commun à plusieurs
+	// pages), seule l'écriture finale est soumise à -only. Remplace
+	// l'ancien fourre-tout « reste » : ces dizaines de pages, auparavant
+	// écrites inconditionnellement dès que -only ne valait ni "communes" ni
+	// "scrutin", ont chacune leur propre nom désormais (voir
+	// cmd/fpctl/build.go, SECTIONS) — fpctl build reste n'existe plus.
+	ecrire := func(section string, t *template.Template, path string, data any) error {
+		if exclu(section) {
+			return nil
+		}
+		return write(t, path, data)
 	}
 	ctx := context.Background()
 	// 8, pas le défaut de 4 : plusieurs requêtes indépendantes tournent
@@ -436,7 +452,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 
 	l = layout
 	l.Title = "Candidats 2027"
-	if err := write(page("candidats.gohtml"), filepath.Join(out, "candidats", "index.html"), struct {
+	if err := ecrire("candidats", page("candidats.gohtml"), filepath.Join(out, "candidats", "index.html"), struct {
 		Layout
 		Candidats []*Candidat
 	}{l, candidats}); err != nil {
@@ -445,7 +461,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 
 	l = layout
 	l.Title = "Partis"
-	if err := write(page("partis.gohtml"), filepath.Join(out, "partis", "index.html"), struct {
+	if err := ecrire("partis", page("partis.gohtml"), filepath.Join(out, "partis", "index.html"), struct {
 		Layout
 		Orgs []*Organisation
 	}{l, orgList}); err != nil {
@@ -454,7 +470,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 
 	l = layout
 	l.Title = "Assemblée nationale"
-	if err := write(page("assemblee.gohtml"), filepath.Join(out, "assemblee", "index.html"), struct {
+	if err := ecrire("assemblee", page("assemblee.gohtml"), filepath.Join(out, "assemblee", "index.html"), struct {
 		Layout
 		Groupes  []*Groupe
 		Deputes  []*Person
@@ -473,7 +489,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Sources"
-	if err := write(page("sources.gohtml"), filepath.Join(out, "sources", "index.html"), struct {
+	if err := ecrire("sources", page("sources.gohtml"), filepath.Join(out, "sources", "index.html"), struct {
 		Layout
 		Flux  []SourceDetail
 		Stats *StatsGlobalesSources
@@ -487,7 +503,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Parlement européen"
-	if err := write(page("europe.gohtml"), filepath.Join(out, "europe", "index.html"), struct {
+	if err := ecrire("europe", page("europe.gohtml"), filepath.Join(out, "europe", "index.html"), struct {
 		Layout
 		E *StatsEurope
 	}{l, europe}); err != nil {
@@ -509,7 +525,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Thèmes"
-	if err := write(page("themes.gohtml"), filepath.Join(out, "themes", "index.html"), struct {
+	if err := ecrire("themes", page("themes.gohtml"), filepath.Join(out, "themes", "index.html"), struct {
 		Layout
 		T *StatsThemes
 	}{l, themes}); err != nil {
@@ -525,7 +541,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		}
 		l = layout
 		l.Title = th.Label
-		if err := write(tth, filepath.Join(out, "theme", th.Slug, "index.html"), struct {
+		if err := ecrire("themes", tth, filepath.Join(out, "theme", th.Slug, "index.html"), struct {
 			Layout
 			Th        *Theme
 			MaxGroupe int
@@ -541,7 +557,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Sénat"
-	if err := write(page("senat.gohtml"), filepath.Join(out, "senat", "index.html"), struct {
+	if err := ecrire("senat", page("senat.gohtml"), filepath.Join(out, "senat", "index.html"), struct {
 		Layout
 		Se *StatsSenat
 	}{l, senat}); err != nil {
@@ -558,7 +574,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		l.Title = c.Titre
 		l.Description = c.Page.Question
 		imageCarte(&l, out, "carte-"+c.Slug, c.Page.Carte.SVG)
-		if err := write(tcd, filepath.Join(out, "collectivites", "carte", c.Slug, "index.html"),
+		if err := ecrire("collectivites", tcd, filepath.Join(out, "collectivites", "carte", c.Slug, "index.html"),
 			struct {
 				Layout
 				P PageCarte
@@ -568,6 +584,9 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	// L'ancienne adresse ne renvoie plus un 404 muet : une page fixe, aussi
 	// statique que le reste du site, qui pointe vers la nouvelle adresse.
+	// Jamais exclue par -only : une redirection ne pèse rien à écrire, et sa
+	// cible (/collectivites/...) peut avoir changé même quand "collectivites"
+	// n'est pas dans la liste demandée.
 	l = layout
 	l.Title = "Page déplacée"
 	if err := write(page("deplace.gohtml"), filepath.Join(out, "territoires", "index.html"),
@@ -595,7 +614,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "La Ve République en chiffres"
-	if err := write(page("frise.gohtml"), filepath.Join(out, "frise", "index.html"),
+	if err := ecrire("frise", page("frise.gohtml"), filepath.Join(out, "frise", "index.html"),
 		struct {
 			Layout
 			F *StatsFrise
@@ -609,7 +628,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "La dette publique"
-	if err := write(page("dette.gohtml"), filepath.Join(out, "dette", "index.html"),
+	if err := ecrire("dette", page("dette.gohtml"), filepath.Join(out, "dette", "index.html"),
 		struct {
 			Layout
 			D *StatsDette
@@ -623,7 +642,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Le taux de chômage"
-	if err := write(page("chomage.gohtml"), filepath.Join(out, "chomage", "index.html"),
+	if err := ecrire("chomage", page("chomage.gohtml"), filepath.Join(out, "chomage", "index.html"),
 		struct {
 			Layout
 			C *StatsChomage
@@ -641,7 +660,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "La vieillesse : combien, qui paie, et la dépendance"
-	if err := write(page("vieillesse.gohtml"), filepath.Join(out, "vieillesse", "index.html"),
+	if err := ecrire("vieillesse", page("vieillesse.gohtml"), filepath.Join(out, "vieillesse", "index.html"),
 		struct {
 			Layout
 			V *StatsVieillesse
@@ -653,7 +672,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		l.Title = vieil.CarteAPA.Titre
 		l.Description = vieil.CarteAPA.Question
 		imageCarte(&l, out, "vieillesse-"+vieil.CarteAPA.Slug, vieil.CarteAPA.Page.Carte.SVG)
-		if err := write(tcd, filepath.Join(out, "vieillesse", "carte", vieil.CarteAPA.Slug, "index.html"),
+		if err := ecrire("vieillesse", tcd, filepath.Join(out, "vieillesse", "carte", vieil.CarteAPA.Slug, "index.html"),
 			struct {
 				Layout
 				P PageCarte
@@ -668,7 +687,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "La jeunesse : études supérieures, apprentissage, premiers emplois"
-	if err := write(page("jeunesse.gohtml"), filepath.Join(out, "jeunesse", "index.html"),
+	if err := ecrire("jeunesse", page("jeunesse.gohtml"), filepath.Join(out, "jeunesse", "index.html"),
 		struct {
 			Layout
 			J *StatsJeunesse
@@ -680,7 +699,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		l.Title = jeun.CarteInsertion.Titre
 		l.Description = jeun.CarteInsertion.Question
 		imageCarte(&l, out, "jeunesse-"+jeun.CarteInsertion.Slug, jeun.CarteInsertion.Page.Carte.SVG)
-		if err := write(tcd, filepath.Join(out, "jeunesse", "carte", jeun.CarteInsertion.Slug, "index.html"),
+		if err := ecrire("jeunesse", tcd, filepath.Join(out, "jeunesse", "carte", jeun.CarteInsertion.Slug, "index.html"),
 			struct {
 				Layout
 				P PageCarte
@@ -697,7 +716,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "La répartition de la richesse en France"
-	if err := write(page("richesse.gohtml"), filepath.Join(out, "richesse", "index.html"),
+	if err := ecrire("richesse", page("richesse.gohtml"), filepath.Join(out, "richesse", "index.html"),
 		struct {
 			Layout
 			R *StatsRichesse
@@ -711,7 +730,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Les dividendes versés"
-	if err := write(page("dividendes.gohtml"), filepath.Join(out, "dividendes", "index.html"),
+	if err := ecrire("dividendes", page("dividendes.gohtml"), filepath.Join(out, "dividendes", "index.html"),
 		struct {
 			Layout
 			D *StatsDividendes
@@ -732,7 +751,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if len(sec.Indicateurs) > 0 {
 		imageCarte(&l, out, "securite", sec.Indicateurs[0].Page.Carte.SVG)
 	}
-	if err := write(page("securite.gohtml"), filepath.Join(out, "securite", "index.html"),
+	if err := ecrire("securite", page("securite.gohtml"), filepath.Join(out, "securite", "index.html"),
 		struct {
 			Layout
 			S *StatsSecurite
@@ -745,7 +764,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		l.Title = ind.Libelle
 		l.Description = ind.Page.Question
 		imageCarte(&l, out, "securite-"+ind.Slug, ind.Page.Carte.SVG)
-		if err := write(tcd, filepath.Join(out, "securite", ind.Slug, "index.html"),
+		if err := ecrire("securite", tcd, filepath.Join(out, "securite", ind.Slug, "index.html"),
 			struct {
 				Layout
 				P PageCarte
@@ -791,7 +810,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		pf := pagesFonctions[f.Code]
 		l = layout
 		l.Title = pf.Nom
-		if err := write(tf, filepath.Join(out, "fonction", f.Slug, "index.html"),
+		if err := ecrire("argent-public", tf, filepath.Join(out, "fonction", f.Slug, "index.html"),
 			struct {
 				Layout
 				F *PageFonction
@@ -802,7 +821,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 
 	l = layout
 	l.Title = "Qui décide"
-	if err := write(page("qui-decide.gohtml"), filepath.Join(out, "qui-decide", "index.html"), l); err != nil {
+	if err := ecrire("qui-decide", page("qui-decide.gohtml"), filepath.Join(out, "qui-decide", "index.html"), l); err != nil {
 		return err
 	}
 
@@ -812,7 +831,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Présidentielle 2027"
-	if err := write(page("election2027.gohtml"), filepath.Join(out, "2027", "index.html"),
+	if err := ecrire("election2027", page("election2027.gohtml"), filepath.Join(out, "2027", "index.html"),
 		struct {
 			Layout
 			E *Stats2027
@@ -830,7 +849,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		l.Title = k.Page.Titre
 		l.Description = k.Page.Question
 		imageCarte(&l, out, "2027-"+k.Page.Slug, k.Page.Carte.SVG)
-		if err := write(tcd, filepath.Join(out, "2027", k.Page.Slug, "index.html"),
+		if err := ecrire("election2027", tcd, filepath.Join(out, "2027", k.Page.Slug, "index.html"),
 			struct {
 				Layout
 				P PageCarte
@@ -849,7 +868,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Gouvernement"
-	if err := write(page("gouvernement.gohtml"),
+	if err := ecrire("gouvernement", page("gouvernement.gohtml"),
 		filepath.Join(out, "gouvernement", "index.html"), struct {
 			Layout
 			G *StatsGouvernement
@@ -861,7 +880,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	l.Title = "Tous les décrets de composition"
 	tousDecrets := *gouv
 	tousDecrets.Decrets = gouv.Tous
-	if err := write(page("decrets.gohtml"),
+	if err := ecrire("gouvernement", page("decrets.gohtml"),
 		filepath.Join(out, "gouvernement", "decrets", "index.html"), struct {
 			Layout
 			G *StatsGouvernement
@@ -885,7 +904,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	l = layout
 	l.Title = "Collectivités"
 	imageCarte(&l, out, "collectivites", col.CarteDepts.SVG)
-	if err := write(page("collectivites.gohtml"),
+	if err := ecrire("collectivites", page("collectivites.gohtml"),
 		filepath.Join(out, "collectivites", "index.html"), struct {
 			Layout
 			C            *StatsCollectivites
@@ -1025,7 +1044,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		pc.Situation = fond.pourCirconscription(pc, popFrance)
 		l = layout
 		l.Title = pc.Titre
-		if err := write(tcirco, filepath.Join(out, "circonscription", code, "index.html"),
+		if err := ecrire("circonscriptions", tcirco, filepath.Join(out, "circonscription", code, "index.html"),
 			struct {
 				Layout
 				C *PageCirco
@@ -1051,7 +1070,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		}
 		l = layout
 		l.Title = pc.Nom
-		if err := write(tcol, filepath.Join(out, "collectivites", pc.TypeURL, pc.Slug,
+		if err := ecrire("collectivites", tcol, filepath.Join(out, "collectivites", pc.TypeURL, pc.Slug,
 			"index.html"), struct {
 			Layout
 			K PageCollectivite
@@ -1066,7 +1085,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Agriculture et alimentation"
-	if err := write(page("agriculture.gohtml"), filepath.Join(out, "agriculture", "index.html"),
+	if err := ecrire("agriculture", page("agriculture.gohtml"), filepath.Join(out, "agriculture", "index.html"),
 		struct {
 			Layout
 			A *StatsAgri
@@ -1236,7 +1255,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if bud != nil {
 		l = layout
 		l.Title = "Budget de l'État"
-		if err := write(page("budget.gohtml"), filepath.Join(out, "budget", "index.html"),
+		if err := ecrire("budget", page("budget.gohtml"), filepath.Join(out, "budget", "index.html"),
 			struct {
 				Layout
 				B *StatsBudget
@@ -1251,7 +1270,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		for _, m := range circuit.GrandesMesures {
 			l = layout
 			l.Title = m.Libelle
-			if err := write(tdisp, filepath.Join(out, "budget", "dispositif", m.Code, "index.html"),
+			if err := ecrire("budget", tdisp, filepath.Join(out, "budget", "dispositif", m.Code, "index.html"),
 				struct {
 					Layout
 					M MesureExoneration
@@ -1268,7 +1287,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if soc != nil && soc.Total > 0 {
 		l = layout
 		l.Title = "Protection sociale"
-		if err := write(page("social.gohtml"), filepath.Join(out, "protection-sociale", "index.html"),
+		if err := ecrire("social", page("social.gohtml"), filepath.Join(out, "protection-sociale", "index.html"),
 			struct {
 				Layout
 				X *StatsSocial
@@ -1770,7 +1789,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	if err := preparerSujets(ctx, pool, out, root, acc); err != nil {
 		return err
 	}
-	if err := write(page("accueil.gohtml"), filepath.Join(out, "index.html"), struct {
+	if err := ecrire("accueil", page("accueil.gohtml"), filepath.Join(out, "index.html"), struct {
 		Layout
 		A *DonneesAccueil
 	}{layoutAccueil, acc}); err != nil {
@@ -1778,7 +1797,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Sujets de campagne"
-	if err := write(page("sujets.gohtml"), filepath.Join(out, "sujets", "index.html"), struct {
+	if err := ecrire("sujets", page("sujets.gohtml"), filepath.Join(out, "sujets", "index.html"), struct {
 		Layout
 		Familles []*Famille
 		Annee    int
@@ -1787,7 +1806,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	}
 	l = layout
 	l.Title = "Argent public"
-	if err := write(page("argent-public.gohtml"), filepath.Join(out, "argent-public", "index.html"), struct {
+	if err := ecrire("argent-public", page("argent-public.gohtml"), filepath.Join(out, "argent-public", "index.html"), struct {
 		Layout
 		A *DonneesAccueil
 	}{l, acc}); err != nil {
@@ -1799,6 +1818,12 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		s := sujetDuDoc(d.Slug)
 		if s == nil {
 			methode = append(methode, d)
+			continue
+		}
+		// Un sujet par docs/<slug>.md, déjà son propre nom (voir
+		// data/*, cmd/build/<sujet>.go) : chacun sa propre section -only,
+		// « fpctl build <sujet.id> » construit celui-là seul.
+		if exclu(s.ID) {
 			continue
 		}
 		l = layout
@@ -1825,7 +1850,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 
 	l = layout
 	l.Title = "Documents de méthode"
-	if err := write(page("comprendre.gohtml"), filepath.Join(out, "comprendre", "index.html"),
+	if err := ecrire("comprendre", page("comprendre.gohtml"), filepath.Join(out, "comprendre", "index.html"),
 		struct {
 			Layout
 			Docs    []*Doc
@@ -1843,7 +1868,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		}
 		l = layout
 		l.Title = d.Titre
-		if err := write(td, filepath.Join(out, "comprendre", d.Slug, "index.html"), struct {
+		if err := ecrire("comprendre", td, filepath.Join(out, "comprendre", d.Slug, "index.html"), struct {
 			Layout
 			D      *Doc
 			Autres []*Doc
@@ -1902,7 +1927,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 				data.Defs = e27.Defs
 			}
 		}
-		if err := write(tp, filepath.Join(out, "depute", p.Slug, "index.html"), data); err != nil {
+		if err := ecrire("fiches", tp, filepath.Join(out, "depute", p.Slug, "index.html"), data); err != nil {
 			return err
 		}
 	}
@@ -1927,7 +1952,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 			Defs          template.HTML
 			TotalScrutins int
 		}{l, p, c, locaux[c.Slug], k, defs, layout.Cov.Scrutins}
-		if err := write(tp, filepath.Join(out, "candidat", c.Slug, "index.html"), data); err != nil {
+		if err := ecrire("fiches", tp, filepath.Join(out, "candidat", c.Slug, "index.html"), data); err != nil {
 			return err
 		}
 	}
@@ -1937,7 +1962,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	for _, o := range orgs {
 		l := layout
 		l.Title = o.Libelle
-		if err := write(to, filepath.Join(out, "organisation", o.Slug, "index.html"),
+		if err := ecrire("fiches", to, filepath.Join(out, "organisation", o.Slug, "index.html"),
 			struct {
 				Layout
 				O *Organisation
@@ -1960,7 +1985,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 		}
 		l := layout
 		l.Title = r.Titre
-		if err := write(tr, filepath.Join(out, "referentiel", r.Slug, "index.html"),
+		if err := ecrire("fiches", tr, filepath.Join(out, "referentiel", r.Slug, "index.html"),
 			struct {
 				Layout
 				R    *Referentiel
@@ -1975,7 +2000,7 @@ func run(out, tplDir, dataDir, root string, maxScrutins int, only string) error 
 	for _, g := range groupes {
 		l := layout
 		l.Title = g.Nom
-		if err := write(tg, filepath.Join(out, "groupe", g.Slug, "index.html"),
+		if err := ecrire("fiches", tg, filepath.Join(out, "groupe", g.Slug, "index.html"),
 			struct {
 				Layout
 				G *Groupe

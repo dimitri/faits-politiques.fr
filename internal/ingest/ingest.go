@@ -102,6 +102,76 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	return reg, nil
 }
 
+// registreDe construit un pipeline.Registre pour N'IMPORTE QUEL
+// sous-ensemble du catalogue, pas seulement le socle — même mécanique que
+// registreParlement (une copie d'Archive par étape, jamais le pointeur
+// partagé), généralisée. La quasi-totalité des sources hors socle n'ont
+// aucune dépendance déclarée entre elles (Source.Dependances vide) :
+// partagées dans une seule vague, elles tournent alors TOUTES de front
+// jusqu'à Concurrence, là où RunCategorie les exécutait jusqu'ici une par
+// une dans l'ordre du catalogue. Ne publie PAS en base : Publier réécrit
+// core.pipeline_etape pour l'ensemble exact qu'on lui donne — le faire
+// depuis un sous-ensemble effacerait le socle. Publier reste réservé à
+// registreParlement, la seule vue complète et auditée du graphe.
+func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms []string) (*pipeline.Registre, error) {
+	reg := pipeline.NouveauRegistre(pool)
+	vus := map[string]bool{}
+	var ajouter func(nom string) error
+	ajouter = func(nom string) error {
+		if vus[nom] {
+			return nil
+		}
+		vus[nom] = true
+		source, ok := SourceParNom(nom)
+		if !ok {
+			return fmt.Errorf("source inconnue : %s (voir « fpctl ingest » pour la liste)", nom)
+		}
+		// Les dépendances d'abord : Registre.Ajouter panique si l'une
+		// d'elles n'est pas déjà connue au moment où on ajoute nom.
+		for _, d := range source.Dependances {
+			if err := ajouter(d); err != nil {
+				return err
+			}
+		}
+		archEtape := *arch
+		archEtape.Etape = source.Nom
+		reg.Ajouter(pipeline.Etape{
+			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
+			Executer: func(ctx context.Context) error { return source.Executer(ctx, pool, &archEtape, rawDir) },
+		})
+		return nil
+	}
+	for _, n := range noms {
+		if err := ajouter(n); err != nil {
+			return nil, err
+		}
+	}
+	return reg, nil
+}
+
+// RunSources exécute plusieurs sources du catalogue à la fois — vagues
+// topologiques, jusqu'à opts[0].Concurrence de front par vague, exactement
+// comme RunCategorie pour le socle qu'elle contient, généralisé à
+// n'importe quelle liste : les préalables d'une section de fpctl build,
+// par exemple (voir cmd/fpctl/build.go, ingestPrealables), au lieu de les
+// ingérer un par un dans une boucle qui ignorait qu'ils n'ont, pour la
+// plupart, aucune dépendance entre eux.
+func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts ...pipeline.Options) error {
+	if len(noms) == 0 {
+		return nil
+	}
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	if err != nil {
+		return err
+	}
+	defer fermer()
+	reg, err := registreDe(pool, arch, rawDir, noms)
+	if err != nil {
+		return err
+	}
+	return reg.Executer(ctx, noms, opts...)
+}
+
 // contexte : ce que chaque point d'entrée (RunTout/RunSource/RunCategorie)
 // ouvre avant de faire quoi que ce soit — les migrations en attente, le
 // répertoire de l'archive scellée, le pool. Commun aux trois, pour que
@@ -128,9 +198,10 @@ func contexte(ctx context.Context, rawDir, migDir string) (pool *pgxpool.Pool, a
 // du socle parlementaire (voir socleParlementaire) résout et exécute
 // d'abord ses dépendances — « fpctl ingest parlement normalize » sur une
 // base neuve déclenche automatiquement download puis partis, dans l'ordre,
-// sans qu'on ait à les nommer soi-même ; opts porte -dry-run/-j pour ce
-// même socle (ignorés, silencieusement, pour tout le reste du catalogue,
-// qui reste à exécution simple).
+// sans qu'on ait à les nommer soi-même. -dry-run marche pour tout le
+// catalogue désormais (registreDe en fait un registre à une seule étape,
+// aussi simple à simuler que le socle) ; -j n'a simplement rien à
+// paralléliser pour une source seule.
 func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline.Options) error {
 	if nom == "migrate" {
 		pool, err := store.Open(ctx)
@@ -141,8 +212,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		logs.Notice("migrations")
 		return migrate.Up(ctx, pool, migDir)
 	}
-	source, ok := SourceParNom(nom)
-	if !ok {
+	if _, ok := SourceParNom(nom); !ok {
 		return fmt.Errorf("source inconnue : %s (voir « fpctl ingest » pour la liste)", nom)
 	}
 	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
@@ -157,13 +227,11 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		}
 		return reg.Executer(ctx, []string{nom}, opts...)
 	}
-	if len(opts) > 0 && opts[0].DryRun {
-		return fmt.Errorf("-dry-run n'est pas pris en charge pour %s (hors du socle audité, voir socleParlementaire)", nom)
+	reg, err := registreDe(pool, arch, rawDir, []string{nom})
+	if err != nil {
+		return err
 	}
-	logs.Notice(source.Description)
-	archEtape := *arch
-	archEtape.Etape = source.Nom
-	return source.Executer(ctx, pool, &archEtape, rawDir)
+	return reg.Executer(ctx, []string{nom}, opts...)
 }
 
 // RunCategorie exécute toutes les sources d'une catégorie — un choix
@@ -174,11 +242,18 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 // explicite, pas un oubli.
 //
 // Les sources du socle parlementaire présentes dans la catégorie (voir
-// socleParlementaire) passent d'abord, ensemble, par internal/pipeline :
-// vagues topologiques, jusqu'à opts[0].Concurrence de front par vague — pour
-// « parlement », ça place « editorial, senat, europe » dans une même vague,
-// concurremment. Le reste de la catégorie suit, dans l'ordre du catalogue,
-// à exécution simple.
+// socleParlementaire) passent d'abord, à part, par le registre audité et
+// publié (registreParlement) — c'est le seul sous-ensemble dont les
+// dépendances peuvent sortir de cette catégorie (normalize dépend de
+// download et partis, tous deux « parlement », mais rien ne garantit
+// qu'une future dépendance du socle y reste), et le seul dont la
+// topologie doit se retrouver dans core.pipeline_etape (fpctl list deps) ;
+// publier depuis un registre partiel l'amputerait. Le reste de la
+// catégorie suit, TOUT ENSEMBLE, par registreDe : la quasi-totalité de ces
+// sources n'ont aucune dépendance déclarée entre elles (Source.Dependances
+// vide), donc partagent une seule vague et tournent de front jusqu'à
+// opts[0].Concurrence, plutôt que l'ancienne boucle séquentielle qui les
+// ingérait une par une dans l'ordre du catalogue sans jamais en profiter.
 func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ...pipeline.Options) error {
 	sources := SourcesDeCategorie(categorie)
 	if len(sources) == 0 {
@@ -191,10 +266,12 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	defer fermer()
 	start := time.Now()
 
-	var socle []string
+	var socle, reste []string
 	for _, s := range sources {
 		if EstSurLeSocle(s.Nom) {
 			socle = append(socle, s.Nom)
+		} else {
+			reste = append(reste, s.Nom)
 		}
 	}
 	if len(socle) > 0 {
@@ -206,23 +283,17 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 			return err
 		}
 	}
-	if len(opts) > 0 && opts[0].DryRun {
-		if len(socle) == len(sources) {
-			return nil
+	if len(reste) > 0 {
+		reg, err := registreDe(pool, arch, rawDir, reste)
+		if err != nil {
+			return err
 		}
-		return fmt.Errorf("-dry-run n'est pas pris en charge pour le reste de %s (hors du socle audité)", categorie)
+		if err := reg.Executer(ctx, reste, opts...); err != nil {
+			return err
+		}
 	}
-
-	for _, s := range sources {
-		if EstSurLeSocle(s.Nom) {
-			continue
-		}
-		logs.Notice(s.Description)
-		archEtape := *arch
-		archEtape.Etape = s.Nom
-		if err := s.Executer(ctx, pool, &archEtape, rawDir); err != nil {
-			return fmt.Errorf("%s : %w", s.Nom, err)
-		}
+	if len(opts) > 0 && opts[0].DryRun {
+		return nil
 	}
 	logs.Notice("catégorie terminée", "categorie", categorie, "duree", time.Since(start).Round(time.Second))
 	return nil

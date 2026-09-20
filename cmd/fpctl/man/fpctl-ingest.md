@@ -105,13 +105,16 @@ réussie de chaque étape.
 :   Répertoire des migrations. Par défaut **db/migrations**.
 
 **--dry-run**
-:   Affiche l'ordre d'exécution par vagues sans rien exécuter — le socle
-    parlementaire seulement (voir **LE SOCLE PARLEMENTAIRE**) ; refuse
-    plutôt que d'exécuter en silence pour le reste du catalogue.
+:   Affiche l'ordre d'exécution par vagues sans rien exécuter — pour tout
+    le catalogue : le socle parlementaire passe par son registre publié
+    (voir **LE SOCLE PARLEMENTAIRE**), le reste d'une catégorie par un
+    registre générique construit à la volée (la quasi-totalité de ces
+    sources n'ont aucune dépendance déclarée entre elles, donc une seule
+    vague).
 
 **-j** *n*
-:   Jusqu'à *n* étapes indépendantes (même vague) exécutées de front — le
-    socle parlementaire seulement. 1 par défaut (séquentiel).
+:   Jusqu'à *n* étapes indépendantes (même vague) exécutées de front —
+    pour tout le catalogue, socle ou non. 1 par défaut (séquentiel).
 
 # VOIR AUSSI
 

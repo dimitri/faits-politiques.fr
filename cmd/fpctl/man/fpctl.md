@@ -29,9 +29,9 @@ Dans les deux cas, fpctl ne réimplémente rien.
 
 # VERBES
 
-**build site** [options] | **build** **scrutin**|**communes**|**reste**
+**build site** [options] | **build** *section* | **build page** *nom*
 :   Génère le site statique et le met en place, en entier ou par section
-    (pour itérer localement). Voir **fpctl-build**(1).
+    (pour itérer localement). Voir **fpctl-build**(1), SECTIONS.
 
 **ingest all** | **ingest** *catégorie* [**all**|*source*]
 :   Télécharge, archive et charge les jeux de données sources, rangées par

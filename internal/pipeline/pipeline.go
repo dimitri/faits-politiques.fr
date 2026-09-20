@@ -20,8 +20,8 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 )
@@ -197,7 +197,6 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 		limite = 1
 	}
 
-	var affichage sync.Mutex
 	for _, vague := range niveaux {
 		g, gctx := errgroup.WithContext(ctx)
 		g.SetLimit(limite)
@@ -205,9 +204,12 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 			nom := nom
 			g.Go(func() error {
 				e := r.etapes[nom]
-				affichage.Lock()
-				fmt.Printf("\n%s\n", nom)
-				affichage.Unlock()
+				// logs.Notice, pas fmt.Printf : plusieurs étapes de la même
+				// vague narrent de front (Concurrence > 1), et internal/logs
+				// sait déjà sérialiser proprement des écritures concurrentes
+				// sur le même stderr (voir internal/logs/lock.go) — un mutex
+				// posé ici ferait la même chose en moins bien.
+				logs.Notice(e.Description, "etape", nom)
 				if err := e.Executer(gctx); err != nil {
 					return fmt.Errorf("%s : %w", nom, err)
 				}
