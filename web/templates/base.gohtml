@@ -76,7 +76,7 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
         <a href="{{.Root}}/sujets/retraites/">Retraites</a>
         <a href="{{.Root}}/argent-public/dette/">Dette publique</a>
         <a href="{{.Root}}/sujets/sante/">Santé</a>
-        <a href="{{.Root}}/sujets/police/">Police</a>
+        <a href="{{.Root}}/sujets/police/">Sécurité</a>
         <a href="{{.Root}}/sujets/immigration/">Immigration</a>
         <a href="{{.Root}}/candidats/">Candidats 2027</a>
       </div>
@@ -84,7 +84,7 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
     <dl class="ancrage">
       <div><dt>Données arrêtées au</dt><dd>{{.DerniereIngestion}}</dd></div>
       <div><dt>Documents scellés</dt><dd>{{nb .Cov.Documents}}, empreinte SHA-256</dd></div>
-      <div><dt>Reconstruction</dt><dd>intégrale depuis l'archive brute</dd></div>
+      <div><dt>Reconstruction</dt><dd>recalculée depuis les documents scellés, jamais ressaisie à la main</dd></div>
       <div><dt>Vérifier</dt><dd><a href="{{.Root}}/sources/">Sources, licences et dates →</a></dd></div>
     </dl>
   </div>
