@@ -60,15 +60,13 @@ func commandeBuild() *cobra.Command {
 		section := section
 		cmd.AddCommand(&cobra.Command{
 			Use:   section.nom + " [options]",
-			Short: section.description + " — jamais mis en place, réservé à l'itération locale",
+			Short: section.description,
 			Long: section.description + ", en ingérant d'abord ce qu'elle déclare\n" +
 				"nécessiter (idempotent — relancer ne refait pas ce qui est déjà à\n" +
-				"jour), sans reconstruire le reste du site. Le site produit est\n" +
-				"DÉLIBÉRÉMENT INCOMPLET : jamais mis en place automatiquement, jamais\n" +
-				"ce que doit servir le domaine réel — voir « fpctl help build » pour\n" +
-				"le détail des options (-out, -max-scrutins...). -dry-run affiche le\n" +
-				"plan d'ingestion (vagues, concurrence) sans rien ingérer ni\n" +
-				"construire.",
+				"jour), sans reconstruire le reste du site — voir « fpctl help\n" +
+				"build » pour le détail des options (-out, -max-scrutins...).\n" +
+				"-dry-run affiche le plan d'ingestion (vagues, concurrence) sans\n" +
+				"rien ingérer ni construire.",
 			DisableFlagParsing: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
@@ -156,11 +154,16 @@ func construireSection(cmd *cobra.Command, nom, only string, args []string, conc
 	}
 	reste := args
 
+	// Le bandeau « simulation » et le plan par vagues viennent de
+	// pipeline.Registre.afficherPlan (appelé par RunSources ci-dessous) —
+	// pas d'en-tête à nous ici : en écrire un avant RunSources affichait
+	// la « réponse » AVANT le NOTICE migrations que RunSources émet en
+	// premier (stderr, narration), à l'envers de la règle du projet
+	// (stderr d'abord, la réponse ensuite, sur stdout). Notre seul ajout,
+	// la ligne « puis : » ci-dessous, vient donc après coup, dans le même
+	// ordre.
 	dryRun := len(reste) > 0 && (reste[0] == "-dry-run" || reste[0] == "--dry-run")
 	opts := pipeline.Options{DryRun: dryRun, Concurrence: concurrence}
-	if dryRun {
-		fmt.Printf("simulation (rien n'est ingéré ni construit) :\n")
-	}
 	if err := ingest.RunSources(cmd.Context(), "raw", "db/migrations", prealables, opts); err != nil {
 		return fmt.Errorf("préalables (%s) : %w", strings.Join(prealables, ", "), err)
 	}

@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/objectstore"
 	"github.com/spf13/cobra"
 )
@@ -63,6 +64,11 @@ func syncVers(ctx context.Context, bucketDefaut, racineDefaut string, args []str
 	if err != nil {
 		return err
 	}
+	// internal/objectstore.SyncDir ne narre rien pendant l'envoi (aucun
+	// -j, aucune étape à distinguer) : un seul repère avant, un seul
+	// résultat après — sans lui, une synchronisation de plusieurs milliers
+	// de fichiers reste muette jusqu'à la fin.
+	logs.Notice("synchronisation vers l'object store", "bucket", *bucket, "source", *racine)
 	n, octets, err := objectstore.SyncDir(ctx, c, *bucket, *racine)
 	if err != nil {
 		return err
