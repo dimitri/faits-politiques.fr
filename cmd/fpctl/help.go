@@ -40,9 +40,12 @@ func commandeHelp() *cobra.Command {
 }
 
 // afficherManuel extrait la page embarquée vers un fichier temporaire puis
-// appelle l'afficheur système (man -l lit un fichier local sans exiger qu'il
-// soit installé dans une MANPATH) — le même rendu, le même pagineur, les
-// mêmes recherches (/) qu'une vraie page de manuel installée.
+// appelle l'afficheur système — le même rendu, le même pagineur, les mêmes
+// recherches (/) qu'une vraie page de manuel installée. Pas de -l (GNU
+// man-db seulement — le man BSD/mandoc de macOS n'a pas cette option) : le
+// chemin absolu du fichier temporaire contient déjà un "/", ce qui suffit à
+// faire traiter l'argument comme un fichier local plutôt qu'un nom de page
+// sur man-db comme sur mandoc, sans avoir besoin de le demander.
 func afficherManuel(page string) error {
 	contenu, err := pagesManuel.ReadFile("man/" + page + ".1")
 	if err != nil {
@@ -59,7 +62,7 @@ func afficherManuel(page string) error {
 	}
 	f.Close()
 
-	cmd := exec.Command("man", "-l", f.Name())
+	cmd := exec.Command("man", f.Name())
 	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
 	return cmd.Run()
 }
