@@ -126,7 +126,7 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	rows, err = pool.Query(ctx, `
 		SELECT DISTINCT ON (mv.person_id) mv.person_id, mv.organisation_nom
 		FROM mv.scrutin_vote_nominal mv
-		JOIN core.scrutin s ON s.id = mv.scrutin_id
+		JOIN mv.scrutin s ON s.id = mv.scrutin_id
 		WHERE mv.organization_id IS NOT NULL
 		ORDER BY mv.person_id, s.date_seance DESC`)
 	if err != nil {
@@ -198,7 +198,7 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 }
 
 // loadVotesBulk lit mv.person_dernier_vote (internal/matview) — plus le
-// fenêtrage SQL sur la totalité de core.ballot/core.scrutin que cette
+// fenêtrage SQL sur la totalité de core.ballot/mv.scrutin que cette
 // fonction refaisait à chaque construction (déjà en un seul aller-retour,
 // pas une requête par personne, mais toujours un passage complet sur le
 // fait brut). La matvue plafonne à 100 rangs ; limit (60 aujourd'hui) reste

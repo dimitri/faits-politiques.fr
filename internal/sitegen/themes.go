@@ -125,7 +125,7 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 		       coalesce(s.nb_abstentions,0)
 		FROM derived.scrutin_topic t
 		JOIN ref.topic r ON r.code = t.topic_code AND r.taxonomy_version = 'senat'
-		JOIN core.scrutin s ON s.id = t.scrutin_id
+		JOIN mv.scrutin s ON s.id = t.scrutin_id
 		ORDER BY s.date_seance DESC, s.numero DESC`)
 	if err != nil {
 		return nil, err
@@ -209,10 +209,10 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 
 	_ = pool.QueryRow(ctx, `
 		SELECT (SELECT count(DISTINCT t.scrutin_id) FROM derived.scrutin_topic t
-		         JOIN core.scrutin s ON s.id=t.scrutin_id
+		         JOIN mv.scrutin s ON s.id=t.scrutin_id
 		         WHERE s.institution='ASSEMBLEE_NATIONALE'),
 		       (SELECT count(DISTINCT t.scrutin_id) FROM derived.scrutin_topic t
-		         JOIN core.scrutin s ON s.id=t.scrutin_id
+		         JOIN mv.scrutin s ON s.id=t.scrutin_id
 		         WHERE s.institution='PARLEMENT_EUROPEEN'),
 		       (SELECT count(*) FROM ref.topic WHERE taxonomy_version='eurovoc')`).
 		Scan(&st.ScrutinsAN, &st.ScrutinsPE, &st.TotalConcepts)

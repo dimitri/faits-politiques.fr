@@ -98,7 +98,7 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 		       institution::text,
 		       coalesce(type_vote,''), coalesce(resultat,''), source_uid,
 		       coalesce(nb_pour,0), coalesce(nb_contre,0), coalesce(nb_abstentions,0)
-		FROM core.scrutin ORDER BY date_seance DESC, numero DESC LIMIT `+limit)
+		FROM mv.scrutin ORDER BY date_seance DESC, numero DESC LIMIT `+limit)
 	if err != nil {
 		return 0, err
 	}
@@ -373,7 +373,7 @@ var _ = strings.TrimSpace
 func derniersScrutins(ctx context.Context, pool *pgxpool.Pool, limit int) ([]Vote, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT slug, objet, to_char(date_seance,'DD/MM/YYYY'), coalesce(resultat,'')
-		FROM core.scrutin
+		FROM mv.scrutin
 		ORDER BY date_seance DESC, numero DESC
 		LIMIT $1`, limit)
 	if err != nil {
@@ -405,7 +405,7 @@ func derniersFlux(ctx context.Context, pool *pgxpool.Pool, limit int) ([]FluxLig
 		SELECT slug, objet, to_char(date_seance,'DD/MM/YYYY'), coalesce(type_vote,''),
 		       coalesce(resultat,''), coalesce(nb_pour,0), coalesce(nb_contre,0),
 		       coalesce(nb_abstentions,0)
-		FROM core.scrutin
+		FROM mv.scrutin
 		WHERE institution = 'ASSEMBLEE_NATIONALE'
 		ORDER BY date_seance DESC, numero DESC
 		LIMIT $1`, limit)

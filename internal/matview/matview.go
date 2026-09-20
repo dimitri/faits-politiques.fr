@@ -255,6 +255,13 @@ var Catalogue = []Definition{
 	GROUP BY d.indicateur_code, c.code_departement, d.annee`,
 	},
 	{
+		Nom:    "scrutin",
+		Tables: []string{"core.scrutin"},
+		SQL: `SELECT id, slug, institution, source_uid, numero, date_seance, objet,
+	     type_vote, dossier_id, resultat, nb_votants, nb_pour, nb_contre, nb_abstentions
+	FROM core.scrutin`,
+	},
+	{
 		Nom:    "macro_value",
 		Tables: []string{"core.macro_value"},
 		SQL:    `SELECT serie_code, annee, valeur, statut FROM core.macro_value`,

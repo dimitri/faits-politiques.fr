@@ -153,7 +153,7 @@ func loadMembres(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe
 
 // loadScrutinsGroupe lit mv.scrutin_groupe_vote (internal/matview), pivotée
 // par position — plus le GROUP BY sur la totalité de core.ballot que cette
-// fonction refaisait à chaque construction ; le JOIN sur core.scrutin reste
+// fonction refaisait à chaque construction ; le JOIN sur mv.scrutin reste
 // applicatif, mais porte sur une table de quelques dizaines de milliers de
 // lignes, pas sur le fait 4,9 millions de lignes.
 func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe) error {
@@ -172,7 +172,7 @@ func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]
 		         coalesce(sum(n) FILTER (WHERE position='ABSTAIN'), 0) AS abst
 		  FROM mv.scrutin_groupe_vote
 		  GROUP BY 1,2) x
-		JOIN core.scrutin s ON s.id = x.scrutin_id
+		JOIN mv.scrutin s ON s.id = x.scrutin_id
 		ORDER BY x.organization_id, s.date_seance DESC, s.numero DESC`)
 	if err != nil {
 		return err
