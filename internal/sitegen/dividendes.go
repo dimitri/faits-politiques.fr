@@ -71,7 +71,7 @@ func loadDividendes(ctx context.Context, pool *pgxpool.Pool) (*StatsDividendes, 
 		       max(valeur) FILTER (WHERE serie_code='valeur.ajoutee.snf')::float8,
 		       max(valeur) FILTER (WHERE serie_code='remuneration.salaries.snf')::float8,
 		       max(valeur) FILTER (WHERE serie_code='impots.revenu.payes.snf')::float8
-		FROM mv.macro_value
+		FROM core.macro_value
 		WHERE serie_code IN ('dividendes.verses.snf','dividendes.verses.sf',
 		  'dividendes.recus.menages','ebe.snf','valeur.ajoutee.snf',
 		  'remuneration.salaries.snf','impots.revenu.payes.snf')

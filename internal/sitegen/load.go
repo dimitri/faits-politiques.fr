@@ -30,13 +30,10 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	// de tout vote, et un site de 500 000 pages. Les élus locaux sont documentés
 	// par la fiche de leur COMMUNE (docs/mairies-conception.md), pas par une
 	// fiche personnelle sans contenu.
-	rows, err := pool.Query(ctx, `
-		SELECT DISTINCT p.id, p.slug, p.given_name, p.family_name
-		FROM core.person p
-		WHERE EXISTS (SELECT 1 FROM core.ballot b WHERE b.person_id = p.id)
-		   OR EXISTS (SELECT 1 FROM core.mandate m WHERE m.person_id = p.id
-		               AND m.mandate_type IN ('DEPUTE','SENATEUR','DEPUTE_EUROPEEN',
-		                                      'MINISTRE','PRESIDENT_REPUBLIQUE'))`)
+	// mv.person_actif (internal/matview) porte déjà ce filtre — plus le
+	// scan de core.person (515 374 lignes) que cette requête refaisait à
+	// chaque construction.
+	rows, err := pool.Query(ctx, `SELECT id, slug, given_name, family_name FROM mv.person_actif`)
 	if err != nil {
 		return nil, err
 	}
@@ -50,12 +47,16 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	}
 	rows.Close()
 
+	// mv.mandate_actif (internal/matview) ne porte déjà que les mandats des
+	// personnes actives — plus le scan de core.mandate (617 196 lignes,
+	// dont 508 788 conseillers municipaux) que cette requête refaisait,
+	// filtrant seulement APRÈS coup en Go.
 	rows, err = pool.Query(ctx, `
 		SELECT person_id, mandate_type::text, coalesce(constituency,''),
 		       coalesce(role,''), coalesce(portefeuille,''),
 		       lower(validity)::text, coalesce(upper(validity)::text,''),
 		       coalesce(commune_code,'')
-		FROM core.mandate ORDER BY lower(validity) DESC`)
+		FROM mv.mandate_actif ORDER BY lower(validity) DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -84,12 +85,16 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	}
 	rows.Close()
 
+	// mv.affiliation_actif (internal/matview) ne porte déjà que les
+	// appartenances des personnes actives, nom d'organisation déjà joint —
+	// plus le scan sans filtre de core.affiliation (173 868 lignes) que
+	// cette requête refaisait.
 	rows, err = pool.Query(ctx, `
-		SELECT a.person_id, o.name, a.organization_kind::text, a.declared_via::text,
-		       lower(a.validity)::text, coalesce(upper(a.validity)::text,''),
-		       upper_inf(a.validity)
-		FROM core.affiliation a JOIN core.organization o ON o.id = a.organization_id
-		ORDER BY a.organization_kind, lower(a.validity) DESC`)
+		SELECT person_id, organization_nom, organization_kind::text, declared_via::text,
+		       lower(validity)::text, coalesce(upper(validity)::text,''),
+		       upper_inf(validity)
+		FROM mv.affiliation_actif
+		ORDER BY organization_kind, lower(validity) DESC`)
 	if err != nil {
 		return nil, err
 	}
@@ -126,7 +131,7 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	rows, err = pool.Query(ctx, `
 		SELECT DISTINCT ON (mv.person_id) mv.person_id, mv.organisation_nom
 		FROM mv.scrutin_vote_nominal mv
-		JOIN mv.scrutin s ON s.id = mv.scrutin_id
+		JOIN core.scrutin s ON s.id = mv.scrutin_id
 		WHERE mv.organization_id IS NOT NULL
 		ORDER BY mv.person_id, s.date_seance DESC`)
 	if err != nil {
@@ -198,7 +203,7 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 }
 
 // loadVotesBulk lit mv.person_dernier_vote (internal/matview) — plus le
-// fenêtrage SQL sur la totalité de core.ballot/mv.scrutin que cette
+// fenêtrage SQL sur la totalité de core.ballot/core.scrutin que cette
 // fonction refaisait à chaque construction (déjà en un seul aller-retour,
 // pas une requête par personne, mais toujours un passage complet sur le
 // fait brut). La matvue plafonne à 100 rangs ; limit (60 aujourd'hui) reste

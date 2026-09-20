@@ -62,7 +62,7 @@ var Catalogue = []Definition{
 	     coalesce(o.short_name, o.name)                   AS organisation_nom,
 	     o.slug                                            AS organisation_slug,
 	     coalesce(b.position_rectifiee, b.position)::text AS position,
-	     count(*)::int                                    AS n
+	     count(*)::int                                    AS nombre_votes
 	FROM core.ballot b
 	JOIN core.organization o ON o.id = b.organization_id
 	GROUP BY 1, 2, 3, 4, 5`,
@@ -254,27 +254,38 @@ var Catalogue = []Definition{
 	WHERE d.diffuse
 	GROUP BY d.indicateur_code, c.code_departement, d.annee`,
 	},
+	// person_actif D'ABORD : mandate_actif et affiliation_actif la lisent
+	// par SELECT (même raison que dept_population, voir plus haut).
 	{
-		Nom:    "scrutin",
-		Tables: []string{"core.scrutin"},
-		SQL: `SELECT id, slug, institution, source_uid, numero, date_seance, objet,
-	     type_vote, dossier_id, resultat, nb_votants, nb_pour, nb_contre, nb_abstentions
-	FROM core.scrutin`,
+		Nom:    "person_actif",
+		Tables: []string{"core.person", "core.ballot", "core.mandate"},
+		SQL: `SELECT p.id, p.slug, p.given_name, p.family_name
+	FROM core.person p
+	WHERE EXISTS (SELECT 1 FROM core.ballot b WHERE b.person_id = p.id)
+	   OR EXISTS (SELECT 1 FROM core.mandate m WHERE m.person_id = p.id
+	               AND m.mandate_type IN ('DEPUTE','SENATEUR','DEPUTE_EUROPEEN',
+	                                      'MINISTRE','PRESIDENT_REPUBLIQUE'))`,
 	},
 	{
-		Nom:    "macro_value",
-		Tables: []string{"core.macro_value"},
-		SQL:    `SELECT serie_code, annee, valeur, statut FROM core.macro_value`,
+		Nom:    "mandate_actif",
+		Tables: []string{"core.mandate", "mv.person_actif"},
+		SQL: `SELECT m.person_id, m.mandate_type, m.constituency, m.role, m.portefeuille,
+	     m.validity, m.commune_code
+	FROM core.mandate m
+	WHERE m.person_id IN (SELECT id FROM mv.person_actif)`,
 	},
 	{
-		Nom:    "macro_serie",
-		Tables: []string{"ref.macro_serie"},
-		SQL:    `SELECT code, label, unite, producteur, definition, famille, cofog FROM ref.macro_serie`,
+		Nom:    "affiliation_actif",
+		Tables: []string{"core.affiliation", "core.organization", "mv.person_actif"},
+		SQL: `SELECT a.person_id, o.name AS organization_nom, a.organization_kind, a.declared_via, a.validity
+	FROM core.affiliation a
+	JOIN core.organization o ON o.id = a.organization_id
+	WHERE a.person_id IN (SELECT id FROM mv.person_actif)`,
 	},
 	{
 		Nom:    "commune_association_count",
 		Tables: []string{"core.association"},
-		SQL: `SELECT commune_code, count(*) AS n
+		SQL: `SELECT commune_code, count(*) AS nombre_associations
 	FROM core.association
 	WHERE commune_code IS NOT NULL
 	GROUP BY commune_code`,
@@ -299,6 +310,54 @@ var Catalogue = []Definition{
 	  AND p.mois = (SELECT max(mois) FROM core.prestation_solidarite
 	                 WHERE serie = 'RSA_beneficiaires' AND niveau = 'DEPARTEMENT')`,
 	},
+}
+
+// TableDirecte : une table de core/ref/geo que internal/sitegen lit
+// DIRECTEMENT, sans passer par une matvue — parce qu'aucun pré-agrégat,
+// pré-jointure ou pré-filtre ne réduirait ce qu'elle sert : le code Go en
+// lit l'essentiel du contenu (« en gros »), pour une table déjà petite.
+// Une matvue miroir n'y ajouterait rien — voir la migration 0165, qui en
+// supprime trois créées avant que cette distinction soit posée : mv.
+// scrutin/mv.macro_value/mv.macro_serie ne faisaient QUE recopier leur
+// source, doublant le stockage et le coût de REFRESH pour un gain nul.
+//
+// Suivies ici EXPLICITEMENT plutôt que devinées : le périmètre d'un dump
+// -Fc pour reconstruire le site en CI (voir docs/ci-pipeline.md) est le
+// schéma mv EN ENTIER, PLUS ces tables-ci — jamais mv seul. Un export qui
+// oublierait une entrée ici ferait échouer fpctl build site en CI sur une
+// relation manquante, pas silencieusement : voir Perimetre().
+type TableDirecte struct {
+	Table  string // schema.table qualifié
+	Raison string // pourquoi une matvue n'ajouterait rien ici
+}
+
+// TablesDirectes : la liste tenue à la main, dans le même esprit que
+// checksum.Sections ou ingestPrealables (cmd/fpctl/build.go) — sous-couvrir
+// cette liste ne fait jamais construire une page fausse (l'échec est un
+// dump CI incomplet, détecté tout de suite par une relation manquante),
+// au pire un export CI trop large.
+var TablesDirectes = []TableDirecte{
+	{"core.scrutin", "lu par institution/date/slug/dossier_id dans huit fichiers, jamais agrégé — 38 042 lignes"},
+	{"core.macro_value", "lu par serie_code dans onze fichiers, jamais agrégé — 1 988 lignes"},
+	{"ref.macro_serie", "table de libellés pour macro_value — 61 lignes"},
+	{"core.organization", "table de référence (nom, slug, type) largement réutilisée, sans agrégation dominante — 5 650 lignes"},
+}
+
+// Perimetre : le nom qualifié de chaque objet nécessaire pour reconstruire
+// le site depuis un dump — toutes les matvues du Catalogue (schéma mv,
+// PAS leurs tables source : le contenu déjà calculé suffit, aucun REFRESH
+// n'est nécessaire en CI) plus TablesDirectes. Sert à construire la
+// commande pg_dump -Fc du chantier CI (« shallow clone ») — voir
+// docs/ci-pipeline.md.
+func Perimetre() []string {
+	out := make([]string, 0, len(Catalogue)+len(TablesDirectes))
+	for _, def := range Catalogue {
+		out = append(out, def.QualifieNom())
+	}
+	for _, t := range TablesDirectes {
+		out = append(out, t.Table)
+	}
+	return out
 }
 
 func sqlHash(sql string) string {

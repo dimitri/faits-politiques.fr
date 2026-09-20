@@ -61,14 +61,14 @@ func dessinerThemesEuroVoc(themes []ThemeEuroVoc) template.HTML {
 // institution — mais ils ne sont JAMAIS agrégés avec eux : ce sont deux espaces
 // de vote distincts, non superposables.
 // loadEurope lit mv.scrutin_vote_nominal (internal/matview) au lieu de
-// core.ballot directement — le JOIN sur mv.scrutin (institution) reste
+// core.ballot directement — le JOIN sur core.scrutin (institution) reste
 // applicatif, mais porte sur une table de quelques dizaines de milliers de
 // lignes, pas sur le fait 4,9 millions de lignes.
 func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 	e := &StatsEurope{}
 	if err := pool.QueryRow(ctx, `
-		SELECT (SELECT count(*) FROM mv.scrutin WHERE institution='PARLEMENT_EUROPEEN'),
-		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN mv.scrutin s ON s.id=mv.scrutin_id
+		SELECT (SELECT count(*) FROM core.scrutin WHERE institution='PARLEMENT_EUROPEEN'),
+		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
 		         WHERE s.institution='PARLEMENT_EUROPEEN'),
 		       (SELECT count(*) FROM core.person_identifier WHERE scheme='EP_MEP')`).
 		Scan(&e.Scrutins, &e.Votes, &e.Eurodeputes); err != nil {
@@ -82,7 +82,7 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 		       count(*) FILTER (WHERE mv.position='AGAINST'),
 		       count(*) FILTER (WHERE mv.position='ABSTAIN')
 		FROM mv.scrutin_vote_nominal mv
-		JOIN mv.scrutin s ON s.id = mv.scrutin_id AND s.institution='PARLEMENT_EUROPEEN'
+		JOIN core.scrutin s ON s.id = mv.scrutin_id AND s.institution='PARLEMENT_EUROPEEN'
 		JOIN core.organization o ON o.id = mv.organization_id
 		GROUP BY o.slug, o.name, o.short_name
 		ORDER BY 4 DESC`)
@@ -101,7 +101,7 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 
 	rows, err = pool.Query(ctx, `
 		SELECT slug, objet, to_char(date_seance,'DD/MM/YYYY'), coalesce(type_vote,'')
-		FROM mv.scrutin WHERE institution='PARLEMENT_EUROPEEN'
+		FROM core.scrutin WHERE institution='PARLEMENT_EUROPEEN'
 		ORDER BY date_seance DESC, numero DESC LIMIT 50`)
 	if err != nil {
 		return nil, err

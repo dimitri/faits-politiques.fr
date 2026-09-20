@@ -142,18 +142,18 @@ func loadFrise(ctx context.Context, pool *pgxpool.Pool, dataDir string) (*StatsF
 		       max(valeur) FILTER (WHERE serie_code='rsa.foyers' AND annee=2016)::float8,
 		       max(valeur) FILTER (WHERE serie_code='rsa.foyers' AND annee=2020)::float8,
 		       max(annee) FILTER (WHERE serie_code='rsa.foyers')
-		FROM mv.macro_value WHERE serie_code IN ('chomeurs.nombre','rsa.foyers')`).
+		FROM core.macro_value WHERE serie_code IN ('chomeurs.nombre','rsa.foyers')`).
 		Scan(&st.Chomage.BIT2015, &st.Chomage.BIT2022, &st.Chomage.AnDernierBIT,
 			&st.Chomage.RSA2016, &st.Chomage.RSA2020, &st.Chomage.AnDernierRSA)
 	_ = pool.QueryRow(ctx, `
 		SELECT max(valeur) FILTER (WHERE serie_code='chomeurs.nombre' AND annee=$1)::float8,
 		       max(valeur) FILTER (WHERE serie_code='rsa.foyers' AND annee=$2)::float8
-		FROM mv.macro_value`, st.Chomage.AnDernierBIT, st.Chomage.AnDernierRSA).
+		FROM core.macro_value`, st.Chomage.AnDernierBIT, st.Chomage.AnDernierRSA).
 		Scan(&st.Chomage.BITDernier, &st.Chomage.RSADernier)
 
 	// Les quatre composantes du « labour market slack », année par année.
 	srows, err := pool.Query(ctx, `
-		SELECT annee, serie_code, valeur::float8 FROM mv.macro_value
+		SELECT annee, serie_code, valeur::float8 FROM core.macro_value
 		WHERE serie_code IN ('chomeurs.nombre','chomage.sous_emploi_temps_partiel',
 		                      'chomage.cherchent_indisponibles','chomage.disponibles_sans_recherche')
 		ORDER BY annee`)
@@ -255,8 +255,8 @@ func loadFrise(ctx context.Context, pool *pgxpool.Pool, dataDir string) (*StatsF
 		case "__ratio_div":
 			rows, qerr = pool.Query(ctx, `
 				SELECT d.annee, 100.0*d.valeur/nullif(e.valeur,0)
-				FROM mv.macro_value d
-				JOIN mv.macro_value e ON e.annee=d.annee AND e.serie_code='ebe.snf'
+				FROM core.macro_value d
+				JOIN core.macro_value e ON e.annee=d.annee AND e.serie_code='ebe.snf'
 				WHERE d.serie_code='dividendes.verses.snf' ORDER BY 1`)
 		case "__securite":
 			rows, qerr = pool.Query(ctx, `
@@ -264,7 +264,7 @@ func loadFrise(ctx context.Context, pool *pgxpool.Pool, dataDir string) (*StatsF
 				FROM core.commune_delinquance WHERE diffuse GROUP BY 1 ORDER BY 1`)
 		default:
 			rows, qerr = pool.Query(ctx,
-				`SELECT annee, valeur FROM mv.macro_value WHERE serie_code=$1 ORDER BY 1`, d.code)
+				`SELECT annee, valeur FROM core.macro_value WHERE serie_code=$1 ORDER BY 1`, d.code)
 		}
 		if qerr != nil {
 			return nil, qerr

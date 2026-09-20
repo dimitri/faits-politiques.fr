@@ -2207,11 +2207,11 @@ func coverage(ctx context.Context, pool *pgxpool.Pool) (Coverage, error) {
 	// (seulement des count(*)/count(DISTINCT)), donc rien à préserver de ce
 	// côté — voir loadPersons (load.go) pour le cas où ça compterait.
 	err := pool.QueryRow(ctx, `
-		SELECT (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN mv.scrutin s ON s.id=mv.scrutin_id
+		SELECT (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
 		         WHERE s.institution='ASSEMBLEE_NATIONALE'),
 		       (SELECT count(DISTINCT person_id) FROM core.mandate WHERE mandate_type = 'DEPUTE'),
 		       (SELECT count(*) FROM core.organization),
-		       (SELECT count(*) FROM mv.scrutin WHERE institution='ASSEMBLEE_NATIONALE'),
+		       (SELECT count(*) FROM core.scrutin WHERE institution='ASSEMBLEE_NATIONALE'),
 		       (SELECT count(*) FROM core.dossier)`).
 		Scan(&c.Ballots, &c.Deputes, &c.Orgs, &c.Scrutins, &c.Dossiers)
 	if err != nil {
@@ -2219,13 +2219,13 @@ func coverage(ctx context.Context, pool *pgxpool.Pool) (Coverage, error) {
 	}
 	err = pool.QueryRow(ctx, `
 		SELECT (SELECT count(*) FROM raw.document),
-		       (SELECT count(*) FROM mv.scrutin WHERE institution='PARLEMENT_EUROPEEN'),
+		       (SELECT count(*) FROM core.scrutin WHERE institution='PARLEMENT_EUROPEEN'),
 		       (SELECT count(DISTINCT topic_code) FROM core.topic_assignment),
-		       (SELECT count(*) FROM mv.scrutin WHERE institution='SENAT'),
-		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN mv.scrutin s ON s.id=mv.scrutin_id
+		       (SELECT count(*) FROM core.scrutin WHERE institution='SENAT'),
+		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
 		         WHERE s.institution='SENAT'),
 		       (SELECT count(DISTINCT mv.person_id) FROM mv.scrutin_vote_nominal mv
-		         JOIN mv.scrutin s ON s.id=mv.scrutin_id WHERE s.institution='SENAT'),
+		         JOIN core.scrutin s ON s.id=mv.scrutin_id WHERE s.institution='SENAT'),
 		       (SELECT count(*) FROM ref.topic WHERE taxonomy_version='senat'),
 		       (SELECT count(DISTINCT commune_code) FROM core.commune_indicator)`).
 		Scan(&c.Documents, &c.ScrutinsPE, &c.Themes,

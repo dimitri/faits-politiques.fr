@@ -22,20 +22,20 @@ type StatsSenat struct {
 }
 
 // loadSenat lit mv.scrutin_vote_nominal (internal/matview) au lieu de
-// core.ballot directement — le JOIN sur mv.scrutin (institution) reste
+// core.ballot directement — le JOIN sur core.scrutin (institution) reste
 // applicatif, mais porte sur une table de quelques dizaines de milliers de
 // lignes, pas sur le fait 4,9 millions de lignes.
 func loadSenat(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Person) (*StatsSenat, error) {
 	st := &StatsSenat{}
 	if err := pool.QueryRow(ctx, `
-		SELECT (SELECT count(*) FROM mv.scrutin WHERE institution='SENAT'),
-		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN mv.scrutin s ON s.id=mv.scrutin_id
+		SELECT (SELECT count(*) FROM core.scrutin WHERE institution='SENAT'),
+		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
 		         WHERE s.institution='SENAT'),
 		       (SELECT count(DISTINCT mv.person_slug) FROM mv.scrutin_vote_nominal mv
-		         JOIN mv.scrutin s ON s.id=mv.scrutin_id WHERE s.institution='SENAT'),
-		       coalesce((SELECT to_char(min(date_seance),'DD/MM/YYYY') FROM mv.scrutin
+		         JOIN core.scrutin s ON s.id=mv.scrutin_id WHERE s.institution='SENAT'),
+		       coalesce((SELECT to_char(min(date_seance),'DD/MM/YYYY') FROM core.scrutin
 		         WHERE institution='SENAT'),''),
-		       coalesce((SELECT to_char(max(date_seance),'DD/MM/YYYY') FROM mv.scrutin
+		       coalesce((SELECT to_char(max(date_seance),'DD/MM/YYYY') FROM core.scrutin
 		         WHERE institution='SENAT'),'')`).
 		Scan(&st.Scrutins, &st.Votes, &st.Senateurs, &st.Debut, &st.Fin); err != nil {
 		return nil, err
@@ -44,7 +44,7 @@ func loadSenat(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Pers
 	rows, err := pool.Query(ctx, `
 		SELECT slug, objet, to_char(date_seance,'DD/MM/YYYY'),
 		       coalesce(nb_pour,0), coalesce(nb_contre,0), coalesce(nb_abstentions,0)
-		FROM mv.scrutin WHERE institution='SENAT'
+		FROM core.scrutin WHERE institution='SENAT'
 		ORDER BY date_seance DESC, numero DESC LIMIT 40`)
 	if err != nil {
 		return nil, err
@@ -68,7 +68,7 @@ func loadSenat(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Pers
 
 	srows, err := pool.Query(ctx, `
 		SELECT DISTINCT mv.person_slug FROM mv.scrutin_vote_nominal mv
-		JOIN mv.scrutin s ON s.id = mv.scrutin_id
+		JOIN core.scrutin s ON s.id = mv.scrutin_id
 		WHERE s.institution='SENAT'`)
 	if err != nil {
 		return nil, err

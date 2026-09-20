@@ -75,8 +75,8 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 	st := &StatsDette{}
 	rows, err := pool.Query(ctx, `
 		SELECT m.annee, m.valeur::float8, p.valeur::float8
-		FROM mv.macro_value m
-		LEFT JOIN mv.macro_value p ON p.annee=m.annee AND p.serie_code='dette.publique.pib'
+		FROM core.macro_value m
+		LEFT JOIN core.macro_value p ON p.annee=m.annee AND p.serie_code='dette.publique.pib'
 		WHERE m.serie_code='dette.publique.meur' ORDER BY m.annee`)
 	if err != nil {
 		return nil, err
@@ -178,7 +178,7 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 
 	// La dépense par fonction : ce qui remplace la « dette par domaine ».
 	_ = pool.QueryRow(ctx, `
-		SELECT max(annee), min(annee) FROM mv.macro_value WHERE serie_code='depense.GF10'`).
+		SELECT max(annee), min(annee) FROM core.macro_value WHERE serie_code='depense.GF10'`).
 		Scan(&st.AnneeFonctions, &st.DebutFonctions)
 	var totFin, totDeb float64
 	for _, f := range cofog {
@@ -186,7 +186,7 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 		_ = pool.QueryRow(ctx, `
 			SELECT max(valeur) FILTER (WHERE annee=$2)::float8,
 			       max(valeur) FILTER (WHERE annee=$3)::float8
-			FROM mv.macro_value WHERE serie_code=$1`,
+			FROM core.macro_value WHERE serie_code=$1`,
 			f.code, st.AnneeFonctions, st.DebutFonctions).Scan(&a, &b)
 		if a != nil {
 			totFin += *a
@@ -198,11 +198,11 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 	for _, f := range cofog {
 		var a, b *float64
 		var lib string
-		_ = pool.QueryRow(ctx, `SELECT label FROM mv.macro_serie WHERE code=$1`, f.code).Scan(&lib)
+		_ = pool.QueryRow(ctx, `SELECT label FROM ref.macro_serie WHERE code=$1`, f.code).Scan(&lib)
 		_ = pool.QueryRow(ctx, `
 			SELECT max(valeur) FILTER (WHERE annee=$2)::float8,
 			       max(valeur) FILTER (WHERE annee=$3)::float8
-			FROM mv.macro_value WHERE serie_code=$1`,
+			FROM core.macro_value WHERE serie_code=$1`,
 			f.code, st.AnneeFonctions, st.DebutFonctions).Scan(&a, &b)
 		fd := FonctionDepense{Code: f.code, Libelle: f.court}
 		if a != nil {

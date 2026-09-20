@@ -71,7 +71,7 @@ func loadGroupes(ctx context.Context, pool *pgxpool.Pool) (map[string]*Groupe, e
 	// matview) porte déjà un total par scrutin ; sommé sur tous les
 	// scrutins, il donne le total par groupe sans rescanner core.ballot.
 	rows, err = pool.Query(ctx, `
-		SELECT organization_id, position, sum(n)::int
+		SELECT organization_id, position, sum(nombre_votes)::int
 		FROM mv.scrutin_groupe_vote
 		GROUP BY 1,2`)
 	if err != nil {
@@ -153,7 +153,7 @@ func loadMembres(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe
 
 // loadScrutinsGroupe lit mv.scrutin_groupe_vote (internal/matview), pivotée
 // par position — plus le GROUP BY sur la totalité de core.ballot que cette
-// fonction refaisait à chaque construction ; le JOIN sur mv.scrutin reste
+// fonction refaisait à chaque construction ; le JOIN sur core.scrutin reste
 // applicatif, mais porte sur une table de quelques dizaines de milliers de
 // lignes, pas sur le fait 4,9 millions de lignes.
 func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe) error {
@@ -167,12 +167,12 @@ func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]
 		         -- — un scrutin sans abstention dans ce groupe n'a aucune
 		         -- ligne 'ABSTAIN' du tout, et sum() sur un ensemble vide
 		         -- rend NULL, jamais 0 (contrairement à count()).
-		         coalesce(sum(n) FILTER (WHERE position='FOR'), 0)     AS pour,
-		         coalesce(sum(n) FILTER (WHERE position='AGAINST'), 0) AS contre,
-		         coalesce(sum(n) FILTER (WHERE position='ABSTAIN'), 0) AS abst
+		         coalesce(sum(nombre_votes) FILTER (WHERE position='FOR'), 0)     AS pour,
+		         coalesce(sum(nombre_votes) FILTER (WHERE position='AGAINST'), 0) AS contre,
+		         coalesce(sum(nombre_votes) FILTER (WHERE position='ABSTAIN'), 0) AS abst
 		  FROM mv.scrutin_groupe_vote
 		  GROUP BY 1,2) x
-		JOIN mv.scrutin s ON s.id = x.scrutin_id
+		JOIN core.scrutin s ON s.id = x.scrutin_id
 		ORDER BY x.organization_id, s.date_seance DESC, s.numero DESC`)
 	if err != nil {
 		return err

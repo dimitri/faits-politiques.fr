@@ -98,7 +98,7 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 		       institution::text,
 		       coalesce(type_vote,''), coalesce(resultat,''), source_uid,
 		       coalesce(nb_pour,0), coalesce(nb_contre,0), coalesce(nb_abstentions,0)
-		FROM mv.scrutin ORDER BY date_seance DESC, numero DESC LIMIT `+limit)
+		FROM core.scrutin ORDER BY date_seance DESC, numero DESC LIMIT `+limit)
 	if err != nil {
 		return 0, err
 	}
@@ -268,7 +268,7 @@ func chargerExposes(ctx context.Context, pool *pgxpool.Pool) (map[int64]*ExposeM
 // principe que core.section_checksum pour le cache de construction.
 func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool) (map[int64][]GroupeLigne, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT scrutin_id, organisation_nom, organisation_slug, position, n
+		SELECT scrutin_id, organisation_nom, organisation_slug, position, nombre_votes
 		FROM mv.scrutin_groupe_vote`)
 	if err != nil {
 		return nil, err
@@ -373,7 +373,7 @@ var _ = strings.TrimSpace
 func derniersScrutins(ctx context.Context, pool *pgxpool.Pool, limit int) ([]Vote, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT slug, objet, to_char(date_seance,'DD/MM/YYYY'), coalesce(resultat,'')
-		FROM mv.scrutin
+		FROM core.scrutin
 		ORDER BY date_seance DESC, numero DESC
 		LIMIT $1`, limit)
 	if err != nil {
@@ -405,7 +405,7 @@ func derniersFlux(ctx context.Context, pool *pgxpool.Pool, limit int) ([]FluxLig
 		SELECT slug, objet, to_char(date_seance,'DD/MM/YYYY'), coalesce(type_vote,''),
 		       coalesce(resultat,''), coalesce(nb_pour,0), coalesce(nb_contre,0),
 		       coalesce(nb_abstentions,0)
-		FROM mv.scrutin
+		FROM core.scrutin
 		WHERE institution = 'ASSEMBLEE_NATIONALE'
 		ORDER BY date_seance DESC, numero DESC
 		LIMIT $1`, limit)

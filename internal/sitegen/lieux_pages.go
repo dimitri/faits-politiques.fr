@@ -290,7 +290,7 @@ func chargerPagesCommunes(ctx context.Context, pool *pgxpool.Pool, r *Resolveur,
 	// (1,18 million de lignes).
 	g.Go(func() error {
 		arows, err := pool.Query(gctx, `
-			SELECT commune_code, n FROM mv.commune_association_count`)
+			SELECT commune_code, nombre_associations FROM mv.commune_association_count`)
 		if err != nil {
 			return err
 		}

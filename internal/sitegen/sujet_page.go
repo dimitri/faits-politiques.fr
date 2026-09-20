@@ -570,7 +570,7 @@ func enBref(ctx context.Context, pool *pgxpool.Pool, s *Sujet, acc *DonneesAccue
 	macro := func(code, libelle, source string, format func(float64) string) {
 		var annee int
 		var v float64
-		if err := pool.QueryRow(ctx, `SELECT annee, valeur::float8 FROM mv.macro_value WHERE serie_code=$1 ORDER BY annee DESC LIMIT 1`, code).Scan(&annee, &v); err != nil {
+		if err := pool.QueryRow(ctx, `SELECT annee, valeur::float8 FROM core.macro_value WHERE serie_code=$1 ORDER BY annee DESC LIMIT 1`, code).Scan(&annee, &v); err != nil {
 			return
 		}
 		ajouter(ChiffreCle{format(v), libelle, fmt.Sprintf("%d · %s", annee, source)}, true)

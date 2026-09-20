@@ -418,12 +418,12 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	// sens strict ne couvre pas).
 	_ = pool.QueryRow(ctx, `
 		SELECT max(annee) FILTER (WHERE serie_code='protection.financement.cotisations.employeurs')
-		FROM mv.macro_value`).Scan(&c.AnneeCotisations)
+		FROM core.macro_value`).Scan(&c.AnneeCotisations)
 	var cotEmpl, cotProt float64
 	_ = pool.QueryRow(ctx, `
 		SELECT sum(valeur) FILTER (WHERE serie_code='protection.financement.cotisations.employeurs'),
 		       sum(valeur) FILTER (WHERE serie_code='protection.financement.cotisations.protegees')
-		FROM mv.macro_value WHERE annee=$1`, c.AnneeCotisations).Scan(&cotEmpl, &cotProt)
+		FROM core.macro_value WHERE annee=$1`, c.AnneeCotisations).Scan(&cotEmpl, &cotProt)
 	c.CotisationsVersees = (cotEmpl + cotProt) * 1e6
 	// La comparaison à la même source : encaissements URSSAF des entreprises
 	// (secteur privé hors GEN + GEN) contre exonérations URSSAF, TOUTES DEUX

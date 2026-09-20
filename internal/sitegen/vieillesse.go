@@ -52,7 +52,7 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 	// Vieillesse + survivants (COFOG GF1002+GF1003), 1995-2024.
 	rows, err := pool.Query(ctx, `
 		SELECT mv.annee, sum(mv.valeur)/1e3 AS md_eur
-		FROM mv.macro_value mv JOIN mv.macro_serie rs ON rs.code = mv.serie_code
+		FROM core.macro_value mv JOIN ref.macro_serie rs ON rs.code = mv.serie_code
 		WHERE rs.cofog IN ('GF1002','GF1003')
 		GROUP BY mv.annee ORDER BY mv.annee`)
 	if err != nil {
@@ -96,7 +96,7 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 	}
 	var totalPublic sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
-		SELECT sum(mv.valeur)/1e3 FROM mv.macro_value mv JOIN mv.macro_serie rs ON rs.code = mv.serie_code
+		SELECT sum(mv.valeur)/1e3 FROM core.macro_value mv JOIN ref.macro_serie rs ON rs.code = mv.serie_code
 		WHERE rs.cofog IN ('GF01','GF02','GF03','GF04','GF05','GF06','GF07','GF08','GF09','GF10')
 		  AND mv.annee = $1`, st.Fin).Scan(&totalPublic); err != nil {
 		return nil, err

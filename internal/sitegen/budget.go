@@ -607,21 +607,21 @@ func loadSecteurs(ctx context.Context, pool *pgxpool.Pool) (*StatsSecteurs, erro
 		{"protection.financement.impot.general", "Recettes fiscales générales"},
 	}
 	_ = pool.QueryRow(ctx, `
-		SELECT max(annee), min(annee) FROM mv.macro_value
+		SELECT max(annee), min(annee) FROM core.macro_value
 		WHERE serie_code='protection.financement.total'`).Scan(&st.AnnFin, &st.DebutFin)
 	var totFin, totDeb float64
 	_ = pool.QueryRow(ctx, `
-		SELECT valeur::float8 FROM mv.macro_value
+		SELECT valeur::float8 FROM core.macro_value
 		WHERE serie_code='protection.financement.total' AND annee=$1`, st.AnnFin).Scan(&totFin)
 	_ = pool.QueryRow(ctx, `
-		SELECT valeur::float8 FROM mv.macro_value
+		SELECT valeur::float8 FROM core.macro_value
 		WHERE serie_code='protection.financement.total' AND annee=$1`, st.DebutFin).Scan(&totDeb)
 	for _, p := range postes {
 		var fin, deb *float64
 		_ = pool.QueryRow(ctx, `
 			SELECT max(valeur) FILTER (WHERE annee=$2)::float8,
 			       max(valeur) FILTER (WHERE annee=$3)::float8
-			FROM mv.macro_value WHERE serie_code=$1`, p.code, st.AnnFin, st.DebutFin).
+			FROM core.macro_value WHERE serie_code=$1`, p.code, st.AnnFin, st.DebutFin).
 			Scan(&fin, &deb)
 		l := LigneFinancement{Code: p.code, Libelle: p.lib}
 		if fin != nil {
@@ -641,7 +641,7 @@ func loadSecteurs(ctx context.Context, pool *pgxpool.Pool) (*StatsSecteurs, erro
 	// ne compare que deux dates parce qu'un empilement en série devient un mur
 	// de couleurs ; ici il ne l'est pas trop, quatre postes sur 34 ans.
 	frows, err := pool.Query(ctx, `
-		SELECT annee, serie_code, valeur::float8 FROM mv.macro_value
+		SELECT annee, serie_code, valeur::float8 FROM core.macro_value
 		WHERE serie_code = ANY($1) ORDER BY annee`,
 		[]string{"protection.financement.cotisations.employeurs",
 			"protection.financement.cotisations.protegees",

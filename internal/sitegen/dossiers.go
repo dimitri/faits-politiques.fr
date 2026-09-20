@@ -56,7 +56,7 @@ func loadDossiers(ctx context.Context, pool *pgxpool.Pool) (map[int64]*Dossier, 
 		SELECT DISTINCT d.id, d.slug, d.titre,
 		       coalesce(d.titre_chemin,''), coalesce(d.senat_chemin,'')
 		FROM core.dossier d
-		WHERE EXISTS (SELECT 1 FROM mv.scrutin s WHERE s.dossier_id = d.id)`)
+		WHERE EXISTS (SELECT 1 FROM core.scrutin s WHERE s.dossier_id = d.id)`)
 	if err != nil {
 		return nil, err
 	}
