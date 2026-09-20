@@ -606,6 +606,13 @@ grid-template-columns:repeat(auto-fill,minmax(15rem,1fr))}
 gap:1.4rem;align-items:start;flex-direction:unset}
 .cartes-lignes .bloc-carte.ligne .q{min-height:0}
 @media(max-width:52rem){.cartes-lignes .bloc-carte.ligne{grid-template-columns:1fr}}
+/* .grandes : la carte pleine plutôt qu'une vignette (accueil, onglets-carte
+   depuis le 20 septembre 2026) — même rapport carte/légende que
+   .cartes-empilees (1.15fr/1fr), scopé à .cartes-lignes.grandes seul pour ne
+   pas élargir la grille étroite des autres usages de .cartes-lignes
+   (l'index complet de /collectivites/, en vignettes, doit le rester). */
+.cartes-lignes.grandes .bloc-carte.ligne{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+@media(max-width:52rem){.cartes-lignes.grandes .bloc-carte.ligne{grid-template-columns:1fr}}
 .bloc-carte{background:var(--carte);border:1px solid var(--filet);
 border-radius:var(--rayon);padding:1.1rem 1.15rem;display:flex;flex-direction:column;
 color:inherit;text-decoration:none;transition:border-color .12s,box-shadow .12s}
