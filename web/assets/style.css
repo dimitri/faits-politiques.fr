@@ -1257,12 +1257,45 @@ text-decoration:none;color:var(--encre)}
 [data-theme=dark] .mille .b i{background:#6F6C66}
 .mille .etalon .b i{background:var(--encre)}
 
+/* Chiffres-clés : trois chiffres avant la grille des familles, sur le
+   modèle des sites de référence du genre (data-journalisme, portails
+   budgétaires) qui ouvrent sur l'ampleur du site avant le détail. Une
+   seule rangée de cellules égales, pas des cartes — ce ne sont pas des
+   liens, juste la preuve du sérieux avant le classement thématique. */
+.chiffres-cles{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--filet);
+border:1px solid var(--filet);border-radius:var(--rayon);overflow:hidden;margin-bottom:1.6rem}
+.chiffres-cles div{background:var(--carte);padding:1.2rem 1.3rem}
+.chiffres-cles b{display:block;font:500 2.2rem/1 var(--titre);letter-spacing:-.01em;
+font-variant-numeric:tabular-nums}
+.chiffres-cles span{display:block;margin-top:.4rem;font-size:.82rem;color:var(--attenue);line-height:1.4}
+@media(max-width:34rem){.chiffres-cles{grid-template-columns:1fr}}
+
 .familles{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(19rem,1fr))}
-.famille{background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);padding:1rem 1.1rem 1.1rem}
-.famille h3{margin:0 0 .15rem;font:500 1.12rem/1.25 var(--titre)}
+.famille{background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);
+padding:1rem 1.1rem 1.1rem;display:flex;flex-direction:column}
+.famille h3{margin:.5rem 0 0;font:500 1.12rem/1.25 var(--titre)}
 .famille h3 a{color:var(--encre);text-decoration:none}
 .famille h3 a:hover{color:var(--accent)}
-.famille .poids{display:block;font:400 .74rem/1.4 var(--mono);color:var(--attenue);margin-bottom:.65rem}
+/* poids-n/poids-u : le chiffre COFOG, en gros, comme un vrai chiffre-clé —
+   plus l'ancien libellé « X € sur 1 000 » en petit texte plat. poids-hors/
+   poids-hu : les familles sans fonction de dépense (fiscalité, histoire…)
+   affichent leur nombre de sujets à la même échelle visuelle, jamais en
+   barre de poids qu'on lirait comme un poids nul. */
+.famille .poids-n{display:block;font:500 1.7rem/1 var(--titre);letter-spacing:-.01em;
+font-variant-numeric:tabular-nums}
+.famille .poids-n .poids-u{font:400 .7rem var(--mono);color:var(--attenue);margin-left:.25rem}
+.famille .poids-hors{display:block;font:500 1.7rem/1 var(--titre);color:var(--attenue);
+letter-spacing:-.01em}
+.famille .poids-hu{display:block;font:400 .66rem/1.6 var(--mono);letter-spacing:.05em;
+text-transform:uppercase;color:var(--attenue)}
+.famille .jauge{margin-top:.4rem}
+.famille .puces{display:flex;flex-wrap:wrap;gap:.35rem;margin:.8rem 0 .9rem}
+.famille .puces a{font:400 .78rem var(--sans);color:var(--attenue);text-decoration:none;
+background:var(--papier2);border:1px solid var(--filet2);border-radius:999px;padding:.26rem .6rem}
+.famille .puces a:hover{color:var(--accent);border-color:var(--accent)}
+.famille .voir{margin-top:auto;padding-top:.5rem;font:500 .8rem var(--sans);color:var(--accent);
+text-decoration:none}
+.famille .voir:hover{text-decoration:underline}
 
 /* Page /sujets/ : les mêmes cartes de famille que l'accueil, en plus grand
    (neuf familles à parcourir plutôt que neuf sections empilées pleine
