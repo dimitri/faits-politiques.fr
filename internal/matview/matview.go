@@ -183,6 +183,13 @@ var Catalogue = []Definition{
 	GROUP BY 1`,
 	},
 	{
+		Nom:    "population_nationale_annee",
+		Tables: []string{"core.population_historique_commune"},
+		SQL: `SELECT annee, sum(population) AS population
+	FROM core.population_historique_commune
+	GROUP BY annee`,
+	},
+	{
 		Nom:    "dept_rsa",
 		Tables: []string{"core.prestation_solidarite", "mv.dept_population"},
 		SQL: `SELECT p.code_geo,

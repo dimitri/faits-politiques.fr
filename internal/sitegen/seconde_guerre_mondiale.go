@@ -90,10 +90,14 @@ type PopulationGuerres struct {
 // Première Guerre mondiale (1911→1921) est directement lisible ; celui de
 // la Seconde ne l'est pas, la source sautant de 1936 à 1954 sans point en
 // 1946.
+// chargerPopulationGuerres lit mv.population_nationale_annee (internal/
+// matview) — plus le GROUP BY sur la totalité de core.
+// population_historique_commune (657k lignes) que cette fonction refaisait
+// à chaque construction.
 func chargerPopulationGuerres(ctx context.Context, pool *pgxpool.Pool) (*PopulationGuerres, error) {
 	rows, err := pool.Query(ctx, `
-		SELECT annee, sum(population) FROM core.population_historique_commune
-		GROUP BY annee ORDER BY annee`)
+		SELECT annee, population FROM mv.population_nationale_annee
+		ORDER BY annee`)
 	if err != nil {
 		return nil, err
 	}
