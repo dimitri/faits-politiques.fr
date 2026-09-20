@@ -20,22 +20,32 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 )
 
-// Etape : une unité d'ingestion nommée, ce dont elle dépend, ce qu'elle fait.
-// Executer garde sa propre logique d'idempotence (comme aujourd'hui) — ce
-// paquet ne décide que DE L'ORDRE (et, en option, du parallélisme), jamais
-// de sauter une étape déjà faite : c'est à l'étape elle-même de le
-// constater vite si c'est le cas.
+// Resultats : ce que les dépendances déjà exécutées d'une étape ont produit,
+// indexé par nom — nil pour une étape qui n'agit que par effet de bord
+// (le cas de tout l'ingest aujourd'hui). internal/matview et internal/sitegen
+// s'en servent pour de vraies valeurs (une matvue rafraîchie, une page
+// chargée) qu'une étape dépendante lit directement au lieu de rejouer le
+// calcul ou de rouvrir une connexion pour le refaire.
+type Resultats map[string]any
+
+// Etape : une unité nommée, ce dont elle dépend, ce qu'elle fait — et ce
+// qu'elle produit, lu par ses dépendantes dans Resultats. Executer garde sa
+// propre logique d'idempotence (comme l'ingest aujourd'hui) — ce paquet ne
+// décide que DE L'ORDRE (et, en option, du parallélisme), jamais de sauter
+// une étape déjà faite : c'est à l'étape elle-même de le constater vite si
+// c'est le cas.
 type Etape struct {
 	Nom         string
 	Description string
 	Dependances []string
-	Executer    func(ctx context.Context) error
+	Executer    func(ctx context.Context, deps Resultats) (any, error)
 }
 
 // Registre : les étapes connues, indexées par nom.
@@ -179,40 +189,59 @@ type Options struct {
 // d'erreur sans rapport avec ce qui manque réellement. À l'intérieur d'une
 // vague, jusqu'à Concurrence étapes tournent de front ; dès qu'une échoue,
 // le contexte des autres est annulé et aucune vague suivante ne démarre.
-func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Options) error {
+//
+// Le Resultats renvoyé porte ce que chaque étape exécutée a produit — vide
+// (valeurs nil) pour un registre dont les étapes n'agissent que par effet
+// de bord, comme l'ingest.
+func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Options) (Resultats, error) {
 	var opt Options
 	if len(opts) > 0 {
 		opt = opts[0]
 	}
 	niveaux, err := r.Niveaux(cibles)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if opt.DryRun {
 		r.afficherPlan(niveaux, opt.Concurrence)
-		return nil
+		return nil, nil
 	}
 	limite := opt.Concurrence
 	if limite < 1 {
 		limite = 1
 	}
 
+	resultats := Resultats{}
+	var mu sync.Mutex
 	for _, vague := range niveaux {
 		g, gctx := errgroup.WithContext(ctx)
 		g.SetLimit(limite)
 		for _, nom := range vague {
 			nom := nom
+			e := r.etapes[nom]
+			// Construit avant de lancer la vague, pas depuis la goroutine :
+			// les vagues précédentes sont déjà entièrement écrites
+			// (g.Wait() ci-dessous s'en assure), donc cette lecture n'a pas
+			// besoin de mu — seules les ÉCRITURES concurrentes dans une même
+			// vague en ont besoin.
+			deps := Resultats{}
+			for _, d := range e.Dependances {
+				deps[d] = resultats[d]
+			}
 			g.Go(func() error {
-				e := r.etapes[nom]
 				// logs.Notice, pas fmt.Printf : plusieurs étapes de la même
 				// vague narrent de front (Concurrence > 1), et internal/logs
 				// sait déjà sérialiser proprement des écritures concurrentes
 				// sur le même stderr (voir internal/logs/lock.go) — un mutex
 				// posé ici ferait la même chose en moins bien.
 				logs.Notice(e.Description, "etape", nom)
-				if err := e.Executer(gctx); err != nil {
+				valeur, err := e.Executer(gctx, deps)
+				if err != nil {
 					return fmt.Errorf("%s : %w", nom, err)
 				}
+				mu.Lock()
+				resultats[nom] = valeur
+				mu.Unlock()
 				if r.pool != nil {
 					if _, err := r.pool.Exec(gctx,
 						`UPDATE core.pipeline_etape SET derniere_execution_reussie = now() WHERE nom = $1`,
@@ -224,10 +253,10 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 			})
 		}
 		if err := g.Wait(); err != nil {
-			return err
+			return nil, err
 		}
 	}
-	return nil
+	return resultats, nil
 }
 
 func (r *Registre) afficherPlan(niveaux [][]string, concurrence int) {

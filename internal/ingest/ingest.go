@@ -94,7 +94,9 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		archEtape.Etape = source.Nom
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
-			Executer: func(ctx context.Context) error { return source.Executer(ctx, pool, &archEtape, rawDir) },
+			Executer: func(ctx context.Context, _ pipeline.Resultats) (any, error) {
+				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
+			},
 		})
 	}
 	if err := reg.Publier(ctx); err != nil {
@@ -138,7 +140,9 @@ func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms [
 		archEtape.Etape = source.Nom
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
-			Executer: func(ctx context.Context) error { return source.Executer(ctx, pool, &archEtape, rawDir) },
+			Executer: func(ctx context.Context, _ pipeline.Resultats) (any, error) {
+				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
+			},
 		})
 		return nil
 	}
@@ -170,7 +174,8 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 	if err != nil {
 		return err
 	}
-	return reg.Executer(ctx, noms, opts...)
+	_, err = reg.Executer(ctx, noms, opts...)
+	return err
 }
 
 // contexte : ce que chaque point d'entrée (RunTout/RunSource/RunCategorie)
@@ -226,13 +231,15 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		if err != nil {
 			return err
 		}
-		return reg.Executer(ctx, []string{nom}, opts...)
+		_, err = reg.Executer(ctx, []string{nom}, opts...)
+		return err
 	}
 	reg, err := registreDe(pool, arch, rawDir, []string{nom})
 	if err != nil {
 		return err
 	}
-	return reg.Executer(ctx, []string{nom}, opts...)
+	_, err = reg.Executer(ctx, []string{nom}, opts...)
+	return err
 }
 
 // RunCategorie exécute toutes les sources d'une catégorie — un choix
@@ -280,7 +287,7 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 		if err != nil {
 			return err
 		}
-		if err := reg.Executer(ctx, socle, opts...); err != nil {
+		if _, err := reg.Executer(ctx, socle, opts...); err != nil {
 			return err
 		}
 	}
@@ -289,7 +296,7 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 		if err != nil {
 			return err
 		}
-		if err := reg.Executer(ctx, reste, opts...); err != nil {
+		if _, err := reg.Executer(ctx, reste, opts...); err != nil {
 			return err
 		}
 	}

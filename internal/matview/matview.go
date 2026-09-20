@@ -26,10 +26,12 @@ import (
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/checksum"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
+	"github.com/faits-politiques/faits-politiques/internal/pipeline"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -104,12 +106,13 @@ var Catalogue = []Definition{
 	WHERE rang <= 100`,
 	},
 	// Les six matvues de loadTerritoires (internal/sitegen/territoires.go).
-	// dept_population EN PREMIER : les quatre suivantes la lisent par SELECT
-	// (une matvue construite sur une autre, voir la migration 0157) — REFRESH
-	// ne cascade pas tout seul, ActualiserToutes doit donc la rafraîchir
-	// avant elles. Un vrai graphe de dépendances (comme internal/pipeline
-	// pour l'ingestion) remplacera cet ordre tenu à la main quand le nombre
-	// de matvues le justifiera.
+	// dept_population D'ABORD dans ce fichier : Registre.Ajouter (registre,
+	// plus bas) panique si une matvue est déclarée avant celle qu'elle cite
+	// dans Tables — les quatre suivantes la lisent par SELECT (une matvue
+	// construite sur une autre, voir la migration 0157), donc leur place ici
+	// doit rester après. L'ORDRE D'EXÉCUTION réel, lui, ne dépend plus de
+	// cette place : registre() lit Tables et construit le graphe de
+	// dépendances que REFRESH ne cascade jamais tout seul.
 	{
 		Nom:    "dept_population",
 		Tables: []string{"core.commune_indicator", "ref.commune"},
@@ -254,8 +257,8 @@ var Catalogue = []Definition{
 	WHERE d.diffuse
 	GROUP BY d.indicateur_code, c.code_departement, d.annee`,
 	},
-	// person_actif D'ABORD : mandate_actif et affiliation_actif la lisent
-	// par SELECT (même raison que dept_population, voir plus haut).
+	// person_actif D'ABORD dans ce fichier, même raison que dept_population
+	// plus haut : mandate_actif et affiliation_actif la lisent par SELECT.
 	{
 		Nom:    "person_actif",
 		Tables: []string{"core.person", "core.ballot", "core.mandate"},
@@ -517,23 +520,64 @@ func Actualiser(ctx context.Context, pool *pgxpool.Pool, def Definition) (rafrai
 	return true, nil
 }
 
-// ActualiserToutes actualise chaque matvue du Catalogue, dans l'ordre —
-// aucune dépendance déclarée entre elles aujourd'hui (une seule), mais
-// gardé en boucle simple plutôt qu'un pipeline.Registre tant qu'une
-// matvue ne dépend pas du résultat d'une autre.
-func ActualiserToutes(ctx context.Context, pool *pgxpool.Pool) error {
+// registre construit le pipeline.Registre du Catalogue pour pool : chaque
+// Definition devient une Etape dont les Dependances sont lues directement
+// dans Tables — toute entrée qui commence par "mv." y nomme une AUTRE
+// matvue du Catalogue (jamais une TableDirecte, qui ne vit pas dans ce
+// schéma), donc c'est exactement le nom qu'attend Registre.Ajouter.
+// Catalogue reste déclaré dépendance-d'abord (dept_population avant ce qui
+// la lit, person_actif avant ce qui le lit) : Ajouter panique sinon, donc
+// cette construction est elle-même une vérification que l'ordre du fichier
+// reste correct.
+//
+// pool volontairement absent de pipeline.NouveauRegistre : le journal
+// core.pipeline_etape que pipeline.Registre.Executer tient à jour reste
+// réservé à l'ingest (internal/ingest), jamais à ce registre-ci — un
+// Registre sans pool saute cette écriture (voir pipeline.go, Executer).
+func registre(pool *pgxpool.Pool) *pipeline.Registre {
+	reg := pipeline.NouveauRegistre(nil)
 	for _, def := range Catalogue {
-		rafraichie, err := Actualiser(ctx, pool, def)
-		if err != nil {
-			return fmt.Errorf("mv.%s : %w", def.Nom, err)
+		def := def
+		var dependances []string
+		for _, t := range def.Tables {
+			if nom, ok := strings.CutPrefix(t, "mv."); ok {
+				dependances = append(dependances, nom)
+			}
 		}
-		if rafraichie {
-			logs.Notice("matvue actualisée", "nom", def.QualifieNom())
-		} else {
-			logs.Notice("matvue déjà à jour", "nom", def.QualifieNom())
-		}
+		reg.Ajouter(pipeline.Etape{
+			Nom:         def.Nom,
+			Description: "vérification de la matvue",
+			Dependances: dependances,
+			Executer: func(ctx context.Context, _ pipeline.Resultats) (any, error) {
+				rafraichie, err := Actualiser(ctx, pool, def)
+				if err != nil {
+					return nil, fmt.Errorf("mv.%s : %w", def.Nom, err)
+				}
+				if rafraichie {
+					logs.Notice("matvue actualisée", "nom", def.QualifieNom())
+				} else {
+					logs.Notice("matvue déjà à jour", "nom", def.QualifieNom())
+				}
+				return rafraichie, nil
+			},
+		})
 	}
-	return nil
+	return reg
+}
+
+// ActualiserToutes actualise chaque matvue du Catalogue, dans l'ordre de
+// dépendance déclaré (registre) plutôt que dans l'ordre du fichier tenu à
+// la main — une matvue construite sur une autre (mv.dept_population,
+// mv.person_actif) est désormais garantie à jour avant que sa dépendante ne
+// soit vérifiée, par construction du graphe plutôt que par une place
+// correcte dans Catalogue. Toujours séquentiel (Options zéro) : deux
+// REFRESH concurrents sur des matvues indépendantes n'ont rien à y gagner
+// tant qu'ActualiserToutes tourne seule dans l'étape "systeme matviews" de
+// l'ingest, jamais à côté d'un autre gros travail sur le même pool.
+func ActualiserToutes(ctx context.Context, pool *pgxpool.Pool) error {
+	reg := registre(pool)
+	_, err := reg.Executer(ctx, reg.Noms())
+	return err
 }
 
 // EtatAffiche : une ligne du catalogue, avec son état connu (ou son
