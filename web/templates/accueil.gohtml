@@ -1,9 +1,13 @@
 {{define "content"}}
 {{$a := .A}}
-{{/* L'accueil suit la proposition du 15 septembre 2026 : la campagne, ce que
-     pèse chaque sujet dans la dépense publique, les sujets, les trois budgets,
-     le même regard département par département, les candidats, les repères,
-     les institutions, les sources. Le flux des derniers scrutins a quitté la
+{{/* Ordre révisé le 20 septembre 2026 (revue de l'accueil vis-à-vis du
+     contenu du site) : la campagne (hero), ce que pèse chaque sujet dans la
+     dépense publique, les sujets, les trois budgets (+ l'argent public
+     lui-même, absent de la page jusqu'ici bien qu'il ait sa propre entrée de
+     menu), les candidats — remontés juste après le budget plutôt qu'après la
+     carte, pour enchaîner dépense → qui décide sans le détour géographique —
+     puis le même regard département par département, les repères, les
+     institutions, les sources. Le flux des derniers scrutins a quitté la
      première page : il reste en tête de la page Assemblée nationale. */}}
 
 {{/* « Sur 1 000 € de dépense publique » est dans le hero, à côté du titre
@@ -46,6 +50,34 @@
   <p class="src-bloc">Source&nbsp;: Eurostat, comptes des administrations publiques (sous-secteurs
   S1311, S1313, S1314). Les trois budgets <strong>ne s'additionnent pas</strong>&nbsp;: les transferts
   entre eux (fraction de TVA, dotations) sont comptés chez l'un et chez l'autre.</p>
+  {{if $a.Argent}}
+  {{/* L'argent public lui-même a sa propre entrée de menu (§ 20 septembre
+       2026, revue de l'accueil) mais n'apparaissait auparavant nulle part sur
+       cette page — seul le budget de l'État y était cité en passant. Repris
+       ici, dans la section qui parle déjà de ce que dépense l'État, plutôt
+       qu'une quatrième carte de famille mélangée aux sujets de campagne : ce
+       n'en est pas un (voir la note de /sujets/). */}}
+  <p class="q" style="margin-top:1.2rem">L'argent public lui-même, au-delà des trois budgets ci-dessus&nbsp;:</p>
+  <div class="decide">
+    {{range $a.Argent.Sujets}}<a href="{{$.Root}}/{{.Lien}}">
+      <b>{{.Nom}}</b>{{if .D}}<span>{{.D.Titre}}</span>{{else if .Pages}}<span>{{(index .Pages 0).Titre}}</span>{{end}}
+    </a>{{end}}
+  </div>
+  {{end}}
+</section>
+
+<section class="bloc">
+  <div class="tete"><div><span class="sur">2027</span>
+    <h2 class="h2">Les candidats déclarés</h2></div>
+    <a class="plus" href="{{.Root}}/2027/">{{sub .Cov.Candidats .Cov.CandidatsPrimaire}} candidatures, {{.Cov.CandidatsPrimaire}} candidats à une primaire →</a></div>
+  <div class="quatre-points">
+    <div><b>Parcours et mandats</b><span>Les fonctions exercées, datées, sous les présidences successives.</span></div>
+    <div><b>Ce qu'ils ont voté</b><span>Pour {{.Cov.CandidatsAvecBilan}} d'entre eux, les votes d'une assemblée couverte par le site.</span></div>
+    <div><b>Leur parti</b><span>Ses comptes publics déposés à la CNCCFP, et les votes de son groupe.</span></div>
+    <div><b>Les sujets</b><span>Pour chaque sujet de campagne, les mêmes chiffres de référence pour tous.</span></div>
+  </div>
+  <p class="src-bloc">Aucun programme n'est noté, aucun candidat n'est classé. Un candidat sans mandat
+  parlementaire n'a pas de vote&nbsp;: la page le dit, elle ne comble pas le vide.</p>
 </section>
 
 {{if $a.Onglets}}
@@ -88,20 +120,6 @@
   l'effet d'une politique. Contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0.</p>
 </section>
 {{end}}
-
-<section class="bloc">
-  <div class="tete"><div><span class="sur">2027</span>
-    <h2 class="h2">Les candidats déclarés</h2></div>
-    <a class="plus" href="{{.Root}}/2027/">{{sub .Cov.Candidats .Cov.CandidatsPrimaire}} candidatures, {{.Cov.CandidatsPrimaire}} candidats à une primaire →</a></div>
-  <div class="quatre-points">
-    <div><b>Parcours et mandats</b><span>Les fonctions exercées, datées, sous les présidences successives.</span></div>
-    <div><b>Ce qu'ils ont voté</b><span>Pour {{.Cov.CandidatsAvecBilan}} d'entre eux, les votes d'une assemblée couverte par le site.</span></div>
-    <div><b>Leur parti</b><span>Ses comptes publics déposés à la CNCCFP, et les votes de son groupe.</span></div>
-    <div><b>Les sujets</b><span>Pour chaque sujet de campagne, les mêmes chiffres de référence pour tous.</span></div>
-  </div>
-  <p class="src-bloc">Aucun programme n'est noté, aucun candidat n'est classé. Un candidat sans mandat
-  parlementaire n'a pas de vote&nbsp;: la page le dit, elle ne comble pas le vide.</p>
-</section>
 
 {{if $a.Reperes}}
 <section class="bloc">
