@@ -288,20 +288,33 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		return err
 	}
 	defer fermer()
+	dryRun := len(opts) > 0 && opts[0].DryRun
 	if EstSurLeSocle(nom) {
 		reg, err := registreParlement(ctx, pool, arch, rawDir)
 		if err != nil {
 			return err
 		}
-		_, err = reg.Executer(ctx, []string{nom}, opts...)
-		return err
+		if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
+			return err
+		}
+		if dryRun {
+			return nil
+		}
+		return matview.ActualiserToutes(ctx, pool)
 	}
 	reg, err := registreDe(pool, arch, rawDir, []string{nom})
 	if err != nil {
 		return err
 	}
-	_, err = reg.Executer(ctx, []string{nom}, opts...)
-	return err
+	if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
+		return err
+	}
+	if dryRun {
+		return nil
+	}
+	// raw -> core est fait pour cette source ; core -> mv avant de rendre
+	// la main, jamais après — voir le même choix dans RunSources.
+	return matview.ActualiserToutes(ctx, pool)
 }
 
 // RunCategorie exécute toutes les sources d'une catégorie — un choix
@@ -364,6 +377,11 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	}
 	if len(opts) > 0 && opts[0].DryRun {
 		return nil
+	}
+	// raw -> core est fait pour toute la catégorie ; core -> mv avant de
+	// rendre la main, jamais après — voir le même choix dans RunSources.
+	if err := matview.ActualiserToutes(ctx, pool); err != nil {
+		return err
 	}
 	logs.Notice(fmt.Sprintf("category %s done in %s", categorie, time.Since(start).Round(time.Second)))
 	return nil
