@@ -546,7 +546,7 @@ func registre(pool *pgxpool.Pool) *pipeline.Registre {
 		}
 		reg.Ajouter(pipeline.Etape{
 			Nom:         def.Nom,
-			Description: "vérification de la matvue",
+			Description: "checking " + def.QualifieNom(),
 			Dependances: dependances,
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				rafraichie, err := Actualiser(ctx, pool, def)
@@ -574,9 +574,16 @@ func registre(pool *pgxpool.Pool) *pipeline.Registre {
 // REFRESH concurrents sur des matvues indépendantes n'ont rien à y gagner
 // tant qu'ActualiserToutes tourne seule dans l'étape "systeme matviews" de
 // l'ingest, jamais à côté d'un autre gros travail sur le même pool.
+// ActualiserToutes vérifie chaque matvue du Catalogue, dans l'ordre de ses
+// dépendances déclarées (une matvue bâtie sur une autre matvue l'attend),
+// jusqu'à 4 de front pour les autres — la plupart n'ont aucune dépendance
+// entre elles, les enchaîner une par une n'avait jamais été qu'un oubli du
+// premier jet, jamais une nécessité. Actualiser lui-même décide vite s'il y a
+// quoi que ce soit à refaire (voir le commentaire de tête de ce fichier), donc
+// même à 4 de front, un appel où rien n'a changé reste bon marché.
 func ActualiserToutes(ctx context.Context, pool *pgxpool.Pool) error {
 	reg := registre(pool)
-	_, err := reg.Executer(ctx, reg.Noms())
+	_, err := reg.Executer(ctx, reg.Noms(), pipeline.Options{Concurrence: 4})
 	return err
 }
 

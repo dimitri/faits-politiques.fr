@@ -199,8 +199,20 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 		}
 	}
 
-	_, err = reg.Executer(ctx, noms, opts...)
-	return err
+	if _, err := reg.Executer(ctx, noms, opts...); err != nil {
+		return err
+	}
+	if dryRun {
+		return nil
+	}
+	// raw -> core est fait ; core -> mv avant de rendre la main, jamais
+	// après. fpctl build appelle sitegen.RunSections juste après RunSources :
+	// sans cette étape ICI, une page qui lit une matvue (14 fichiers de
+	// internal/sitegen le font) verrait un raw -> core tout frais à côté
+	// d'un mv.* resté sur l'exécution précédente — le même bogue que
+	// RunTout évite déjà en bout de chaîne complète, mais dont fpctl build
+	// n'avait jamais hérité.
+	return matview.ActualiserToutes(ctx, pool)
 }
 
 // downloadTargetsFor réunit les cibles de téléchargement des connecteurs
