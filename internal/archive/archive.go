@@ -17,6 +17,7 @@ import (
 	"path/filepath"
 	"time"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -158,6 +159,18 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Minute}
 	}
+	// Un GET peut prendre plusieurs minutes sur un gros fichier (AMO30 fait
+	// plusieurs dizaines de Mo) — sans repère avant qu'il ne se termine, ça
+	// se lit comme une commande bloquée plutôt que comme un téléchargement en
+	// cours. taille annoncée par un HEAD préalable, au mieux : un serveur qui
+	// ne le supporte pas ou ne rend pas Content-Length laisse simplement ce
+	// champ absent, jamais une raison d'échouer le HEAD ne doit faire
+	// échouer le GET qui suit.
+	if taille := headContentLength(ctx, client, req.URL.String(), req.Header); taille > 0 {
+		logs.Notice("téléchargement", "url", url, "taille_annoncee", tailleLisible(taille))
+	} else {
+		logs.Notice("téléchargement", "url", url)
+	}
 	resp, err := client.Do(req)
 	if err != nil {
 		tmp.Close()
@@ -199,6 +212,11 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	} else if err := os.Rename(tmp.Name(), dst); err != nil {
 		return nil, err
 	}
+	etat := "archivé"
+	if cached {
+		etat = "inchangé"
+	}
+	logs.Notice("téléchargé", "url", url, "octets", tailleLisible(n), "sha256", sum[:12], "etat", etat)
 
 	var docID int64
 	err = a.Pool.QueryRow(ctx, `
@@ -221,6 +239,43 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	}
 
 	return &Fetched{DocumentID: docID, RetrievalID: retID, Path: dst, SHA256: sum, Cached: cached}, nil
+}
+
+// headContentLength interroge url en HEAD pour connaître sa taille avant de
+// la récupérer en entier — un simple repère affiché dans le NOTICE qui
+// précède le GET, jamais une condition d'échec : un serveur qui refuse HEAD,
+// ne rend pas Content-Length, ou répond hors 2xx laisse simplement -1,
+// silencieusement, le GET qui suit tente sa chance normalement.
+func headContentLength(ctx context.Context, client *http.Client, url string, entetes http.Header) int64 {
+	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
+	if err != nil {
+		return -1
+	}
+	req.Header = entetes.Clone()
+	resp, err := client.Do(req)
+	if err != nil {
+		return -1
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
+		return -1
+	}
+	return resp.ContentLength
+}
+
+// tailleLisible formate un nombre d'octets pour un NOTICE — même échelle
+// (Ko/Mo/Go) que cmd/fpctl/list.go, dupliquée plutôt que partagée : deux
+// lignes, pas la peine d'exporter un paquet utilitaire pour ça.
+func tailleLisible(octets int64) string {
+	const unite = 1024.0
+	v := float64(octets)
+	for _, suffixe := range []string{"o", "Ko", "Mo", "Go", "To"} {
+		if v < unite {
+			return fmt.Sprintf("%.1f %s", v, suffixe)
+		}
+		v /= unite
+	}
+	return fmt.Sprintf("%.1f Po", v)
 }
 
 func (a *Archive) StartRun(ctx context.Context, sourceID int64, version string) (int64, error) {

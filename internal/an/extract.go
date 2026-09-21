@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -118,11 +119,14 @@ func Download(ctx context.Context, arch *archive.Archive) (map[string]*archive.F
 		}
 		arch.EndRun(ctx, runID, "SUCCESS",
 			map[string]any{"sha256": f.SHA256, "deja_archive": f.Cached}, "")
-		state := "archivé"
+		// archive.go a déjà noté l'URL/la taille/l'état au NOTICE juste au-dessus
+		// (téléchargement/téléchargé) — ceci associe ce même résultat au nom de
+		// source par lequel le reste du catalogue le connaît.
+		etat := "archivé"
 		if f.Cached {
-			state = "inchangé"
+			etat = "inchangé"
 		}
-		fmt.Printf("  %-12s %s (%s…)\n", slug, state, f.SHA256[:12])
+		logs.Notice("source récupérée", "source", slug, "etat", etat, "sha256", f.SHA256[:12])
 		out[slug] = f
 	}
 	return out, nil

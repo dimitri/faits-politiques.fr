@@ -132,9 +132,15 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	}
 	rows.Close()
 
-	var ballots []ballotRow
-	nScrutins := 0
-
+	// Granularité/résultat/objet calculés une fois par scrutin, en Go, avant
+	// toute écriture — un seul aller-retour COPY + INSERT...SELECT...
+	// RETURNING pour les 8 000+ scrutins d'une législature plutôt qu'un
+	// QueryRow chacun (le blocage que ce commentaire répare : voir la
+	// session qui l'a introduit). Aucune contrainte d'exclusion sur
+	// core.scrutin — (institution, source_uid) est une clé unique ordinaire
+	// — donc aucune dépendance à l'ordre des lignes, contrairement à
+	// copierMandats plus haut dans ce paquet.
+	lignes := make([]ligneScrutin, 0, len(all))
 	for _, s := range all {
 		// La granularité décrit ce que la SOURCE publie, jamais ce qu'on
 		// aimerait avoir (docs/perimetre.md §2.4).
@@ -155,24 +161,31 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 		if objet == "" {
 			objet = s.Titre
 		}
+		lignes = append(lignes, ligneScrutin{
+			uid: s.UID.String(), slug: "an-17-" + s.Numero.String(), numero: s.Numero.String(),
+			date: s.DateScrutin.String(), gran: gran, objet: objet,
+			typeVote: s.TypeVote.LibelleTypeVote.String(), resultat: sort,
+			votants: s.SyntheseVote.NombreVotants.Int(), pour: s.SyntheseVote.Decompte.Pour.Int(),
+			contre: s.SyntheseVote.Decompte.Contre.Int(), abstentions: s.SyntheseVote.Decompte.Abstentions.Int(),
+		})
+	}
 
-		var sid int64
-		err := pool.QueryRow(ctx, `
-			INSERT INTO core.scrutin
-			  (slug, institution, legislature_id, source_uid, numero, date_seance,
-			   granularite, objet, type_vote, resultat, nb_votants, nb_pour, nb_contre, nb_abstentions)
-			VALUES ($1,'ASSEMBLEE_NATIONALE',$2,$3,$4,$5::date,$6,$7,$8,NULLIF($9,''),$10,$11,$12,$13)
-			ON CONFLICT (institution, source_uid) DO UPDATE SET objet = EXCLUDED.objet
-			RETURNING id`,
-			"an-17-"+s.Numero.String(), legID, s.UID.String(), s.Numero.String(),
-			s.DateScrutin.String(), gran, objet, s.TypeVote.LibelleTypeVote.String(), sort,
-			s.SyntheseVote.NombreVotants.Int(), s.SyntheseVote.Decompte.Pour.Int(),
-			s.SyntheseVote.Decompte.Contre.Int(), s.SyntheseVote.Decompte.Abstentions.Int(),
-		).Scan(&sid)
-		if err != nil {
-			return 0, 0, fmt.Errorf("scrutin %s : %w", s.UID, err)
+	sidByUID, err := copierScrutins(ctx, pool, legID, lignes)
+	if err != nil {
+		return 0, 0, err
+	}
+	nScrutins := len(sidByUID)
+
+	var ballots []ballotRow
+	for _, s := range all {
+		sid, ok := sidByUID[s.UID.String()]
+		if !ok {
+			continue // anomalie déjà signalée par copierScrutins, jamais ici en double
 		}
-		nScrutins++
+		gran := "GROUP"
+		if strings.EqualFold(s.ModePublicationDesVotes.String(), "DecompteNominatif") {
+			gran = "INDIVIDUAL"
+		}
 
 		// Mises au point : à l'AN, un député peut corriger son vote APRÈS le
 		// scrutin. Cela modifie le relevé nominatif sans modifier le résultat
@@ -261,6 +274,79 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 			return []any{b.scrutinID, b.personID, org, b.position, b.delegation, rect, date}, nil
 		}))
 	return nScrutins, int(n), err
+}
+
+// ligneScrutin : une ligne prête pour tmp_scrutin (copierScrutins).
+type ligneScrutin struct {
+	uid, slug, numero, date, gran, objet, typeVote, resultat string
+	votants, pour, contre, abstentions                       int
+}
+
+// copierScrutins upserte tous les scrutins d'un coup — une table temporaire,
+// une copie, un WITH...INSERT...RETURNING joint sur cette même table pour
+// retrouver l'id attribué à chaque source_uid, exactement le patron déjà
+// suivi par normalizeOrganes (internal/an/normalize.go) pour la même raison.
+func copierScrutins(ctx context.Context, pool *pgxpool.Pool, legID int64, lignes []ligneScrutin) (map[string]int64, error) {
+	if len(lignes) == 0 {
+		return map[string]int64{}, nil
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_scrutin (
+			uid text, slug text, numero text, date_seance text, gran text, objet text,
+			type_vote text, resultat text, votants int, pour int, contre int, abstentions int
+		) ON COMMIT DROP`); err != nil {
+		return nil, err
+	}
+	rows := make([][]any, len(lignes))
+	for i, l := range lignes {
+		rows[i] = []any{l.uid, l.slug, l.numero, l.date, l.gran, l.objet, l.typeVote,
+			nullable(l.resultat), l.votants, l.pour, l.contre, l.abstentions}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_scrutin"},
+		[]string{"uid", "slug", "numero", "date_seance", "gran", "objet", "type_vote",
+			"resultat", "votants", "pour", "contre", "abstentions"},
+		pgx.CopyFromRows(rows)); err != nil {
+		return nil, err
+	}
+	res, err := tx.Query(ctx, `
+		WITH upsert AS (
+			INSERT INTO core.scrutin
+			  (slug, institution, legislature_id, source_uid, numero, date_seance,
+			   granularite, objet, type_vote, resultat, nb_votants, nb_pour, nb_contre, nb_abstentions)
+			SELECT slug, 'ASSEMBLEE_NATIONALE'::core.institution, $1, uid, numero, date_seance::date,
+			       gran::core.scrutin_granularite, objet, type_vote, resultat, votants, pour, contre, abstentions
+			  FROM tmp_scrutin
+			ON CONFLICT (institution, source_uid) DO UPDATE SET objet = EXCLUDED.objet
+			RETURNING id, source_uid
+		)
+		SELECT source_uid, id FROM upsert`, legID)
+	if err != nil {
+		return nil, fmt.Errorf("scrutins : %w", err)
+	}
+	sidByUID := map[string]int64{}
+	for res.Next() {
+		var uid string
+		var id int64
+		if err := res.Scan(&uid, &id); err != nil {
+			res.Close()
+			return nil, err
+		}
+		sidByUID[uid] = id
+	}
+	res.Close()
+	if err := res.Err(); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return sidByUID, nil
 }
 
 func insertGroupBallot(ctx context.Context, pool *pgxpool.Pool, sid int64,
