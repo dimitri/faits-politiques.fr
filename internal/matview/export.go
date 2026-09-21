@@ -9,13 +9,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// SchemaExport est le schéma jetable où ExporterCI recopie tout le
-// périmètre CI (Perimetre()) sous forme de tables ordinaires. Jamais présent
-// en dehors d'un export ou d'une restauration en cours — DROP SCHEMA
-// CASCADE au début et à la fin de chaque opération.
-const SchemaExport = "ci"
+// ExportSchema est le schéma jetable où ExportCI recopie tout le périmètre
+// CI (Perimetre()) sous forme de tables ordinaires. Jamais présent en
+// dehors d'un export ou d'une restauration en cours — DROP SCHEMA CASCADE
+// au début et à la fin de chaque opération.
+const ExportSchema = "ci"
 
-// ExporterCI construit, dans SchemaExport, une copie plate du périmètre CI
+// ExportCI construit, dans ExportSchema, une copie plate du périmètre CI
 // entier : chaque matvue et chaque TableDirecte devient une TABLE ordinaire,
 // sans aucune colonne d'un type énuméré propre au schéma core (mandate_type,
 // organization_kind...) — converties en text au passage.
@@ -32,46 +32,46 @@ const SchemaExport = "ci"
 //  2. pg_dump ne suit pas les types personnalisés d'une colonne quand la
 //     sélection se fait par -t plutôt que par schéma entier (core.mandate_type
 //     n'est alors dumpé nulle part, et CREATE TABLE échoue à la
-//     restauration) — becoming text élimine la dépendance plutôt que de la
+//     restauration) — devenir text élimine la dépendance plutôt que de la
 //     répliquer.
 //
-// Avec ça, SchemaExport ne dépend plus de rien en dehors de lui-même : un
+// Avec ça, ExportSchema ne dépend plus de rien en dehors de lui-même : un
 // pg_dump -n ci suffit, aucun -t, aucune CREATE SCHEMA à deviner pour core/
-// ref/mv à la restauration (RemettreEnPlace les crée explicitement).
-func ExporterCI(ctx context.Context, pool *pgxpool.Pool) error {
-	if _, err := pool.Exec(ctx, "DROP SCHEMA IF EXISTS "+SchemaExport+" CASCADE"); err != nil {
+// ref/mv à la restauration (RestoreExported les crée explicitement).
+func ExportCI(ctx context.Context, pool *pgxpool.Pool) error {
+	if _, err := pool.Exec(ctx, "DROP SCHEMA IF EXISTS "+ExportSchema+" CASCADE"); err != nil {
 		return err
 	}
-	if _, err := pool.Exec(ctx, "CREATE SCHEMA "+SchemaExport); err != nil {
+	if _, err := pool.Exec(ctx, "CREATE SCHEMA "+ExportSchema); err != nil {
 		return err
 	}
-	for _, qualifie := range Perimetre() {
-		colonnes, err := colonnesPortables(ctx, pool, qualifie)
+	for _, qualified := range Perimetre() {
+		columns, err := portableColumns(ctx, pool, qualified)
 		if err != nil {
-			return fmt.Errorf("export CI de %s : %w", qualifie, err)
+			return fmt.Errorf("export CI de %s : %w", qualified, err)
 		}
-		nomPlat := nomExport(qualifie)
+		flatName := exportName(qualified)
 		sql := fmt.Sprintf("CREATE TABLE %s.%s AS SELECT %s FROM %s",
-			SchemaExport, nomPlat, colonnes, qualifie)
+			ExportSchema, flatName, columns, qualified)
 		if _, err := pool.Exec(ctx, sql); err != nil {
-			return fmt.Errorf("export CI de %s : %w", qualifie, err)
+			return fmt.Errorf("export CI de %s : %w", qualified, err)
 		}
-		logs.Notice("export CI", "relation", qualifie)
+		logs.Notice("export CI", "relation", qualified)
 	}
 	return nil
 }
 
-// RemettreEnPlace défait ExporterCI après restauration : chaque table de
-// SchemaExport migre vers le schéma et le nom qu'elle avait à l'export
+// RestoreExported défait ExportCI après restauration : chaque table de
+// ExportSchema migre vers le schéma et le nom qu'elle avait à l'export
 // (core.mandate, mv.person_actif...), créant le schéma cible s'il n'existe
 // pas encore — jamais mv/core/ref en entier, seulement ce que Perimetre()
 // couvre. internal/sitegen ne fait ensuite aucune différence entre une vraie
 // matvue et cette table ordinaire : ni REFRESH ni écriture n'y ont jamais
 // lieu pendant fpctl build site.
-func RemettreEnPlace(ctx context.Context, pool *pgxpool.Pool) error {
+func RestoreExported(ctx context.Context, pool *pgxpool.Pool) error {
 	schemas := map[string]bool{}
-	for _, qualifie := range Perimetre() {
-		schema, _, _ := strings.Cut(qualifie, ".")
+	for _, qualified := range Perimetre() {
+		schema, _, _ := strings.Cut(qualified, ".")
 		schemas[schema] = true
 	}
 	for schema := range schemas {
@@ -79,41 +79,41 @@ func RemettreEnPlace(ctx context.Context, pool *pgxpool.Pool) error {
 			return err
 		}
 	}
-	for _, qualifie := range Perimetre() {
-		schema, table, _ := strings.Cut(qualifie, ".")
-		nomPlat := nomExport(qualifie)
+	for _, qualified := range Perimetre() {
+		schema, table, _ := strings.Cut(qualified, ".")
+		flatName := exportName(qualified)
 		if _, err := pool.Exec(ctx, fmt.Sprintf("ALTER TABLE %s.%s SET SCHEMA %s",
-			SchemaExport, nomPlat, schema)); err != nil {
-			return fmt.Errorf("remise en place de %s : %w", qualifie, err)
+			ExportSchema, flatName, schema)); err != nil {
+			return fmt.Errorf("remise en place de %s : %w", qualified, err)
 		}
 		if _, err := pool.Exec(ctx, fmt.Sprintf("ALTER TABLE %s.%s RENAME TO %s",
-			schema, nomPlat, table)); err != nil {
-			return fmt.Errorf("remise en place de %s : %w", qualifie, err)
+			schema, flatName, table)); err != nil {
+			return fmt.Errorf("remise en place de %s : %w", qualified, err)
 		}
-		logs.Notice("relation CI remise en place", "relation", qualifie)
+		logs.Notice("relation CI remise en place", "relation", qualified)
 	}
-	_, err := pool.Exec(ctx, "DROP SCHEMA IF EXISTS "+SchemaExport)
+	_, err := pool.Exec(ctx, "DROP SCHEMA IF EXISTS "+ExportSchema)
 	return err
 }
 
-// nomExport : un nom de table sans point, unique dans SchemaExport — "." ne
-// peut pas apparaître dans un identifiant Postgres non cité, donc
+// exportName : un nom de table sans point, unique dans ExportSchema — "."
+// ne peut pas apparaître dans un identifiant Postgres non cité, donc
 // core.mandate devient ci.core__mandate.
-func nomExport(qualifie string) string {
-	return strings.ReplaceAll(qualifie, ".", "__")
+func exportName(qualified string) string {
+	return strings.ReplaceAll(qualified, ".", "__")
 }
 
-// colonnesPortables construit la liste SELECT de qualifie, convertissant en
+// portableColumns construit la liste SELECT de qualified, convertissant en
 // text toute colonne d'un type énuméré (pg_type.typtype = 'e') — les seuls
 // types non intégrés à Postgres qu'une matvue ou une TableDirecte porte
 // aujourd'hui. Un type composite ou un domaine futur qui échapperait à ce
 // filtre échouerait à l'export (CREATE TABLE lèverait sur le type manquant
-// une fois dans SchemaExport, plutôt qu'à la restauration) : l'échec reste
+// une fois dans ExportSchema, plutôt qu'à la restauration) : l'échec reste
 // au même endroit que l'écrit ce paquet, tout de suite, jamais silencieux.
-func colonnesPortables(ctx context.Context, pool *pgxpool.Pool, qualifie string) (string, error) {
-	schema, table, _ := strings.Cut(qualifie, ".")
+func portableColumns(ctx context.Context, pool *pgxpool.Pool, qualified string) (string, error) {
+	schema, table, _ := strings.Cut(qualified, ".")
 	rows, err := pool.Query(ctx, `
-		SELECT a.attname, t.typtype = 'e' AS est_enum
+		SELECT a.attname, t.typtype = 'e' AS is_enum
 		FROM pg_attribute a
 		JOIN pg_type t ON t.oid = a.atttypid
 		JOIN pg_class c ON c.oid = a.attrelid
@@ -127,15 +127,15 @@ func colonnesPortables(ctx context.Context, pool *pgxpool.Pool, qualifie string)
 	defer rows.Close()
 	var cols []string
 	for rows.Next() {
-		var nom string
+		var name string
 		var enum bool
-		if err := rows.Scan(&nom, &enum); err != nil {
+		if err := rows.Scan(&name, &enum); err != nil {
 			return "", err
 		}
 		if enum {
-			cols = append(cols, fmt.Sprintf("%s::text AS %s", nom, nom))
+			cols = append(cols, fmt.Sprintf("%s::text AS %s", name, name))
 		} else {
-			cols = append(cols, nom)
+			cols = append(cols, name)
 		}
 	}
 	if err := rows.Err(); err != nil {

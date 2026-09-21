@@ -219,7 +219,7 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 				Prec, Suiv *ScrutinLien
 				Src        SourceInfo
 			}{l, s, gs, votes[s.ID], maxG, prec, suiv, src}
-			return write(tpl, filepath.Join(out, "scrutin", s.Slug, "index.html"), data)
+			return writeAlways(tpl, filepath.Join(out, "scrutin", s.Slug, "index.html"), data)
 		})
 	}
 	if err := g.Wait(); err != nil {

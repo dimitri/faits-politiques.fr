@@ -548,7 +548,7 @@ func registre(pool *pgxpool.Pool) *pipeline.Registre {
 			Nom:         def.Nom,
 			Description: "vérification de la matvue",
 			Dependances: dependances,
-			Executer: func(ctx context.Context, _ pipeline.Resultats) (any, error) {
+			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				rafraichie, err := Actualiser(ctx, pool, def)
 				if err != nil {
 					return nil, fmt.Errorf("mv.%s : %w", def.Nom, err)

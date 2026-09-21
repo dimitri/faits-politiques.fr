@@ -3,7 +3,7 @@ title: FPCTL-BUILD
 section: 1
 header: Manuel fpctl
 footer: faits-politiques.fr
-date: 2026-09-20
+date: 2026-09-21
 ---
 
 # NOM
@@ -19,7 +19,9 @@ fpctl-build - génère le site statique, en entier ou par section
 **fpctl build** **scrutin**|**communes**|**identite**|**indicateurs**|**gouvernance**|**fiches**|**dossiers**
 [**-j** *n*] [**-dry-run**] [mêmes options]
 
-**fpctl build page** *nom* [**-j** *n*] [**-dry-run**] [mêmes options]
+**fpctl build section** *nom* [**-j** *n*] [**-dry-run**] [mêmes options]
+
+**fpctl build topic** *id* [**-j** *n*] [**-dry-run**] [mêmes options]
 
 # DESCRIPTION
 
@@ -40,12 +42,15 @@ construit rien du tout.
 
 # SECTIONS
 
-Chaque section ne reconstruit qu'une partie du site — bien plus rapide
-pour itérer sur une seule chose, sans attendre le reste. Il n'y a plus de
-fourre-tout unique : **internal/sitegen/main.go** donne son propre nom **-only**
-à chacune des pages qu'il sait écrire (voir la fonction **ecrire()**, qui
-remplace **write()** partout sauf **scrutin**/**communes** et les quelques
-pages toujours écrites — **404**, le plan du site...), et les groupes
+Chaque section ne reconstruit qu'une partie du site — bien plus rapide pour
+itérer sur une seule chose, sans attendre le reste. **internal/sitegen**
+déclare chaque section (et chaque sujet de campagne) comme un nœud nommé
+d'un graphe de dépendances (**internal/pipeline.Registre**, voir
+**internal/sitegen/graphe.go**) : demander une section ne charge plus que ce
+dont elle dépend réellement, la fermeture transitive de ce nœud — jamais la
+totalité du site. Il n'existe plus de drapeau **-only** : chaque nom de
+section est une vraie sous-commande, validée contre **sitegen.Sections()**/
+**sitegen.Topics()** (voir aussi **fpctl list sections**), et les groupes
 ci-dessous en couvrent les plus utiles à nommer ensemble :
 
 **scrutin**
@@ -71,33 +76,39 @@ ci-dessous en couvrent les plus utiles à nommer ensemble :
     parlementaires.
 
 **dossiers**
-:   Accueil, index des sujets de campagne, documents de méthode — pas
-    chaque sujet pris individuellement, voir **fpctl build page**.
+:   Accueil, index des sujets de campagne, documents de méthode, index de
+    recherche — pas chaque sujet pris individuellement, voir
+    **fpctl build topic**.
 
-**page** *nom*
-:   N'importe quel autre nom **-only** que **internal/sitegen/main.go** connaît
-    et qu'aucun groupe ci-dessus ne couvre déjà — une page d'indicateur en
-    particulier, ou un sujet de campagne par son identifiant (**eau**,
-    **fraude-fiscale**, **appareil-productif**... voir
-    **internal/sitegen/sujets.go**). Sans préalable déclaré pour ce nom précis
-    (voir **ingestPrealables**), ingère le socle parlementaire complet par
+**section** *nom*
+:   N'importe quelle autre section qu'**internal/sitegen** connaît et
+    qu'aucun groupe ci-dessus ne couvre déjà (voir **sitegen.Sections()**,
+    ou **fpctl build section** sans argument pour la liste). Sans préalable
+    déclaré pour ce nom précis, ingère le socle parlementaire complet par
     défaut.
 
-Chaque groupe (ou page) ingère d'abord ce qu'il déclare nécessiter (voir
-**ingestPrealables** dans **cmd/fpctl/build.go**) — TOUS ENSEMBLE plutôt
-qu'un par un : la plupart des sources n'ont aucune dépendance déclarée
-entre elles (**internal/ingest.RunSources**), donc tournent de front
-jusqu'à **-j** ; nommer une seule source suffit pour toute sa chaîne
+**topic** *id*
+:   Un sujet de campagne individuel, par son identifiant (**eau**,
+    **fraude-fiscale**, **appareil-productif**... voir
+    **sitegen.Topics()**, **internal/sitegen/sujets.go**, ou
+    **fpctl build topic** sans argument pour la liste). Même défaut
+    d'ingestion que **section** sans préalable déclaré.
+
+Chaque groupe, section ou sujet ingère d'abord ce qu'il déclare nécessiter
+(voir **ingestPrerequisites** dans **cmd/fpctl/build.go**) — TOUS ENSEMBLE
+plutôt qu'un par un : la plupart des sources n'ont aucune dépendance
+déclarée entre elles (**internal/ingest.RunSources**), donc tournent de
+front jusqu'à **-j** ; nommer une seule source suffit pour toute sa chaîne
 (**themes** entraîne **senat**, **europe**, **normalize**, **download** et
 **partis**). Idempotent : relancer ne refait pas ce qui est déjà à jour.
 **-dry-run** affiche le plan d'ingestion (vagues, concurrence) sans rien
 ingérer ni construire ; **-j** *n* (par défaut 4) borne le nombre de
 préalables indépendants exécutés de front.
 
-Le site produit par une section est **délibérément incomplet** : jamais mis
-en place automatiquement, jamais ce que doit servir le domaine réel —
-réservé à l'itération locale, à écrire dans un **-out** distinct de celui
-servi en production.
+Le site produit par une section, un groupe ou un sujet est **délibérément
+incomplet** : jamais mis en place automatiquement, jamais ce que doit
+servir le domaine réel — réservé à l'itération locale, à écrire dans un
+**-out** distinct de celui servi en production.
 
 # OPTIONS
 
@@ -123,4 +134,4 @@ servi en production.
 
 # VOIR AUSSI
 
-**fpctl**(1), **fpctl-ingest**(1)
+**fpctl**(1), **fpctl-ingest**(1), **fpctl-list**(1)

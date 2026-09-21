@@ -27,16 +27,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// Resultats : ce que les dépendances déjà exécutées d'une étape ont produit,
+// Results : ce que les dépendances déjà exécutées d'une étape ont produit,
 // indexé par nom — nil pour une étape qui n'agit que par effet de bord
 // (le cas de tout l'ingest aujourd'hui). internal/matview et internal/sitegen
 // s'en servent pour de vraies valeurs (une matvue rafraîchie, une page
 // chargée) qu'une étape dépendante lit directement au lieu de rejouer le
 // calcul ou de rouvrir une connexion pour le refaire.
-type Resultats map[string]any
+type Results map[string]any
 
 // Etape : une unité nommée, ce dont elle dépend, ce qu'elle fait — et ce
-// qu'elle produit, lu par ses dépendantes dans Resultats. Executer garde sa
+// qu'elle produit, lu par ses dépendantes dans Results. Executer garde sa
 // propre logique d'idempotence (comme l'ingest aujourd'hui) — ce paquet ne
 // décide que DE L'ORDRE (et, en option, du parallélisme), jamais de sauter
 // une étape déjà faite : c'est à l'étape elle-même de le constater vite si
@@ -45,7 +45,7 @@ type Etape struct {
 	Nom         string
 	Description string
 	Dependances []string
-	Executer    func(ctx context.Context, deps Resultats) (any, error)
+	Executer    func(ctx context.Context, deps Results) (any, error)
 }
 
 // Registre : les étapes connues, indexées par nom.
@@ -190,10 +190,10 @@ type Options struct {
 // vague, jusqu'à Concurrence étapes tournent de front ; dès qu'une échoue,
 // le contexte des autres est annulé et aucune vague suivante ne démarre.
 //
-// Le Resultats renvoyé porte ce que chaque étape exécutée a produit — vide
+// Le Results renvoyé porte ce que chaque étape exécutée a produit — vide
 // (valeurs nil) pour un registre dont les étapes n'agissent que par effet
 // de bord, comme l'ingest.
-func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Options) (Resultats, error) {
+func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Options) (Results, error) {
 	var opt Options
 	if len(opts) > 0 {
 		opt = opts[0]
@@ -211,7 +211,7 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 		limite = 1
 	}
 
-	resultats := Resultats{}
+	resultats := Results{}
 	var mu sync.Mutex
 	for _, vague := range niveaux {
 		g, gctx := errgroup.WithContext(ctx)
@@ -224,7 +224,7 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 			// (g.Wait() ci-dessous s'en assure), donc cette lecture n'a pas
 			// besoin de mu — seules les ÉCRITURES concurrentes dans une même
 			// vague en ont besoin.
-			deps := Resultats{}
+			deps := Results{}
 			for _, d := range e.Dependances {
 				deps[d] = resultats[d]
 			}

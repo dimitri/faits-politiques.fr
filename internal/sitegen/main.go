@@ -107,23 +107,40 @@ type Candidat struct {
 	Portrait                                    *Media
 }
 
-// Run construit le site avec args (les options -out/-only/-max-scrutins...
-// de l'ancien fpbuild, telles quelles) et retourne une erreur au lieu de
-// faire os.Exit — un flag.NewFlagSet à soi, jamais le FlagSet global de
-// process (celui que fpctl utilise déjà pour ses propres drapeaux) : les
-// deux ne doivent jamais se marcher dessus maintenant qu'ils vivent dans
-// le même binaire.
+// Run builds the complete site with args (the -out/-max-scrutins/...
+// options the old fpbuild took, unchanged) and returns an error instead of
+// calling os.Exit — its own flag.NewFlagSet, never the global one (fpctl
+// already uses that for its own flags): the two must never collide now that
+// they live in the same binary. The full site is the only build ever put in
+// place — see mettreEnPlace.
 func Run(ctx context.Context, args []string) error {
+	return run(ctx, args, nil)
+}
+
+// RunSections builds only the given sections — their real dependency
+// closure (Registre.Niveaux), never the whole site — and never publishes:
+// this used to be the -only flag's job. sections names either a value from
+// Sections() or an individual topic ID from Topics(); cmd/fpctl validates
+// against both before calling this, so a typo is caught at the CLI layer,
+// not silently ignored here.
+func RunSections(ctx context.Context, args []string, sections []string) error {
+	if len(sections) == 0 {
+		return fmt.Errorf("aucune section demandée")
+	}
+	return run(ctx, args, sections)
+}
+
+// run parses the flags common to both entry points, then delegates to the
+// unexported buildAt: sections nil/empty means the full, publishable build;
+// anything else is a deliberately partial one, kept on disk but never put
+// in place.
+func run(ctx context.Context, args []string, sections []string) error {
 	fs := flag.NewFlagSet("build", flag.ContinueOnError)
 	out := fs.String("out", "site", "répertoire de sortie")
 	tpl := fs.String("templates", "web/templates", "gabarits")
 	dataDir := fs.String("data", "data", "décisions éditoriales")
 	root := fs.String("root", "", "préfixe d'URL")
 	maxScrutins := fs.Int("max-scrutins", 0, "limite de pages scrutin (0 = toutes)")
-	only := fs.String("only", "", "limite les pages reconstruites à cette liste (séparée par des virgules) : scrutin, communes, "+
-		"ou l'un des noms de page filtrés par ecrire() plus bas (dette, chomage, securite, sujet:<id>, comprendre:<slug>...) — "+
-		"voir cmd/fpctl/build.go, SECTIONS pour les regroupements par catégorie (fpctl build <catégorie>). Vide = tout. "+
-		"À réserver à l'itération locale — un site construit avec -only est incomplet et ne doit jamais être mis en place tel quel.")
 	cpuProfile := fs.String("cpuprofile", "", "écrit un profil CPU pprof à ce chemin (diagnostic, pas d'usage courant)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -151,21 +168,22 @@ func Run(ctx context.Context, args []string) error {
 	// temps de deux renommages. Si la construction échoue, le site en ligne
 	// n'est pas touché.
 	chantier := strings.TrimRight(*out, "/") + ".construction"
-	if err := run(ctx, chantier, *tpl, *dataDir, *root, *maxScrutins, *only); err != nil {
+	if err := buildAt(ctx, chantier, *tpl, *dataDir, *root, *maxScrutins, sections); err != nil {
 		if errors.Is(err, errRienAFaire) {
-			// run() est retourné avant même de créer chantier/ : rien à
+			// buildAt est retourné avant même de créer chantier/ : rien à
 			// mettre en place, le site publié est déjà à jour.
 			return nil
 		}
 		return err
 	}
-	// -only produit un site DÉLIBÉRÉMENT incomplet — jamais ce que sert le
-	// domaine réel. Le refus est ici, pas seulement dans la documentation du
-	// drapeau : une commande tapée vite un jour de correctif ne doit pas
-	// pouvoir vider /collectivites/commune/ ou /scrutin/ en production.
-	if *only != "" {
-		fmt.Printf("-only=%s : site partiel conservé dans %s/, PAS mis en place. "+
-			"Inspectez-le, puis relancez sans -only pour publier.\n", *only, chantier)
+	// Une construction partielle est DÉLIBÉRÉMENT incomplète — jamais ce que
+	// sert le domaine réel. Le refus est ici, pas seulement dans la
+	// documentation de la commande : une commande tapée vite un jour de
+	// correctif ne doit pas pouvoir vider /collectivites/commune/ ou
+	// /scrutin/ en production.
+	if len(sections) > 0 {
+		fmt.Printf("%s : site partiel conservé dans %s/, PAS mis en place. "+
+			"Inspectez-le, puis relancez « fpctl build site » pour publier.\n", strings.Join(sections, ","), chantier)
 		return nil
 	}
 	if err := mettreEnPlace(chantier, *out); err != nil {
@@ -196,24 +214,35 @@ func mettreEnPlace(chantier, out string) error {
 	return os.RemoveAll(ancien)
 }
 
-func run(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins int, only string) error {
+func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins int, sections []string) error {
 	start := time.Now()
-	// exclu : true si -only laisse cette section de côté. Vide (par défaut)
-	// ne filtre rien — c'est la reconstruction complète que mettreEnPlace
-	// doit voir ; -only sert à l'itération locale, jamais au déploiement.
-	exclu := func(section string) bool {
-		return only != "" && !strings.Contains(","+only+",", ","+section+",")
+	// requested : nil quand sections est vide (construction complète, rien
+	// n'est écarté — la seule que mettreEnPlace doit voir) ; sinon les noms
+	// demandés, tels quels — un sujet individuel (fpctl build topic <id>) y
+	// figure directement, une section groupée (voir Sections()) aussi.
+	var requested map[string]bool
+	if len(sections) > 0 {
+		requested = make(map[string]bool, len(sections))
+		for _, s := range sections {
+			requested[s] = true
+		}
 	}
-	// ecrire : un filtre posé sur write(), inchangé depuis avant ce graphe —
-	// mais chaque section n'est plus qu'une CIBLE parmi d'autres du registre
-	// (voir graphe.go, construireRegistre) : demander -only=X ne charge plus
-	// que ce dont X dépend réellement, la fermeture transitive calculée par
-	// internal/pipeline.Registre.Niveaux, jamais la totalité du site.
-	ecrire := func(section string, t *template.Template, path string, data any) error {
-		if exclu(section) {
+	// excluded : true si cette section n'a pas été demandée. nil requested
+	// (construction complète) n'exclut jamais rien.
+	excluded := func(section string) bool {
+		return requested != nil && !requested[section]
+	}
+	// writeSection : un filtre posé sur writeAlways(), inchangé depuis avant
+	// ce graphe — mais chaque section n'est plus qu'une CIBLE parmi d'autres
+	// du registre (voir graphe.go, buildRegistry) : demander une seule
+	// section ne charge plus que ce dont elle dépend réellement, la fermeture
+	// transitive calculée par internal/pipeline.Registre.Niveaux, jamais la
+	// totalité du site.
+	writeSection := func(section string, t *template.Template, path string, data any) error {
+		if excluded(section) {
 			return nil
 		}
-		return write(t, path, data)
+		return writeAlways(t, path, data)
 	}
 	// 8, pas le défaut de 4 : plusieurs requêtes indépendantes tournent
 	// désormais de front (internal/sitegen/lieux_pages.go, et depuis ce
@@ -239,7 +268,7 @@ func run(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins int
 	// chère à poser est aussi la plus rentable — rien n'a changé DU TOUT
 	// depuis la dernière construction ? -only et -max-scrutins produisent
 	// délibérément un site partiel : jamais la référence à laquelle comparer.
-	if only == "" && maxScrutins == 0 {
+	if len(sections) == 0 && maxScrutins == 0 {
 		communesOK, _, err := sectionInchangee(ctx, pool, ancienCache, "communes")
 		if err != nil {
 			return err
@@ -325,21 +354,21 @@ func run(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins int
 		FROM raw.retrieval WHERE document_id IS NOT NULL`).Scan(&layout.DerniereIngestion)
 	fmt.Printf("  chargement initial : %s écoulées\n", time.Since(start).Round(time.Second))
 
-	env := &environnement{
+	env := &environment{
 		pool: pool, dataDir: dataDir, out: out, root: root, start: start,
-		layout: layout, page: page, ecrire: ecrire, write: write, exclu: exclu,
-		maxScrutins: maxScrutins, ancienCache: ancienCache, siteActuel: siteActuel,
-		nouveauCache: &nouveauCache,
+		layout: layout, page: page, writeSection: writeSection, writeAlways: writeAlways, excluded: excluded,
+		maxScrutins: maxScrutins, previousCacheValue: ancienCache, currentSite: siteActuel,
+		newCache: &nouveauCache,
 	}
-	reg := construireRegistre(env)
-	cibles := ciblesDe(only)
+	reg := buildRegistry(env)
+	targets := resolveTargets(sections)
 
 	// runtime.NumCPU(), pas la Concurrence -j de l'ingest (qui n'existe pas
 	// ici) : la plupart des nœuds d'une même vague sont des requêtes
 	// indépendantes contre le même pool à 8 connexions (OpenWithMaxConns
 	// ci-dessus) — au-delà, une vague large mettrait simplement en file
 	// d'attente plutôt que d'accélérer quoi que ce soit.
-	resultats, err := reg.Executer(ctx, cibles, pipeline.Options{Concurrence: runtime.NumCPU()})
+	results, err := reg.Executer(ctx, targets, pipeline.Options{Concurrence: runtime.NumCPU()})
 	if err != nil {
 		return err
 	}
@@ -350,7 +379,7 @@ func run(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins int
 	// sans connaître l'arborescence du site.
 	l := layout
 	l.Title = "Page introuvable"
-	if err := write(page("404.gohtml"), filepath.Join(out, "404.html"), l); err != nil {
+	if err := writeAlways(page("404.gohtml"), filepath.Join(out, "404.html"), l); err != nil {
 		return err
 	}
 
@@ -365,15 +394,15 @@ func run(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins int
 	}
 	fmt.Printf("  plan du site : %d URL, %s\n", nSitemap, layout.CanonicalBase+"/sitemap.xml")
 
-	id := dep[identiteBundle](resultats, "identite")
-	n, _ := resultats["scrutin"].(int)
+	id := dep[identityBundle](results, "identite")
+	n, _ := results["scrutin"].(int)
 	fmt.Printf("site généré dans %s/ : %d députés, %d candidats, %d organisations, %d groupes, %d scrutins (%s)\n",
 		out, len(id.Persons), len(id.Candidats), len(id.Orgs), len(id.Groupes), n, time.Since(start).Round(time.Millisecond))
 
 	// « reste » (voir resteInchange) : comme pour scrutin, jamais à partir
 	// d'une construction tronquée par -only/-max-scrutins — elle serait prise
 	// pour une construction complète par le prochain lancement, sans troncature.
-	if only == "" && maxScrutins == 0 {
+	if len(sections) == 0 && maxScrutins == 0 {
 		_, etatReste, err := resteInchange(ctx, pool, ancienCache)
 		if err != nil {
 			return err
@@ -443,7 +472,7 @@ func ecrireMarqueur(out string) error {
 		[]byte("Répertoire produit par internal/sitegen. Effacé et réécrit à chaque construction.\n"), 0o644)
 }
 
-func write(t *template.Template, path string, data any) error {
+func writeAlways(t *template.Template, path string, data any) error {
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}

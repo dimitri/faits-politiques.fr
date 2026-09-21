@@ -14,6 +14,8 @@ graphe de dépendances)
 .PP
 \f[B]fpctl list deps\f[R] [\f[I]nom\f[R]] [\f[B]\[en]json\f[R]]
 [\f[B]\[en]pages\f[R]]
+.PP
+\f[B]fpctl list sections\f[R] [\f[I]groupe\f[R]]
 .SH DESCRIPTION
 .TP
 \f[B]sources\f[R]
@@ -120,5 +122,19 @@ Les octets en base restent une liste de tables tenue à la main
 (\f[B]cmd/fpctl/list.go\f[R], \f[B]composantesEtape\f[R]), à ce jour
 limitée aux sept étapes du socle.
 .RE
+.TP
+\f[B]sections\f[R] [\f[I]groupe\f[R]]
+Les catalogues qu\[cq]\f[B]internal/sitegen\f[R] expose maintenant que
+chaque section (et chaque sujet de campagne) est un nœud nommé d\[cq]un
+graphe de dépendances (\f[B]internal/pipeline.Registre\f[R], voir
+\f[B]internal/sitegen/graphe.go\f[R]) plutôt qu\[cq]une valeur parmi
+d\[cq]autres d\[cq]un ancien drapeau \f[B]\-only\f[R] :
+\f[B]sitegen.Sections()\f[R] \[em] avec, pour chacune, le groupe de
+\f[B]fpctl build\f[R] qui la couvre déjà s\[cq]il y en a un \[em], la
+liste des groupes eux\-mêmes avec leurs sections, et
+\f[B]sitegen.Topics()\f[R], la liste des sujets de campagne individuels
+(\f[B]fpctl build topic\f[R]).
+Avec le nom d\[cq]un groupe (\f[B]dossiers\f[R],
+\f[B]indicateurs\f[R]\&...), n\[cq]affiche que ses sections.
 .SH VOIR AUSSI
 \f[B]fpctl\f[R](1), \f[B]fpctl\-ingest\f[R](1)

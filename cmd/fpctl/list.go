@@ -13,6 +13,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/ingest"
 	"github.com/faits-politiques/faits-politiques/internal/matview"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
+	"github.com/faits-politiques/faits-politiques/internal/sitegen"
 	"github.com/faits-politiques/faits-politiques/internal/sources"
 	"github.com/faits-politiques/faits-politiques/internal/stats"
 	"github.com/faits-politiques/faits-politiques/internal/store"
@@ -75,6 +76,29 @@ func commandeList() *cobra.Command {
 		},
 		commandeDeps(),
 		&cobra.Command{
+			Use:   "sections [groupe]",
+			Short: "Sections et sujets que fpctl build sait reconstruire un par un",
+			Long: "internal/sitegen construit désormais chaque section (et chaque sujet\n" +
+				"de campagne) comme un nœud nommé d'un graphe de dépendances\n" +
+				"(internal/pipeline.Registre, voir internal/sitegen/graphe.go) : « fpctl\n" +
+				"build section <nom> » ou « fpctl build topic <id> » ne charge plus\n" +
+				"que la fermeture transitive de ce nœud, jamais la totalité du site.\n" +
+				"Cette commande liste les deux catalogues (sitegen.Sections(),\n" +
+				"sitegen.Topics()) et, pour chaque section, le groupe de « fpctl\n" +
+				"build » qui la couvre déjà, s'il y en a un.\n\n" +
+				"Sans argument, affiche aussi les groupes eux-mêmes (« fpctl build\n" +
+				"dossiers », « fpctl build indicateurs »...), chacun avec ses\n" +
+				"sections. Avec le nom d'un groupe, n'affiche que ses sections.",
+			Args: cobra.MaximumNArgs(1),
+			RunE: func(cmd *cobra.Command, args []string) error {
+				var groupe string
+				if len(args) > 0 {
+					groupe = args[0]
+				}
+				return executerInterne(cmd.Context(), afficherSections(groupe))
+			},
+		},
+		&cobra.Command{
 			Use:   "matviews",
 			Short: "État des matvues du schéma mv (internal/matview)",
 			Long: "Le catalogue des matérialisations Postgres (voir internal/matview) —\n" +
@@ -125,7 +149,7 @@ func commandeDeps() *cobra.Command {
 			"chacun de ses parents plutôt que d'être fusionnée en un seul nœud.\n\n" +
 			"Sans nom, affiche ensuite un second arbre : les pages du site que\n" +
 			"fpctl build sait reconstruire seules (scrutin, communes, reste),\n" +
-			"chacune comme racine de ses préalables d'ingestion (ingestPrealables,\n" +
+			"chacune comme racine de ses préalables d'ingestion (ingestPrerequisites,\n" +
 			"cmd/fpctl/build.go) — --pages n'affiche que celui-là. Avec un nom,\n" +
 			"limite l'affichage à une seule chose : l'une des sept étapes du\n" +
 			"socle, ou une page (--pages ignoré, déjà implicite).\n\n" +
@@ -149,7 +173,7 @@ func commandeDeps() *cobra.Command {
 
 // composantesEtape : les tables que chaque étape du socle parlementaire
 // écrit, pour afficher combien ça pèse en base à côté du graphe — tenu à la
-// main, comme ingestPrealables (cmd/fpctl/build.go) : sept étapes assez
+// main, comme ingestPrerequisites (cmd/fpctl/build.go) : sept étapes assez
 // rares et assez stables pour que ça reste à jour sans registre séparé.
 // Contrairement aux octets archivés (voir tailleEtape), il n'existe pas de
 // reflet générique pour la base : une table peut apparaître sous plusieurs
@@ -346,11 +370,11 @@ func ajouterNoeudEtape(ctx context.Context, pool *pgxpool.Pool, noeuds map[strin
 }
 
 // ajouterNoeudPage ajoute la section de fpctl build nomSection à noeuds,
-// avec pour dépendances ses préalables d'ingestion (ingestPrealables,
+// avec pour dépendances ses préalables d'ingestion (ingestPrerequisites,
 // cmd/fpctl/build.go) — ajoutés eux aussi si besoin, pour que le nœud page
 // pointe vers des étapes qui existent vraiment dans la carte.
 func ajouterNoeudPage(ctx context.Context, pool *pgxpool.Pool, noeuds map[string]noeud, nomSection, description string) error {
-	prealables := ingestPrealables[nomSection]
+	prealables := ingestPrerequisites[nomSection]
 	for _, p := range prealables {
 		if err := ajouterNoeudEtape(ctx, pool, noeuds, p); err != nil {
 			return err
@@ -413,18 +437,18 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 	case nom == "" && !enPages:
 		racines = calculerRacines(noeuds, ingest.SocleParlementaire())
 	case nom == "" && enPages:
-		for _, section := range buildSections {
-			if err := ajouterNoeudPage(ctx, pool, noeuds, section.nom, section.description); err != nil {
+		for _, section := range buildGroups {
+			if err := ajouterNoeudPage(ctx, pool, noeuds, section.name, section.description); err != nil {
 				return err
 			}
-			racines = append(racines, clePage(section.nom))
+			racines = append(racines, clePage(section.name))
 		}
 	case ingest.EstSurLeSocle(nom):
 		racines = []string{nom}
 	default:
 		trouve := false
-		for _, section := range buildSections {
-			if section.nom == nom {
+		for _, section := range buildGroups {
+			if section.name == nom {
 				trouve = true
 				if err := ajouterNoeudPage(ctx, pool, noeuds, nom, section.description); err != nil {
 					return err
@@ -434,8 +458,8 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 		}
 		if !trouve {
 			connus := ingest.SocleParlementaire()
-			for _, section := range buildSections {
-				connus = append(connus, section.nom)
+			for _, section := range buildGroups {
+				connus = append(connus, section.name)
 			}
 			sort.Strings(connus)
 			return fmt.Errorf("%s inconnu (attendu : %s)", nom, strings.Join(connus, ", "))
@@ -449,11 +473,11 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 		fmt.Println()
 		fmt.Println("pages du site (fpctl build) :")
 		var racinesPages []string
-		for _, section := range buildSections {
-			if err := ajouterNoeudPage(ctx, pool, noeuds, section.nom, section.description); err != nil {
+		for _, section := range buildGroups {
+			if err := ajouterNoeudPage(ctx, pool, noeuds, section.name, section.description); err != nil {
 				return err
 			}
-			racinesPages = append(racinesPages, clePage(section.nom))
+			racinesPages = append(racinesPages, clePage(section.name))
 		}
 		return afficherDepsArbre(pool, noeuds, racinesPages)
 	}
@@ -642,6 +666,58 @@ func afficherStats(ctx context.Context) error {
 	return nil
 }
 
+// afficherSections liste les deux catalogues que internal/sitegen.Sections()/
+// Topics() exposent — jamais recopiés à la main ici, la même source que
+// cmd/fpctl/build.go valide contre pour "section <nom>"/"topic <id>".
+// afficherSections liste les sections connues de sitegen.Sections()/
+// Topics() — sans argument, la vue complète (chaque section avec son
+// groupe, chaque groupe avec ses sections, chaque sujet) ; avec le nom
+// d'un groupe (« dossiers », « indicateurs »...), seulement ses sections.
+func afficherSections(groupe string) error {
+	groupeDe := map[string]string{}
+	for _, g := range buildGroups {
+		for _, s := range g.sections {
+			groupeDe[s] = g.name
+		}
+	}
+
+	if groupe != "" {
+		for _, g := range buildGroups {
+			if g.name == groupe {
+				fmt.Printf("fpctl build %s : %s\n", g.name, g.description)
+				for _, s := range g.sections {
+					fmt.Printf("  %s\n", s)
+				}
+				return nil
+			}
+		}
+		var connus []string
+		for _, g := range buildGroups {
+			connus = append(connus, g.name)
+		}
+		return fmt.Errorf("groupe inconnu : %s (connus : %s)", groupe, strings.Join(connus, ", "))
+	}
+
+	fmt.Println("sections (fpctl build section <nom>) :")
+	for _, s := range sitegen.Sections() {
+		if g, ok := groupeDe[s]; ok {
+			fmt.Printf("  %-20s dans le groupe « fpctl build %s »\n", s, g)
+		} else {
+			fmt.Printf("  %-20s\n", s)
+		}
+	}
+
+	fmt.Println("\ngroupes (fpctl build <groupe>, ou fpctl list sections <groupe> pour le détail) :")
+	for _, g := range buildGroups {
+		fmt.Printf("  %-14s %s — %s\n", g.name, g.description, strings.Join(g.sections, ", "))
+	}
+
+	sujets := sitegen.Topics()
+	fmt.Printf("\nsujets de campagne (fpctl build topic <id>) : %d — %s\n",
+		len(sujets), strings.Join(sujets, ", "))
+	return nil
+}
+
 func afficherMatviews(ctx context.Context) error {
 	pool, err := store.Open(ctx)
 	if err != nil {
@@ -653,14 +729,24 @@ func afficherMatviews(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%-24s %10s %20s  %s\n", "matvue", "lignes", "actualisée le", "tables source")
+	// Largeur calculée sur le plus long nom réel plutôt qu'une constante :
+	// une constante trop courte (mv.commune_association_count dépassait déjà
+	// %-24s) désaligne toutes les colonnes qui suivent dès qu'un nom la
+	// dépasse, pas seulement sa propre ligne.
+	largeur := len("matvue")
+	for _, e := range etats {
+		if n := len("mv." + e.Nom); n > largeur {
+			largeur = n
+		}
+	}
+	fmt.Printf("%-*s %10s %20s  %s\n", largeur, "matvue", "lignes", "actualisée le", "tables source")
 	for _, e := range etats {
 		nom := "mv." + e.Nom
 		if !e.Connue {
-			fmt.Printf("%-24s %10s %20s  %s\n", nom, "—", "jamais", strings.Join(e.Tables, ", "))
+			fmt.Printf("%-*s %10s %20s  %s\n", largeur, nom, "—", "jamais", strings.Join(e.Tables, ", "))
 			continue
 		}
-		fmt.Printf("%-24s %10d %20s  %s\n", nom, e.Lignes,
+		fmt.Printf("%-*s %10d %20s  %s\n", largeur, nom, e.Lignes,
 			e.ActualiseeLe.Local().Format("2006-01-02 15:04"), strings.Join(e.Tables, ", "))
 	}
 	return nil

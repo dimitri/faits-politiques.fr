@@ -13,7 +13,7 @@ import (
 // liste recalculée séparément qui pourrait diverger de ce qui est publié. La
 // source de vérité est le système de fichiers de out/ une fois la
 // construction terminée — pas une deuxième comptabilité tenue au fil des
-// centaines d'appels à write() dans ce paquet.
+// centaines d'appels à writeAlways() dans ce paquet.
 //
 // À 78 000 pages, un fichier unique dépasserait la limite de 50 000 URL par
 // plan que Google impose ; ce site n'a d'ailleurs aucune section qui, seule,

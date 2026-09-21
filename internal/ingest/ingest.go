@@ -94,7 +94,7 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		archEtape.Etape = source.Nom
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
-			Executer: func(ctx context.Context, _ pipeline.Resultats) (any, error) {
+			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
 			},
 		})
@@ -140,7 +140,7 @@ func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms [
 		archEtape.Etape = source.Nom
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
-			Executer: func(ctx context.Context, _ pipeline.Resultats) (any, error) {
+			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
 			},
 		})

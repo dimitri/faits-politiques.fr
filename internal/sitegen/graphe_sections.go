@@ -1,8 +1,8 @@
 package sitegen
 
 // Compléments de graphe.go : le patron répétitif "un chargement, une
-// écriture" (ajouterPage) et les quelques nœuds trop longs pour rester des
-// closures inline dans construireRegistre sans le rendre illisible —
+// écriture" (addPageNode) et les quelques nœuds trop longs pour rester des
+// closures inline dans buildRegistry sans le rendre illisible —
 // chacun repris quasi verbatim du corps de l'ancien run() séquentiel,
 // jamais réécrit en chemin.
 import (
@@ -19,16 +19,16 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-// ajouterPage : le patron d'une section à un seul chargement — charger(),
+// addPageNode : le patron d'une section à un seul chargement — charger(),
 // puis écrire() sous le nom de section nom lui-même, sauf si -only
 // l'exclut. La valeur chargée reste disponible aux dépendantes (la carte
 // vieillesse/jeunesse lit l'état renvoyé par sa propre page).
-func ajouterPage[T any](reg *pipeline.Registre, e *environnement, nom string, deps []string, titre, gabarit string,
-	charger func(ctx context.Context, d pipeline.Resultats) (T, error),
+func addPageNode[T any](reg *pipeline.Registre, e *environment, nom string, deps []string, titre, gabarit string,
+	charger func(ctx context.Context, d pipeline.Results) (T, error),
 	donnees func(l Layout, v T) (string, any)) {
 	reg.Ajouter(pipeline.Etape{
 		Nom: nom, Description: "page " + nom, Dependances: deps,
-		Executer: func(ctx context.Context, d pipeline.Resultats) (any, error) {
+		Executer: func(ctx context.Context, d pipeline.Results) (any, error) {
 			v, err := charger(ctx, d)
 			if err != nil {
 				return nil, err
@@ -36,7 +36,7 @@ func ajouterPage[T any](reg *pipeline.Registre, e *environnement, nom string, de
 			l := e.layout
 			l.Title = titre
 			chemin, data := donnees(l, v)
-			if err := e.ecrire(nom, e.page(gabarit), chemin, data); err != nil {
+			if err := e.writeSection(nom, e.page(gabarit), chemin, data); err != nil {
 				return nil, err
 			}
 			return v, nil
@@ -44,30 +44,30 @@ func ajouterPage[T any](reg *pipeline.Registre, e *environnement, nom string, de
 	})
 }
 
-// construireCommunesEPCI reprend verbatim le court-circuit par empreinte
+// buildCommunesAndEPCI reprend verbatim le court-circuit par empreinte
 // (core.section_checksum, voir cache.go) que "communes" avait déjà avant ce
 // graphe : recopier depuis le site précédent si données et gabarits sont
 // inchangés, sinon recharger et réécrire, en parallèle (une commune, une
 // clé de pagesCom, aucun état partagé entre deux itérations — même
 // raisonnement que pour les scrutins).
-func construireCommunesEPCI(ctx context.Context, e *environnement, d pipeline.Resultats) error {
+func buildCommunesAndEPCI(ctx context.Context, e *environment, d pipeline.Results) error {
 	lieux := dep[*Resolveur](d, "lieux")
 	fond := dep[*fondSituation](d, "fond-situation")
-	id := dep[identiteBundle](d, "identite")
-	cb := dep[collectivitesBundle](d, "collectivites-data")
+	id := dep[identityBundle](d, "identite")
+	cb := dep[localGovBundle](d, "collectivites-data")
 
-	communesInchangees, etatCommunes, err := sectionInchangee(ctx, e.pool, e.ancienCacheValeur(), "communes")
+	communesInchangees, etatCommunes, err := sectionInchangee(ctx, e.pool, e.previousCache(), "communes")
 	if err != nil {
 		return err
 	}
-	e.nouveauCache.Sections["communes"] = etatCommunes
+	e.newCache.Sections["communes"] = etatCommunes
 	if communesInchangees {
 		fmt.Println("    communes : données et gabarits inchangés, recopiées depuis le site précédent")
-		if err := copierRepertoire(filepath.Join(e.siteActuel, "collectivites", "commune"),
+		if err := copierRepertoire(filepath.Join(e.currentSite, "collectivites", "commune"),
 			filepath.Join(e.out, "collectivites", "commune")); err != nil {
 			return err
 		}
-		if err := copierRepertoire(filepath.Join(e.siteActuel, "collectivites", "epci"),
+		if err := copierRepertoire(filepath.Join(e.currentSite, "collectivites", "epci"),
 			filepath.Join(e.out, "collectivites", "epci")); err != nil {
 			return err
 		}
@@ -92,7 +92,7 @@ func construireCommunesEPCI(ctx context.Context, e *environnement, d pipeline.Re
 		g.Go(func() error {
 			lp := e.layout
 			lp.Title = pc.Nom + " (" + pc.Dept.Code + ")"
-			return e.write(tcom, filepath.Join(e.out, "collectivites", "commune", code, "index.html"), struct {
+			return e.writeAlways(tcom, filepath.Join(e.out, "collectivites", "commune", code, "index.html"), struct {
 				Layout
 				C *PageCommune
 			}{lp, pc})
@@ -114,7 +114,7 @@ func construireCommunesEPCI(ctx context.Context, e *environnement, d pipeline.Re
 	for siren, pe := range pagesEPCI {
 		l := e.layout
 		l.Title = pe.Nom
-		if err := e.write(tepci, filepath.Join(e.out, "collectivites", "epci", siren, "index.html"), struct {
+		if err := e.writeAlways(tepci, filepath.Join(e.out, "collectivites", "epci", siren, "index.html"), struct {
 			Layout
 			E *PageEPCI
 		}{l, pe}); err != nil {
@@ -126,13 +126,13 @@ func construireCommunesEPCI(ctx context.Context, e *environnement, d pipeline.Re
 	return nil
 }
 
-// construireSujetsData reprend verbatim la substitution des marqueurs
+// buildTopicsData reprend verbatim la substitution des marqueurs
 // <!-- schema:... --> dans les documents Markdown, puis rattacherDocs/
 // reecrireLiensDocs/preparerSujets — voir la note de tête de graphe.go sur
 // pourquoi ce nœud dépend de la trentaine de schémas plutôt que d'un
 // sous-ensemble : quel marqueur vit dans quel document n'est su qu'en
 // relisant le texte.
-func construireSujetsData(ctx context.Context, e *environnement, deps pipeline.Resultats) error {
+func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results) error {
 	docs := dep[[]*Doc](deps, "docs")
 	acc := dep[*DonneesAccueil](deps, "accueil-data")
 	terr := dep[*StatsTerritoires](deps, "territoires")
@@ -260,7 +260,7 @@ func construireSujetsData(ctx context.Context, e *environnement, deps pipeline.R
 		if schemaDepenseEnv != "" && strings.Contains(string(d.Corps), "<!-- schema:depense-environnementale -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:depense-environnementale -->",
 				`<figure class="schema"><div class="carte-pleine">`+string(schemaDepenseEnv)+`</div>`+
-					`<figcaption>Dépense de protection de l'environnement, ensemble de l'économie — `+
+					`<figcaption>Dépense de protection de l'environment, ensemble de l'économie — `+
 					`Eurostat (env_epea_neep), millions d'euros courants convertis en milliards.`+
 					`</figcaption></figure>`))
 		}
@@ -666,11 +666,11 @@ func construireSujetsData(ctx context.Context, e *environnement, deps pipeline.R
 	return preparerSujets(ctx, e.pool, e.out, root, acc)
 }
 
-// construireComprendreEtSujets reprend verbatim la double boucle sur docs :
+// buildGuidesAndTopics reprend verbatim la double boucle sur docs :
 // chaque document est soit un sujet (sa propre section -only, l'ID du
 // sujet — "fpctl build <sujet.id>" ne construit que celui-là), soit un
 // document de méthode accumulé dans methode pour la section "comprendre".
-func construireComprendreEtSujets(e *environnement, docs []*Doc) error {
+func buildGuidesAndTopics(e *environment, docs []*Doc) error {
 	ts := e.page("sujet.gohtml")
 	var methode []*Doc
 	for _, d := range docs {
@@ -679,12 +679,12 @@ func construireComprendreEtSujets(e *environnement, docs []*Doc) error {
 			methode = append(methode, d)
 			continue
 		}
-		if e.exclu(s.ID) {
+		if e.excluded(s.ID) {
 			continue
 		}
 		l := e.layout
 		l.Title = s.Nom
-		if err := e.write(ts, filepath.Join(e.out, filepath.FromSlash(s.URL()), "index.html"), struct {
+		if err := e.writeAlways(ts, filepath.Join(e.out, filepath.FromSlash(s.URL()), "index.html"), struct {
 			Layout
 			S *Sujet
 		}{l, s}); err != nil {
@@ -702,7 +702,7 @@ func construireComprendreEtSujets(e *environnement, docs []*Doc) error {
 
 	l := e.layout
 	l.Title = "Documents de méthode"
-	if err := e.ecrire("comprendre", e.page("comprendre.gohtml"), filepath.Join(e.out, "comprendre", "index.html"), struct {
+	if err := e.writeSection("comprendre", e.page("comprendre.gohtml"), filepath.Join(e.out, "comprendre", "index.html"), struct {
 		Layout
 		Docs    []*Doc
 		Groupes []GroupeDocs
@@ -719,7 +719,7 @@ func construireComprendreEtSujets(e *environnement, docs []*Doc) error {
 		}
 		l := e.layout
 		l.Title = d.Titre
-		if err := e.ecrire("comprendre", td, filepath.Join(e.out, "comprendre", d.Slug, "index.html"), struct {
+		if err := e.writeSection("comprendre", td, filepath.Join(e.out, "comprendre", d.Slug, "index.html"), struct {
 			Layout
 			D      *Doc
 			Autres []*Doc
@@ -730,12 +730,12 @@ func construireComprendreEtSujets(e *environnement, docs []*Doc) error {
 	return nil
 }
 
-// construireFiches reprend verbatim les cinq boucles de fiches (personnes,
+// buildProfilePages reprend verbatim les cinq boucles de fiches (personnes,
 // candidats, organisations, référentiels, groupes) — toutes sous la même
 // section -only "fiches", exactement comme cmd/fpctl/build.go les groupe
 // déjà.
-func construireFiches(e *environnement, d pipeline.Resultats) error {
-	id := dep[identiteBundle](d, "identite")
+func buildProfilePages(e *environment, d pipeline.Results) error {
+	id := dep[identityBundle](d, "identite")
 	e27 := dep[*Stats2027](d, "election2027")
 	locaux := dep[map[string]*RapprochementRNE](d, "mandats-locaux")
 
@@ -769,7 +769,7 @@ func construireFiches(e *environnement, d pipeline.Resultats) error {
 				data.Defs = e27.Defs
 			}
 		}
-		if err := e.ecrire("fiches", tp, filepath.Join(e.out, "depute", p.Slug, "index.html"), data); err != nil {
+		if err := e.writeSection("fiches", tp, filepath.Join(e.out, "depute", p.Slug, "index.html"), data); err != nil {
 			return err
 		}
 	}
@@ -794,7 +794,7 @@ func construireFiches(e *environnement, d pipeline.Resultats) error {
 			Defs          template.HTML
 			TotalScrutins int
 		}{l, p, c, locaux[c.Slug], k, defs, e.layout.Cov.Scrutins}
-		if err := e.ecrire("fiches", tp, filepath.Join(e.out, "candidat", c.Slug, "index.html"), data); err != nil {
+		if err := e.writeSection("fiches", tp, filepath.Join(e.out, "candidat", c.Slug, "index.html"), data); err != nil {
 			return err
 		}
 	}
@@ -803,7 +803,7 @@ func construireFiches(e *environnement, d pipeline.Resultats) error {
 	for _, o := range id.Orgs {
 		l := e.layout
 		l.Title = o.Libelle
-		if err := e.ecrire("fiches", to, filepath.Join(e.out, "organisation", o.Slug, "index.html"), struct {
+		if err := e.writeSection("fiches", to, filepath.Join(e.out, "organisation", o.Slug, "index.html"), struct {
 			Layout
 			O *Organisation
 		}{l, o}); err != nil {
@@ -824,7 +824,7 @@ func construireFiches(e *environnement, d pipeline.Resultats) error {
 		}
 		l := e.layout
 		l.Title = r.Titre
-		if err := e.ecrire("fiches", tr, filepath.Join(e.out, "referentiel", r.Slug, "index.html"), struct {
+		if err := e.writeSection("fiches", tr, filepath.Join(e.out, "referentiel", r.Slug, "index.html"), struct {
 			Layout
 			R    *Referentiel
 			Orgs []*Organisation
@@ -837,7 +837,7 @@ func construireFiches(e *environnement, d pipeline.Resultats) error {
 	for _, g := range id.Groupes {
 		l := e.layout
 		l.Title = g.Nom
-		if err := e.ecrire("fiches", tg, filepath.Join(e.out, "groupe", g.Slug, "index.html"), struct {
+		if err := e.writeSection("fiches", tg, filepath.Join(e.out, "groupe", g.Slug, "index.html"), struct {
 			Layout
 			G *Groupe
 		}{l, g}); err != nil {
@@ -847,9 +847,9 @@ func construireFiches(e *environnement, d pipeline.Resultats) error {
 	return nil
 }
 
-// construireScrutin reprend verbatim le court-circuit par empreinte que
+// buildBallotSection reprend verbatim le court-circuit par empreinte que
 // "scrutin" avait déjà avant ce graphe.
-func construireScrutin(ctx context.Context, e *environnement, seuils map[string]Seuil) (int, error) {
+func buildBallotSection(ctx context.Context, e *environment, seuils map[string]Seuil) (int, error) {
 	srcScrutins := SourceInfo{Attribution: "Assemblée nationale, open data, Licence Ouverte"}
 	for _, s := range e.layout.Sources {
 		if strings.Contains(strings.ToLower(s.Label), "scrutins") {
@@ -859,21 +859,21 @@ func construireScrutin(ctx context.Context, e *environnement, seuils map[string]
 	}
 	fmt.Printf("  avant les scrutins : %s écoulées\n", time.Since(e.start).Round(time.Second))
 
-	scrutinsInchanges, etatScrutins, err := sectionInchangee(ctx, e.pool, e.ancienCacheValeur(), "scrutin")
+	scrutinsInchanges, etatScrutins, err := sectionInchangee(ctx, e.pool, e.previousCache(), "scrutin")
 	if err != nil {
 		return 0, err
 	}
 	if e.maxScrutins == 0 {
-		e.nouveauCache.Sections["scrutin"] = etatScrutins
-	} else if prec, ok := e.ancienCacheValeur().Sections["scrutin"]; ok {
-		e.nouveauCache.Sections["scrutin"] = prec
+		e.newCache.Sections["scrutin"] = etatScrutins
+	} else if prec, ok := e.previousCache().Sections["scrutin"]; ok {
+		e.newCache.Sections["scrutin"] = prec
 	}
 	if e.maxScrutins == 0 && scrutinsInchanges {
-		n := e.ancienCacheValeur().Sections["scrutin"].N
+		n := e.previousCache().Sections["scrutin"].N
 		etatScrutins.N = n
-		e.nouveauCache.Sections["scrutin"] = etatScrutins
+		e.newCache.Sections["scrutin"] = etatScrutins
 		fmt.Printf("    scrutins : données et gabarits inchangés, recopiés depuis le site précédent (%d)\n", n)
-		if err := copierRepertoire(filepath.Join(e.siteActuel, "scrutin"), filepath.Join(e.out, "scrutin")); err != nil {
+		if err := copierRepertoire(filepath.Join(e.currentSite, "scrutin"), filepath.Join(e.out, "scrutin")); err != nil {
 			return 0, err
 		}
 		return n, nil
@@ -884,19 +884,19 @@ func construireScrutin(ctx context.Context, e *environnement, seuils map[string]
 	}
 	if e.maxScrutins == 0 {
 		etatScrutins.N = n
-		e.nouveauCache.Sections["scrutin"] = etatScrutins
+		e.newCache.Sections["scrutin"] = etatScrutins
 	}
 	return n, nil
 }
 
-// sectionsVersNoeuds : chaque nom -only reconnu par ecrire() ailleurs dans
+// sectionNodes : chaque nom -only reconnu par ecrire() ailleurs dans
 // ce fichier et graphe.go, vers le ou les nœuds du registre qui écrivent
 // sous ce nom. Presque toujours un seul ; plusieurs quand une section
 // historique s'est retrouvée à cheval sur deux nœuds séparés du graphe
 // (vieillesse/sa carte, collectivités/ses cartes/ses pages locales) — sans
 // cette table, demander -only=vieillesse n'aurait tiré que le premier des
 // deux, l'autre n'étant relié à rien qui le rende atteignable depuis lui.
-var sectionsVersNoeuds = map[string][]string{
+var sectionNodes = map[string][]string{
 	"frise":            {"frise"},
 	"dette":            {"dette"},
 	"chomage":          {"chomage"},
@@ -930,39 +930,66 @@ var sectionsVersNoeuds = map[string][]string{
 	"scrutin":          {"scrutin"},
 }
 
-// ciblesDe traduit -only en cibles pour Registre.Executer : vide veut dire
-// tout (chaque nœud de sectionsVersNoeuds une seule fois), une valeur non
-// reconnue est supposée être l'ID d'un sujet individuel (fpctl build
-// <sujet-id>) et retombe sur "comprendre", le nœud qui les distribue tous.
-func ciblesDe(only string) []string {
-	if only == "" {
-		var cibles []string
-		for _, noms := range sectionsVersNoeuds {
-			cibles = append(cibles, noms...)
-		}
-		sort.Strings(cibles) // plan reproductible d'un lancement à l'autre
-		return cibles
+// Sections lists every section name a caller may request (cmd/fpctl builds
+// its per-section subcommands from this rather than hand-copying the list a
+// second time) — sorted for a stable --help/completion order.
+func Sections() []string {
+	out := make([]string, 0, len(sectionNodes))
+	for nom := range sectionNodes {
+		out = append(out, nom)
 	}
-	var cibles []string
-	vus := map[string]bool{}
-	ajouterCibles := func(noms []string) {
-		for _, n := range noms {
-			if !vus[n] {
-				vus[n] = true
-				cibles = append(cibles, n)
+	sort.Strings(out)
+	return out
+}
+
+// Topics lists every individual sujet ID (fpctl build topic <id> reconstructs
+// just that one) — read from the same familles/Sujets data the site itself
+// renders from, so a new sujet is reachable the moment it's declared there.
+func Topics() []string {
+	var out []string
+	for _, f := range familles {
+		for _, s := range f.Sujets {
+			out = append(out, s.ID)
+		}
+	}
+	sort.Strings(out)
+	return out
+}
+
+// resolveTargets translates the requested section names into Registre.Executer
+// targets: nil/empty means everything (every node in sectionNodes, once each),
+// a name not in sectionNodes is assumed to be an individual sujet ID (fpctl
+// build topic <id>) and falls back to "comprendre", the node that dispatches
+// all of them.
+func resolveTargets(sections []string) []string {
+	if len(sections) == 0 {
+		var targets []string
+		for _, nodes := range sectionNodes {
+			targets = append(targets, nodes...)
+		}
+		sort.Strings(targets) // stable plan across runs
+		return targets
+	}
+	var targets []string
+	seen := map[string]bool{}
+	addTargets := func(nodes []string) {
+		for _, n := range nodes {
+			if !seen[n] {
+				seen[n] = true
+				targets = append(targets, n)
 			}
 		}
 	}
-	for _, tok := range strings.Split(only, ",") {
-		tok = strings.TrimSpace(tok)
-		if tok == "" {
+	for _, name := range sections {
+		name = strings.TrimSpace(name)
+		if name == "" {
 			continue
 		}
-		if noms, ok := sectionsVersNoeuds[tok]; ok {
-			ajouterCibles(noms)
+		if nodes, ok := sectionNodes[name]; ok {
+			addTargets(nodes)
 		} else {
-			ajouterCibles(sectionsVersNoeuds["comprendre"])
+			addTargets(sectionNodes["comprendre"])
 		}
 	}
-	return cibles
+	return targets
 }

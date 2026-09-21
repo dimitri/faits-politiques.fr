@@ -20,6 +20,8 @@ fpctl-list - liste une collection (sources, connecteurs, statistiques, graphe de
 
 **fpctl list deps** [*nom*] [**--json**] [**--pages**]
 
+**fpctl list sections** [*groupe*]
+
 # DESCRIPTION
 
 **sources**
@@ -106,6 +108,18 @@ fpctl-list - liste une collection (sources, connecteurs, statistiques, graphe de
     d'ingestion d'une page entière. Les octets en base restent une liste de
     tables tenue à la main (**cmd/fpctl/list.go**, **composantesEtape**),
     à ce jour limitée aux sept étapes du socle.
+
+**sections** [*groupe*]
+:   Les catalogues qu'**internal/sitegen** expose maintenant que chaque
+    section (et chaque sujet de campagne) est un nœud nommé d'un graphe de
+    dépendances (**internal/pipeline.Registre**, voir
+    **internal/sitegen/graphe.go**) plutôt qu'une valeur parmi d'autres
+    d'un ancien drapeau **-only** : **sitegen.Sections()** — avec, pour
+    chacune, le groupe de **fpctl build** qui la couvre déjà s'il y en a
+    un —, la liste des groupes eux-mêmes avec leurs sections, et
+    **sitegen.Topics()**, la liste des sujets de campagne individuels
+    (**fpctl build topic**). Avec le nom d'un groupe (**dossiers**,
+    **indicateurs**...), n'affiche que ses sections.
 
 # VOIR AUSSI
 
