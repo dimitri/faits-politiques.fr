@@ -116,6 +116,11 @@ func organeLabels(ctx context.Context, pool *pgxpool.Pool) (map[string]string, e
 	return out, rows.Err()
 }
 
+// watermarkOrganes identifie, dans core.ingest_watermark, l'état de
+// raw.record que la remise à zéro de core.organization a déjà pris en
+// compte — voir rawWatermark et Normalize.
+const watermarkOrganes = "an-organe"
+
 func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT DISTINCT ON (natural_key) payload FROM raw.record
@@ -760,21 +765,69 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	// en était. C'est arrivé : deux exécutions concurrentes se sont marché
 	// dessus, l'une reconstruisant ce que l'autre effaçait, et le message final
 	// parlait d'une clé étrangère au lieu de parler d'une course.
+	//
+	// La décision de sauter la reconstruction des votes (core.scrutin/
+	// core.ballot, voir normalizeScrutins) doit être prise ICI, avant cette
+	// même transaction — pas à l'intérieur de normalizeScrutins, qui ne
+	// serait atteinte qu'après que ballot/ballot_group aient déjà été vidés
+	// ci-dessous. Un repère consulté trop tard verrait une table vide et la
+	// prendrait, à tort, pour une reconstruction déjà sautée.
+	scrutinsCount, scrutinsHigh, err := rawWatermark(ctx, pool, "an.scrutin")
+	if err != nil {
+		return fmt.Errorf("empreinte des scrutins : %w", err)
+	}
+	scrutinsUnchanged, err := watermarkUnchanged(ctx, pool, watermarkScrutins, scrutinsCount, scrutinsHigh)
+	if err != nil {
+		return fmt.Errorf("empreinte des scrutins : %w", err)
+	}
+
+	// core.organization est TOUJOURS détruite puis reconstruite (identity
+	// column : un id d'organisation change à chaque cycle, même quand rien
+	// n'a changé) — sauf ici : si rien n'est arrivé pour an.organe depuis la
+	// dernière fois, la détruire casserait la clé étrangère de core.ballot
+	// vers l'organisation sous laquelle un vote a été enregistré, alors que
+	// core.ballot vient justement d'être laissée intacte ci-dessus. Les deux
+	// repères doivent donc être vrais ensemble pour que sauter le premier
+	// soit sûr.
+	organeCount, organeHigh, err := rawWatermark(ctx, pool, "an.organe")
+	if err != nil {
+		return fmt.Errorf("empreinte des organes : %w", err)
+	}
+	organeUnchanged, err := watermarkUnchanged(ctx, pool, watermarkOrganes, organeCount, organeHigh)
+	if err != nil {
+		return fmt.Errorf("empreinte des organes : %w", err)
+	}
+	// Les deux repères doivent être vrais ensemble : core.ballot référence à
+	// la fois un scrutin (id stable, upserté par source_uid) et parfois une
+	// organisation (id instable, détruite puis recréée). Sauter sa
+	// reconstruction n'est sûr que si NI L'UN NI L'AUTRE n'a de raison de
+	// bouger.
+	skipBallots := scrutinsUnchanged && organeUnchanged
+
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	for _, q := range []string{
+	resets := []string{}
+	if !skipBallots {
 		// Portée limitée à l'Assemblée : un DELETE global emporterait les votes
-		// du Parlement européen, qui viennent d'un autre connecteur.
-		`DELETE FROM core.ballot_group_exception e USING core.scrutin s
-		  WHERE s.id = e.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.ballot_group g USING core.scrutin s
-		  WHERE s.id = g.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.ballot b USING core.scrutin s
-		  WHERE s.id = b.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
+		// du Parlement européen, qui viennent d'un autre connecteur. Omises
+		// entièrement quand les scrutins et les organisations sont tous deux
+		// inchangés : normalizeScrutins va alors sauter sa propre
+		// reconstruction, et ces trois tables doivent donc rester telles que
+		// la dernière reconstruction les a laissées.
+		resets = append(resets,
+			`DELETE FROM core.ballot_group_exception e USING core.scrutin s
+			  WHERE s.id = e.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
+			`DELETE FROM core.ballot_group g USING core.scrutin s
+			  WHERE s.id = g.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
+			`DELETE FROM core.ballot b USING core.scrutin s
+			  WHERE s.id = b.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`)
+	}
+
+	resets = append(resets, []string{
 		// Les affiliations proviennent toutes de l'Assemblée aujourd'hui ; la
 		// portée est bornée malgré tout, pour que l'arrivée d'un connecteur
 		// d'affiliations sénatoriales ne fasse pas de dégât silencieux.
@@ -827,24 +880,33 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		  WHERE t.id = a.texte_id AND t.institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.texte WHERE institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.dossier WHERE institution = 'ASSEMBLEE_NATIONALE'`,
-		// La cartographie éditoriale pointe les groupes de l'Assemblée. Elle est
-		// rechargée juste après la normalisation (cmd/ingest), mais tant qu'elle
-		// pointe des organisations sur le point d'être détruites, la clé
-		// étrangère refuse la suppression — et le connecteur échouerait sans
-		// qu'on comprenne pourquoi.
-		`DELETE FROM core.party_group_link l
-		  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
-		                WHERE i.organization_id = l.group_id AND i.scheme = 'AN_ORGANE')`,
-		// Enfin les entités portant un identifiant de l'Assemblée, et elles seules.
-		`DELETE FROM core.organization o
-		  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
-		                 WHERE i.organization_id = o.id AND i.scheme = 'AN_ORGANE')`,
-		// Les PERSONNES ne sont plus détruites. Elles l'étaient quand
-		// l'Assemblée en était le seul producteur ; depuis que le RNE et la
-		// HATVP y rattachent des mandats et des déclarations, effacer une
-		// personne parce qu'elle est députée emporterait son mandat de maire.
-		// Elles sont donc mises à jour en place, par leur identifiant.
-	} {
+	}...)
+
+	if !organeUnchanged {
+		// La cartographie éditoriale pointe les groupes de l'Assemblée. Elle
+		// est rechargée juste après la normalisation (cmd/ingest), mais tant
+		// qu'elle pointe des organisations sur le point d'être détruites, la
+		// clé étrangère refuse la suppression — et le connecteur échouerait
+		// sans qu'on comprenne pourquoi. Omises avec l'organisation
+		// elle-même quand rien n'a changé : rien n'est alors sur le point
+		// d'être détruit, ces deux DELETE n'ont donc rien à protéger.
+		resets = append(resets,
+			`DELETE FROM core.party_group_link l
+			  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
+			                WHERE i.organization_id = l.group_id AND i.scheme = 'AN_ORGANE')`,
+			// Enfin les entités portant un identifiant de l'Assemblée, et
+			// elles seules.
+			`DELETE FROM core.organization o
+			  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
+			                 WHERE i.organization_id = o.id AND i.scheme = 'AN_ORGANE')`)
+	}
+	// Les PERSONNES ne sont plus détruites. Elles l'étaient quand l'Assemblée
+	// en était le seul producteur ; depuis que le RNE et la HATVP y
+	// rattachent des mandats et des déclarations, effacer une personne parce
+	// qu'elle est députée emporterait son mandat de maire. Elles sont donc
+	// mises à jour en place, par leur identifiant.
+
+	for _, q := range resets {
 		if _, err := tx.Exec(ctx, q); err != nil {
 			return fmt.Errorf("remise à zéro : %w", err)
 		}
@@ -861,6 +923,13 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	logs.Notice("normalizing organizations")
 	orgByUID, err := normalizeOrganes(ctx, pool)
 	if err != nil {
+		return fmt.Errorf("organes : %w", err)
+	}
+	// normalizeOrganes upserte par slug (id stable) plutôt que d'écraser :
+	// enregistrer ce repère seulement APRÈS son succès, jamais avant, sinon
+	// une organisation en cours d'écriture au moment d'un plantage serait
+	// prise pour déjà à jour au prochain essai.
+	if err := recordWatermark(ctx, pool, watermarkOrganes, organeCount, organeHigh); err != nil {
 		return fmt.Errorf("organes : %w", err)
 	}
 	logs.Notice(logs.Plural(len(orgByUID), "organization") + " normalized")
@@ -885,7 +954,8 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	logs.Notice(fmt.Sprintf("%d mandates and affiliations normalized", nMandats))
 
 	logs.Notice("normalizing votes")
-	nScr, nBal, err := normalizeScrutins(ctx, pool, personByUID, orgByUID)
+	nScr, nBal, err := normalizeScrutins(ctx, pool, personByUID, orgByUID,
+		skipBallots, scrutinsCount, scrutinsHigh)
 	if err != nil {
 		return fmt.Errorf("scrutins : %w", err)
 	}
@@ -897,18 +967,6 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 	return nil
 }
-
-func normalizeScrutinsLegacy(ctx context.Context, pool *pgxpool.Pool,
-	personByUID, orgByUID map[string]int64) error {
-	nScr, nBal, err := normalizeScrutins(ctx, pool, personByUID, orgByUID)
-	if err != nil {
-		return fmt.Errorf("scrutins : %w", err)
-	}
-	logs.Notice(fmt.Sprintf("%s normalized, %s", logs.Plural(nScr, "roll-call vote"), logs.Plural(nBal, "individual ballot")))
-	return nil
-}
-
-var _ = pgx.Identifier{}
 
 // trouverPersonne renvoie l'identifiant d'une personne déjà connue, ou 0.
 // L'ordre compte : l'identifiant de l'Assemblée fait foi ; à défaut, le triplet

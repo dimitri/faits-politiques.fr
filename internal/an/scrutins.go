@@ -100,8 +100,23 @@ type ballotRow struct {
 	rectifiee  *string
 }
 
+// watermarkScrutins identifie, dans core.ingest_watermark, l'état de
+// raw.record que normalizeScrutins a déjà digéré — voir rawWatermark et
+// db/migrations/0172_ingest_watermark.sql.
+const watermarkScrutins = "an-scrutins"
+
+// normalizeScrutins reconstruit core.scrutin/core.ballot pour l'Assemblée.
+//
+// unchanged, count et highWater viennent de l'appelant (Normalize) : la
+// décision de sauter cette reconstruction doit être prise UNE SEULE FOIS,
+// avant la transaction de remise à zéro qui précède l'appel à cette
+// fonction — cette transaction efface déjà core.ballot pour l'Assemblée
+// avant que normalizeScrutins ne soit atteinte, donc si elle décidait seule
+// de sauter son travail, elle laisserait la table vide en croyant l'avoir
+// juste sautée. Voir Normalize pour le calcul de unchanged.
 func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
-	personByUID map[string]int64, orgByUID map[string]int64) (int, int, error) {
+	personByUID map[string]int64, orgByUID map[string]int64,
+	unchanged bool, count, highWater int64) (int, int, error) {
 
 	var legID int64
 	if err := pool.QueryRow(ctx, `
@@ -110,6 +125,32 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 		ON CONFLICT (institution, numero) DO UPDATE SET numero = EXCLUDED.numero
 		RETURNING id`).Scan(&legID); err != nil {
 		return 0, 0, err
+	}
+
+	if unchanged {
+		var nScr, nBal int
+		if err := pool.QueryRow(ctx,
+			`SELECT count(*) FROM core.scrutin WHERE institution = 'ASSEMBLEE_NATIONALE'`).Scan(&nScr); err != nil {
+			return 0, 0, err
+		}
+		if err := pool.QueryRow(ctx, `
+			SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
+			 WHERE s.institution = 'ASSEMBLEE_NATIONALE'`).Scan(&nBal); err != nil {
+			return 0, 0, err
+		}
+		// count == 0 && nScr == 0 : rien n'a jamais été chargé, un état
+		// légitime. Sinon, nScr == 0 ou nBal == 0 alors que raw.record porte
+		// des scrutins est un état impossible en fonctionnement normal —
+		// quelqu'un ou quelque chose a vidé ces tables sans passer par ici
+		// (Normalize() a par ailleurs sauté leur propre remise à zéro en se
+		// fiant à ce même repère). Ce garde-fou coûte deux requêtes déjà
+		// indexées ; ne pas l'avoir ferait confiance à un repère devenu faux.
+		if (nScr > 0 && nBal > 0) || count == 0 {
+			logs.Notice(fmt.Sprintf("votes unchanged since last run, skipping rebuild (%s, %s)",
+				logs.Plural(nScr, "roll-call vote"), logs.Plural(nBal, "individual ballot")))
+			return nScr, nBal, nil
+		}
+		logs.Notice("watermark says unchanged but core.scrutin/core.ballot looks empty, rebuilding anyway")
 	}
 
 	rows, err := pool.Query(ctx,
@@ -279,7 +320,13 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 			}
 			return []any{b.scrutinID, b.personID, org, b.position, b.delegation, rect, date}, nil
 		}))
-	return nScrutins, int(n), err
+	if err != nil {
+		return 0, 0, err
+	}
+	if err := recordWatermark(ctx, pool, watermarkScrutins, count, highWater); err != nil {
+		return 0, 0, err
+	}
+	return nScrutins, int(n), nil
 }
 
 // ligneScrutin : une ligne prête pour tmp_scrutin (copierScrutins).
