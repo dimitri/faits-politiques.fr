@@ -520,6 +520,103 @@ func Actualiser(ctx context.Context, pool *pgxpool.Pool, def Definition) (rafrai
 	return true, nil
 }
 
+// dependancesReellesMV interroge pg_depend/pg_rewrite pour connaître, pour
+// chaque matvue du schéma mv, les AUTRES matvues du même schéma que son
+// SELECT lit DIRECTEMENT — la vérité telle que Postgres la connaît, tirée
+// de la définition réelle de la vue plutôt que de Catalogue[i].Tables tenu
+// à la main. Sert uniquement à valider ce dernier dans registre() : une
+// dépendance mv-sur-mv réelle absente de Tables ferait tourner cette
+// matvue une vague trop tôt, jamais une erreur SQL — juste une lecture
+// d'une matvue pas encore actualisée. Avec la concurrence à 4 (l'ancien
+// pool partagé de l'ingest), ce risque restait largement théorique ; à 8
+// (ActualiserToutesConcurrence, voir OpenWithMaxConns dans internal/
+// ingest) plus de vagues tournent vraiment en parallèle, donc une entrée
+// manquante dans Tables cesse d'être un détail cosmétique.
+func dependancesReellesMV(ctx context.Context, pool *pgxpool.Pool) (map[string][]string, error) {
+	rows, err := pool.Query(ctx, `
+		WITH mv_rules AS (
+			SELECT c.oid AS mv_oid, c.relname AS mv_nom, r.oid AS rewrite_oid
+			  FROM pg_class c
+			  JOIN pg_namespace n ON n.oid = c.relnamespace
+			  JOIN pg_rewrite r ON r.ev_class = c.oid
+			 WHERE n.nspname = 'mv' AND c.relkind = 'm'
+		)
+		SELECT DISTINCT mv_rules.mv_nom, src.relname AS depend_de
+		  FROM mv_rules
+		  JOIN pg_depend d ON d.objid = mv_rules.rewrite_oid
+		                  AND d.classid = 'pg_rewrite'::regclass
+		                  AND d.refclassid = 'pg_class'::regclass
+		  JOIN pg_class src ON src.oid = d.refobjid
+		  JOIN pg_namespace src_ns ON src_ns.oid = src.relnamespace
+		 WHERE src_ns.nspname = 'mv' AND src.oid <> mv_rules.mv_oid`)
+	if err != nil {
+		return nil, fmt.Errorf("dépendances réelles des matvues (pg_depend) : %w", err)
+	}
+	defer rows.Close()
+
+	out := map[string][]string{}
+	for rows.Next() {
+		var mvNom, dependDe string
+		if err := rows.Scan(&mvNom, &dependDe); err != nil {
+			return nil, err
+		}
+		out[mvNom] = append(out[mvNom], dependDe)
+	}
+	return out, rows.Err()
+}
+
+// FermetureDependances renvoie, pour chaque matvue du schéma mv, l'ensemble
+// des AUTRES matvues (directes ou transitives) dont son SELECT dépend —
+// calculé en une requête WITH RECURSIVE sur pg_depend/pg_rewrite (le
+// parcours de dependancesReellesMV, poursuivi de proche en proche) plutôt
+// qu'en re-empilant les niveaux que pipeline.Registre.Niveaux calcule déjà
+// pour l'ORDONNANCEMENT : celle-ci répond à une question différente —
+// « qu'est-ce qui deviendrait périmé, en cascade, si cette matvue-source
+// changeait ? » — utile pour l'afficher (fpctl list matviews), pas pour
+// décider des vagues d'exécution.
+func FermetureDependances(ctx context.Context, pool *pgxpool.Pool) (map[string][]string, error) {
+	rows, err := pool.Query(ctx, `
+		WITH RECURSIVE mv_rules AS (
+			SELECT c.oid AS mv_oid, c.relname AS mv_nom, r.oid AS rewrite_oid
+			  FROM pg_class c
+			  JOIN pg_namespace n ON n.oid = c.relnamespace
+			  JOIN pg_rewrite r ON r.ev_class = c.oid
+			 WHERE n.nspname = 'mv' AND c.relkind = 'm'
+		),
+		direct AS (
+			SELECT mv_rules.mv_nom, src.relname AS depend_de
+			  FROM mv_rules
+			  JOIN pg_depend d ON d.objid = mv_rules.rewrite_oid
+			                  AND d.classid = 'pg_rewrite'::regclass
+			                  AND d.refclassid = 'pg_class'::regclass
+			  JOIN pg_class src ON src.oid = d.refobjid
+			  JOIN pg_namespace src_ns ON src_ns.oid = src.relnamespace
+			 WHERE src_ns.nspname = 'mv' AND src.oid <> mv_rules.mv_oid
+		),
+		fermeture AS (
+			SELECT mv_nom, depend_de FROM direct
+			 UNION
+			SELECT f.mv_nom, d.depend_de
+			  FROM fermeture f
+			  JOIN direct d ON d.mv_nom = f.depend_de
+		)
+		SELECT DISTINCT mv_nom, depend_de FROM fermeture`)
+	if err != nil {
+		return nil, fmt.Errorf("fermeture des dépendances de matvues (pg_depend) : %w", err)
+	}
+	defer rows.Close()
+
+	out := map[string][]string{}
+	for rows.Next() {
+		var mvNom, dependDe string
+		if err := rows.Scan(&mvNom, &dependDe); err != nil {
+			return nil, err
+		}
+		out[mvNom] = append(out[mvNom], dependDe)
+	}
+	return out, rows.Err()
+}
+
 // registre construit le pipeline.Registre du Catalogue pour pool : chaque
 // Definition devient une Etape dont les Dependances sont lues directement
 // dans Tables — toute entrée qui commence par "mv." y nomme une AUTRE
@@ -530,18 +627,39 @@ func Actualiser(ctx context.Context, pool *pgxpool.Pool, def Definition) (rafrai
 // cette construction est elle-même une vérification que l'ordre du fichier
 // reste correct.
 //
+// Avant de construire le graphe, on le confronte à dependancesReellesMV :
+// toute dépendance mv-sur-mv que Postgres connaît (pg_depend) et que Tables
+// aurait oubliée panique ici, avec le même esprit que le panic d'Ajouter —
+// mieux vaut un échec net au démarrage qu'une matvue lue avant d'être à
+// jour, en silence, une fois de plus de front que 4 en train de tourner.
+//
 // pool volontairement absent de pipeline.NouveauRegistre : le journal
 // core.pipeline_etape que pipeline.Registre.Executer tient à jour reste
 // réservé à l'ingest (internal/ingest), jamais à ce registre-ci — un
 // Registre sans pool saute cette écriture (voir pipeline.go, Executer).
-func registre(pool *pgxpool.Pool) *pipeline.Registre {
+func registre(ctx context.Context, pool *pgxpool.Pool) (*pipeline.Registre, error) {
+	reel, err := dependancesReellesMV(ctx, pool)
+	if err != nil {
+		return nil, err
+	}
+
 	reg := pipeline.NouveauRegistre(nil)
 	for _, def := range Catalogue {
 		def := def
 		var dependances []string
+		declaree := map[string]bool{}
 		for _, t := range def.Tables {
 			if nom, ok := strings.CutPrefix(t, "mv."); ok {
 				dependances = append(dependances, nom)
+				declaree[nom] = true
+			}
+		}
+		for _, vraie := range reel[def.Nom] {
+			if !declaree[vraie] {
+				return nil, fmt.Errorf(
+					"mv.%s dépend réellement de mv.%s (pg_depend) mais Tables ne le déclare pas : "+
+						"corriger Catalogue avant d'actualiser, sous peine de la rafraîchir trop tôt",
+					def.Nom, vraie)
 			}
 		}
 		reg.Ajouter(pipeline.Etape{
@@ -562,7 +680,7 @@ func registre(pool *pgxpool.Pool) *pipeline.Registre {
 			},
 		})
 	}
-	return reg
+	return reg, nil
 }
 
 // ActualiserToutes actualise chaque matvue du Catalogue, dans l'ordre de
@@ -591,8 +709,11 @@ func ActualiserToutes(ctx context.Context, pool *pgxpool.Pool) error {
 // connexions ne fait que mettre des goroutines en attente de la même
 // poignée de connexions, sans rien paralléliser de plus.
 func ActualiserToutesConcurrence(ctx context.Context, pool *pgxpool.Pool, concurrence int) error {
-	reg := registre(pool)
-	_, err := reg.Executer(ctx, reg.Noms(), pipeline.Options{Concurrence: concurrence})
+	reg, err := registre(ctx, pool)
+	if err != nil {
+		return err
+	}
+	_, err = reg.Executer(ctx, reg.Noms(), pipeline.Options{Concurrence: concurrence})
 	return err
 }
 
