@@ -21,6 +21,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/archive"
 	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
+	"github.com/faits-politiques/faits-politiques/internal/watermark"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -75,6 +76,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 
 	chemins := map[string]string{}
+	var hashVotes string
 	for _, f := range fichiers {
 		fetched, err := arch.Fetch(ctx, srcID, runID, base+f+".csv.gz", ".csv.gz")
 		if err != nil {
@@ -82,19 +84,56 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			return fmt.Errorf("%s : %w", f, err)
 		}
 		chemins[f] = fetched.Path
+		if f == "member_votes" {
+			hashVotes = fetched.SHA256
+		}
 	}
 
-	// Ce connecteur ne reconstruit QUE ce qu'il possède : les objets dont
-	// l'institution est le Parlement européen.
-	for _, q := range []string{
-		`DELETE FROM core.topic_assignment t USING core.scrutin s
-		  WHERE s.id = t.scrutin_id AND s.institution = 'PARLEMENT_EUROPEEN'`,
-		`DELETE FROM core.ballot b USING core.scrutin s
-		  WHERE s.id = b.scrutin_id AND s.institution = 'PARLEMENT_EUROPEEN'`,
-		`DELETE FROM core.scrutin WHERE institution = 'PARLEMENT_EUROPEEN'`,
-	} {
-		if _, err := pool.Exec(ctx, q); err != nil {
-			return fmt.Errorf("remise à zéro : %w", err)
+	// member_votes.csv.gz est le seul fichier assez gros pour valoir un
+	// cache (17,6M lignes — voir chargerVotesNominatifs) : sauter sa
+	// reconstruction saute aussi la remise à zéro de core.ballot ET de
+	// core.scrutin ensemble, jamais l'un sans l'autre — chargerVotes
+	// réinsère les scrutins avec un NOUVEL id à chaque passage (upsert sur
+	// une table déjà vidée par la remise à zéro, donc jamais un vrai
+	// conflit), donc garder les ballots sans garder les scrutins qui les
+	// portent romprait la FK dès la remise à zéro suivante. Même gotcha que
+	// core.organization pour l'Assemblée (internal/an/normalize.go).
+	const scopeBallots = "europe-member-votes"
+	skipBallots, raison, err := watermark.FileDiff(ctx, pool, scopeBallots, hashVotes)
+	if err != nil {
+		return err
+	}
+	if skipBallots {
+		var n int
+		if err := pool.QueryRow(ctx, `
+			SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
+			 WHERE s.institution = 'PARLEMENT_EUROPEEN'`).Scan(&n); err != nil {
+			return err
+		}
+		if n == 0 {
+			skipBallots = false
+			raison = "watermark says unchanged but core.ballot looks empty for PARLEMENT_EUROPEEN"
+		}
+	}
+
+	// topic_assignment se reconstruit à part (eurovoc_concepts/
+	// eurovoc_concept_votes, deux fichiers indépendants de member_votes) :
+	// sa remise à zéro reste inconditionnelle, seules ballot/scrutin suivent
+	// le cache ci-dessus.
+	if _, err := pool.Exec(ctx, `
+		DELETE FROM core.topic_assignment t USING core.scrutin s
+		 WHERE s.id = t.scrutin_id AND s.institution = 'PARLEMENT_EUROPEEN'`); err != nil {
+		return fmt.Errorf("remise à zéro : %w", err)
+	}
+	if !skipBallots {
+		for _, q := range []string{
+			`DELETE FROM core.ballot b USING core.scrutin s
+			  WHERE s.id = b.scrutin_id AND s.institution = 'PARLEMENT_EUROPEEN'`,
+			`DELETE FROM core.scrutin WHERE institution = 'PARLEMENT_EUROPEEN'`,
+		} {
+			if _, err := pool.Exec(ctx, q); err != nil {
+				return fmt.Errorf("remise à zéro : %w", err)
+			}
 		}
 	}
 
@@ -110,13 +149,32 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err != nil {
 		return err
 	}
-	scrutins, err := chargerVotes(ctx, pool, chemins["votes"])
-	if err != nil {
-		return err
-	}
-	nBallots, err := chargerVotesNominatifs(ctx, pool, chemins["member_votes"], membres, scrutins, appartenances)
-	if err != nil {
-		return err
+
+	var scrutins map[string]int64
+	var nBallots int
+	if skipBallots {
+		scrutins, err = scrutinsExistants(ctx, pool)
+		if err != nil {
+			return err
+		}
+		if err := pool.QueryRow(ctx, `
+			SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
+			 WHERE s.institution = 'PARLEMENT_EUROPEEN'`).Scan(&nBallots); err != nil {
+			return err
+		}
+	} else {
+		logs.Notice("cache invalidated: " + raison)
+		scrutins, err = chargerVotes(ctx, pool, chemins["votes"])
+		if err != nil {
+			return err
+		}
+		nBallots, err = chargerVotesNominatifs(ctx, pool, chemins["member_votes"], membres, scrutins, appartenances)
+		if err != nil {
+			return err
+		}
+		if err := watermark.Record(ctx, pool, scopeBallots, hashVotes); err != nil {
+			return err
+		}
 	}
 	nThemes, err := chargerEuroVoc(ctx, pool, chemins["eurovoc_concepts"], chemins["eurovoc_concept_votes"], scrutins)
 	if err != nil {
@@ -350,6 +408,28 @@ func chargerAppartenances(ctx context.Context, pool *pgxpool.Pool, path string,
 		return nil
 	})
 	return dernier, err
+}
+
+// scrutinsExistants relit source_uid -> id depuis core.scrutin, quand le
+// cache du bulletin (voir Ingest, scopeBallots) permet de sauter chargerVotes
+// : les ids restent ceux d'un run précédent, jamais recalculés.
+func scrutinsExistants(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
+	rows, err := pool.Query(ctx, `
+		SELECT source_uid, id FROM core.scrutin WHERE institution = 'PARLEMENT_EUROPEEN'`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	out := map[string]int64{}
+	for rows.Next() {
+		var uid string
+		var id int64
+		if err := rows.Scan(&uid, &id); err != nil {
+			return nil, err
+		}
+		out[uid] = id
+	}
+	return out, rows.Err()
 }
 
 func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[string]int64, error) {
