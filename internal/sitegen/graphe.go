@@ -70,7 +70,7 @@ func dep[T any](deps pipeline.Results, nom string) T {
 func addNode[T any](reg *pipeline.Registre, nom string, deps []string,
 	fn func(ctx context.Context, d pipeline.Results) (T, error)) {
 	reg.Ajouter(pipeline.Etape{
-		Nom: nom, Description: "chargement", Dependances: deps,
+		Nom: nom, Description: "loading " + nom, Dependances: deps,
 		Executer: func(ctx context.Context, d pipeline.Results) (any, error) { return fn(ctx, d) },
 	})
 }

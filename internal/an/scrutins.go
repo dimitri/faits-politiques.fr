@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -251,6 +252,11 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	// Un connecteur ne détruit QUE ce qu'il produit. La portée est ici celle de
 	// l'Assemblée, et elle est exprimée par une jointure sur l'institution du
 	// scrutin, jamais par la table entière.
+	//
+	// len(ballots) est déjà connu ici (le slice est bâti juste au-dessus) :
+	// un NOTICE avant le DELETE+COPY, gratuit, plutôt qu'une commande qui
+	// semble bloquée pendant que Postgres réécrit plus d'un million de lignes.
+	logs.Notice(fmt.Sprintf("rebuilding %s (this takes a while)", logs.Plural(len(ballots), "ballot")))
 	if _, err := pool.Exec(ctx, `
 		DELETE FROM core.ballot b USING core.scrutin s
 		 WHERE s.id = b.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`); err != nil {

@@ -112,8 +112,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"groupes": len(groupes), "membres_fr": len(membres),
 		"scrutins": len(scrutins), "votes": nBallots, "themes": nThemes}, "")
-	logs.Notice("Europe normalisée", "groupes", len(groupes), "eurodeputes_fr", len(membres),
-		"scrutins", len(scrutins), "votes", nBallots, "themes_eurovoc", nThemes)
+	logs.Notice(fmt.Sprintf("European Parliament: %s, %s, %s, %s, %s",
+		logs.Plural(len(groupes), "group"), logs.Plural(len(membres), "French MEP"),
+		logs.Plural(len(scrutins), "roll-call vote"), logs.Plural(nBallots, "individual ballot"),
+		logs.Plural(nThemes, "EuroVoc assignment")))
 	return nil
 }
 
@@ -451,6 +453,7 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 	if err != nil {
 		return 0, err
 	}
+	logs.Notice(fmt.Sprintf("rebuilding %s (this takes a while)", logs.Plural(len(lignes), "ballot")))
 	n, err := pool.CopyFrom(ctx, pgx.Identifier{"core", "ballot"},
 		[]string{"scrutin_id", "person_id", "organization_id", "position"},
 		pgx.CopyFromSlice(len(lignes), func(i int) ([]any, error) {
