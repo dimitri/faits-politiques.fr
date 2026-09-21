@@ -36,6 +36,19 @@ var Source = archive.Source{
 
 const DumpURL = "https://data.senat.fr/data/dosleg/dosleg.zip"
 
+// DownloadTargets liste toutes les URL que le connecteur du Sénat récupère —
+// pas seulement celle d'Ingest : internal/ingest.ingestSenat l'enchaîne avec
+// IngestSenateurs et IngestCommissions, qui téléchargent chacun la leur.
+// Réunies ici pour la récupération concurrente inter-connecteurs (voir
+// internal/ingest.PrefetchAll, utilisée par fpctl build).
+func DownloadTargets() []archive.DownloadTarget {
+	return []archive.DownloadTarget{
+		{Nom: "senat-dosleg", Source: Source, URL: DumpURL, Ext: ".zip"},
+		{Nom: "senat-senateurs", Source: SourceSenateurs, URL: senateursURL, Ext: ".csv"},
+		{Nom: "senat-commissions", Source: SourceSenateurs, URL: commissionsURL, Ext: ".csv"},
+	}
+}
+
 // Ingest télécharge le dump, le restaure dans un schéma dédié, puis en extrait
 // ce qui entre dans le modèle. Le schéma senat_raw joue ici le rôle que
 // raw.record joue pour l'Assemblée : la copie fidèle de ce qui a été publié.

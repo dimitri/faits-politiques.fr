@@ -53,6 +53,20 @@ type Source struct {
 	Notes       string
 }
 
+// DownloadTarget nomme une URL qu'un connecteur récupère, sans la récupérer —
+// pour qu'un appelant qui n'est PAS ce connecteur (la récupération
+// concurrente de fpctl build, voir internal/ingest.PrefetchAll) puisse
+// récupérer d'avance tout ce dont plusieurs connecteurs auront besoin, sans
+// dupliquer la liste de leurs URL. Chaque connecteur qui en a expose sa
+// propre DownloadTargets() : c'est elle, jamais une seconde liste, que son
+// propre Ingest/Download parcourt.
+type DownloadTarget struct {
+	Nom    string
+	Source Source
+	URL    string
+	Ext    string
+}
+
 func (a *Archive) EnsureSource(ctx context.Context, s Source) (int64, error) {
 	// nil (colonne NULL), pas "" : un appel hors du catalogue (a.Etape
 	// jamais renseigné) ne doit pas se lire comme une étape nommée "".
@@ -79,6 +93,33 @@ type Fetched struct {
 	Path        string
 	SHA256      string
 	Cached      bool
+}
+
+// prefetchKey — voir WithPrefetched.
+type prefetchKey struct{}
+
+// WithPrefetched attache à ctx un ensemble de fichiers déjà récupérés,
+// indexés par URL : un Fetch/FetchEntetes ultérieur pour l'une de ces URL
+// réutilise les octets déjà sur disque plutôt que de les retélécharger.
+//
+// Sert aux commandes (fpctl build) qui récupèrent d'abord, en une seule
+// vague concurrente, tout ce dont la chaîne de préalables aura besoin —
+// plutôt qu'un connecteur après l'autre, chacun attendant son tour dans le
+// graphe de dépendances avant même de commencer son propre téléchargement.
+// Une nouvelle ligne raw.retrieval est quand même écrite à chaque appel
+// (voir Fetch) : ce qui est sauté est le GET, jamais l'attestation qu'un
+// document a été vu à cette date, pour CE connecteur et CETTE exécution.
+func WithPrefetched(ctx context.Context, files map[string]*Fetched) context.Context {
+	return context.WithValue(ctx, prefetchKey{}, files)
+}
+
+func prefetched(ctx context.Context, url string) (*Fetched, bool) {
+	m, ok := ctx.Value(prefetchKey{}).(map[string]*Fetched)
+	if !ok {
+		return nil, false
+	}
+	f, ok := m[url]
+	return f, ok
 }
 
 // Fetch télécharge une URL si son contenu n'est pas déjà dans l'archive.
@@ -137,6 +178,16 @@ func (a *Archive) FetchSession(ctx context.Context, sourceID int64, runID int64,
 func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header, client *http.Client, urlArchivee string) (*Fetched, error) {
 	if urlArchivee == "" {
 		urlArchivee = url
+	}
+	if pf, ok := prefetched(ctx, url); ok {
+		var retID int64
+		if err := a.Pool.QueryRow(ctx, `
+			INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status, document_id)
+			VALUES ($1,$2,$3,200,$4) RETURNING id`,
+			sourceID, runID, urlArchivee, pf.DocumentID).Scan(&retID); err != nil {
+			return nil, err
+		}
+		return &Fetched{DocumentID: pf.DocumentID, RetrievalID: retID, Path: pf.Path, SHA256: pf.SHA256, Cached: true}, nil
 	}
 	tmp, err := os.CreateTemp(a.Root, ".dl-*")
 	if err != nil {

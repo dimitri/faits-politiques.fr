@@ -44,6 +44,19 @@ var fichiers = []string{
 	"eurovoc_concepts", "eurovoc_concept_votes", "member_votes",
 }
 
+// DownloadTargets liste les URL qu'Ingest récupère, sans les récupérer — pour
+// la récupération concurrente inter-connecteurs (voir
+// internal/ingest.PrefetchAll, utilisée par fpctl build).
+func DownloadTargets() []archive.DownloadTarget {
+	out := make([]archive.DownloadTarget, len(fichiers))
+	for i, f := range fichiers {
+		out[i] = archive.DownloadTarget{
+			Nom: "europe-" + f, Source: Source, URL: base + f + ".csv.gz", Ext: ".csv.gz",
+		}
+	}
+	return out
+}
+
 // positionOf traduit les positions publiées par HowTheyVote. DID_NOT_VOTE est
 // une donnée manquante, pas une position politique.
 var positionOf = map[string]string{

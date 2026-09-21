@@ -174,8 +174,58 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 	if err != nil {
 		return err
 	}
+
+	// reg.Noms() est déjà la fermeture résolue de noms (registreDe ne pose
+	// que ce dont la cible a réellement besoin) : ce sont exactement les
+	// connecteurs qui vont tourner ci-dessous, avant même de savoir dans
+	// quel ordre le graphe les enchaînera. Une commande fpctl build qui
+	// résout normalize+senat+europe+carto+themes attend aujourd'hui que
+	// chacun ait fini pour lancer le suivant AVANT de commencer son propre
+	// téléchargement — un ordre hérité de l'écriture du code, jamais une
+	// vraie dépendance de données : aucun de ces téléchargements n'a besoin
+	// qu'un autre ait fini pour commencer le sien.
+	// -dry-run affiche le plan sans rien exécuter (pipeline.Registre.Executer
+	// s'en charge plus bas) : télécharger quoi que ce soit ici irait à
+	// l'encontre de cette promesse.
+	dryRun := len(opts) > 0 && opts[0].DryRun
+	if !dryRun {
+		concurrence := 1
+		if len(opts) > 0 && opts[0].Concurrence > 0 {
+			concurrence = opts[0].Concurrence
+		}
+		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
+		if err != nil {
+			return err
+		}
+	}
+
 	_, err = reg.Executer(ctx, noms, opts...)
 	return err
+}
+
+// downloadTargetsFor réunit les cibles de téléchargement des connecteurs
+// présents dans noms (la fermeture résolue par registreDe) — un connecteur
+// qui n'expose pas de DownloadTargets n'a simplement rien à y ajouter
+// (carto/themes/normalize ne téléchargent rien).
+func downloadTargetsFor(noms []string) []archive.DownloadTarget {
+	present := map[string]bool{}
+	for _, n := range noms {
+		present[n] = true
+	}
+	var out []archive.DownloadTarget
+	if present["download"] {
+		out = append(out, an.DownloadTargets()...)
+	}
+	if present["partis"] {
+		out = append(out, partis.DownloadTargets()...)
+	}
+	if present["senat"] {
+		out = append(out, senat.DownloadTargets()...)
+	}
+	if present["europe"] {
+		out = append(out, europe.DownloadTargets()...)
+	}
+	return out
 }
 
 // contexte : ce que chaque point d'entrée (RunTout/RunSource/RunCategorie)

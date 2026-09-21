@@ -76,35 +76,49 @@ var Sources = map[string]archive.Source{
 	},
 }
 
-// Download récupère les deux archives et les scelle.
+// DownloadTargets liste les URL que Download récupère, sans les récupérer :
+// seule source de vérité pour Download elle-même et pour la récupération
+// concurrente inter-connecteurs (voir internal/ingest.PrefetchAll, utilisée
+// par fpctl build), pour que les deux ne puissent pas diverger.
+func DownloadTargets() []archive.DownloadTarget {
+	return []archive.DownloadTarget{
+		// AMO30 « tous acteurs, tous mandats, tous organes » et non AMO40
+		// (« députés actifs ») ni AMO50 : ces deux derniers omettent des
+		// députés ayant siégé puis quitté leur siège en cours de
+		// législature. Leurs votes figurent pourtant dans les scrutins, et
+		// charger sans eux ferait disparaître silencieusement des milliers
+		// de votes — c'est-à-dire lire une absence de données comme une
+		// absence d'action. Le contrôle de concordance de cmd/verify est
+		// précisément là pour empêcher qu'une telle erreur soit publiée.
+		{Nom: "an-amo", Source: Sources["an-amo"], Ext: ".zip",
+			URL: Base + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip"},
+		// Les législatures antérieures ont leur propre publication. Le
+		// fichier de la 17e contient bien 3 121 acteurs, mais l'historique
+		// de MANDATS qu'il porte ne couvre que ceux de la législature en
+		// cours : nous avions 641 mandats de député pour 3 121 personnes.
+		// Charger aussi les 15e et 16e fait remonter la couverture à 2017.
+		// Au-delà, le dépôt de l'Assemblée répond 404 : les législatures 14
+		// et antérieures ne sont pas publiées en open data. C'est une
+		// limite de la source, pas du chargement.
+		{Nom: "an-amo-16", Source: Sources["an-amo-16"], Ext: ".zip",
+			URL: BaseLegislature(16) + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip"},
+		{Nom: "an-amo-15", Source: Sources["an-amo-15"], Ext: ".zip",
+			URL: BaseLegislature(15) + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip"},
+		{Nom: "an-scrutins", Source: Sources["an-scrutins"], Ext: ".zip",
+			URL: Base + "/loi/scrutins/Scrutins.json.zip"},
+		{Nom: "an-dossiers", Source: Sources["an-dossiers"], Ext: ".zip",
+			URL: Base + "/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip"},
+	}
+}
+
+// Download récupère les archives et les scelle. Séquentiel : quand un appelant
+// a déjà récupéré ces mêmes URL de front (fpctl build, voir
+// internal/ingest.PrefetchAll et archive.WithPrefetched), chaque Fetch ici
+// retrouve directement ce qui a été pris, sans repasser par le réseau.
 func Download(ctx context.Context, arch *archive.Archive) (map[string]*archive.Fetched, error) {
 	out := map[string]*archive.Fetched{}
-	urls := map[string]string{
-		// AMO30 « tous acteurs, tous mandats, tous organes » et non AMO40
-		// (« députés actifs ») ni AMO50 : ces deux derniers omettent des députés
-		// ayant siégé puis quitté leur siège en cours de législature. Leurs votes
-		// figurent pourtant dans les scrutins, et charger sans eux ferait
-		// disparaître silencieusement des milliers de votes — c'est-à-dire lire
-		// une absence de données comme une absence d'action.
-		// Le contrôle de concordance de cmd/verify est précisément là pour
-		// empêcher qu'une telle erreur soit publiée.
-		"an-amo": Base + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip",
-		// Les législatures antérieures ont leur propre publication. Le fichier
-		// de la 17e contient bien 3 121 acteurs, mais l'historique de MANDATS
-		// qu'il porte ne couvre que ceux de la législature en cours : nous
-		// avions 641 mandats de député pour 3 121 personnes. Charger aussi les
-		// 15e et 16e fait remonter la couverture à 2017.
-		//
-		// Au-delà, le dépôt de l'Assemblée répond 404 : les législatures 14 et
-		// antérieures ne sont pas publiées en open data. C'est une limite de la
-		// source, pas du chargement.
-		"an-amo-16":   BaseLegislature(16) + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip",
-		"an-amo-15":   BaseLegislature(15) + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip",
-		"an-scrutins": Base + "/loi/scrutins/Scrutins.json.zip",
-		"an-dossiers": Base + "/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip",
-	}
-	for slug, url := range urls {
-		srcID, err := arch.EnsureSource(ctx, Sources[slug])
+	for _, t := range DownloadTargets() {
+		srcID, err := arch.EnsureSource(ctx, t.Source)
 		if err != nil {
 			return nil, err
 		}
@@ -112,10 +126,10 @@ func Download(ctx context.Context, arch *archive.Archive) (map[string]*archive.F
 		if err != nil {
 			return nil, err
 		}
-		f, err := arch.Fetch(ctx, srcID, runID, url, ".zip")
+		f, err := arch.Fetch(ctx, srcID, runID, t.URL, t.Ext)
 		if err != nil {
 			arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
-			return nil, fmt.Errorf("%s : %w", slug, err)
+			return nil, fmt.Errorf("%s : %w", t.Nom, err)
 		}
 		arch.EndRun(ctx, runID, "SUCCESS",
 			map[string]any{"sha256": f.SHA256, "deja_archive": f.Cached}, "")
@@ -126,8 +140,8 @@ func Download(ctx context.Context, arch *archive.Archive) (map[string]*archive.F
 		if f.Cached {
 			etat = "unchanged"
 		}
-		logs.Notice(fmt.Sprintf("source %s %s, sha256 %s", slug, etat, f.SHA256[:12]))
-		out[slug] = f
+		logs.Notice(fmt.Sprintf("source %s %s, sha256 %s", t.Nom, etat, f.SHA256[:12]))
+		out[t.Nom] = f
 	}
 	return out, nil
 }

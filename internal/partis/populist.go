@@ -32,6 +32,13 @@ var SourcePopuList = archive.Source{
 
 const PopuListURL = "https://popu-list.github.io/Data/The%20PopuList%204.0.csv"
 
+// PopuListDownloadTargets liste l'unique URL qu'IngestPopuList récupère, sans
+// la récupérer — voir DownloadTargets, qui les réunit avec celles des deux
+// autres connecteurs du paquet.
+func PopuListDownloadTargets() []archive.DownloadTarget {
+	return []archive.DownloadTarget{{Nom: "populist", Source: SourcePopuList, URL: PopuListURL, Ext: ".csv"}}
+}
+
 var popuListCategories = []string{"populist", "farright", "farleft", "eurosceptic"}
 
 func IngestPopuList(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {

@@ -41,6 +41,19 @@ var ComptesURLs = map[int]string{
 	2021: "https://static.data.gouv.fr/resources/comptes-des-partis-et-groupements-politiques/20260210-151846/comptes-partis-exercice-2021.csv",
 }
 
+// CNCCFPDownloadTargets liste les URL qu'IngestComptes récupère, sans les
+// récupérer — voir DownloadTargets, qui les réunit avec celles des deux
+// autres connecteurs du paquet.
+func CNCCFPDownloadTargets() []archive.DownloadTarget {
+	out := make([]archive.DownloadTarget, 0, len(ComptesURLs))
+	for exercice, url := range ComptesURLs {
+		out = append(out, archive.DownloadTarget{
+			Nom: fmt.Sprintf("cnccfp-comptes-%d", exercice), Source: SourceCNCCFP, URL: url, Ext: ".csv",
+		})
+	}
+	return out
+}
+
 // IngestComptes télécharge, scelle et charge les comptes de chaque exercice.
 func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceCNCCFP)
