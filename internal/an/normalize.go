@@ -301,6 +301,15 @@ type mandat struct {
 	} `json:"infosQualite"`
 }
 
+// ligneActeur : une ligne prête pour tmp_acteur (normalizeActeurs).
+// canonicalRn pointe vers elle-même par défaut ; seule la résolution des
+// homonymes en base (voir plus bas) le réécrit, pour les lignes qui doivent
+// fusionner sur une même personne nouvellement créée.
+type ligneActeur struct {
+	rn, canonicalRn                          int
+	uid, slug, nom, prenom, naissance, hatvp string
+}
+
 func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT DISTINCT ON (natural_key) payload FROM raw.record
@@ -330,60 +339,161 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		count[slugify(a.EtatCivil.Ident.Prenom.String(), a.EtatCivil.Ident.Nom.String())]++
 	}
 
-	byUID := map[string]int64{}
-	for _, a := range acteurs {
+	lignes := make([]ligneActeur, 0, len(acteurs))
+	for i, a := range acteurs {
 		base := slugify(a.EtatCivil.Ident.Prenom.String(), a.EtatCivil.Ident.Nom.String())
 		slug := base
 		if base == "" || count[base] > 1 {
 			slug = strings.Trim(base+"-"+strings.ToLower(a.UID.String()), "-")
 		}
+		lignes = append(lignes, ligneActeur{
+			rn: i, canonicalRn: i, uid: a.UID.String(), slug: slug,
+			nom: a.EtatCivil.Ident.Nom.String(), prenom: a.EtatCivil.Ident.Prenom.String(),
+			naissance: strings.TrimSpace(a.EtatCivil.InfoNaissance.DateNais.String()),
+			hatvp:     hatvpRef(a.URIHatvp.String()),
+		})
+	}
+	if len(lignes) == 0 {
+		return map[string]int64{}, nil
+	}
 
-		nom := a.EtatCivil.Ident.Nom.String()
-		prenom := a.EtatCivil.Ident.Prenom.String()
-		naissance := nullable(a.EtatCivil.InfoNaissance.DateNais.String())
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
 
-		// Trois chemins, du plus sûr au moins sûr, et jamais de création si un
-		// des deux premiers aboutit :
-		//   1. l'identifiant de l'Assemblée, s'il est déjà connu ;
-		//   2. le triplet exact (nom, prénom, date de naissance), qui rattrape
-		//      une personne créée d'abord par le RNE — sans lui, un député par
-		//      ailleurs conseiller municipal existerait en double ;
-		//   3. le slug, qui est un permalien public et ne doit jamais changer.
-		pid, err := trouverPersonne(ctx, pool, a.UID.String(), nom, prenom, naissance)
-		if err != nil {
-			return nil, fmt.Errorf("personne %s : %w", a.UID, err)
-		}
-		if pid == 0 {
-			if err := pool.QueryRow(ctx, `
-				INSERT INTO core.person (slug, family_name, given_name, birth_date)
-				VALUES ($1,$2,$3,$4::date)
-				ON CONFLICT (slug) DO UPDATE SET family_name = EXCLUDED.family_name
-				RETURNING id`, slug, nom, prenom, naissance).Scan(&pid); err != nil {
-				return nil, fmt.Errorf("personne %s : %w", a.UID, err)
-			}
-		} else if _, err := pool.Exec(ctx, `
-			UPDATE core.person SET family_name = $2, given_name = $3,
-			       birth_date = coalesce($4::date, birth_date)
-			 WHERE id = $1`, pid, nom, prenom, naissance); err != nil {
-			return nil, fmt.Errorf("personne %s : %w", a.UID, err)
-		}
-		byUID[a.UID.String()] = pid
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_acteur (
+			rn int, canonical_rn int, uid text, slug text, nom text, prenom text,
+			naissance text, hatvp text, pid bigint
+		) ON COMMIT DROP`); err != nil {
+		return nil, err
+	}
+	copieActeurs := make([][]any, len(lignes))
+	for i, l := range lignes {
+		copieActeurs[i] = []any{l.rn, l.canonicalRn, l.uid, l.slug, l.nom, l.prenom, l.naissance, l.hatvp}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_acteur"},
+		[]string{"rn", "canonical_rn", "uid", "slug", "nom", "prenom", "naissance", "hatvp"},
+		pgx.CopyFromRows(copieActeurs)); err != nil {
+		return nil, err
+	}
 
-		if _, err := pool.Exec(ctx, `
-			INSERT INTO core.person_identifier (person_id, scheme, value)
-			VALUES ($1,'AN_ACTEUR',$2) ON CONFLICT (scheme, value) DO NOTHING`,
-			pid, a.UID.String()); err != nil {
+	// Trois chemins de rapprochement, du plus sûr au moins sûr, et jamais de
+	// création si un des deux premiers aboutit :
+	//   1. l'identifiant de l'Assemblée, s'il est déjà connu ;
+	//   2. le triplet exact (nom, prénom, date de naissance), qui rattrape
+	//      une personne créée d'abord par le RNE — sans lui, un député par
+	//      ailleurs conseiller municipal existerait en double ;
+	//   3. le slug, qui est un permalien public et ne doit jamais changer.
+	// Un seul aller-retour pour les 3 000+ acteurs plutôt qu'un par acteur :
+	// COALESCE des deux sous-requêtes reproduit exactement la même priorité
+	// que trouverPersonne, dans une seule INSERT...SELECT.
+	if _, err := tx.Exec(ctx, `
+		UPDATE tmp_acteur t SET pid = coalesce(
+			(SELECT pi.person_id FROM core.person_identifier pi
+			  WHERE pi.scheme = 'AN_ACTEUR' AND pi.value = t.uid),
+			(SELECT p.id FROM core.person p
+			  WHERE t.naissance <> ''
+			    AND p.birth_date = t.naissance::date
+			    AND core.f_unaccent(lower(p.family_name)) = core.f_unaccent(lower(t.nom))
+			    AND core.f_unaccent(lower(p.given_name))  = core.f_unaccent(lower(t.prenom))
+			  ORDER BY p.id LIMIT 1))`); err != nil {
+		return nil, fmt.Errorf("rapprochement des acteurs : %w", err)
+	}
+
+	// Sans base pré-existante à rattraper, deux acteurs du MÊME lot peuvent
+	// partager le triplet (nom, prénom, naissance) sans qu'aucune personne ne
+	// les précède encore — le cas que la boucle ligne à ligne résolvait en
+	// relisant sa PROPRE écriture pour le second acteur. Ici, aucune ligne
+	// n'a encore été écrite quand les deux sont résolues : sans ce
+	// regroupement explicite, elles créeraient chacune leur propre personne
+	// plutôt que de fusionner sur une seule, une régression d'identité que
+	// ce projet traite comme une faute, pas un détail.
+	if _, err := tx.Exec(ctx, `
+		WITH doublons AS (
+			SELECT core.f_unaccent(lower(nom)) fn, core.f_unaccent(lower(prenom)) gn,
+			       naissance, min(rn) AS canon
+			  FROM tmp_acteur
+			 WHERE pid IS NULL AND naissance <> ''
+			 GROUP BY 1, 2, 3
+			HAVING count(*) > 1
+		)
+		UPDATE tmp_acteur t SET canonical_rn = d.canon
+		  FROM doublons d
+		 WHERE t.pid IS NULL AND t.naissance <> ''
+		   AND core.f_unaccent(lower(t.nom)) = d.fn
+		   AND core.f_unaccent(lower(t.prenom)) = d.gn
+		   AND t.naissance = d.naissance`); err != nil {
+		return nil, fmt.Errorf("fusion des homonymes du même lot : %w", err)
+	}
+
+	// Une seule personne créée par groupe (canonical_rn), pas une par ligne :
+	// les autres membres du groupe reçoivent le même id juste après. RETURNING
+	// ne peut rendre que des colonnes de core.person — rn n'en est pas une —
+	// donc le rattachement se fait par slug, unique dans tout le lot (voir la
+	// résolution des homonymes plus haut), jamais par rn directement.
+	if _, err := tx.Exec(ctx, `
+		WITH ins AS (
+			INSERT INTO core.person (slug, family_name, given_name, birth_date)
+			SELECT slug, nom, prenom, nullif(naissance, '')::date
+			  FROM tmp_acteur WHERE pid IS NULL AND rn = canonical_rn
+			ON CONFLICT (slug) DO UPDATE SET family_name = EXCLUDED.family_name
+			RETURNING id, slug
+		)
+		UPDATE tmp_acteur t SET pid = ins.id
+		  FROM ins, tmp_acteur canon
+		 WHERE canon.rn = t.canonical_rn AND canon.slug = ins.slug AND t.pid IS NULL`); err != nil {
+		return nil, fmt.Errorf("création des personnes : %w", err)
+	}
+
+	// Personnes déjà connues (par identifiant ou par triplet) : leur fiche
+	// est mise à jour avec ce que CET acteur publie, comme le faisait la
+	// boucle ligne à ligne pour chaque acteur rencontré.
+	if _, err := tx.Exec(ctx, `
+		UPDATE core.person p SET family_name = t.nom, given_name = t.prenom,
+		       birth_date = coalesce(nullif(t.naissance, '')::date, p.birth_date)
+		  FROM tmp_acteur t WHERE t.pid = p.id`); err != nil {
+		return nil, fmt.Errorf("mise à jour des personnes : %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO core.person_identifier (person_id, scheme, value)
+		SELECT pid, 'AN_ACTEUR', uid FROM tmp_acteur
+		ON CONFLICT (scheme, value) DO NOTHING`); err != nil {
+		return nil, fmt.Errorf("identifiants AN_ACTEUR : %w", err)
+	}
+	// L'identifiant HATVP est publié dans le fichier acteurs : une ligne de
+	// crosswalk gratuite (docs/perimetre.md §4.5).
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO core.person_identifier (person_id, scheme, value)
+		SELECT pid, 'HATVP', hatvp FROM tmp_acteur WHERE hatvp <> ''
+		ON CONFLICT (scheme, value) DO NOTHING`); err != nil {
+		return nil, fmt.Errorf("identifiants HATVP : %w", err)
+	}
+
+	res, err := tx.Query(ctx, `SELECT uid, pid FROM tmp_acteur`)
+	if err != nil {
+		return nil, err
+	}
+	byUID := make(map[string]int64, len(lignes))
+	for res.Next() {
+		var uid string
+		var pid int64
+		if err := res.Scan(&uid, &pid); err != nil {
+			res.Close()
 			return nil, err
 		}
-		// L'identifiant HATVP est publie dans le fichier acteurs : une ligne de
-		// crosswalk gratuite (docs/perimetre.md §4.5).
-		if h := a.URIHatvp.String(); h != "" {
-			if ref := h[strings.LastIndex(h, "/")+1:]; ref != "" {
-				_, _ = pool.Exec(ctx, `
-					INSERT INTO core.person_identifier (person_id, scheme, value)
-					VALUES ($1,'HATVP',$2) ON CONFLICT (scheme, value) DO NOTHING`, pid, ref)
-			}
-		}
+		byUID[uid] = pid
+	}
+	res.Close()
+	if err := res.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 	return byUID, nil
 }
@@ -968,33 +1078,11 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// trouverPersonne renvoie l'identifiant d'une personne déjà connue, ou 0.
-// L'ordre compte : l'identifiant de l'Assemblée fait foi ; à défaut, le triplet
-// exact (nom, prénom, date de naissance) rattrape les personnes créées par un
-// autre connecteur. Sans date de naissance, aucun rapprochement n'est tenté —
-// la même règle que pour le RNE (D-025).
-func trouverPersonne(ctx context.Context, pool *pgxpool.Pool, uid, nom, prenom string, naissance any) (int64, error) {
-	var id int64
-	err := pool.QueryRow(ctx, `
-		SELECT person_id FROM core.person_identifier
-		 WHERE scheme = 'AN_ACTEUR' AND value = $1`, uid).Scan(&id)
-	if err == nil {
-		return id, nil
+// hatvpRef isole la référence HATVP portée par l'URI que publie le fichier
+// acteurs, ou "" si l'acteur n'en a pas.
+func hatvpRef(uri string) string {
+	if uri == "" {
+		return ""
 	}
-	if err != pgx.ErrNoRows {
-		return 0, err
-	}
-	if naissance == nil {
-		return 0, nil
-	}
-	err = pool.QueryRow(ctx, `
-		SELECT id FROM core.person
-		 WHERE birth_date = $3::date
-		   AND core.f_unaccent(lower(family_name)) = core.f_unaccent(lower($1))
-		   AND core.f_unaccent(lower(given_name))  = core.f_unaccent(lower($2))
-		 ORDER BY id LIMIT 1`, nom, prenom, naissance).Scan(&id)
-	if err == pgx.ErrNoRows {
-		return 0, nil
-	}
-	return id, err
+	return uri[strings.LastIndex(uri, "/")+1:]
 }
