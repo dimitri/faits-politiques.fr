@@ -886,7 +886,7 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	if err != nil {
 		return fmt.Errorf("empreinte des scrutins : %w", err)
 	}
-	scrutinsUnchanged, err := watermarkUnchanged(ctx, pool, watermarkScrutins, scrutinsCount, scrutinsHigh)
+	scrutinsUnchanged, scrutinsRaison, err := watermarkDiff(ctx, pool, watermarkScrutins, scrutinsCount, scrutinsHigh)
 	if err != nil {
 		return fmt.Errorf("empreinte des scrutins : %w", err)
 	}
@@ -903,7 +903,7 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	if err != nil {
 		return fmt.Errorf("empreinte des organes : %w", err)
 	}
-	organeUnchanged, err := watermarkUnchanged(ctx, pool, watermarkOrganes, organeCount, organeHigh)
+	organeUnchanged, organeRaison, err := watermarkDiff(ctx, pool, watermarkOrganes, organeCount, organeHigh)
 	if err != nil {
 		return fmt.Errorf("empreinte des organes : %w", err)
 	}
@@ -913,6 +913,17 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	// reconstruction n'est sûr que si NI L'UN NI L'AUTRE n'a de raison de
 	// bouger.
 	skipBallots := scrutinsUnchanged && organeUnchanged
+	// Ce qui suit prend un moment (le rebuild de core.ballot, plus d'une
+	// minute sur ~1,3 M lignes) : dire POURQUOI il a lieu, avant qu'il ne
+	// commence, plutôt que de laisser deviner si c'était évitable.
+	ballotsRaison := scrutinsRaison
+	if !organeUnchanged {
+		if ballotsRaison != "" {
+			ballotsRaison += "; " + organeRaison
+		} else {
+			ballotsRaison = organeRaison
+		}
+	}
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -1065,7 +1076,7 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 
 	logs.Notice("normalizing votes")
 	nScr, nBal, err := normalizeScrutins(ctx, pool, personByUID, orgByUID,
-		skipBallots, scrutinsCount, scrutinsHigh)
+		skipBallots, ballotsRaison, scrutinsCount, scrutinsHigh)
 	if err != nil {
 		return fmt.Errorf("scrutins : %w", err)
 	}

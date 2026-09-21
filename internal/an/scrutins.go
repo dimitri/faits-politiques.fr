@@ -107,16 +107,18 @@ const watermarkScrutins = "an-scrutins"
 
 // normalizeScrutins reconstruit core.scrutin/core.ballot pour l'Assemblée.
 //
-// unchanged, count et highWater viennent de l'appelant (Normalize) : la
-// décision de sauter cette reconstruction doit être prise UNE SEULE FOIS,
+// unchanged, raison, count et highWater viennent de l'appelant (Normalize) :
+// la décision de sauter cette reconstruction doit être prise UNE SEULE FOIS,
 // avant la transaction de remise à zéro qui précède l'appel à cette
 // fonction — cette transaction efface déjà core.ballot pour l'Assemblée
 // avant que normalizeScrutins ne soit atteinte, donc si elle décidait seule
 // de sauter son travail, elle laisserait la table vide en croyant l'avoir
-// juste sautée. Voir Normalize pour le calcul de unchanged.
+// juste sautée. raison explique pourquoi ce n'est PAS le cas (scrutins
+// changés, organisations changées, ou premier passage) ; vide quand
+// unchanged est vrai. Voir Normalize pour le calcul des deux.
 func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	personByUID map[string]int64, orgByUID map[string]int64,
-	unchanged bool, count, highWater int64) (int, int, error) {
+	unchanged bool, raison string, count, highWater int64) (int, int, error) {
 
 	var legID int64
 	if err := pool.QueryRow(ctx, `
@@ -150,8 +152,9 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 				logs.Plural(nScr, "roll-call vote"), logs.Plural(nBal, "individual ballot")))
 			return nScr, nBal, nil
 		}
-		logs.Notice("watermark says unchanged but core.scrutin/core.ballot looks empty, rebuilding anyway")
+		raison = "watermark says unchanged but core.scrutin/core.ballot looks empty"
 	}
+	logs.Notice("cache invalidated: " + raison)
 
 	rows, err := pool.Query(ctx,
 		`SELECT DISTINCT ON (natural_key) payload FROM raw.record

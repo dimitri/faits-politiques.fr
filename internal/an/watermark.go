@@ -2,6 +2,7 @@ package an
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -20,22 +21,29 @@ func rawWatermark(ctx context.Context, pool *pgxpool.Pool, recordType string) (c
 	return count, highWater, err
 }
 
-// watermarkUnchanged dit si scope a déjà traité avec succès exactement cet
-// état de raw.record (core.ingest_watermark, migration 0172) — auquel cas
-// une étape de normalisation peut sauter sa reconstruction : elle referait
-// bit à bit ce qu'elle a déjà produit.
-func watermarkUnchanged(ctx context.Context, pool *pgxpool.Pool, scope string, count, highWater int64) (bool, error) {
+// watermarkDiff dit si scope a déjà traité avec succès exactement cet état de
+// raw.record (core.ingest_watermark, migration 0172) — auquel cas une étape
+// de normalisation peut sauter sa reconstruction : elle referait bit à bit ce
+// qu'elle a déjà produit. Quand ce n'est PAS le cas, raison explique
+// pourquoi, en clair : jamais un « rebuilding 1 270 476 ballots » sans dire
+// si c'est parce que rien n'avait encore tourné, ou parce que l'Assemblée a
+// publié une mise à jour depuis la dernière fois.
+func watermarkDiff(ctx context.Context, pool *pgxpool.Pool, scope string, count, highWater int64) (unchanged bool, raison string, err error) {
 	var seenCount, seenHigh int64
-	err := pool.QueryRow(ctx,
+	err = pool.QueryRow(ctx,
 		`SELECT record_count, high_water_id FROM core.ingest_watermark WHERE scope = $1`,
 		scope).Scan(&seenCount, &seenHigh)
 	if err == pgx.ErrNoRows {
-		return false, nil
+		return false, fmt.Sprintf("%s: no prior watermark, this is the first run", scope), nil
 	}
 	if err != nil {
-		return false, err
+		return false, "", err
 	}
-	return seenCount == count && seenHigh == highWater, nil
+	if seenCount == count && seenHigh == highWater {
+		return true, "", nil
+	}
+	return false, fmt.Sprintf("%s: %d new raw.record row(s) since last run (%d -> %d rows, high-water %d -> %d)",
+		scope, count-seenCount, seenCount, count, seenHigh, highWater), nil
 }
 
 // recordWatermark note l'état de raw.record que scope vient de traiter avec
