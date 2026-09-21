@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -46,9 +47,19 @@ func watermarkDiff(ctx context.Context, pool *pgxpool.Pool, scope string, count,
 		scope, count-seenCount, seenCount, count, seenHigh, highWater), nil
 }
 
+// executeur : ce que pool et tx offrent tous deux, pour que recordWatermark
+// s'utilise aussi bien seul (normalizeOrganes, watermarkOrganes) que DANS la
+// transaction d'un appelant (normalizeScrutins, scrutins.go) — écrire le
+// watermark dans LA MÊME transaction que le rebuild qu'il atteste rend les
+// deux atomiques : un crash entre les deux ne peut plus laisser un watermark
+// qui prétend un rebuild que la transaction n'a pas commité.
+type executeur interface {
+	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
+}
+
 // recordWatermark note l'état de raw.record que scope vient de traiter avec
 // succès, pour que le prochain appel puisse s'y comparer.
-func recordWatermark(ctx context.Context, pool *pgxpool.Pool, scope string, count, highWater int64) error {
+func recordWatermark(ctx context.Context, pool executeur, scope string, count, highWater int64) error {
 	_, err := pool.Exec(ctx, `
 		INSERT INTO core.ingest_watermark (scope, record_count, high_water_id, updated_at)
 		VALUES ($1, $2, $3, now())

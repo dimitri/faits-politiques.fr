@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -301,32 +302,52 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	// un NOTICE avant le DELETE+COPY, gratuit, plutôt qu'une commande qui
 	// semble bloquée pendant que Postgres réécrit plus d'un million de lignes.
 	logs.Notice(fmt.Sprintf("rebuilding %s (this takes a while)", logs.Plural(len(ballots), "ballot")))
-	if _, err := pool.Exec(ctx, `
+	// Une transaction explicite, ici, pour que bulkload.SansContraintesFK
+	// puisse retirer/réinstaller les FK de core.ballot autour du DELETE+COPY :
+	// sûr vis-à-vis de senat/europe (qui écrivent aussi dans core.ballot) car
+	// normalize précède les deux dans le graphe de dépendance de l'ingestion
+	// (internal/ingest/catalogue.go) — aucun des deux ne démarre avant que
+	// cette transaction n'ait committé.
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return 0, 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
 		DELETE FROM core.ballot b USING core.scrutin s
 		 WHERE s.id = b.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`); err != nil {
 		return 0, 0, err
 	}
-	n, err := pool.CopyFrom(ctx,
-		pgx.Identifier{"core", "ballot"},
-		[]string{"scrutin_id", "person_id", "organization_id", "position",
-			"par_delegation", "position_rectifiee", "rectifiee_le"},
-		pgx.CopyFromSlice(len(ballots), func(i int) ([]any, error) {
-			b := ballots[i]
-			var rect, date any
-			if b.rectifiee != nil {
-				rect = *b.rectifiee
-				date = "1970-01-01" // date de mise au point non publiée dans ce flux
-			}
-			var org any
-			if b.orgID != nil {
-				org = *b.orgID
-			}
-			return []any{b.scrutinID, b.personID, org, b.position, b.delegation, rect, date}, nil
-		}))
+	var n int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
+		ct, err := tx.CopyFrom(ctx,
+			pgx.Identifier{"core", "ballot"},
+			[]string{"scrutin_id", "person_id", "organization_id", "position",
+				"par_delegation", "position_rectifiee", "rectifiee_le"},
+			pgx.CopyFromSlice(len(ballots), func(i int) ([]any, error) {
+				b := ballots[i]
+				var rect, date any
+				if b.rectifiee != nil {
+					rect = *b.rectifiee
+					date = "1970-01-01" // date de mise au point non publiée dans ce flux
+				}
+				var org any
+				if b.orgID != nil {
+					org = *b.orgID
+				}
+				return []any{b.scrutinID, b.personID, org, b.position, b.delegation, rect, date}, nil
+			}))
+		n = ct
+		return err
+	})
 	if err != nil {
 		return 0, 0, err
 	}
-	if err := recordWatermark(ctx, pool, watermarkScrutins, count, highWater); err != nil {
+	if err := recordWatermark(ctx, tx, watermarkScrutins, count, highWater); err != nil {
+		return 0, 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
 		return 0, 0, err
 	}
 	return nScrutins, int(n), nil
