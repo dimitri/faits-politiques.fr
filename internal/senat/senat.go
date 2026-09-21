@@ -16,6 +16,7 @@ import (
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
+	"github.com/faits-politiques/faits-politiques/internal/watermark"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -73,7 +74,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, work
 		return err
 	}
 
-	if err := restaurer(ctx, pool, f.Path, workDir); err != nil {
+	if err := restaurer(ctx, pool, f.Path, f.SHA256, workDir); err != nil {
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 		return fmt.Errorf("restauration : %w", err)
 	}
@@ -93,14 +94,35 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, work
 
 // restaurer déplie le dump et le charge dans le schéma senat_raw. Le dump vise
 // « public » : on le redirige, pour ne jamais écrire à côté du modèle.
-func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, workDir string) error {
-	var dejaLa int
-	_ = pool.QueryRow(ctx, `
-		SELECT count(*) FROM information_schema.tables
-		WHERE table_schema = 'senat_raw' AND table_name = 'votsen'`).Scan(&dejaLa)
-	if dejaLa > 0 {
-		return nil // dump déjà restauré : la restauration est coûteuse et idempotente
+//
+// hash est le sha256 du zip téléchargé (internal/archive.Fetched.SHA256) :
+// avant ce watermark, la garde ci-dessous testait seulement « senat_raw.
+// votsen existe-t-elle déjà » — vrai pour toujours après le premier passage,
+// donc une nouvelle publication du dump Dosleg n'aurait jamais été reprise
+// tant que le schéma restait en place. Le sha256 distingue « déjà restauré »
+// de « restauré une fois, jamais depuis » : un dump qui change, un contenu
+// qui change, jamais l'inverse.
+func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, hash, workDir string) error {
+	const scope = "senat-dosleg"
+	unchanged, raison, err := watermark.FileDiff(ctx, pool, scope, hash)
+	if err != nil {
+		return err
 	}
+	if unchanged {
+		var dejaLa int
+		_ = pool.QueryRow(ctx, `
+			SELECT count(*) FROM information_schema.tables
+			WHERE table_schema = 'senat_raw' AND table_name = 'votsen'`).Scan(&dejaLa)
+		if dejaLa > 0 {
+			return nil // dump inchangé et déjà restauré : la restauration est coûteuse
+		}
+		// Le watermark dit « inchangé » mais senat_raw a disparu — état
+		// impossible en fonctionnement normal (voir la même garde dans
+		// internal/an/scrutins.go) : on restaure quand même plutôt que de
+		// faire confiance à un signal qui contredit ce qu'on observe.
+		raison = "watermark says unchanged but senat_raw.votsen is missing"
+	}
+	logs.Notice("cache invalidated: " + raison)
 
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return err
@@ -132,7 +154,7 @@ func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, workDir string)
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("psql : %v (%s)", err, lastLines(string(out), 3))
 	}
-	return nil
+	return watermark.Record(ctx, pool, scope, hash)
 }
 
 func lastLines(s string, n int) string {
