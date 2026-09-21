@@ -496,27 +496,55 @@ func chargerPagesEPCI(ctx context.Context, pool *pgxpool.Pool, r *Resolveur,
 	if millesimeCog > 0 {
 		// Le fond de carte départemental est chargé une fois par département,
 		// pas une fois par groupement qui y a son siège — voir le commentaire
-		// de contexteDept (internal/sitegen/carte_maillee.go).
-		contextesDept := map[string]*contexteDept{}
+		// de contexteDept (internal/sitegen/carte_maillee.go). Les groupements
+		// eux-mêmes sont d'abord réunis PAR département pour la même raison :
+		// une géométrie par groupement (~1 250, deux requêtes chacune) est
+		// devenue une géométrie par DÉPARTEMENT (~101, deux requêtes chacune)
+		// — voir chargerGeometriesEPCI.
+		sirensParDept := map[string][]string{}
 		for siren, p := range pages {
+			sirensParDept[p.Dept.Code] = append(sirensParDept[p.Dept.Code], siren)
+		}
+		for deptCode, sirens := range sirensParDept {
 			var ctxDept *contexteDept
-			if p.Dept.Code != "" {
-				if c, ok := contextesDept[p.Dept.Code]; ok {
-					ctxDept = c
-				} else {
-					c, err := chargerContexteDept(ctx, pool, p.Dept.Code, millesimeCog)
+			if deptCode != "" {
+				c, err := chargerContexteDept(ctx, pool, deptCode, millesimeCog)
+				if err != nil {
+					return nil, err
+				}
+				ctxDept = c
+			}
+			if ctxDept == nil {
+				// Pas de fond départemental (outre-mer sans siège identifié,
+				// par exemple) : repli sur la carte isolée, un groupement à
+				// la fois — le cas rare que chargerGeometriesEPCI n'a pas à
+				// couvrir en lot.
+				for _, siren := range sirens {
+					svg, n, err := carteCommunesEPCI(ctx, pool, siren, millesimeCog, pages[siren].Nom)
 					if err != nil {
 						return nil, err
 					}
-					contextesDept[p.Dept.Code] = c
-					ctxDept = c
+					pages[siren].CarteCommunes, pages[siren].NbCommunesCarte = svg, n
 				}
+				continue
 			}
-			svg, n, err := carteCommunesEPCIAvecContexte(ctx, pool, ctxDept, siren, millesimeCog, p.Nom)
+			geoms, err := chargerGeometriesEPCI(ctx, pool, sirens, ctxDept.Srid, millesimeCog)
 			if err != nil {
 				return nil, err
 			}
-			p.CarteCommunes, p.NbCommunesCarte = svg, n
+			for _, siren := range sirens {
+				p := pages[siren]
+				g, n := geoms[siren], geoms[siren].n
+				if n == 0 {
+					svg, n2, err := carteCommunesEPCI(ctx, pool, siren, millesimeCog, p.Nom)
+					if err != nil {
+						return nil, err
+					}
+					p.CarteCommunes, p.NbCommunesCarte = svg, n2
+					continue
+				}
+				p.CarteCommunes, p.NbCommunesCarte = assemblerCarteEPCI(ctxDept, p.Nom, g), n
+			}
 		}
 	}
 	return pages, nil

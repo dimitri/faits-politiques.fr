@@ -168,9 +168,9 @@ func carteCommunesEPCI(ctx context.Context, pool *pgxpool.Pool, siren string,
 // d'EPCI : refaire cette requête pour chacun avait fait passer la
 // génération des pages d'intercommunalité de ~20 s à plus de 5 min).
 type contexteDept struct {
-	Srid       int
-	ViewBox    string
-	Largeur    float64
+	Srid        int
+	ViewBox     string
+	Largeur     float64
 	CommunesSVG string
 }
 
@@ -244,63 +244,136 @@ func chargerContexteDept(ctx context.Context, pool *pgxpool.Pool, codeDept strin
 // autour, ne montre pas où il se situe parmi ses voisins. Retombe sur
 // carteCommunesEPCI si aucun contexte départemental n'est disponible
 // (outre-mer sans siège identifié, par exemple).
+//
+// N'interroge plus la base elle-même (voir chargerGeometriesEPCI, appelée une
+// fois pour tous les groupements d'un département) : assemble seulement le
+// SVG à partir de ce qu'elle a déjà reçu. Gardée sous ce nom, avec la même
+// signature de résultat, pour que carte_maillee_test.go et tout futur appel
+// isolé (un seul groupement, hors de la boucle de lieux_pages.go) n'aient pas
+// à connaître cette distinction.
 func carteCommunesEPCIAvecContexte(ctx context.Context, pool *pgxpool.Pool, ctxDept *contexteDept,
 	siren string, millesime int, nomEPCI string) (template.HTML, int, error) {
 
 	if ctxDept == nil {
 		return carteCommunesEPCI(ctx, pool, siren, millesime, nomEPCI)
 	}
-
-	rows, err := pool.Query(ctx, `
-		SELECT st_assvg(st_transform(st_simplifypreservetopology(geom,$1),$2::int),1,0)
-		FROM geo.contour_cog WHERE niveau='COMMUNE' AND cog_millesime=$4
-		  AND code IN (SELECT commune_code FROM core.epci_membre
-		               WHERE epci_siren=$3 AND cog_millesime=$4)
-		ORDER BY code`,
-		tolMaillee, ctxDept.Srid, siren, millesime)
+	geoms, err := chargerGeometriesEPCI(ctx, pool, []string{siren}, ctxDept.Srid, millesime)
 	if err != nil {
 		return "", 0, err
 	}
-	var communes strings.Builder
-	n := 0
-	for rows.Next() {
-		var d string
-		if err := rows.Scan(&d); err != nil {
-			rows.Close()
-			return "", 0, err
-		}
-		fmt.Fprintf(&communes, `<path d="%s"/>`, d)
-		n++
-	}
-	rows.Close()
-	if err := rows.Err(); err != nil {
-		return "", 0, err
-	}
+	g, n := geoms[siren], geoms[siren].n
 	if n == 0 {
 		return carteCommunesEPCI(ctx, pool, siren, millesime, nomEPCI)
 	}
+	return assemblerCarteEPCI(ctxDept, nomEPCI, g), n, nil
+}
+
+// geometrieEPCI : les fragments SVG d'un groupement — ses communes membres en
+// mosaïque et son propre contour — prêts à être posés sur un contexteDept.
+type geometrieEPCI struct {
+	communesSVG, contourSVG string
+	n                       int
+}
+
+// chargerGeometriesEPCI charge, EN DEUX REQUÊTES pour la totalité des sirens
+// donnés (un GROUP BY epci_siren côté communes, un simple filtre côté
+// contours), ce que carteCommunesEPCIAvecContexte interrogeait auparavant une
+// fois PAR GROUPEMENT : ~1 250 groupements faisaient ~2 500 requêtes de
+// géométrie, chacune resimplifiant les polygones communaux — voir
+// lieux_pages.go, qui appelle ceci une fois par département plutôt qu'une
+// fois par groupement qui y a son siège, exactement le regroupement déjà fait
+// pour chargerContexteDept juste au-dessus.
+func chargerGeometriesEPCI(ctx context.Context, pool *pgxpool.Pool, sirens []string,
+	srid, millesime int) (map[string]geometrieEPCI, error) {
+
+	out := make(map[string]geometrieEPCI, len(sirens))
+	if len(sirens) == 0 {
+		return out, nil
+	}
+
+	rows, err := pool.Query(ctx, `
+		SELECT em.epci_siren,
+		       string_agg('<path d="' ||
+		         st_assvg(st_transform(st_simplifypreservetopology(c.geom,$1),$2::int),1,0) ||
+		         '"/>', '' ORDER BY c.code)
+		FROM geo.contour_cog c
+		JOIN core.epci_membre em ON em.commune_code = c.code AND em.cog_millesime = c.cog_millesime
+		WHERE c.niveau='COMMUNE' AND c.cog_millesime=$4 AND em.epci_siren = ANY($3)
+		GROUP BY em.epci_siren`,
+		tolMaillee, srid, sirens, millesime)
+	if err != nil {
+		return nil, err
+	}
+	for rows.Next() {
+		var siren, svg string
+		if err := rows.Scan(&siren, &svg); err != nil {
+			rows.Close()
+			return nil, err
+		}
+		g := out[siren]
+		g.communesSVG = svg
+		out[siren] = g
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	// n compte les COMMUNES, pas les groupements : string_agg ne le donne
+	// pas, un second passage sur la même jointure le fait sans reparcourir
+	// les géométries (count(*) plutôt qu'un st_assvg par ligne).
+	rowsN, err := pool.Query(ctx, `
+		SELECT em.epci_siren, count(*)
+		FROM core.epci_membre em
+		WHERE em.cog_millesime=$2 AND em.epci_siren = ANY($1)
+		GROUP BY em.epci_siren`, sirens, millesime)
+	if err != nil {
+		return nil, err
+	}
+	for rowsN.Next() {
+		var siren string
+		var n int
+		if err := rowsN.Scan(&siren, &n); err != nil {
+			rowsN.Close()
+			return nil, err
+		}
+		g := out[siren]
+		g.n = n
+		out[siren] = g
+	}
+	rowsN.Close()
+	if err := rowsN.Err(); err != nil {
+		return nil, err
+	}
 
 	rowsE, err := pool.Query(ctx, `
-		SELECT nom, st_assvg(st_transform(st_simplifypreservetopology(geom,$1),$2::int),1,0)
-		FROM geo.contour_cog WHERE niveau='EPCI' AND code=$3 AND cog_millesime=$4`,
-		tolMaillee, ctxDept.Srid, siren, millesime)
+		SELECT code, nom, st_assvg(st_transform(st_simplifypreservetopology(geom,$1),$2::int),1,0)
+		FROM geo.contour_cog WHERE niveau='EPCI' AND cog_millesime=$4 AND code = ANY($3)`,
+		tolMaillee, srid, sirens, millesime)
 	if err != nil {
-		return "", 0, err
+		return nil, err
 	}
-	var epcis strings.Builder
 	for rowsE.Next() {
-		var nom, d string
-		if err := rowsE.Scan(&nom, &d); err != nil {
+		var siren, nom, d string
+		if err := rowsE.Scan(&siren, &nom, &d); err != nil {
 			rowsE.Close()
-			return "", 0, err
+			return nil, err
 		}
-		fmt.Fprintf(&epcis, `<path d="%s"><title>%s</title></path>`, d, template.HTMLEscapeString(nom))
+		g := out[siren]
+		g.contourSVG = fmt.Sprintf(`<path d="%s"><title>%s</title></path>`, d, template.HTMLEscapeString(nom))
+		out[siren] = g
 	}
 	rowsE.Close()
 	if err := rowsE.Err(); err != nil {
-		return "", 0, err
+		return nil, err
 	}
+	return out, nil
+}
 
+// assemblerCarteEPCI compose le SVG final à partir du fond départemental et
+// des fragments d'un groupement — la partie qui ne dépend d'aucune requête,
+// séparée pour que chargerGeometriesEPCI et carteCommunesEPCIAvecContexte
+// s'en servent également.
+func assemblerCarteEPCI(ctxDept *contexteDept, nomEPCI string, g geometrieEPCI) template.HTML {
 	// Même logique d'épaisseur proportionnelle que carteMaillee — le contexte
 	// reste le plus fin des trois traits, jamais la vedette de la carte.
 	swCtx, swC, swE := ctxDept.Largeur/1400, ctxDept.Largeur/900, ctxDept.Largeur/420
@@ -310,6 +383,6 @@ func carteCommunesEPCIAvecContexte(ctx context.Context, pool *pgxpool.Pool, ctxD
 			`<g class="maille-c" stroke-width="%.0f">%s</g>`+
 			`<g class="maille-e" stroke-width="%.0f">%s</g></svg>`,
 		ctxDept.ViewBox, template.HTMLEscapeString(nomEPCI+" et ses environs dans le département"),
-		swCtx, ctxDept.CommunesSVG, swC, communes.String(), swE, epcis.String())
-	return template.HTML(svg), n, nil
+		swCtx, ctxDept.CommunesSVG, swC, g.communesSVG, swE, g.contourSVG)
+	return template.HTML(svg)
 }
