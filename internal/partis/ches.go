@@ -3,12 +3,12 @@ package partis
 import (
 	"context"
 	"encoding/csv"
-	"fmt"
 	"os"
 	"strconv"
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -132,7 +132,7 @@ func IngestCHES(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"partis_france": nParties, "scores": nRows}, "")
-	fmt.Printf("  CHES 2024     %d partis français, %d scores (source RESTRICTED)\n", nParties, nRows)
+	logs.Notice("CHES 2024 normalisé", "partis_france", nParties, "scores", nRows, "reuse_class", "RESTRICTED")
 	return nil
 }
 

@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -78,7 +80,7 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			return fmt.Errorf("comptes %d : %w", exercice, err)
 		}
 		arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"partis": n}, "")
-		fmt.Printf("  comptes %d   %d partis\n", exercice, n)
+		logs.Notice("comptes de partis normalisés", "exercice", exercice, "partis", n)
 	}
 	return nil
 }
@@ -110,6 +112,7 @@ func loadComptes(ctx context.Context, pool *pgxpool.Pool, path string, exercice 
 	}
 
 	n := 0
+	var lignes [][]any
 	for {
 		rec, err := r.Read()
 		if err != nil {
@@ -141,17 +144,36 @@ func loadComptes(ctx context.Context, pool *pgxpool.Pool, path string, exercice 
 			if err != nil {
 				continue
 			}
-			if _, err := pool.Exec(ctx, `
-				INSERT INTO core.party_account_line
-				  (organization_id, exercice, poste, montant, source_id)
-				VALUES ($1,$2,$3,$4,$5)
-				ON CONFLICT (organization_id, exercice, poste)
-				DO UPDATE SET montant = EXCLUDED.montant`,
-				orgID, exercice, poste, montant, srcID); err != nil {
-				return 0, err
-			}
+			lignes = append(lignes, []any{orgID, exercice, poste, montant})
 		}
 		n++
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_account_line (
+			organization_id bigint, exercice int, poste text, montant numeric
+		) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_account_line"},
+		[]string{"organization_id", "exercice", "poste", "montant"},
+		pgx.CopyFromRows(lignes)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO core.party_account_line (organization_id, exercice, poste, montant, source_id)
+		SELECT organization_id, exercice, poste, montant, $1 FROM tmp_account_line
+		ON CONFLICT (organization_id, exercice, poste) DO UPDATE SET montant = EXCLUDED.montant`,
+		srcID); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
 	}
 	return n, nil
 }
