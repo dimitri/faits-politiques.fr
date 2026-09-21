@@ -155,15 +155,30 @@ func lire(path string, fn func(map[string]string) error) error {
 		return err
 	}
 	head[0] = strings.TrimPrefix(head[0], "\ufeff")
+	// Les en-t\u00eates ne changent pas d'une ligne \u00e0 l'autre : les d\u00e9couper une
+	// fois ici plut\u00f4t qu'\u00e0 chaque ligne, comme member_votes.csv.gz en fait
+	// lire ~10 millions \u2014 r\u00e9p\u00e9ter TrimSpace(h) dessus \u00e0 chaque tour n'a
+	// jamais \u00e9t\u00e9 qu'une n\u00e9gligence, jamais un besoin.
+	for i, h := range head {
+		head[i] = strings.TrimSpace(h)
+	}
+	// Une seule map, vid\u00e9e et r\u00e9utilis\u00e9e \u00e0 chaque ligne plut\u00f4t que
+	// r\u00e9allou\u00e9e : fn() ne fait que LIRE m[...] et en tirer des valeurs
+	// propres (aucun appelant ne conserve m elle-m\u00eame apr\u00e8s son retour),
+	// donc la r\u00e9utiliser est s\u00fbre et \u00e9vite l'essentiel du co\u00fbt mesur\u00e9 sur
+	// le plus gros fichier de ce paquet \u2014 des millions d'allocations de
+	// map pour autant de lignes, avant m\u00eame d'\u00e9crire quoi que ce soit en
+	// base.
+	m := make(map[string]string, len(head))
 	for {
 		rec, err := cr.Read()
 		if err != nil {
 			return nil
 		}
-		m := map[string]string{}
+		clear(m)
 		for i, h := range head {
 			if i < len(rec) {
-				m[strings.TrimSpace(h)] = strings.TrimSpace(rec[i])
+				m[h] = strings.TrimSpace(rec[i])
 			}
 		}
 		if err := fn(m); err != nil {
@@ -431,6 +446,13 @@ func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[str
 func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string,
 	membres, scrutins, groupeDe map[string]int64) (int, error) {
 
+	// member_votes.csv.gz porte le vote de chaque eurodéputé (~700, toutes
+	// nationalités) sur chaque scrutin — plusieurs millions de lignes, dont
+	// seule une fraction passe le filtre "eurodéputé français" plus bas.
+	// Sans repère avant, une commande qui décode ça pendant 30-40 s se lit
+	// comme bloquée : les autres connecteurs de la même vague ont déjà fini
+	// et narré leur propre résultat pendant ce temps-là.
+	logs.Notice("parsing member_votes.csv.gz (several million rows, this takes a moment)")
 	type ligne struct {
 		scrutin, personne int64
 		org               *int64
