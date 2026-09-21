@@ -799,13 +799,20 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		// sans clause a emporté les 8 412 dossiers du Sénat et les 17 660
 		// assignations de thèmes qui s'y rattachaient, faisant tomber
 		// l'héritage de thèmes par la navette (D-019) de 4 806 à 0.
+		// Le filtre sur les colonnes à vider n'est pas là pour la
+		// sélectivité de « institution » (toutes les interventions viennent
+		// aujourd'hui de l'Assemblée) : sans lui, chaque renormalisation
+		// réécrivait les 260 000 lignes de core.intervention même quand
+		// dossier_id y était déjà NULL partout — plus d'une minute d'E/S pour
+		// ne rien changer. Idem pour core.scrutin, dans une moindre mesure.
 		`UPDATE core.scrutin SET dossier_id = NULL, texte_id = NULL, amendement_id = NULL
-		  WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		  WHERE institution = 'ASSEMBLEE_NATIONALE'
+		    AND (dossier_id IS NOT NULL OR texte_id IS NOT NULL OR amendement_id IS NOT NULL)`,
 		// Les interventions en séance pointent le dossier discuté. Elles
 		// survivent à la renormalisation — elles viennent d'un autre jeu — mais
 		// leur pointeur, lui, désigne des dossiers sur le point de disparaître.
 		`UPDATE core.intervention SET dossier_id = NULL
-		  WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		  WHERE institution = 'ASSEMBLEE_NATIONALE' AND dossier_id IS NOT NULL`,
 		// Les amendements se rattachent aux textes par clé étrangère. Rebâtir
 		// core.texte sans les effacer d'abord faisait échouer toute la
 		// normalisation — ce qui est le bon comportement : la contrainte a
