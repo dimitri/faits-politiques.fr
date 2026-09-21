@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -118,6 +119,29 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(err)
 	}
 
+	// Lu en flux (parcourir ne garde jamais plus d'une <declaration> en
+	// mémoire à la fois — le XML fait 87 Mo, profondément imbriqué), mais
+	// ACCUMULÉ ici plutôt qu'écrit ligne à ligne : les déclarations et
+	// leurs items décodés sont de petites structures (quelques champs
+	// texte/nombre), même par dizaines de milliers ça reste de l'ordre de
+	// la centaine de Mo — sans commune mesure avec les milliers d'allers-
+	// retours qu'une INSERT par déclaration (et par item) coûtait avant.
+	// Un doublon d'uuid dans le flux garde la PREMIÈRE occurrence, comme
+	// avant (ON CONFLICT DO NOTHING y suffisait ligne à ligne) : dédupliqué
+	// ici en Go, exactement la même règle.
+	vus := map[string]bool{}
+	var decls []declaration
+	if err := parcourir(f.Path, func(d declaration) error {
+		if vus[d.UUID] {
+			return nil
+		}
+		vus[d.UUID] = true
+		decls = append(decls, d)
+		return nil
+	}); err != nil {
+		return fail(err)
+	}
+
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return fail(err)
@@ -130,43 +154,80 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(err)
 	}
 
-	var nDecl, nItems int
-	err = parcourir(f.Path, func(d declaration) error {
-		var declID int64
-		if err := tx.QueryRow(ctx, `
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_declaration (
+			uuid text, nom text, prenom text, date_naissance date, type_declaration text,
+			date_depot timestamptz, type_mandat text, label_organe text, qualite text,
+			date_debut_mandat date, date_fin_mandat date
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	declRows := make([][]any, len(decls))
+	for i, d := range decls {
+		declRows[i] = []any{d.UUID, d.Nom, d.Prenom, dateFR(d.Naissance), d.TypeDeclaration,
+			horodatageFR(d.DateDepot), nul(d.TypeMandat), nul(d.LabelOrgane),
+			nul(d.Qualite), dateFR(d.DebutMandat), dateFR(d.FinMandat)}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_declaration"},
+		[]string{"uuid", "nom", "prenom", "date_naissance", "type_declaration", "date_depot",
+			"type_mandat", "label_organe", "qualite", "date_debut_mandat", "date_fin_mandat"},
+		pgx.CopyFromRows(declRows)); err != nil {
+		return fail(err)
+	}
+	res, err := tx.Query(ctx, `
+		WITH upsert AS (
 			INSERT INTO core.declaration
 			  (uuid, nom, prenom, date_naissance, type_declaration, date_depot,
 			   type_mandat, label_organe, qualite, date_debut_mandat, date_fin_mandat, source_id)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)
+			SELECT uuid, nom, prenom, date_naissance, type_declaration, date_depot,
+			       type_mandat, label_organe, qualite, date_debut_mandat, date_fin_mandat, $1
+			  FROM tmp_declaration
 			ON CONFLICT (uuid) DO NOTHING
-			RETURNING id`,
-			d.UUID, d.Nom, d.Prenom, dateFR(d.Naissance), d.TypeDeclaration,
-			horodatageFR(d.DateDepot), nul(d.TypeMandat), nul(d.LabelOrgane),
-			nul(d.Qualite), dateFR(d.DebutMandat), dateFR(d.FinMandat), srcID,
-		).Scan(&declID); err != nil {
-			if err == pgx.ErrNoRows {
-				return nil // doublon d'uuid dans le flux : la première gagne
-			}
-			return fmt.Errorf("%s %s : %w", d.Prenom, d.Nom, err)
-		}
-		nDecl++
-		for _, it := range d.Items {
-			if _, err := tx.Exec(ctx, `
-				INSERT INTO core.declaration_item
-				  (declaration_id, bloc, description, employeur, commentaire,
-				   annee, montant, non_publie)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-				declID, it.Bloc, nul(it.Description), nul(it.Employeur),
-				nul(it.Commentaire), it.Annee, it.Montant, it.NonPublie); err != nil {
-				return fmt.Errorf("item %s : %w", it.Bloc, err)
-			}
-			nItems++
-		}
-		return nil
-	})
+			RETURNING id, uuid
+		)
+		SELECT uuid, id FROM upsert`, srcID)
 	if err != nil {
+		return fail(fmt.Errorf("déclarations : %w", err))
+	}
+	declIDByUUID := map[string]int64{}
+	for res.Next() {
+		var uuid string
+		var id int64
+		if err := res.Scan(&uuid, &id); err != nil {
+			res.Close()
+			return fail(err)
+		}
+		declIDByUUID[uuid] = id
+	}
+	res.Close()
+	if err := res.Err(); err != nil {
 		return fail(err)
 	}
+	nDecl := len(declIDByUUID)
+
+	// Les items n'ont aucun conflit à résoudre (aucune contrainte d'unicité
+	// dessus) : une COPY directe dans la vraie table suffit, comme
+	// core.ballot ailleurs dans ce dépôt — pas la peine d'une table
+	// temporaire pour un aller simple.
+	var itemRows [][]any
+	for _, d := range decls {
+		declID, ok := declIDByUUID[d.UUID]
+		if !ok {
+			continue // doublon d'uuid déjà écarté au flux, ou conflit DB
+		}
+		for _, it := range d.Items {
+			itemRows = append(itemRows, []any{declID, it.Bloc, nul(it.Description),
+				nul(it.Employeur), nul(it.Commentaire), it.Annee, it.Montant, it.NonPublie})
+		}
+	}
+	nItemsAffected, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "declaration_item"},
+		[]string{"declaration_id", "bloc", "description", "employeur", "commentaire",
+			"annee", "montant", "non_publie"},
+		pgx.CopyFromRows(itemRows))
+	if err != nil {
+		return fail(fmt.Errorf("items : %w", err))
+	}
+	nItems := int(nItemsAffected)
 
 	// Rapprochement sur le triplet EXACT (nom, prénom, date de naissance),
 	// insensible aux accents et à la casse — la même règle que pour le RNE
@@ -188,8 +249,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"declarations": nDecl, "items": nItems, "rapprochees": rec.RowsAffected()}, "")
-	fmt.Printf("  HATVP : %d déclarations, %d éléments, %d rapprochées à une personne connue\n",
-		nDecl, nItems, rec.RowsAffected())
+	logs.Notice("HATVP normalisé", "declarations", nDecl, "items", nItems,
+		"rapprochees", rec.RowsAffected())
 	return nil
 }
 
