@@ -570,20 +570,29 @@ func registre(pool *pgxpool.Pool) *pipeline.Registre {
 // la main — une matvue construite sur une autre (mv.dept_population,
 // mv.person_actif) est désormais garantie à jour avant que sa dépendante ne
 // soit vérifiée, par construction du graphe plutôt que par une place
-// correcte dans Catalogue. Toujours séquentiel (Options zéro) : deux
-// REFRESH concurrents sur des matvues indépendantes n'ont rien à y gagner
-// tant qu'ActualiserToutes tourne seule dans l'étape "systeme matviews" de
-// l'ingest, jamais à côté d'un autre gros travail sur le même pool.
-// ActualiserToutes vérifie chaque matvue du Catalogue, dans l'ordre de ses
-// dépendances déclarées (une matvue bâtie sur une autre matvue l'attend),
-// jusqu'à 4 de front pour les autres — la plupart n'ont aucune dépendance
-// entre elles, les enchaîner une par une n'avait jamais été qu'un oubli du
-// premier jet, jamais une nécessité. Actualiser lui-même décide vite s'il y a
-// quoi que ce soit à refaire (voir le commentaire de tête de ce fichier), donc
-// même à 4 de front, un appel où rien n'a changé reste bon marché.
+// correcte dans Catalogue. À la concurrence partagée par défaut (4, celle du
+// pool qu'ouvre internal/store.Open) — pour un appelant qui n'a pas de
+// raison de s'en écarter. Voir ActualiserToutesConcurrence pour celui qui en
+// a une.
 func ActualiserToutes(ctx context.Context, pool *pgxpool.Pool) error {
+	return ActualiserToutesConcurrence(ctx, pool, 4)
+}
+
+// ActualiserToutesConcurrence : comme ActualiserToutes, jusqu'à `concurrence`
+// de front plutôt que 4 — la plupart des 25 matvues n'ont aucune dépendance
+// entre elles (voir Catalogue), les enchaîner à une concurrence bridée par
+// défaut n'avait jamais été qu'un héritage du pool à 4 connexions que
+// RunSources/RunSource/RunCategorie/RunTout ouvrent pour tout le reste de
+// l'ingestion, jamais une limite propre à cette étape.
+//
+// L'appelant doit fournir un pool dont MaxConns couvre CETTE concurrence
+// (voir internal/store.OpenWithMaxConns, déjà le choix d'internal/sitegen
+// pour le même besoin) : demander plus de front que le pool n'a de
+// connexions ne fait que mettre des goroutines en attente de la même
+// poignée de connexions, sans rien paralléliser de plus.
+func ActualiserToutesConcurrence(ctx context.Context, pool *pgxpool.Pool, concurrence int) error {
 	reg := registre(pool)
-	_, err := reg.Executer(ctx, reg.Noms(), pipeline.Options{Concurrence: 4})
+	_, err := reg.Executer(ctx, reg.Noms(), pipeline.Options{Concurrence: concurrence})
 	return err
 }
 

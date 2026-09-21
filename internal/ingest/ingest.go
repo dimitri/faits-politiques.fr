@@ -154,6 +154,23 @@ func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms [
 	return reg, nil
 }
 
+// actualiserMatviews ouvre son PROPRE pool, plus large que celui à 4
+// connexions que store.Open donne au reste d'une commande d'ingestion — le
+// même choix qu'internal/sitegen fait pour son propre besoin mesuré de
+// parallélisme (store.OpenWithMaxConns), jamais en élargissant le défaut
+// partagé. Sans ce second pool, matview.ActualiserToutesConcurrence pouvait
+// demander autant de front qu'elle voulait : bridée aux 4 connexions du pool
+// qu'on lui donnait, elle ne l'obtenait jamais.
+func actualiserMatviews(ctx context.Context) error {
+	const concurrence = 8
+	mvPool, err := store.OpenWithMaxConns(ctx, concurrence)
+	if err != nil {
+		return err
+	}
+	defer mvPool.Close()
+	return matview.ActualiserToutesConcurrence(ctx, mvPool, concurrence)
+}
+
 // RunSources exécute plusieurs sources du catalogue à la fois — vagues
 // topologiques, jusqu'à opts[0].Concurrence de front par vague, exactement
 // comme RunCategorie pour le socle qu'elle contient, généralisé à
@@ -212,7 +229,7 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 	// d'un mv.* resté sur l'exécution précédente — le même bogue que
 	// RunTout évite déjà en bout de chaîne complète, mais dont fpctl build
 	// n'avait jamais hérité.
-	return matview.ActualiserToutes(ctx, pool)
+	return actualiserMatviews(ctx)
 }
 
 // downloadTargetsFor réunit les cibles de téléchargement des connecteurs
@@ -300,7 +317,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		if dryRun {
 			return nil
 		}
-		return matview.ActualiserToutes(ctx, pool)
+		return actualiserMatviews(ctx)
 	}
 	reg, err := registreDe(pool, arch, rawDir, []string{nom})
 	if err != nil {
@@ -314,7 +331,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 	}
 	// raw -> core est fait pour cette source ; core -> mv avant de rendre
 	// la main, jamais après — voir le même choix dans RunSources.
-	return matview.ActualiserToutes(ctx, pool)
+	return actualiserMatviews(ctx)
 }
 
 // RunCategorie exécute toutes les sources d'une catégorie — un choix
@@ -380,7 +397,7 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	}
 	// raw -> core est fait pour toute la catégorie ; core -> mv avant de
 	// rendre la main, jamais après — voir le même choix dans RunSources.
-	if err := matview.ActualiserToutes(ctx, pool); err != nil {
+	if err := actualiserMatviews(ctx); err != nil {
 		return err
 	}
 	logs.Notice(fmt.Sprintf("category %s done in %s", categorie, time.Since(start).Round(time.Second)))
@@ -546,7 +563,7 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 	// Même logique, un étage plus haut (voir internal/matview) : une
 	// matvue n'est réellement REFRESHée que si ses tables source ou sa
 	// définition ont changé depuis la dernière fois.
-	if err := matview.ActualiserToutes(ctx, pool); err != nil {
+	if err := actualiserMatviews(ctx); err != nil {
 		return err
 	}
 
