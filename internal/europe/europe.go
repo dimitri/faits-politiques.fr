@@ -443,63 +443,131 @@ func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[str
 	return out, nil
 }
 
+// chargerVotesNominatifs charge member_votes.csv.gz DIRECTEMENT dans
+// Postgres — le flux décompressé va tel quel, via le protocole COPY, dans une
+// table temporaire à colonnes texte ; aucun décodage CSV ne se fait plus côté
+// Go. Le fichier porte le vote de chaque eurodéputé (~700, toutes
+// nationalités) sur chaque scrutin — 17,6 millions de lignes — dont seule une
+// fraction passe le filtre « eurodéputé français », le rapprochement au
+// scrutin, et la traduction de la position : tout cela se fait en UNE seule
+// INSERT...SELECT, jamais ligne à ligne en Go.
+//
+// Le gain n'est pas seulement la table de destination (déjà en COPY) : c'est
+// le PARSING lui-même. encoding/csv + une map[string]string par ligne, même
+// optimisée (voir lire()), reste des dizaines de millions d'allocations et de
+// comparaisons de chaînes en Go pour un travail que le COPY natif de Postgres
+// fait en C, et que la seule requête SQL qui suit exprime plus court que la
+// boucle qu'elle remplace.
 func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string,
 	membres, scrutins, groupeDe map[string]int64) (int, error) {
 
-	// member_votes.csv.gz porte le vote de chaque eurodéputé (~700, toutes
-	// nationalités) sur chaque scrutin — plusieurs millions de lignes, dont
-	// seule une fraction passe le filtre "eurodéputé français" plus bas.
-	// Sans repère avant, une commande qui décode ça pendant 30-40 s se lit
-	// comme bloquée : les autres connecteurs de la même vague ont déjà fini
-	// et narré leur propre résultat pendant ce temps-là.
-	logs.Notice("parsing member_votes.csv.gz (several million rows, this takes a moment)")
-	type ligne struct {
-		scrutin, personne int64
-		org               *int64
-		position          string
-	}
-	var lignes []ligne
-	seen := map[[2]int64]bool{}
-	err := lire(path, func(m map[string]string) error {
-		pid, ok := membres[m["member_id"]]
-		if !ok {
-			return nil // eurodéputé non français : hors périmètre
-		}
-		sid, ok := scrutins[m["vote_id"]]
-		if !ok {
-			return nil
-		}
-		pos, ok := positionOf[m["position"]]
-		if !ok {
-			return nil
-		}
-		cle := [2]int64{sid, pid}
-		if seen[cle] {
-			return nil
-		}
-		seen[cle] = true
-		var org *int64
-		if g, ok := groupeDe[m["member_id"]]; ok {
-			org = &g
-		}
-		lignes = append(lignes, ligne{sid, pid, org, pos})
-		return nil
-	})
+	logs.Notice("loading member_votes.csv.gz (17.6M rows, streamed straight into Postgres)")
+
+	f, err := os.Open(path)
 	if err != nil {
 		return 0, err
 	}
-	logs.Notice(fmt.Sprintf("rebuilding %s (this takes a while)", logs.Plural(len(lignes), "ballot")))
-	n, err := pool.CopyFrom(ctx, pgx.Identifier{"core", "ballot"},
-		[]string{"scrutin_id", "person_id", "organization_id", "position"},
-		pgx.CopyFromSlice(len(lignes), func(i int) ([]any, error) {
-			l := lignes[i]
-			var org any
-			if l.org != nil {
-				org = *l.org
-			}
-			return []any{l.scrutin, l.personne, org, l.position}, nil
-		}))
-	return int(n), err
+	defer f.Close()
+	gz, err := gzip.NewReader(f)
+	if err != nil {
+		return 0, err
+	}
+	defer gz.Close()
+
+	conn, err := pool.Acquire(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer conn.Release()
+
+	tx, err := conn.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_member_votes (
+			rn bigint GENERATED ALWAYS AS IDENTITY,
+			vote_id text, member_id text, position text, country_code text, group_code text
+		) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	// Les trois petites tables de correspondance (~700 eurodéputés au plus,
+	// ~25 000 scrutins) que la boucle Go consultait comme des map[string]int64
+	// sont ici de simples tables temporaires : la jointure les remplace.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_membres (member_id text PRIMARY KEY, person_id bigint) ON COMMIT DROP;
+		CREATE TEMP TABLE tmp_scrutins (vote_id text PRIMARY KEY, scrutin_id bigint) ON COMMIT DROP;
+		CREATE TEMP TABLE tmp_groupe_de (member_id text PRIMARY KEY, organization_id bigint) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_membres"}, []string{"member_id", "person_id"},
+		pgx.CopyFromSlice(len(membres), mapCopySource(membres))); err != nil {
+		return 0, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_scrutins"}, []string{"vote_id", "scrutin_id"},
+		pgx.CopyFromSlice(len(scrutins), mapCopySource(scrutins))); err != nil {
+		return 0, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_groupe_de"}, []string{"member_id", "organization_id"},
+		pgx.CopyFromSlice(len(groupeDe), mapCopySource(groupeDe))); err != nil {
+		return 0, err
+	}
+
+	// Le COPY protocol lui-même, en direct depuis le flux décompressé — voir
+	// le commentaire de tête : c'est ici que le gain a lieu, pas dans la
+	// requête qui suit.
+	if _, err := conn.Conn().PgConn().CopyFrom(ctx, gz,
+		`COPY tmp_member_votes (vote_id, member_id, position, country_code, group_code)
+		 FROM STDIN WITH (FORMAT csv, HEADER true)`); err != nil {
+		return 0, fmt.Errorf("chargement de member_votes.csv.gz : %w", err)
+	}
+
+	logs.Notice("rebuilding ballots from the raw rows just loaded (this takes a while)")
+	// DISTINCT ON reproduit exactement le "premier gagne" de la boucle Go
+	// (seen[cle]) : rn porte l'ordre d'arrivée dans le fichier, le même que
+	// map[[2]int64]bool y voyait ligne après ligne.
+	ct, err := tx.Exec(ctx, `
+		WITH resolues AS (
+			SELECT t.rn, s.scrutin_id, m.person_id, g.organization_id,
+			       (CASE t.position
+			         WHEN 'FOR' THEN 'FOR' WHEN 'AGAINST' THEN 'AGAINST'
+			         WHEN 'ABSTENTION' THEN 'ABSTAIN' WHEN 'DID_NOT_VOTE' THEN 'ABSENT'
+			       END)::core.vote_position AS position
+			  FROM tmp_member_votes t
+			  JOIN tmp_membres m ON m.member_id = t.member_id
+			  JOIN tmp_scrutins s ON s.vote_id = t.vote_id
+			  LEFT JOIN tmp_groupe_de g ON g.member_id = t.member_id
+			 WHERE t.position IN ('FOR','AGAINST','ABSTENTION','DID_NOT_VOTE')
+		),
+		dedup AS (
+			SELECT DISTINCT ON (scrutin_id, person_id) scrutin_id, person_id, organization_id, position
+			  FROM resolues
+			 ORDER BY scrutin_id, person_id, rn
+		)
+		INSERT INTO core.ballot (scrutin_id, person_id, organization_id, position)
+		SELECT scrutin_id, person_id, organization_id, position FROM dedup`)
+	if err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return int(ct.RowsAffected()), nil
+}
+
+// mapCopySource adapte une map[string]int64 en source pour pgx.CopyFromSlice
+// — les trois petites tables de correspondance ci-dessus n'ont besoin de rien
+// de plus.
+func mapCopySource(m map[string]int64) func(int) ([]any, error) {
+	keys := make([]string, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	return func(i int) ([]any, error) {
+		return []any{keys[i], m[keys[i]]}, nil
+	}
 }
 
 // chargerEuroVoc transcrit la classification thématique OFFICIELLE de l'Union :
