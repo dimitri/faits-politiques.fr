@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -111,9 +112,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"groupes": len(groupes), "membres_fr": len(membres),
 		"scrutins": len(scrutins), "votes": nBallots, "themes": nThemes}, "")
-	fmt.Printf("  Europe        %d groupes, %d eurodéputés français, %d scrutins,\n"+
-		"                %d votes nominatifs, %d affectations EuroVoc\n",
-		len(groupes), len(membres), len(scrutins), nBallots, nThemes)
+	logs.Notice("Europe normalisée", "groupes", len(groupes), "eurodeputes_fr", len(membres),
+		"scrutins", len(scrutins), "votes", nBallots, "themes_eurovoc", nThemes)
 	return nil
 }
 
@@ -178,9 +178,6 @@ func slugify(s string) string {
 	}
 	return strings.Trim(b.String(), "-")
 }
-
-var _ = pgx.Identifier{}
-var _ = strconv.Atoi
 
 // ---------------------------------------------------------------- chargement
 
@@ -325,17 +322,19 @@ func chargerAppartenances(ctx context.Context, pool *pgxpool.Pool, path string,
 }
 
 func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[string]int64, error) {
-	var legID int64
-	if err := pool.QueryRow(ctx, `
+	if _, err := pool.Exec(ctx, `
 		INSERT INTO core.legislature (institution, numero, validity)
 		VALUES ('PARLEMENT_EUROPEEN', 9, daterange('2019-07-02','2024-07-15'))
-		ON CONFLICT (institution, numero) DO UPDATE SET numero = EXCLUDED.numero
-		RETURNING id`).Scan(&legID); err != nil {
+		ON CONFLICT (institution, numero) DO UPDATE SET numero = EXCLUDED.numero`); err != nil {
 		return nil, err
 	}
 
-	out := map[string]int64{}
-	err := lire(path, func(m map[string]string) error {
+	type ligne struct {
+		slug, uid, numero, date, objet, typeVote string
+		pour, contre, abstentions                int
+	}
+	var lignes []ligne
+	if err := lire(path, func(m map[string]string) error {
 		id := m["id"]
 		if id == "" || len(m["timestamp"]) < 10 {
 			return nil
@@ -348,23 +347,70 @@ func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[str
 			objet = "Scrutin " + id // core.scrutin exige un objet non vide
 		}
 		atoi := func(k string) int { n, _ := strconv.Atoi(m[k]); return n }
-		var sid int64
-		if err := pool.QueryRow(ctx, `
+		lignes = append(lignes, ligne{"pe-" + id, id, id, m["timestamp"][:10], objet,
+			m["description"], atoi("count_for"), atoi("count_against"), atoi("count_abstention")})
+		return nil
+	}); err != nil {
+		return nil, err
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_scrutin_pe (
+			slug text, uid text, numero text, date_seance text, objet text, type_vote text,
+			pour int, contre int, abstentions int
+		) ON COMMIT DROP`); err != nil {
+		return nil, err
+	}
+	rows := make([][]any, len(lignes))
+	for i, l := range lignes {
+		rows[i] = []any{l.slug, l.uid, l.numero, l.date, l.objet, l.typeVote,
+			l.pour, l.contre, l.abstentions}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_scrutin_pe"},
+		[]string{"slug", "uid", "numero", "date_seance", "objet", "type_vote",
+			"pour", "contre", "abstentions"},
+		pgx.CopyFromRows(rows)); err != nil {
+		return nil, err
+	}
+	res, err := tx.Query(ctx, `
+		WITH upsert AS (
 			INSERT INTO core.scrutin
 			  (slug, institution, source_uid, numero, date_seance, granularite, objet,
 			   type_vote, nb_pour, nb_contre, nb_abstentions)
-			VALUES ($1,'PARLEMENT_EUROPEEN',$2,$3,$4::date,'INDIVIDUAL',$5,
-			        NULLIF($6,''),$7,$8,$9)
+			SELECT slug, 'PARLEMENT_EUROPEEN'::core.institution, uid, numero, date_seance::date,
+			       'INDIVIDUAL'::core.scrutin_granularite, objet, NULLIF(type_vote,''),
+			       pour, contre, abstentions
+			  FROM tmp_scrutin_pe
 			ON CONFLICT (institution, source_uid) DO UPDATE SET objet = EXCLUDED.objet
-			RETURNING id`,
-			"pe-"+id, id, id, m["timestamp"][:10], objet, m["description"],
-			atoi("count_for"), atoi("count_against"), atoi("count_abstention")).Scan(&sid); err != nil {
-			return fmt.Errorf("scrutin PE %s : %w", id, err)
+			RETURNING id, source_uid
+		)
+		SELECT source_uid, id FROM upsert`)
+	if err != nil {
+		return nil, fmt.Errorf("scrutins PE : %w", err)
+	}
+	out := map[string]int64{}
+	for res.Next() {
+		var uid string
+		var id int64
+		if err := res.Scan(&uid, &id); err != nil {
+			res.Close()
+			return nil, err
 		}
-		out[id] = sid
-		return nil
-	})
-	return out, err
+		out[uid] = id
+	}
+	res.Close()
+	if err := res.Err(); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
+	}
+	return out, nil
 }
 
 func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string,
@@ -455,8 +501,8 @@ func chargerEuroVoc(ctx context.Context, pool *pgxpool.Pool,
 		return 0, err
 	}
 
-	n := 0
-	err := lire(pathLiens, func(m map[string]string) error {
+	var rows [][]any
+	if err := lire(pathLiens, func(m map[string]string) error {
 		sid, ok := scrutins[m["vote_id"]]
 		if !ok {
 			return nil
@@ -465,13 +511,13 @@ func chargerEuroVoc(ctx context.Context, pool *pgxpool.Pool,
 		if !ok {
 			return nil
 		}
-		if _, err := pool.Exec(ctx, `
-			INSERT INTO core.topic_assignment (topic_code, scrutin_id, provenance, verification)
-			VALUES ($1,$2,'OFFICIAL','AUTO_VERIFIED')`, code, sid); err != nil {
-			return err
-		}
-		n++
+		rows = append(rows, []any{code, sid, "OFFICIAL", "AUTO_VERIFIED"})
 		return nil
-	})
-	return n, err
+	}); err != nil {
+		return 0, err
+	}
+	n, err := pool.CopyFrom(ctx, pgx.Identifier{"core", "topic_assignment"},
+		[]string{"topic_code", "scrutin_id", "provenance", "verification"},
+		pgx.CopyFromRows(rows))
+	return int(n), err
 }
