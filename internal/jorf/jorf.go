@@ -35,6 +35,7 @@ import (
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
 	"github.com/faits-politiques/faits-politiques/internal/balisage"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -147,10 +148,9 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, nbAr
 		"archives": len(noms), "fichiers": b.fichiers, "decodes": b.decodes,
 		"echecs": b.echecs, "sans_id": b.sansID, "actes": b.actes,
 		"nominatifs": b.nominatifs, "mentions": b.mentions}, "")
-	fmt.Printf("  JORF : %d archives, %d fichiers, %d décodés (%d échecs, %d sans identifiant)\n",
-		len(noms), b.fichiers, b.decodes, b.echecs, b.sansID)
-	fmt.Printf("         %d actes dont %d nominatifs, %d mentions de personnes\n",
-		b.actes, b.nominatifs, b.mentions)
+	logs.Notice("JORF normalisé", "archives", len(noms), "fichiers", b.fichiers,
+		"decodes", b.decodes, "echecs", b.echecs, "sans_id", b.sansID,
+		"actes", b.actes, "nominatifs", b.nominatifs, "mentions", b.mentions)
 	return nil
 }
 
@@ -160,6 +160,20 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, nbAr
 // sans le moindre message.
 type bilan struct {
 	fichiers, decodes, echecs, sansID, actes, nominatifs, mentions int
+}
+
+// ligneActe et ligneMention portent une ligne le temps de la COPY groupée :
+// tout un tar.gz est décodé en mémoire (quelques milliers de textes, jamais
+// le gigaoctet du dump complet à la fois — un seul .tar.gz à la fois) avant
+// une poignée d'allers-retours à la base plutôt qu'un par fichier.
+type ligneActe struct {
+	id, nature, numero, nor, titre, titreComplet, ministere, contenu string
+	datePubli, dateTexte                                             any
+	nominatif                                                        bool
+}
+
+type ligneMention struct {
+	acteID, nom, prenom, contexte, origine string
 }
 
 func chargerArchive(ctx context.Context, pool *pgxpool.Pool, chemin string, srcID int64, b *bilan) error {
@@ -174,11 +188,9 @@ func chargerArchive(ctx context.Context, pool *pgxpool.Pool, chemin string, srcI
 	}
 	defer gz.Close()
 
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
+	var actes []ligneActe
+	var nominatifs []string
+	var mentions []ligneMention
 
 	tr := tar.NewReader(gz)
 	for {
@@ -214,43 +226,200 @@ func chargerArchive(ctx context.Context, pool *pgxpool.Pool, chemin string, srcI
 		contenu := corps(raw)
 		nominatif := reNominatif.MatchString(t.TitreFull) || reNominatif.MatchString(t.Titre)
 
-		// Upsert : les archives incrémentales rééditent des fiches anciennes.
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO core.acte_jo
-			  (id, nature, numero, nor, date_publi, date_texte, titre, titre_complet,
-			   ministere, contenu, nominatif, source_id)
-			VALUES ($1,$2,$3,$4,$5::date,$6::date,$7,$8,$9,$10,$11,$12)
-			ON CONFLICT (id) DO UPDATE SET
-			  titre_complet = EXCLUDED.titre_complet, contenu = EXCLUDED.contenu,
-			  date_publi = EXCLUDED.date_publi, date_texte = EXCLUDED.date_texte,
-			  nominatif = EXCLUDED.nominatif, charge_le = now()`,
-			t.ID, nul(t.Nature), nul(t.Num), nul(t.NOR), dateJO(t.DatePubli), dateJO(t.DateTexte),
-			nul(t.Titre), nul(t.TitreFull), nul(t.Ministere), nul(contenu),
-			nominatif, srcID); err != nil {
-			return fmt.Errorf("acte %s : %w", t.ID, err)
+		la := ligneActe{
+			id: t.ID, nominatif: nominatif,
+			datePubli: dateJO(t.DatePubli), dateTexte: dateJO(t.DateTexte),
 		}
+		if v := nul(t.Nature); v != nil {
+			la.nature = v.(string)
+		}
+		if v := nul(t.Num); v != nil {
+			la.numero = v.(string)
+		}
+		if v := nul(t.NOR); v != nil {
+			la.nor = v.(string)
+		}
+		if v := nul(t.Titre); v != nil {
+			la.titre = v.(string)
+		}
+		if v := nul(t.TitreFull); v != nil {
+			la.titreComplet = v.(string)
+		}
+		if v := nul(t.Ministere); v != nil {
+			la.ministere = v.(string)
+		}
+		if v := nul(contenu); v != nil {
+			la.contenu = v.(string)
+		}
+		actes = append(actes, la)
 		b.actes++
 		if !nominatif {
 			continue
 		}
 		b.nominatifs++
-
-		if _, err := tx.Exec(ctx,
-			`DELETE FROM core.acte_jo_mention WHERE acte_id = $1`, t.ID); err != nil {
-			return err
-		}
+		nominatifs = append(nominatifs, t.ID)
 		for _, m := range extraireMentions(t.TitreFull, contenu) {
-			if err := enregistrerMention(ctx, tx, t.ID, m); err != nil {
-				return err
+			if m.nom == "" {
+				continue
 			}
-			b.mentions++
+			mentions = append(mentions, ligneMention{t.ID, m.nom, m.prenom, m.contexte, m.origine})
 		}
 	}
 
-	if err := tx.Commit(ctx); err != nil {
+	tx, err := pool.Begin(ctx)
+	if err != nil {
 		return err
 	}
-	return nil
+	defer tx.Rollback(ctx)
+
+	if err := copierActes(ctx, tx, actes, srcID); err != nil {
+		return err
+	}
+	if len(nominatifs) > 0 {
+		if _, err := tx.Exec(ctx,
+			`DELETE FROM core.acte_jo_mention WHERE acte_id = ANY($1)`, nominatifs); err != nil {
+			return err
+		}
+	}
+	n, err := copierMentions(ctx, tx, mentions)
+	if err != nil {
+		return err
+	}
+	b.mentions += n
+
+	return tx.Commit(ctx)
+}
+
+// copierActes charge les textes du JO. Upsert : les archives incrémentales
+// rééditent des fiches anciennes.
+func copierActes(ctx context.Context, tx pgx.Tx, actes []ligneActe, srcID int64) error {
+	// date_publi/date_texte restent du texte dans la table temporaire, casté en
+	// ::date au SELECT : le protocole binaire de CopyFrom exige un type Go
+	// concordant pour une colonne "date" (time.Time), pas une chaîne — la même
+	// leçon qu'ailleurs dans ce dépôt (voir internal/an/normalize.go).
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_acte_jo (
+			id text, nature text, numero text, nor text, date_publi text, date_texte text,
+			titre text, titre_complet text, ministere text, contenu text, nominatif boolean
+		) ON COMMIT DROP`); err != nil {
+		return err
+	}
+	rows := make([][]any, len(actes))
+	for i, a := range actes {
+		rows[i] = []any{a.id, ntext(a.nature), ntext(a.numero), ntext(a.nor), a.datePubli, a.dateTexte,
+			ntext(a.titre), ntext(a.titreComplet), ntext(a.ministere), ntext(a.contenu), a.nominatif}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_acte_jo"},
+		[]string{"id", "nature", "numero", "nor", "date_publi", "date_texte", "titre",
+			"titre_complet", "ministere", "contenu", "nominatif"},
+		pgx.CopyFromRows(rows)); err != nil {
+		return err
+	}
+	_, err := tx.Exec(ctx, `
+		INSERT INTO core.acte_jo
+		  (id, nature, numero, nor, date_publi, date_texte, titre, titre_complet,
+		   ministere, contenu, nominatif, source_id)
+		SELECT id, nature, numero, nor, date_publi::date, date_texte::date, titre, titre_complet,
+		       ministere, contenu, nominatif, $1
+		  FROM tmp_acte_jo
+		ON CONFLICT (id) DO UPDATE SET
+		  titre_complet = EXCLUDED.titre_complet, contenu = EXCLUDED.contenu,
+		  date_publi = EXCLUDED.date_publi, date_texte = EXCLUDED.date_texte,
+		  nominatif = EXCLUDED.nominatif, charge_le = now()`, srcID)
+	return err
+}
+
+// ntext ramène une chaîne vide à NULL, pour repasser par une colonne texte
+// de table temporaire sans perdre la distinction absence/chaîne vide.
+func ntext(s string) any {
+	if s == "" {
+		return nil
+	}
+	return s
+}
+
+// copierMentions qualifie chaque personne citée sans jamais décider seule du
+// rattachement, exactement comme l'ancienne version ligne à ligne — mais le
+// rapprochement (nom, prénom) -> core.person se fait en UNE requête pour
+// tout l'archive plutôt qu'une par mention : les mentions partagent
+// massivement le même nom d'un acte à l'autre (une même personne nommée
+// dans plusieurs décrets), et une résolution par nom distinct suffit.
+func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention) (int, error) {
+	if len(mentions) == 0 {
+		return 0, nil
+	}
+
+	type cleNom struct{ nom, prenom string }
+	noms := map[cleNom]bool{}
+	for _, m := range mentions {
+		noms[cleNom{m.nom, m.prenom}] = true
+	}
+	nomRows := make([][]any, 0, len(noms))
+	for c := range noms {
+		nomRows = append(nomRows, []any{c.nom, c.prenom})
+	}
+
+	if _, err := tx.Exec(ctx,
+		`CREATE TEMP TABLE tmp_nom_mention (nom text, prenom text) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_nom_mention"}, []string{"nom", "prenom"},
+		pgx.CopyFromRows(nomRows)); err != nil {
+		return 0, err
+	}
+	// LATERAL + LIMIT 50 reproduit exactement le comportement ligne à ligne :
+	// au-delà de 50 homonymes, le compte plafonne à 50 plutôt que de refléter
+	// le vrai total. Un défaut préexistant, pas introduit ici.
+	rows, err := tx.Query(ctx, `
+		SELECT t.nom, t.prenom, array_agg(p.id)
+		  FROM tmp_nom_mention t
+		  JOIN LATERAL (
+		        SELECT id FROM core.person
+		         WHERE core.f_unaccent(lower(family_name)) = core.f_unaccent(lower(t.nom))
+		           AND core.f_unaccent(lower(given_name))  = core.f_unaccent(lower(t.prenom))
+		         LIMIT 50
+		       ) p ON true
+		 GROUP BY t.nom, t.prenom`)
+	if err != nil {
+		return 0, err
+	}
+	resolu := map[cleNom][]int64{}
+	for rows.Next() {
+		var nom, prenom string
+		var ids []int64
+		if err := rows.Scan(&nom, &prenom, &ids); err != nil {
+			rows.Close()
+			return 0, err
+		}
+		resolu[cleNom{nom, prenom}] = ids
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return 0, err
+	}
+
+	mentionRows := make([][]any, len(mentions))
+	for i, m := range mentions {
+		ids := resolu[cleNom{m.nom, m.prenom}]
+		statut := "ABSENT"
+		var personID any
+		switch {
+		case len(ids) == 1:
+			// Un seul porteur du nom : CANDIDAT, pas CONFIRMÉ. Sans date de
+			// naissance dans l'acte, rien ne prouve que c'est la bonne personne.
+			statut = "CANDIDAT"
+			personID = ids[0]
+		case len(ids) > 1:
+			statut = "AMBIGU"
+		}
+		mentionRows[i] = []any{m.acteID, m.nom, ntext(m.prenom), ntext(m.contexte), m.origine,
+			personID, statut, len(ids), MethodVersion}
+	}
+	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "acte_jo_mention"},
+		[]string{"acte_id", "nom", "prenom", "contexte", "origine", "person_id", "statut",
+			"homonymes", "method_version"},
+		pgx.CopyFromRows(mentionRows))
+	return int(n), err
 }
 
 // decoder tolère les écarts au XML strict. Les actes du JO enferment du HTML
@@ -289,51 +458,6 @@ func extraireMentions(titre, corps string) []mention {
 		})
 	}
 	return out
-}
-
-// enregistrerMention qualifie le rattachement sans jamais le décider seul.
-func enregistrerMention(ctx context.Context, tx pgx.Tx, acteID string, m mention) error {
-	if m.nom == "" {
-		return nil
-	}
-	rows, err := tx.Query(ctx, `
-		SELECT id FROM core.person
-		 WHERE core.f_unaccent(lower(family_name)) = core.f_unaccent(lower($1))
-		   AND core.f_unaccent(lower(given_name))  = core.f_unaccent(lower($2))
-		 LIMIT 50`, m.nom, m.prenom)
-	if err != nil {
-		return err
-	}
-	var ids []int64
-	for rows.Next() {
-		var id int64
-		if err := rows.Scan(&id); err != nil {
-			rows.Close()
-			return err
-		}
-		ids = append(ids, id)
-	}
-	rows.Close()
-
-	statut := "ABSENT"
-	var personID any
-	switch {
-	case len(ids) == 1:
-		// Un seul porteur du nom : CANDIDAT, pas CONFIRMÉ. Sans date de
-		// naissance dans l'acte, rien ne prouve que c'est la bonne personne.
-		statut = "CANDIDAT"
-		personID = ids[0]
-	case len(ids) > 1:
-		statut = "AMBIGU"
-	}
-
-	_, err = tx.Exec(ctx, `
-		INSERT INTO core.acte_jo_mention
-		  (acte_id, nom, prenom, contexte, origine, person_id, statut, homonymes, method_version)
-		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)`,
-		acteID, m.nom, nul(m.prenom), nul(m.contexte), m.origine,
-		personID, statut, len(ids), MethodVersion)
-	return err
 }
 
 // extrait renvoie ce qui suit le nom : c'est là que se trouve la qualité, seul
