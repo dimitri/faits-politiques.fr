@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -71,8 +72,9 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, work
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"senateurs": nSen, "scrutins": nScr, "votes": nVot, "themes": nThemes}, "")
-	fmt.Printf("  Sénat         %d sénateurs, %d scrutins, %d votes nominatifs, %d thèmes officiels\n",
-		nSen, nScr, nVot, nThemes)
+	logs.Notice(fmt.Sprintf("Senate: %s, %s, %s, %s", logs.Plural(nSen, "senator"),
+		logs.Plural(nScr, "roll-call vote"), logs.Plural(nVot, "individual ballot"),
+		logs.Plural(nThemes, "official topic")))
 	return nil
 }
 
@@ -305,8 +307,9 @@ func extraire(ctx context.Context, pool *pgxpool.Pool) (int, int, int, int, erro
 	} else {
 		nAff = ct.RowsAffected()
 	}
-	fmt.Printf("                %d dossiers du Sénat, %d affectations thématiques officielles\n",
-		compter(ctx, pool, `SELECT count(*) FROM core.dossier WHERE institution='SENAT'`), nAff)
+	logs.Notice(fmt.Sprintf("%s, %s",
+		logs.Plural(int(compter(ctx, pool, `SELECT count(*) FROM core.dossier WHERE institution='SENAT'`)), "Senate bill"),
+		logs.Plural(int(nAff), "official topic assignment")))
 
 	return nSen, nScr, int(nVot), nThemes, nil
 }

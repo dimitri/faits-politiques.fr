@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -191,8 +192,8 @@ func IngestInterventions(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"interventions": n, "seances": seances, "sans_acteur": sansActeur}, "")
-	fmt.Printf("  interventions  %d sur %d séances (%d orateurs hors Assemblée)\n",
-		n, seances, sansActeur)
+	logs.Notice(fmt.Sprintf("%s across %s (%d speakers outside the Assembly)",
+		logs.Plural(n, "floor speech"), logs.Plural(seances, "sitting"), sansActeur))
 	return nil
 }
 

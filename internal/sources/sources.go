@@ -239,7 +239,7 @@ func construire(ctx context.Context, pool *pgxpool.Pool, racine, nomStockageVeri
 	// tables à plusieurs millions de lignes (délinquance, corpus JO), et
 	// rien à montrer avant la toute fin sans ce log : un terminal silencieux
 	// dix secondes ne se distingue pas d'un outil planté.
-	logs.Notice("mesure des tables", "total", logs.Plural(len(tablesParSource), "table"))
+	logs.Notice("measuring " + logs.Plural(len(tablesParSource), "table"))
 	var tablesEnrichies []tableEnrichie
 	for i, t := range tablesParSource {
 		logs.Notice(fmt.Sprintf("[%d/%d] %s.%s", i+1, len(tablesParSource), t.Schema, t.Table))

@@ -249,8 +249,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"declarations": nDecl, "items": nItems, "rapprochees": rec.RowsAffected()}, "")
-	logs.Notice("HATVP normalisé", "declarations", nDecl, "items", nItems,
-		"rapprochees", rec.RowsAffected())
+	logs.Notice(fmt.Sprintf("HATVP: %s, %s, %d matched to a known person",
+		logs.Plural(nDecl, "declaration"), logs.Plural(nItems, "item"), rec.RowsAffected()))
 	return nil
 }
 

@@ -148,9 +148,11 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, nbAr
 		"archives": len(noms), "fichiers": b.fichiers, "decodes": b.decodes,
 		"echecs": b.echecs, "sans_id": b.sansID, "actes": b.actes,
 		"nominatifs": b.nominatifs, "mentions": b.mentions}, "")
-	logs.Notice("JORF normalisé", "archives", len(noms), "fichiers", b.fichiers,
-		"decodes", b.decodes, "echecs", b.echecs, "sans_id", b.sansID,
-		"actes", b.actes, "nominatifs", b.nominatifs, "mentions", b.mentions)
+	logs.Notice(fmt.Sprintf("JORF: %s, %s, %s decoded (%d failed, %d without an ID)",
+		logs.Plural(len(noms), "archive"), logs.Plural(b.fichiers, "file"), logs.Plural(b.decodes, "file"),
+		b.echecs, b.sansID))
+	logs.Notice(fmt.Sprintf("JORF: %s, of which %d nominative, %s",
+		logs.Plural(b.actes, "act"), b.nominatifs, logs.Plural(b.mentions, "person mentioned")))
 	return nil
 }
 

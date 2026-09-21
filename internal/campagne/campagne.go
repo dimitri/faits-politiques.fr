@@ -204,8 +204,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			return fail(fmt.Errorf("postes : %w", err))
 		}
 		nPostes += int(n)
-		logs.Notice("comptes de campagne normalisés", "scrutin", s.typeElection, "annee", s.annee,
-			"comptes", len(idParCandidat))
+		logs.Notice(fmt.Sprintf("campaign accounts %s %d: %s", s.typeElection, s.annee,
+			logs.Plural(len(idParCandidat), "account")))
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -213,7 +213,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"comptes": nComptes, "postes": nPostes}, "")
-	logs.Notice("comptes de campagne : ingestion terminée", "comptes", nComptes, "postes", nPostes)
+	logs.Notice(fmt.Sprintf("campaign accounts done: %s, %s",
+		logs.Plural(nComptes, "account"), logs.Plural(nPostes, "line item")))
 	return nil
 }
 

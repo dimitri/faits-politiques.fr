@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -291,8 +292,8 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"amendements": n, "auteurs": res.RowsAffected(), "sans_texte": sansTexte}, "")
-	fmt.Printf("  amendements    %d, %d auteurs rattachés (%d sans texte connu)\n",
-		n, res.RowsAffected(), sansTexte)
+	logs.Notice(fmt.Sprintf("%s, %s linked (%d without a known text)",
+		logs.Plural(n, "amendment"), logs.Plural(int(res.RowsAffected()), "author"), sansTexte))
 	return nil
 }
 

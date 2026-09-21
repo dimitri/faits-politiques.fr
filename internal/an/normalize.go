@@ -858,40 +858,40 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	// comme une commande bloquée plutôt que comme une phase en cours — voir
 	// la session qui a introduit ce commentaire (normalize seule, sur une
 	// base réelle, prend facilement deux minutes).
-	logs.Notice("normalisation : organes")
+	logs.Notice("normalizing organizations")
 	orgByUID, err := normalizeOrganes(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("organes : %w", err)
 	}
-	logs.Notice("organes normalisés", "count", len(orgByUID))
+	logs.Notice(logs.Plural(len(orgByUID), "organization") + " normalized")
 
-	logs.Notice("normalisation : acteurs")
+	logs.Notice("normalizing MPs")
 	personByUID, err := normalizeActeurs(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("acteurs : %w", err)
 	}
-	logs.Notice("acteurs normalisés", "count", len(personByUID))
+	logs.Notice(logs.Plural(len(personByUID), "MP") + " normalized")
 
 	labels, err := organeLabels(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("libellés d'organes : %w", err)
 	}
 
-	logs.Notice("normalisation : mandats et appartenances")
+	logs.Notice("normalizing mandates and affiliations")
 	nMandats, err := normalizeMandats(ctx, pool, personByUID, orgByUID, labels)
 	if err != nil {
 		return fmt.Errorf("mandats : %w", err)
 	}
-	logs.Notice("mandats et appartenances normalisés", "count", nMandats)
+	logs.Notice(fmt.Sprintf("%d mandates and affiliations normalized", nMandats))
 
-	logs.Notice("normalisation : scrutins")
+	logs.Notice("normalizing votes")
 	nScr, nBal, err := normalizeScrutins(ctx, pool, personByUID, orgByUID)
 	if err != nil {
 		return fmt.Errorf("scrutins : %w", err)
 	}
-	logs.Notice("scrutins normalisés", "scrutins", nScr, "votes_nominatifs", nBal)
+	logs.Notice(fmt.Sprintf("%s normalized, %s", logs.Plural(nScr, "roll-call vote"), logs.Plural(nBal, "individual ballot")))
 
-	logs.Notice("normalisation : dossiers")
+	logs.Notice("normalizing bills")
 	if err := NormalizeDossiers(ctx, pool, personByUID, orgByUID); err != nil {
 		return fmt.Errorf("dossiers : %w", err)
 	}
@@ -904,7 +904,7 @@ func normalizeScrutinsLegacy(ctx context.Context, pool *pgxpool.Pool,
 	if err != nil {
 		return fmt.Errorf("scrutins : %w", err)
 	}
-	logs.Notice("scrutins normalisés", "scrutins", nScr, "votes_nominatifs", nBal)
+	logs.Notice(fmt.Sprintf("%s normalized, %s", logs.Plural(nScr, "roll-call vote"), logs.Plural(nBal, "individual ballot")))
 	return nil
 }
 

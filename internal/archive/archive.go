@@ -167,9 +167,9 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	// champ absent, jamais une raison d'échouer le HEAD ne doit faire
 	// échouer le GET qui suit.
 	if taille := headContentLength(ctx, client, req.URL.String(), req.Header); taille > 0 {
-		logs.Notice("téléchargement", "url", url, "taille_annoncee", tailleLisible(taille))
+		logs.Notice(fmt.Sprintf("downloading %s (%s)", url, tailleLisible(taille)))
 	} else {
-		logs.Notice("téléchargement", "url", url)
+		logs.Notice("downloading " + url)
 	}
 	resp, err := client.Do(req)
 	if err != nil {
@@ -212,11 +212,11 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	} else if err := os.Rename(tmp.Name(), dst); err != nil {
 		return nil, err
 	}
-	etat := "archivé"
+	etat := "archived"
 	if cached {
-		etat = "inchangé"
+		etat = "unchanged"
 	}
-	logs.Notice("téléchargé", "url", url, "octets", tailleLisible(n), "sha256", sum[:12], "etat", etat)
+	logs.Notice(fmt.Sprintf("downloaded %s: %s, sha256 %s (%s)", url, tailleLisible(n), sum[:12], etat))
 
 	var docID int64
 	err = a.Pool.QueryRow(ctx, `
@@ -269,13 +269,13 @@ func headContentLength(ctx context.Context, client *http.Client, url string, ent
 func tailleLisible(octets int64) string {
 	const unite = 1024.0
 	v := float64(octets)
-	for _, suffixe := range []string{"o", "Ko", "Mo", "Go", "To"} {
+	for _, suffixe := range []string{"B", "KB", "MB", "GB", "TB"} {
 		if v < unite {
 			return fmt.Sprintf("%.1f %s", v, suffixe)
 		}
 		v /= unite
 	}
-	return fmt.Sprintf("%.1f Po", v)
+	return fmt.Sprintf("%.1f PB", v)
 }
 
 func (a *Archive) StartRun(ctx context.Context, sourceID int64, version string) (int64, error) {

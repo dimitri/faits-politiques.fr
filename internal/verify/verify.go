@@ -1094,7 +1094,7 @@ var checks = []check{
 		        ) x WHERE total IS DISTINCT FROM somme`,
 	},
 	{
-		name:  "AESH et AED s'additionnent exactement au total assistance éducative",
+		name: "AESH et AED s'additionnent exactement au total assistance éducative",
 		query: `SELECT count(*) FROM (
 		          SELECT
 		            (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='ASSISTANCE_EDUCATIVE_TOTAL') AS total,
@@ -1195,7 +1195,7 @@ var checks = []check{
 		// Chaque sous-bassin doit se rattacher à l'un des 7 grands bassins
 		// déjà chargés : un code orphelin signalerait un décalage entre les
 		// deux millésimes Sandre.
-		name:  "chaque sous-bassin se rattache à un grand bassin connu",
+		name: "chaque sous-bassin se rattache à un grand bassin connu",
 		query: `SELECT count(*) FROM geo.contour_sous_bassin sb
 		        WHERE NOT EXISTS (SELECT 1 FROM geo.contour_bassin b WHERE b.code = sb.code_bassin)`,
 	},
@@ -1226,7 +1226,7 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.budget_annexe_eau WHERE type_collectivite NOT IN ('COMMUNE','EPCI')`,
 	},
 	{
-		name:  "le personnel SAE couvre au moins 3 000 établissements par exercice, sur au moins 10 exercices",
+		name: "le personnel SAE couvre au moins 3 000 établissements par exercice, sur au moins 10 exercices",
 		query: `SELECT count(*) FROM (
 		          SELECT annee, count(*) AS n FROM core.sae_personnel_fonction GROUP BY annee HAVING count(*) >= 3000
 		        ) x`,
@@ -2092,7 +2092,7 @@ var checks = []check{
 		// dans le fichier Rhin-Meuse : 40 dossiers « Soldé » à 0 € (vérifié
 		// à l'inspection, voir SourceAidesRhinMeuse.Notes) — pas une erreur
 		// de chargement, donc pas rejeté ici.
-		name: "les aides des agences de l'eau n'ont jamais un montant négatif",
+		name:  "les aides des agences de l'eau n'ont jamais un montant négatif",
 		query: `SELECT count(*) FROM core.aide_agence_eau WHERE montant_eur < 0`,
 	},
 	{
@@ -2120,11 +2120,11 @@ var checks = []check{
 		// géométrique réel : un contour reconstruit sans membre résolu
 		// n'aurait jamais dû être inséré (garde HAVING count(g.geom)>0 côté
 		// connecteur) — ce contrôle vérifie que ça reste vrai.
-		name: "tout contour EPTB/EPAGE reconstruit couvre au moins un membre",
+		name:  "tout contour EPTB/EPAGE reconstruit couvre au moins un membre",
 		query: `SELECT count(*) FROM geo.contour_eptb_epage WHERE nb_membres_resolus = 0`,
 	},
 	{
-		name: "le type EPTB/EPAGE ne contient que des valeurs connues",
+		name:  "le type EPTB/EPAGE ne contient que des valeurs connues",
 		query: `SELECT count(*) FROM core.eptb_epage WHERE type NOT IN ('EPTB','EPAGE','EPTB_EPAGE')`,
 	},
 	{
@@ -2132,14 +2132,14 @@ var checks = []check{
 		// rester vrai dans les données chargées : une ligne en dessous
 		// trahirait une erreur de colonne ou un fichier différent de celui
 		// documenté.
-		name: "IFICOM : chaque commune publiée dépasse bien le seuil de 50 redevables",
+		name:  "IFICOM : chaque commune publiée dépasse bien le seuil de 50 redevables",
 		query: `SELECT count(*) FROM core.ifi_commune WHERE nombre_redevables <= 50`,
 	},
 	{
 		// Le patrimoine moyen des redevables IFI d'une commune ne peut pas
 		// être inférieur au seuil d'assujettissement (1,3 M€) : ce serait la
 		// preuve d'une colonne mélangée avec une autre valeur.
-		name: "IFICOM : le patrimoine moyen par commune reste au-dessus du seuil d'assujettissement",
+		name:  "IFICOM : le patrimoine moyen par commune reste au-dessus du seuil d'assujettissement",
 		query: `SELECT count(*) FROM core.ifi_commune WHERE patrimoine_moyen_eur < 1300000`,
 	},
 	{
@@ -2470,7 +2470,7 @@ func Run(ctx context.Context, args []string) error {
 	}
 	defer pool.Close()
 
-	logs.Notice("contrôles de cohérence", "total", logs.Plural(len(checks), "contrôle"))
+	logs.Notice("running " + logs.Plural(len(checks), "consistency check"))
 	failed := false
 	for _, c := range checks {
 		var n int
@@ -2497,6 +2497,6 @@ func Run(ctx context.Context, args []string) error {
 		slog.Error("publication bloquée : les données chargées ne concordent pas")
 		return ErrAnomalies
 	}
-	logs.Notice("cohérence vérifiée", "controles", len(checks))
+	logs.Notice(logs.Plural(len(checks), "consistency check") + " passed")
 	return nil
 }

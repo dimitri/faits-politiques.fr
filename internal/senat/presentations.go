@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -69,7 +70,8 @@ func NormalizePresentations(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	fmt.Printf("  présentations du Sénat : %d dossiers, %d objets rédigés, %d jeux de mots-clefs, %d pages « en clair »\n",
-		res.RowsAffected(), objets, motsClefs, enClair)
+	logs.Notice(fmt.Sprintf("Senate presentations: %s, %s written, %s of keywords, %s plain-text",
+		logs.Plural(int(res.RowsAffected()), "bill"), logs.Plural(objets, "summary"),
+		logs.Plural(motsClefs, "set"), logs.Plural(enClair, "page")))
 	return nil
 }

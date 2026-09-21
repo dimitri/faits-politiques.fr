@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -149,19 +150,19 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 		}
 	}
 	rows.Close()
-	fmt.Printf("  dossiers        %d (%d initiateurs)\n", len(dossierID), nInitiateurs)
+	logs.Notice(fmt.Sprintf("%s (%s)", logs.Plural(len(dossierID), "bill"), logs.Plural(nInitiateurs, "initiator")))
 
 	nTextes, nAuteurs, err := normalizeDocuments(ctx, pool, dossierID, personByUID, orgByUID, seenSlug)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("  textes          %d (%d auteurs et cosignataires)\n", nTextes, nAuteurs)
+	logs.Notice(fmt.Sprintf("%s (%s and co-signers)", logs.Plural(nTextes, "text"), logs.Plural(nAuteurs, "author")))
 
 	nLies, err := lierScrutins(ctx, pool, dossierID)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("  scrutins rattachés à leur dossier %d\n", nLies)
+	logs.Notice(fmt.Sprintf("%s linked to their bill", logs.Plural(nLies, "vote")))
 	return nil
 }
 

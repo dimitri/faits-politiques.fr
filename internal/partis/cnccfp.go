@@ -80,7 +80,7 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			return fmt.Errorf("comptes %d : %w", exercice, err)
 		}
 		arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"partis": n}, "")
-		logs.Notice("comptes de partis normalisés", "exercice", exercice, "partis", n)
+		logs.Notice(fmt.Sprintf("party accounts %d: %s", exercice, logs.Plural(n, "party")))
 	}
 	return nil
 }

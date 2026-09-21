@@ -204,7 +204,7 @@ func Run(ctx context.Context, args []string) error {
 		if err := os.WriteFile(chemin, src, 0o644); err != nil {
 			return err
 		}
-		logs.Notice("dossier régénéré", "fichier", chemin, "faits", len(parDossier[d]))
+		logs.Notice(fmt.Sprintf("%s: regenerated (%s)", chemin, logs.Plural(len(parDossier[d]), "fact")))
 	}
 	return nil
 }

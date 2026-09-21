@@ -3,6 +3,7 @@ package partis
 import (
 	"context"
 	"encoding/csv"
+	"fmt"
 	"os"
 	"strconv"
 	"strings"
@@ -129,7 +130,8 @@ func IngestPopuList(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"partis_france": nParties, "classifications": nRows}, "")
-	logs.Notice("PopuList 4.0 normalisé", "partis_france", nParties, "classifications", nRows)
+	logs.Notice(fmt.Sprintf("PopuList 4.0: %s, %s",
+		logs.Plural(nParties, "French party"), logs.Plural(nRows, "classification")))
 	return nil
 }
 

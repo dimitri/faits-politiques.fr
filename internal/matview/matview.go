@@ -554,9 +554,9 @@ func registre(pool *pgxpool.Pool) *pipeline.Registre {
 					return nil, fmt.Errorf("mv.%s : %w", def.Nom, err)
 				}
 				if rafraichie {
-					logs.Notice("matvue actualisée", "nom", def.QualifieNom())
+					logs.Notice(def.QualifieNom() + " refreshed")
 				} else {
-					logs.Notice("matvue déjà à jour", "nom", def.QualifieNom())
+					logs.Notice(def.QualifieNom() + " already up to date")
 				}
 				return rafraichie, nil
 			},

@@ -124,7 +124,7 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		}
 		trouves++
 		if (i+1)%200 == 0 {
-			logs.Notice("exposés en cours", "traites", i+1, "total", len(cibles), "exposes", trouves)
+			logs.Notice(fmt.Sprintf("statements of reasons: %d/%d processed, %d found", i+1, len(cibles), trouves))
 		}
 		// Un site public n'est pas une API : une requête toutes les 400 ms.
 		time.Sleep(400 * time.Millisecond)
@@ -132,8 +132,8 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"exposes": trouves, "sans_expose": sansExpose, "echecs": echecs}, "")
-	logs.Notice("exposés des motifs", "recuperes", trouves, "total", len(cibles),
-		"sans_expose", sansExpose, "echecs", echecs)
+	logs.Notice(fmt.Sprintf("statements of reasons: %d/%d found (%d without one, %d unreachable)",
+		trouves, len(cibles), sansExpose, echecs))
 	return nil
 }
 
@@ -263,6 +263,6 @@ func ReparseExposes(ctx context.Context, pool *pgxpool.Pool, racine string) erro
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	logs.Notice("exposés réextraits", "count", len(lignes))
+	logs.Notice(fmt.Sprintf("%d statements of reasons re-extracted", len(lignes)))
 	return nil
 }

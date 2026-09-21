@@ -24,6 +24,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -182,8 +183,8 @@ func run(ctx context.Context, args []string, sections []string) error {
 	// correctif ne doit pas pouvoir vider /collectivites/commune/ ou
 	// /scrutin/ en production.
 	if len(sections) > 0 {
-		fmt.Printf("%s : site partiel conservé dans %s/, PAS mis en place. "+
-			"Inspectez-le, puis relancez « fpctl build site » pour publier.\n", strings.Join(sections, ","), chantier)
+		logs.Notice(fmt.Sprintf("%s: partial site kept in %s/, NOT deployed. "+
+			"Inspect it, then rerun \"fpctl build site\" to publish.", strings.Join(sections, ","), chantier))
 		return nil
 	}
 	if err := mettreEnPlace(chantier, *out); err != nil {
@@ -392,12 +393,14 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	if err := ecrireRobots(out, layout.CanonicalBase); err != nil {
 		return err
 	}
-	fmt.Printf("  plan du site : %d URL, %s\n", nSitemap, layout.CanonicalBase+"/sitemap.xml")
+	logs.Notice(fmt.Sprintf("sitemap: %s, %s", logs.Plural(nSitemap, "URL"), layout.CanonicalBase+"/sitemap.xml"))
 
 	id := dep[identityBundle](results, "identite")
 	n, _ := results["scrutin"].(int)
-	fmt.Printf("site généré dans %s/ : %d députés, %d candidats, %d organisations, %d groupes, %d scrutins (%s)\n",
-		out, len(id.Persons), len(id.Candidats), len(id.Orgs), len(id.Groupes), n, time.Since(start).Round(time.Millisecond))
+	logs.Notice(fmt.Sprintf("site generated in %s/: %s, %s, %s, %s, %s (%s)",
+		out, logs.Plural(len(id.Persons), "MP"), logs.Plural(len(id.Candidats), "candidate"),
+		logs.Plural(len(id.Orgs), "organization"), logs.Plural(len(id.Groupes), "group"),
+		logs.Plural(n, "vote"), time.Since(start).Round(time.Millisecond)))
 
 	// « reste » (voir resteInchange) : comme pour scrutin, jamais à partir
 	// d'une construction tronquée par -only/-max-scrutins — elle serait prise

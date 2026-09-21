@@ -142,7 +142,7 @@ func Run(ctx context.Context, args []string) error {
 	if err := os.WriteFile(doc, out.Bytes(), 0o644); err != nil {
 		return err
 	}
-	logs.Notice("figure régénérée", "document", doc, "octets", len(frag))
+	logs.Notice(fmt.Sprintf("%s: figure regenerated (%d bytes)", doc, len(frag)))
 	return nil
 }
 

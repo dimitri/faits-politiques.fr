@@ -68,11 +68,11 @@ func syncVers(ctx context.Context, bucketDefaut, racineDefaut string, args []str
 	// -j, aucune étape à distinguer) : un seul repère avant, un seul
 	// résultat après — sans lui, une synchronisation de plusieurs milliers
 	// de fichiers reste muette jusqu'à la fin.
-	logs.Notice("synchronisation vers l'object store", "bucket", *bucket, "source", *racine)
+	logs.Notice(fmt.Sprintf("syncing %s to object store bucket %s", *racine, *bucket))
 	n, octets, err := objectstore.SyncDir(ctx, c, *bucket, *racine)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s → %s : %d objets envoyés (%.1f Mo)\n", *racine, *bucket, n, float64(octets)/1e6)
+	logs.Notice(fmt.Sprintf("%s -> %s: %s sent (%.1f MB)", *racine, *bucket, logs.Plural(n, "object"), float64(octets)/1e6))
 	return nil
 }

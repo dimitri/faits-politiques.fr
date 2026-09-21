@@ -17,6 +17,7 @@ import (
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -216,10 +217,12 @@ func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		"fichiers": stats["fichiers"], "sommaires": stats["sommaire"],
 		"liens": stats["lien"], "actes": stats["texte"], "blocs": stats["bloc"],
 		"secondes": stats["secondes"], "recherche_s": vues}, "")
-	fmt.Printf("  Journal officiel : %d fichiers lus en %d s\n", stats["fichiers"], stats["secondes"])
-	fmt.Printf("    %d sommaires, %d liens, %d actes, %d blocs\n",
-		stats["sommaire"], stats["lien"], stats["texte"], stats["bloc"])
-	fmt.Printf("    vues de recherche rafraîchies en %d s\n", vues)
+	logs.Notice(fmt.Sprintf("official gazette: %s read in %ds",
+		logs.Plural(int(stats["fichiers"]), "file"), stats["secondes"]))
+	logs.Notice(fmt.Sprintf("%s, %s, %s, %s", logs.Plural(int(stats["sommaire"]), "summary"),
+		logs.Plural(int(stats["lien"]), "link"), logs.Plural(int(stats["texte"]), "act"),
+		logs.Plural(int(stats["bloc"]), "block")))
+	logs.Notice(fmt.Sprintf("search views refreshed in %ds", vues))
 	return nil
 }
 

@@ -56,7 +56,7 @@ func ExportCI(ctx context.Context, pool *pgxpool.Pool) error {
 		if _, err := pool.Exec(ctx, sql); err != nil {
 			return fmt.Errorf("export CI de %s : %w", qualified, err)
 		}
-		logs.Notice("export CI", "relation", qualified)
+		logs.Notice("CI export: " + qualified)
 	}
 	return nil
 }
@@ -90,7 +90,7 @@ func RestoreExported(ctx context.Context, pool *pgxpool.Pool) error {
 			schema, flatName, table)); err != nil {
 			return fmt.Errorf("remise en place de %s : %w", qualified, err)
 		}
-		logs.Notice("relation CI remise en place", "relation", qualified)
+		logs.Notice("CI relation restored: " + qualified)
 	}
 	_, err := pool.Exec(ctx, "DROP SCHEMA IF EXISTS "+ExportSchema)
 	return err

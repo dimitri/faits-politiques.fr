@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -129,9 +130,9 @@ func NormalizeMembres(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	fmt.Printf("  composition : %d décrets lus, %d citations de membres (%d sans membre extrait)\n",
-		len(decrets), nMembres, sansMembre)
-	fmt.Printf("                rapprochement : %d candidats, %d ambigus, %d absents de la base\n",
-		candidats, ambigus, absents)
+	logs.Notice(fmt.Sprintf("composition: %s read, %s of members (%d without an extracted member)",
+		logs.Plural(len(decrets), "decree"), logs.Plural(nMembres, "mention"), sansMembre))
+	logs.Notice(fmt.Sprintf("matching: %d candidate, %d ambiguous, %d not in the database",
+		candidats, ambigus, absents))
 	return nil
 }

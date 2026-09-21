@@ -234,7 +234,7 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 				// sait déjà sérialiser proprement des écritures concurrentes
 				// sur le même stderr (voir internal/logs/lock.go) — un mutex
 				// posé ici ferait la même chose en moins bien.
-				logs.Notice(e.Description, "etape", nom)
+				logs.Notice(e.Description)
 				valeur, err := e.Executer(gctx, deps)
 				if err != nil {
 					return fmt.Errorf("%s : %w", nom, err)
