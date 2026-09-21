@@ -19,6 +19,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -528,33 +529,47 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 	// DISTINCT ON reproduit exactement le "premier gagne" de la boucle Go
 	// (seen[cle]) : rn porte l'ordre d'arrivée dans le fichier, le même que
 	// map[[2]int64]bool y voyait ligne après ligne.
-	ct, err := tx.Exec(ctx, `
-		WITH resolues AS (
-			SELECT t.rn, s.scrutin_id, m.person_id, g.organization_id,
-			       (CASE t.position
-			         WHEN 'FOR' THEN 'FOR' WHEN 'AGAINST' THEN 'AGAINST'
-			         WHEN 'ABSTENTION' THEN 'ABSTAIN' WHEN 'DID_NOT_VOTE' THEN 'ABSENT'
-			       END)::core.vote_position AS position
-			  FROM tmp_member_votes t
-			  JOIN tmp_membres m ON m.member_id = t.member_id
-			  JOIN tmp_scrutins s ON s.vote_id = t.vote_id
-			  LEFT JOIN tmp_groupe_de g ON g.member_id = t.member_id
-			 WHERE t.position IN ('FOR','AGAINST','ABSTENTION','DID_NOT_VOTE')
-		),
-		dedup AS (
-			SELECT DISTINCT ON (scrutin_id, person_id) scrutin_id, person_id, organization_id, position
-			  FROM resolues
-			 ORDER BY scrutin_id, person_id, rn
-		)
-		INSERT INTO core.ballot (scrutin_id, person_id, organization_id, position)
-		SELECT scrutin_id, person_id, organization_id, position FROM dedup`)
+	//
+	// bulkload.SansContraintesFK : mesuré par EXPLAIN ANALYZE, les trois
+	// triggers RI de core.ballot (person_id, scrutin_id+granularite,
+	// organization_id) coûtaient ~120s sur ces 1,97M lignes à eux seuls,
+	// alors que les tables parentes sont déjà indexées — voir le commentaire
+	// du paquet bulkload pour le compromis de concurrence que ceci accepte.
+	var nLignes int
+	err = bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
+		ct, err := tx.Exec(ctx, `
+			WITH resolues AS (
+				SELECT t.rn, s.scrutin_id, m.person_id, g.organization_id,
+				       (CASE t.position
+				         WHEN 'FOR' THEN 'FOR' WHEN 'AGAINST' THEN 'AGAINST'
+				         WHEN 'ABSTENTION' THEN 'ABSTAIN' WHEN 'DID_NOT_VOTE' THEN 'ABSENT'
+				       END)::core.vote_position AS position
+				  FROM tmp_member_votes t
+				  JOIN tmp_membres m ON m.member_id = t.member_id
+				  JOIN tmp_scrutins s ON s.vote_id = t.vote_id
+				  LEFT JOIN tmp_groupe_de g ON g.member_id = t.member_id
+				 WHERE t.position IN ('FOR','AGAINST','ABSTENTION','DID_NOT_VOTE')
+			),
+			dedup AS (
+				SELECT DISTINCT ON (scrutin_id, person_id) scrutin_id, person_id, organization_id, position
+				  FROM resolues
+				 ORDER BY scrutin_id, person_id, rn
+			)
+			INSERT INTO core.ballot (scrutin_id, person_id, organization_id, position)
+			SELECT scrutin_id, person_id, organization_id, position FROM dedup`)
+		if err != nil {
+			return err
+		}
+		nLignes = int(ct.RowsAffected())
+		return nil
+	})
 	if err != nil {
 		return 0, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, err
 	}
-	return int(ct.RowsAffected()), nil
+	return nLignes, nil
 }
 
 // mapCopySource adapte une map[string]int64 en source pour pgx.CopyFromSlice
