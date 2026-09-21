@@ -11,6 +11,8 @@ import (
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
 	"github.com/faits-politiques/faits-politiques/internal/balisage"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -122,7 +124,7 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		}
 		trouves++
 		if (i+1)%200 == 0 {
-			fmt.Printf("    %d/%d textes traités, %d exposés\n", i+1, len(cibles), trouves)
+			logs.Notice("exposés en cours", "traites", i+1, "total", len(cibles), "exposes", trouves)
 		}
 		// Un site public n'est pas une API : une requête toutes les 400 ms.
 		time.Sleep(400 * time.Millisecond)
@@ -130,8 +132,8 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"exposes": trouves, "sans_expose": sansExpose, "echecs": echecs}, "")
-	fmt.Printf("  Exposés des motifs : %d récupérés sur %d textes (%d sans exposé, %d inaccessibles)\n",
-		trouves, len(cibles), sansExpose, echecs)
+	logs.Notice("exposés des motifs", "recuperes", trouves, "total", len(cibles),
+		"sans_expose", sansExpose, "echecs", echecs)
 	return nil
 }
 
@@ -227,20 +229,40 @@ func ReparseExposes(ctx context.Context, pool *pgxpool.Pool, racine string) erro
 	}
 	rows.Close()
 
-	var n int
+	var lignes [][]any
 	for _, c := range cibles {
 		texte, ok := extraireExpose(filepath.Join(racine, c.key))
 		if !ok {
 			continue
 		}
-		if _, err := pool.Exec(ctx, `
-			UPDATE core.texte_expose
-			   SET integral = $2, chapeau = $3, n_caracteres = $4
-			 WHERE texte_id = $1`, c.id, texte, chapeau(texte), len([]rune(texte))); err != nil {
-			return err
-		}
-		n++
+		lignes = append(lignes, []any{c.id, texte, chapeau(texte), len([]rune(texte))})
 	}
-	fmt.Printf("  exposés réextraits : %d\n", n)
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_expose (texte_id bigint, integral text, chapeau text, n_caracteres int)
+		ON COMMIT DROP`); err != nil {
+		return err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_expose"},
+		[]string{"texte_id", "integral", "chapeau", "n_caracteres"},
+		pgx.CopyFromRows(lignes)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE core.texte_expose e
+		   SET integral = t.integral, chapeau = t.chapeau, n_caracteres = t.n_caracteres
+		  FROM tmp_expose t
+		 WHERE t.texte_id = e.texte_id`); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	logs.Notice("exposés réextraits", "count", len(lignes))
 	return nil
 }
