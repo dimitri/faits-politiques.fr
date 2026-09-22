@@ -10,6 +10,7 @@ import (
 	"context"
 	"crypto/sha256"
 	"encoding/hex"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -18,6 +19,7 @@ import (
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/logs"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -175,6 +177,66 @@ func (a *Archive) FetchSession(ctx context.Context, sourceID int64, runID int64,
 	return nil, last
 }
 
+// retenuePrecedente : ce qu'a laissé le dernier fetch RÉUSSI (2xx ou 304)
+// sur cette URL EXACTE — de quoi construire une requête conditionnelle, et,
+// si le serveur répond 304, de quoi renvoyer le même Fetched qu'avant sans
+// rien retélécharger.
+type retenuePrecedente struct {
+	documentID   int64
+	sha256       string
+	path         string
+	byteSize     int64
+	etag         string
+	lastModified time.Time
+}
+
+// derniereRetenue relit raw.retrieval/raw.document pour url — jamais
+// urlArchivee, qui peut différer (voir FetchSession) : c'est ce qui est
+// vraiment envoyé au serveur qui doit correspondre à l'etag qu'on lui
+// renvoie. nil, sans erreur, si cette URL n'a encore jamais été récupérée
+// avec succès.
+func (a *Archive) derniereRetenue(ctx context.Context, url string) (*retenuePrecedente, error) {
+	var p retenuePrecedente
+	var etag *string
+	var storageKey *string
+	var lastModified *time.Time
+	err := a.Pool.QueryRow(ctx, `
+		SELECT d.id, encode(d.sha256,'hex'), d.storage_key, d.byte_size, r.etag, r.last_modified
+		  FROM raw.retrieval r JOIN raw.document d ON d.id = r.document_id
+		 WHERE r.url = $1 AND r.document_id IS NOT NULL
+		 ORDER BY r.fetched_at DESC LIMIT 1`, url).
+		Scan(&p.documentID, &p.sha256, &storageKey, &p.byteSize, &etag, &lastModified)
+	if errors.Is(err, pgx.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	if etag != nil {
+		p.etag = *etag
+	}
+	if lastModified != nil {
+		p.lastModified = *lastModified
+	}
+	if storageKey != nil {
+		p.path = filepath.Join(a.Root, *storageKey)
+	}
+	return &p, nil
+}
+
+// nullableString renvoie primary si non vide, sinon fallback si non vide,
+// sinon nil — pour qu'une colonne texte nullable reçoive NULL plutôt qu'une
+// chaîne vide quand aucun en-tête ne l'a fournie.
+func nullableString(primary, fallback string) any {
+	if primary != "" {
+		return primary
+	}
+	if fallback != "" {
+		return fallback
+	}
+	return nil
+}
+
 func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header, client *http.Client, urlArchivee string) (*Fetched, error) {
 	if urlArchivee == "" {
 		urlArchivee = url
@@ -207,6 +269,25 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	if req.Header.Get("User-Agent") == "" {
 		req.Header.Set("User-Agent", "faits-politiques.fr (ingestion open data)")
 	}
+	// Requête conditionnelle : si un fetch précédent EXACTEMENT sur cette
+	// URL a laissé un etag/last_modified, les renvoyer coûte un en-tête et
+	// peut éviter tout le corps — un serveur qui les ignore répond
+	// simplement 200 comme avant, jamais un risque, seulement un gain
+	// possible. Vérifié en direct sur data.assemblee-nationale.fr,
+	// data.senat.fr, static.data.gouv.fr et popu-list.github.io (GitHub
+	// Pages) : les quatre rendent un vrai 304 à une requête conditionnelle.
+	precedent, err := a.derniereRetenue(ctx, url)
+	if err != nil {
+		return nil, err
+	}
+	if precedent != nil {
+		if precedent.etag != "" {
+			req.Header.Set("If-None-Match", precedent.etag)
+		}
+		if !precedent.lastModified.IsZero() {
+			req.Header.Set("If-Modified-Since", precedent.lastModified.UTC().Format(http.TimeFormat))
+		}
+	}
 	if client == nil {
 		client = &http.Client{Timeout: 10 * time.Minute}
 	}
@@ -228,6 +309,32 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 		return nil, err
 	}
 	defer resp.Body.Close()
+
+	// 304 : le serveur confirme que precedent.documentID est toujours le bon
+	// document, sans en renvoyer les octets — c'est tout le gain de la
+	// requête conditionnelle ci-dessus. raw.retrieval garde quand même une
+	// ligne (avec CE document_id, migration 0178) : ce qui est sauté est le
+	// GET, jamais l'attestation qu'une source a été vue à cette date pour
+	// CE run, même principe que le chemin déjà-préchargé plus haut.
+	if resp.StatusCode == http.StatusNotModified && precedent != nil {
+		tmp.Close()
+		var dernModif any
+		if !precedent.lastModified.IsZero() {
+			dernModif = precedent.lastModified
+		}
+		var retID int64
+		if err := a.Pool.QueryRow(ctx, `
+			INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status, document_id, etag, last_modified)
+			VALUES ($1,$2,$3,304,$4,$5,$6) RETURNING id`,
+			sourceID, runID, urlArchivee, precedent.documentID,
+			nullableString(resp.Header.Get("ETag"), precedent.etag), dernModif).Scan(&retID); err != nil {
+			return nil, err
+		}
+		logs.Notice(fmt.Sprintf("downloaded %s: %s, sha256 %s (unchanged)",
+			url, tailleLisible(precedent.byteSize), precedent.sha256[:12]))
+		return &Fetched{DocumentID: precedent.documentID, RetrievalID: retID,
+			Path: precedent.path, SHA256: precedent.sha256, Cached: true}, nil
+	}
 
 	h := sha256.New()
 	n, err := io.Copy(io.MultiWriter(tmp, h), resp.Body)
@@ -280,11 +387,15 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 		return nil, err
 	}
 
+	var dernModif any
+	if t, err := http.ParseTime(resp.Header.Get("Last-Modified")); err == nil {
+		dernModif = t
+	}
 	var retID int64
 	err = a.Pool.QueryRow(ctx, `
-		INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status, document_id, etag)
-		VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-		sourceID, runID, urlArchivee, resp.StatusCode, docID, resp.Header.Get("ETag")).Scan(&retID)
+		INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status, document_id, etag, last_modified)
+		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
+		sourceID, runID, urlArchivee, resp.StatusCode, docID, nullableString(resp.Header.Get("ETag"), ""), dernModif).Scan(&retID)
 	if err != nil {
 		return nil, err
 	}
