@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -127,16 +128,17 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	}
 	defer tx.Rollback(ctx)
 
-	for _, q := range []string{
-		`DELETE FROM core.amendement_author a USING core.amendement m
-		  WHERE m.id = a.amendement_id AND m.institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.amendement_attribution a USING core.amendement m
-		  WHERE m.id = a.amendement_id AND m.institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.amendement WHERE institution = 'ASSEMBLEE_NATIONALE'`,
-	} {
-		if _, err := tx.Exec(ctx, q); err != nil {
-			return fail(err)
-		}
+	// MERGE plutôt que DELETE+COPY, scopé à l'institution par une vue
+	// temporaire (core.amendement pourrait un jour porter des amendements
+	// SENAT) : l'ancien DELETE payait le prix des triggers RI — dont la
+	// cascade vers amendement_author et amendement_attribution — pour
+	// l'intégralité des 125 000 amendements de l'Assemblée à chaque
+	// republication, changement ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW amendement_an AS
+		  SELECT * FROM core.amendement WHERE institution = 'ASSEMBLEE_NATIONALE'
+		  WITH LOCAL CHECK OPTION`); err != nil {
+		return fail(err)
 	}
 
 	type auteur struct {
@@ -150,11 +152,19 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	var n, sansTexte int
 	vus := map[string]bool{}
 
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_amendement (
+			slug text, texte_id bigint, institution core.institution, source_uid text, numero text,
+			article_designation text, sort core.amendement_sort, expose_sommaire text,
+			dispositif text, date_depot date
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
 	vider := func() error {
 		if len(lignes) == 0 {
 			return nil
 		}
-		_, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "amendement"},
+		_, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_amendement"},
 			[]string{"slug", "texte_id", "institution", "source_uid", "numero",
 				"article_designation", "sort", "expose_sommaire", "dispositif", "date_depot"},
 			pgx.CopyFromRows(lignes))
@@ -237,8 +247,48 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return fail(fmt.Errorf("copie des amendements : %w", err))
 	}
 
-	// Les auteurs viennent après : ils référencent l'identifiant que la copie
-	// vient d'attribuer.
+	// Pas de RETURNING sur ce MERGE : il n'émettrait une ligne que pour un
+	// amendement dont l'UPDATE a réellement changé quelque chose — le cas
+	// courant, sur un exposé sommaire déjà chargé, étant justement qu'il n'a
+	// pas changé. Les auteurs, juste après, référencent l'identifiant de
+	// CHAQUE amendement du lot, pas seulement ceux que le MERGE a touchés :
+	// un SELECT séparé, sans dépendre d'un WHEN, reconstruit la carte en
+	// entier.
+	var nMerge int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.amendement", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO amendement_an AS tgt
+			USING tmp_amendement AS src
+			ON tgt.source_uid = src.source_uid
+			WHEN MATCHED AND (tgt.slug, tgt.texte_id, tgt.numero, tgt.article_designation,
+			                   tgt.sort, tgt.expose_sommaire, tgt.dispositif, tgt.date_depot)
+			                  IS DISTINCT FROM
+			                  (src.slug, src.texte_id, src.numero, src.article_designation,
+			                   src.sort, src.expose_sommaire, src.dispositif, src.date_depot) THEN
+			    UPDATE SET slug = src.slug, texte_id = src.texte_id, numero = src.numero,
+			               article_designation = src.article_designation, sort = src.sort,
+			               expose_sommaire = src.expose_sommaire, dispositif = src.dispositif,
+			               date_depot = src.date_depot
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (slug, texte_id, institution, source_uid, numero, article_designation,
+			            sort, expose_sommaire, dispositif, date_depot)
+			    VALUES (src.slug, src.texte_id, src.institution, src.source_uid, src.numero,
+			            src.article_designation, src.sort, src.expose_sommaire, src.dispositif,
+			            src.date_depot)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		nMerge = ct.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion des amendements : %w", err))
+	}
+
+	// Les auteurs viennent après : ils référencent l'identifiant du MERGE
+	// ci-dessus, résolu par jointure sur source_uid — jamais par RETURNING,
+	// pour la même raison.
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE amdt_auteur (uid text, person_id bigint, org_id bigint, role text)
 		ON COMMIT DROP`); err != nil {
@@ -257,16 +307,40 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	// d'auteur individuel, un amendement de député si. Le groupe politique de
 	// l'auteur n'est pas son auteur : il va dans amendement_attribution, qui
 	// est une attribution DÉRIVÉE et porte son method_version.
+	//
+	// MERGE plutôt qu'INSERT, scopé par une vue restreinte aux auteurs
+	// d'amendements de l'Assemblée (amendement_author n'a pas sa propre
+	// colonne d'institution) : sans le DELETE qui précédait cette section
+	// dans l'ancien code, un simple INSERT dupliquerait chaque auteur à
+	// chaque republication. amendement_author_amendement_id_key (migration
+	// 0180) fournit la clé naturelle qu'aucune contrainte ne portait avant.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW amendement_author_an AS
+		  SELECT * FROM core.amendement_author
+		   WHERE amendement_id IN (SELECT id FROM amendement_an)
+		  WITH LOCAL CHECK OPTION`); err != nil {
+		return fail(err)
+	}
 	res, err := tx.Exec(ctx, `
-		INSERT INTO core.amendement_author (amendement_id, person_id, organization_id, role, rang)
-		SELECT m.id,
-		       CASE WHEN a.person_id IS NOT NULL THEN a.person_id END,
-		       CASE WHEN a.person_id IS NULL THEN a.org_id END,
-		       a.role, 1
-		  FROM amdt_auteur a
-		  JOIN core.amendement m
-		    ON m.source_uid = a.uid AND m.institution = 'ASSEMBLEE_NATIONALE'
-		 WHERE a.person_id IS NOT NULL OR a.org_id IS NOT NULL`)
+		MERGE INTO amendement_author_an AS tgt
+		USING (
+		  SELECT m.id AS amendement_id,
+		         CASE WHEN a.person_id IS NOT NULL THEN a.person_id END AS person_id,
+		         CASE WHEN a.person_id IS NULL THEN a.org_id END AS organization_id,
+		         a.role, 1 AS rang
+		    FROM amdt_auteur a
+		    JOIN amendement_an m ON m.source_uid = a.uid
+		   WHERE a.person_id IS NOT NULL OR a.org_id IS NOT NULL
+		) AS src
+		ON tgt.amendement_id = src.amendement_id
+		WHEN MATCHED AND (tgt.person_id, tgt.organization_id, tgt.role, tgt.rang)
+		                  IS DISTINCT FROM (src.person_id, src.organization_id, src.role, src.rang) THEN
+		    UPDATE SET person_id = src.person_id, organization_id = src.organization_id,
+		               role = src.role, rang = src.rang
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (amendement_id, person_id, organization_id, role, rang)
+		    VALUES (src.amendement_id, src.person_id, src.organization_id, src.role, src.rang)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 	if err != nil {
 		return fail(err)
 	}
@@ -275,14 +349,30 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	// PRIMARY_SIGNATORY : c'est le groupe du premier signataire, pas celui de
 	// tous les cosignataires — l'énumération du schéma oblige à le dire.
 	if _, err := tx.Exec(ctx, `
-		INSERT INTO core.amendement_attribution
-		  (amendement_id, organization_id, attribution, method_version)
-		SELECT m.id, a.org_id, 'PRIMARY_SIGNATORY', 'amendement-v1'
-		  FROM amdt_auteur a
-		  JOIN core.amendement m
-		    ON m.source_uid = a.uid AND m.institution = 'ASSEMBLEE_NATIONALE'
-		 WHERE a.org_id IS NOT NULL AND a.person_id IS NOT NULL
-		ON CONFLICT (amendement_id) DO NOTHING`); err != nil {
+		CREATE OR REPLACE TEMPORARY VIEW amendement_attribution_an AS
+		  SELECT * FROM core.amendement_attribution
+		   WHERE amendement_id IN (SELECT id FROM amendement_an)
+		  WITH LOCAL CHECK OPTION`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO amendement_attribution_an AS tgt
+		USING (
+		  SELECT m.id AS amendement_id, a.org_id AS organization_id,
+		         'PRIMARY_SIGNATORY'::core.author_attribution AS attribution, 'amendement-v1' AS method_version
+		    FROM amdt_auteur a
+		    JOIN amendement_an m ON m.source_uid = a.uid
+		   WHERE a.org_id IS NOT NULL AND a.person_id IS NOT NULL
+		) AS src
+		ON tgt.amendement_id = src.amendement_id
+		WHEN MATCHED AND (tgt.organization_id, tgt.attribution, tgt.method_version)
+		                  IS DISTINCT FROM (src.organization_id, src.attribution, src.method_version) THEN
+		    UPDATE SET organization_id = src.organization_id, attribution = src.attribution,
+		               method_version = src.method_version
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (amendement_id, organization_id, attribution, method_version)
+		    VALUES (src.amendement_id, src.organization_id, src.attribution, src.method_version)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
 		return fail(fmt.Errorf("attribution : %w", err))
 	}
 
@@ -290,9 +380,10 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"amendements": n, "auteurs": res.RowsAffected(), "sans_texte": sansTexte}, "")
-	logs.Notice(fmt.Sprintf("%s, %s linked (%d without a known text)",
-		logs.Plural(n, "amendment"), logs.Plural(int(res.RowsAffected()), "author"), sansTexte))
+		"amendements": n, "amendements_touches": nMerge, "auteurs": res.RowsAffected(),
+		"sans_texte": sansTexte}, "")
+	logs.Notice(fmt.Sprintf("%s (%d touched by the merge), %s linked (%d without a known text)",
+		logs.Plural(n, "amendment"), nMerge, logs.Plural(int(res.RowsAffected()), "author"), sansTexte))
 	return nil
 }
 
