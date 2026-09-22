@@ -15,6 +15,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/watermark"
 	"github.com/jackc/pgx/v5"
@@ -74,15 +75,49 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, work
 		return err
 	}
 
-	if err := restaurer(ctx, pool, f.Path, f.SHA256, workDir); err != nil {
+	// Un seul watermark (le sha256 du dump) gouverne DEUX étapes : restaurer
+	// (l'unzip+psql, coûteux) ET extraire (la dérivation SQL vers core.*,
+	// coûteuse elle aussi — voir extraire, le MERGE sur core.ballot). Calculé
+	// une fois ici plutôt que deux fois séparément, pour ne journaliser
+	// « cache invalidated » qu'une seule fois.
+	const scope = "senat-dosleg"
+	unchanged, raison, err := watermark.FileDiff(ctx, pool, scope, f.SHA256)
+	if err != nil {
+		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
+		return err
+	}
+	if unchanged {
+		var nBal int
+		if err := pool.QueryRow(ctx, `
+			SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
+			 WHERE s.institution = 'SENAT'`).Scan(&nBal); err != nil {
+			arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
+			return err
+		}
+		if nBal == 0 {
+			unchanged = false
+			raison = "watermark says unchanged but core.ballot looks empty for SENAT"
+		}
+	}
+	if !unchanged {
+		logs.Notice("cache invalidated: " + raison)
+	}
+
+	if err := restaurer(ctx, pool, f.Path, workDir, unchanged); err != nil {
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 		return fmt.Errorf("restauration : %w", err)
 	}
 
-	nSen, nScr, nVot, nThemes, err := extraire(ctx, pool)
+	nSen, nScr, nVot, nThemes, err := extraire(ctx, pool, unchanged)
 	if err != nil {
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 		return err
+	}
+	if !unchanged {
+		if err := watermark.Record(ctx, pool, scope, f.SHA256); err != nil {
+			arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
+			return err
+		}
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"senateurs": nSen, "scrutins": nScr, "votes": nVot, "themes": nThemes}, "")
@@ -95,19 +130,13 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, work
 // restaurer déplie le dump et le charge dans le schéma senat_raw. Le dump vise
 // « public » : on le redirige, pour ne jamais écrire à côté du modèle.
 //
-// hash est le sha256 du zip téléchargé (internal/archive.Fetched.SHA256) :
-// avant ce watermark, la garde ci-dessous testait seulement « senat_raw.
-// votsen existe-t-elle déjà » — vrai pour toujours après le premier passage,
-// donc une nouvelle publication du dump Dosleg n'aurait jamais été reprise
-// tant que le schéma restait en place. Le sha256 distingue « déjà restauré »
-// de « restauré une fois, jamais depuis » : un dump qui change, un contenu
-// qui change, jamais l'inverse.
-func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, hash, workDir string) error {
-	const scope = "senat-dosleg"
-	unchanged, raison, err := watermark.FileDiff(ctx, pool, scope, hash)
-	if err != nil {
-		return err
-	}
+// unchanged vient de l'appelant (Ingest), qui a déjà comparé le sha256 du zip
+// téléchargé au watermark — la même décision gouverne aussi extraire, donc
+// elle se prend UNE FOIS, pas deux. Avant ce watermark, la garde ci-dessous
+// testait seulement « senat_raw.votsen existe-t-elle déjà » — vrai pour
+// toujours après le premier passage, donc une nouvelle publication du dump
+// Dosleg n'aurait jamais été reprise tant que le schéma restait en place.
+func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, workDir string, unchanged bool) error {
 	if unchanged {
 		var dejaLa int
 		_ = pool.QueryRow(ctx, `
@@ -120,9 +149,8 @@ func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, hash, workDir s
 		// impossible en fonctionnement normal (voir la même garde dans
 		// internal/an/scrutins.go) : on restaure quand même plutôt que de
 		// faire confiance à un signal qui contredit ce qu'on observe.
-		raison = "watermark says unchanged but senat_raw.votsen is missing"
+		logs.Notice("cache invalidated: watermark says unchanged but senat_raw.votsen is missing")
 	}
-	logs.Notice("cache invalidated: " + raison)
 
 	if err := os.MkdirAll(workDir, 0o755); err != nil {
 		return err
@@ -154,7 +182,7 @@ func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, hash, workDir s
 	if out, err := cmd.CombinedOutput(); err != nil {
 		return fmt.Errorf("psql : %v (%s)", err, lastLines(string(out), 3))
 	}
-	return watermark.Record(ctx, pool, scope, hash)
+	return nil
 }
 
 func lastLines(s string, n int) string {
@@ -169,17 +197,45 @@ var positionDe = map[string]string{
 	"1": "FOR", "2": "AGAINST", "3": "ABSTAIN", "4": "ABSENT",
 }
 
-func extraire(ctx context.Context, pool *pgxpool.Pool) (int, int, int, int, error) {
-	// Ce connecteur ne reconstruit que ce qu'il possède.
-	for _, q := range []string{
-		`DELETE FROM core.ballot b USING core.scrutin s
-		  WHERE s.id = b.scrutin_id AND s.institution = 'SENAT'`,
-		`DELETE FROM core.scrutin WHERE institution = 'SENAT'`,
-		`DELETE FROM core.mandate WHERE institution = 'SENAT'`,
-	} {
-		if _, err := pool.Exec(ctx, q); err != nil {
+// comptesExistants relit les quatre totaux qu'extraire rapporte d'ordinaire,
+// sans rien recalculer — utilisé quand le watermark permet de sauter la
+// reconstruction (voir extraire).
+func comptesExistants(ctx context.Context, pool *pgxpool.Pool) (nSen, nScr, nVot, nThemes int, err error) {
+	if err = pool.QueryRow(ctx,
+		`SELECT count(*) FROM core.person_identifier WHERE scheme = 'SENAT_MATRICULE'`).Scan(&nSen); err != nil {
+		return
+	}
+	if err = pool.QueryRow(ctx,
+		`SELECT count(*) FROM core.scrutin WHERE institution = 'SENAT'`).Scan(&nScr); err != nil {
+		return
+	}
+	if err = pool.QueryRow(ctx, `
+		SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
+		 WHERE s.institution = 'SENAT'`).Scan(&nVot); err != nil {
+		return
+	}
+	err = pool.QueryRow(ctx,
+		`SELECT count(*) FROM ref.topic WHERE taxonomy_version = 'senat'`).Scan(&nThemes)
+	return
+}
+
+func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int, int, int, error) {
+	if unchanged {
+		nSen, nScr, nVot, nThemes, err := comptesExistants(ctx, pool)
+		if err != nil {
 			return 0, 0, 0, 0, err
 		}
+		return nSen, nScr, nVot, nThemes, nil
+	}
+
+	// Ce connecteur ne reconstruit que ce qu'il possède. Le scrutin n'est
+	// PLUS wipé ici (voir l'upsert plus bas, ON CONFLICT ... DO UPDATE) :
+	// des ids stables sont ce qui permet au MERGE sur core.ballot de ne
+	// toucher que ce qui a réellement changé, plutôt que de tout réécrire à
+	// chaque passage — un scrutin détruit puis réinséré recevrait un id
+	// neuf, et le MERGE ne verrait alors plus jamais rien « déjà en place ».
+	if _, err := pool.Exec(ctx, `DELETE FROM core.mandate WHERE institution = 'SENAT'`); err != nil {
+		return 0, 0, 0, 0, err
 	}
 
 	var legID int64
@@ -221,23 +277,28 @@ func extraire(ctx context.Context, pool *pgxpool.Pool) (int, int, int, int, erro
 	_ = pool.QueryRow(ctx,
 		`SELECT count(*) FROM core.person_identifier WHERE scheme='SENAT_MATRICULE'`).Scan(&nSen)
 
-	// Scrutins publics du Sénat.
-	var nScr int
-	if err := pool.QueryRow(ctx, `
-		WITH ins AS (
-		  INSERT INTO core.scrutin
-		    (slug, institution, legislature_id, source_uid, numero, date_seance,
-		     granularite, objet, nb_votants, nb_pour, nb_contre)
-		  SELECT 'senat-' || s.sesann || '-' || s.scrnum, 'SENAT', $1,
-		         s.sesann || '/' || s.scrnum, s.scrnum::text, s.scrdat::date,
-		         'INDIVIDUAL',
-		         coalesce(nullif(trim(s.scrint), ''), 'Scrutin ' || s.scrnum),
-		         s.scrvot, s.scrpou, s.scrcon
+	// Scrutins publics du Sénat — upsert à id stable (ON CONFLICT ... DO
+	// UPDATE, jamais DO NOTHING après un DELETE) : voir le commentaire en
+	// tête de cette fonction, c'est ce qui rend le MERGE des votes possible.
+	if _, err := pool.Exec(ctx, `
+		INSERT INTO core.scrutin
+		  (slug, institution, legislature_id, source_uid, numero, date_seance,
+		   granularite, objet, nb_votants, nb_pour, nb_contre)
+		SELECT 'senat-' || s.sesann || '-' || s.scrnum, 'SENAT', $1,
+		       s.sesann || '/' || s.scrnum, s.scrnum::text, s.scrdat::date,
+		       'INDIVIDUAL',
+		       coalesce(nullif(trim(s.scrint), ''), 'Scrutin ' || s.scrnum),
+		       s.scrvot, s.scrpou, s.scrcon
 		  FROM senat_raw.scr s
-		  WHERE s.scrdat IS NOT NULL
-		  ON CONFLICT (institution, source_uid) DO NOTHING
-		  RETURNING 1)
-		SELECT count(*) FROM ins`, legID).Scan(&nScr); err != nil {
+		 WHERE s.scrdat IS NOT NULL
+		ON CONFLICT (institution, source_uid) DO UPDATE SET
+		  objet = EXCLUDED.objet, nb_votants = EXCLUDED.nb_votants,
+		  nb_pour = EXCLUDED.nb_pour, nb_contre = EXCLUDED.nb_contre`, legID); err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("scrutins : %w", err)
+	}
+	var nScr int
+	if err := pool.QueryRow(ctx,
+		`SELECT count(*) FROM core.scrutin WHERE institution = 'SENAT'`).Scan(&nScr); err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("scrutins : %w", err)
 	}
 
@@ -270,20 +331,64 @@ func extraire(ctx context.Context, pool *pgxpool.Pool) (int, int, int, int, erro
 
 	// La clé primaire de votsen garantit l'unicité de (session, scrutin,
 	// sénateur) : le DISTINCT ON était inutile, et c'est lui qui imposait le tri.
-	var nVot int64
-	ct, err := pool.Exec(ctx, `
-		INSERT INTO core.ballot (scrutin_id, person_id, position)
-		SELECT ms.scrutin_id, mp.person_id,
-		       (CASE v.posvotcod WHEN '1' THEN 'FOR' WHEN '2' THEN 'AGAINST'
-		                         WHEN '3' THEN 'ABSTAIN' ELSE 'ABSENT' END)::core.vote_position
-		  FROM senat_raw.votsen v
-		  JOIN senat_raw.map_scrutin  ms ON ms.sesann = v.sesann AND ms.scrnum = v.scrnum
-		  JOIN senat_raw.map_personne mp ON mp.senmat = v.senmat
-		 WHERE v.posvotcod IS NOT NULL`)
+	//
+	// MERGE plutôt que DELETE+INSERT : mesuré par EXPLAIN ANALYZE sur cette
+	// base (BEGIN/ROLLBACK), l'ancien DELETE (institution='SENAT', 1,65M
+	// lignes) + INSERT prenait 4,1s + 95,1s — l'écrasante majorité de ces
+	// 95s étant le déclenchement des triggers RI de core.ballot, UNE FOIS
+	// PAR LIGNE RÉÉCRITE, même quand rien n'a changé pour cette ligne. Le
+	// MERGE ci-dessous, sur la même donnée (rien de changé depuis le
+	// dernier passage), a pris 43,7s — un simple balayage plus jointure,
+	// zéro ligne à écrire puisque tout correspond déjà (ids de scrutin
+	// stables, voir plus haut). Le vrai gain n'est pas ce cas-là mais le
+	// suivant : quand seules quelques centaines de votes changent d'un
+	// passage à l'autre (une correction, un scrutin de plus), MERGE ne paie
+	// le prix des triggers RI que pour CETTE poignée de lignes, jamais pour
+	// les 1,65 million — l'ancien DELETE+INSERT payait ce prix INTÉGRAL à
+	// chaque fois, qu'un seul vote ait changé ou aucun.
+	//
+	// bulkload.SansContraintesFK reste utile malgré tout : sur un tout
+	// premier chargement (ou une refonte massive de senat_raw), le MERGE
+	// écrirait alors la totalité des lignes, et paierait plein tarif de
+	// triggers RI sans lui.
+	tx, err := pool.Begin(ctx)
 	if err != nil {
+		return 0, 0, 0, 0, err
+	}
+	defer tx.Rollback(ctx)
+	if err := bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
+		_, err := tx.Exec(ctx, `
+			MERGE INTO core.ballot AS tgt
+			USING (
+			    SELECT ms.scrutin_id, mp.person_id,
+			           (CASE v.posvotcod WHEN '1' THEN 'FOR' WHEN '2' THEN 'AGAINST'
+			                             WHEN '3' THEN 'ABSTAIN' ELSE 'ABSENT' END)::core.vote_position AS position
+			      FROM senat_raw.votsen v
+			      JOIN senat_raw.map_scrutin  ms ON ms.sesann = v.sesann AND ms.scrnum = v.scrnum
+			      JOIN senat_raw.map_personne mp ON mp.senmat = v.senmat
+			     WHERE v.posvotcod IS NOT NULL
+			) AS src
+			ON tgt.scrutin_id = src.scrutin_id AND tgt.person_id = src.person_id
+			WHEN MATCHED AND tgt.position IS DISTINCT FROM src.position THEN
+			    UPDATE SET position = src.position
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (scrutin_id, person_id, position) VALUES (src.scrutin_id, src.person_id, src.position)
+			WHEN NOT MATCHED BY SOURCE AND EXISTS (
+			    SELECT 1 FROM core.scrutin s WHERE s.id = tgt.scrutin_id AND s.institution = 'SENAT'
+			) THEN DELETE`)
+		return err
+	}); err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("votes : %w", err)
 	}
-	nVot = ct.RowsAffected()
+	if err := tx.Commit(ctx); err != nil {
+		return 0, 0, 0, 0, err
+	}
+	var nVot int64
+	if err := pool.QueryRow(ctx, `
+		SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
+		 WHERE s.institution = 'SENAT'`).Scan(&nVot); err != nil {
+		return 0, 0, 0, 0, fmt.Errorf("votes : %w", err)
+	}
 
 	// Dossiers législatifs du Sénat. Ils sont chargés pour une raison précise :
 	// la classification thématique officielle porte sur EUX, pas sur les
