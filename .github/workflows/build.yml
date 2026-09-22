@@ -36,6 +36,9 @@ jobs:
           go-version: '1.26'
           cache: true
 
+      - name: Interdire le DELETE+COPY direct dans un connecteur
+        run: ./scripts/check-delete-copy.sh
+
       - name: Compiler fpctl
         run: go build -o bin/fpctl ./cmd/fpctl
 
