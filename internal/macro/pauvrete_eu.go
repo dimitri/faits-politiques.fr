@@ -74,7 +74,10 @@ func IngestPauvreteTauxEU(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.pauvrete_taux_eu`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_pauvrete_taux_eu (
+			geo_code text, geo_label text, annee int, taux_pct numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 
@@ -86,17 +89,34 @@ func IngestPauvreteTauxEU(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		}
 		rows = append(rows, []any{c.dims["geo"], libGeo[c.dims["geo"]], annee, c.valeur, srcID})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "pauvrete_taux_eu"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_pauvrete_taux_eu"},
 		[]string{"geo_code", "geo_label", "annee", "taux_pct", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("pauvrete_taux_eu : %w", err))
 	}
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table, et l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité des pays et années à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.pauvrete_taux_eu AS tgt
+		USING tmp_pauvrete_taux_eu AS src
+		ON tgt.geo_code = src.geo_code AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.geo_label, tgt.taux_pct, tgt.source_id)
+		                  IS DISTINCT FROM (src.geo_label, src.taux_pct, src.source_id) THEN
+		    UPDATE SET geo_label = src.geo_label, taux_pct = src.taux_pct, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (geo_code, geo_label, annee, taux_pct, source_id)
+		    VALUES (src.geo_code, src.geo_label, src.annee, src.taux_pct, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion pauvrete_taux_eu : %w", err))
+	}
+	n := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
-	fmt.Printf("  taux de pauvreté européen (Eurostat) : %d lignes\n", n)
+	fmt.Printf("  taux de pauvreté européen (Eurostat) : %d lignes touchées par la fusion\n", n)
 	return nil
 }
 

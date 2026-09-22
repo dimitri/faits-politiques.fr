@@ -159,19 +159,52 @@ func IngestIFICOM(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.ifi_commune WHERE annee BETWEEN 2021 AND 2025`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_ifi_commune (
+			annee int, code_insee text, nom_commune text, code_departement text, region text,
+			nombre_redevables int, patrimoine_moyen_eur numeric, impot_moyen_eur numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "ifi_commune"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_ifi_commune"},
 		[]string{"annee", "code_insee", "nom_commune", "code_departement", "region", "nombre_redevables", "patrimoine_moyen_eur", "impot_moyen_eur", "source_id"},
 		pgx.CopyFromRows(toutesLignes)); err != nil {
 		return fail(fmt.Errorf("core.ifi_commune : %w", err))
 	}
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table (seuls les millésimes 2021-2025 y sont jamais chargés), et
+	// l'ancien DELETE payait le prix des triggers RI pour l'intégralité du
+	// périmètre à chaque republication annuelle, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.ifi_commune AS tgt
+		USING tmp_ifi_commune AS src
+		ON tgt.annee = src.annee AND tgt.code_insee = src.code_insee
+		WHEN MATCHED AND (tgt.nom_commune, tgt.code_departement, tgt.region, tgt.nombre_redevables,
+		                   tgt.patrimoine_moyen_eur, tgt.impot_moyen_eur, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.nom_commune, src.code_departement, src.region, src.nombre_redevables,
+		                   src.patrimoine_moyen_eur, src.impot_moyen_eur, src.source_id) THEN
+		    UPDATE SET nom_commune = src.nom_commune, code_departement = src.code_departement,
+		               region = src.region, nombre_redevables = src.nombre_redevables,
+		               patrimoine_moyen_eur = src.patrimoine_moyen_eur, impot_moyen_eur = src.impot_moyen_eur,
+		               source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, code_insee, nom_commune, code_departement, region, nombre_redevables,
+		            patrimoine_moyen_eur, impot_moyen_eur, source_id)
+		    VALUES (src.annee, src.code_insee, src.nom_commune, src.code_departement, src.region,
+		            src.nombre_redevables, src.patrimoine_moyen_eur, src.impot_moyen_eur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"communes_par_annee": compteParAnnee}, "")
-	fmt.Printf("  IFICOM : %d communes×années chargées (2021-2025)\n", len(toutesLignes))
+	arch.EndRun(ctx, runID, "SUCCESS",
+		map[string]any{"communes_par_annee": compteParAnnee, "touchees": touchees}, "")
+	fmt.Printf("  IFICOM : %d communes×années chargées (2021-2025), %d touchées par la fusion\n",
+		len(toutesLignes), touchees)
 	return nil
 }
