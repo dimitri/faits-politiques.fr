@@ -303,45 +303,86 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	// semble bloquée pendant que Postgres réécrit plus d'un million de lignes.
 	logs.Notice(fmt.Sprintf("rebuilding %s (this takes a while)", logs.Plural(len(ballots), "ballot")))
 	// Une transaction explicite, ici, pour que bulkload.SansContraintesFK
-	// puisse retirer/réinstaller les FK de core.ballot autour du DELETE+COPY :
+	// puisse retirer/réinstaller les FK de core.ballot autour du MERGE :
 	// sûr vis-à-vis de senat/europe (qui écrivent aussi dans core.ballot) car
 	// normalize précède les deux dans le graphe de dépendance de l'ingestion
 	// (internal/ingest/catalogue.go) — aucun des deux ne démarre avant que
 	// cette transaction n'ait committé.
+	//
+	// MERGE plutôt que DELETE+COPY, même conversion que core.ballot pour le
+	// Sénat et l'Europe (internal/senat/senat.go, internal/europe/europe.go) :
+	// un DELETE+COPY payait le prix des triggers RI pour l'INTÉGRALITÉ des
+	// 1,27M bulletins de l'Assemblée à chaque renormalisation, changement ou
+	// non — possible ici parce que core.scrutin.id est déjà stable pour
+	// l'Assemblée (copierScrutins upserte sans DELETE préalable, contrairement
+	// à l'ancien core.texte/core.dossier — voir Normalize). ballot_an, une vue
+	// scopée plutôt que core.ballot directement : même raison qu'ailleurs,
+	// éviter de faire visiter à Postgres les bulletins Sénat/Europe pour rien.
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return 0, 0, err
 	}
 	defer tx.Rollback(ctx)
-
 	if _, err := tx.Exec(ctx, `
-		DELETE FROM core.ballot b USING core.scrutin s
-		 WHERE s.id = b.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`); err != nil {
+		SET LOCAL work_mem = '256MB';
+		CREATE TEMP TABLE tmp_ballot_an (
+			scrutin_id bigint, person_id bigint, organization_id bigint,
+			position core.vote_position, par_delegation boolean,
+			position_rectifiee core.vote_position, rectifiee_le date
+		) ON COMMIT DROP;
+		CREATE OR REPLACE TEMPORARY VIEW ballot_an AS
+		  SELECT * FROM core.ballot
+		   WHERE scrutin_id IN (SELECT id FROM core.scrutin WHERE institution = 'ASSEMBLEE_NATIONALE')
+		  WITH LOCAL CHECK OPTION`); err != nil {
+		return 0, 0, err
+	}
+	if _, err := tx.CopyFrom(ctx,
+		pgx.Identifier{"tmp_ballot_an"},
+		[]string{"scrutin_id", "person_id", "organization_id", "position",
+			"par_delegation", "position_rectifiee", "rectifiee_le"},
+		pgx.CopyFromSlice(len(ballots), func(i int) ([]any, error) {
+			b := ballots[i]
+			var rect, date any
+			if b.rectifiee != nil {
+				rect = *b.rectifiee
+				date = "1970-01-01" // date de mise au point non publiée dans ce flux
+			}
+			var org any
+			if b.orgID != nil {
+				org = *b.orgID
+			}
+			return []any{b.scrutinID, b.personID, org, b.position, b.delegation, rect, date}, nil
+		})); err != nil {
 		return 0, 0, err
 	}
 	var n int64
 	err = bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
-		ct, err := tx.CopyFrom(ctx,
-			pgx.Identifier{"core", "ballot"},
-			[]string{"scrutin_id", "person_id", "organization_id", "position",
-				"par_delegation", "position_rectifiee", "rectifiee_le"},
-			pgx.CopyFromSlice(len(ballots), func(i int) ([]any, error) {
-				b := ballots[i]
-				var rect, date any
-				if b.rectifiee != nil {
-					rect = *b.rectifiee
-					date = "1970-01-01" // date de mise au point non publiée dans ce flux
-				}
-				var org any
-				if b.orgID != nil {
-					org = *b.orgID
-				}
-				return []any{b.scrutinID, b.personID, org, b.position, b.delegation, rect, date}, nil
-			}))
-		n = ct
+		_, err := tx.Exec(ctx, `
+			MERGE INTO ballot_an AS tgt
+			USING tmp_ballot_an AS src
+			ON tgt.scrutin_id = src.scrutin_id AND tgt.person_id = src.person_id
+			WHEN MATCHED AND (tgt.organization_id, tgt.position, tgt.par_delegation,
+			                   tgt.position_rectifiee, tgt.rectifiee_le)
+			                  IS DISTINCT FROM
+			                  (src.organization_id, src.position, src.par_delegation,
+			                   src.position_rectifiee, src.rectifiee_le) THEN
+			    UPDATE SET organization_id = src.organization_id, position = src.position,
+			               par_delegation = src.par_delegation,
+			               position_rectifiee = src.position_rectifiee, rectifiee_le = src.rectifiee_le
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (scrutin_id, person_id, organization_id, position,
+			            par_delegation, position_rectifiee, rectifiee_le)
+			    VALUES (src.scrutin_id, src.person_id, src.organization_id, src.position,
+			            src.par_delegation, src.position_rectifiee, src.rectifiee_le)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 		return err
 	})
 	if err != nil {
+		return 0, 0, err
+	}
+	if err := tx.QueryRow(ctx, `
+		SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
+		 WHERE s.institution = 'ASSEMBLEE_NATIONALE'`).Scan(&n); err != nil {
 		return 0, 0, err
 	}
 	if err := recordWatermark(ctx, tx, watermarkScrutins, count, highWater); err != nil {
