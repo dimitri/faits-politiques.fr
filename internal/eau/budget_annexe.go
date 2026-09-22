@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -201,14 +202,48 @@ func IngestBudgetAnnexeEau(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.budget_annexe_eau`); err != nil {
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_budget_annexe_eau (
+			type_collectivite text NOT NULL,
+			code text NOT NULL,
+			nom_collectivite text NOT NULL,
+			nom_budget text NOT NULL,
+			nomenclature text NOT NULL,
+			annee integer NOT NULL,
+			agregat text NOT NULL,
+			montant_eur numeric NOT NULL,
+			source_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "budget_annexe_eau"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_budget_annexe_eau"},
 		[]string{"type_collectivite", "code", "nom_collectivite", "nom_budget",
 			"nomenclature", "annee", "agregat", "montant_eur", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("budget_annexe_eau : %w", err))
+	}
+	err = bulkload.SansContraintesFK(ctx, tx, "core.budget_annexe_eau", func() error {
+		_, err := tx.Exec(ctx, `
+			MERGE INTO core.budget_annexe_eau AS tgt
+			USING tmp_budget_annexe_eau AS src
+			ON tgt.type_collectivite = src.type_collectivite AND tgt.code = src.code
+				AND tgt.nom_budget = src.nom_budget AND tgt.annee = src.annee
+				AND tgt.agregat = src.agregat
+			WHEN MATCHED AND (tgt.nom_collectivite, tgt.nomenclature, tgt.montant_eur, tgt.source_id)
+				IS DISTINCT FROM (src.nom_collectivite, src.nomenclature, src.montant_eur, src.source_id) THEN
+				UPDATE SET nom_collectivite = src.nom_collectivite, nomenclature = src.nomenclature,
+					montant_eur = src.montant_eur, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+				INSERT (type_collectivite, code, nom_collectivite, nom_budget, nomenclature,
+					annee, agregat, montant_eur, source_id)
+				VALUES (src.type_collectivite, src.code, src.nom_collectivite, src.nom_budget,
+					src.nomenclature, src.annee, src.agregat, src.montant_eur, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		return err
+	})
+	if err != nil {
+		return fail(fmt.Errorf("budget_annexe_eau, fusion : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)

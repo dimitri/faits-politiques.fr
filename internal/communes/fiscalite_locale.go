@@ -99,9 +99,6 @@ func IngestFiscaliteDirecteLocale(ctx context.Context, pool *pgxpool.Pool, arch 
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.fiscalite_directe_locale`); err != nil {
-		return fail(err)
-	}
 
 	var rows [][]any
 	for _, r := range rep.Results {
@@ -121,16 +118,44 @@ func IngestFiscaliteDirecteLocale(ctx context.Context, pool *pgxpool.Pool, arch 
 		}
 		rows = append(rows, []any{annee, r.DispositifFiscal, cat, dest, r.Total, srcID})
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "fiscalite_directe_locale"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_fiscalite_directe_locale (
+			annee integer NOT NULL,
+			dispositif text NOT NULL,
+			categorie_payeur text NOT NULL,
+			destinataire text NOT NULL,
+			montant_eur numeric NOT NULL,
+			source_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_fiscalite_directe_locale"},
 		[]string{"annee", "dispositif", "categorie_payeur", "destinataire", "montant_eur", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("fiscalite_directe_locale : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.fiscalite_directe_locale AS tgt
+		USING tmp_fiscalite_directe_locale AS src
+		ON tgt.annee = src.annee AND tgt.dispositif = src.dispositif AND tgt.destinataire = src.destinataire
+		WHEN MATCHED AND (tgt.categorie_payeur, tgt.montant_eur, tgt.source_id)
+			IS DISTINCT FROM (src.categorie_payeur, src.montant_eur, src.source_id) THEN
+			UPDATE SET categorie_payeur = src.categorie_payeur, montant_eur = src.montant_eur,
+				source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (annee, dispositif, categorie_payeur, destinataire, montant_eur, source_id)
+			VALUES (src.annee, src.dispositif, src.categorie_payeur, src.destinataire,
+				src.montant_eur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fiscalite_directe_locale, fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(rows)}, "")
-	fmt.Printf("  fiscalité directe locale (OFGL/REI) : %d lignes\n", len(rows))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
+	fmt.Printf("  fiscalité directe locale (OFGL/REI) : %d lignes touchées par la fusion\n", n)
 	return nil
 }

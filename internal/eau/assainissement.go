@@ -53,12 +53,12 @@ const (
 )
 
 type ligneAssainissement struct {
-	CodeInsee                        string
-	IDCollectivite, NomCollectivite  *string
-	IDService, NomService            *string
-	ModeGestion, NomOperateur        *string
-	PopulationDesservie              *int
-	AgenceDeLEau                     *string
+	CodeInsee                       string
+	IDCollectivite, NomCollectivite *string
+	IDService, NomService           *string
+	ModeGestion, NomOperateur       *string
+	PopulationDesservie             *int
+	AgenceDeLEau                    *string
 }
 
 // extraireXLSXDe7z : les deux exports (AC et ANC) sont, comme l'eau potable,
@@ -217,7 +217,14 @@ func IngestAssainissement(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.service_assainissement WHERE annee = 2023`); err != nil {
+
+	// Seul le millésime 2023 est chargé ici : une vue scopée reproduit
+	// exactement la portée de l'ancien « DELETE ... WHERE annee = 2023 »,
+	// au cas où d'autres millésimes seraient chargés un jour par ailleurs.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW service_assainissement_scope AS
+		SELECT * FROM core.service_assainissement WHERE annee = 2023
+		WITH LOCAL CHECK OPTION`); err != nil {
 		return fail(err)
 	}
 	rows := make([][]any, 0, len(lignesAC)+len(lignesANC))
@@ -235,12 +242,55 @@ func IngestAssainissement(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("assainissement : aucune ligne à charger"))
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "service_assainissement"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_service_assainissement (
+			competence text NOT NULL,
+			annee integer NOT NULL,
+			code_insee text NOT NULL,
+			id_sispea_collectivite text,
+			nom_collectivite text,
+			id_sispea_service text NOT NULL,
+			nom_service text,
+			mode_gestion text,
+			nom_operateur text,
+			population_desservie integer,
+			agence_de_leau text,
+			source_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_service_assainissement"},
 		[]string{"competence", "annee", "code_insee", "id_sispea_collectivite", "nom_collectivite",
 			"id_sispea_service", "nom_service", "mode_gestion", "nom_operateur",
 			"population_desservie", "agence_de_leau", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("service_assainissement : %w", err))
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO service_assainissement_scope AS tgt
+		USING tmp_service_assainissement AS src
+		ON tgt.competence = src.competence AND tgt.annee = src.annee
+			AND tgt.code_insee = src.code_insee AND tgt.id_sispea_service = src.id_sispea_service
+		WHEN MATCHED AND (tgt.id_sispea_collectivite, tgt.nom_collectivite, tgt.nom_service,
+				tgt.mode_gestion, tgt.nom_operateur, tgt.population_desservie,
+				tgt.agence_de_leau, tgt.source_id)
+			IS DISTINCT FROM (src.id_sispea_collectivite, src.nom_collectivite, src.nom_service,
+				src.mode_gestion, src.nom_operateur, src.population_desservie,
+				src.agence_de_leau, src.source_id) THEN
+			UPDATE SET id_sispea_collectivite = src.id_sispea_collectivite,
+				nom_collectivite = src.nom_collectivite, nom_service = src.nom_service,
+				mode_gestion = src.mode_gestion, nom_operateur = src.nom_operateur,
+				population_desservie = src.population_desservie,
+				agence_de_leau = src.agence_de_leau, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (competence, annee, code_insee, id_sispea_collectivite, nom_collectivite,
+				id_sispea_service, nom_service, mode_gestion, nom_operateur,
+				population_desservie, agence_de_leau, source_id)
+			VALUES (src.competence, src.annee, src.code_insee, src.id_sispea_collectivite,
+				src.nom_collectivite, src.id_sispea_service, src.nom_service, src.mode_gestion,
+				src.nom_operateur, src.population_desservie, src.agence_de_leau, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fail(fmt.Errorf("service_assainissement, fusion : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
