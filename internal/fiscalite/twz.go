@@ -151,14 +151,43 @@ func IngestTWZ(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.transfert_benefices_estimation WHERE source_id = $1`, srcID); err != nil {
+
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_transfert_benefices_estimation (
+				pays text, annee smallint, indicateur text, valeur numeric, unite text,
+				source_id bigint, document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "transfert_benefices_estimation"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_transfert_benefices_estimation"},
 			[]string{"pays", "annee", "indicateur", "valeur", "unite", "source_id", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
 		}
-		return map[string]any{"wz2022": nWZ, "twz2022": len(lignes) - nWZ, "doublons_ecartes": doublons}, tx.Commit(ctx)
+
+		// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire
+		// de la table ; l'ancien DELETE (scopé sur source_id, mais portant sur
+		// l'intégralité des lignes de ce connecteur) payait le prix des
+		// triggers RI pour tout son périmètre à chaque republication, changement
+		// ou non.
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.transfert_benefices_estimation AS tgt
+			USING tmp_transfert_benefices_estimation AS src
+			ON tgt.pays = src.pays AND tgt.annee = src.annee AND tgt.indicateur = src.indicateur
+			WHEN MATCHED AND (tgt.valeur, tgt.unite, tgt.source_id, tgt.document_id)
+			                  IS DISTINCT FROM (src.valeur, src.unite, src.source_id, src.document_id) THEN
+			    UPDATE SET valeur = src.valeur, unite = src.unite, source_id = src.source_id,
+			               document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (pays, annee, indicateur, valeur, unite, source_id, document_id)
+			    VALUES (src.pays, src.annee, src.indicateur, src.valeur, src.unite, src.source_id, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return nil, fmt.Errorf("fusion transfert_benefices_estimation : %w", err)
+		}
+		touchees := ct.RowsAffected()
+
+		return map[string]any{"wz2022": nWZ, "twz2022": len(lignes) - nWZ, "doublons_ecartes": doublons,
+			"touchees": touchees}, tx.Commit(ctx)
 	})
 }

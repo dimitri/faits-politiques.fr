@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
 	"github.com/jackc/pgx/v5"
@@ -79,11 +80,27 @@ func IngestPIBEpargneNette(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	// Scopé aux indicateurs de CE connecteur : core.indicateur_mondial est
-	// partagée avec SIPRI (internal/international/sipri.go), dont les lignes
-	// (indicateur='SIPRI_DEPENSE_MILITAIRE_PIB') ne doivent pas disparaître
-	// simplement parce que ce connecteur-ci a été relancé seul.
-	if _, err := tx.Exec(ctx, `DELETE FROM core.indicateur_mondial WHERE indicateur = ANY($1)`, indicateursMondiaux); err != nil {
+	// MERGE plutôt que DELETE+COPY, sur une vue scopée aux indicateurs de CE
+	// connecteur : core.indicateur_mondial est partagée avec SIPRI, l'OCDE
+	// (espérance de vie, dépense de santé) et le commerce extra-UE, chacun sur
+	// ses propres codes — la vue garantit que le MERGE (notamment son NOT
+	// MATCHED BY SOURCE) ne touche jamais les lignes des trois autres
+	// connecteurs, et l'ancien DELETE payait par ailleurs le prix des
+	// triggers RI pour tout son périmètre à chaque republication, changement
+	// ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_indicateur_mondial_wb (
+			pays_code text, pays_label text, indicateur text, annee smallint, valeur numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	// Une vue ne peut pas être paramétrée par un $1 : la liste des indicateurs
+	// (une constante Go fixe, pas une entrée utilisateur) est donc inlinée en
+	// littéral de tableau SQL.
+	if _, err := tx.Exec(ctx, fmt.Sprintf(`
+		CREATE OR REPLACE TEMPORARY VIEW indicateur_mondial_wb AS
+		  SELECT * FROM core.indicateur_mondial WHERE indicateur IN ('%s')
+		  WITH LOCAL CHECK OPTION`, strings.Join(indicateursMondiaux, "','"))); err != nil {
 		return fail(err)
 	}
 
@@ -132,7 +149,7 @@ func IngestPIBEpargneNette(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		if len(rows) == 0 {
 			return fail(fmt.Errorf("%s : aucune valeur", ind))
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "indicateur_mondial"},
+		n, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_indicateur_mondial_wb"},
 			[]string{"pays_code", "pays_label", "indicateur", "annee", "valeur", "source_id"},
 			pgx.CopyFromRows(rows))
 		if err != nil {
@@ -141,12 +158,28 @@ func IngestPIBEpargneNette(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		total += n
 	}
 
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO indicateur_mondial_wb AS tgt
+		USING tmp_indicateur_mondial_wb AS src
+		ON tgt.pays_code = src.pays_code AND tgt.indicateur = src.indicateur AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.pays_label, tgt.valeur, tgt.source_id)
+		                  IS DISTINCT FROM (src.pays_label, src.valeur, src.source_id) THEN
+		    UPDATE SET pays_label = src.pays_label, valeur = src.valeur, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (pays_code, pays_label, indicateur, annee, valeur, source_id)
+		    VALUES (src.pays_code, src.pays_label, src.indicateur, src.annee, src.valeur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion core.indicateur_mondial : %w", err))
+	}
+	touchees := ct.RowsAffected()
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": total}, "")
-	fmt.Printf("  PIB et épargne nette ajustée (Banque mondiale) : %d lignes, %d pays, %d indicateurs\n",
-		total, len(paysComparaisonMondiale), len(indicateursMondiaux))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": total, "touchees": touchees}, "")
+	fmt.Printf("  PIB et épargne nette ajustée (Banque mondiale) : %d lignes touchées, %d pays, %d indicateurs\n",
+		touchees, len(paysComparaisonMondiale), len(indicateursMondiaux))
 	return nil
 }
 

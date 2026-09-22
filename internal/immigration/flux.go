@@ -63,18 +63,41 @@ func IngestFlux(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.flux_migratoire`); err != nil {
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_flux_migratoire (
+			type_flux text, pays text, annee smallint, effectif numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "flux_migratoire"},
-		[]string{"type_flux", "pays", "annee", "effectif", "source_id"}, pgx.CopyFromRows(rows))
-	if err != nil {
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_flux_migratoire"},
+		[]string{"type_flux", "pays", "annee", "effectif", "source_id"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("flux_migratoire : %w", err))
 	}
+
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table ; l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité de la table à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.flux_migratoire AS tgt
+		USING tmp_flux_migratoire AS src
+		ON tgt.type_flux = src.type_flux AND tgt.pays = src.pays AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.effectif, tgt.source_id) IS DISTINCT FROM (src.effectif, src.source_id) THEN
+		    UPDATE SET effectif = src.effectif, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (type_flux, pays, annee, effectif, source_id)
+		    VALUES (src.type_flux, src.pays, src.annee, src.effectif, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion flux_migratoire : %w", err))
+	}
+	touchees := ct.RowsAffected()
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": n}, "")
-	fmt.Printf("  flux migratoires (immigration %d ans, naturalisation %d ans)\n", len(imm), len(acq))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": touchees}, "")
+	fmt.Printf("  flux migratoires (immigration %d ans, naturalisation %d ans, %d touchées)\n",
+		len(imm), len(acq), touchees)
 	return nil
 }

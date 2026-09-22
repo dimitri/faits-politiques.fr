@@ -143,18 +143,41 @@ func IngestTitresSejour(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.titre_sejour_stock`); err != nil {
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_titre_sejour_stock (
+			annee smallint, zone text, effectif int, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "titre_sejour_stock"},
-		[]string{"annee", "zone", "effectif", "source_id"}, pgx.CopyFromRows(rows))
-	if err != nil {
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_titre_sejour_stock"},
+		[]string{"annee", "zone", "effectif", "source_id"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("titre_sejour_stock : %w", err))
 	}
+
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table ; l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité de la table à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.titre_sejour_stock AS tgt
+		USING tmp_titre_sejour_stock AS src
+		ON tgt.annee = src.annee AND tgt.zone = src.zone
+		WHEN MATCHED AND (tgt.effectif, tgt.source_id) IS DISTINCT FROM (src.effectif, src.source_id) THEN
+		    UPDATE SET effectif = src.effectif, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, zone, effectif, source_id)
+		    VALUES (src.annee, src.zone, src.effectif, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion titre_sejour_stock : %w", err))
+	}
+	touchees := ct.RowsAffected()
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": n, "annees": len(annees)}, "")
-	fmt.Printf("  stock de titres de séjour : %d lignes, %d à %d\n", n, annees[0], annees[len(annees)-1])
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": touchees, "annees": len(annees)}, "")
+	fmt.Printf("  stock de titres de séjour : %d lignes touchées, %d à %d\n",
+		touchees, annees[0], annees[len(annees)-1])
 	return nil
 }
