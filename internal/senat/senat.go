@@ -323,6 +323,18 @@ func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int
 		`ALTER TABLE senat_raw.map_personne ADD PRIMARY KEY (senmat)`,
 		`ANALYZE senat_raw.map_scrutin`,
 		`ANALYZE senat_raw.map_personne`,
+		// ballot_senat : le MERGE plus bas cible cette vue, pas core.ballot
+		// directement — voir le commentaire sur le MERGE, c'est ce qui lui
+		// évite de balayer les 3,2 millions de bulletins AN/Europe pour
+		// chaque ligne, juste pour vérifier qu'ils n'appartiennent pas au
+		// Sénat. WITH LOCAL CHECK OPTION : un filet de sécurité, pas une
+		// nécessité — la source du MERGE ne peut de toute façon produire
+		// que des scrutin_id du Sénat (via senat_raw.map_scrutin).
+		`DROP VIEW IF EXISTS senat_raw.ballot_senat`,
+		`CREATE VIEW senat_raw.ballot_senat AS
+		   SELECT * FROM core.ballot
+		    WHERE scrutin_id IN (SELECT id FROM core.scrutin WHERE institution = 'SENAT')
+		   WITH LOCAL CHECK OPTION`,
 	} {
 		if _, err := pool.Exec(ctx, q); err != nil {
 			return 0, 0, 0, 0, fmt.Errorf("correspondances : %w", err)
@@ -337,15 +349,25 @@ func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int
 	// lignes) + INSERT prenait 4,1s + 95,1s — l'écrasante majorité de ces
 	// 95s étant le déclenchement des triggers RI de core.ballot, UNE FOIS
 	// PAR LIGNE RÉÉCRITE, même quand rien n'a changé pour cette ligne. Le
-	// MERGE ci-dessous, sur la même donnée (rien de changé depuis le
-	// dernier passage), a pris 43,7s — un simple balayage plus jointure,
-	// zéro ligne à écrire puisque tout correspond déjà (ids de scrutin
-	// stables, voir plus haut). Le vrai gain n'est pas ce cas-là mais le
-	// suivant : quand seules quelques centaines de votes changent d'un
-	// passage à l'autre (une correction, un scrutin de plus), MERGE ne paie
-	// le prix des triggers RI que pour CETTE poignée de lignes, jamais pour
-	// les 1,65 million — l'ancien DELETE+INSERT payait ce prix INTÉGRAL à
-	// chaque fois, qu'un seul vote ait changé ou aucun.
+	// vrai gain n'est pas le cas où rien n'a changé (voir plus bas) mais
+	// l'usage normal : quand seules quelques centaines de votes changent
+	// d'un passage à l'autre (une correction, un scrutin de plus), MERGE ne
+	// paie le prix des triggers RI que pour CETTE poignée de lignes, jamais
+	// pour les 1,65 million — l'ancien DELETE+INSERT payait ce prix
+	// INTÉGRAL à chaque fois, qu'un seul vote ait changé ou aucun.
+	//
+	// MERGE INTO ballot_senat (une vue, pas core.ballot directement) : une
+	// première version ciblait core.ballot avec un WHEN NOT MATCHED BY
+	// SOURCE gardé par un EXISTS sur core.scrutin — mesuré à 43,7s pour ne
+	// RIEN écrire, parce que Postgres doit alors visiter les 4,9 millions
+	// de lignes de core.ballot (toutes institutions confondues) pour décider
+	// lesquelles il n'a pas à toucher, et évaluer cet EXISTS une fois par
+	// ligne étrangère au Sénat — 3 240 501 évaluations. La vue applique le
+	// filtre institution='SENAT' AVANT le FULL JOIN plutôt qu'après : 4,9M
+	// lignes redevient 1,65M, mesuré à 10-12s pour ne rien écrire. WITH
+	// LOCAL CHECK OPTION est un filet de sécurité, pas une nécessité — la
+	// source du MERGE ne peut de toute façon produire que des scrutin_id du
+	// Sénat (via senat_raw.map_scrutin).
 	//
 	// bulkload.SansContraintesFK reste utile malgré tout : sur un tout
 	// premier chargement (ou une refonte massive de senat_raw), le MERGE
@@ -358,7 +380,7 @@ func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int
 	defer tx.Rollback(ctx)
 	if err := bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
 		_, err := tx.Exec(ctx, `
-			MERGE INTO core.ballot AS tgt
+			MERGE INTO senat_raw.ballot_senat AS tgt
 			USING (
 			    SELECT ms.scrutin_id, mp.person_id,
 			           (CASE v.posvotcod WHEN '1' THEN 'FOR' WHEN '2' THEN 'AGAINST'
@@ -373,9 +395,7 @@ func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int
 			    UPDATE SET position = src.position
 			WHEN NOT MATCHED BY TARGET THEN
 			    INSERT (scrutin_id, person_id, position) VALUES (src.scrutin_id, src.person_id, src.position)
-			WHEN NOT MATCHED BY SOURCE AND EXISTS (
-			    SELECT 1 FROM core.scrutin s WHERE s.id = tgt.scrutin_id AND s.institution = 'SENAT'
-			) THEN DELETE`)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 		return err
 	}); err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("votes : %w", err)
