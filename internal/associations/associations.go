@@ -22,6 +22,7 @@ import (
 	"archive/zip"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -87,7 +88,12 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.association`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_association (
+			rna_id text, titre text, objet text, objet_social text, nature text, position text,
+			date_creation date, date_publication date, code_departement text, code_postal text,
+			commune_libelle text, commune_code text, cog_millesime int, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 
@@ -99,7 +105,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		if len(lot) == 0 {
 			return nil
 		}
-		_, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "association"},
+		_, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_association"},
 			[]string{"rna_id", "titre", "objet", "objet_social", "nature", "position",
 				"date_creation", "date_publication", "code_departement", "code_postal",
 				"commune_libelle", "commune_code", "cog_millesime", "source_id"},
@@ -181,11 +187,54 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(fmt.Errorf("copie : %w", err))
 	}
 
+	// MERGE plutôt que DELETE (table entière, ce connecteur en est l'unique
+	// propriétaire) + COPY : l'ancien DELETE payait le prix des triggers RI
+	// pour l'intégralité du répertoire (1,19M associations) à chaque
+	// republication du RNA, changement ou non.
+	var touchees int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.association", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.association AS tgt
+			USING tmp_association AS src
+			ON tgt.rna_id = src.rna_id
+			WHEN MATCHED AND (tgt.titre, tgt.objet, tgt.objet_social, tgt.nature, tgt.position,
+			                   tgt.date_creation, tgt.date_publication, tgt.code_departement,
+			                   tgt.code_postal, tgt.commune_libelle, tgt.commune_code,
+			                   tgt.cog_millesime, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.titre, src.objet, src.objet_social, src.nature, src.position,
+			                   src.date_creation, src.date_publication, src.code_departement,
+			                   src.code_postal, src.commune_libelle, src.commune_code,
+			                   src.cog_millesime, src.source_id) THEN
+			    UPDATE SET titre = src.titre, objet = src.objet, objet_social = src.objet_social,
+			               nature = src.nature, position = src.position,
+			               date_creation = src.date_creation, date_publication = src.date_publication,
+			               code_departement = src.code_departement, code_postal = src.code_postal,
+			               commune_libelle = src.commune_libelle, commune_code = src.commune_code,
+			               cog_millesime = src.cog_millesime, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (rna_id, titre, objet, objet_social, nature, position, date_creation,
+			            date_publication, code_departement, code_postal, commune_libelle,
+			            commune_code, cog_millesime, source_id)
+			    VALUES (src.rna_id, src.titre, src.objet, src.objet_social, src.nature, src.position,
+			            src.date_creation, src.date_publication, src.code_departement, src.code_postal,
+			            src.commune_libelle, src.commune_code, src.cog_millesime, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		touchees = ct.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"associations": total, "resolues": resolues, "doublons": vus}, "")
+		"associations": total, "resolues": resolues, "doublons": vus, "touchees": touchees}, "")
 	fmt.Printf("  RNA : %d associations, %d rattachées à une commune (%.1f %%)\n",
 		total, resolues, 100*float64(resolues)/float64(total))
 	fmt.Printf("  %d noms de commune ambigus dans leur département : non rattachés\n", ambigus)
