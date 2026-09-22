@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -81,6 +82,7 @@ var blocsRetenus = map[string]bool{
 
 type item struct {
 	Bloc        string
+	Rang        int
 	Description string
 	Employeur   string
 	Commentaire string
@@ -148,12 +150,19 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	defer tx.Rollback(ctx)
 
-	// Reconstruction complète : une déclaration retirée par la Haute Autorité
-	// doit disparaître d'ici aussi.
-	if _, err := tx.Exec(ctx, `DELETE FROM core.declaration`); err != nil {
-		return fail(err)
-	}
-
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour l'intégralité des déclarations et de leurs items à chaque
+	// republication de la HATVP, changement ou non. La clé naturelle des
+	// déclarations est leur uuid ; celle des items est (déclaration, bloc,
+	// rang) — voir la migration 0179, rang n'existant qu'à cette fin.
+	//
+	// Pas de RETURNING sur le MERGE des déclarations : RETURNING n'émet une
+	// ligne QUE pour une action qui se déclenche vraiment, donc une
+	// déclaration MATCHED mais inchangée n'en produirait aucune — la carte
+	// uuid -> id serait incomplète dès qu'une déclaration existante n'a pas
+	// changé. Un SELECT séparé, sans dépendre d'un WHEN, la reconstruit en
+	// entier.
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_declaration (
 			uuid text, nom text, prenom text, date_naissance date, type_declaration text,
@@ -174,18 +183,33 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		pgx.CopyFromRows(declRows)); err != nil {
 		return fail(err)
 	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO core.declaration AS tgt
+		USING tmp_declaration AS src
+		ON tgt.uuid = src.uuid
+		WHEN MATCHED AND (tgt.nom, tgt.prenom, tgt.date_naissance, tgt.type_declaration,
+		                   tgt.date_depot, tgt.type_mandat, tgt.label_organe, tgt.qualite,
+		                   tgt.date_debut_mandat, tgt.date_fin_mandat, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.nom, src.prenom, src.date_naissance, src.type_declaration,
+		                   src.date_depot, src.type_mandat, src.label_organe, src.qualite,
+		                   src.date_debut_mandat, src.date_fin_mandat, $1) THEN
+		    UPDATE SET nom = src.nom, prenom = src.prenom, date_naissance = src.date_naissance,
+		               type_declaration = src.type_declaration, date_depot = src.date_depot,
+		               type_mandat = src.type_mandat, label_organe = src.label_organe,
+		               qualite = src.qualite, date_debut_mandat = src.date_debut_mandat,
+		               date_fin_mandat = src.date_fin_mandat, source_id = $1
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (uuid, nom, prenom, date_naissance, type_declaration, date_depot,
+		            type_mandat, label_organe, qualite, date_debut_mandat, date_fin_mandat, source_id)
+		    VALUES (src.uuid, src.nom, src.prenom, src.date_naissance, src.type_declaration,
+		            src.date_depot, src.type_mandat, src.label_organe, src.qualite,
+		            src.date_debut_mandat, src.date_fin_mandat, $1)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`, srcID); err != nil {
+		return fail(fmt.Errorf("fusion des déclarations : %w", err))
+	}
 	res, err := tx.Query(ctx, `
-		WITH upsert AS (
-			INSERT INTO core.declaration
-			  (uuid, nom, prenom, date_naissance, type_declaration, date_depot,
-			   type_mandat, label_organe, qualite, date_debut_mandat, date_fin_mandat, source_id)
-			SELECT uuid, nom, prenom, date_naissance, type_declaration, date_depot,
-			       type_mandat, label_organe, qualite, date_debut_mandat, date_fin_mandat, $1
-			  FROM tmp_declaration
-			ON CONFLICT (uuid) DO NOTHING
-			RETURNING id, uuid
-		)
-		SELECT uuid, id FROM upsert`, srcID)
+		SELECT t.uuid, d.id FROM tmp_declaration t JOIN core.declaration d ON d.uuid = t.uuid`)
 	if err != nil {
 		return fail(fmt.Errorf("déclarations : %w", err))
 	}
@@ -205,10 +229,13 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	nDecl := len(declIDByUUID)
 
-	// Les items n'ont aucun conflit à résoudre (aucune contrainte d'unicité
-	// dessus) : une COPY directe dans la vraie table suffit, comme
-	// core.ballot ailleurs dans ce dépôt — pas la peine d'une table
-	// temporaire pour un aller simple.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_declaration_item (
+			declaration_id bigint, bloc text, rang int, description text, employeur text,
+			commentaire text, annee int, montant numeric, non_publie boolean
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
 	var itemRows [][]any
 	for _, d := range decls {
 		declID, ok := declIDByUUID[d.UUID]
@@ -216,18 +243,45 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			continue // doublon d'uuid déjà écarté au flux, ou conflit DB
 		}
 		for _, it := range d.Items {
-			itemRows = append(itemRows, []any{declID, it.Bloc, nul(it.Description),
+			itemRows = append(itemRows, []any{declID, it.Bloc, it.Rang, nul(it.Description),
 				nul(it.Employeur), nul(it.Commentaire), it.Annee, it.Montant, it.NonPublie})
 		}
 	}
-	nItemsAffected, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "declaration_item"},
-		[]string{"declaration_id", "bloc", "description", "employeur", "commentaire",
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_declaration_item"},
+		[]string{"declaration_id", "bloc", "rang", "description", "employeur", "commentaire",
 			"annee", "montant", "non_publie"},
-		pgx.CopyFromRows(itemRows))
-	if err != nil {
-		return fail(fmt.Errorf("items : %w", err))
+		pgx.CopyFromRows(itemRows)); err != nil {
+		return fail(fmt.Errorf("copie des items : %w", err))
 	}
-	nItems := int(nItemsAffected)
+	var nItems int
+	err = bulkload.SansContraintesFK(ctx, tx, "core.declaration_item", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.declaration_item AS tgt
+			USING tmp_declaration_item AS src
+			ON tgt.declaration_id = src.declaration_id AND tgt.bloc = src.bloc AND tgt.rang = src.rang
+			WHEN MATCHED AND (tgt.description, tgt.employeur, tgt.commentaire, tgt.annee,
+			                   tgt.montant, tgt.non_publie)
+			                  IS DISTINCT FROM
+			                  (src.description, src.employeur, src.commentaire, src.annee,
+			                   src.montant, src.non_publie) THEN
+			    UPDATE SET description = src.description, employeur = src.employeur,
+			               commentaire = src.commentaire, annee = src.annee,
+			               montant = src.montant, non_publie = src.non_publie
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (declaration_id, bloc, rang, description, employeur, commentaire,
+			            annee, montant, non_publie)
+			    VALUES (src.declaration_id, src.bloc, src.rang, src.description, src.employeur,
+			            src.commentaire, src.annee, src.montant, src.non_publie)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		nItems = int(ct.RowsAffected())
+		return nil
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion des items : %w", err))
+	}
 
 	// Rapprochement sur le triplet EXACT (nom, prénom, date de naissance),
 	// insensible aux accents et à la casse — la même règle que pour le RNE
@@ -248,9 +302,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"declarations": nDecl, "items": nItems, "rapprochees": rec.RowsAffected()}, "")
-	logs.Notice(fmt.Sprintf("HATVP: %s, %s, %d matched to a known person",
-		logs.Plural(nDecl, "declaration"), logs.Plural(nItems, "item"), rec.RowsAffected()))
+		"declarations": nDecl, "items": len(itemRows), "items_touchees": nItems,
+		"rapprochees": rec.RowsAffected()}, "")
+	logs.Notice(fmt.Sprintf("HATVP: %s (%d items, %d touched by the merge), %d matched to a known person",
+		logs.Plural(nDecl, "declaration"), len(itemRows), nItems, rec.RowsAffected()))
 	return nil
 }
 
@@ -428,6 +483,7 @@ func lireBloc(dec *xml.Decoder, bloc string) ([]item, error) {
 	pousser := func() {
 		if cur.Description != "" || cur.Employeur != "" || cur.Montant != nil ||
 			cur.Commentaire != "" || cur.NonPublie {
+			cur.Rang = len(out)
 			out = append(out, cur)
 		}
 		cur = item{Bloc: bloc}
@@ -490,6 +546,7 @@ func lireBloc(dec *xml.Decoder, bloc string) ([]item, error) {
 					if annee != nil {
 						l := cur
 						l.Annee, l.Montant = annee, &m
+						l.Rang = len(out)
 						out = append(out, l)
 						annee = nil
 					} else if cur.Montant == nil {
