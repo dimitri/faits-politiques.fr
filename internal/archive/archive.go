@@ -221,6 +221,20 @@ func (a *Archive) derniereRetenue(ctx context.Context, url string) (*retenuePrec
 	if storageKey != nil {
 		p.path = filepath.Join(a.Root, *storageKey)
 	}
+	// Le fichier peut avoir disparu de a.Root sans que raw.retrieval le
+	// sache — une archive reconstituée partiellement, un nettoyage, un
+	// worktree différent de celui où ce document a été scellé. Un 304 sans
+	// fichier derrière laisserait fetchOnce renvoyer un Fetched.Path
+	// introuvable à l'appelant, qui échouerait bien plus tard et bien
+	// moins clairement en essayant de le lire. nil ici, comme s'il n'y
+	// avait jamais eu de precedent : aucun en-tête conditionnel n'est
+	// envoyé, un GET normal a lieu et réécrit le fichier à sa place.
+	if p.path == "" {
+		return nil, nil
+	}
+	if _, err := os.Stat(p.path); err != nil {
+		return nil, nil
+	}
 	return &p, nil
 }
 

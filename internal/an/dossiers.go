@@ -190,7 +190,14 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 		  WITH LOCAL CHECK OPTION`); err != nil {
 		return err
 	}
-	res, err := tx.Query(ctx, `
+	// PAS de RETURNING pour construire dossierID : un MERGE ne renvoie rien
+	// pour une ligne MATCHED dont le WHEN ne s'est pas déclenché (le cas
+	// courant, titre inchangé) — dossierID doit pourtant couvrir TOUS les
+	// dossiers du payload courant, changés ou non, puisque
+	// normalizeDocuments s'en sert pour résoudre texte.dossier_id même pour
+	// un texte dont le dossier n'a pas bougé. Le SELECT séparé plus bas, sur
+	// dossier_an déjà à jour, ne dépend d'aucun WHEN.
+	if _, err := tx.Exec(ctx, `
 		MERGE INTO dossier_an AS tgt
 		USING tmp_dossier AS src
 		ON tgt.source_uid = src.uid
@@ -199,8 +206,11 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 		WHEN NOT MATCHED BY TARGET THEN
 		    INSERT (slug, institution, source_uid, legislature_id, titre, titre_chemin, senat_chemin)
 		    VALUES (src.slug, 'ASSEMBLEE_NATIONALE', src.uid, $1, src.titre, src.titre_chemin, src.senat_chemin)
-		WHEN NOT MATCHED BY SOURCE THEN DELETE
-		RETURNING tgt.source_uid, tgt.id`, legID)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`, legID); err != nil {
+		return fmt.Errorf("dossiers : %w", err)
+	}
+	res, err := tx.Query(ctx, `
+		SELECT t.uid, d.id FROM tmp_dossier t JOIN dossier_an d ON d.source_uid = t.uid`)
 	if err != nil {
 		return fmt.Errorf("dossiers : %w", err)
 	}
@@ -417,7 +427,11 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 		  WITH LOCAL CHECK OPTION`); err != nil {
 		return 0, 0, err
 	}
-	res, err := tx.Query(ctx, `
+	// PAS de RETURNING pour construire texteID : même raison que dossierID
+	// plus haut — un texte MATCHED dont le titre n'a pas bougé ne déclenche
+	// aucun WHEN, donc ne renvoie rien, alors que copierAuteurs (plus bas)
+	// doit résoudre CHAQUE texte du payload courant.
+	if _, err := tx.Exec(ctx, `
 		MERGE INTO texte_an AS tgt
 		USING tmp_texte AS src
 		ON tgt.source_uid = src.uid
@@ -427,8 +441,11 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 		    INSERT (slug, dossier_id, institution, source_uid, kind, titre, date_depot)
 		    VALUES (src.slug, src.dossier_id, 'ASSEMBLEE_NATIONALE', src.uid, src.kind, src.titre,
 		            nullif(src.date_depot, '')::date)
-		WHEN NOT MATCHED BY SOURCE THEN DELETE
-		RETURNING tgt.source_uid, tgt.id`)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return 0, 0, fmt.Errorf("textes : %w", err)
+	}
+	res, err := tx.Query(ctx, `
+		SELECT t.uid, x.id FROM tmp_texte t JOIN texte_an x ON x.source_uid = t.uid`)
 	if err != nil {
 		return 0, 0, fmt.Errorf("textes : %w", err)
 	}

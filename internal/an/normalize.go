@@ -226,7 +226,16 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		                  WHERE i.organization_id = o.id AND i.scheme = 'AN_ORGANE')`); err != nil {
 		return nil, err
 	}
-	res, err := tx.Query(ctx, `
+	// PAS de RETURNING ici pour construire byUID : un MERGE ne renvoie RIEN
+	// pour une ligne MATCHED dont aucun WHEN ne s'est déclenché (le cas
+	// courant — la plupart des organisations sont identiques d'un run à
+	// l'autre) — RETURNING serait alors sparse, alors que byUID doit
+	// couvrir CHAQUE organisation du payload courant, changée ou non :
+	// tout ce qui suit (mandats, affiliations, scrutins, dossiers) résout
+	// ses organisations par ce uid. La sélection séparée plus bas, sur
+	// organization_an déjà à jour, ne dépend d'aucun WHEN et couvre donc
+	// systématiquement tout tmp_organe.
+	if _, err := tx.Exec(ctx, `
 		MERGE INTO organization_an AS tgt
 		USING tmp_organe AS src
 		ON tgt.slug = src.slug
@@ -236,26 +245,23 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		    INSERT (slug, kind, name, short_name, validity, organ_type)
 		    VALUES (src.slug, src.kind::core.organization_kind, src.nom, src.abrege,
 		            daterange(src.debut::date, src.fin::date), src.organ_type)
-		WHEN NOT MATCHED BY SOURCE THEN DELETE
-		RETURNING src.uid, tgt.id`)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return nil, fmt.Errorf("organisations : %w", err)
+	}
+	res, err := tx.Query(ctx, `
+		SELECT t.uid, o.id FROM tmp_organe t JOIN organization_an o ON o.slug = t.slug`)
 	if err != nil {
 		return nil, fmt.Errorf("organisations : %w", err)
 	}
 	byUID := map[string]int64{}
 	for res.Next() {
-		// uid est NULL pour une ligne supprimée (WHEN NOT MATCHED BY
-		// SOURCE) : aucune ligne source ne lui correspond, par définition.
-		// Sans intérêt ici — une organisation disparue du payload courant
-		// n'a plus de uid à résoudre pour la suite de Normalize.
-		var uid *string
+		var uid string
 		var id int64
 		if err := res.Scan(&uid, &id); err != nil {
 			res.Close()
 			return nil, err
 		}
-		if uid != nil {
-			byUID[*uid] = id
-		}
+		byUID[uid] = id
 	}
 	res.Close()
 	if err := res.Err(); err != nil {
