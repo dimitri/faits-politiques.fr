@@ -125,17 +125,12 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		 WHERE s.id = t.scrutin_id AND s.institution = 'PARLEMENT_EUROPEEN'`); err != nil {
 		return fmt.Errorf("remise à zéro : %w", err)
 	}
-	if !skipBallots {
-		for _, q := range []string{
-			`DELETE FROM core.ballot b USING core.scrutin s
-			  WHERE s.id = b.scrutin_id AND s.institution = 'PARLEMENT_EUROPEEN'`,
-			`DELETE FROM core.scrutin WHERE institution = 'PARLEMENT_EUROPEEN'`,
-		} {
-			if _, err := pool.Exec(ctx, q); err != nil {
-				return fmt.Errorf("remise à zéro : %w", err)
-			}
-		}
-	}
+	// Ni core.ballot ni core.scrutin ne sont plus wipés ici : chargerVotesNominatifs
+	// fait maintenant un MERGE sur core.ballot (voir son commentaire), et ça
+	// suppose des scrutin_id STABLES d'un passage à l'autre — chargerVotes
+	// upserte déjà sur (institution, source_uid), un DELETE préalable ne
+	// faisait que garantir que cet upsert ne rencontre jamais de conflit,
+	// donc réattribuait un id neuf à chaque scrutin à chaque passage.
 
 	groupes, err := chargerGroupes(ctx, pool, chemins["groups"])
 	if err != nil {
@@ -610,14 +605,29 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 	// (seen[cle]) : rn porte l'ordre d'arrivée dans le fichier, le même que
 	// map[[2]int64]bool y voyait ligne après ligne.
 	//
-	// bulkload.SansContraintesFK : mesuré par EXPLAIN ANALYZE, les trois
-	// triggers RI de core.ballot (person_id, scrutin_id+granularite,
-	// organization_id) coûtaient ~120s sur ces 1,97M lignes à eux seuls,
-	// alors que les tables parentes sont déjà indexées — voir le commentaire
-	// du paquet bulkload pour le compromis de concurrence que ceci accepte.
-	var nLignes int
+	// MERGE plutôt que DELETE+INSERT (voir internal/senat/senat.go, le même
+	// changement sur core.ballot pour le Sénat, pour la mesure complète) :
+	// le DELETE+INSERT payait le prix des triggers RI de core.ballot
+	// (~120s mesurés sur ces 1,97M lignes) pour la TABLE ENTIÈRE à chaque
+	// passage, changement ou non. MERGE ne le paie que pour les lignes
+	// réellement neuves/changées/disparues.
+	//
+	// CREATE OR REPLACE TEMPORARY VIEW ballot_pe, pas MERGE INTO core.ballot
+	// directement : mesuré sur le Sénat, cibler la table entière oblige
+	// Postgres à visiter TOUTES ses lignes (Assemblée + Sénat + Europe,
+	// ~4,9M) pour décider lesquelles laisser tranquilles — 43,7s pour ne
+	// rien écrire. La vue filtre institution='PARLEMENT_EUROPEEN' avant la
+	// jointure complète, pas après.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW ballot_pe AS
+		  SELECT * FROM core.ballot
+		   WHERE scrutin_id IN (SELECT id FROM core.scrutin WHERE institution = 'PARLEMENT_EUROPEEN')
+		  WITH LOCAL CHECK OPTION`); err != nil {
+		return 0, err
+	}
+	var nLignes int64
 	err = bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
-		ct, err := tx.Exec(ctx, `
+		_, err := tx.Exec(ctx, `
 			WITH resolues AS (
 				SELECT t.rn, s.scrutin_id, m.person_id, g.organization_id,
 				       (CASE t.position
@@ -635,21 +645,30 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 				  FROM resolues
 				 ORDER BY scrutin_id, person_id, rn
 			)
-			INSERT INTO core.ballot (scrutin_id, person_id, organization_id, position)
-			SELECT scrutin_id, person_id, organization_id, position FROM dedup`)
-		if err != nil {
-			return err
-		}
-		nLignes = int(ct.RowsAffected())
-		return nil
+			MERGE INTO ballot_pe AS tgt
+			USING dedup AS src
+			ON tgt.scrutin_id = src.scrutin_id AND tgt.person_id = src.person_id
+			WHEN MATCHED AND (tgt.position IS DISTINCT FROM src.position
+			                   OR tgt.organization_id IS DISTINCT FROM src.organization_id) THEN
+			    UPDATE SET position = src.position, organization_id = src.organization_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (scrutin_id, person_id, organization_id, position)
+			    VALUES (src.scrutin_id, src.person_id, src.organization_id, src.position)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		return err
 	})
 	if err != nil {
+		return 0, err
+	}
+	if err := tx.QueryRow(ctx, `
+		SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
+		 WHERE s.institution = 'PARLEMENT_EUROPEEN'`).Scan(&nLignes); err != nil {
 		return 0, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, err
 	}
-	return nLignes, nil
+	return int(nLignes), nil
 }
 
 // mapCopySource adapte une map[string]int64 en source pour pgx.CopyFromSlice
