@@ -207,27 +207,55 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		pgx.CopyFromRows(copieOrganes)); err != nil {
 		return nil, err
 	}
+	// MERGE plutôt qu'un upsert simple : core.organization.id doit rester
+	// stable pour l'Assemblée d'un run à l'autre — un id qui change à
+	// chaque renormalisation cassait déjà tout ce qui le référence
+	// durablement (core.amendement_attribution.organization_id, entre
+	// autres, depuis que core.amendement lui-même a arrêté d'être détruit
+	// à chaque passage : voir plus bas, la remise à zéro conditionnelle qui
+	// disparaît). organization_an, une vue scopée aux organisations
+	// portant un identifiant AN_ORGANE — SANS WITH CHECK OPTION,
+	// volontairement : une organisation qui vient d'être insérée ne porte
+	// pas encore cet identifiant (il est ajouté juste après, dans la même
+	// transaction), la contrainte de la vue rejetterait donc l'INSERT lui-
+	// même si elle était présente.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW organization_an AS
+		  SELECT * FROM core.organization o
+		   WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
+		                  WHERE i.organization_id = o.id AND i.scheme = 'AN_ORGANE')`); err != nil {
+		return nil, err
+	}
 	res, err := tx.Query(ctx, `
-		WITH upsert AS (
-			INSERT INTO core.organization (slug, kind, name, short_name, validity, organ_type)
-			SELECT slug, kind::core.organization_kind, nom, abrege, daterange(debut::date, fin::date), organ_type
-			  FROM tmp_organe
-			ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, organ_type = EXCLUDED.organ_type
-			RETURNING id, slug
-		)
-		SELECT t.uid, u.id FROM upsert u JOIN tmp_organe t ON t.slug = u.slug`)
+		MERGE INTO organization_an AS tgt
+		USING tmp_organe AS src
+		ON tgt.slug = src.slug
+		WHEN MATCHED AND (tgt.name, tgt.organ_type) IS DISTINCT FROM (src.nom, src.organ_type) THEN
+		    UPDATE SET name = src.nom, organ_type = src.organ_type
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (slug, kind, name, short_name, validity, organ_type)
+		    VALUES (src.slug, src.kind::core.organization_kind, src.nom, src.abrege,
+		            daterange(src.debut::date, src.fin::date), src.organ_type)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE
+		RETURNING src.uid, tgt.id`)
 	if err != nil {
 		return nil, fmt.Errorf("organisations : %w", err)
 	}
 	byUID := map[string]int64{}
 	for res.Next() {
-		var uid string
+		// uid est NULL pour une ligne supprimée (WHEN NOT MATCHED BY
+		// SOURCE) : aucune ligne source ne lui correspond, par définition.
+		// Sans intérêt ici — une organisation disparue du payload courant
+		// n'a plus de uid à résoudre pour la suite de Normalize.
+		var uid *string
 		var id int64
 		if err := res.Scan(&uid, &id); err != nil {
 			res.Close()
 			return nil, err
 		}
-		byUID[uid] = id
+		if uid != nil {
+			byUID[*uid] = id
+		}
 	}
 	res.Close()
 	if err := res.Err(); err != nil {
@@ -1008,24 +1036,15 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		  WHERE t.id = a.texte_id AND t.institution = 'ASSEMBLEE_NATIONALE'`,
 	}...)
 
-	if !organeUnchanged {
-		// La cartographie éditoriale pointe les groupes de l'Assemblée. Elle
-		// est rechargée juste après la normalisation (cmd/ingest), mais tant
-		// qu'elle pointe des organisations sur le point d'être détruites, la
-		// clé étrangère refuse la suppression — et le connecteur échouerait
-		// sans qu'on comprenne pourquoi. Omises avec l'organisation
-		// elle-même quand rien n'a changé : rien n'est alors sur le point
-		// d'être détruit, ces deux DELETE n'ont donc rien à protéger.
-		resets = append(resets,
-			`DELETE FROM core.party_group_link l
-			  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
-			                WHERE i.organization_id = l.group_id AND i.scheme = 'AN_ORGANE')`,
-			// Enfin les entités portant un identifiant de l'Assemblée, et
-			// elles seules.
-			`DELETE FROM core.organization o
-			  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
-			                 WHERE i.organization_id = o.id AND i.scheme = 'AN_ORGANE')`)
-	}
+	// core.organization n'est plus wipée ici : normalizeOrganes en fait
+	// désormais un MERGE (voir plus haut) — un id d'organisation stable est
+	// ce que core.amendement_attribution.organization_id exige maintenant
+	// que core.amendement lui-même ne disparaît plus à chaque passage (même
+	// gotcha que core.texte, voir le commentaire au-dessus de normalize's
+	// texte/dossier resets). core.party_group_link n'a jamais eu besoin
+	// d'être touché ici : internal/carto/carto.go fait déjà sa propre
+	// remise à zéro scopée (mapping_revision_id) dans l'étape « carto »,
+	// qui s'exécute après « normalize » dans le graphe de dépendance.
 	// Les PERSONNES ne sont plus détruites. Elles l'étaient quand l'Assemblée
 	// en était le seul producteur ; depuis que le RNE et la HATVP y
 	// rattachent des mandats et des déclarations, effacer une personne parce
