@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -227,15 +228,14 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		}
 	}
 
-	// Reconstruction complète : un groupement dissous doit disparaître.
-	for _, q := range []string{
-		`DELETE FROM core.epci_competence`, `DELETE FROM core.epci_membre`, `DELETE FROM core.epci`,
-	} {
-		if _, err := tx.Exec(ctx, q); err != nil {
-			return fail(err)
-		}
-	}
-
+	// MERGE plutôt que DELETE+COPY, sur les trois tables : ce connecteur en est
+	// l'unique propriétaire, et l'ancien DELETE payait le prix des triggers RI
+	// (dont la cascade epci -> epci_membre/epci_competence) pour l'intégralité
+	// des 9 000 groupements et de leurs adhésions/compétences à chaque
+	// republication, changement ou non. epci d'abord (parent), puis ses deux
+	// tables filles — un groupement dissous disparaît par la fusion de core.
+	// epci elle-même (WHEN NOT MATCHED BY SOURCE, cascade FK) aussi bien que
+	// par celle de ses filles.
 	var lignesE, lignesC [][]any
 	for siren, e := range epcis {
 		var creation any
@@ -249,12 +249,49 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			lignesC = append(lignesC, []any{siren, c})
 		}
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "epci"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_epci (
+			siren text, nom text, nature_juridique text, code_departement text, date_creation date,
+			population_totale int, nb_membres int, source_id bigint,
+			president_civilite text, president_nom text, president_prenom text, nb_delegues int
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_epci"},
 		[]string{"siren", "nom", "nature_juridique", "code_departement", "date_creation",
 			"population_totale", "nb_membres", "source_id",
 			"president_civilite", "president_nom", "president_prenom", "nb_delegues"},
 		pgx.CopyFromRows(lignesE)); err != nil {
 		return fail(fmt.Errorf("copie des groupements : %w", err))
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO core.epci AS tgt
+		USING tmp_epci AS src
+		ON tgt.siren = src.siren
+		WHEN MATCHED AND (tgt.nom, tgt.nature_juridique, tgt.code_departement, tgt.date_creation,
+		                   tgt.population_totale, tgt.nb_membres, tgt.source_id,
+		                   tgt.president_civilite, tgt.president_nom, tgt.president_prenom,
+		                   tgt.nb_delegues)
+		                  IS DISTINCT FROM
+		                  (src.nom, src.nature_juridique, src.code_departement, src.date_creation,
+		                   src.population_totale, src.nb_membres, src.source_id,
+		                   src.president_civilite, src.president_nom, src.president_prenom,
+		                   src.nb_delegues) THEN
+		    UPDATE SET nom = src.nom, nature_juridique = src.nature_juridique,
+		               code_departement = src.code_departement, date_creation = src.date_creation,
+		               population_totale = src.population_totale, nb_membres = src.nb_membres,
+		               source_id = src.source_id, president_civilite = src.president_civilite,
+		               president_nom = src.president_nom, president_prenom = src.president_prenom,
+		               nb_delegues = src.nb_delegues
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (siren, nom, nature_juridique, code_departement, date_creation,
+		            population_totale, nb_membres, source_id,
+		            president_civilite, president_nom, president_prenom, nb_delegues)
+		    VALUES (src.siren, src.nom, src.nature_juridique, src.code_departement, src.date_creation,
+		            src.population_totale, src.nb_membres, src.source_id,
+		            src.president_civilite, src.president_nom, src.president_prenom, src.nb_delegues)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fail(fmt.Errorf("fusion des groupements : %w", err))
 	}
 
 	vus := map[string]bool{}
@@ -269,14 +306,56 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		vus[k] = true
 		lignesM = append(lignesM, []any{m.siren, m.commune, COGMillesime, m.siren, nul(m.categorie)})
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "epci_membre"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_epci_membre (
+			epci_siren text, commune_code text, cog_millesime int, membre_siren text, categorie text
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_epci_membre"},
 		[]string{"epci_siren", "commune_code", "cog_millesime", "membre_siren", "categorie"},
 		pgx.CopyFromRows(lignesM)); err != nil {
 		return fail(fmt.Errorf("copie des membres : %w", err))
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "epci_competence"},
+	err = bulkload.SansContraintesFK(ctx, tx, "core.epci_membre", func() error {
+		_, err := tx.Exec(ctx, `
+			MERGE INTO core.epci_membre AS tgt
+			USING tmp_epci_membre AS src
+			ON tgt.epci_siren = src.epci_siren AND tgt.commune_code = src.commune_code
+			WHEN MATCHED AND (tgt.cog_millesime, tgt.membre_siren, tgt.categorie)
+			                  IS DISTINCT FROM (src.cog_millesime, src.membre_siren, src.categorie) THEN
+			    UPDATE SET cog_millesime = src.cog_millesime, membre_siren = src.membre_siren,
+			               categorie = src.categorie
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (epci_siren, commune_code, cog_millesime, membre_siren, categorie)
+			    VALUES (src.epci_siren, src.commune_code, src.cog_millesime, src.membre_siren, src.categorie)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		return err
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion des membres : %w", err))
+	}
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_epci_competence (epci_siren text, competence_code text) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_epci_competence"},
 		[]string{"epci_siren", "competence_code"}, pgx.CopyFromRows(lignesC)); err != nil {
 		return fail(fmt.Errorf("copie des compétences : %w", err))
+	}
+	err = bulkload.SansContraintesFK(ctx, tx, "core.epci_competence", func() error {
+		_, err := tx.Exec(ctx, `
+			MERGE INTO core.epci_competence AS tgt
+			USING tmp_epci_competence AS src
+			ON tgt.epci_siren = src.epci_siren AND tgt.competence_code = src.competence_code
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (epci_siren, competence_code) VALUES (src.epci_siren, src.competence_code)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		return err
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion des compétences : %w", err))
 	}
 
 	if err := tx.Commit(ctx); err != nil {
