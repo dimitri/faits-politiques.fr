@@ -17,28 +17,19 @@ import (
 	"sort"
 	"time"
 
-	"github.com/faits-politiques/faits-politiques/internal/agriculture"
 	"github.com/faits-politiques/faits-politiques/internal/an"
 	"github.com/faits-politiques/faits-politiques/internal/archive"
-	"github.com/faits-politiques/faits-politiques/internal/associations"
-	"github.com/faits-politiques/faits-politiques/internal/budget"
-	"github.com/faits-politiques/faits-politiques/internal/campagne"
 	"github.com/faits-politiques/faits-politiques/internal/carto"
 	"github.com/faits-politiques/faits-politiques/internal/checksum"
 	"github.com/faits-politiques/faits-politiques/internal/communes"
-	"github.com/faits-politiques/faits-politiques/internal/entreprises"
 	"github.com/faits-politiques/faits-politiques/internal/europe"
 	"github.com/faits-politiques/faits-politiques/internal/geo"
-	"github.com/faits-politiques/faits-politiques/internal/hatvp"
-	"github.com/faits-politiques/faits-politiques/internal/jorf"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/matview"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
 	"github.com/faits-politiques/faits-politiques/internal/partis"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
-	"github.com/faits-politiques/faits-politiques/internal/prefets"
-	"github.com/faits-politiques/faits-politiques/internal/presidentielle"
 	"github.com/faits-politiques/faits-politiques/internal/senat"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -443,13 +434,145 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	return nil
 }
 
+// dependancesRunTout : dépendances RÉELLES entre sources hors socle,
+// établies par lecture de code (chaque preuve est un fichier:ligne précis,
+// pas une supposition) — mais volontairement PAS ajoutées à
+// Source.Dependances dans catalogue.go : un appel isolé (fpctl ingest
+// collectivites communes, par exemple) doit rester léger, comme aujourd'hui
+// — il ne réclamerait sinon plus tout le socle parlementaire juste pour
+// recharger des élus locaux. registreComplet applique ces dépendances-ci
+// UNIQUEMENT dans le cadre de la chaîne complète, où toutes ces sources
+// tournent de toute façon ensemble.
+//
+//   - communes -> normalize : le RNE ne remplace un mandat national que
+//     s'il n'en existe pas déjà un publié par l'Assemblée (« le RNE
+//     complète, il n'écrase pas », commentaire au-dessus de
+//     normaliserAssemblee plus bas) — l'ordre inverse a un jour détruit
+//     1 419 mandats de député.
+//   - associations -> communes : associations.Ingest rapproche chaque
+//     association d'une commune via ref.commune (internal/associations/
+//     associations.go:200-204), remplie par communes.IngestCOG.
+//   - hatvp -> normalize, communes, senat : le rapprochement déclarant ->
+//     personne (D-025, internal/hatvp/hatvp.go:236-242) lit core.person,
+//     alimentée par les trois.
+//   - amendements/exposes/interventions -> normalize : lisent
+//     respectivement core.texte (internal/an/amendements.go:301,
+//     internal/an/exposes.go:77-80) et core.person_identifier scheme
+//     AN_ACTEUR (internal/an/interventions.go:92), remplis par
+//     normaliserAssemblee.
+//   - jorf -> normalize, communes, senat : le rapprochement mention -> élu
+//     (internal/jorf/jorf.go:375-384) lit core.person.
+//   - promulgation -> normalize, jorf : compare la référence NOR publiée
+//     par l'Assemblée (core.dossier) à jo.texte.nor, rempli par jorf.Ingest
+//     (voir déjà le commentaire de RunTout à ce sujet, plus bas).
+//   - media -> normalize, partis, carto : les logos de partis se
+//     rapprochent par identifiant CNCCFP (internal/ingest/media.go:58-60),
+//     écrit par les trois.
+var dependancesRunTout = map[string][]string{
+	"communes":      {"normalize"},
+	"associations":  {"communes"},
+	"hatvp":         {"normalize", "communes", "senat"},
+	"amendements":   {"normalize"},
+	"exposes":       {"normalize"},
+	"interventions": {"normalize"},
+	"jorf":          {"normalize", "communes", "senat"},
+	"promulgation":  {"normalize", "jorf"},
+	"media":         {"normalize", "partis", "carto"},
+}
+
+// runToutSupplement : les sources hors socle que RunTout a toujours
+// enchaînées, dans un ordre où la dépendance de chacune (dependancesRunTout,
+// plus haut) est déjà ajoutée avant elle — Registre.Ajouter panique sinon.
+// presidentielle, budget, macro, prefets, agriculture, entreprises et
+// campagne n'ont aucune dépendance ici : lecture exhaustive de chaque
+// paquet (aucune référence à core.person, core.mandate, ref.commune,
+// core.texte, core.dossier ou jo.texte hors du sien) — ils tournent donc
+// dans la première vague venue, y compris de front avec le socle lui-même.
+var runToutSupplement = []string{
+	"presidentielle", "budget", "macro", "prefets", "agriculture", "entreprises", "campagne",
+	"communes", "associations", "hatvp",
+	"amendements", "exposes", "interventions",
+	"jorf", "promulgation", "media",
+}
+
+// registreComplet construit le graphe complet que RunTout exécute : le
+// socle parlementaire (les mêmes 7 étapes que registreParlement, jamais
+// republiées une seconde fois — Publier reste réservé à registreParlement,
+// la seule vue auditée du graphe, voir son commentaire), plus
+// runToutSupplement, plus deux étapes sans équivalent exact dans le
+// catalogue :
+//
+//   - "geo-courant" : RunTout appelle geo.Ingest en réutilisant le COG déjà
+//     chargé par "communes" (dimensionLocale), jamais catalogue.go
+//     "contours" (qui recharge le COG lui-même, un jeu de contours par
+//     millésime) — un vrai écart avec le catalogue, pas une erreur : voir
+//     le commentaire d'origine sur ce choix, conservé tel quel plus bas.
+//   - "checksums" ferme le graphe : recalculerEmpreintes recalcule par
+//     construction tout ce que checksum.Sections connaît (le domaine
+//     entier), donc dépend de tout le reste plutôt que d'un sous-ensemble
+//     précis — jamais un fan-in partiel qui laisserait une section
+//     recalculée sur des données d'avant cette exécution.
+func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) (*pipeline.Registre, error) {
+	reg := pipeline.NouveauRegistre(pool)
+	ajouter := func(nom string, extraDeps []string) error {
+		source, ok := SourceParNom(nom)
+		if !ok {
+			return fmt.Errorf("registreComplet : source inconnue : %s", nom)
+		}
+		archEtape := *arch
+		archEtape.Etape = source.Nom
+		deps := append(append([]string{}, source.Dependances...), extraDeps...)
+		reg.Ajouter(pipeline.Etape{
+			Nom: source.Nom, Description: source.Description, Dependances: deps,
+			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
+			},
+		})
+		return nil
+	}
+	for _, nom := range socleParlementaire {
+		if err := ajouter(nom, nil); err != nil {
+			return nil, err
+		}
+	}
+	for _, nom := range runToutSupplement {
+		if err := ajouter(nom, dependancesRunTout[nom]); err != nil {
+			return nil, err
+		}
+	}
+	// Contours communaux et intercommunaux, un jeu par millésime du COG. Le
+	// bloc communes (dimensionLocale) a déjà chargé le COG courant : inutile
+	// de le recharger ici (contrairement à la source « contours » invoquée
+	// seule, catégorie systeme, qui le recharge elle-même).
+	reg.Ajouter(pipeline.Etape{
+		Nom: "geo-courant", Description: "IGN boundaries by vintage",
+		Dependances: []string{"communes"},
+		Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+			return nil, geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime)
+		},
+	})
+	if err := ajouter("checksums", reg.Noms()); err != nil {
+		return nil, err
+	}
+	return reg, nil
+}
+
 // RunTout exécute la chaîne complète historique : pas littéralement toutes
 // les sources du catalogue (plusieurs sont délibérément hors chaîne par
 // défaut — coûteuses, ponctuelles, ou exigeant une clé/un binaire
 // particulier), mais le socle que « fpctl ingest all » a toujours rechargé.
 // Pour une catégorie entière, y compris ce qu'elle a de plus coûteux, voir
 // RunCategorie (« fpctl ingest <catégorie> all »).
-func RunTout(ctx context.Context, rawDir, migDir string) error {
+//
+// Passe désormais par le même graphe de dépendances que RunSources/
+// RunCategorie (registreComplet) plutôt qu'une chaîne Go séquentielle codée
+// à la main : le téléchargement de chaque connecteur se fait d'abord, tout
+// de front (PrefetchAll), puis les étapes tournent par vagues topologiques
+// jusqu'à -j de front — presidentielle/budget/macro/prefets/agriculture/
+// entreprises/campagne, entre autres, n'ont jamais eu besoin d'attendre le
+// socle parlementaire, seulement de l'ordre du fichier source pour s'exécuter
+// jusqu'ici.
+func RunTout(ctx context.Context, rawDir, migDir string, opts ...pipeline.Options) error {
 	start := time.Now()
 	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
 	if err != nil {
@@ -457,151 +580,31 @@ func RunTout(ctx context.Context, rawDir, migDir string) error {
 	}
 	defer fermer()
 
-	logs.Notice("downloading and sealing")
-	if err := telechargerAssemblee(ctx, pool, arch); err != nil {
+	reg, err := registreComplet(ctx, pool, arch, rawDir)
+	if err != nil {
 		return err
 	}
 
-	logs.Notice("party reference data")
-	if err := ingestPartis(ctx, pool, arch); err != nil {
-		return err
+	dryRun := len(opts) > 0 && opts[0].DryRun
+	if !dryRun {
+		concurrence := 1
+		if len(opts) > 0 && opts[0].Concurrence > 0 {
+			concurrence = opts[0].Concurrence
+		}
+		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
+		if err != nil {
+			return err
+		}
 	}
 
-	// La normalisation de l'Assemblée vient AVANT le RNE et le Sénat.
-	// L'ordre n'est pas cosmétique : le RNE n'insère un mandat de député que si
-	// l'Assemblée n'en a pas déjà publié un (« le RNE complète, il n'écrase
-	// pas »). Tant que la normalisation passait en dernier, ce garde-fou ne
-	// gardait rien — le RNE arrivait le premier avec sa version pauvre, sans
-	// circonscription ni date de fin, et la contrainte d'exclusion faisait
-	// rejeter celle de l'Assemblée. En silence.
-	logs.Notice("normalizing raw -> core")
-	if err := normaliserAssemblee(ctx, pool); err != nil {
+	if _, err := reg.Executer(ctx, reg.Noms(), opts...); err != nil {
 		return err
 	}
-
-	logs.Notice("Senate")
-	if err := ingestSenat(ctx, pool, arch, rawDir); err != nil {
-		return err
+	if dryRun {
+		return nil
 	}
-
-	logs.Notice("European Parliament")
-	if err := europe.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-
-	if err := dimensionLocale(ctx, pool, arch); err != nil {
-		return err
-	}
-
-	logs.Notice("nonprofit associations")
-	if err := associations.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-
-	logs.Notice("declarations of interests and assets")
-	if err := hatvp.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-
-	logs.Notice("presidential election, population by age, turnout comparison")
-	if err := presidentielle.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := presidentielle.IngestPopulation(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := presidentielle.IngestTurnout(ctx, pool, arch); err != nil {
-		return err
-	}
-
-	logs.Notice("state and social security budget")
-	if err := budget.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-
-	logs.Notice("major national series")
-	if err := ingestMacro(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := prefets.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-
-	// Contours communaux et intercommunaux, un jeu par millésime du COG. Le
-	// bloc communes (dimensionLocale) a déjà chargé le COG courant : inutile
-	// de le recharger ici (contrairement à la source « contours » invoquée
-	// seule, catégorie systeme, qui le recharge elle-même).
-	logs.Notice("IGN boundaries by vintage")
-	if err := geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime); err != nil {
-		return err
-	}
-
-	logs.Notice("food balance sheets and farm production")
-	if err := agriculture.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-
-	logs.Notice("filed accounts of large companies")
-	if err := entreprises.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-
-	// Les travaux qui s'appuient sur core.texte et core.dossier viennent après
-	// la normalisation, jamais avant : ils y font référence par clé étrangère.
-	logs.Notice("amendments and their summaries")
-	if err := an.IngestAmendements(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("statements of reasons")
-	if err := an.IngestExposes(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("floor speeches")
-	if err := an.IngestInterventions(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("campaign accounts")
-	if err := campagne.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("nominative acts of the official gazette")
-	if err := jorf.Ingest(ctx, pool, arch, 60); err != nil {
-		return err
-	}
-	// Après jorf.Ingest, jamais avant : le rattachement compare la référence
-	// NOR publiée par l'Assemblée à jo.texte.nor, qui vient d'être rempli.
-	logs.Notice("linking bills to their promulgated law")
-	if err := an.PromulgationDossiers(ctx, pool); err != nil {
-		return err
-	}
-
-	if err := cartographie(ctx, pool); err != nil {
-		return err
-	}
-	// Après senat ET europe, jamais avant : un thème calculé avant que
-	// l'Europe ait tourné manquait toute la couverture PARLEMENT_EUROPEEN —
-	// le bug qui a motivé le graphe de dépendances déclaré (voir la source
-	// « themes » du catalogue et internal/pipeline).
-	logs.Notice("topics applicable to votes")
-	if err := carto.Themes(ctx, pool); err != nil {
-		return err
-	}
-
-	logs.Notice("freely reusable portraits and logos")
-	if err := ingestMedia(ctx, pool, arch, "data", "web/media"); err != nil {
-		return err
-	}
-
-	// En dernier : bon marché (quelques secondes, mesuré), et une exécution
-	// partielle (une seule catégorie, par exemple) peut très bien avoir
-	// touché une table dont dépend une section du cache de internal/sitegen
-	// (core.texte_expose fait partie de la section « scrutin »).
-	if err := recalculerEmpreintes(ctx, pool); err != nil {
-		return err
-	}
-	// Même logique, un étage plus haut (voir internal/matview) : une
-	// matvue n'est réellement REFRESHée que si ses tables source ou sa
-	// définition ont changé depuis la dernière fois.
+	// Même logique qu'ailleurs (voir RunSources) : core -> mv avant de
+	// rendre la main, jamais après.
 	if err := actualiserMatviews(ctx); err != nil {
 		return err
 	}

@@ -44,9 +44,9 @@ func commandeIngest() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&rawDir, "raw", "raw", "répertoire de l'archive scellée")
 	cmd.PersistentFlags().StringVar(&migDir, "migrations", "db/migrations", "répertoire des migrations")
 	cmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false,
-		"affiche l'ordre d'exécution par vagues sans rien exécuter (socle parlementaire seulement)")
+		"affiche l'ordre d'exécution par vagues sans rien exécuter")
 	cmd.PersistentFlags().IntVarP(&concurrence, "concurrence", "j", 1,
-		"étapes indépendantes exécutées de front, par vague (socle parlementaire seulement)")
+		"étapes indépendantes exécutées de front, par vague")
 	opts := func() pipeline.Options { return pipeline.Options{DryRun: dryRun, Concurrence: concurrence} }
 
 	cmd.AddCommand(&cobra.Command{
@@ -57,12 +57,12 @@ func commandeIngest() *cobra.Command {
 			"délibérément hors chaîne par défaut (coûteuses, ponctuelles, ou\n" +
 			"exigeant une clé ou un binaire particulier). Pour recharger une\n" +
 			"catégorie entière, y compris ce qu'elle a de plus coûteux, voir\n" +
-			"« fpctl ingest <catégorie> all ». Ne prend pas -dry-run/-j : c'est\n" +
-			"la chaîne historique, hors du socle audité par internal/pipeline —\n" +
-			"voir « fpctl ingest parlement all » pour ça.",
+			"« fpctl ingest <catégorie> all ». Passe par le même graphe de\n" +
+			"dépendances que les autres commandes (internal/ingest.\n" +
+			"registreComplet) : -dry-run et -j s'y appliquent aussi.",
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return executerInterne(cmd.Context(), ingest.RunTout(cmd.Context(), rawDir, migDir))
+			return executerInterne(cmd.Context(), ingest.RunTout(cmd.Context(), rawDir, migDir, opts()))
 		},
 	})
 
