@@ -378,35 +378,61 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	if err := mrows.Err(); err != nil {
 		return nil, err
 	}
-	for i := range c.GrandesMesures {
-		m := &c.GrandesMesures[i]
-		srows, err := pool.Query(ctx, `
-			SELECT annee, montant_eur FROM core.exoneration_cotisation
-			WHERE code_mesure=$1 ORDER BY annee`, m.Code)
+	// Une requête pour la série de TOUTES les mesures, une pour l'existence
+	// de TOUS les textes cités — plutôt que les deux, une fois par mesure
+	// (jusqu'à une douzaine de grandes mesures, mais le patron est le même
+	// N+1 qu'ailleurs dans ce fichier).
+	sAll, err := pool.Query(ctx, `
+		SELECT code_mesure, annee, montant_eur FROM core.exoneration_cotisation
+		ORDER BY code_mesure, annee`)
+	if err != nil {
+		return nil, err
+	}
+	ptsParCode := map[string][]PointAnnee{}
+	for sAll.Next() {
+		var code string
+		var p PointAnnee
+		if err := sAll.Scan(&code, &p.Annee, &p.Valeur); err != nil {
+			sAll.Close()
+			return nil, err
+		}
+		ptsParCode[code] = append(ptsParCode[code], p)
+	}
+	sAll.Close()
+	if err := sAll.Err(); err != nil {
+		return nil, err
+	}
+
+	var idsTextes []string
+	for _, loi := range loisExonerations {
+		idsTextes = append(idsTextes, loi.TexteURL)
+	}
+	texteExiste := map[string]bool{}
+	if len(idsTextes) > 0 {
+		trows, err := pool.Query(ctx, `SELECT id FROM jo.texte WHERE id = ANY($1)`, idsTextes)
 		if err != nil {
 			return nil, err
 		}
-		var pts []PointAnnee
-		for srows.Next() {
-			var p PointAnnee
-			if err := srows.Scan(&p.Annee, &p.Valeur); err != nil {
-				srows.Close()
+		for trows.Next() {
+			var id string
+			if err := trows.Scan(&id); err != nil {
+				trows.Close()
 				return nil, err
 			}
-			pts = append(pts, p)
+			texteExiste[id] = true
 		}
-		srows.Close()
-		if err := srows.Err(); err != nil {
+		trows.Close()
+		if err := trows.Err(); err != nil {
 			return nil, err
 		}
-		m.Serie = courbe(pts, mdEur)
-		if loi, ok := loisExonerations[m.Code]; ok {
-			var existe bool
-			if err := pool.QueryRow(ctx, `SELECT true FROM jo.texte WHERE id=$1`,
-				loi.TexteURL).Scan(&existe); err == nil && existe {
-				loi.TexteURL = "https://www.legifrance.gouv.fr/jorf/id/" + loi.TexteURL
-				m.Loi = &loi
-			}
+	}
+
+	for i := range c.GrandesMesures {
+		m := &c.GrandesMesures[i]
+		m.Serie = courbe(ptsParCode[m.Code], mdEur)
+		if loi, ok := loisExonerations[m.Code]; ok && texteExiste[loi.TexteURL] {
+			loi.TexteURL = "https://www.legifrance.gouv.fr/jorf/id/" + loi.TexteURL
+			m.Loi = &loi
 		}
 	}
 

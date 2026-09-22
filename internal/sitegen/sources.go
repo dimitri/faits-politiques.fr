@@ -73,42 +73,90 @@ func loadSources(ctx context.Context, pool *pgxpool.Pool) ([]SourceDetail, error
 		return nil, err
 	}
 
-	// URL réellement récupérées et empreinte du dernier document : c'est ce qui
-	// rend une ingestion vérifiable par un tiers.
-	for i := range out {
-		urls, err := pool.Query(ctx, `
-			SELECT DISTINCT r.url FROM raw.retrieval r
-			JOIN raw.source s ON s.id = r.source_id
-			WHERE s.slug = $1 AND r.document_id IS NOT NULL
-			ORDER BY r.url LIMIT 6`, out[i].Slug)
-		if err != nil {
+	// URL réellement récupérées, empreinte du dernier document, et nombre
+	// d'enregistrements : trois requêtes AU TOTAL plutôt que trois PAR
+	// SOURCE (166 sources, jusqu'à 498 aller-retours) — chacune couvre
+	// toutes les sources d'un coup et se répartit par slug ensuite en Go.
+	urls, err := pool.Query(ctx, `
+		WITH distinctes AS (
+			SELECT DISTINCT s.slug, r.url
+			  FROM raw.retrieval r
+			  JOIN raw.source s ON s.id = r.source_id
+			 WHERE r.document_id IS NOT NULL
+		)
+		SELECT slug, url FROM (
+			SELECT slug, url, row_number() OVER (PARTITION BY slug ORDER BY url) AS rn
+			  FROM distinctes
+		) x WHERE rn <= 6`)
+	if err != nil {
+		return nil, err
+	}
+	urlsParSlug := map[string][]string{}
+	for urls.Next() {
+		var slug, u string
+		if err := urls.Scan(&slug, &u); err != nil {
+			urls.Close()
 			return nil, err
 		}
-		for urls.Next() {
-			var u string
-			if err := urls.Scan(&u); err != nil {
-				return nil, err
-			}
-			out[i].URLs = append(out[i].URLs, u)
-		}
-		urls.Close()
+		urlsParSlug[slug] = append(urlsParSlug[slug], u)
+	}
+	urls.Close()
+	if err := urls.Err(); err != nil {
+		return nil, err
+	}
 
-		_ = pool.QueryRow(ctx, `
-			SELECT encode(d.sha256,'hex') FROM raw.retrieval r
-			JOIN raw.document d ON d.id = r.document_id
-			JOIN raw.source s ON s.id = r.source_id
-			WHERE s.slug = $1 ORDER BY r.fetched_at DESC LIMIT 1`, out[i].Slug).
-			Scan(&out[i].Empreinte)
+	empreintes, err := pool.Query(ctx, `
+		SELECT DISTINCT ON (s.slug) s.slug, encode(d.sha256,'hex')
+		  FROM raw.retrieval r
+		  JOIN raw.document d ON d.id = r.document_id
+		  JOIN raw.source s ON s.id = r.source_id
+		 ORDER BY s.slug, r.fetched_at DESC`)
+	if err != nil {
+		return nil, err
+	}
+	empreinteParSlug := map[string]string{}
+	for empreintes.Next() {
+		var slug, emp string
+		if err := empreintes.Scan(&slug, &emp); err != nil {
+			empreintes.Close()
+			return nil, err
+		}
+		empreinteParSlug[slug] = emp
+	}
+	empreintes.Close()
+	if err := empreintes.Err(); err != nil {
+		return nil, err
+	}
+
+	// mv.source_enregistrements (internal/matview) — plus le JOIN à quatre
+	// tables sur la totalité de raw.record (489 Mo) rejoué une fois par
+	// source.
+	enrRows, err := pool.Query(ctx, `SELECT source_slug, nombre_enregistrements FROM mv.source_enregistrements`)
+	if err != nil {
+		return nil, err
+	}
+	enrParSlug := map[string]int64{}
+	for enrRows.Next() {
+		var slug string
+		var n int64
+		if err := enrRows.Scan(&slug, &n); err != nil {
+			enrRows.Close()
+			return nil, err
+		}
+		enrParSlug[slug] = n
+	}
+	enrRows.Close()
+	if err := enrRows.Err(); err != nil {
+		return nil, err
+	}
+
+	for i := range out {
+		out[i].URLs = urlsParSlug[out[i].Slug]
+		out[i].Empreinte = empreinteParSlug[out[i].Slug]
 		if len(out[i].Empreinte) > 20 {
 			out[i].Empreinte = out[i].Empreinte[:20] + "…"
 		}
-
-		// mv.source_enregistrements (internal/matview) — plus le JOIN à
-		// quatre tables sur la totalité de raw.record (489 Mo) rejoué une
-		// fois par source.
-		_ = pool.QueryRow(ctx, `
-			SELECT nombre_enregistrements FROM mv.source_enregistrements
-			WHERE source_slug = $1`, out[i].Slug).Scan(&out[i].Enregistrements)
+		out[i].Enregistrements = enrParSlug[out[i].Slug]
 	}
 	return out, nil
 }

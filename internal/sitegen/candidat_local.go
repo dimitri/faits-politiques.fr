@@ -49,6 +49,7 @@ func loadMandatsLocaux(ctx context.Context, pool *pgxpool.Pool, path string) (
 		return nil, err
 	}
 	out := map[string]*RapprochementRNE{}
+	var ids []int64
 	for i, rec := range recs {
 		if i == 0 || len(rec) < 4 {
 			continue
@@ -62,32 +63,53 @@ func loadMandatsLocaux(ctx context.Context, pool *pgxpool.Pool, path string) (
 			rp.Source = strings.TrimSpace(rec[4])
 		}
 		out[slug] = rp
-		if rp.Statut != "RETENU" || id == 0 {
-			continue
+		if rp.Statut == "RETENU" && id != 0 {
+			ids = append(ids, id)
 		}
-		rows, err := pool.Query(ctx, `
-			SELECT m.mandate_type::text, coalesce(m.role,''),
-			       coalesce(c.nom_clair, m.constituency, ''),
-			       to_char(lower(m.validity),'DD/MM/YYYY'),
-			       coalesce(m.commune_code,''), coalesce(m.constituency,'')
-			FROM core.mandate m
-			LEFT JOIN ref.commune c ON c.code_insee=m.commune_code
-			 AND c.cog_millesime=(SELECT max(cog_millesime) FROM ref.commune)
-			WHERE m.person_id=$1 AND upper(m.validity) IS NULL
-			ORDER BY m.mandate_type`, id)
-		if err != nil {
+	}
+	if len(ids) == 0 {
+		return out, nil
+	}
+
+	// Une requête pour tous les id retenus, plutôt qu'une par ligne du CSV —
+	// une vingtaine de rapprochements aujourd'hui, mais le même patron N+1
+	// qu'ailleurs dans ce fichier.
+	rows, err := pool.Query(ctx, `
+		SELECT m.person_id, m.mandate_type::text, coalesce(m.role,''),
+		       coalesce(c.nom_clair, m.constituency, ''),
+		       to_char(lower(m.validity),'DD/MM/YYYY'),
+		       coalesce(m.commune_code,''), coalesce(m.constituency,'')
+		FROM core.mandate m
+		LEFT JOIN ref.commune c ON c.code_insee=m.commune_code
+		 AND c.cog_millesime=(SELECT max(cog_millesime) FROM ref.commune)
+		WHERE m.person_id = ANY($1) AND upper(m.validity) IS NULL
+		ORDER BY m.person_id, m.mandate_type`, ids)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	mandatsParID := map[int64][]MandatLocal{}
+	for rows.Next() {
+		var pid int64
+		var m MandatLocal
+		if err := rows.Scan(&pid, &m.Type, &m.Role, &m.Lieu, &m.Depuis, &m.Commune, &m.Circo); err != nil {
 			return nil, err
 		}
-		for rows.Next() {
-			var m MandatLocal
-			if err := rows.Scan(&m.Type, &m.Role, &m.Lieu, &m.Depuis, &m.Commune, &m.Circo); err != nil {
-				break
-			}
-			m.TypeCode = m.Type
-			m.Type = libelleMandat(m.Type)
-			rp.Mandats = append(rp.Mandats, m)
+		m.TypeCode = m.Type
+		m.Type = libelleMandat(m.Type)
+		mandatsParID[pid] = append(mandatsParID[pid], m)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	for i, rec := range recs {
+		if i == 0 || len(rec) < 4 {
+			continue
 		}
-		rows.Close()
+		slug := strings.TrimSpace(rec[0])
+		id, _ := strconv.ParseInt(strings.TrimSpace(rec[1]), 10, 64)
+		out[slug].Mandats = mandatsParID[id]
 	}
 	return out, nil
 }
