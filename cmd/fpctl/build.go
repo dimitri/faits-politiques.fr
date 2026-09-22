@@ -8,6 +8,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/ingest"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
 	"github.com/faits-politiques/faits-politiques/internal/sitegen"
+	"github.com/faits-politiques/faits-politiques/internal/watermark"
 	"github.com/spf13/cobra"
 )
 
@@ -65,7 +66,11 @@ func commandeBuild() *cobra.Command {
 				"jour), sans reconstruire le reste du site — voir « fpctl help\n" +
 				"build » pour le détail des options (-out, -max-scrutins...).\n" +
 				"-dry-run affiche le plan d'ingestion (vagues, concurrence) sans\n" +
-				"rien ingérer ni construire.",
+				"rien ingérer ni construire. -force ignore les watermarks : ingère\n" +
+				"comme si rien n'avait jamais tourné. -cache saute l'ingestion des\n" +
+				"préalables ENTIÈREMENT et construit directement depuis le schéma mv\n" +
+				"tel qu'il est déjà — ce que la CI utilise après un « fpctl dump\n" +
+				"restore », sans repasser par l'ingestion complète.",
 			DisableFlagParsing: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
@@ -197,14 +202,57 @@ func buildSection(cmd *cobra.Command, name string, sections []string, args []str
 	// (stderr d'abord, la réponse ensuite, sur stdout). Notre seul ajout,
 	// la ligne « puis : » ci-dessous, vient donc après coup, dans le même
 	// ordre.
-	dryRun := len(remaining) > 0 && (remaining[0] == "-dry-run" || remaining[0] == "--dry-run")
-	opts := pipeline.Options{DryRun: dryRun, Concurrence: concurrence}
-	if err := ingest.RunSources(cmd.Context(), "raw", "db/migrations", prerequisites, opts); err != nil {
-		return fmt.Errorf("préalables (%s) : %w", strings.Join(prerequisites, ", "), err)
+	// -dry-run, -force et -cache ne sont pas des drapeaux de internal/sitegen
+	// (flag.FlagSet, plus bas dans la chaîne) : retirés de remaining avant
+	// transmission, sinon sitegen les refuserait comme arguments inconnus.
+	// Repérés n'importe où dans la liste, jamais seulement en tête — rien
+	// n'impose un ordre entre les trois (une version antérieure ne testait
+	// que remaining[0] pour -dry-run, qui passait alors inaperçu dès qu'un
+	// autre drapeau le précédait).
+	dryRun, force, cache := false, false, false
+	{
+		reste := remaining[:0]
+		for _, a := range remaining {
+			switch a {
+			case "-dry-run", "--dry-run":
+				dryRun = true
+			case "-force", "--force":
+				force = true
+			case "-cache", "--cache":
+				cache = true
+			default:
+				reste = append(reste, a)
+			}
+		}
+		remaining = reste
+	}
+	ctx := cmd.Context()
+	if force {
+		ctx = watermark.WithForce(ctx)
+	}
+	// -cache : sauter l'ingestion des préalables ENTIÈREMENT, plutôt que la
+	// laisser tourner et constater qu'elle n'a rien à faire — celle-ci
+	// coûte encore, même à vide, la vérification de chaque watermark et
+	// l'actualisation des matvues (mesuré : de l'ordre de la minute). « fpctl
+	// build site » n'a jamais ingéré ses propres préalables (voir le
+	// commentaire en tête de ce fichier — c'est la CI qui les ingère à
+	// part, via « fpctl ingest all »), -cache donne aux groupes/sections/
+	// sujets isolés la même garantie explicitement : construire depuis le
+	// schéma mv et core tel qu'il est LÀ, MAINTENANT, sans y retoucher —
+	// c'est ce que la CI utilise pour construire depuis un dump déjà
+	// restauré (fpctl dump restore) sans repasser par l'ingestion complète.
+	if !cache {
+		opts := pipeline.Options{DryRun: dryRun, Concurrence: concurrence}
+		if err := ingest.RunSources(ctx, "raw", "db/migrations", prerequisites, opts); err != nil {
+			return fmt.Errorf("préalables (%s) : %w", strings.Join(prerequisites, ", "), err)
+		}
 	}
 	if dryRun {
+		if cache {
+			fmt.Printf("  -cache : préalables (%s) sautés, construction directe\n", strings.Join(prerequisites, ", "))
+		}
 		fmt.Printf("  puis : fpctl build %s\n", name)
 		return nil
 	}
-	return sitegen.RunSections(cmd.Context(), remaining, sections)
+	return sitegen.RunSections(ctx, remaining, sections)
 }
