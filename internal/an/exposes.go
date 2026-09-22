@@ -78,6 +78,7 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		 WHERE t.institution = 'ASSEMBLEE_NATIONALE'
 		   AND t.source_uid ~ '^(PION|PRJL)ANR5L17B'
 		   AND NOT EXISTS (SELECT 1 FROM core.texte_expose e WHERE e.texte_id = t.id)
+		   AND NOT EXISTS (SELECT 1 FROM core.texte_expose_verification v WHERE v.texte_id = t.id)
 		 ORDER BY t.id`)
 	if err != nil {
 		return fail(err)
@@ -100,6 +101,17 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	rows.Close()
 
 	var trouves, sansExpose, echecs int
+	// verifie note qu'un texte a été VÉRIFIÉ, trouvé ou non — voir la
+	// migration 0177 : sans elle, sansExpose/echecs redemandaient la même
+	// absence à chaque passage, indéfiniment.
+	verifie := func(id int64, trouve bool, raison string) error {
+		_, err := pool.Exec(ctx, `
+			INSERT INTO core.texte_expose_verification (texte_id, trouve, raison)
+			VALUES ($1,$2,$3)
+			ON CONFLICT (texte_id) DO NOTHING`, id, trouve, raison)
+		return err
+	}
+
 	for i, c := range cibles {
 		url := exposeBase + c.uid + ".html"
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".html")
@@ -107,11 +119,17 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			// Un texte absent du site n'est pas une erreur fatale : il est
 			// compté et signalé, le chargement continue.
 			echecs++
+			if err := verifie(c.id, false, "page inaccessible"); err != nil {
+				return fail(fmt.Errorf("%s : %w", c.uid, err))
+			}
 			continue
 		}
 		texte, ok := extraireExpose(f.Path)
 		if !ok {
 			sansExpose++
+			if err := verifie(c.id, false, "aucun exposé identifié dans la page"); err != nil {
+				return fail(fmt.Errorf("%s : %w", c.uid, err))
+			}
 			continue
 		}
 		if _, err := pool.Exec(ctx, `
@@ -120,6 +138,9 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			VALUES ($1,$2,$3,$4,$5,$6,$7)
 			ON CONFLICT (texte_id) DO NOTHING`,
 			c.id, c.uid, url, texte, chapeau(texte), len([]rune(texte)), srcID); err != nil {
+			return fail(fmt.Errorf("%s : %w", c.uid, err))
+		}
+		if err := verifie(c.id, true, ""); err != nil {
 			return fail(fmt.Errorf("%s : %w", c.uid, err))
 		}
 		trouves++

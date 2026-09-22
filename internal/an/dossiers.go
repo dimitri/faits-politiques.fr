@@ -176,15 +176,31 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 		pgx.CopyFromRows(copieDossiers)); err != nil {
 		return err
 	}
+	// MERGE plutôt qu'un upsert simple : core.dossier.id doit rester stable
+	// d'un run à l'autre (voir Normalize, qui ne wipe plus core.dossier
+	// avant d'appeler ceci — un dossier détruit puis réinséré recevrait un
+	// id neuf, et le NOT EXISTS d'internal/an/exposes.go ne verrait plus
+	// jamais un exposé déjà chargé comme déjà chargé). dossier_an, une vue
+	// scopée à l'Assemblée plutôt que core.dossier directement : la table
+	// est partagée avec le Sénat (internal/senat/senat.go y écrit aussi),
+	// même raison que core.ballot ailleurs dans ce projet.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW dossier_an AS
+		  SELECT * FROM core.dossier WHERE institution = 'ASSEMBLEE_NATIONALE'
+		  WITH LOCAL CHECK OPTION`); err != nil {
+		return err
+	}
 	res, err := tx.Query(ctx, `
-		WITH upsert AS (
-			INSERT INTO core.dossier (slug, institution, source_uid, legislature_id, titre, titre_chemin, senat_chemin)
-			SELECT slug, 'ASSEMBLEE_NATIONALE'::core.institution, uid, $1, titre, titre_chemin, senat_chemin
-			  FROM tmp_dossier
-			ON CONFLICT (institution, source_uid) DO UPDATE SET titre = EXCLUDED.titre
-			RETURNING id, source_uid
-		)
-		SELECT source_uid, id FROM upsert`, legID)
+		MERGE INTO dossier_an AS tgt
+		USING tmp_dossier AS src
+		ON tgt.source_uid = src.uid
+		WHEN MATCHED AND tgt.titre IS DISTINCT FROM src.titre THEN
+		    UPDATE SET titre = src.titre
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (slug, institution, source_uid, legislature_id, titre, titre_chemin, senat_chemin)
+		    VALUES (src.slug, 'ASSEMBLEE_NATIONALE', src.uid, $1, src.titre, src.titre_chemin, src.senat_chemin)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE
+		RETURNING tgt.source_uid, tgt.id`, legID)
 	if err != nil {
 		return fmt.Errorf("dossiers : %w", err)
 	}
@@ -386,16 +402,33 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 		pgx.CopyFromRows(copieTextes)); err != nil {
 		return 0, 0, err
 	}
+	// MERGE plutôt qu'un upsert simple, même raison que dossier_an plus
+	// haut : core.texte.id doit rester stable pour que le NOT EXISTS
+	// d'internal/an/exposes.go (qui saute un texte déjà pourvu d'un exposé)
+	// fonctionne réellement — sans ça, chaque renormalisation redonnait un
+	// id neuf à chaque texte, et exposes.go rechargeait les ~5 100 exposés
+	// depuis zéro à chaque fois, à raison d'une requête toutes les 400 ms
+	// (measured : ~47 minutes). texte_an, une vue scopée à l'Assemblée par
+	// cohérence avec dossier_an, même si core.texte n'a aujourd'hui aucune
+	// ligne Sénat.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW texte_an AS
+		  SELECT * FROM core.texte WHERE institution = 'ASSEMBLEE_NATIONALE'
+		  WITH LOCAL CHECK OPTION`); err != nil {
+		return 0, 0, err
+	}
 	res, err := tx.Query(ctx, `
-		WITH upsert AS (
-			INSERT INTO core.texte (slug, dossier_id, institution, source_uid, kind, titre, date_depot)
-			SELECT slug, dossier_id, 'ASSEMBLEE_NATIONALE'::core.institution, uid, kind, titre,
-			       nullif(date_depot, '')::date
-			  FROM tmp_texte
-			ON CONFLICT (institution, source_uid) DO UPDATE SET titre = EXCLUDED.titre
-			RETURNING id, source_uid
-		)
-		SELECT source_uid, id FROM upsert`)
+		MERGE INTO texte_an AS tgt
+		USING tmp_texte AS src
+		ON tgt.source_uid = src.uid
+		WHEN MATCHED AND tgt.titre IS DISTINCT FROM src.titre THEN
+		    UPDATE SET titre = src.titre
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (slug, dossier_id, institution, source_uid, kind, titre, date_depot)
+		    VALUES (src.slug, src.dossier_id, 'ASSEMBLEE_NATIONALE', src.uid, src.kind, src.titre,
+		            nullif(src.date_depot, '')::date)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE
+		RETURNING tgt.source_uid, tgt.id`)
 	if err != nil {
 		return 0, 0, fmt.Errorf("textes : %w", err)
 	}

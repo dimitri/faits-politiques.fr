@@ -987,20 +987,25 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		// leur pointeur, lui, désigne des dossiers sur le point de disparaître.
 		`UPDATE core.intervention SET dossier_id = NULL
 		  WHERE institution = 'ASSEMBLEE_NATIONALE' AND dossier_id IS NOT NULL`,
-		// Les amendements se rattachent aux textes par clé étrangère. Rebâtir
-		// core.texte sans les effacer d'abord faisait échouer toute la
-		// normalisation — ce qui est le bon comportement : la contrainte a
-		// tenu. Ils sont rechargés par le connecteur des amendements, qui
-		// s'exécute après la normalisation dans la chaîne.
-		`DELETE FROM core.amendement WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		// core.amendement, core.texte et core.dossier ne sont PLUS wipés ici
+		// (voir NormalizeDossiers/normalizeDocuments, internal/an/dossiers.go :
+		// un MERGE sur une vue scopée à l'Assemblée les remplace) — l'ancien
+		// commentaire disait juste : « rebâtir core.texte sans les effacer
+		// d'abord faisait échouer la normalisation, la contrainte a tenu » —
+		// cette contrainte tenait PARCE QUE core.texte recevait un id neuf à
+		// chaque passage ; un MERGE garde l'id stable, donc plus rien ne
+		// pend au-dessus du vide qu'un DELETE laissait derrière lui. C'est
+		// aussi ce qui rend le NOT EXISTS d'internal/an/exposes.go enfin
+		// utile : sans id stable, il ne pouvait jamais reconnaître un texte
+		// déjà pourvu d'un exposé (mesuré : ~47 minutes perdues à tout
+		// retélécharger, une requête toutes les 400 ms, à chaque
+		// renormalisation).
 		`DELETE FROM core.lecture l USING core.dossier d
 		  WHERE d.id = l.dossier_id AND d.institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.dossier_author a USING core.dossier d
 		  WHERE d.id = a.dossier_id AND d.institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.texte_author a USING core.texte t
 		  WHERE t.id = a.texte_id AND t.institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.texte WHERE institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.dossier WHERE institution = 'ASSEMBLEE_NATIONALE'`,
 	}...)
 
 	if !organeUnchanged {
