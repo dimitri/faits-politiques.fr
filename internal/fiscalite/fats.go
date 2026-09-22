@@ -134,13 +134,41 @@ func IngestFATS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.fats_controle WHERE pays_hote = 'FR'`); err != nil {
+
+		// Seule la France comme pays hôte est chargée par ce connecteur ; un
+		// autre pays hôte, une fois chargé, ne doit pas être touché ici.
+		if _, err := tx.Exec(ctx, `
+			CREATE OR REPLACE TEMPORARY VIEW fats_controle_fr AS
+			SELECT * FROM core.fats_controle WHERE pays_hote = 'FR'
+			WITH LOCAL CHECK OPTION`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "fats_controle"},
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_fats_controle (
+				pays_hote text, annee smallint, pays_controle text, activite text,
+				indicateur text, serie text, valeur numeric, document_id bigint
+			) ON COMMIT DROP`); err != nil {
+			return nil, err
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_fats_controle"},
 			[]string{"pays_hote", "annee", "pays_controle", "activite", "indicateur", "serie", "valeur", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `
+			MERGE INTO fats_controle_fr AS tgt
+			USING tmp_fats_controle AS src
+			     ON tgt.pays_hote = src.pays_hote AND tgt.annee = src.annee
+			    AND tgt.pays_controle = src.pays_controle AND tgt.activite = src.activite
+			    AND tgt.indicateur = src.indicateur AND tgt.serie = src.serie
+			WHEN MATCHED AND (tgt.valeur, tgt.document_id) IS DISTINCT FROM (src.valeur, src.document_id)
+			THEN UPDATE SET valeur = src.valeur, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			     INSERT (pays_hote, annee, pays_controle, activite, indicateur, serie, valeur, document_id)
+			     VALUES (src.pays_hote, src.annee, src.pays_controle, src.activite, src.indicateur,
+			             src.serie, src.valeur, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+			return nil, fmt.Errorf("fusion fats_controle : %w", err)
 		}
 		return stats, tx.Commit(ctx)
 	})

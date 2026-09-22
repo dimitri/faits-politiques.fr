@@ -214,19 +214,43 @@ func IngestPersonnelCategorie(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.education_personnel_categorie WHERE annee = $1`, anneePersonnelCategorie); err != nil {
+
+	// Seule la rentrée anneePersonnelCategorie est chargée par ce connecteur ;
+	// une année future, une fois chargée, ne doit pas être touchée ici.
+	if _, err := tx.Exec(ctx, fmt.Sprintf(`
+		CREATE OR REPLACE TEMPORARY VIEW education_personnel_categorie_scope AS
+		SELECT * FROM core.education_personnel_categorie WHERE annee = %d
+		WITH LOCAL CHECK OPTION`, anneePersonnelCategorie)); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "education_personnel_categorie"},
-		[]string{"annee", "categorie", "effectif", "etp", "source_id"}, pgx.CopyFromRows(rows))
-	if err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_education_personnel_categorie (
+			annee smallint, categorie text, effectif integer, etp numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_education_personnel_categorie"},
+		[]string{"annee", "categorie", "effectif", "etp", "source_id"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("education_personnel_categorie : %w", err))
+	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO education_personnel_categorie_scope AS tgt
+		USING tmp_education_personnel_categorie AS src ON tgt.annee = src.annee AND tgt.categorie = src.categorie
+		WHEN MATCHED AND (tgt.effectif, tgt.etp, tgt.source_id) IS DISTINCT FROM (src.effectif, src.etp, src.source_id)
+		THEN UPDATE SET effectif = src.effectif, etp = src.etp, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (annee, categorie, effectif, etp, source_id)
+		     VALUES (src.annee, src.categorie, src.effectif, src.etp, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion education_personnel_categorie : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
-	fmt.Printf("  personnels non enseignants par catégorie (Depp Panorama) : %d lignes\n", n)
+	n := ct.RowsAffected()
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(rows)}, "")
+	fmt.Printf("  personnels non enseignants par catégorie (Depp Panorama) : %d lignes reçues, %d touchées par la fusion\n", len(rows), n)
 	return nil
 }

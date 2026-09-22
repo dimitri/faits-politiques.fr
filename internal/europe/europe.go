@@ -118,13 +118,9 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 
 	// topic_assignment se reconstruit à part (eurovoc_concepts/
 	// eurovoc_concept_votes, deux fichiers indépendants de member_votes) :
-	// sa remise à zéro reste inconditionnelle, seules ballot/scrutin suivent
-	// le cache ci-dessus.
-	if _, err := pool.Exec(ctx, `
-		DELETE FROM core.topic_assignment t USING core.scrutin s
-		 WHERE s.id = t.scrutin_id AND s.institution = 'PARLEMENT_EUROPEEN'`); err != nil {
-		return fmt.Errorf("remise à zéro : %w", err)
-	}
+	// sa fusion (voir chargerEuroVoc) reste inconditionnelle sur son
+	// périmètre (les scrutins du Parlement européen), seules ballot/scrutin
+	// suivent le cache ci-dessus.
 	// Ni core.ballot ni core.scrutin ne sont plus wipés ici : chargerVotesNominatifs
 	// fait maintenant un MERGE sur core.ballot (voir son commentaire), et ça
 	// suppose des scrutin_id STABLES d'un passage à l'autre — chargerVotes
@@ -736,8 +732,50 @@ func chargerEuroVoc(ctx context.Context, pool *pgxpool.Pool,
 	}); err != nil {
 		return 0, err
 	}
-	n, err := pool.CopyFrom(ctx, pgx.Identifier{"core", "topic_assignment"},
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	// Scope : seules les affectations de thème portées par un scrutin du
+	// Parlement européen. topic_assignment est partagée avec d'autres
+	// connecteurs (ex. internal/senat/senat.go, sur dossier_id) qui ne
+	// doivent pas être touchés ici — d'où la vue plutôt qu'un MERGE sur la
+	// table entière.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW topic_assignment_pe AS
+		SELECT * FROM core.topic_assignment t
+		 WHERE t.scrutin_id IN (SELECT id FROM core.scrutin WHERE institution = 'PARLEMENT_EUROPEEN')
+		WITH LOCAL CHECK OPTION`); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_topic_assignment_pe (
+			topic_code text, scrutin_id bigint, provenance core.provenance,
+			verification core.verification_status
+		) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_topic_assignment_pe"},
 		[]string{"topic_code", "scrutin_id", "provenance", "verification"},
-		pgx.CopyFromRows(rows))
-	return int(n), err
+		pgx.CopyFromRows(rows)); err != nil {
+		return 0, err
+	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO topic_assignment_pe AS tgt
+		USING tmp_topic_assignment_pe AS src ON tgt.topic_code = src.topic_code AND tgt.scrutin_id = src.scrutin_id
+		WHEN MATCHED AND (tgt.provenance, tgt.verification) IS DISTINCT FROM (src.provenance, src.verification)
+		THEN UPDATE SET provenance = src.provenance, verification = src.verification
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (topic_code, scrutin_id, provenance, verification)
+		     VALUES (src.topic_code, src.scrutin_id, src.provenance, src.verification)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return 0, fmt.Errorf("fusion topic_assignment : %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return int(ct.RowsAffected()), nil
 }
