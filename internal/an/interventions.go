@@ -107,7 +107,6 @@ func IngestInterventions(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	defer tx.Rollback(ctx)
 
 	if _, err := tx.Exec(ctx, `
-		SET LOCAL work_mem = '256MB';
 		CREATE TEMP TABLE tmp_intervention (
 			slug text, institution core.institution, source_uid text, person_id bigint,
 			date_seance date, contenu text, legislature text, session text,

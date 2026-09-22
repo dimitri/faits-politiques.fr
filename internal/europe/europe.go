@@ -562,15 +562,6 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 	}
 	defer tx.Rollback(ctx)
 
-	// work_mem par défaut (4 Mo) fait déborder sur disque le DISTINCT ON de
-	// la fusion plus bas (~1,97M lignes) — mesuré ailleurs dans ce projet
-	// sur une jointure de taille comparable (internal/communes/ssmsi.go) :
-	// un tri qui tient en mémoire plutôt qu'un "external merge" sur disque.
-	// maintenance_work_mem : ADD CONSTRAINT (SansContraintesFK) revalide la
-	// FK par un scan ensembliste, qui puise dans ce budget-là, pas work_mem.
-	if _, err := tx.Exec(ctx, `SET LOCAL work_mem = '256MB'; SET LOCAL maintenance_work_mem = '1GB'`); err != nil {
-		return 0, err
-	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_member_votes (
 			rn bigint GENERATED ALWAYS AS IDENTITY,

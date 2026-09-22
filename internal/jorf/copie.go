@@ -199,13 +199,7 @@ func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	// vecteur calculé avec une configuration puis interrogé avec une autre ne
 	// rend rien, sans erreur.
 	//
-	// maintenance_work_mem est relevé explicitement : la valeur par défaut est
-	// de 64 Mo, et la construction d'un index GIN s'en accommode mal à mesure
-	// que le corpus grandit.
 	debutVues := time.Now()
-	if _, err := pool.Exec(ctx, `SET maintenance_work_mem = '1GB'`); err != nil {
-		return fail(err)
-	}
 	for _, v := range []string{"jo.recherche_texte", "jo.recherche_bloc"} {
 		if _, err := pool.Exec(ctx, "REFRESH MATERIALIZED VIEW "+v); err != nil {
 			return fail(fmt.Errorf("rafraîchissement de %s : %w", v, err))

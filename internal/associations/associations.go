@@ -87,9 +87,6 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `SET LOCAL work_mem = '256MB'`); err != nil {
-		return fail(err)
-	}
 	if _, err := tx.Exec(ctx, `DELETE FROM core.association`); err != nil {
 		return fail(err)
 	}

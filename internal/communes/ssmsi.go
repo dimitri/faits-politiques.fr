@@ -105,13 +105,6 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 	}
 	defer tx.Rollback(ctx)
 
-	// Le dédoublonnage final trie 5,2 millions de lignes. Avec le work_mem par
-	// défaut de 4 Mo, PostgreSQL bascule sur un tri externe sur disque et la
-	// requête dépasse le quart d'heure. La mémoire est relevée pour cette
-	// transaction seulement — SET LOCAL, donc rendue à la fin.
-	if _, err := tx.Exec(ctx, `SET LOCAL work_mem = '256MB'`); err != nil {
-		return fail(err)
-	}
 	if _, err := tx.Exec(ctx, `DELETE FROM core.commune_delinquance`); err != nil {
 		return fail(err)
 	}

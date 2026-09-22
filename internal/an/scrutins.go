@@ -324,7 +324,6 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	}
 	defer tx.Rollback(ctx)
 	if _, err := tx.Exec(ctx, `
-		SET LOCAL work_mem = '256MB';
 		CREATE TEMP TABLE tmp_ballot_an (
 			scrutin_id bigint, person_id bigint, organization_id bigint,
 			position core.vote_position, par_delegation boolean,

@@ -119,11 +119,6 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	}
 	defer tx.Rollback(ctx)
 
-	// work_mem par défaut (4 Mo) ferait déborder sur disque le DISTINCT ON
-	// du MERGE des mandats locaux plus bas (~543 000 lignes).
-	if _, err := tx.Exec(ctx, `SET LOCAL work_mem = '256MB'`); err != nil {
-		return fail(err)
-	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE rne_in (
 		  mandate_type text, commune_code text, constituency text,

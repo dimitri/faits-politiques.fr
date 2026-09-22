@@ -378,14 +378,6 @@ func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int
 		return 0, 0, 0, 0, err
 	}
 	defer tx.Rollback(ctx)
-	// maintenance_work_mem : ADD CONSTRAINT (dans SansContraintesFK) revalide
-	// la FK par un scan ensembliste plutôt que des triggers ligne à ligne —
-	// c'est du maintenance_work_mem que Postgres puise pour ce scan, pas du
-	// work_mem (voir déjà le même choix pour le GIN de jo.recherche_texte,
-	// internal/jorf/copie.go).
-	if _, err := tx.Exec(ctx, `SET LOCAL maintenance_work_mem = '1GB'`); err != nil {
-		return 0, 0, 0, 0, err
-	}
 	if err := bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO senat_raw.ballot_senat AS tgt

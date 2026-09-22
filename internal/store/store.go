@@ -7,6 +7,7 @@ import (
 	"os"
 	"time"
 
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -42,6 +43,23 @@ func OpenWithMaxConns(ctx context.Context, maxConns int32) (*pgxpool.Pool, error
 	}
 	cfg.MaxConns = maxConns
 	cfg.MaxConnLifetime = time.Hour
+	// 1 Go sur CHAQUE connexion, pas au coup par coup : le défaut serveur
+	// (4 Mo de work_mem, 64 Mo de maintenance_work_mem) a fait déborder sur
+	// disque plusieurs tris/jointures de ce projet une fois la volumétrie
+	// dépassée (mesuré : ssmsi.go, ~5,2M lignes ; le MERGE de core.ballot
+	// pour l'Europe, ~1,97M ; RE-ADD CONSTRAINT après bulkload.
+	// SansContraintesFK, qui puise dans maintenance_work_mem). Plutôt que
+	// d'ajouter un SET LOCAL à chaque nouvel appelant qui découvre le
+	// problème à son tour — déjà fait six fois séparément dans ce
+	// projet — un réglage à la connexion couvre tout le monde une bonne
+	// fois, y compris REFRESH MATERIALIZED VIEW (internal/matview), qui
+	// n'avait jamais eu cette couverture. Toujours annulable localement par
+	// un SET LOCAL plus bas dans une transaction si un appelant a besoin
+	// d'un budget différent.
+	cfg.AfterConnect = func(ctx context.Context, conn *pgx.Conn) error {
+		_, err := conn.Exec(ctx, `SET work_mem = '1GB'; SET maintenance_work_mem = '1GB'`)
+		return err
+	}
 
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {

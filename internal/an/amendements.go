@@ -128,7 +128,6 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	defer tx.Rollback(ctx)
 
 	for _, q := range []string{
-		`SET LOCAL work_mem = '256MB'`,
 		`DELETE FROM core.amendement_author a USING core.amendement m
 		  WHERE m.id = a.amendement_id AND m.institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.amendement_attribution a USING core.amendement m

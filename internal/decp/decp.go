@@ -94,9 +94,6 @@ func IngestDECP(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `SET LOCAL work_mem = '256MB'`); err != nil {
-		return fail(err)
-	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE decp_in (
 		  source_uid text, acheteur_siret text, commune_code text, acheteur_region_code text,
