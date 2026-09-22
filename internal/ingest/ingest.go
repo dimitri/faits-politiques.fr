@@ -306,10 +306,25 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 	}
 	defer fermer()
 	dryRun := len(opts) > 0 && opts[0].DryRun
+	concurrence := 1
+	if len(opts) > 0 && opts[0].Concurrence > 0 {
+		concurrence = opts[0].Concurrence
+	}
 	if EstSurLeSocle(nom) {
 		reg, err := registreParlement(ctx, pool, arch, rawDir)
 		if err != nil {
 			return err
+		}
+		// registreParlement construit tout le socle, pas seulement nom : on
+		// prétélécharge donc les cibles du socle entier plutôt que la
+		// fermeture exacte de nom (que Niveaux calculerait, un peu de travail
+		// en plus pour un seul appel visé) — un léger surcroît de
+		// téléchargement pour une demande étroite, jamais une incorrection.
+		if !dryRun {
+			ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
+			if err != nil {
+				return err
+			}
 		}
 		if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
 			return err
@@ -322,6 +337,12 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 	reg, err := registreDe(pool, arch, rawDir, []string{nom})
 	if err != nil {
 		return err
+	}
+	if !dryRun {
+		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
+		if err != nil {
+			return err
+		}
 	}
 	if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
 		return err
@@ -374,6 +395,24 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 			reste = append(reste, s.Nom)
 		}
 	}
+
+	dryRun := len(opts) > 0 && opts[0].DryRun
+	if !dryRun {
+		concurrence := 1
+		if len(opts) > 0 && opts[0].Concurrence > 0 {
+			concurrence = opts[0].Concurrence
+		}
+		// Une seule vague de téléchargement pour la catégorie ENTIÈRE,
+		// socle et reste confondus, avant que l'un ou l'autre registre ne
+		// tourne — même raison que RunSources : aucun de ces
+		// téléchargements n'a besoin qu'un autre ait fini pour commencer
+		// le sien.
+		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(append(append([]string{}, socle...), reste...)), concurrence)
+		if err != nil {
+			return err
+		}
+	}
+
 	if len(socle) > 0 {
 		reg, err := registreParlement(ctx, pool, arch, rawDir)
 		if err != nil {
@@ -392,7 +431,7 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 			return err
 		}
 	}
-	if len(opts) > 0 && opts[0].DryRun {
+	if dryRun {
 		return nil
 	}
 	// raw -> core est fait pour toute la catégorie ; core -> mv avant de
