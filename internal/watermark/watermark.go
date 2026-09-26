@@ -26,12 +26,37 @@ type Executeur interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
+// forceKey — voir WithForce.
+type forceKey struct{}
+
+// WithForce marque ctx pour que tout watermark rencontré en aval (FileDiff
+// ici, watermarkDiff dans internal/an/watermark.go) se comporte comme si
+// rien n'avait jamais été vu — sans supprimer la ligne core.ingest_watermark
+// elle-même, qui sera simplement réécrite par le Record qui suit un
+// rebuild forcé. Sert « fpctl ingest --force » / « fpctl build --force » :
+// jamais un état par défaut, un appelant qui n'y passe pas garde le
+// comportement normal.
+func WithForce(ctx context.Context) context.Context {
+	return context.WithValue(ctx, forceKey{}, true)
+}
+
+// Forced dit si ctx porte WithForce — internal/an/watermark.go s'en sert
+// aussi, pour son propre mécanisme (raw.record), sans dépendre du reste de
+// ce paquet.
+func Forced(ctx context.Context) bool {
+	v, _ := ctx.Value(forceKey{}).(bool)
+	return v
+}
+
 // FileDiff dit si scope a déjà traité avec succès exactement ce sha256 —
 // auquel cas l'appelant peut sauter sa reconstruction. Le style du message
 // suit celui d'internal/an/watermark.go (watermarkDiff) à dessein : les deux
 // mécanismes répondent à la même question, un lecteur de logs ne doit pas
 // avoir à apprendre deux vocabulaires.
 func FileDiff(ctx context.Context, pool *pgxpool.Pool, scope, hash string) (unchanged bool, raison string, err error) {
+	if Forced(ctx) {
+		return false, fmt.Sprintf("%s: rebuild forced (--force)", scope), nil
+	}
 	var seen *string
 	err = pool.QueryRow(ctx,
 		`SELECT content_hash FROM core.ingest_watermark WHERE scope = $1`, scope).Scan(&seen)

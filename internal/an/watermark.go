@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/watermark"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -30,6 +31,9 @@ func rawWatermark(ctx context.Context, pool *pgxpool.Pool, recordType string) (c
 // si c'est parce que rien n'avait encore tourné, ou parce que l'Assemblée a
 // publié une mise à jour depuis la dernière fois.
 func watermarkDiff(ctx context.Context, pool *pgxpool.Pool, scope string, count, highWater int64) (unchanged bool, raison string, err error) {
+	if watermark.Forced(ctx) {
+		return false, fmt.Sprintf("%s: rebuild forced (--force)", scope), nil
+	}
 	var seenCount, seenHigh int64
 	err = pool.QueryRow(ctx,
 		`SELECT record_count, high_water_id FROM core.ingest_watermark WHERE scope = $1`,
