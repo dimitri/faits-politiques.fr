@@ -116,19 +116,42 @@ func IngestEmploiSecteurNACE(ctx context.Context, pool *pgxpool.Pool, arch *arch
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.emploi_secteur_nace`); err != nil {
+
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour l'intégralité de la série 1975-2025 à chaque republication
+	// annuelle, changement ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_emploi_secteur_nace (
+			annee int, code_nace text, libelle_nace text, emploi_milliers numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "emploi_secteur_nace"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_emploi_secteur_nace"},
 		[]string{"annee", "code_nace", "libelle_nace", "emploi_milliers", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("core.emploi_secteur_nace : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.emploi_secteur_nace AS tgt
+		USING tmp_emploi_secteur_nace AS src
+		ON tgt.annee = src.annee AND tgt.code_nace = src.code_nace
+		WHEN MATCHED AND (tgt.libelle_nace, tgt.emploi_milliers, tgt.source_id)
+		                  IS DISTINCT FROM (src.libelle_nace, src.emploi_milliers, src.source_id) THEN
+		    UPDATE SET libelle_nace = src.libelle_nace, emploi_milliers = src.emploi_milliers,
+		               source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, code_nace, libelle_nace, emploi_milliers, source_id)
+		    VALUES (src.annee, src.code_nace, src.libelle_nace, src.emploi_milliers, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": n}, "")
-	fmt.Printf("  Emploi par secteur (NACE A10) : %d lignes\n", n)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": len(rows), "touchees": n}, "")
+	fmt.Printf("  Emploi par secteur (NACE A10) : %d lignes (%d touchées par la fusion)\n", len(rows), n)
 	return nil
 }

@@ -181,18 +181,56 @@ func IngestOCDEImpotSocietes(ctx context.Context, pool *pgxpool.Pool, arch *arch
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.cbcr_agregat; DELETE FROM core.fiscalite_pays`); err != nil {
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_cbcr_agregat (
+				annee smallint, siege text, juridiction text, mesure text,
+				groupe_profit text, unite text, valeur numeric, document_id bigint
+			) ON COMMIT DROP;
+			CREATE TEMP TABLE tmp_fiscalite_pays (
+				pays text, annee smallint, indicateur text, variante text,
+				valeur numeric, valeur_texte text, unite text, document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "cbcr_agregat"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_cbcr_agregat"},
 			[]string{"annee", "siege", "juridiction", "mesure", "groupe_profit", "unite", "valeur", "document_id"},
 			pgx.CopyFromRows(cbcr)); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "fiscalite_pays"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_fiscalite_pays"},
 			[]string{"pays", "annee", "indicateur", "variante", "valeur", "valeur_texte", "unite", "document_id"},
 			pgx.CopyFromRows(pays)); err != nil {
 			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `
+			MERGE INTO core.cbcr_agregat AS tgt
+			USING tmp_cbcr_agregat AS src
+			     ON tgt.annee = src.annee AND tgt.siege = src.siege AND tgt.juridiction = src.juridiction
+			    AND tgt.mesure = src.mesure AND tgt.groupe_profit = src.groupe_profit
+			WHEN MATCHED AND (tgt.unite, tgt.valeur, tgt.document_id) IS DISTINCT FROM (src.unite, src.valeur, src.document_id)
+			THEN UPDATE SET unite = src.unite, valeur = src.valeur, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			     INSERT (annee, siege, juridiction, mesure, groupe_profit, unite, valeur, document_id)
+			     VALUES (src.annee, src.siege, src.juridiction, src.mesure, src.groupe_profit, src.unite,
+			             src.valeur, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+			return nil, fmt.Errorf("fusion cbcr_agregat : %w", err)
+		}
+		if _, err := tx.Exec(ctx, `
+			MERGE INTO core.fiscalite_pays AS tgt
+			USING tmp_fiscalite_pays AS src
+			     ON tgt.pays = src.pays AND tgt.annee = src.annee AND tgt.indicateur = src.indicateur
+			    AND tgt.variante = src.variante
+			WHEN MATCHED AND (tgt.valeur, tgt.valeur_texte, tgt.unite, tgt.document_id)
+			     IS DISTINCT FROM (src.valeur, src.valeur_texte, src.unite, src.document_id)
+			THEN UPDATE SET valeur = src.valeur, valeur_texte = src.valeur_texte,
+			     unite = src.unite, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			     INSERT (pays, annee, indicateur, variante, valeur, valeur_texte, unite, document_id)
+			     VALUES (src.pays, src.annee, src.indicateur, src.variante, src.valeur, src.valeur_texte,
+			             src.unite, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+			return nil, fmt.Errorf("fusion fiscalite_pays : %w", err)
 		}
 		return stats, tx.Commit(ctx)
 	})
@@ -271,13 +309,41 @@ func IngestOCDEIDE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.ide_revenu WHERE pays_declarant = 'FRA'`); err != nil {
+
+		// Seule la France comme pays déclarant est chargée par ce connecteur ;
+		// un autre pays déclarant, une fois chargé, ne doit pas être touché ici.
+		if _, err := tx.Exec(ctx, `
+			CREATE OR REPLACE TEMPORARY VIEW ide_revenu_fra AS
+			SELECT * FROM core.ide_revenu WHERE pays_declarant = 'FRA'
+			WITH LOCAL CHECK OPTION`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "ide_revenu"},
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_ide_revenu (
+				pays_declarant text, annee smallint, contrepartie text, direction text,
+				composante text, type_entite text, unite text, valeur numeric, document_id bigint
+			) ON COMMIT DROP`); err != nil {
+			return nil, err
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_ide_revenu"},
 			[]string{"pays_declarant", "annee", "contrepartie", "direction", "composante", "type_entite", "unite", "valeur", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `
+			MERGE INTO ide_revenu_fra AS tgt
+			USING tmp_ide_revenu AS src
+			     ON tgt.pays_declarant = src.pays_declarant AND tgt.annee = src.annee
+			    AND tgt.contrepartie = src.contrepartie AND tgt.direction = src.direction
+			    AND tgt.composante = src.composante AND tgt.type_entite = src.type_entite AND tgt.unite = src.unite
+			WHEN MATCHED AND (tgt.valeur, tgt.document_id) IS DISTINCT FROM (src.valeur, src.document_id)
+			THEN UPDATE SET valeur = src.valeur, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			     INSERT (pays_declarant, annee, contrepartie, direction, composante, type_entite, unite, valeur, document_id)
+			     VALUES (src.pays_declarant, src.annee, src.contrepartie, src.direction, src.composante,
+			             src.type_entite, src.unite, src.valeur, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+			return nil, fmt.Errorf("fusion ide_revenu : %w", err)
 		}
 		return map[string]any{"lignes": len(lignes)}, tx.Commit(ctx)
 	})

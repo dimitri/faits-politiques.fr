@@ -21,6 +21,9 @@ import (
 	"unicode/utf8"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -70,6 +73,16 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	defer tx.Rollback(ctx)
 
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_compte (
+			type_election text, annee int, candidat_ref text, candidat_nom text,
+			circonscription text, departement text, code_departement text, nuance text,
+			monnaie text, depenses_declarees numeric, depenses_retenues numeric,
+			recettes_declarees numeric, recettes_retenues numeric
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+
 	var nComptes, nPostes int
 	for _, s := range scrutins {
 		f, err := arch.Fetch(ctx, srcID, runID, s.url, ".csv")
@@ -80,38 +93,123 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		if err != nil {
 			return fail(err)
 		}
-		if _, err := tx.Exec(ctx,
-			`DELETE FROM core.compte_campagne WHERE type_election=$1 AND annee=$2`,
-			s.typeElection, s.annee); err != nil {
+		if _, err := tx.Exec(ctx, `TRUNCATE tmp_compte`); err != nil {
+			return fail(err)
+		}
+		// MERGE plutôt que DELETE+COPY, scopé au scrutin (type_election, annee)
+		// par une vue temporaire : la table est réutilisée par tous les
+		// scrutins de la boucle, et l'ancien DELETE payait le prix des
+		// triggers RI pour l'intégralité d'UN scrutin (jusqu'à quelques
+		// milliers de comptes) à chaque republication, changement ou non.
+		// IS NOT DISTINCT FROM sur circonscription : la contrainte
+		// d'unicité traite deux NULL comme distincts (comportement standard
+		// SQL), mais le MERGE doit au contraire les reconnaître comme « même
+		// candidat, pas de circonscription » pour ne pas dupliquer sa ligne
+		// à chaque run.
+		if _, err := tx.Exec(ctx, fmt.Sprintf(`
+			CREATE OR REPLACE TEMPORARY VIEW compte_campagne_scope AS
+			  SELECT * FROM core.compte_campagne
+			   WHERE type_election = %s AND annee = %d
+			  WITH LOCAL CHECK OPTION`, quoteLiteral(s.typeElection), s.annee)); err != nil {
 			return fail(err)
 		}
 
+		var comptes []map[string]string
+		var compteRows [][]any
 		for _, r := range recs {
 			nom := strings.TrimSpace(r["nom"])
 			if nom == "" {
 				continue
 			}
-			var id int64
-			if err := tx.QueryRow(ctx, `
-				INSERT INTO core.compte_campagne
-				  (type_election, annee, candidat_ref, candidat_nom, circonscription,
-				   departement, code_departement, nuance, monnaie,
-				   depenses_declarees, depenses_retenues, recettes_declarees, recettes_retenues, source_id)
-				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14)
-				ON CONFLICT (type_election, annee, candidat_nom, circonscription) DO NOTHING
-				RETURNING id`,
+			comptes = append(comptes, r)
+			compteRows = append(compteRows, []any{
 				s.typeElection, s.annee, nul(r["candidat"]), nom,
 				nul(r["circonscription"]), nul(r["département"]), nul(r["code département"]),
 				nul(r["nuance"]), nul(r["monnaie"]),
 				montant(r["dépenses totales déclarées"]), montant(r["depenses totales retenues"]),
 				montant(r["recettes totales déclarées"]), montant(r["recettes totales retenues"]),
-				srcID).Scan(&id); err != nil {
-				continue // doublon de nom dans la même circonscription : ignoré
+			})
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_compte"},
+			[]string{"type_election", "annee", "candidat_ref", "candidat_nom", "circonscription",
+				"departement", "code_departement", "nuance", "monnaie", "depenses_declarees",
+				"depenses_retenues", "recettes_declarees", "recettes_retenues"},
+			pgx.CopyFromRows(compteRows)); err != nil {
+			return fail(err)
+		}
+		// Pas de RETURNING : il n'émettrait une ligne que pour un compte dont
+		// l'UPDATE a réellement changé quelque chose, laissant les comptes
+		// inchangés hors de la carte candidat -> id. Un SELECT séparé après
+		// coup, sans dépendre d'un WHEN, la reconstruit en entier.
+		if _, err := tx.Exec(ctx, `
+			MERGE INTO compte_campagne_scope AS tgt
+			USING tmp_compte AS src
+			ON tgt.candidat_nom = src.candidat_nom
+			   AND tgt.circonscription IS NOT DISTINCT FROM src.circonscription
+			WHEN MATCHED AND (tgt.candidat_ref, tgt.departement, tgt.code_departement, tgt.nuance,
+			                   tgt.monnaie, tgt.depenses_declarees, tgt.depenses_retenues,
+			                   tgt.recettes_declarees, tgt.recettes_retenues, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.candidat_ref, src.departement, src.code_departement, src.nuance,
+			                   src.monnaie, src.depenses_declarees, src.depenses_retenues,
+			                   src.recettes_declarees, src.recettes_retenues, $1) THEN
+			    UPDATE SET candidat_ref = src.candidat_ref, departement = src.departement,
+			               code_departement = src.code_departement, nuance = src.nuance,
+			               monnaie = src.monnaie, depenses_declarees = src.depenses_declarees,
+			               depenses_retenues = src.depenses_retenues,
+			               recettes_declarees = src.recettes_declarees,
+			               recettes_retenues = src.recettes_retenues, source_id = $1
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (type_election, annee, candidat_ref, candidat_nom, circonscription,
+			            departement, code_departement, nuance, monnaie,
+			            depenses_declarees, depenses_retenues, recettes_declarees, recettes_retenues, source_id)
+			    VALUES (src.type_election, src.annee, src.candidat_ref, src.candidat_nom, src.circonscription,
+			            src.departement, src.code_departement, src.nuance, src.monnaie,
+			            src.depenses_declarees, src.depenses_retenues, src.recettes_declarees,
+			            src.recettes_retenues, $1)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`, srcID); err != nil {
+			return fail(fmt.Errorf("fusion des comptes : %w", err))
+		}
+		res, err := tx.Query(ctx, `
+			SELECT t.candidat_nom, coalesce(t.circonscription, ''), c.id
+			  FROM tmp_compte t
+			  JOIN compte_campagne_scope c
+			    ON c.candidat_nom = t.candidat_nom
+			   AND c.circonscription IS NOT DISTINCT FROM t.circonscription`)
+		if err != nil {
+			return fail(err)
+		}
+		idParCandidat := map[[2]string]int64{}
+		for res.Next() {
+			var nom, circo string
+			var id int64
+			if err := res.Scan(&nom, &circo, &id); err != nil {
+				res.Close()
+				return fail(err)
 			}
-			nComptes++
+			idParCandidat[[2]string{nom, circo}] = id
+		}
+		res.Close()
+		if err := res.Err(); err != nil {
+			return fail(err)
+		}
+		nComptes += len(idParCandidat)
 
-			// Les postes : toute colonne suffixée « (déclaré) » ou « (retenu) ».
-			// Le libellé est conservé tel quel, sans regroupement.
+		// Les postes : toute colonne suffixée « (déclaré) » ou « (retenu) ».
+		// Le libellé est conservé tel quel, sans regroupement. Un compte en
+		// doublon (nom+circonscription déjà pris) n'a pas d'id : ses postes
+		// sont ignorés, comme avant.
+		type clePoste struct {
+			id          int64
+			poste, etat string
+		}
+		vusPostes := map[clePoste]bool{}
+		var posteRows [][]any
+		for _, r := range comptes {
+			id, ok := idParCandidat[[2]string{strings.TrimSpace(r["nom"]), strings.TrimSpace(r["circonscription"])}]
+			if !ok {
+				continue
+			}
 			for _, h := range entetes {
 				var etat string
 				var poste string
@@ -127,15 +225,63 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 				if m == nil {
 					continue
 				}
-				if _, err := tx.Exec(ctx, `
-					INSERT INTO core.compte_campagne_poste (compte_id, poste, etat, montant)
-					VALUES ($1,$2,$3,$4) ON CONFLICT DO NOTHING`, id, poste, etat, m); err != nil {
-					return fail(fmt.Errorf("poste %q : %w", poste, err))
+				// Un en-tête dupliqué dans le CSV source produirait la même
+				// clé (compte_id, poste, etat) : la première valeur gagne,
+				// comme le faisait l'ON CONFLICT DO NOTHING ligne à ligne.
+				cle := clePoste{id, poste, etat}
+				if vusPostes[cle] {
+					continue
 				}
-				nPostes++
+				vusPostes[cle] = true
+				posteRows = append(posteRows, []any{id, poste, etat, m})
 			}
 		}
-		fmt.Printf("    %s %d : %d comptes\n", s.typeElection, s.annee, nComptes)
+		// MERGE plutôt que COPY directe : cette table n'était jamais wipée
+		// elle-même (elle suivait le CASCADE de la DELETE sur core.
+		// compte_campagne ci-dessus), donc son propre passage en MERGE suit
+		// la même scope par scrutin, via une vue restreinte aux compte_id de
+		// ce scrutin.
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_compte_poste (
+				compte_id bigint, poste text, etat text, montant numeric
+			) ON COMMIT DROP`); err != nil {
+			return fail(err)
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_compte_poste"},
+			[]string{"compte_id", "poste", "etat", "montant"}, pgx.CopyFromRows(posteRows)); err != nil {
+			return fail(fmt.Errorf("copie des postes : %w", err))
+		}
+		if _, err := tx.Exec(ctx, `
+			CREATE OR REPLACE TEMPORARY VIEW compte_campagne_poste_scope AS
+			  SELECT * FROM core.compte_campagne_poste
+			   WHERE compte_id IN (SELECT id FROM compte_campagne_scope)
+			  WITH LOCAL CHECK OPTION`); err != nil {
+			return fail(err)
+		}
+		var nTouchees int64
+		err = bulkload.SansContraintesFK(ctx, tx, "core.compte_campagne_poste", func() error {
+			ct, err := tx.Exec(ctx, `
+				MERGE INTO compte_campagne_poste_scope AS tgt
+				USING tmp_compte_poste AS src
+				ON tgt.compte_id = src.compte_id AND tgt.poste = src.poste AND tgt.etat = src.etat
+				WHEN MATCHED AND tgt.montant IS DISTINCT FROM src.montant THEN
+				    UPDATE SET montant = src.montant
+				WHEN NOT MATCHED BY TARGET THEN
+				    INSERT (compte_id, poste, etat, montant)
+				    VALUES (src.compte_id, src.poste, src.etat, src.montant)
+				WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+			if err != nil {
+				return err
+			}
+			nTouchees = ct.RowsAffected()
+			return nil
+		})
+		if err != nil {
+			return fail(fmt.Errorf("fusion des postes : %w", err))
+		}
+		nPostes += len(posteRows)
+		logs.Notice(fmt.Sprintf("campaign accounts %s %d: %s, %d line items touched by the merge",
+			s.typeElection, s.annee, logs.Plural(len(idParCandidat), "account"), nTouchees))
 	}
 
 	if err := tx.Commit(ctx); err != nil {
@@ -143,7 +289,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"comptes": nComptes, "postes": nPostes}, "")
-	fmt.Printf("  comptes de campagne : %d comptes, %d postes détaillés\n", nComptes, nPostes)
+	logs.Notice(fmt.Sprintf("campaign accounts done: %s, %s",
+		logs.Plural(nComptes, "account"), logs.Plural(nPostes, "line item")))
 	return nil
 }
 
@@ -205,4 +352,12 @@ func nul(s string) any {
 		return nil
 	}
 	return s
+}
+
+// quoteLiteral échappe un littéral SQL. N'est appelé que sur s.typeElection,
+// une constante Go du tableau scrutins ci-dessus — jamais sur une donnée
+// venue du fichier source — mais une vue temporaire ne peut pas se
+// paramétrer autrement qu'en construisant son texte.
+func quoteLiteral(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }

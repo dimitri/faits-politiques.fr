@@ -15,6 +15,7 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -110,12 +111,12 @@ type ligne struct {
 }
 
 // Run exécute la commande bulletin. Ne prend aucune option ; args n'existe
-// que pour l'uniformité avec les autres commandes routées par fpctl.
-func Run(args []string) error {
+// que pour l'uniformité avec les autres commandes routées par fpctl. ctx
+// est celui de fpctl (cmd.Context()), déjà annulé au premier signal.
+func Run(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("bulletin ne prend aucune option (%q inattendu)", args[0])
 	}
-	ctx := context.Background()
 	pool, err := store.Open(ctx)
 	if err != nil {
 		return err
@@ -141,7 +142,7 @@ func Run(args []string) error {
 	if err := os.WriteFile(doc, out.Bytes(), 0o644); err != nil {
 		return err
 	}
-	fmt.Printf("%s : figure régénérée (%d octets)\n", doc, len(frag))
+	logs.Notice(fmt.Sprintf("%s: figure regenerated (%d bytes)", doc, len(frag)))
 	return nil
 }
 

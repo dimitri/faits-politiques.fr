@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/objectstore"
 	"github.com/spf13/cobra"
 )
@@ -25,11 +26,11 @@ func commandeSync() *cobra.Command {
 				"clé égale à son chemin relatif. Un objet déjà présent à la même\n" +
 				"taille n'est pas renvoyé.",
 			DisableFlagParsing: true,
-			RunE: func(_ *cobra.Command, args []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
 					return afficherManuel("fpctl-sync")
 				}
-				return executerInterne(syncVers("archive", "raw", args))
+				return executerInterne(cmd.Context(), syncVers(cmd.Context(), "archive", "raw", args))
 			},
 		},
 		&cobra.Command{
@@ -40,18 +41,18 @@ func commandeSync() *cobra.Command {
 				"relatif — de quoi comparer une piste « servir depuis le Blob\n" +
 				"Storage » à ce que sert aujourd'hui le disque local.",
 			DisableFlagParsing: true,
-			RunE: func(_ *cobra.Command, args []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
 					return afficherManuel("fpctl-sync")
 				}
-				return executerInterne(syncVers("site", "site", args))
+				return executerInterne(cmd.Context(), syncVers(cmd.Context(), "site", "site", args))
 			},
 		},
 	)
 	return cmd
 }
 
-func syncVers(bucketDefaut, racineDefaut string, args []string) error {
+func syncVers(ctx context.Context, bucketDefaut, racineDefaut string, args []string) error {
 	fs := flag.NewFlagSet("sync", flag.ContinueOnError)
 	bucket := fs.String("bucket", "fp-"+bucketDefaut, "bucket de destination")
 	racine := fs.String("dir", racineDefaut, "répertoire local à envoyer")
@@ -59,15 +60,19 @@ func syncVers(bucketDefaut, racineDefaut string, args []string) error {
 		return err
 	}
 
-	ctx := context.Background()
 	c, err := objectstore.Client(objectstore.DepuisEnv())
 	if err != nil {
 		return err
 	}
+	// internal/objectstore.SyncDir ne narre rien pendant l'envoi (aucun
+	// -j, aucune étape à distinguer) : un seul repère avant, un seul
+	// résultat après — sans lui, une synchronisation de plusieurs milliers
+	// de fichiers reste muette jusqu'à la fin.
+	logs.Notice(fmt.Sprintf("syncing %s to object store bucket %s", *racine, *bucket))
 	n, octets, err := objectstore.SyncDir(ctx, c, *bucket, *racine)
 	if err != nil {
 		return err
 	}
-	fmt.Printf("%s → %s : %d objets envoyés (%.1f Mo)\n", *racine, *bucket, n, float64(octets)/1e6)
+	logs.Notice(fmt.Sprintf("%s -> %s: %s sent (%.1f MB)", *racine, *bucket, logs.Plural(n, "object"), float64(octets)/1e6))
 	return nil
 }

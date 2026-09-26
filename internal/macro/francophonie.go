@@ -194,19 +194,47 @@ func IngestFrancophonie(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.francophonie_entite`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_francophonie_entite (
+			entite text, type_entite text, population_2025_milliers numeric,
+			francophone_pct numeric, francophone_milliers numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "francophonie_entite"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_francophonie_entite"},
 		[]string{"entite", "type_entite", "population_2025_milliers", "francophone_pct", "francophone_milliers", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("core.francophonie_entite : %w", err))
 	}
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire
+	// de la table, et l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité des entités à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.francophonie_entite AS tgt
+		USING tmp_francophonie_entite AS src
+		ON tgt.entite = src.entite
+		WHEN MATCHED AND (tgt.type_entite, tgt.population_2025_milliers, tgt.francophone_pct,
+		                   tgt.francophone_milliers, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.type_entite, src.population_2025_milliers, src.francophone_pct,
+		                   src.francophone_milliers, src.source_id) THEN
+		    UPDATE SET type_entite = src.type_entite, population_2025_milliers = src.population_2025_milliers,
+		               francophone_pct = src.francophone_pct, francophone_milliers = src.francophone_milliers,
+		               source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (entite, type_entite, population_2025_milliers, francophone_pct, francophone_milliers, source_id)
+		    VALUES (src.entite, src.type_entite, src.population_2025_milliers, src.francophone_pct,
+		            src.francophone_milliers, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"entites": len(rows)}, "")
-	fmt.Printf("  Francophonie (ODSEF/OIF) : %d entités\n", len(rows))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"entites": len(rows), "touchees": touchees}, "")
+	fmt.Printf("  Francophonie (ODSEF/OIF) : %d entités (%d touchées par la fusion)\n", len(rows), touchees)
 	return nil
 }

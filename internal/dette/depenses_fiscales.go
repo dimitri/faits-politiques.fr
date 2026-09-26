@@ -128,7 +128,16 @@ func chargerDF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, s
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.depense_fiscale WHERE source_id = $1`, srcID); err != nil {
+
+	// core.depense_fiscale est partagée entre les Voies et moyens (2020-2023)
+	// et le budget vert (2024-2026), chacun avec son propre source_id : une
+	// vue scopée reproduit exactement la portée de l'ancien
+	// « DELETE ... WHERE source_id = $1 », pour que fusionner l'un ne touche
+	// jamais les lignes de l'autre.
+	if _, err := tx.Exec(ctx, fmt.Sprintf(`
+		CREATE OR REPLACE TEMPORARY VIEW depense_fiscale_scope AS
+		SELECT * FROM core.depense_fiscale WHERE source_id = %d
+		WITH LOCAL CHECK OPTION`, srcID)); err != nil {
 		return fail(err)
 	}
 	rows := make([][]any, 0, len(lignes))
@@ -139,26 +148,88 @@ func chargerDF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, s
 		}
 		rows = append(rows, []any{l.millesime, l.numero, l.libelle, nul(l.impot), l.annee, l.stade, m, nul(l.mention), srcID, l.document})
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "depense_fiscale"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_depense_fiscale (
+			millesime smallint NOT NULL,
+			numero text NOT NULL,
+			libelle text NOT NULL,
+			impot text,
+			annee smallint NOT NULL,
+			stade text NOT NULL,
+			montant_eur numeric,
+			mention text,
+			source_id bigint NOT NULL,
+			document_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_depense_fiscale"},
 		[]string{"millesime", "numero", "libelle", "impot", "annee", "stade", "montant_eur", "mention", "source_id", "document_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(err)
 	}
+	ctDF, err := tx.Exec(ctx, `
+		MERGE INTO depense_fiscale_scope AS tgt
+		USING tmp_depense_fiscale AS src
+		ON tgt.millesime = src.millesime AND tgt.numero = src.numero AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.libelle, tgt.impot, tgt.stade, tgt.montant_eur, tgt.mention, tgt.document_id)
+			IS DISTINCT FROM (src.libelle, src.impot, src.stade, src.montant_eur, src.mention, src.document_id) THEN
+			UPDATE SET libelle = src.libelle, impot = src.impot, stade = src.stade,
+				montant_eur = src.montant_eur, mention = src.mention, document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (millesime, numero, libelle, impot, annee, stade, montant_eur, mention, source_id, document_id)
+			VALUES (src.millesime, src.numero, src.libelle, src.impot, src.annee, src.stade,
+				src.montant_eur, src.mention, src.source_id, src.document_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("depense_fiscale, fusion : %w", err))
+	}
+	nChiffrages := ctDF.RowsAffected()
+	var nBeneficiaires int64
 	if beneficiaires != nil {
-		if _, err := tx.Exec(ctx, `DELETE FROM ref.depense_fiscale_beneficiaire WHERE source_id = $1`, srcID); err != nil {
+		if _, err := tx.Exec(ctx, fmt.Sprintf(`
+			CREATE OR REPLACE TEMPORARY VIEW depense_fiscale_beneficiaire_scope AS
+			SELECT * FROM ref.depense_fiscale_beneficiaire WHERE source_id = %d
+			WITH LOCAL CHECK OPTION`, srcID)); err != nil {
 			return fail(err)
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"ref", "depense_fiscale_beneficiaire"},
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_depense_fiscale_beneficiaire (
+				numero text NOT NULL,
+				nature text NOT NULL,
+				nombre bigint,
+				millesime smallint NOT NULL,
+				source_id bigint NOT NULL,
+				document_id bigint NOT NULL
+			) ON COMMIT DROP`); err != nil {
+			return fail(err)
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_depense_fiscale_beneficiaire"},
 			[]string{"numero", "nature", "nombre", "millesime", "source_id", "document_id"},
 			pgx.CopyFromRows(beneficiaires)); err != nil {
 			return fail(err)
 		}
+		ctBen, err := tx.Exec(ctx, `
+			MERGE INTO depense_fiscale_beneficiaire_scope AS tgt
+			USING tmp_depense_fiscale_beneficiaire AS src
+			ON tgt.millesime = src.millesime AND tgt.numero = src.numero
+			WHEN MATCHED AND (tgt.nature, tgt.nombre, tgt.document_id)
+				IS DISTINCT FROM (src.nature, src.nombre, src.document_id) THEN
+				UPDATE SET nature = src.nature, nombre = src.nombre, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+				INSERT (numero, nature, nombre, millesime, source_id, document_id)
+				VALUES (src.numero, src.nature, src.nombre, src.millesime, src.source_id, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return fail(fmt.Errorf("depense_fiscale_beneficiaire, fusion : %w", err))
+		}
+		nBeneficiaires = ctBen.RowsAffected()
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"chiffrages": len(rows), "beneficiaires": len(beneficiaires)}, "")
-	fmt.Printf("  %-28s %6d chiffrages  %4d bénéficiaires\n", src.Slug, len(rows), len(beneficiaires))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"chiffrages": nChiffrages, "beneficiaires": nBeneficiaires}, "")
+	fmt.Printf("  %-28s %6d chiffrages touchés par la fusion  %4d bénéficiaires touchés\n", src.Slug, nChiffrages, nBeneficiaires)
 	return nil
 }
 

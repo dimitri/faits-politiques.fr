@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -116,31 +117,48 @@ func IngestRPPS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.rpps_professionnel_activite`); err != nil {
+
+	// MERGE plutôt que DELETE+COPY : table entière, ce connecteur en est
+	// l'unique propriétaire ; l'ancien DELETE payait le prix des triggers RI
+	// pour l'intégralité des 2,3 millions de lignes à chaque relecture,
+	// changement ou non. Pas de clé naturelle publiée par la source (une
+	// même personne porte plusieurs activités, et de vrais doublons
+	// existent sur toutes les colonnes publiées) : rang fixe la position
+	// d'apparition dans le fichier pour chaque identifiant_pp (migration
+	// 0184), la même logique que core.declaration_item (HATVP).
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_rpps_professionnel_activite (
+			identifiant_pp text, rang int, nom text, prenom text, code_civilite text,
+			code_profession text, libelle_profession text, code_categorie_pro text, libelle_categorie_pro text,
+			code_savoir_faire text, libelle_savoir_faire text, code_mode_exercice text, libelle_mode_exercice text,
+			numero_finess_site text, code_departement text, libelle_departement text, code_commune text,
+			code_role text, libelle_role text, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 
 	colonnesCible := []string{
-		"identifiant_pp", "nom", "prenom", "code_civilite",
+		"identifiant_pp", "rang", "nom", "prenom", "code_civilite",
 		"code_profession", "libelle_profession", "code_categorie_pro", "libelle_categorie_pro",
 		"code_savoir_faire", "libelle_savoir_faire", "code_mode_exercice", "libelle_mode_exercice",
 		"numero_finess_site", "code_departement", "libelle_departement", "code_commune",
 		"code_role", "libelle_role", "source_id",
 	}
 	var lot [][]any
-	var total int64
+	var totalCopie int64
 	const tailleLot = 50000
+	rangParPP := map[string]int{}
 
 	vider := func() error {
 		if len(lot) == 0 {
 			return nil
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "rpps_professionnel_activite"}, colonnesCible,
+		n, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_rpps_professionnel_activite"}, colonnesCible,
 			pgx.CopyFromRows(lot))
 		if err != nil {
 			return err
 		}
-		total += n
+		totalCopie += n
 		lot = lot[:0]
 		return nil
 	}
@@ -153,8 +171,10 @@ func IngestRPPS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		if idPP == "" {
 			continue
 		}
+		rang := rangParPP[idPP]
+		rangParPP[idPP] = rang + 1
 		lot = append(lot, []any{
-			idPP,
+			idPP, rang,
 			ouNil(champ(l, "Nom d'exercice")), ouNil(champ(l, "Prénom d'exercice")),
 			ouNil(champ(l, "Code civilité")),
 			champ(l, "Code profession"), champ(l, "Libellé profession"),
@@ -179,14 +199,60 @@ func IngestRPPS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	if err := vider(); err != nil {
 		return fail(fmt.Errorf("dernier lot : %w", err))
 	}
-	if total == 0 {
+	if totalCopie == 0 {
 		return fail(fmt.Errorf("aucune ligne chargée"))
+	}
+
+	var total int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.rpps_professionnel_activite", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.rpps_professionnel_activite AS tgt
+			USING tmp_rpps_professionnel_activite AS src
+			ON tgt.identifiant_pp = src.identifiant_pp AND tgt.rang = src.rang
+			WHEN MATCHED AND (tgt.nom, tgt.prenom, tgt.code_civilite, tgt.code_profession, tgt.libelle_profession,
+			                   tgt.code_categorie_pro, tgt.libelle_categorie_pro, tgt.code_savoir_faire,
+			                   tgt.libelle_savoir_faire, tgt.code_mode_exercice, tgt.libelle_mode_exercice,
+			                   tgt.numero_finess_site, tgt.code_departement, tgt.libelle_departement,
+			                   tgt.code_commune, tgt.code_role, tgt.libelle_role, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.nom, src.prenom, src.code_civilite, src.code_profession, src.libelle_profession,
+			                   src.code_categorie_pro, src.libelle_categorie_pro, src.code_savoir_faire,
+			                   src.libelle_savoir_faire, src.code_mode_exercice, src.libelle_mode_exercice,
+			                   src.numero_finess_site, src.code_departement, src.libelle_departement,
+			                   src.code_commune, src.code_role, src.libelle_role, src.source_id) THEN
+			    UPDATE SET nom = src.nom, prenom = src.prenom, code_civilite = src.code_civilite,
+			               code_profession = src.code_profession, libelle_profession = src.libelle_profession,
+			               code_categorie_pro = src.code_categorie_pro, libelle_categorie_pro = src.libelle_categorie_pro,
+			               code_savoir_faire = src.code_savoir_faire, libelle_savoir_faire = src.libelle_savoir_faire,
+			               code_mode_exercice = src.code_mode_exercice, libelle_mode_exercice = src.libelle_mode_exercice,
+			               numero_finess_site = src.numero_finess_site, code_departement = src.code_departement,
+			               libelle_departement = src.libelle_departement, code_commune = src.code_commune,
+			               code_role = src.code_role, libelle_role = src.libelle_role, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (identifiant_pp, rang, nom, prenom, code_civilite, code_profession, libelle_profession,
+			            code_categorie_pro, libelle_categorie_pro, code_savoir_faire, libelle_savoir_faire,
+			            code_mode_exercice, libelle_mode_exercice, numero_finess_site, code_departement,
+			            libelle_departement, code_commune, code_role, libelle_role, source_id)
+			    VALUES (src.identifiant_pp, src.rang, src.nom, src.prenom, src.code_civilite, src.code_profession,
+			            src.libelle_profession, src.code_categorie_pro, src.libelle_categorie_pro,
+			            src.code_savoir_faire, src.libelle_savoir_faire, src.code_mode_exercice,
+			            src.libelle_mode_exercice, src.numero_finess_site, src.code_departement,
+			            src.libelle_departement, src.code_commune, src.code_role, src.libelle_role, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		total = ct.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": total}, "")
-	fmt.Printf("  RPPS, professionnels de santé (ANS) : %d lignes\n", total)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": totalCopie, "touchees": total}, "")
+	fmt.Printf("  RPPS, professionnels de santé (ANS) : %d lignes (%d touchées par la fusion)\n", totalCopie, total)
 	return nil
 }

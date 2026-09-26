@@ -6,26 +6,29 @@
 les formulent les institutions, les règles, les contrôles, les chiffres — et ce que les données ne
 permettent pas de dire. Chacun se lit avec l'argent public qui le finance.</p>
 
-{{range .Familles}}
-<section class="bloc" id="{{.ID}}">
-  <div class="tete"><div><span class="sur">{{if .ParMille}}{{.ParMille}}&nbsp;€ sur 1&nbsp;000 de dépense publique{{else}}Hors fonctions de dépense{{end}}</span>
-    <h2 class="h2">{{.Nom}}</h2></div></div>
-  <p class="q">{{.Intro}}</p>
-  <ul class="liste-sujets grande">
-    {{range .Sujets}}
-    {{if .D}}<li><a href="{{$.Root}}/{{.URL}}">
-      <span class="nom">{{.Nom}}</span>
-      <span class="d">{{.D.Titre}}</span>
-      {{if .Pages}}<span class="ext">+ {{(index .Pages 0).Titre}}</span>{{end}}
-    </a></li>
-    {{else if .Pages}}<li><a href="{{$.Root}}/{{(index .Pages 0).URL}}">
-      <span class="nom">{{.Nom}}</span>
-      <span class="d">{{(index .Pages 0).Titre}}</span>
-    </a></li>{{end}}
-    {{end}}
-  </ul>
-</section>
-{{end}}
+<div class="familles familles-page">
+  {{range .Familles}}
+  <div class="famille famille-carte" id="{{.ID}}">
+    <h2><a href="#{{.ID}}">{{.Nom}}</a></h2>
+    <span class="poids">{{if .ParMille}}{{.ParMille}}&nbsp;€ sur 1&nbsp;000 de dépense publique{{else}}Hors fonctions de dépense{{end}}</span>
+    {{if .ParMille}}<span class="jauge"><span style="width:{{.Largeur}}%"></span></span>{{end}}
+    <p class="q">{{.Intro}}</p>
+    <ul class="liste-sujets">
+      {{range .Sujets}}
+      {{if .D}}<li><a href="{{$.Root}}/{{.URL}}">
+        <span class="nom">{{.Nom}}</span>
+        <span class="d">{{.D.Titre}}</span>
+        {{if .Pages}}<span class="ext">+ {{(index .Pages 0).Titre}}</span>{{end}}
+      </a></li>
+      {{else if .Pages}}<li><a href="{{$.Root}}/{{(index .Pages 0).URL}}">
+        <span class="nom">{{.Nom}}</span>
+        <span class="d">{{(index .Pages 0).Titre}}</span>
+      </a></li>{{end}}
+      {{end}}
+    </ul>
+  </div>
+  {{end}}
+</div>
 
 <p class="note">Le poids indiqué pour chaque famille reprend les fonctions de la nomenclature COFOG
 (Eurostat / Insee, {{.Annee}})&nbsp;: il situe, il ne s'additionne pas. L'argent public lui-même —

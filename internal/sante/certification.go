@@ -98,13 +98,6 @@ func IngestCertificationHAS(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.certification_has_chapitre`); err != nil {
-		return fail(err)
-	}
-	if _, err := tx.Exec(ctx, `DELETE FROM core.certification_has_demarche`); err != nil {
-		return fail(err)
-	}
-
 	var rowsDemarche [][]any
 	for _, d := range demarches {
 		f := finessParDemarche[d["code_demarche"]]
@@ -116,13 +109,48 @@ func IngestCertificationHAS(ctx context.Context, pool *pgxpool.Pool, arch *archi
 			nilSiVide(d["Decision_de_la_CCES"]), srcID,
 		})
 	}
-	n1, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "certification_has_demarche"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_certification_has_demarche (
+			code_demarche text, nofinesset text, nofinessej text, raison_sociale text, cycle text, version text,
+			annee_visite smallint, mois_visite smallint, date_decision date, decision text, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_certification_has_demarche"},
 		[]string{"code_demarche", "nofinesset", "nofinessej", "raison_sociale",
 			"cycle", "version", "annee_visite", "mois_visite", "date_decision", "decision", "source_id"},
-		pgx.CopyFromRows(rowsDemarche))
-	if err != nil {
+		pgx.CopyFromRows(rowsDemarche)); err != nil {
 		return fail(fmt.Errorf("certification_has_demarche : %w", err))
 	}
+	// MERGE plutôt que DELETE+COPY, sur les deux tables : ce connecteur en est
+	// l'unique propriétaire, et l'ancien DELETE (table entière, avec CASCADE
+	// sur les chapitres) payait le prix des triggers RI pour l'intégralité du
+	// 6e cycle à chaque republication, changement ou non. Parent d'abord, puis
+	// les chapitres : une démarche disparue de la source entraîne la
+	// suppression de ses chapitres via son propre WHEN NOT MATCHED BY SOURCE.
+	ctD, err := tx.Exec(ctx, `
+		MERGE INTO core.certification_has_demarche AS tgt
+		USING tmp_certification_has_demarche AS src
+		ON tgt.code_demarche = src.code_demarche
+		WHEN MATCHED AND (tgt.nofinesset, tgt.nofinessej, tgt.raison_sociale, tgt.cycle, tgt.version,
+		                   tgt.annee_visite, tgt.mois_visite, tgt.date_decision, tgt.decision, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.nofinesset, src.nofinessej, src.raison_sociale, src.cycle, src.version,
+		                   src.annee_visite, src.mois_visite, src.date_decision, src.decision, src.source_id) THEN
+		    UPDATE SET nofinesset = src.nofinesset, nofinessej = src.nofinessej, raison_sociale = src.raison_sociale,
+		               cycle = src.cycle, version = src.version, annee_visite = src.annee_visite,
+		               mois_visite = src.mois_visite, date_decision = src.date_decision, decision = src.decision,
+		               source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (code_demarche, nofinesset, nofinessej, raison_sociale, cycle, version, annee_visite,
+		            mois_visite, date_decision, decision, source_id)
+		    VALUES (src.code_demarche, src.nofinesset, src.nofinessej, src.raison_sociale, src.cycle, src.version,
+		            src.annee_visite, src.mois_visite, src.date_decision, src.decision, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion certification_has_demarche : %w", err))
+	}
+	n1 := ctD.RowsAffected()
 
 	var rowsChapitre [][]any
 	for _, c := range chapitres {
@@ -138,12 +166,32 @@ func IngestCertificationHAS(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		}
 		rowsChapitre = append(rowsChapitre, []any{c["code_demarche"], num, c["chapitre"], score, srcID})
 	}
-	n2, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "certification_has_chapitre"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_certification_has_chapitre (
+			code_demarche text, chapitre_num smallint, chapitre_libelle text, score numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_certification_has_chapitre"},
 		[]string{"code_demarche", "chapitre_num", "chapitre_libelle", "score", "source_id"},
-		pgx.CopyFromRows(rowsChapitre))
-	if err != nil {
+		pgx.CopyFromRows(rowsChapitre)); err != nil {
 		return fail(fmt.Errorf("certification_has_chapitre : %w", err))
 	}
+	ctC, err := tx.Exec(ctx, `
+		MERGE INTO core.certification_has_chapitre AS tgt
+		USING tmp_certification_has_chapitre AS src
+		ON tgt.code_demarche = src.code_demarche AND tgt.chapitre_num = src.chapitre_num
+		WHEN MATCHED AND (tgt.chapitre_libelle, tgt.score, tgt.source_id)
+		                  IS DISTINCT FROM (src.chapitre_libelle, src.score, src.source_id) THEN
+		    UPDATE SET chapitre_libelle = src.chapitre_libelle, score = src.score, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (code_demarche, chapitre_num, chapitre_libelle, score, source_id)
+		    VALUES (src.code_demarche, src.chapitre_num, src.chapitre_libelle, src.score, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion certification_has_chapitre : %w", err))
+	}
+	n2 := ctC.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)

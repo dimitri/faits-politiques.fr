@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/balisage"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -102,7 +103,7 @@ func NormalizeDeports(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	fmt.Printf("  déports        %d (%d sans acteur connu)\n", n, sansActeur)
+	logs.Notice(fmt.Sprintf("%s (%d without a known MP)", logs.Plural(n, "recusal"), sansActeur))
 	return nil
 }
 

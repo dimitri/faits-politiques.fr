@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -60,7 +61,7 @@ func NormalizeElus(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	fmt.Printf("  thésaurus : %d élus reconnaissables\n", res.RowsAffected())
+	logs.Notice(logs.Plural(int(res.RowsAffected()), "recognizable elected official"))
 
 	// La reconnaissance se fait HORS transaction longue : elle dure, et la tenir
 	// dans une transaction bloquerait le nettoyage des tables du corpus.
@@ -108,7 +109,8 @@ func NormalizeElus(ctx context.Context, pool *pgxpool.Pool) error {
 		  FROM jo.acte_elu`).Scan(&actes, &elus, &ambigus); err != nil {
 		return err
 	}
-	fmt.Printf("  reconnaissance : %d citations, %d actes, %d élus cités, %d citations ambiguës\n",
-		r2.RowsAffected(), actes, elus, ambigus)
+	logs.Notice(fmt.Sprintf("recognition: %s, %s, %s, %s",
+		logs.Plural(int(r2.RowsAffected()), "mention"), logs.Plural(actes, "act"),
+		logs.Plural(elus, "official mentioned"), logs.Plural(ambigus, "ambiguous mention")))
 	return nil
 }

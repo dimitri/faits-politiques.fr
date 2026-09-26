@@ -58,7 +58,7 @@ index statique, et ses déclencheurs restent masqués s'il ne s'exécute pas —
 site fonctionne sans lui. Présentation : [docs/charte-graphique.md](docs/charte-graphique.md).
 
 **Invariant central** : `core` est intégralement reconstructible depuis `raw` par une
-fonction idempotente. `fpctl ingest data` reconstruit les tables dérivées à chaque
+fonction idempotente. `fpctl ingest all` reconstruit les tables dérivées à chaque
 exécution plutôt que de les compléter — rejouer l'ingestion doit produire un état
 identique.
 
@@ -69,7 +69,7 @@ un verbe puis un nom, comme `git` :
 
 | Commande | Rôle |
 |---|---|
-| `fpctl ingest data` | connecteurs, archive scellée, `raw` → `core` |
+| `fpctl ingest all` | connecteurs, archive scellée, `raw` → `core` |
 | `fpctl verify data` | contrôles de cohérence des **données chargées** — porte de publication |
 | `fpctl build site` | `core` → site statique |
 | `fpctl list sources` | catalogue des sources ingérées |

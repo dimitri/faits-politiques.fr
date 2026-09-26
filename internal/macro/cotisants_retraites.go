@@ -87,19 +87,43 @@ func IngestCotisantsRetraites(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.cotisants_retraites_ratio`); err != nil {
+
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour tous les millésimes à chaque republication, changement ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_cotisants_retraites_ratio (
+			annee smallint, cotisants_millions numeric, retraites_millions numeric,
+			ratio_demographique numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "cotisants_retraites_ratio"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_cotisants_retraites_ratio"},
 		[]string{"annee", "cotisants_millions", "retraites_millions", "ratio_demographique", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("cotisants_retraites_ratio : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.cotisants_retraites_ratio AS tgt
+		USING tmp_cotisants_retraites_ratio AS src
+		ON tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.cotisants_millions, tgt.retraites_millions, tgt.ratio_demographique, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.cotisants_millions, src.retraites_millions, src.ratio_demographique, src.source_id) THEN
+		    UPDATE SET cotisants_millions = src.cotisants_millions, retraites_millions = src.retraites_millions,
+		               ratio_demographique = src.ratio_demographique, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, cotisants_millions, retraites_millions, ratio_demographique, source_id)
+		    VALUES (src.annee, src.cotisants_millions, src.retraites_millions, src.ratio_demographique, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"annees_chargees": n}, "")
-	fmt.Printf("  ratio cotisants/retraités : %d millésimes\n", n)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"annees_chargees": len(rows), "touchees": n}, "")
+	fmt.Printf("  ratio cotisants/retraités : %d millésimes (%d touchés par la fusion)\n", len(rows), n)
 	return nil
 }

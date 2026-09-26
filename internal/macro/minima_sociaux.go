@@ -107,8 +107,8 @@ func IngestMinimaSociaux(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(fmt.Errorf("dépenses : %w", err))
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_effectif": nEff, "lignes_depense": nDep}, "")
-	fmt.Printf("  minima sociaux : %d lignes d'effectifs, %d lignes de dépenses\n", nEff, nDep)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"touchees_effectif": nEff, "touchees_depense": nDep}, "")
+	fmt.Printf("  minima sociaux : %d lignes d'effectifs touchées, %d lignes de dépenses touchées\n", nEff, nDep)
 	return nil
 }
 
@@ -195,16 +195,36 @@ func chargerMinimaEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return 0, err
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.minima_sociaux_effectif`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_minima_sociaux_effectif (
+			dispositif_code text, dispositif_libelle text, annee int, effectif int, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return 0, err
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "minima_sociaux_effectif"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_minima_sociaux_effectif"},
 		[]string{"dispositif_code", "dispositif_libelle", "annee", "effectif", "source_id"},
-		pgx.CopyFromRows(rows))
+		pgx.CopyFromRows(rows)); err != nil {
+		return 0, err
+	}
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table, et l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité des dispositifs et millésimes à chaque republication.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.minima_sociaux_effectif AS tgt
+		USING tmp_minima_sociaux_effectif AS src
+		ON tgt.dispositif_code = src.dispositif_code AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.dispositif_libelle, tgt.effectif, tgt.source_id)
+		                  IS DISTINCT FROM (src.dispositif_libelle, src.effectif, src.source_id) THEN
+		    UPDATE SET dispositif_libelle = src.dispositif_libelle, effectif = src.effectif,
+		               source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (dispositif_code, dispositif_libelle, annee, effectif, source_id)
+		    VALUES (src.dispositif_code, src.dispositif_libelle, src.annee, src.effectif, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 	if err != nil {
 		return 0, err
 	}
-	return int(n), tx.Commit(ctx)
+	return int(ct.RowsAffected()), tx.Commit(ctx)
 }
 
 func chargerMinimaDepense(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, srcID, runID int64) (int, error) {
@@ -267,16 +287,37 @@ func chargerMinimaDepense(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return 0, err
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.minima_sociaux_depense`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_minima_sociaux_depense (
+			dispositif_code text, dispositif_libelle text, annee int,
+			depense_meur_reel2024 numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return 0, err
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "minima_sociaux_depense"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_minima_sociaux_depense"},
 		[]string{"dispositif_code", "dispositif_libelle", "annee", "depense_meur_reel2024", "source_id"},
-		pgx.CopyFromRows(rows))
+		pgx.CopyFromRows(rows)); err != nil {
+		return 0, err
+	}
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table, et l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité des dispositifs et millésimes à chaque republication.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.minima_sociaux_depense AS tgt
+		USING tmp_minima_sociaux_depense AS src
+		ON tgt.dispositif_code = src.dispositif_code AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.dispositif_libelle, tgt.depense_meur_reel2024, tgt.source_id)
+		                  IS DISTINCT FROM (src.dispositif_libelle, src.depense_meur_reel2024, src.source_id) THEN
+		    UPDATE SET dispositif_libelle = src.dispositif_libelle,
+		               depense_meur_reel2024 = src.depense_meur_reel2024, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (dispositif_code, dispositif_libelle, annee, depense_meur_reel2024, source_id)
+		    VALUES (src.dispositif_code, src.dispositif_libelle, src.annee, src.depense_meur_reel2024, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 	if err != nil {
 		return 0, err
 	}
-	return int(n), tx.Commit(ctx)
+	return int(ct.RowsAffected()), tx.Commit(ctx)
 }
 
 // colAnnee : une colonne de tableur et l'année que porte son en-tête.

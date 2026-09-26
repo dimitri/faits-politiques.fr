@@ -119,15 +119,11 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	defer tx.Rollback(ctx)
 
-	for _, q := range []string{
-		`DELETE FROM core.bilan_alimentaire`,
-		`DELETE FROM core.agriculture_indicateur`,
-		`DELETE FROM ref.produit_alimentaire`,
-	} {
-		if _, err := tx.Exec(ctx, q); err != nil {
-			return fail(err)
-		}
-	}
+	// ref.produit_alimentaire n'est jamais vidée : les codes présents dans le
+	// chargement courant sont ré-upsertés ci-dessous, et core.bilan_alimentaire
+	// référence cette table par clé étrangère — la vider avant que les anciennes
+	// lignes de bilan (pas encore fusionnées) ne soient traitées casserait la
+	// contrainte.
 
 	// 1. Les bilans alimentaires.
 	produits := map[string]string{}
@@ -180,18 +176,42 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		vus[k] = true
 		propres = append(propres, l)
 	}
-	nBilan, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "bilan_alimentaire"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_bilan_alimentaire (
+			produit_code text NOT NULL,
+			element text NOT NULL,
+			annee integer NOT NULL,
+			valeur numeric NOT NULL,
+			unite text NOT NULL,
+			source_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_bilan_alimentaire"},
 		[]string{"produit_code", "element", "annee", "valeur", "unite", "source_id"},
-		pgx.CopyFromRows(propres))
-	if err != nil {
+		pgx.CopyFromRows(propres)); err != nil {
 		return fail(fmt.Errorf("copie des bilans : %w", err))
 	}
+	ctBilan, err := tx.Exec(ctx, `
+		MERGE INTO core.bilan_alimentaire AS tgt
+		USING tmp_bilan_alimentaire AS src
+		ON tgt.produit_code = src.produit_code AND tgt.element = src.element AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.valeur, tgt.unite, tgt.source_id)
+			IS DISTINCT FROM (src.valeur, src.unite, src.source_id) THEN
+			UPDATE SET valeur = src.valeur, unite = src.unite, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (produit_code, element, annee, valeur, unite, source_id)
+			VALUES (src.produit_code, src.element, src.annee, src.valeur, src.unite, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion des bilans : %w", err))
+	}
+	nBilan := ctBilan.RowsAffected()
 
 	// 2. L'appareil de production : terres et emploi.
-	var nInd int
+	var indRows [][]any
 	for _, chemin := range []string{fTerres.Path, fEmploi.Path} {
 		vus := map[string]bool{}
-		var rows [][]any
 		err = parcourir(chemin, func(r map[string]string, annees map[int]string) error {
 			if r["Area"] != pays {
 				return nil
@@ -217,28 +237,51 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 					continue
 				}
 				vus[k] = true
-				rows = append(rows, []any{code, annee, v, r["Unit"], srcID})
+				indRows = append(indRows, []any{code, annee, v, r["Unit"], srcID})
 			}
 			return nil
 		})
 		if err != nil {
 			return fail(err)
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "agriculture_indicateur"},
-			[]string{"code", "annee", "valeur", "unite", "source_id"},
-			pgx.CopyFromRows(rows))
-		if err != nil {
-			return fail(fmt.Errorf("copie des indicateurs : %w", err))
-		}
-		nInd += int(n)
 	}
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_agriculture_indicateur (
+			code text NOT NULL,
+			annee integer NOT NULL,
+			valeur numeric NOT NULL,
+			unite text NOT NULL,
+			source_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_agriculture_indicateur"},
+		[]string{"code", "annee", "valeur", "unite", "source_id"},
+		pgx.CopyFromRows(indRows)); err != nil {
+		return fail(fmt.Errorf("copie des indicateurs : %w", err))
+	}
+	ctInd, err := tx.Exec(ctx, `
+		MERGE INTO core.agriculture_indicateur AS tgt
+		USING tmp_agriculture_indicateur AS src
+		ON tgt.code = src.code AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.valeur, tgt.unite, tgt.source_id)
+			IS DISTINCT FROM (src.valeur, src.unite, src.source_id) THEN
+			UPDATE SET valeur = src.valeur, unite = src.unite, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (code, annee, valeur, unite, source_id)
+			VALUES (src.code, src.annee, src.valeur, src.unite, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion des indicateurs : %w", err))
+	}
+	nInd := ctInd.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"bilan": nBilan, "indicateurs": nInd, "produits": len(produits)}, "")
-	fmt.Printf("  FAOSTAT : %d valeurs de bilan sur %d produits, %d indicateurs de production\n",
+	fmt.Printf("  FAOSTAT : %d valeurs de bilan touchées sur %d produits, %d indicateurs de production touchés\n",
 		nBilan, len(produits), nInd)
 	return nil
 }

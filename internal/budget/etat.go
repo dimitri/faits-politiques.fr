@@ -100,10 +100,6 @@ func IngestExecutionEtat(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.execution_etat`); err != nil {
-		return fail(err)
-	}
-
 	var rows [][]any
 	var renseignes int
 	for i, l := range lignes {
@@ -150,20 +146,59 @@ func IngestExecutionEtat(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		}
 	}
 
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "execution_etat"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_execution_etat (
+			date_arrete date NOT NULL,
+			exercice smallint NOT NULL,
+			niveau smallint NOT NULL,
+			categorie text NOT NULL,
+			sous_categorie text NOT NULL,
+			ligne text NOT NULL,
+			montant_eur double precision,
+			perimetre text NOT NULL,
+			comptabilite text NOT NULL,
+			stade text NOT NULL,
+			source_id bigint NOT NULL,
+			document_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_execution_etat"},
 		[]string{"date_arrete", "exercice", "niveau", "categorie", "sous_categorie",
 			"ligne", "montant_eur", "perimetre", "comptabilite", "stade",
 			"source_id", "document_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("situations mensuelles : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.execution_etat AS tgt
+		USING tmp_execution_etat AS src
+		ON tgt.date_arrete = src.date_arrete AND tgt.categorie = src.categorie
+			AND tgt.sous_categorie = src.sous_categorie AND tgt.ligne = src.ligne
+		WHEN MATCHED AND (tgt.exercice, tgt.niveau, tgt.montant_eur, tgt.perimetre,
+				tgt.comptabilite, tgt.stade, tgt.source_id, tgt.document_id)
+			IS DISTINCT FROM (src.exercice, src.niveau, src.montant_eur, src.perimetre,
+				src.comptabilite, src.stade, src.source_id, src.document_id) THEN
+			UPDATE SET exercice = src.exercice, niveau = src.niveau, montant_eur = src.montant_eur,
+				perimetre = src.perimetre, comptabilite = src.comptabilite, stade = src.stade,
+				source_id = src.source_id, document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (date_arrete, exercice, niveau, categorie, sous_categorie, ligne,
+				montant_eur, perimetre, comptabilite, stade, source_id, document_id)
+			VALUES (src.date_arrete, src.exercice, src.niveau, src.categorie, src.sous_categorie,
+				src.ligne, src.montant_eur, src.perimetre, src.comptabilite, src.stade,
+				src.source_id, src.document_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("situations mensuelles, fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"postes": len(lignes), "arretes": len(dates), "lignes": n, "renseignes": renseignes}, "")
-	fmt.Printf("  État : %d postes × %d arrêtés = %d lignes (%d renseignées), du %s au %s\n",
+	fmt.Printf("  État : %d postes × %d arrêtés = %d lignes touchées par la fusion (%d renseignées), du %s au %s\n",
 		len(lignes), len(dates), n, renseignes,
 		dates[0].date.Format("2006-01-02"), dates[len(dates)-1].date.Format("2006-01-02"))
 	return nil

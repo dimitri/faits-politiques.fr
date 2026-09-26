@@ -153,19 +153,45 @@ func IngestAccordParis(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.ratification_accord_paris`); err != nil {
+
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour l'intégralité des pays à chaque republication de l'ONU, changement
+	// ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_ratification_accord_paris (
+			pays text, date_signature date, date_ratification date,
+			type_ratification text, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "ratification_accord_paris"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_ratification_accord_paris"},
 		[]string{"pays", "date_signature", "date_ratification", "type_ratification", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("core.ratification_accord_paris : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.ratification_accord_paris AS tgt
+		USING tmp_ratification_accord_paris AS src
+		ON tgt.pays = src.pays
+		WHEN MATCHED AND (tgt.date_signature, tgt.date_ratification, tgt.type_ratification, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.date_signature, src.date_ratification, src.type_ratification, src.source_id) THEN
+		    UPDATE SET date_signature = src.date_signature, date_ratification = src.date_ratification,
+		               type_ratification = src.type_ratification, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (pays, date_signature, date_ratification, type_ratification, source_id)
+		    VALUES (src.pays, src.date_signature, src.date_ratification, src.type_ratification, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"pays": len(rows)}, "")
-	fmt.Printf("  Accord de Paris, ratifications (ONU) : %d pays\n", len(rows))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"pays": len(rows), "touchees": touchees}, "")
+	fmt.Printf("  Accord de Paris, ratifications (ONU) : %d pays (%d touchés par la fusion)\n", len(rows), touchees)
 	return nil
 }

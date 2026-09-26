@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -117,7 +118,7 @@ func Themes(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	fmt.Printf("  %d thèmes directs, %d hérités par la navette\n",
-		direct.RowsAffected(), navette.RowsAffected())
+	logs.Notice(fmt.Sprintf("%s direct, %s inherited via the shuttle",
+		logs.Plural(int(direct.RowsAffected()), "topic"), logs.Plural(int(navette.RowsAffected()), "topic")))
 	return nil
 }

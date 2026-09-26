@@ -11,6 +11,8 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -37,6 +39,19 @@ var ComptesURLs = map[int]string{
 	2023: "https://static.data.gouv.fr/resources/comptes-des-partis-et-groupements-politiques/20260210-120352/comptes-partis-exercice-2023.csv",
 	2022: "https://static.data.gouv.fr/resources/comptes-des-partis-et-groupements-politiques/20260210-121141/comptes-partis-exercice-2022.csv",
 	2021: "https://static.data.gouv.fr/resources/comptes-des-partis-et-groupements-politiques/20260210-151846/comptes-partis-exercice-2021.csv",
+}
+
+// CNCCFPDownloadTargets liste les URL qu'IngestComptes récupère, sans les
+// récupérer — voir DownloadTargets, qui les réunit avec celles des deux
+// autres connecteurs du paquet.
+func CNCCFPDownloadTargets() []archive.DownloadTarget {
+	out := make([]archive.DownloadTarget, 0, len(ComptesURLs))
+	for exercice, url := range ComptesURLs {
+		out = append(out, archive.DownloadTarget{
+			Nom: fmt.Sprintf("cnccfp-comptes-%d", exercice), Source: SourceCNCCFP, URL: url, Ext: ".csv",
+		})
+	}
+	return out
 }
 
 // IngestComptes télécharge, scelle et charge les comptes de chaque exercice.
@@ -78,7 +93,7 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			return fmt.Errorf("comptes %d : %w", exercice, err)
 		}
 		arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"partis": n}, "")
-		fmt.Printf("  comptes %d   %d partis\n", exercice, n)
+		logs.Notice(fmt.Sprintf("party accounts %d: %s", exercice, logs.Plural(n, "party")))
 	}
 	return nil
 }
@@ -110,6 +125,7 @@ func loadComptes(ctx context.Context, pool *pgxpool.Pool, path string, exercice 
 	}
 
 	n := 0
+	var lignes [][]any
 	for {
 		rec, err := r.Read()
 		if err != nil {
@@ -141,17 +157,36 @@ func loadComptes(ctx context.Context, pool *pgxpool.Pool, path string, exercice 
 			if err != nil {
 				continue
 			}
-			if _, err := pool.Exec(ctx, `
-				INSERT INTO core.party_account_line
-				  (organization_id, exercice, poste, montant, source_id)
-				VALUES ($1,$2,$3,$4,$5)
-				ON CONFLICT (organization_id, exercice, poste)
-				DO UPDATE SET montant = EXCLUDED.montant`,
-				orgID, exercice, poste, montant, srcID); err != nil {
-				return 0, err
-			}
+			lignes = append(lignes, []any{orgID, exercice, poste, montant})
 		}
 		n++
+	}
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_account_line (
+			organization_id bigint, exercice int, poste text, montant numeric
+		) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_account_line"},
+		[]string{"organization_id", "exercice", "poste", "montant"},
+		pgx.CopyFromRows(lignes)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO core.party_account_line (organization_id, exercice, poste, montant, source_id)
+		SELECT organization_id, exercice, poste, montant, $1 FROM tmp_account_line
+		ON CONFLICT (organization_id, exercice, poste) DO UPDATE SET montant = EXCLUDED.montant`,
+		srcID); err != nil {
+		return 0, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
 	}
 	return n, nil
 }

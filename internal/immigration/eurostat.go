@@ -79,20 +79,43 @@ func IngestEurostatMigration(ctx context.Context, pool *pgxpool.Pool, arch *arch
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.eurostat_population_migratoire`); err != nil {
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_eurostat_population_migratoire (
+			dimension text, categorie text, pays text, annee smallint, population numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "eurostat_population_migratoire"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_eurostat_population_migratoire"},
 		[]string{"dimension", "categorie", "pays", "annee", "population", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("eurostat_population_migratoire : %w", err))
 	}
+
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table ; l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité de la table à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.eurostat_population_migratoire AS tgt
+		USING tmp_eurostat_population_migratoire AS src
+		ON tgt.dimension = src.dimension AND tgt.categorie = src.categorie
+		   AND tgt.pays = src.pays AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.population, tgt.source_id) IS DISTINCT FROM (src.population, src.source_id) THEN
+		    UPDATE SET population = src.population, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (dimension, categorie, pays, annee, population, source_id)
+		    VALUES (src.dimension, src.categorie, src.pays, src.annee, src.population, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion eurostat_population_migratoire : %w", err))
+	}
+	touchees := ct.RowsAffected()
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": n}, "")
-	fmt.Printf("  Eurostat, population par citoyenneté et pays de naissance : %d lignes\n", n)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": touchees}, "")
+	fmt.Printf("  Eurostat, population par citoyenneté et pays de naissance : %d lignes touchées\n", touchees)
 	return nil
 }
 

@@ -19,6 +19,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -141,10 +142,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, csvPath string) error {
 		return err
 	}
 
-	fmt.Printf("  révision %d : %d liens parti->groupe, %d liens parti->référentiel\n",
-		revID, nGroupes, nRef)
+	logs.Notice(fmt.Sprintf("revision %d: %s party->group, %s party->referential",
+		revID, logs.Plural(nGroupes, "link"), logs.Plural(nRef, "link")))
 	for _, s := range ignores {
-		fmt.Printf("  ignoré : %s\n", s)
+		logs.Notice("skipped: " + s)
 	}
 	return nil
 }

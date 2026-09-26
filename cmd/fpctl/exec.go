@@ -1,11 +1,15 @@
 package main
 
 import (
+	"context"
 	"fmt"
+	"log/slog"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"strings"
+
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 )
 
 // estDemandeAide : le premier argument brut d'une commande à options
@@ -34,46 +38,25 @@ func racineDepot() (string, error) {
 	return filepath.Dir(gomod), nil
 }
 
-// execBinaire compile pkg (un chemin cmd/... du même module) puis l'exécute
-// avec args, terminaux et code de sortie transmis tels quels. Le répertoire
-// de travail est déjà la racine du dépôt (main a fait le chdir), donc "./"+pkg
-// et bin/nom y résolvent correctement quel que soit le répertoire d'où fpctl
-// a été appelé.
-//
-// Toujours recompiler, jamais un test de fraîcheur maison (mtime du binaire
-// contre celui des sources) : le cache de compilation de Go rend une
-// recompilation à l'identique quasi instantanée, alors qu'un test de
-// fraîcheur qui oublierait un paquet interne modifié exécuterait un binaire
-// périmé sans le dire — le genre d'erreur qu'aucune vitesse gagnée ne vaut.
-func execBinaire(nom, pkg string, args []string) error {
-	chemin := filepath.Join("bin", nom)
-
-	compiler := exec.Command("go", "build", "-o", chemin, "./"+pkg)
-	compiler.Stdout, compiler.Stderr = os.Stderr, os.Stderr
-	if err := compiler.Run(); err != nil {
-		return fmt.Errorf("compilation de %s : %w", pkg, err)
-	}
-
-	cmd := exec.Command(chemin, args...)
-	cmd.Stdin, cmd.Stdout, cmd.Stderr = os.Stdin, os.Stdout, os.Stderr
-	if err := cmd.Run(); err != nil {
-		if exitErr, ok := err.(*exec.ExitError); ok {
-			os.Exit(exitErr.ExitCode())
-		}
-		return err
-	}
-	return nil
-}
-
 // executerInterne traduit l'erreur d'un paquet interne (déjà importé, déjà
 // routé par une commande fpctl) en code de sortie du process. Toujours
 // affichée : certains paquets détaillent déjà l'échec sur stderr avant de
 // remonter une erreur volontairement sobre (verify.ErrAnomalies, par
 // exemple), d'autres remontent l'erreur brute — dans les deux cas, ne rien
 // afficher ici laisserait le second cas totalement muet.
-func executerInterne(err error) error {
+//
+// ctx est celui que la commande a reçu de cobra (cmd.Context()) : un
+// contexte déjà annulé quand err remonte veut dire que l'interruption
+// vient d'un signal, déjà annoncé par internal/logs.Context — le code de
+// sortie conventionnel (130) le dit à son tour, plutôt que de remonter en
+// échec générique une exécution qui s'est arrêtée proprement parce qu'on
+// le lui a demandé.
+func executerInterne(ctx context.Context, err error) error {
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "fpctl : %v\n", err)
+		if ctx.Err() != nil {
+			os.Exit(logs.ExitCode)
+		}
+		slog.Error(err.Error())
 		os.Exit(1)
 	}
 	return nil

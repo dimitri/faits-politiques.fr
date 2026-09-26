@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -119,7 +120,7 @@ func IngestPresidents(ctx context.Context, pool *pgxpool.Pool, csvPath string) e
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	fmt.Printf("  %d périodes de présidence\n", n)
+	logs.Notice(logs.Plural(n, "presidential term"))
 	return nil
 }
 

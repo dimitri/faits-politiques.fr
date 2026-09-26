@@ -1,6 +1,6 @@
 # L'Éducation nationale : budget, effectifs, organisation
 
-> **Dossier** · version 5 · 19 septembre 2026
+> **Dossier** · version 6 · 20 septembre 2026
 >
 > Que coûte l'enseignement scolaire, combien de personnes y travaillent par
 > établissement, et comment l'autorité et la rémunération des enseignants sont-elles
@@ -165,6 +165,46 @@ moyenne par établissement) que dans le public (8,5 %)** — une mesure qui, ell
 porte sur la même catégorie de personnel (les enseignants payés par l'État)
 dans les deux secteurs, donc réellement comparable.
 
+**Le résidu « ETP autre » enfin décomposé, à l'échelle nationale** : le
+tableau ci-dessus vient d'un jeu par établissement (second degré public
+seulement) ; la Depp publie séparément, dans son *Panorama statistique des
+personnels de l'enseignement scolaire*, la décomposition précise, par
+catégorie, de tous les personnels non enseignants du secteur public — tous
+degrés confondus, à l'échelle nationale (rentrée 2024, un document trouvé et
+vérifié directement, pas déduit du seul résidu par établissement — les deux
+sources ne portent pas exactement le même périmètre, jamais additionnées
+entre elles) :
+
+| Catégorie | Effectifs | ETP |
+|---|---:|---:|
+| **Encadrement** (direction, inspection, encadrement supérieur) | **18 563** | 18 530 |
+| — dont personnels de direction | 13 633 | 13 610 |
+| — dont personnels d'inspection | 3 508 | 3 501 |
+| — dont encadrement supérieur (recteurs, IGESR, DASEN...) | 1 422 | 1 420 |
+| **Vie scolaire** (éducation + assistance éducative) | **220 303** | 157 382 |
+| — dont conseillers principaux d'éducation (CPE) | 11 986 | 11 677 |
+| — dont psychologues de l'Éducation nationale, conseillers d'orientation | 6 657 | 6 374 |
+| — dont personnels d'éducation non titulaires | 4 060 | 3 867 |
+| — dont **AESH** (accompagnants d'élèves en situation de handicap) | **134 775** | 85 326 |
+| — dont AED (assistants d'éducation) | 62 825 | 50 138 |
+| **Administratifs, sociaux et de santé (ASS)** | **65 169** | 62 626 |
+| — dont filière administrative | 51 882 | 50 340 |
+| — dont filière santé et sociale | 13 151 | 12 151 |
+| — dont filière technique | 136 | 135 |
+| **ITRF** (ingénieurs et personnels techniques de recherche et formation) | **11 558** | 11 131 |
+| **Total personnels non enseignants** | **315 593** | 249 670 |
+
+**Les AESH, à eux seuls, dépassent l'ensemble des personnels
+d'encadrement** (134 775 contre 18 563) et représentent **43 % de tous les
+personnels non enseignants** — la catégorie qui a le plus grossi depuis
+2020 (+17 % d'effectifs, +19 % en ETP, portée par la bascule des anciens
+contrats aidés vers le contrat d'AESH). **L'écart effectif/ETP est le
+signal d'un temps de travail incomplet, pas d'un doublon de comptage** :
+un AESH travaille en moyenne à 63 % d'un temps plein (le métier suit le
+temps de scolarisation des élèves accompagnés), ce qui ramène leurs
+134 775 effectifs à 85 326 ETP — l'écart le plus large de toutes les
+catégories de ce tableau, à ne jamais lire comme une anomalie.
+
 ### 7. La France en comparaison européenne : taille des classes, résultats PISA
 
 **La taille des classes** : Eurostat publiait une série comparable
@@ -215,11 +255,13 @@ même manière.
 
 ## Ce que les données ne disent pas
 
-Les effectifs d'AESH, la dépense par élève et les séries longues ne sont pas
-disponibles en jeu de données ouvert structuré : la liste « Non chargé, et pourquoi » de
-l'annexe technique (§ 6) le détaille source par source. La comparaison européenne du § 7
-repose sur des citations sourcées précisément, pas sur des séries chargées en base : voir
-ce paragraphe pour le détail de cette limite.
+La dépense par élève et les séries longues ne sont pas disponibles en jeu de données
+ouvert structuré : la liste « Non chargé, et pourquoi » de l'annexe technique (§ 6) le
+détaille source par source. Les effectifs d'AESH, longtemps cités seulement via un
+ordre de grandeur de la Cour des comptes, sont désormais chargés par catégorie précise
+(§ 3). La comparaison européenne du § 7 repose sur des citations sourcées précisément,
+pas sur des séries chargées en base : voir ce paragraphe pour le détail de cette
+limite.
 
 ## Sources
 
@@ -230,9 +272,14 @@ ce paragraphe pour le détail de cette limite.
   degré*, data.education.gouv.fr.
 - Depp, *Effectifs et nombre de classes des écoles publiques et privées*
   (`fr-en-ecoles-effectifs-nb_classes`), data.education.gouv.fr.
+- Depp, *Panorama statistique des personnels de l'enseignement scolaire
+  2024-2025*, education.gouv.fr (§ 3 : personnels non enseignants par
+  catégorie précise, dont AESH).
 - Légifrance, Code de l'éducation, articles D. 422-5 à D. 422-11.
 - Cour des comptes, rapport sur les AESH, septembre 2024 (ordre de grandeur
-  cité § 6, non chargé en base).
+  cité § 6, non chargé en base — recoupé par le Panorama Depp du § 3,
+  85 326 ETP contre 86 502 ETP cités par la Cour, deux sources distinctes du
+  même ordre de grandeur).
 - Eurostat, `educ_iste` (taille des classes, série arrêtée en 2012, citation
   § 7).
 - OCDE, *Regards sur l'éducation 2025*, note pays France (taille des classes,
@@ -250,20 +297,10 @@ ce paragraphe pour le détail de cette limite.
 | 2 | Depp, personnels des établissements du premier degré | 94 584 lignes, 2024-2025 |
 | 3 | Depp, personnels des établissements du second degré | 10 697 lignes, 2024 |
 | 4 | Depp, effectifs d'élèves des écoles (premier degré) | 35 lignes, agrégat national par secteur, 2009-2025 |
+| 5 | Depp, Panorama — personnels non enseignants par catégorie (dont AESH) | 18 lignes, national, rentrée 2024 |
 
 **Non chargé, et pourquoi :**
 
-- **Les AESH (accompagnants d'élèves en situation de handicap) : recherche
-  refaite, toujours aucun jeu de données ouvert structuré identifié.** Ils
-  sont mêlés, dans les jeux Depp chargés (§ 2), aux « personnels de vie
-  scolaire » sans être isolés — confirmé explicitement par la documentation
-  du jeu de données lui-même (« les ETP des personnels de vie scolaire sont
-  renseignés en nc [non concerné] » pour le secteur privé sous contrat,
-  puisque ces personnels n'y sont pas payés par l'État). Les chiffres de **86 502 ETP en 2024 et 90 502 ETP en 2025** viennent du rapport de la
-  Cour des comptes de septembre 2024 et de reprises parlementaires, pas d'un
-  jeu de données consultable : cette note le cite comme un ordre de grandeur
-  sourcé, pas comme une série chargée en base, faute d'un fichier à
-  télécharger et à vérifier ligne à ligne.
 - La dépense par élève (environ 8 450 €/an en primaire, 11 320 €/an dans le secondaire selon les publications de la Depp) : chiffre publié par la Depp dans ses
   publications (RERS, « L'état de l'École ») mais aucun jeu de données ouvert
   structuré retrouvé au moment de l'écriture — seulement des documents PDF.
@@ -277,6 +314,19 @@ ce paragraphe pour le détail de cette limite.
 
 ## Versions
 
+- **Version 6** (20 septembre 2026) : les personnels non enseignants,
+  enfin identifiés par catégorie précise (§ 3) — direction, inspection,
+  encadrement supérieur, CPE, psychologues de l'Éducation nationale, AESH,
+  AED, filières administrative/santé-sociale/technique, ITRF. Source
+  trouvée et vérifiée directement (le Panorama statistique des personnels
+  de l'enseignement scolaire de la Depp, un PDF sans export CSV/XLSX
+  atteignable automatiquement), extraite par repérage positionnel des
+  tableaux plutôt que par un lecteur de tableau générique, avec
+  revérification de chaque sous-total contre ses composantes. Les AESH
+  (134 775 effectifs, 85 326 ETP) dépassent à eux seuls l'ensemble des
+  personnels d'encadrement et recoupent, à 1 200 ETP près, l'ordre de
+  grandeur déjà cité d'après la Cour des comptes — la seule mesure
+  d'AESH de ce dossier jusqu'ici.
 - **Version 5** (19 septembre 2026) : positionnement européen ajouté (§ 7) —
   taille des classes (Eurostat, série arrêtée en 2012 ; OCDE, *Regards sur
   l'éducation 2025*) et résultats PISA 2022 (OCDE, volume I), les deux cités

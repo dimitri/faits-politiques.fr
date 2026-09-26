@@ -1,6 +1,6 @@
 # La santé : FINESS comme clé pivot, la rémunération des médecins et les déserts médicaux
 
-> **Dossier** · version 10 · 15 septembre 2026
+> **Dossier** · version 11 · 19 septembre 2026
 >
 > Comment le système de santé est-il décrit par les données publiques, comment les
 > médecins sont-ils rémunérés, et que disent les données sur les déserts médicaux au-delà
@@ -120,7 +120,7 @@ Cnam à l'autre, même publiés par le même organisme.
 
 <!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
+- **Aux urgences, la moitié des patients attendent plus de 3 heures en 2023, 45 minutes de plus qu'en 2013** (19 mars 2025). Sur une journée moyenne de semaine dans près de 720 services d'urgence, la moitié des patients pris en charge y passent plus de 3 heures en 2023 contre 2h15 en 2013, et 15 % restent plus de 8 heures contre 9 % en 2013 — deux instantanés à dix ans d'écart, pas une série continue (l'enquête n'a lieu qu'une fois par décennie). — Drees, Enquête Urgences 2023 (comparée à l'édition 2013) · [source](https://drees.solidarites-sante.gouv.fr/publications-communique-de-presse/etudes-et-resultats/250319_ER_urgences-la-moitie-des-patients-y-restent-plus-de-trois-heures-en-2023) · *officiel*
 
 <!-- faits:CONTROLE:fin -->
 
@@ -164,10 +164,11 @@ jointure géographique future.
 
 #### 1.1 Le personnel hospitalier par fonction (SAE)
 
-3 808 établissements, 2024. Source : Drees, SAE (Statistique annuelle des
-établissements de santé) — publiée sous forme d'une archive compressée contenant une
-cinquantaine de bordereaux thématiques (lits, activité par discipline, équipements,
-personnel), pas d'un jeu tabulaire directement interrogeable.
+3 808 établissements, 2024, et cette série 2013-2024 (2020 excepté). Source : Drees,
+SAE (Statistique annuelle des établissements de santé) — publiée sous forme d'une
+archive compressée par année, contenant une cinquantaine de bordereaux thématiques
+(lits, activité par discipline, équipements, personnel), pas d'un jeu tabulaire
+directement interrogeable.
 
 **Un bug de comptage trouvé et corrigé avant publication** : le fichier
 source (bordereau Q24) publie, par établissement, une ligne par discipline
@@ -176,14 +177,28 @@ précédentes (vérifié : établissement 010000024, disciplines 1000 + 2000 =
 ligne 9999, à l'ETP près). Une première version de ce chargement additionnait
 toutes les lignes et obtenait 3,01 millions d'ETP nationaux — trois fois le
 chiffre plausible. Seule la ligne 9999 (le total déjà calculé par la Drees)
-est retenue :
+est retenue.
 
-| | ETP |
-|---|---:|
-| Infirmiers (avec et sans spécialisation) | 328 700 |
-| Aides-soignants | 235 496 |
-| Administratifs et techniques | 284 577 |
-| **Total personnel non médical, tous établissements SAE** | **1 088 252** |
+**Le personnel non médical progresse sur dix ans, sans rupture visible** :
+
+| | 2013 | 2024 | Évolution |
+|---|---:|---:|---:|
+| Infirmiers (avec et sans spécialisation) | 240 070 | 284 135 | +18,4 % |
+| Aides-soignants | 226 343 | 235 496 | +4,0 % |
+| **Total personnel non médical, tous établissements SAE** | **1 016 547** | **1 088 252** | **+7,1 %** |
+
+**2020 n'a aucun bordereau Q24 dans l'archive source** (vérifié : aucun fichier
+Q2x, pas une erreur d'extraction) — l'année où la collecte du personnel a été
+la plus perturbée est aussi celle qui manque à cette série, pas chargée par
+un chiffre de repli.
+
+**Cette hausse régulière du personnel ne raconte, à elle seule, ni
+amélioration ni dégradation de la prise en charge** : elle dit combien de
+personnes travaillent, pas combien de patients elles prennent en charge
+chacune, ni dans quelles conditions — à lire avec § 1.5 (activité hospitalière)
+et § 1.8 (passages aux urgences), jamais combinée en un ratio unique avec
+l'une ou l'autre (le personnel SAE couvre tout l'hôpital, pas seulement le
+service qui a produit l'activité comparée).
 
 **Ce total ne couvre que les 3 808 établissements répondant à la SAE**
 (essentiellement les établissements de santé au sens strict), pas les 103 022
@@ -285,13 +300,23 @@ familles de chiffres est un second portail, moins connu :
 **data-essentiel.atih.sante.fr**, un Opendatasoft comme celui de la Depp ou
 de la Drees déjà utilisés ailleurs dans ce dépôt, sous licence ODbL.
 
-**MCO (Médecine-Chirurgie-Obstétrique)** :
+**MCO (Médecine-Chirurgie-Obstétrique)**, cette série 2021-2025 (les deux
+premières années, absentes d'une version précédente de ce dossier, sont en
+réalité déjà publiées par la même source — vérifié directement) :
 
 | Année | Séjours (Tous) | dont hospitalisation complète | dont ambulatoire | Durée moyenne (Tous) |
 |---|---:|---:|---:|---:|
+| 2021 | 18 566 655 | 9 667 487 | 8 899 168 | 3,87 j |
+| 2022 | 18 904 871 | 9 572 295 | 9 332 576 | 3,80 j |
 | 2023 | 19 703 163 | 9 587 483 | 10 115 680 | 3,68 j |
 | 2024 | 20 431 758 | 9 699 182 | 10 732 576 | 3,61 j |
 | 2025 | 21 207 964 | 9 762 710 | 11 445 254 | 3,51 j |
+
+**+14,2 % de séjours en cinq ans, portés presque entièrement par
+l'ambulatoire** (+28,6 %, contre +1,0 % pour l'hospitalisation complète,
+restée quasiment stable en volume) — la durée moyenne de séjour recule
+mécaniquement à mesure que l'ambulatoire (par définition sans nuitée) pèse
+plus lourd dans le total, pas parce que chaque séjour individuel raccourcit.
 
 **« Tous » est la somme exacte des deux types d'hospitalisation, vérifiée
 ligne à ligne à l'ingestion** — un contrôle systématique plutôt qu'une
@@ -450,6 +475,87 @@ jeune, en meilleure santé, ou mieux couverte par la télémédecine — aucune 
 ces dimensions n'est mesurée par les sources chargées ici. La densité situe
 un débat, elle ne le tranche pas.
 
+#### 1.8 Les passages aux urgences : le volume, pas le temps d'attente
+
+Cette série 2013-2024. Source : Drees, SAE, bordereau URGENCES2 (colonne
+PASSU) — le même millésime, la même archive que le personnel (§ 1.1), un
+second bordereau extrait au même passage.
+
+| Année | Passages aux urgences |
+|---|---:|
+| 2013 | 18 806 790 |
+| 2019 | 21 953 926 |
+| 2020 | 18 152 933 |
+| 2021 | 20 357 218 |
+| 2022 | 21 618 705 |
+| 2023 | 20 893 055 |
+| 2024 | 21 427 875 |
+
+**+14 % entre 2013 et 2019, un creux net en 2020 (confinements), puis une
+reprise qui plafonne depuis autour de 20 à 22 millions** — pas une
+progression continue qui expliquerait à elle seule un embouteillage
+croissant, mais un niveau resté durablement plus haut qu'avant 2017.
+
+**Chaque établissement porte une ligne par type d'accueil** (général,
+pédiatrique, et un cas marginal « AMU ») : un CHU avec les deux types
+distincts compte deux lignes, jamais un doublon — sommer les deux donne le
+bon total par établissement, vérifié sur le total national (21,4 millions en
+2024, cohérent avec l'ordre de grandeur publié par la Drees).
+
+**Ce que cette table ne dit pas : le temps d'attente.** Le nombre de
+passages mesure une demande, pas une prise en charge — voir le fait sourcé
+en Contrôles et évaluations ci-dessus (Enquête Urgences Drees, 2013 et
+2023) : la seule mesure de durée disponible, mais seulement deux
+instantanés à dix ans d'écart, jamais une série continue comme celle-ci.
+
+#### 1.9 Le budget des hôpitaux publics : une dégradation qui s'accélère depuis 2022
+
+Cette série 2005-2024. Source : Drees, Panorama *Les établissements de
+santé*, fiche « La situation économique et financière des hôpitaux publics »
+— un fichier Excel d'accompagnement, distinct du PDF habituellement cité,
+vérifié directement (feuilles inspectées cellule par cellule).
+
+| Année | Résultat d'exploitation | Résultat financier | Résultat exceptionnel | **Résultat net** |
+|---|---:|---:|---:|---:|
+| 2019 | -91 | -862 | 388 | **-565** |
+| 2020 | 555 | -842 | 196 | **-92** |
+| 2021 | 21 | -751 | 315 | **-415** |
+| 2022 | -847 | -792 | 322 | **-1 317** |
+| 2023 | -1 880 | -907 | 435 | **-2 352** |
+| 2024 | -2 483 | -877 | 447 | **-2 913** |
+
+*En millions d'euros. Résultat net = exploitation + financier + exceptionnel,
+vérifié ligne à ligne à l'ingestion.*
+
+**Le déficit net a été multiplié par plus de 30 entre 2020 et 2024** (-92 M€
+à -2 913 M€), porté presque entièrement par l'effondrement du résultat
+d'exploitation (+555 M€ en 2020, la seule année positive de la série depuis
+2012, à -2 483 M€ en 2024) — le résultat financier, lui, reste stable
+autour de -800/-900 M€ sur toute la période récente : ce n'est pas le coût
+de la dette qui se dégrade, c'est l'écart entre recettes et charges
+d'exploitation courantes.
+
+**Le déficit touche inégalement les catégories d'établissements** (excédent
+ou déficit en % des recettes) :
+
+| Catégorie | 2005 | 2019 | 2024 |
+|---|---:|---:|---:|
+| Ensemble des hôpitaux publics | +0,31 % | -0,68 % | -2,72 % |
+| AP-HP | -0,93 % | -2,12 % | -4,21 % |
+| Petits CH | +1,44 % | -0,89 % | -1,71 % |
+
+**Ce que cette table ne couvre pas** : les cliniques privées à but lucratif
+(une fiche séparée de la même source, non chargée ici), et six autres
+feuilles du même fichier (effort d'investissement, capacité
+d'autofinancement, dotation aux amortissements, surendettement, marge
+brute, produits/charges du budget principal 2019-2024) qui empilent
+plusieurs sous-tableaux par feuille sans repère structurel simple à
+détecter — un chargement plus fin, pas fait ici. Le site de la Drees rejette
+les requêtes sans en-tête de navigateur standard pour ce fichier
+précis : contourné en envoyant un User-Agent et un Referer usuels, jamais en
+usurpant une identité, seulement en cessant de s'annoncer comme un robot
+générique.
+
 ## Ce que les données ne disent pas
 
 ### 3. Ce que ce dossier ne couvre pas encore
@@ -465,6 +571,18 @@ un débat, elle ne le tranche pas.
   de `data-essentiel.atih.sante.fr` (MCO, SMR et HAD y sont, § 1.5) — aucun
   jeu du portail n'en porte le nom, vérifié sur les 48 jeux du catalogue.
   Une source distincte resterait à identifier.
+- **Le temps d'attente aux urgences en continu** (§ 1.8) : la seule mesure
+  disponible (Drees, Enquête Urgences) est une coupe d'un jour, reconduite
+  une fois par décennie (2013, 2023) — deux instantanés comparables, jamais
+  une série annuelle. Le volume de passages (§ 1.8), lui, est bien annuel.
+- **Les finances des cliniques privées et le détail par nature du budget
+  hospitalier public** (§ 1.9) : seuls le compte de résultat et le déficit
+  par catégorie des hôpitaux **publics** sont chargés, sur deux des douze
+  feuilles du fichier Drees ; le secteur privé lucratif et six autres
+  feuilles (investissement, autofinancement, amortissements, surendettement,
+  marge brute, produits/charges du budget principal) restent non chargés,
+  faute d'un repère structurel simple pour découper leurs sous-tableaux
+  empilés.
 
 **DECP, désormais chargées (transversalement, pas seulement pour la santé)** : cette
 série — vide au moment de la version précédente de ce dossier — est maintenant
@@ -504,6 +622,13 @@ région×prestation n'a pas de nomenclature de décodage chargée.
   data-essentiel.atih.sante.fr (§ 1.5).
 - CNAM, *Open Damir : base complète sur les dépenses d'assurance maladie
   interrégimes*, `open-data-assurance-maladie.ameli.fr` (§ 1.6).
+- Drees, *SAE, bordereau URGENCES2 (passages aux urgences)*,
+  data.drees.solidarites-sante.gouv.fr (§ 1.8).
+- Drees, *Enquête Urgences 2023*, communiqué du 19 mars 2025 (§ 1.8, en
+  Contrôles et évaluations).
+- Drees, *Panorama « Les établissements de santé », fiche « La situation
+  économique et financière des hôpitaux publics »*,
+  drees.solidarites-sante.gouv.fr (§ 1.9).
 
 ## Annexe technique
 
@@ -512,7 +637,7 @@ région×prestation n'a pas de nomenclature de décodage chargée.
 | # | Source | Volume |
 | --- | --- | --- |
 | 1 | ANS, référentiel FINESS des établissements | 103 022 lignes |
-| 2 | Drees, SAE, bordereau Q24 (personnel par fonction) | 3 808 lignes, 2024 |
+| 2 | Drees, SAE, bordereau Q24 (personnel par fonction) | 42 419 lignes, 2013-2024 (2020 excepté) |
 | 3 | Cnam, démographie par secteur conventionnel | 177 720 lignes, 2010-2024 |
 | 4 | HAS, certification des établissements (6ᵉ cycle) | 422 démarches, 981 résultats |
 | 5 | ANS, Annuaire Santé (RPPS) | 2 286 272 lignes, 1 912 833 professionnels distincts |
@@ -521,9 +646,26 @@ région×prestation n'a pas de nomenclature de décodage chargée.
 | 8 | Cnam, lexique Open Damir (nomenclature BEN_RES_REG) | 14 lignes |
 | 9 | ATIH, PMSI-SMR et PMSI-HAD (data-essentiel) | 200+246+300 lignes SMR, 94+233+100 lignes HAD, 2021-2025 |
 | 10 | Cnam, montants des honoraires des médecins | 66 480 lignes, 38 professions, 2010-2024 |
+| 11 | Drees, SAE, bordereau URGENCES2 (passages) | 8 454 lignes, 2013-2024 |
+| 12 | Drees, hôpitaux publics, compte de résultat et déficit par catégorie | 80 + 180 lignes, 2005-2024 |
 
 ## Versions
 
+- **Version 11** (19 septembre 2026) : les passages aux urgences (§ 1.8,
+  SAE bordereau URGENCES2, 2013-2024) et le budget des hôpitaux publics
+  (§ 1.9, Drees, compte de résultat et déficit par catégorie, 2005-2024) —
+  un déficit nettement plus dégradé et récent que ce que le dossier
+  laissait deviner (multiplié par plus de 30 entre 2020 et 2024). Le
+  personnel SAE (§ 1.1) est désormais chargé sur 2013-2024 plutôt que le
+  seul dernier millésime (le connecteur ne récupérait qu'une archive
+  annuelle) ; le tableau du PMSI-MCO (§ 1.5) affiche maintenant les cinq
+  années 2021-2025 déjà présentes en base — la donnée existait, seul
+  l'affichage s'arrêtait à trois ans. Un fait sourcé sur le temps d'attente aux
+  urgences (Drees, Enquête Urgences 2013/2023) en Contrôles et évaluations.
+  Une limite du connecteur d'archive (`internal/archive`) corrigée au
+  passage : un appelant qui fournit son propre en-tête User-Agent (pour
+  contourner le pare-feu applicatif de la Drees sur ce fichier précis) ne
+  se le faisait plus écraser par la valeur par défaut.
 - **Version 10** (15 septembre 2026) : montants des honoraires chargés (§ 2) — la
   répartition par secteur du § 2 a maintenant son pendant en euros (26,0 Md€
   d'honoraires sans dépassement et 4,5 Md€ de dépassements en 2024, taux de

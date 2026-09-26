@@ -6,6 +6,7 @@ import (
 	"net/url"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -54,7 +55,11 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.collectivite_budget`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_collectivite_budget (
+			niveau text, code text, nom text, exercice int, indicator_code text,
+			montant numeric, euros_par_hab numeric, population int, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 
@@ -109,7 +114,7 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 				})
 			}
 		}
-		c, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "collectivite_budget"},
+		c, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_collectivite_budget"},
 			[]string{"niveau", "code", "nom", "exercice", "indicator_code",
 				"montant", "euros_par_hab", "population", "source_id"},
 			pgx.CopyFromRows(lignes))
@@ -120,11 +125,44 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		fmt.Printf("    %-12s %6d valeurs\n", n.niveau, c)
 	}
 
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers
+	// RI pour l'intégralité des trois niveaux et huit exercices à chaque
+	// republication de l'OFGL, changement ou non.
+	var touchees int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.collectivite_budget", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.collectivite_budget AS tgt
+			USING tmp_collectivite_budget AS src
+			ON tgt.niveau = src.niveau AND tgt.code = src.code
+			   AND tgt.exercice = src.exercice AND tgt.indicator_code = src.indicator_code
+			WHEN MATCHED AND (tgt.nom, tgt.montant, tgt.euros_par_hab, tgt.population, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.nom, src.montant, src.euros_par_hab, src.population, src.source_id) THEN
+			    UPDATE SET nom = src.nom, montant = src.montant, euros_par_hab = src.euros_par_hab,
+			               population = src.population, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (niveau, code, nom, exercice, indicator_code, montant, euros_par_hab,
+			            population, source_id)
+			    VALUES (src.niveau, src.code, src.nom, src.exercice, src.indicator_code, src.montant,
+			            src.euros_par_hab, src.population, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		touchees = ct.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"valeurs": total}, "")
-	fmt.Printf("  Collectivités : %d valeurs sur %d-%d\n", total, ofglPremierExercice, ofglDernierExercice)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"valeurs": total, "touchees": touchees}, "")
+	fmt.Printf("  Collectivités : %d valeurs sur %d-%d (%d touchées par la fusion)\n",
+		total, ofglPremierExercice, ofglDernierExercice, touchees)
 	return nil
 }
 

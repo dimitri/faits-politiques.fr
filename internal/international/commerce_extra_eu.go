@@ -65,9 +65,9 @@ func IngestCommerceExtraUE(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	var doc struct {
-		Error []struct{ Label string } `json:"error"`
-		Value map[string]float64       `json:"value"`
-		Size  []int                    `json:"size"`
+		Error     []struct{ Label string } `json:"error"`
+		Value     map[string]float64       `json:"value"`
+		Size      []int                    `json:"size"`
 		Dimension struct {
 			IndicEt struct {
 				Category struct {
@@ -121,20 +121,48 @@ func IngestCommerceExtraUE(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.indicateur_mondial WHERE indicateur = ANY($1)`,
-		[]string{"EU_EXTRA_EXPORT_MEUR", "EU_EXTRA_IMPORT_MEUR"}); err != nil {
+
+	// MERGE plutôt que DELETE+COPY : core.indicateur_mondial est partagée par
+	// quatre connecteurs de ce dossier (pib_epargne_nette.go, sante_ocde.go,
+	// sipri.go, celui-ci), chacun sur ses propres codes d'indicateur ; une vue
+	// scopée sur les deux codes de CE connecteur, plutôt que la table
+	// réelle, pour que le MERGE (notamment son NOT MATCHED BY SOURCE) ne
+	// touche jamais les lignes des trois autres.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_indicateur_mondial_eu_extra (
+			pays_code text, pays_label text, indicateur text, annee smallint, valeur numeric, source_id bigint
+		) ON COMMIT DROP;
+		CREATE OR REPLACE TEMPORARY VIEW indicateur_mondial_eu_extra AS
+		  SELECT * FROM core.indicateur_mondial
+		  WHERE indicateur = ANY('{EU_EXTRA_EXPORT_MEUR,EU_EXTRA_IMPORT_MEUR}')
+		  WITH LOCAL CHECK OPTION`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "indicateur_mondial"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_indicateur_mondial_eu_extra"},
 		[]string{"pays_code", "pays_label", "indicateur", "annee", "valeur", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("core.indicateur_mondial : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO indicateur_mondial_eu_extra AS tgt
+		USING tmp_indicateur_mondial_eu_extra AS src
+		ON tgt.pays_code = src.pays_code AND tgt.indicateur = src.indicateur AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.pays_label, tgt.valeur, tgt.source_id)
+		                  IS DISTINCT FROM (src.pays_label, src.valeur, src.source_id) THEN
+		    UPDATE SET pays_label = src.pays_label, valeur = src.valeur, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (pays_code, pays_label, indicateur, annee, valeur, source_id)
+		    VALUES (src.pays_code, src.pays_label, src.indicateur, src.annee, src.valeur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion core.indicateur_mondial : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(rows)}, "")
-	fmt.Printf("  Commerce extra-UE (Eurostat) : %d lignes\n", len(rows))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(rows), "touchees": touchees}, "")
+	fmt.Printf("  Commerce extra-UE (Eurostat) : %d lignes touchées\n", touchees)
 	return nil
 }

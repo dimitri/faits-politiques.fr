@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -137,8 +138,21 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx,
-		`DELETE FROM core.municipal_list WHERE scrutin_annee = $1`, Municipales2020Annee); err != nil {
+	// MERGE plutôt que DELETE+COPY, scopé au scrutin par une vue temporaire :
+	// core.municipal_list est partagée avec elections.go (municipales 2026),
+	// et l'ancien DELETE payait le prix des triggers RI pour l'intégralité
+	// des listes 2020 à chaque republication, changement ou non — ce qui
+	// n'arrive plus, le scrutin de 2020 étant clos, mais la table garde le
+	// même traitement que sa sœur de 2026 par cohérence.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_municipal_list_2020 (
+			scrutin_annee int, tour smallint, commune_code text, cog_millesime int, panneau int,
+			nuance_code text, circulaire_millesime int, libelle text, nom_candidat text,
+			prenom_candidat text, voix int, sieges_cm int, sieges_cc int, source_id bigint
+		) ON COMMIT DROP;
+		CREATE OR REPLACE TEMPORARY VIEW municipal_list_2020 AS
+		  SELECT * FROM core.municipal_list WHERE scrutin_annee = 2020
+		  WITH LOCAL CHECK OPTION`); err != nil {
 		return fail(err)
 	}
 
@@ -159,13 +173,48 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 			nuance, mil, l.lib, nul(l.nom), nul(l.prenom), l.voix, l.cm, l.cc, srcID,
 		})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "municipal_list"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_municipal_list_2020"},
 		[]string{"scrutin_annee", "tour", "commune_code", "cog_millesime", "panneau",
 			"nuance_code", "circulaire_millesime", "libelle", "nom_candidat",
 			"prenom_candidat", "voix", "sieges_cm", "sieges_cc", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("copie des listes 2020 : %w", err))
+	}
+	var n int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.municipal_list", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO municipal_list_2020 AS tgt
+			USING tmp_municipal_list_2020 AS src
+			ON tgt.scrutin_annee = src.scrutin_annee AND tgt.tour = src.tour
+			   AND tgt.commune_code = src.commune_code AND tgt.panneau = src.panneau
+			WHEN MATCHED AND (tgt.cog_millesime, tgt.nuance_code, tgt.circulaire_millesime,
+			                   tgt.libelle, tgt.nom_candidat, tgt.prenom_candidat,
+			                   tgt.voix, tgt.sieges_cm, tgt.sieges_cc, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.cog_millesime, src.nuance_code, src.circulaire_millesime,
+			                   src.libelle, src.nom_candidat, src.prenom_candidat,
+			                   src.voix, src.sieges_cm, src.sieges_cc, src.source_id) THEN
+			    UPDATE SET cog_millesime = src.cog_millesime, nuance_code = src.nuance_code,
+			               circulaire_millesime = src.circulaire_millesime, libelle = src.libelle,
+			               nom_candidat = src.nom_candidat, prenom_candidat = src.prenom_candidat,
+			               voix = src.voix, sieges_cm = src.sieges_cm, sieges_cc = src.sieges_cc,
+			               source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (scrutin_annee, tour, commune_code, cog_millesime, panneau, nuance_code,
+			            circulaire_millesime, libelle, nom_candidat, prenom_candidat,
+			            voix, sieges_cm, sieges_cc, source_id)
+			    VALUES (src.scrutin_annee, src.tour, src.commune_code, src.cog_millesime, src.panneau,
+			            src.nuance_code, src.circulaire_millesime, src.libelle, src.nom_candidat,
+			            src.prenom_candidat, src.voix, src.sieges_cm, src.sieges_cc, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		n = ct.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion des listes 2020 : %w", err))
 	}
 
 	if _, err := tx.Exec(ctx, `ANALYZE core.municipal_list`); err != nil {
@@ -179,9 +228,9 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"listes": n, "hors_cog": len(horsCOG)}, "")
-	fmt.Printf("  municipales 2020 : %d listes chargées, %d communes disparues depuis (écartées)\n",
-		n, len(horsCOG))
+		map[string]any{"listes": len(rows), "listes_touchees": n, "hors_cog": len(horsCOG)}, "")
+	fmt.Printf("  municipales 2020 : %d listes (%d touchées par la fusion), %d communes disparues depuis (écartées)\n",
+		len(rows), n, len(horsCOG))
 	return nil
 }
 
