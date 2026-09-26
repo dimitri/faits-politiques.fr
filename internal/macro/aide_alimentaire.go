@@ -101,16 +101,7 @@ func IngestAideAlimentaire(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	}
 	defer x.Close()
 
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return fail(err)
-	}
-	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.aide_alimentaire`); err != nil {
-		return fail(err)
-	}
-
-	var total int64
+	var toutesLignes [][]any
 	for _, fa := range feuillesAideAlimentaire {
 		lignes, err := x.rows(fa.Feuille)
 		if err != nil {
@@ -123,20 +114,56 @@ func IngestAideAlimentaire(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		if len(rows) == 0 {
 			return fail(fmt.Errorf("%s (%s) : aucune donnée reconnue", fa.Feuille, fa.Nom))
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "aide_alimentaire"},
-			[]string{"association", "periode_type", "annee", "trimestre", "periode_libelle", "indicateur", "valeur", "source_id"},
-			pgx.CopyFromRows(rows))
-		if err != nil {
-			return fail(fmt.Errorf("%s (%s) : %w", fa.Feuille, fa.Nom, err))
-		}
-		total += n
+		toutesLignes = append(toutesLignes, rows...)
 	}
 
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fail(err)
+	}
+	defer tx.Rollback(ctx)
+
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour l'intégralité des six réseaux à chaque republication, changement
+	// ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_aide_alimentaire (
+			association text, periode_type text, annee smallint, trimestre smallint,
+			periode_libelle text, indicateur text, valeur numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_aide_alimentaire"},
+		[]string{"association", "periode_type", "annee", "trimestre", "periode_libelle", "indicateur", "valeur", "source_id"},
+		pgx.CopyFromRows(toutesLignes)); err != nil {
+		return fail(fmt.Errorf("core.aide_alimentaire : %w", err))
+	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.aide_alimentaire AS tgt
+		USING tmp_aide_alimentaire AS src
+		ON tgt.association = src.association AND tgt.periode_type = src.periode_type
+		   AND tgt.annee = src.annee
+		   AND COALESCE(tgt.trimestre, 0) = COALESCE(src.trimestre, 0)
+		   AND COALESCE(tgt.periode_libelle, '') = COALESCE(src.periode_libelle, '')
+		   AND tgt.indicateur = src.indicateur
+		WHEN MATCHED AND (tgt.valeur, tgt.source_id) IS DISTINCT FROM (src.valeur, src.source_id) THEN
+		    UPDATE SET valeur = src.valeur, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (association, periode_type, annee, trimestre, periode_libelle, indicateur, valeur, source_id)
+		    VALUES (src.association, src.periode_type, src.annee, src.trimestre, src.periode_libelle,
+		            src.indicateur, src.valeur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": total}, "")
-	fmt.Printf("  aide alimentaire (Insee-Drees) : %d lignes, %d réseaux\n", total, len(feuillesAideAlimentaire))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(toutesLignes), "touchees": touchees}, "")
+	fmt.Printf("  aide alimentaire (Insee-Drees) : %d lignes, %d réseaux (%d touchées par la fusion)\n",
+		len(toutesLignes), len(feuillesAideAlimentaire), touchees)
 	return nil
 }
 

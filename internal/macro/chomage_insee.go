@@ -95,20 +95,44 @@ func IngestChomageINSEE(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.chomage_taux_trimestriel`); err != nil {
+
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour tous les trimestres à chaque republication trimestrielle, changement
+	// ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_chomage_taux_trimestriel (
+			trimestre text, annee smallint, trimestre_num smallint, taux numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "chomage_taux_trimestriel"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_chomage_taux_trimestriel"},
 		[]string{"trimestre", "annee", "trimestre_num", "taux", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(err)
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.chomage_taux_trimestriel AS tgt
+		USING tmp_chomage_taux_trimestriel AS src
+		ON tgt.trimestre = src.trimestre
+		WHEN MATCHED AND (tgt.annee, tgt.trimestre_num, tgt.taux, tgt.source_id)
+		                  IS DISTINCT FROM (src.annee, src.trimestre_num, src.taux, src.source_id) THEN
+		    UPDATE SET annee = src.annee, trimestre_num = src.trimestre_num,
+		               taux = src.taux, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (trimestre, annee, trimestre_num, taux, source_id)
+		    VALUES (src.trimestre, src.annee, src.trimestre_num, src.taux, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"trimestres_charges": len(rows)}, "")
-	fmt.Printf("  taux de chômage trimestriel (INSEE, série %s) : %d trimestres\n",
-		ds.Series.IDBank, len(rows))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"trimestres_charges": len(rows), "touchees": touchees}, "")
+	fmt.Printf("  taux de chômage trimestriel (INSEE, série %s) : %d trimestres (%d touchés par la fusion)\n",
+		ds.Series.IDBank, len(rows), touchees)
 	return nil
 }
 

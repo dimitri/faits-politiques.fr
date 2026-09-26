@@ -122,19 +122,47 @@ func IngestCommercePartenaires(ctx context.Context, pool *pgxpool.Pool, arch *ar
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.commerce_partenaire_secteur`); err != nil {
+
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour l'intégralité des secteurs et années à chaque rechargement,
+	// changement ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_commerce_partenaire_secteur (
+			secteur text, code_hs text, annee int, code_partenaire int,
+			nom_partenaire text, valeur_usd numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "commerce_partenaire_secteur"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_commerce_partenaire_secteur"},
 		[]string{"secteur", "code_hs", "annee", "code_partenaire", "nom_partenaire", "valeur_usd", "source_id"},
 		pgx.CopyFromRows(toutesLignes)); err != nil {
 		return fail(fmt.Errorf("core.commerce_partenaire_secteur : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.commerce_partenaire_secteur AS tgt
+		USING tmp_commerce_partenaire_secteur AS src
+		ON tgt.code_hs = src.code_hs AND tgt.annee = src.annee AND tgt.code_partenaire = src.code_partenaire
+		WHEN MATCHED AND (tgt.secteur, tgt.nom_partenaire, tgt.valeur_usd, tgt.source_id)
+		                  IS DISTINCT FROM (src.secteur, src.nom_partenaire, src.valeur_usd, src.source_id) THEN
+		    UPDATE SET secteur = src.secteur, nom_partenaire = src.nom_partenaire,
+		               valeur_usd = src.valeur_usd, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (secteur, code_hs, annee, code_partenaire, nom_partenaire, valeur_usd, source_id)
+		    VALUES (src.secteur, src.code_hs, src.annee, src.code_partenaire, src.nom_partenaire,
+		            src.valeur_usd, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(toutesLignes), "requetes": compte}, "")
-	fmt.Printf("  Commerce par partenaire (UN Comtrade) : %d lignes\n", len(toutesLignes))
+	arch.EndRun(ctx, runID, "SUCCESS",
+		map[string]any{"lignes": len(toutesLignes), "requetes": compte, "touchees": touchees}, "")
+	fmt.Printf("  Commerce par partenaire (UN Comtrade) : %d lignes (%d touchées par la fusion)\n",
+		len(toutesLignes), touchees)
 	return nil
 }
