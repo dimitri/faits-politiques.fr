@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -141,18 +142,76 @@ func IngestFiness(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM ref.finess_etablissement`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_finess_etablissement (
+			nofinesset text, nofinessej text, raison_sociale text, raison_sociale_longue text,
+			code_commune text, code_insee text, code_departement text, libelle_departement text,
+			ligne_acheminement text, categorie_code text, categorie_libelle text, categorie_agregat_code text,
+			categorie_agregat_libelle text, siret text, code_mft text, libelle_mft text, code_sph text,
+			libelle_sph text, date_ouverture date, date_maj date, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"ref", "finess_etablissement"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_finess_etablissement"},
 		[]string{"nofinesset", "nofinessej", "raison_sociale", "raison_sociale_longue",
 			"code_commune", "code_insee", "code_departement", "libelle_departement", "ligne_acheminement",
 			"categorie_code", "categorie_libelle", "categorie_agregat_code", "categorie_agregat_libelle",
 			"siret", "code_mft", "libelle_mft", "code_sph", "libelle_sph",
 			"date_ouverture", "date_maj", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("finess_etablissement : %w", err))
+	}
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour l'intégralité des 100 000+ établissements à chaque republication,
+	// changement ou non.
+	var n int64
+	err = bulkload.SansContraintesFK(ctx, tx, "ref.finess_etablissement", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO ref.finess_etablissement AS tgt
+			USING tmp_finess_etablissement AS src
+			ON tgt.nofinesset = src.nofinesset
+			WHEN MATCHED AND (tgt.nofinessej, tgt.raison_sociale, tgt.raison_sociale_longue, tgt.code_commune,
+			                   tgt.code_insee, tgt.code_departement, tgt.libelle_departement, tgt.ligne_acheminement,
+			                   tgt.categorie_code, tgt.categorie_libelle, tgt.categorie_agregat_code,
+			                   tgt.categorie_agregat_libelle, tgt.siret, tgt.code_mft, tgt.libelle_mft,
+			                   tgt.code_sph, tgt.libelle_sph, tgt.date_ouverture, tgt.date_maj, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.nofinessej, src.raison_sociale, src.raison_sociale_longue, src.code_commune,
+			                   src.code_insee, src.code_departement, src.libelle_departement, src.ligne_acheminement,
+			                   src.categorie_code, src.categorie_libelle, src.categorie_agregat_code,
+			                   src.categorie_agregat_libelle, src.siret, src.code_mft, src.libelle_mft,
+			                   src.code_sph, src.libelle_sph, src.date_ouverture, src.date_maj, src.source_id) THEN
+			    UPDATE SET nofinessej = src.nofinessej, raison_sociale = src.raison_sociale,
+			               raison_sociale_longue = src.raison_sociale_longue, code_commune = src.code_commune,
+			               code_insee = src.code_insee, code_departement = src.code_departement,
+			               libelle_departement = src.libelle_departement, ligne_acheminement = src.ligne_acheminement,
+			               categorie_code = src.categorie_code, categorie_libelle = src.categorie_libelle,
+			               categorie_agregat_code = src.categorie_agregat_code,
+			               categorie_agregat_libelle = src.categorie_agregat_libelle, siret = src.siret,
+			               code_mft = src.code_mft, libelle_mft = src.libelle_mft, code_sph = src.code_sph,
+			               libelle_sph = src.libelle_sph, date_ouverture = src.date_ouverture,
+			               date_maj = src.date_maj, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (nofinesset, nofinessej, raison_sociale, raison_sociale_longue, code_commune, code_insee,
+			            code_departement, libelle_departement, ligne_acheminement, categorie_code,
+			            categorie_libelle, categorie_agregat_code, categorie_agregat_libelle, siret, code_mft,
+			            libelle_mft, code_sph, libelle_sph, date_ouverture, date_maj, source_id)
+			    VALUES (src.nofinesset, src.nofinessej, src.raison_sociale, src.raison_sociale_longue,
+			            src.code_commune, src.code_insee, src.code_departement, src.libelle_departement,
+			            src.ligne_acheminement, src.categorie_code, src.categorie_libelle,
+			            src.categorie_agregat_code, src.categorie_agregat_libelle, src.siret, src.code_mft,
+			            src.libelle_mft, src.code_sph, src.libelle_sph, src.date_ouverture, src.date_maj,
+			            src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		n = ct.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion finess_etablissement : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)

@@ -83,31 +83,67 @@ func IngestHopitalFinances(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.hopital_public_resultat`); err != nil {
+	// MERGE plutôt que DELETE+COPY, sur les deux tables : ce connecteur en est
+	// l'unique propriétaire, et l'ancien DELETE (table entière) payait le prix
+	// des triggers RI à chaque republication du Panorama, changement ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_hopital_public_resultat (
+			annee smallint, indicateur text, montant_meur numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 	var rowsR [][]any
 	for _, l := range resultats {
 		rowsR = append(rowsR, []any{l.Annee, l.Indicateur, l.MontantMEUR, srcID})
 	}
-	nR, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "hopital_public_resultat"},
-		[]string{"annee", "indicateur", "montant_meur", "source_id"}, pgx.CopyFromRows(rowsR))
-	if err != nil {
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_hopital_public_resultat"},
+		[]string{"annee", "indicateur", "montant_meur", "source_id"}, pgx.CopyFromRows(rowsR)); err != nil {
 		return fail(fmt.Errorf("hopital_public_resultat : %w", err))
 	}
+	ctR, err := tx.Exec(ctx, `
+		MERGE INTO core.hopital_public_resultat AS tgt
+		USING tmp_hopital_public_resultat AS src
+		ON tgt.annee = src.annee AND tgt.indicateur = src.indicateur
+		WHEN MATCHED AND (tgt.montant_meur, tgt.source_id) IS DISTINCT FROM (src.montant_meur, src.source_id) THEN
+		    UPDATE SET montant_meur = src.montant_meur, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, indicateur, montant_meur, source_id)
+		    VALUES (src.annee, src.indicateur, src.montant_meur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion hopital_public_resultat : %w", err))
+	}
+	nR := ctR.RowsAffected()
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.hopital_public_deficit_categorie`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_hopital_public_deficit_categorie (
+			annee smallint, categorie text, deficit_pct_recettes numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 	var rowsD [][]any
 	for _, l := range deficits {
 		rowsD = append(rowsD, []any{l.Annee, l.Categorie, l.DeficitPct, srcID})
 	}
-	nD, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "hopital_public_deficit_categorie"},
-		[]string{"annee", "categorie", "deficit_pct_recettes", "source_id"}, pgx.CopyFromRows(rowsD))
-	if err != nil {
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_hopital_public_deficit_categorie"},
+		[]string{"annee", "categorie", "deficit_pct_recettes", "source_id"}, pgx.CopyFromRows(rowsD)); err != nil {
 		return fail(fmt.Errorf("hopital_public_deficit_categorie : %w", err))
 	}
+	ctD, err := tx.Exec(ctx, `
+		MERGE INTO core.hopital_public_deficit_categorie AS tgt
+		USING tmp_hopital_public_deficit_categorie AS src
+		ON tgt.annee = src.annee AND tgt.categorie = src.categorie
+		WHEN MATCHED AND (tgt.deficit_pct_recettes, tgt.source_id)
+		                  IS DISTINCT FROM (src.deficit_pct_recettes, src.source_id) THEN
+		    UPDATE SET deficit_pct_recettes = src.deficit_pct_recettes, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, categorie, deficit_pct_recettes, source_id)
+		    VALUES (src.annee, src.categorie, src.deficit_pct_recettes, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion hopital_public_deficit_categorie : %w", err))
+	}
+	nD := ctD.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)

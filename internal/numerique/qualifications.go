@@ -93,15 +93,51 @@ func IngestQualifications(ctx context.Context, pool *pgxpool.Pool, arch *archive
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.qualification_secnumcloud WHERE catalogue_du = $1`, catalogueDu); err != nil {
+		// MERGE plutôt que DELETE+COPY, scopé au seul catalogue_du de cette
+		// republication : les catalogues précédents restent en base (verify et
+		// sujet_page lisent max(catalogue_du), acteurs.go l'historique). Une
+		// vue plutôt que la table réelle : sans elle, WHEN NOT MATCHED BY
+		// SOURCE effacerait aussi les catalogues des autres dates.
+		if _, err := tx.Exec(ctx, fmt.Sprintf(`
+			CREATE TEMP TABLE tmp_qualification_secnumcloud (
+				fournisseur text, service text, saas boolean, paas boolean, caas boolean, iaas boolean,
+				date_debut date, date_fin date, decision text, catalogue_du date, siren text,
+				technologie_tierce text, document_id bigint
+			) ON COMMIT DROP;
+			CREATE OR REPLACE TEMPORARY VIEW qualification_secnumcloud_scope AS
+			  SELECT * FROM core.qualification_secnumcloud WHERE catalogue_du = %s
+			  WITH LOCAL CHECK OPTION`, "'"+catalogueDu.Format("2006-01-02")+"'::date")); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "qualification_secnumcloud"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_qualification_secnumcloud"},
 			[]string{"fournisseur", "service", "saas", "paas", "caas", "iaas", "date_debut", "date_fin", "decision",
 				"catalogue_du", "siren", "technologie_tierce", "document_id"}, pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
 		}
-		return map[string]any{"catalogue_du": m[1], "services": len(qs)}, tx.Commit(ctx)
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO qualification_secnumcloud_scope AS tgt
+			USING tmp_qualification_secnumcloud AS src
+			ON tgt.fournisseur = src.fournisseur AND tgt.service = src.service AND tgt.catalogue_du = src.catalogue_du
+			WHEN MATCHED AND (tgt.saas, tgt.paas, tgt.caas, tgt.iaas, tgt.date_debut, tgt.date_fin, tgt.decision,
+			                   tgt.siren, tgt.technologie_tierce, tgt.document_id)
+			                  IS DISTINCT FROM
+			                  (src.saas, src.paas, src.caas, src.iaas, src.date_debut, src.date_fin, src.decision,
+			                   src.siren, src.technologie_tierce, src.document_id) THEN
+			    UPDATE SET saas = src.saas, paas = src.paas, caas = src.caas, iaas = src.iaas,
+			               date_debut = src.date_debut, date_fin = src.date_fin, decision = src.decision,
+			               siren = src.siren, technologie_tierce = src.technologie_tierce,
+			               document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (fournisseur, service, saas, paas, caas, iaas, date_debut, date_fin, decision,
+			            catalogue_du, siren, technologie_tierce, document_id)
+			    VALUES (src.fournisseur, src.service, src.saas, src.paas, src.caas, src.iaas, src.date_debut,
+			            src.date_fin, src.decision, src.catalogue_du, src.siren, src.technologie_tierce,
+			            src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"catalogue_du": m[1], "services": len(qs), "touchees": ct.RowsAffected()}, tx.Commit(ctx)
 	})
 }
 

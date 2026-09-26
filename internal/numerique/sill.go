@@ -89,15 +89,52 @@ func IngestSILL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.sill_logiciel`); err != nil {
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_sill_logiciel (
+				id int, nom text, licence text, reference_depuis date, en_observation boolean,
+				issu_service_public boolean, contrat_support boolean, organisations int, utilisateurs int,
+				referents int, prestataires int, categories text[], document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "sill_logiciel"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_sill_logiciel"},
 			[]string{"id", "nom", "licence", "reference_depuis", "en_observation", "issu_service_public", "contrat_support",
 				"organisations", "utilisateurs", "referents", "prestataires", "categories", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
 		}
-		return map[string]any{"logiciels": len(lignes), "issus_service_public": publics, "contrat_support": support}, tx.Commit(ctx)
+		// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+		// connecteur en est l'unique propriétaire) payait le prix des triggers
+		// RI pour l'intégralité du catalogue à chaque republication, changement
+		// ou non.
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.sill_logiciel AS tgt
+			USING tmp_sill_logiciel AS src
+			ON tgt.id = src.id
+			WHEN MATCHED AND (tgt.nom, tgt.licence, tgt.reference_depuis, tgt.en_observation,
+			                   tgt.issu_service_public, tgt.contrat_support, tgt.organisations,
+			                   tgt.utilisateurs, tgt.referents, tgt.prestataires, tgt.categories, tgt.document_id)
+			                  IS DISTINCT FROM
+			                  (src.nom, src.licence, src.reference_depuis, src.en_observation,
+			                   src.issu_service_public, src.contrat_support, src.organisations,
+			                   src.utilisateurs, src.referents, src.prestataires, src.categories, src.document_id) THEN
+			    UPDATE SET nom = src.nom, licence = src.licence, reference_depuis = src.reference_depuis,
+			               en_observation = src.en_observation, issu_service_public = src.issu_service_public,
+			               contrat_support = src.contrat_support, organisations = src.organisations,
+			               utilisateurs = src.utilisateurs, referents = src.referents,
+			               prestataires = src.prestataires, categories = src.categories,
+			               document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (id, nom, licence, reference_depuis, en_observation, issu_service_public, contrat_support,
+			            organisations, utilisateurs, referents, prestataires, categories, document_id)
+			    VALUES (src.id, src.nom, src.licence, src.reference_depuis, src.en_observation,
+			            src.issu_service_public, src.contrat_support, src.organisations, src.utilisateurs,
+			            src.referents, src.prestataires, src.categories, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"logiciels": len(lignes), "issus_service_public": publics, "contrat_support": support,
+			"touchees": ct.RowsAffected()}, tx.Commit(ctx)
 	})
 }

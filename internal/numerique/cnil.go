@@ -127,15 +127,47 @@ func IngestSanctionsCNIL(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.sanction_cnil`); err != nil {
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_sanction_cnil (
+				rang int, date_decision date, organisme text, manquements text, sanction text,
+				montant_eur numeric, deliberation_url text, public boolean, procedure_simplifiee boolean,
+				document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "sanction_cnil"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_sanction_cnil"},
 			[]string{"rang", "date_decision", "organisme", "manquements", "sanction", "montant_eur", "deliberation_url",
 				"public", "procedure_simplifiee", "document_id"}, pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
 		}
-		return map[string]any{"sanctions": len(lignes), "avec_montant": montants}, tx.Commit(ctx)
+		// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+		// connecteur en est l'unique propriétaire) payait le prix des triggers
+		// RI à chaque republication de la page, changement ou non.
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.sanction_cnil AS tgt
+			USING tmp_sanction_cnil AS src
+			ON tgt.rang = src.rang AND tgt.document_id = src.document_id
+			WHEN MATCHED AND (tgt.date_decision, tgt.organisme, tgt.manquements, tgt.sanction,
+			                   tgt.montant_eur, tgt.deliberation_url, tgt.public, tgt.procedure_simplifiee)
+			                  IS DISTINCT FROM
+			                  (src.date_decision, src.organisme, src.manquements, src.sanction,
+			                   src.montant_eur, src.deliberation_url, src.public, src.procedure_simplifiee) THEN
+			    UPDATE SET date_decision = src.date_decision, organisme = src.organisme,
+			               manquements = src.manquements, sanction = src.sanction,
+			               montant_eur = src.montant_eur, deliberation_url = src.deliberation_url,
+			               public = src.public, procedure_simplifiee = src.procedure_simplifiee
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (rang, date_decision, organisme, manquements, sanction, montant_eur,
+			            deliberation_url, public, procedure_simplifiee, document_id)
+			    VALUES (src.rang, src.date_decision, src.organisme, src.manquements, src.sanction,
+			            src.montant_eur, src.deliberation_url, src.public, src.procedure_simplifiee,
+			            src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return nil, err
+		}
+		return map[string]any{"sanctions": len(lignes), "avec_montant": montants,
+			"touchees": ct.RowsAffected()}, tx.Commit(ctx)
 	})
 }
 
