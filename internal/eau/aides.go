@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/xuri/excelize/v2"
@@ -387,16 +388,34 @@ func chargerAidesRhinMeuse(chemin string) ([]ligneAideEau, error) {
 	return lignes, nil
 }
 
+// quoteLiteral échappe un littéral SQL. N'est appelé que sur agence, une
+// constante Go du connecteur (jamais une donnée venue du fichier source) —
+// mais la vue temporaire scopée ci-dessous ne peut pas se paramétrer
+// autrement qu'en construisant son texte.
+func quoteLiteral(s string) string {
+	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
+}
+
+// chargerEtInserer fusionne les décisions d'une agence. MERGE plutôt que
+// DELETE(scopé par agence+programme)+COPY : l'ancien DELETE payait le prix
+// des triggers RI pour l'intégralité des programmes d'une agence à chaque
+// republication, changement ou non. Pas de clé naturelle publiée par les
+// sources — chaque fichier contient de vrais doublons sur toutes les
+// colonnes publiées (vérifié via GROUP BY, ex. ARTOIS_PICARDIE/10e-11e/
+// 20-I-035/2020) — donc rang fixe la position d'apparition dans le fichier
+// pour chaque (agence, programme) (migration 0183), la même logique que
+// core.declaration_item (HATVP).
 func chargerEtInserer(ctx context.Context, pool *pgxpool.Pool, agence string, lignes []ligneAideEau, srcID int64) error {
 	if len(lignes) == 0 {
 		return fmt.Errorf("%s : aucune ligne à charger", agence)
 	}
-	programmes := map[string]bool{}
+	rangParProgramme := map[string]int{}
 	rows := make([][]any, 0, len(lignes))
 	for _, l := range lignes {
-		programmes[l.Programme] = true
+		rang := rangParProgramme[l.Programme]
+		rangParProgramme[l.Programme] = rang + 1
 		rows = append(rows, []any{
-			agence, l.Programme, l.Annee, l.DateDecision, l.ReferenceDecision,
+			agence, l.Programme, rang, l.Annee, l.DateDecision, l.ReferenceDecision,
 			l.NomBeneficiaire, l.SiretBeneficiaire, l.CodeDepartement, l.CodeInseeCommune,
 			l.Objet, l.MontantEUR, l.Nature, l.TypeBeneficiaire, srcID,
 		})
@@ -406,17 +425,55 @@ func chargerEtInserer(ctx context.Context, pool *pgxpool.Pool, agence string, li
 		return err
 	}
 	defer tx.Rollback(ctx)
-	for prog := range programmes {
-		if _, err := tx.Exec(ctx, `DELETE FROM core.aide_agence_eau WHERE agence = $1 AND programme = $2`, agence, prog); err != nil {
-			return err
-		}
+
+	if _, err := tx.Exec(ctx, fmt.Sprintf(`
+		CREATE TEMP TABLE tmp_aide_agence_eau (
+			agence text, programme text, rang int, annee int, date_decision text, reference_decision text,
+			nom_beneficiaire text, siret_beneficiaire text, code_departement text, code_insee_commune text,
+			objet text, montant_eur numeric, nature text, type_beneficiaire text, source_id bigint
+		) ON COMMIT DROP;
+		CREATE OR REPLACE TEMPORARY VIEW aide_agence_eau_scope AS
+		  SELECT * FROM core.aide_agence_eau WHERE agence = %s
+		  WITH LOCAL CHECK OPTION`, quoteLiteral(agence))); err != nil {
+		return err
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "aide_agence_eau"},
-		[]string{"agence", "programme", "annee", "date_decision", "reference_decision",
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_aide_agence_eau"},
+		[]string{"agence", "programme", "rang", "annee", "date_decision", "reference_decision",
 			"nom_beneficiaire", "siret_beneficiaire", "code_departement", "code_insee_commune",
 			"objet", "montant_eur", "nature", "type_beneficiaire", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fmt.Errorf("%s : %w", agence, err)
+	}
+	err = bulkload.SansContraintesFK(ctx, tx, "core.aide_agence_eau", func() error {
+		_, err := tx.Exec(ctx, `
+			MERGE INTO aide_agence_eau_scope AS tgt
+			USING tmp_aide_agence_eau AS src
+			ON tgt.programme = src.programme AND tgt.rang = src.rang
+			WHEN MATCHED AND (tgt.annee, tgt.date_decision, tgt.reference_decision, tgt.nom_beneficiaire,
+			                   tgt.siret_beneficiaire, tgt.code_departement, tgt.code_insee_commune,
+			                   tgt.objet, tgt.montant_eur, tgt.nature, tgt.type_beneficiaire, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.annee, src.date_decision, src.reference_decision, src.nom_beneficiaire,
+			                   src.siret_beneficiaire, src.code_departement, src.code_insee_commune,
+			                   src.objet, src.montant_eur, src.nature, src.type_beneficiaire, src.source_id) THEN
+			    UPDATE SET annee = src.annee, date_decision = src.date_decision,
+			               reference_decision = src.reference_decision, nom_beneficiaire = src.nom_beneficiaire,
+			               siret_beneficiaire = src.siret_beneficiaire, code_departement = src.code_departement,
+			               code_insee_commune = src.code_insee_commune, objet = src.objet,
+			               montant_eur = src.montant_eur, nature = src.nature,
+			               type_beneficiaire = src.type_beneficiaire, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (agence, programme, rang, annee, date_decision, reference_decision, nom_beneficiaire,
+			            siret_beneficiaire, code_departement, code_insee_commune, objet, montant_eur, nature,
+			            type_beneficiaire, source_id)
+			    VALUES (src.agence, src.programme, src.rang, src.annee, src.date_decision, src.reference_decision,
+			            src.nom_beneficiaire, src.siret_beneficiaire, src.code_departement, src.code_insee_commune,
+			            src.objet, src.montant_eur, src.nature, src.type_beneficiaire, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		return err
+	})
+	if err != nil {
+		return fmt.Errorf("%s : fusion : %w", agence, err)
 	}
 	return tx.Commit(ctx)
 }

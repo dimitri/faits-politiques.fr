@@ -277,13 +277,7 @@ func chargerArchive(ctx context.Context, pool *pgxpool.Pool, chemin string, srcI
 	if err := copierActes(ctx, tx, actes, srcID); err != nil {
 		return err
 	}
-	if len(nominatifs) > 0 {
-		if _, err := tx.Exec(ctx,
-			`DELETE FROM core.acte_jo_mention WHERE acte_id = ANY($1)`, nominatifs); err != nil {
-			return err
-		}
-	}
-	n, err := copierMentions(ctx, tx, mentions)
+	n, err := copierMentions(ctx, tx, mentions, nominatifs)
 	if err != nil {
 		return err
 	}
@@ -346,7 +340,16 @@ func ntext(s string) any {
 // tout l'archive plutôt qu'une par mention : les mentions partagent
 // massivement le même nom d'un acte à l'autre (une même personne nommée
 // dans plusieurs décrets), et une résolution par nom distinct suffit.
-func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention) (int, error) {
+//
+// MERGE plutôt que DELETE(scopé par acte_id)+COPY, sur une vue restreinte aux
+// actes nominatifs de ce lot : l'ancien DELETE payait le prix des triggers RI
+// pour l'intégralité des mentions de ces actes à chaque republication,
+// changement ou non. Pas de clé naturelle publiée : chaque correspondance
+// regex devient sa propre ligne sans déduplication, et de vrais doublons
+// existent (acte_id/nom/prenom/origine/contexte identiques) — rang fixe la
+// position d'apparition dans l'acte (migration 0187), la même logique que
+// core.declaration_item (HATVP).
+func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention, nominatifs []string) (int, error) {
 	if len(mentions) == 0 {
 		return 0, nil
 	}
@@ -400,6 +403,7 @@ func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention) (in
 		return 0, err
 	}
 
+	rangParActe := map[string]int{}
 	mentionRows := make([][]any, len(mentions))
 	for i, m := range mentions {
 		ids := resolu[cleNom{m.nom, m.prenom}]
@@ -414,14 +418,64 @@ func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention) (in
 		case len(ids) > 1:
 			statut = "AMBIGU"
 		}
-		mentionRows[i] = []any{m.acteID, m.nom, ntext(m.prenom), ntext(m.contexte), m.origine,
+		rang := rangParActe[m.acteID]
+		rangParActe[m.acteID] = rang + 1
+		mentionRows[i] = []any{m.acteID, rang, m.nom, ntext(m.prenom), ntext(m.contexte), m.origine,
 			personID, statut, len(ids), MethodVersion}
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "acte_jo_mention"},
-		[]string{"acte_id", "nom", "prenom", "contexte", "origine", "person_id", "statut",
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_acte_jo_mention (
+			acte_id text, rang int, nom text, prenom text, contexte text, origine text,
+			person_id bigint, statut text, homonymes int, method_version text
+		) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_acte_jo_mention"},
+		[]string{"acte_id", "rang", "nom", "prenom", "contexte", "origine", "person_id", "statut",
 			"homonymes", "method_version"},
-		pgx.CopyFromRows(mentionRows))
-	return int(n), err
+		pgx.CopyFromRows(mentionRows)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx,
+		`CREATE TEMP TABLE tmp_acte_jo_mention_scope (acte_id text) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	acteIDRows := make([][]any, len(nominatifs))
+	for i, id := range nominatifs {
+		acteIDRows[i] = []any{id}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_acte_jo_mention_scope"}, []string{"acte_id"},
+		pgx.CopyFromRows(acteIDRows)); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW acte_jo_mention_scope AS
+		  SELECT * FROM core.acte_jo_mention
+		   WHERE acte_id IN (SELECT acte_id FROM tmp_acte_jo_mention_scope)
+		  WITH LOCAL CHECK OPTION`); err != nil {
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO acte_jo_mention_scope AS tgt
+		USING tmp_acte_jo_mention AS src
+		ON tgt.acte_id = src.acte_id AND tgt.rang = src.rang
+		WHEN MATCHED AND (tgt.nom, tgt.prenom, tgt.contexte, tgt.origine, tgt.person_id, tgt.statut,
+		                   tgt.homonymes, tgt.method_version)
+		                  IS DISTINCT FROM
+		                  (src.nom, src.prenom, src.contexte, src.origine, src.person_id, src.statut,
+		                   src.homonymes, src.method_version) THEN
+		    UPDATE SET nom = src.nom, prenom = src.prenom, contexte = src.contexte, origine = src.origine,
+		               person_id = src.person_id, statut = src.statut, homonymes = src.homonymes,
+		               method_version = src.method_version
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (acte_id, rang, nom, prenom, contexte, origine, person_id, statut, homonymes, method_version)
+		    VALUES (src.acte_id, src.rang, src.nom, src.prenom, src.contexte, src.origine, src.person_id,
+		            src.statut, src.homonymes, src.method_version)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return 0, err
+	}
+	return len(mentionRows), nil
 }
 
 // decoder tolère les écarts au XML strict. Les actes du JO enferment du HTML
