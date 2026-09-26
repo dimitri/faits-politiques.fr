@@ -53,25 +53,27 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 
 	total := map[string]int64{}
 
+	// MERGE plutôt que DELETE+COPY sur les six tables : chacune exclusivement
+	// possédée par ce connecteur, l'ancien DELETE payait le prix des triggers
+	// RI pour l'intégralité de la table à chaque republication annuelle,
+	// changement ou non.
+
 	// --- SMR régional (chiffres clés), annee × région × HC/HP/Tous
-	if _, err := tx.Exec(ctx, `DELETE FROM core.pmsi_smr_regional`); err != nil {
-		return fail(err)
-	}
 	{
 		f, err := arch.Fetch(ctx, srcID, runID, exportJSONATIH("smr-chiffres-cles"), ".json")
 		if err != nil {
 			return fail(fmt.Errorf("smr-chiffres-cles : %w", err))
 		}
 		var lignes []struct {
-			Annee         string   `json:"annee"`
-			Region        string   `json:"region"`
-			TypeHosp      string   `json:"type_hosp"`
-			NbEtab        int      `json:"nb_etab"`
-			NbPat         int      `json:"nb_pat"`
-			NbSej         *int     `json:"nb_sej"`
-			NbJours       int      `json:"nb_jours"`
-			DureeMoySej   *float64 `json:"duree_moy_sej"`
-			DureeMoyPec   float64  `json:"duree_moy_pec"`
+			Annee       string   `json:"annee"`
+			Region      string   `json:"region"`
+			TypeHosp    string   `json:"type_hosp"`
+			NbEtab      int      `json:"nb_etab"`
+			NbPat       int      `json:"nb_pat"`
+			NbSej       *int     `json:"nb_sej"`
+			NbJours     int      `json:"nb_jours"`
+			DureeMoySej *float64 `json:"duree_moy_sej"`
+			DureeMoyPec float64  `json:"duree_moy_pec"`
 		}
 		if err := lireJSONFichier(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("smr-chiffres-cles : %w", err))
@@ -116,19 +118,45 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 				return fail(fmt.Errorf("smr-chiffres-cles %d/%s : nb_jours Tous (%d) ≠ HC (%d) + HP (%d)", c.annee, c.region, tous, hc, hp))
 			}
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "pmsi_smr_regional"},
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_pmsi_smr_regional (
+				annee smallint, region text, type_hosp text, nb_etablissements int, nb_patients int,
+				nb_sejours int, nb_jours int, duree_moy_sejour numeric, duree_moy_prise_charge numeric,
+				source_id bigint
+			) ON COMMIT DROP`); err != nil {
+			return fail(err)
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_pmsi_smr_regional"},
 			[]string{"annee", "region", "type_hosp", "nb_etablissements", "nb_patients", "nb_sejours", "nb_jours", "duree_moy_sejour", "duree_moy_prise_charge", "source_id"},
-			pgx.CopyFromRows(rows))
+			pgx.CopyFromRows(rows)); err != nil {
+			return fail(fmt.Errorf("pmsi_smr_regional : %w", err))
+		}
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.pmsi_smr_regional AS tgt
+			USING tmp_pmsi_smr_regional AS src
+			ON tgt.annee = src.annee AND tgt.region = src.region AND tgt.type_hosp = src.type_hosp
+			WHEN MATCHED AND (tgt.nb_etablissements, tgt.nb_patients, tgt.nb_sejours, tgt.nb_jours,
+			                   tgt.duree_moy_sejour, tgt.duree_moy_prise_charge, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.nb_etablissements, src.nb_patients, src.nb_sejours, src.nb_jours,
+			                   src.duree_moy_sejour, src.duree_moy_prise_charge, src.source_id) THEN
+			    UPDATE SET nb_etablissements = src.nb_etablissements, nb_patients = src.nb_patients,
+			               nb_sejours = src.nb_sejours, nb_jours = src.nb_jours,
+			               duree_moy_sejour = src.duree_moy_sejour,
+			               duree_moy_prise_charge = src.duree_moy_prise_charge, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (annee, region, type_hosp, nb_etablissements, nb_patients, nb_sejours, nb_jours,
+			            duree_moy_sejour, duree_moy_prise_charge, source_id)
+			    VALUES (src.annee, src.region, src.type_hosp, src.nb_etablissements, src.nb_patients,
+			            src.nb_sejours, src.nb_jours, src.duree_moy_sejour, src.duree_moy_prise_charge, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 		if err != nil {
 			return fail(fmt.Errorf("pmsi_smr_regional : %w", err))
 		}
-		total["smr_regional"] = n
+		total["smr_regional"] = ct.RowsAffected()
 	}
 
 	// --- SMR par établissement (région × catégorie)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.pmsi_smr_par_etablissement`); err != nil {
-		return fail(err)
-	}
 	{
 		f, err := arch.Fetch(ctx, srcID, runID, exportJSONATIH("smr-etab"), ".json")
 		if err != nil {
@@ -152,19 +180,37 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			}
 			rows = append(rows, []any{annee, l.Region, l.CategEtab, l.NbEtab, l.NbJours, srcID})
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "pmsi_smr_par_etablissement"},
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_pmsi_smr_par_etablissement (
+				annee smallint, region text, categ_etab text, nb_etablissements int,
+				nb_jours int, source_id bigint
+			) ON COMMIT DROP`); err != nil {
+			return fail(err)
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_pmsi_smr_par_etablissement"},
 			[]string{"annee", "region", "categ_etab", "nb_etablissements", "nb_jours", "source_id"},
-			pgx.CopyFromRows(rows))
+			pgx.CopyFromRows(rows)); err != nil {
+			return fail(fmt.Errorf("pmsi_smr_par_etablissement : %w", err))
+		}
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.pmsi_smr_par_etablissement AS tgt
+			USING tmp_pmsi_smr_par_etablissement AS src
+			ON tgt.annee = src.annee AND tgt.region = src.region AND tgt.categ_etab = src.categ_etab
+			WHEN MATCHED AND (tgt.nb_etablissements, tgt.nb_jours, tgt.source_id)
+			                  IS DISTINCT FROM (src.nb_etablissements, src.nb_jours, src.source_id) THEN
+			    UPDATE SET nb_etablissements = src.nb_etablissements, nb_jours = src.nb_jours,
+			               source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (annee, region, categ_etab, nb_etablissements, nb_jours, source_id)
+			    VALUES (src.annee, src.region, src.categ_etab, src.nb_etablissements, src.nb_jours, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 		if err != nil {
 			return fail(fmt.Errorf("pmsi_smr_par_etablissement : %w", err))
 		}
-		total["smr_etablissement"] = n
+		total["smr_etablissement"] = ct.RowsAffected()
 	}
 
 	// --- SMR par patient (âge × sexe × HC/HP/Tous, sans région)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.pmsi_smr_par_patient`); err != nil {
-		return fail(err)
-	}
 	{
 		f, err := arch.Fetch(ctx, srcID, runID, exportJSONATIH("smr-age-patients"), ".json")
 		if err != nil {
@@ -206,31 +252,52 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			}
 			rows = append(rows, []any{annee, l.Age, l.Sexe, l.TypeHosp, l.NbPat, nbSej, l.NbJours, l.DureeMoySej, srcID})
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "pmsi_smr_par_patient"},
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_pmsi_smr_par_patient (
+				annee smallint, age text, sexe text, type_hosp text, nb_patients int,
+				nb_sejours int, nb_jours int, duree_moy_sejour numeric, source_id bigint
+			) ON COMMIT DROP`); err != nil {
+			return fail(err)
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_pmsi_smr_par_patient"},
 			[]string{"annee", "age", "sexe", "type_hosp", "nb_patients", "nb_sejours", "nb_jours", "duree_moy_sejour", "source_id"},
-			pgx.CopyFromRows(rows))
+			pgx.CopyFromRows(rows)); err != nil {
+			return fail(fmt.Errorf("pmsi_smr_par_patient : %w", err))
+		}
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.pmsi_smr_par_patient AS tgt
+			USING tmp_pmsi_smr_par_patient AS src
+			ON tgt.annee = src.annee AND tgt.age = src.age AND tgt.sexe = src.sexe AND tgt.type_hosp = src.type_hosp
+			WHEN MATCHED AND (tgt.nb_patients, tgt.nb_sejours, tgt.nb_jours, tgt.duree_moy_sejour, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.nb_patients, src.nb_sejours, src.nb_jours, src.duree_moy_sejour, src.source_id) THEN
+			    UPDATE SET nb_patients = src.nb_patients, nb_sejours = src.nb_sejours,
+			               nb_jours = src.nb_jours, duree_moy_sejour = src.duree_moy_sejour,
+			               source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (annee, age, sexe, type_hosp, nb_patients, nb_sejours, nb_jours, duree_moy_sejour, source_id)
+			    VALUES (src.annee, src.age, src.sexe, src.type_hosp, src.nb_patients, src.nb_sejours,
+			            src.nb_jours, src.duree_moy_sejour, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 		if err != nil {
 			return fail(fmt.Errorf("pmsi_smr_par_patient : %w", err))
 		}
-		total["smr_patient"] = n
+		total["smr_patient"] = ct.RowsAffected()
 	}
 
 	// --- HAD régional (chiffres clés), annee × région, sans type d'hospit.
-	if _, err := tx.Exec(ctx, `DELETE FROM core.pmsi_had_regional`); err != nil {
-		return fail(err)
-	}
 	{
 		f, err := arch.Fetch(ctx, srcID, runID, exportJSONATIH("had-chiffres-cles"), ".json")
 		if err != nil {
 			return fail(fmt.Errorf("had-chiffres-cles : %w", err))
 		}
 		var lignes []struct {
-			Annee            string  `json:"annee"`
-			Region           string  `json:"region"`
-			NbPat            int     `json:"nb_pat"`
-			NbSej            int     `json:"nb_sej"`
-			NbJours          int     `json:"nb_jours"`
-			DureeMoyenneSej  float64 `json:"duree_moyenne_sej"`
+			Annee           string  `json:"annee"`
+			Region          string  `json:"region"`
+			NbPat           int     `json:"nb_pat"`
+			NbSej           int     `json:"nb_sej"`
+			NbJours         int     `json:"nb_jours"`
+			DureeMoyenneSej float64 `json:"duree_moyenne_sej"`
 		}
 		if err := lireJSONFichier(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("had-chiffres-cles : %w", err))
@@ -243,19 +310,40 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			}
 			rows = append(rows, []any{annee, l.Region, l.NbPat, l.NbSej, l.NbJours, l.DureeMoyenneSej, srcID})
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "pmsi_had_regional"},
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_pmsi_had_regional (
+				annee smallint, region text, nb_patients int, nb_sejours int, nb_jours int,
+				duree_moyenne_sejour numeric, source_id bigint
+			) ON COMMIT DROP`); err != nil {
+			return fail(err)
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_pmsi_had_regional"},
 			[]string{"annee", "region", "nb_patients", "nb_sejours", "nb_jours", "duree_moyenne_sejour", "source_id"},
-			pgx.CopyFromRows(rows))
+			pgx.CopyFromRows(rows)); err != nil {
+			return fail(fmt.Errorf("pmsi_had_regional : %w", err))
+		}
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.pmsi_had_regional AS tgt
+			USING tmp_pmsi_had_regional AS src
+			ON tgt.annee = src.annee AND tgt.region = src.region
+			WHEN MATCHED AND (tgt.nb_patients, tgt.nb_sejours, tgt.nb_jours, tgt.duree_moyenne_sejour, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.nb_patients, src.nb_sejours, src.nb_jours, src.duree_moyenne_sejour, src.source_id) THEN
+			    UPDATE SET nb_patients = src.nb_patients, nb_sejours = src.nb_sejours,
+			               nb_jours = src.nb_jours, duree_moyenne_sejour = src.duree_moyenne_sejour,
+			               source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (annee, region, nb_patients, nb_sejours, nb_jours, duree_moyenne_sejour, source_id)
+			    VALUES (src.annee, src.region, src.nb_patients, src.nb_sejours, src.nb_jours,
+			            src.duree_moyenne_sejour, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 		if err != nil {
 			return fail(fmt.Errorf("pmsi_had_regional : %w", err))
 		}
-		total["had_regional"] = n
+		total["had_regional"] = ct.RowsAffected()
 	}
 
 	// --- HAD par établissement (région × catégorie)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.pmsi_had_par_etablissement`); err != nil {
-		return fail(err)
-	}
 	{
 		f, err := arch.Fetch(ctx, srcID, runID, exportJSONATIH("had-type-etab"), ".json")
 		if err != nil {
@@ -281,19 +369,40 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			}
 			rows = append(rows, []any{annee, l.Region, l.CategEtab, l.NbEtab, l.NbSej, l.NbJours, l.DMS, srcID})
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "pmsi_had_par_etablissement"},
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_pmsi_had_par_etablissement (
+				annee smallint, region text, categ_etab text, nb_etablissements int,
+				nb_sejours int, nb_jours int, duree_moy_sejour numeric, source_id bigint
+			) ON COMMIT DROP`); err != nil {
+			return fail(err)
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_pmsi_had_par_etablissement"},
 			[]string{"annee", "region", "categ_etab", "nb_etablissements", "nb_sejours", "nb_jours", "duree_moy_sejour", "source_id"},
-			pgx.CopyFromRows(rows))
+			pgx.CopyFromRows(rows)); err != nil {
+			return fail(fmt.Errorf("pmsi_had_par_etablissement : %w", err))
+		}
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.pmsi_had_par_etablissement AS tgt
+			USING tmp_pmsi_had_par_etablissement AS src
+			ON tgt.annee = src.annee AND tgt.region = src.region AND tgt.categ_etab = src.categ_etab
+			WHEN MATCHED AND (tgt.nb_etablissements, tgt.nb_sejours, tgt.nb_jours, tgt.duree_moy_sejour, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.nb_etablissements, src.nb_sejours, src.nb_jours, src.duree_moy_sejour, src.source_id) THEN
+			    UPDATE SET nb_etablissements = src.nb_etablissements, nb_sejours = src.nb_sejours,
+			               nb_jours = src.nb_jours, duree_moy_sejour = src.duree_moy_sejour,
+			               source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (annee, region, categ_etab, nb_etablissements, nb_sejours, nb_jours, duree_moy_sejour, source_id)
+			    VALUES (src.annee, src.region, src.categ_etab, src.nb_etablissements, src.nb_sejours,
+			            src.nb_jours, src.duree_moy_sejour, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 		if err != nil {
 			return fail(fmt.Errorf("pmsi_had_par_etablissement : %w", err))
 		}
-		total["had_etablissement"] = n
+		total["had_etablissement"] = ct.RowsAffected()
 	}
 
 	// --- HAD par patient (âge × sexe, sans région ni durée)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.pmsi_had_par_patient`); err != nil {
-		return fail(err)
-	}
 	{
 		f, err := arch.Fetch(ctx, srcID, runID, exportJSONATIH("had-age-patients"), ".json")
 		if err != nil {
@@ -321,13 +430,34 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			}
 			rows = append(rows, []any{annee, l.Age, l.SexeLabel, l.NbPat, l.NbSej, l.NbJours, srcID})
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "pmsi_had_par_patient"},
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_pmsi_had_par_patient (
+				annee smallint, age text, sexe_label text, nb_patients int, nb_sejours int,
+				nb_jours int, source_id bigint
+			) ON COMMIT DROP`); err != nil {
+			return fail(err)
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_pmsi_had_par_patient"},
 			[]string{"annee", "age", "sexe_label", "nb_patients", "nb_sejours", "nb_jours", "source_id"},
-			pgx.CopyFromRows(rows))
+			pgx.CopyFromRows(rows)); err != nil {
+			return fail(fmt.Errorf("pmsi_had_par_patient : %w", err))
+		}
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.pmsi_had_par_patient AS tgt
+			USING tmp_pmsi_had_par_patient AS src
+			ON tgt.annee = src.annee AND tgt.age = src.age AND tgt.sexe_label = src.sexe_label
+			WHEN MATCHED AND (tgt.nb_patients, tgt.nb_sejours, tgt.nb_jours, tgt.source_id)
+			                  IS DISTINCT FROM (src.nb_patients, src.nb_sejours, src.nb_jours, src.source_id) THEN
+			    UPDATE SET nb_patients = src.nb_patients, nb_sejours = src.nb_sejours,
+			               nb_jours = src.nb_jours, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (annee, age, sexe_label, nb_patients, nb_sejours, nb_jours, source_id)
+			    VALUES (src.annee, src.age, src.sexe_label, src.nb_patients, src.nb_sejours, src.nb_jours, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 		if err != nil {
 			return fail(fmt.Errorf("pmsi_had_par_patient : %w", err))
 		}
-		total["had_patient"] = n
+		total["had_patient"] = ct.RowsAffected()
 	}
 
 	if err := tx.Commit(ctx); err != nil {

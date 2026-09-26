@@ -13,6 +13,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -155,9 +156,10 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.sae_personnel_fonction`); err != nil {
-		return fail(err)
-	}
+	// MERGE plutôt que DELETE+COPY sur les deux bordereaux : chacun
+	// exclusivement possédé par ce connecteur, l'ancien DELETE payait le
+	// prix des triggers RI pour l'intégralité de la table à chaque
+	// republication annuelle, changement ou non.
 	var rowsQ24 [][]any
 	for _, l := range toutesQ24 {
 		rowsQ24 = append(rowsQ24, []any{
@@ -168,7 +170,20 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 			srcID,
 		})
 	}
-	nQ24, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "sae_personnel_fonction"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_sae_personnel_fonction (
+			annee int, nofinesset text, nofinessej text,
+			etp_direction numeric, etp_direction_soins numeric, etp_administratif numeric,
+			etp_admin_technique_ouvrier numeric, etp_cadre numeric, etp_infirmier numeric,
+			etp_infirmier_specialise numeric, etp_aide_soignant numeric, etp_agent_service_hospitalier numeric,
+			etp_psychologue numeric, etp_sage_femme numeric, etp_reeducation numeric,
+			etp_social_educatif numeric, etp_educateur_specialise numeric, etp_assistant_service_social numeric,
+			etp_autre_educatif numeric, etp_pharmacie_labo numeric, etp_technique numeric, etp_total_pnm numeric,
+			source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_sae_personnel_fonction"},
 		[]string{"annee", "nofinesset", "nofinessej",
 			"etp_direction", "etp_direction_soins", "etp_administratif", "etp_admin_technique_ouvrier",
 			"etp_cadre", "etp_infirmier", "etp_infirmier_specialise", "etp_aide_soignant",
@@ -176,21 +191,99 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 			"etp_social_educatif", "etp_educateur_specialise", "etp_assistant_service_social",
 			"etp_autre_educatif", "etp_pharmacie_labo", "etp_technique", "etp_total_pnm",
 			"source_id"},
-		pgx.CopyFromRows(rowsQ24))
+		pgx.CopyFromRows(rowsQ24)); err != nil {
+		return fail(fmt.Errorf("sae_personnel_fonction : %w", err))
+	}
+	var nQ24 int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.sae_personnel_fonction", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.sae_personnel_fonction AS tgt
+			USING tmp_sae_personnel_fonction AS src
+			ON tgt.nofinesset = src.nofinesset AND tgt.annee = src.annee
+			WHEN MATCHED AND (tgt.nofinessej, tgt.etp_direction, tgt.etp_direction_soins, tgt.etp_administratif,
+			                   tgt.etp_admin_technique_ouvrier, tgt.etp_cadre, tgt.etp_infirmier,
+			                   tgt.etp_infirmier_specialise, tgt.etp_aide_soignant, tgt.etp_agent_service_hospitalier,
+			                   tgt.etp_psychologue, tgt.etp_sage_femme, tgt.etp_reeducation, tgt.etp_social_educatif,
+			                   tgt.etp_educateur_specialise, tgt.etp_assistant_service_social, tgt.etp_autre_educatif,
+			                   tgt.etp_pharmacie_labo, tgt.etp_technique, tgt.etp_total_pnm, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.nofinessej, src.etp_direction, src.etp_direction_soins, src.etp_administratif,
+			                   src.etp_admin_technique_ouvrier, src.etp_cadre, src.etp_infirmier,
+			                   src.etp_infirmier_specialise, src.etp_aide_soignant, src.etp_agent_service_hospitalier,
+			                   src.etp_psychologue, src.etp_sage_femme, src.etp_reeducation, src.etp_social_educatif,
+			                   src.etp_educateur_specialise, src.etp_assistant_service_social, src.etp_autre_educatif,
+			                   src.etp_pharmacie_labo, src.etp_technique, src.etp_total_pnm, src.source_id) THEN
+			    UPDATE SET nofinessej = src.nofinessej, etp_direction = src.etp_direction,
+			               etp_direction_soins = src.etp_direction_soins, etp_administratif = src.etp_administratif,
+			               etp_admin_technique_ouvrier = src.etp_admin_technique_ouvrier, etp_cadre = src.etp_cadre,
+			               etp_infirmier = src.etp_infirmier, etp_infirmier_specialise = src.etp_infirmier_specialise,
+			               etp_aide_soignant = src.etp_aide_soignant,
+			               etp_agent_service_hospitalier = src.etp_agent_service_hospitalier,
+			               etp_psychologue = src.etp_psychologue, etp_sage_femme = src.etp_sage_femme,
+			               etp_reeducation = src.etp_reeducation, etp_social_educatif = src.etp_social_educatif,
+			               etp_educateur_specialise = src.etp_educateur_specialise,
+			               etp_assistant_service_social = src.etp_assistant_service_social,
+			               etp_autre_educatif = src.etp_autre_educatif, etp_pharmacie_labo = src.etp_pharmacie_labo,
+			               etp_technique = src.etp_technique, etp_total_pnm = src.etp_total_pnm,
+			               source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (annee, nofinesset, nofinessej, etp_direction, etp_direction_soins, etp_administratif,
+			            etp_admin_technique_ouvrier, etp_cadre, etp_infirmier, etp_infirmier_specialise,
+			            etp_aide_soignant, etp_agent_service_hospitalier, etp_psychologue, etp_sage_femme,
+			            etp_reeducation, etp_social_educatif, etp_educateur_specialise,
+			            etp_assistant_service_social, etp_autre_educatif, etp_pharmacie_labo, etp_technique,
+			            etp_total_pnm, source_id)
+			    VALUES (src.annee, src.nofinesset, src.nofinessej, src.etp_direction, src.etp_direction_soins,
+			            src.etp_administratif, src.etp_admin_technique_ouvrier, src.etp_cadre, src.etp_infirmier,
+			            src.etp_infirmier_specialise, src.etp_aide_soignant, src.etp_agent_service_hospitalier,
+			            src.etp_psychologue, src.etp_sage_femme, src.etp_reeducation, src.etp_social_educatif,
+			            src.etp_educateur_specialise, src.etp_assistant_service_social, src.etp_autre_educatif,
+			            src.etp_pharmacie_labo, src.etp_technique, src.etp_total_pnm, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		nQ24 = ct.RowsAffected()
+		return nil
+	})
 	if err != nil {
 		return fail(fmt.Errorf("sae_personnel_fonction : %w", err))
 	}
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.sae_urgences_passages`); err != nil {
-		return fail(err)
-	}
 	var rowsUrg [][]any
 	for _, l := range toutesUrgences {
 		rowsUrg = append(rowsUrg, []any{l.Annee, l.FI, l.FIEJ, l.TypeUrgence, l.Passages, srcID})
 	}
-	nUrg, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "sae_urgences_passages"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_sae_urgences_passages (
+			annee int, nofinesset text, nofinessej text, type_urgence text, passages int, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_sae_urgences_passages"},
 		[]string{"annee", "nofinesset", "nofinessej", "type_urgence", "passages", "source_id"},
-		pgx.CopyFromRows(rowsUrg))
+		pgx.CopyFromRows(rowsUrg)); err != nil {
+		return fail(fmt.Errorf("sae_urgences_passages : %w", err))
+	}
+	var nUrg int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.sae_urgences_passages", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.sae_urgences_passages AS tgt
+			USING tmp_sae_urgences_passages AS src
+			ON tgt.nofinesset = src.nofinesset AND tgt.annee = src.annee AND tgt.type_urgence = src.type_urgence
+			WHEN MATCHED AND (tgt.nofinessej, tgt.passages, tgt.source_id)
+			                  IS DISTINCT FROM (src.nofinessej, src.passages, src.source_id) THEN
+			    UPDATE SET nofinessej = src.nofinessej, passages = src.passages, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (annee, nofinesset, nofinessej, type_urgence, passages, source_id)
+			    VALUES (src.annee, src.nofinesset, src.nofinessej, src.type_urgence, src.passages, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		nUrg = ct.RowsAffected()
+		return nil
+	})
 	if err != nil {
 		return fail(fmt.Errorf("sae_urgences_passages : %w", err))
 	}
@@ -198,9 +291,11 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_q24": nQ24, "lignes_urgences": nUrg}, "")
-	fmt.Printf("  SAE : %d lignes Q24 (personnel), %d lignes URGENCES2 (passages), %d-%d\n",
-		nQ24, nUrg, saeAnneeDebut, saeAnneeFin)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
+		"lignes_q24": len(rowsQ24), "q24_touchees": nQ24,
+		"lignes_urgences": len(rowsUrg), "urgences_touchees": nUrg}, "")
+	fmt.Printf("  SAE : %d lignes Q24 (%d touchées), %d lignes URGENCES2 (%d touchées), %d-%d\n",
+		len(rowsQ24), nQ24, len(rowsUrg), nUrg, saeAnneeDebut, saeAnneeFin)
 	return nil
 }
 
