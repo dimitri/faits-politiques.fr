@@ -4,7 +4,7 @@ on:
   schedule:
     - cron: '0 5 * * *'     # les scrutins sont publiés au fil des séances
   workflow_dispatch:
-  pull_request:             # build sans déploiement : voir l'effet d'une diff de data/
+  pull_request:             # job léger : périmètre CI en cache, pas d'ingestion
   push:
     branches: [main]
 
@@ -13,7 +13,15 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  # Job lourd : ingestion complète (~100 connecteurs), les deux portes de
+  # qualité, construction du site, puis export du périmètre CI (schéma mv +
+  # TablesDirectes, voir cmd/fpctl/man/fpctl-dump.md) pour que build-pr
+  # puisse construire sans tout réingérer. Jamais sur pull_request — voir
+  # docs/ci-pipeline.md § 3.5 : la latence de retour sur une PR ne doit pas
+  # dépendre du temps d'ingestion (1h22 cumulées, INFRA.md § 1), alors que
+  # l'essentiel des PR touche le rendu du site, pas les connecteurs.
+  build-full:
+    if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -89,8 +97,105 @@ jobs:
           path: site/
           retention-days: 7
 
+      # Périmètre CI (mv + TablesDirectes) pour build-pr : voir
+      # cmd/fpctl/man/fpctl-dump.md. En cache plutôt qu'uploadé vers un
+      # object storage — aucune clé S3 n'est encore provisionnée sur ce
+      # dépôt (docs/decisions.md D-012, hébergement pas encore tranché) ;
+      # -upload/-download restent l'option à basculer le jour où ça l'est,
+      # sans changer la logique ci-dessous.
+      - name: Exporter le périmètre CI (mv + TablesDirectes)
+        run: ./bin/fpctl dump ci -out ci.dump
+
+      # Clé toujours neuve (run_id) : chaque run publie sa propre entrée,
+      # jamais un cache-hit qui sauterait la sauvegarde. build-pr retrouve
+      # la plus récente par restore-keys.
+      - name: Publier le périmètre CI en cache
+        uses: actions/cache/save@v4
+        with:
+          path: ci.dump
+          key: ci-dump-${{ github.run_id }}
+
       # Le déploiement n'a lieu que sur la branche principale : une pull request
       # produit un site complet, consultable, mais non publié.
       - name: Déploiement
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: echo "cible d'hébergement à trancher — voir docs/decisions.md D-012"
+
+  # Job léger : pas d'ingestion, pas de connecteurs — le site est construit
+  # à partir du dernier périmètre CI publié par build-full (push main ou
+  # planifié). Répond en quelques minutes plutôt qu'en heures, au prix de ne
+  # pas rejouer les garanties structurelles ni la concordance avec les
+  # décomptes officiels (elles ont besoin de core/ref, hors du périmètre) —
+  # ces deux portes restent couvertes par build-full à chaque push sur main
+  # et chaque nuit.
+  build-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    env:
+      DATABASE_URL: postgres://fp:fp@localhost:55432/fp?sslmode=disable
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Interdire le DELETE+COPY direct dans un connecteur
+        run: ./scripts/check-delete-copy.sh
+
+      - name: Compiler fpctl
+        run: go build -o bin/fpctl ./cmd/fpctl
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "$out"
+            exit 1
+          fi
+
+      - name: Provisionner Postgres
+        run: ./bin/fpctl provision db
+
+      # restore-keys (sans clé exacte) retrouve la plus récente entrée
+      # ci-dump-* publiée par build-full — jamais celle de cette PR, qui
+      # n'en produit pas.
+      - name: Restaurer le dernier périmètre CI publié
+        uses: actions/cache/restore@v4
+        with:
+          path: ci.dump
+          key: ci-dump-jamais-cette-cle
+          restore-keys: ci-dump-
+
+      - name: Vérifier qu'un périmètre CI est disponible
+        run: |
+          if [ ! -f ci.dump ]; then
+            echo "Aucun périmètre CI en cache : un run sur push main ou déclenché" >&2
+            echo "à la main doit en publier un premier avant qu'une pull request" >&2
+            echo "puisse construire le site (voir le job build-full)." >&2
+            exit 1
+          fi
+
+      - name: Restaurer le périmètre CI dans Postgres
+        run: ./bin/fpctl dump restore -fichier ci.dump
+
+      - name: Génération du site
+        run: ./bin/fpctl build site
+
+      - name: Taille produite
+        run: |
+          echo "pages : $(find site -name '*.html' | wc -l)"
+          echo "poids : $(du -sh site | cut -f1)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-pr
+          path: site/
+          retention-days: 7
