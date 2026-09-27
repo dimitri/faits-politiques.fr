@@ -116,12 +116,26 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 
 		var comptes []map[string]string
 		var compteRows [][]any
+		// Un doublon (nom, circonscription) dans le fichier source garde la
+		// PREMIÈRE occurrence, comme le faisait l'ON CONFLICT DO NOTHING
+		// ligne à ligne de l'ancien code : jamais visible en pratique contre
+		// la base de développement, déjà peuplée d'un run antérieur (le
+		// MERGE ne visite alors que la branche MATCHED), mais un MERGE dont
+		// le batch source contient deux lignes NOT MATCHED BY TARGET pour la
+		// même clé cible tente deux INSERT et viole la contrainte d'unicité —
+		// découvert sur la base vide de la CI, au tout premier chargement.
+		vuCompte := map[[2]string]bool{}
 		for _, r := range recs {
 			nom := strings.TrimSpace(r["nom"])
 			if nom == "" {
 				continue
 			}
 			comptes = append(comptes, r)
+			cle := [2]string{nom, strings.TrimSpace(r["circonscription"])}
+			if vuCompte[cle] {
+				continue
+			}
+			vuCompte[cle] = true
 			compteRows = append(compteRows, []any{
 				s.typeElection, s.annee, nul(r["candidat"]), nom,
 				nul(r["circonscription"]), nul(r["département"]), nul(r["code département"]),
