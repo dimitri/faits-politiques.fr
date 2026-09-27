@@ -72,7 +72,11 @@ func IngestPauvrete(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.pauvrete_seuil_annuel`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_pauvrete_seuil_annuel (
+			annee int, seuil_relatif numeric, seuil_euros numeric, nb_pauvres_milliers int,
+			taux_pauvrete_pct numeric, intensite_pauvrete_pct numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 
@@ -142,19 +146,46 @@ func IngestPauvrete(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 		return fail(fmt.Errorf("aucune ligne extraite du tableau complémentaire 3"))
 	}
 
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "pauvrete_seuil_annuel"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_pauvrete_seuil_annuel"},
 		[]string{"annee", "seuil_relatif", "seuil_euros", "nb_pauvres_milliers", "taux_pauvrete_pct",
 			"intensite_pauvrete_pct", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("insertion pauvrete_seuil_annuel : %w", err))
 	}
 
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table, et l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité de la série 1996-2023 à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.pauvrete_seuil_annuel AS tgt
+		USING tmp_pauvrete_seuil_annuel AS src
+		ON tgt.annee = src.annee AND tgt.seuil_relatif = src.seuil_relatif
+		WHEN MATCHED AND (tgt.seuil_euros, tgt.nb_pauvres_milliers, tgt.taux_pauvrete_pct,
+		                   tgt.intensite_pauvrete_pct, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.seuil_euros, src.nb_pauvres_milliers, src.taux_pauvrete_pct,
+		                   src.intensite_pauvrete_pct, src.source_id) THEN
+		    UPDATE SET seuil_euros = src.seuil_euros, nb_pauvres_milliers = src.nb_pauvres_milliers,
+		               taux_pauvrete_pct = src.taux_pauvrete_pct,
+		               intensite_pauvrete_pct = src.intensite_pauvrete_pct, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, seuil_relatif, seuil_euros, nb_pauvres_milliers, taux_pauvrete_pct,
+		            intensite_pauvrete_pct, source_id)
+		    VALUES (src.annee, src.seuil_relatif, src.seuil_euros, src.nb_pauvres_milliers,
+		            src.taux_pauvrete_pct, src.intensite_pauvrete_pct, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion pauvrete_seuil_annuel : %w", err))
+	}
+	touchees := ct.RowsAffected()
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"lignes_chargees": len(rows), "rejet_annee_incomplete": manquants}, "")
-	fmt.Printf("  seuil de pauvreté : %d lignes (60%% et 50%% de la médiane, 1996-2023)\n", len(rows))
+		map[string]any{"lignes_chargees": len(rows), "rejet_annee_incomplete": manquants, "touchees": touchees}, "")
+	fmt.Printf("  seuil de pauvreté : %d lignes (60%% et 50%% de la médiane, 1996-2023), %d touchées par la fusion\n",
+		len(rows), touchees)
 	return nil
 }
 

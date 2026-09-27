@@ -75,15 +75,6 @@ func IngestDemandeursEmploi(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(fmt.Errorf("export vide"))
 	}
 
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return fail(err)
-	}
-	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.demandeur_emploi_categorie`); err != nil {
-		return fail(err)
-	}
-
 	var rows [][]any
 	var rejetChamp, rejetValeur int
 	for _, l := range lignes {
@@ -102,16 +93,47 @@ func IngestDemandeursEmploi(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("aucune ligne reconnue sur %d", len(lignes)))
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "demandeur_emploi_categorie"},
-		[]string{"date_mois", "champ", "categorie", "effectif", "source_id"}, pgx.CopyFromRows(rows))
+
+	tx, err := pool.Begin(ctx)
 	if err != nil {
+		return fail(err)
+	}
+	defer tx.Rollback(ctx)
+
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour l'intégralité de la série mensuelle à chaque republication,
+	// changement ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_demandeur_emploi_categorie (
+			date_mois date, champ text, categorie text, effectif numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_demandeur_emploi_categorie"},
+		[]string{"date_mois", "champ", "categorie", "effectif", "source_id"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("demandeur_emploi_categorie : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.demandeur_emploi_categorie AS tgt
+		USING tmp_demandeur_emploi_categorie AS src
+		ON tgt.date_mois = src.date_mois AND tgt.champ = src.champ AND tgt.categorie = src.categorie
+		WHEN MATCHED AND (tgt.effectif, tgt.source_id) IS DISTINCT FROM (src.effectif, src.source_id) THEN
+		    UPDATE SET effectif = src.effectif, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (date_mois, champ, categorie, effectif, source_id)
+		    VALUES (src.date_mois, src.champ, src.categorie, src.effectif, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"lignes_chargees": n, "rejet_champ_inconnu": rejetChamp, "rejet_sans_valeur": rejetValeur}, "")
-	fmt.Printf("  demandeurs d'emploi inscrits par catégorie : %d lignes\n", n)
+		map[string]any{"lignes_chargees": len(rows), "rejet_champ_inconnu": rejetChamp,
+			"rejet_sans_valeur": rejetValeur, "touchees": n}, "")
+	fmt.Printf("  demandeurs d'emploi inscrits par catégorie : %d lignes (%d touchées par la fusion)\n", len(rows), n)
 	return nil
 }

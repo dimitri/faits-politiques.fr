@@ -223,16 +223,55 @@ func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.cbcr_public`); err != nil {
+
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_cbcr_public (
+				groupe text, exercice_debut date, exercice_fin date, devise text, juridiction text,
+				chiffre_affaires numeric, benefice_avant_impot numeric, impot_paye numeric,
+				impot_du numeric, benefices_non_distribues numeric, salaries numeric,
+				source_id bigint, document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "cbcr_public"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_cbcr_public"},
 			[]string{"groupe", "exercice_debut", "exercice_fin", "devise", "juridiction", "chiffre_affaires", "benefice_avant_impot",
 				"impot_paye", "impot_du", "benefices_non_distribues", "salaries", "source_id", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
 		}
-		return map[string]any{"rapports": len(rapportsCbCR), "lignes": len(lignes)}, tx.Commit(ctx)
+
+		// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire
+		// de la table ; l'ancien DELETE payait le prix des triggers RI pour
+		// l'intégralité de la table à chaque republication, changement ou non.
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.cbcr_public AS tgt
+			USING tmp_cbcr_public AS src
+			ON tgt.groupe = src.groupe AND tgt.exercice_fin = src.exercice_fin AND tgt.juridiction = src.juridiction
+			WHEN MATCHED AND (tgt.exercice_debut, tgt.devise, tgt.chiffre_affaires, tgt.benefice_avant_impot,
+			                   tgt.impot_paye, tgt.impot_du, tgt.benefices_non_distribues, tgt.salaries,
+			                   tgt.source_id, tgt.document_id)
+			                  IS DISTINCT FROM
+			                  (src.exercice_debut, src.devise, src.chiffre_affaires, src.benefice_avant_impot,
+			                   src.impot_paye, src.impot_du, src.benefices_non_distribues, src.salaries,
+			                   src.source_id, src.document_id) THEN
+			    UPDATE SET exercice_debut = src.exercice_debut, devise = src.devise,
+			               chiffre_affaires = src.chiffre_affaires, benefice_avant_impot = src.benefice_avant_impot,
+			               impot_paye = src.impot_paye, impot_du = src.impot_du,
+			               benefices_non_distribues = src.benefices_non_distribues, salaries = src.salaries,
+			               source_id = src.source_id, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (groupe, exercice_debut, exercice_fin, devise, juridiction, chiffre_affaires,
+			            benefice_avant_impot, impot_paye, impot_du, benefices_non_distribues, salaries,
+			            source_id, document_id)
+			    VALUES (src.groupe, src.exercice_debut, src.exercice_fin, src.devise, src.juridiction,
+			            src.chiffre_affaires, src.benefice_avant_impot, src.impot_paye, src.impot_du,
+			            src.benefices_non_distribues, src.salaries, src.source_id, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return nil, fmt.Errorf("fusion cbcr_public : %w", err)
+		}
+		touchees := ct.RowsAffected()
+		return map[string]any{"rapports": len(rapportsCbCR), "lignes": len(lignes), "touchees": touchees}, tx.Commit(ctx)
 	}); err != nil {
 		return err
 	}
@@ -257,15 +296,45 @@ func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.groupe_resultat_sec`); err != nil {
+
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_groupe_resultat_sec (
+				groupe text, cik text, exercice_fin date, concept text, element_xbrl text,
+				valeur numeric, unite text, formulaire text, depot text, document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "groupe_resultat_sec"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_groupe_resultat_sec"},
 			[]string{"groupe", "cik", "exercice_fin", "concept", "element_xbrl", "valeur", "unite", "formulaire", "depot", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
 		}
-		return map[string]any{"groupes": len(groupesSEC), "valeurs": len(lignes)}, tx.Commit(ctx)
+
+		// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire
+		// de la table ; l'ancien DELETE payait le prix des triggers RI pour
+		// l'intégralité de la table à chaque republication, changement ou non.
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.groupe_resultat_sec AS tgt
+			USING tmp_groupe_resultat_sec AS src
+			ON tgt.groupe = src.groupe AND tgt.exercice_fin = src.exercice_fin AND tgt.concept = src.concept
+			WHEN MATCHED AND (tgt.cik, tgt.element_xbrl, tgt.valeur, tgt.unite, tgt.formulaire, tgt.depot,
+			                   tgt.document_id)
+			                  IS DISTINCT FROM
+			                  (src.cik, src.element_xbrl, src.valeur, src.unite, src.formulaire, src.depot,
+			                   src.document_id) THEN
+			    UPDATE SET cik = src.cik, element_xbrl = src.element_xbrl, valeur = src.valeur,
+			               unite = src.unite, formulaire = src.formulaire, depot = src.depot,
+			               document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (groupe, cik, exercice_fin, concept, element_xbrl, valeur, unite, formulaire, depot, document_id)
+			    VALUES (src.groupe, src.cik, src.exercice_fin, src.concept, src.element_xbrl, src.valeur,
+			            src.unite, src.formulaire, src.depot, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return nil, fmt.Errorf("fusion groupe_resultat_sec : %w", err)
+		}
+		touchees := ct.RowsAffected()
+		return map[string]any{"groupes": len(groupesSEC), "valeurs": len(lignes), "touchees": touchees}, tx.Commit(ctx)
 	}); err != nil {
 		return err
 	}

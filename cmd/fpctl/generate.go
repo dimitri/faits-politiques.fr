@@ -20,11 +20,11 @@ func commandeGenerate() *cobra.Command {
 				"ref.fait_dossier — le texte entre deux marqueurs est régénéré à\n" +
 				"chaque exécution, le reste du document n'est jamais touché.",
 			DisableFlagParsing: true,
-			RunE: func(_ *cobra.Command, args []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
 					return afficherManuel("fpctl-generate")
 				}
-				return executerInterne(dossiersgen.Run(args))
+				return executerInterne(cmd.Context(), dossiersgen.Run(cmd.Context(), args))
 			},
 		},
 		&cobra.Command{
@@ -33,11 +33,11 @@ func commandeGenerate() *cobra.Command {
 			Long: "Réécrit, dans docs/cotisations-et-droits.md, la figure tirée des\n" +
 				"vues derived.bulletin_* — même convention de marqueurs.",
 			DisableFlagParsing: true,
-			RunE: func(_ *cobra.Command, args []string) error {
+			RunE: func(cmd *cobra.Command, args []string) error {
 				if estDemandeAide(args) {
 					return afficherManuel("fpctl-generate")
 				}
-				return executerInterne(bulletin.Run(args))
+				return executerInterne(cmd.Context(), bulletin.Run(cmd.Context(), args))
 			},
 		},
 	)

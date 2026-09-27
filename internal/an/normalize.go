@@ -9,6 +9,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -115,6 +116,11 @@ func organeLabels(ctx context.Context, pool *pgxpool.Pool) (map[string]string, e
 	return out, rows.Err()
 }
 
+// watermarkOrganes identifie, dans core.ingest_watermark, l'état de
+// raw.record que la remise à zéro de core.organization a déjà pris en
+// compte — voir rawWatermark et Normalize.
+const watermarkOrganes = "an-organe"
+
 func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT DISTINCT ON (natural_key) payload FROM raw.record
@@ -145,8 +151,17 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 	}
 	rows.Close()
 
-	byUID := map[string]int64{}
+	// Le slug une fois choisi en Go (seenSlug ci-dessous a besoin de voir les
+	// slugs déjà attribués dans CET ordre, avant toute écriture), une seule
+	// table temporaire porte les organisations candidates et un seul
+	// INSERT ... SELECT les écrit — aucune contrainte d'exclusion ici (slug
+	// est une simple clé unique), donc aucune dépendance à l'ordre
+	// contrairement à applyMandat/copierMandats plus bas.
+	type ligne struct {
+		uid, slug, kind, nom, abrege, debut, fin, organType string
+	}
 	seenSlug := map[string]bool{}
+	lignes := make([]ligne, 0, len(items))
 	for _, it := range items {
 		base := slugify(it.o.Libelle.String())
 		if base == "" {
@@ -160,28 +175,121 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 			slug = base + "-" + strings.ToLower(it.o.UID.String())
 		}
 		seenSlug[slug] = true
+		lignes = append(lignes, ligne{
+			uid: it.o.UID.String(), slug: slug, kind: it.kind, nom: it.o.Libelle.String(),
+			abrege: it.o.LibelleAbrege.String(), debut: it.o.ViMoDe.DateDebut.String(),
+			fin: it.o.ViMoDe.DateFin.String(), organType: it.o.CodeType.String(),
+		})
+	}
+	if len(lignes) == 0 {
+		return map[string]int64{}, nil
+	}
 
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_organe (
+			uid text, slug text, kind text, nom text, abrege text,
+			debut text, fin text, organ_type text
+		) ON COMMIT DROP`); err != nil {
+		return nil, err
+	}
+	copieOrganes := make([][]any, len(lignes))
+	for i, l := range lignes {
+		copieOrganes[i] = []any{l.uid, l.slug, l.kind, l.nom, nullable(l.abrege), nullable(l.debut), nullable(l.fin), l.organType}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_organe"},
+		[]string{"uid", "slug", "kind", "nom", "abrege", "debut", "fin", "organ_type"},
+		pgx.CopyFromRows(copieOrganes)); err != nil {
+		return nil, err
+	}
+	// MERGE plutôt qu'un upsert simple : core.organization.id doit rester
+	// stable pour l'Assemblée d'un run à l'autre — un id qui change à
+	// chaque renormalisation cassait déjà tout ce qui le référence
+	// durablement (core.amendement_attribution.organization_id, entre
+	// autres, depuis que core.amendement lui-même a arrêté d'être détruit
+	// à chaque passage : voir plus bas, la remise à zéro conditionnelle qui
+	// disparaît). organization_an, une vue scopée aux organisations
+	// portant un identifiant AN_ORGANE — SANS WITH CHECK OPTION,
+	// volontairement : une organisation qui vient d'être insérée ne porte
+	// pas encore cet identifiant (il est ajouté juste après, dans la même
+	// transaction), la contrainte de la vue rejetterait donc l'INSERT lui-
+	// même si elle était présente.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW organization_an AS
+		  SELECT * FROM core.organization o
+		   WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
+		                  WHERE i.organization_id = o.id AND i.scheme = 'AN_ORGANE')`); err != nil {
+		return nil, err
+	}
+	// PAS de RETURNING ici pour construire byUID : un MERGE ne renvoie RIEN
+	// pour une ligne MATCHED dont aucun WHEN ne s'est déclenché (le cas
+	// courant — la plupart des organisations sont identiques d'un run à
+	// l'autre) — RETURNING serait alors sparse, alors que byUID doit
+	// couvrir CHAQUE organisation du payload courant, changée ou non :
+	// tout ce qui suit (mandats, affiliations, scrutins, dossiers) résout
+	// ses organisations par ce uid. La sélection séparée plus bas, sur
+	// organization_an déjà à jour, ne dépend d'aucun WHEN et couvre donc
+	// systématiquement tout tmp_organe.
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO organization_an AS tgt
+		USING tmp_organe AS src
+		ON tgt.slug = src.slug
+		WHEN MATCHED AND (tgt.name, tgt.organ_type) IS DISTINCT FROM (src.nom, src.organ_type) THEN
+		    UPDATE SET name = src.nom, organ_type = src.organ_type
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (slug, kind, name, short_name, validity, organ_type)
+		    VALUES (src.slug, src.kind::core.organization_kind, src.nom, src.abrege,
+		            daterange(src.debut::date, src.fin::date), src.organ_type)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return nil, fmt.Errorf("organisations : %w", err)
+	}
+	res, err := tx.Query(ctx, `
+		SELECT t.uid, o.id FROM tmp_organe t JOIN organization_an o ON o.slug = t.slug`)
+	if err != nil {
+		return nil, fmt.Errorf("organisations : %w", err)
+	}
+	byUID := map[string]int64{}
+	for res.Next() {
+		var uid string
 		var id int64
-		err := pool.QueryRow(ctx, `
-			INSERT INTO core.organization (slug, kind, name, short_name, validity, organ_type)
-			VALUES ($1,$2,$3,$4, daterange($5::date, $6::date), $7)
-			ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name,
-			                                 organ_type = EXCLUDED.organ_type
-			RETURNING id`,
-			slug, it.kind, it.o.Libelle.String(), nullable(it.o.LibelleAbrege.String()),
-			nullable(it.o.ViMoDe.DateDebut.String()), nullable(it.o.ViMoDe.DateFin.String()),
-			it.o.CodeType.String(),
-		).Scan(&id)
-		if err != nil {
-			return nil, fmt.Errorf("organisation %s : %w", it.o.UID, err)
-		}
-		if _, err := pool.Exec(ctx, `
-			INSERT INTO core.organization_identifier (organization_id, scheme, value)
-			VALUES ($1,'AN_ORGANE',$2) ON CONFLICT (scheme, value) DO NOTHING`,
-			id, it.o.UID.String()); err != nil {
+		if err := res.Scan(&uid, &id); err != nil {
+			res.Close()
 			return nil, err
 		}
-		byUID[it.o.UID.String()] = id
+		byUID[uid] = id
+	}
+	res.Close()
+	if err := res.Err(); err != nil {
+		return nil, err
+	}
+
+	idRows := make([][]any, 0, len(lignes))
+	for _, l := range lignes {
+		if id, ok := byUID[l.uid]; ok {
+			idRows = append(idRows, []any{id, l.uid})
+		}
+	}
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_organe_id (organization_id bigint, uid text) ON COMMIT DROP`); err != nil {
+		return nil, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_organe_id"},
+		[]string{"organization_id", "uid"}, pgx.CopyFromRows(idRows)); err != nil {
+		return nil, err
+	}
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO core.organization_identifier (organization_id, scheme, value)
+		SELECT organization_id, 'AN_ORGANE', uid FROM tmp_organe_id
+		ON CONFLICT (scheme, value) DO NOTHING`); err != nil {
+		return nil, err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 	return byUID, nil
 }
@@ -227,6 +335,15 @@ type mandat struct {
 	} `json:"infosQualite"`
 }
 
+// ligneActeur : une ligne prête pour tmp_acteur (normalizeActeurs).
+// canonicalRn pointe vers elle-même par défaut ; seule la résolution des
+// homonymes en base (voir plus bas) le réécrit, pour les lignes qui doivent
+// fusionner sur une même personne nouvellement créée.
+type ligneActeur struct {
+	rn, canonicalRn                          int
+	uid, slug, nom, prenom, naissance, hatvp string
+}
+
 func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT DISTINCT ON (natural_key) payload FROM raw.record
@@ -256,60 +373,161 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		count[slugify(a.EtatCivil.Ident.Prenom.String(), a.EtatCivil.Ident.Nom.String())]++
 	}
 
-	byUID := map[string]int64{}
-	for _, a := range acteurs {
+	lignes := make([]ligneActeur, 0, len(acteurs))
+	for i, a := range acteurs {
 		base := slugify(a.EtatCivil.Ident.Prenom.String(), a.EtatCivil.Ident.Nom.String())
 		slug := base
 		if base == "" || count[base] > 1 {
 			slug = strings.Trim(base+"-"+strings.ToLower(a.UID.String()), "-")
 		}
+		lignes = append(lignes, ligneActeur{
+			rn: i, canonicalRn: i, uid: a.UID.String(), slug: slug,
+			nom: a.EtatCivil.Ident.Nom.String(), prenom: a.EtatCivil.Ident.Prenom.String(),
+			naissance: strings.TrimSpace(a.EtatCivil.InfoNaissance.DateNais.String()),
+			hatvp:     hatvpRef(a.URIHatvp.String()),
+		})
+	}
+	if len(lignes) == 0 {
+		return map[string]int64{}, nil
+	}
 
-		nom := a.EtatCivil.Ident.Nom.String()
-		prenom := a.EtatCivil.Ident.Prenom.String()
-		naissance := nullable(a.EtatCivil.InfoNaissance.DateNais.String())
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return nil, err
+	}
+	defer tx.Rollback(ctx)
 
-		// Trois chemins, du plus sûr au moins sûr, et jamais de création si un
-		// des deux premiers aboutit :
-		//   1. l'identifiant de l'Assemblée, s'il est déjà connu ;
-		//   2. le triplet exact (nom, prénom, date de naissance), qui rattrape
-		//      une personne créée d'abord par le RNE — sans lui, un député par
-		//      ailleurs conseiller municipal existerait en double ;
-		//   3. le slug, qui est un permalien public et ne doit jamais changer.
-		pid, err := trouverPersonne(ctx, pool, a.UID.String(), nom, prenom, naissance)
-		if err != nil {
-			return nil, fmt.Errorf("personne %s : %w", a.UID, err)
-		}
-		if pid == 0 {
-			if err := pool.QueryRow(ctx, `
-				INSERT INTO core.person (slug, family_name, given_name, birth_date)
-				VALUES ($1,$2,$3,$4::date)
-				ON CONFLICT (slug) DO UPDATE SET family_name = EXCLUDED.family_name
-				RETURNING id`, slug, nom, prenom, naissance).Scan(&pid); err != nil {
-				return nil, fmt.Errorf("personne %s : %w", a.UID, err)
-			}
-		} else if _, err := pool.Exec(ctx, `
-			UPDATE core.person SET family_name = $2, given_name = $3,
-			       birth_date = coalesce($4::date, birth_date)
-			 WHERE id = $1`, pid, nom, prenom, naissance); err != nil {
-			return nil, fmt.Errorf("personne %s : %w", a.UID, err)
-		}
-		byUID[a.UID.String()] = pid
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_acteur (
+			rn int, canonical_rn int, uid text, slug text, nom text, prenom text,
+			naissance text, hatvp text, pid bigint
+		) ON COMMIT DROP`); err != nil {
+		return nil, err
+	}
+	copieActeurs := make([][]any, len(lignes))
+	for i, l := range lignes {
+		copieActeurs[i] = []any{l.rn, l.canonicalRn, l.uid, l.slug, l.nom, l.prenom, l.naissance, l.hatvp}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_acteur"},
+		[]string{"rn", "canonical_rn", "uid", "slug", "nom", "prenom", "naissance", "hatvp"},
+		pgx.CopyFromRows(copieActeurs)); err != nil {
+		return nil, err
+	}
 
-		if _, err := pool.Exec(ctx, `
-			INSERT INTO core.person_identifier (person_id, scheme, value)
-			VALUES ($1,'AN_ACTEUR',$2) ON CONFLICT (scheme, value) DO NOTHING`,
-			pid, a.UID.String()); err != nil {
+	// Trois chemins de rapprochement, du plus sûr au moins sûr, et jamais de
+	// création si un des deux premiers aboutit :
+	//   1. l'identifiant de l'Assemblée, s'il est déjà connu ;
+	//   2. le triplet exact (nom, prénom, date de naissance), qui rattrape
+	//      une personne créée d'abord par le RNE — sans lui, un député par
+	//      ailleurs conseiller municipal existerait en double ;
+	//   3. le slug, qui est un permalien public et ne doit jamais changer.
+	// Un seul aller-retour pour les 3 000+ acteurs plutôt qu'un par acteur :
+	// COALESCE des deux sous-requêtes reproduit exactement la même priorité
+	// que trouverPersonne, dans une seule INSERT...SELECT.
+	if _, err := tx.Exec(ctx, `
+		UPDATE tmp_acteur t SET pid = coalesce(
+			(SELECT pi.person_id FROM core.person_identifier pi
+			  WHERE pi.scheme = 'AN_ACTEUR' AND pi.value = t.uid),
+			(SELECT p.id FROM core.person p
+			  WHERE t.naissance <> ''
+			    AND p.birth_date = t.naissance::date
+			    AND core.f_unaccent(lower(p.family_name)) = core.f_unaccent(lower(t.nom))
+			    AND core.f_unaccent(lower(p.given_name))  = core.f_unaccent(lower(t.prenom))
+			  ORDER BY p.id LIMIT 1))`); err != nil {
+		return nil, fmt.Errorf("rapprochement des acteurs : %w", err)
+	}
+
+	// Sans base pré-existante à rattraper, deux acteurs du MÊME lot peuvent
+	// partager le triplet (nom, prénom, naissance) sans qu'aucune personne ne
+	// les précède encore — le cas que la boucle ligne à ligne résolvait en
+	// relisant sa PROPRE écriture pour le second acteur. Ici, aucune ligne
+	// n'a encore été écrite quand les deux sont résolues : sans ce
+	// regroupement explicite, elles créeraient chacune leur propre personne
+	// plutôt que de fusionner sur une seule, une régression d'identité que
+	// ce projet traite comme une faute, pas un détail.
+	if _, err := tx.Exec(ctx, `
+		WITH doublons AS (
+			SELECT core.f_unaccent(lower(nom)) fn, core.f_unaccent(lower(prenom)) gn,
+			       naissance, min(rn) AS canon
+			  FROM tmp_acteur
+			 WHERE pid IS NULL AND naissance <> ''
+			 GROUP BY 1, 2, 3
+			HAVING count(*) > 1
+		)
+		UPDATE tmp_acteur t SET canonical_rn = d.canon
+		  FROM doublons d
+		 WHERE t.pid IS NULL AND t.naissance <> ''
+		   AND core.f_unaccent(lower(t.nom)) = d.fn
+		   AND core.f_unaccent(lower(t.prenom)) = d.gn
+		   AND t.naissance = d.naissance`); err != nil {
+		return nil, fmt.Errorf("fusion des homonymes du même lot : %w", err)
+	}
+
+	// Une seule personne créée par groupe (canonical_rn), pas une par ligne :
+	// les autres membres du groupe reçoivent le même id juste après. RETURNING
+	// ne peut rendre que des colonnes de core.person — rn n'en est pas une —
+	// donc le rattachement se fait par slug, unique dans tout le lot (voir la
+	// résolution des homonymes plus haut), jamais par rn directement.
+	if _, err := tx.Exec(ctx, `
+		WITH ins AS (
+			INSERT INTO core.person (slug, family_name, given_name, birth_date)
+			SELECT slug, nom, prenom, nullif(naissance, '')::date
+			  FROM tmp_acteur WHERE pid IS NULL AND rn = canonical_rn
+			ON CONFLICT (slug) DO UPDATE SET family_name = EXCLUDED.family_name
+			RETURNING id, slug
+		)
+		UPDATE tmp_acteur t SET pid = ins.id
+		  FROM ins, tmp_acteur canon
+		 WHERE canon.rn = t.canonical_rn AND canon.slug = ins.slug AND t.pid IS NULL`); err != nil {
+		return nil, fmt.Errorf("création des personnes : %w", err)
+	}
+
+	// Personnes déjà connues (par identifiant ou par triplet) : leur fiche
+	// est mise à jour avec ce que CET acteur publie, comme le faisait la
+	// boucle ligne à ligne pour chaque acteur rencontré.
+	if _, err := tx.Exec(ctx, `
+		UPDATE core.person p SET family_name = t.nom, given_name = t.prenom,
+		       birth_date = coalesce(nullif(t.naissance, '')::date, p.birth_date)
+		  FROM tmp_acteur t WHERE t.pid = p.id`); err != nil {
+		return nil, fmt.Errorf("mise à jour des personnes : %w", err)
+	}
+
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO core.person_identifier (person_id, scheme, value)
+		SELECT pid, 'AN_ACTEUR', uid FROM tmp_acteur
+		ON CONFLICT (scheme, value) DO NOTHING`); err != nil {
+		return nil, fmt.Errorf("identifiants AN_ACTEUR : %w", err)
+	}
+	// L'identifiant HATVP est publié dans le fichier acteurs : une ligne de
+	// crosswalk gratuite (docs/perimetre.md §4.5).
+	if _, err := tx.Exec(ctx, `
+		INSERT INTO core.person_identifier (person_id, scheme, value)
+		SELECT pid, 'HATVP', hatvp FROM tmp_acteur WHERE hatvp <> ''
+		ON CONFLICT (scheme, value) DO NOTHING`); err != nil {
+		return nil, fmt.Errorf("identifiants HATVP : %w", err)
+	}
+
+	res, err := tx.Query(ctx, `SELECT uid, pid FROM tmp_acteur`)
+	if err != nil {
+		return nil, err
+	}
+	byUID := make(map[string]int64, len(lignes))
+	for res.Next() {
+		var uid string
+		var pid int64
+		if err := res.Scan(&uid, &pid); err != nil {
+			res.Close()
 			return nil, err
 		}
-		// L'identifiant HATVP est publie dans le fichier acteurs : une ligne de
-		// crosswalk gratuite (docs/perimetre.md §4.5).
-		if h := a.URIHatvp.String(); h != "" {
-			if ref := h[strings.LastIndex(h, "/")+1:]; ref != "" {
-				_, _ = pool.Exec(ctx, `
-					INSERT INTO core.person_identifier (person_id, scheme, value)
-					VALUES ($1,'HATVP',$2) ON CONFLICT (scheme, value) DO NOTHING`, pid, ref)
-			}
-		}
+		byUID[uid] = pid
+	}
+	res.Close()
+	if err := res.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := tx.Commit(ctx); err != nil {
+		return nil, err
 	}
 	return byUID, nil
 }
@@ -387,19 +605,228 @@ func normalizeMandats(ctx context.Context, pool *pgxpool.Pool,
 
 	fins := recoller(mandats, personByUID)
 
-	n := 0
+	// Deux lots, jamais une INSERT par mandat (jusqu'à plusieurs milliers
+	// d'allers-retours sur une base distante) : chaque mandat est d'abord
+	// classé en Go (même logique de branchement qu'avant, voir classerMandat)
+	// dans l'un des deux lots — core.mandate (député/ministre/sénateur) ou
+	// core.affiliation (groupe, commission, parti déclaré) —, copiés chacun
+	// dans une table temporaire, puis un SEUL INSERT ... SELECT par lot.
+	// L'ordre du lot (le plus ancien d'abord, comme mandats est déjà trié)
+	// est préservé par rn : Postgres traite les lignes d'un INSERT ... SELECT
+	// ... ORDER BY dans cet ordre pour la résolution des contraintes
+	// d'exclusion, exactement comme la boucle ligne à ligne qu'il remplace
+	// (vérifié directement contre Postgres avant d'écrire ceci — voir la
+	// session qui a introduit ce commentaire).
+	var lotMandats []ligneMandat
+	var lotAffiliations []ligneAffiliation
 	for _, m := range mandats {
 		pid, ok := personByUID[m.ActeurRef.String()]
 		if !ok {
 			continue
 		}
-		k, err := applyMandat(ctx, pool, pid, m, orgByUID, labels, fins[m.UID.String()])
-		if err != nil {
-			return 0, err
+		lm, la := classerMandat(pid, m, orgByUID, labels, fins[m.UID.String()])
+		if lm != nil {
+			lm.rn = len(lotMandats)
+			lotMandats = append(lotMandats, *lm)
 		}
-		n += k
+		if la != nil {
+			la.rn = len(lotAffiliations)
+			lotAffiliations = append(lotAffiliations, *la)
+		}
 	}
-	return n, nil
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	defer tx.Rollback(ctx)
+
+	nMandats, err := copierMandats(ctx, tx, lotMandats)
+	if err != nil {
+		return 0, fmt.Errorf("mandats (core.mandate) : %w", err)
+	}
+	nAffiliations, err := copierAffiliations(ctx, tx, lotAffiliations)
+	if err != nil {
+		return 0, fmt.Errorf("appartenances (core.affiliation) : %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return nMandats + nAffiliations, nil
+}
+
+// ligneMandat/ligneAffiliation : une ligne prête pour la table temporaire de
+// son lot — mêmes colonnes que l'INSERT qu'applyMandat faisait une par une
+// avant ce lot, jamais recalculées.
+type ligneMandat struct {
+	rn                                     int
+	personID                               int64
+	mandateType, institution, constituency string
+	role, portefeuille                     string
+	debut, fin                             string
+}
+
+type ligneAffiliation struct {
+	rn                          int
+	personID, organizationID    int64
+	organizationKind, role, via string
+	debut, fin                  string
+}
+
+// classerMandat reprend exactement le branchement et les anomalies signalées
+// par l'absence qu'applyMandat traitait ligne à ligne — seule la sortie
+// change : une ligne pour l'un des deux lots plutôt qu'un INSERT immédiat.
+// PRESREP et les organes/types inconnus renvoient (nil, nil) : ignorés, comme
+// avant.
+func classerMandat(personID int64, m mandat, orgByUID map[string]int64,
+	labels map[string]string, finRecollee string) (*ligneMandat, *ligneAffiliation) {
+	debut := m.DateDebut.String()
+	if debut == "" {
+		return nil, nil // un mandat sans date de début n'est pas exploitable
+	}
+	brute := m.DateFin.String()
+	if finRecollee != "" {
+		brute = finRecollee
+	}
+	fin := brute
+	if fin != "" && fin < debut {
+		return nil, nil // anomalie de source : signalée par l'absence, jamais devinée
+	}
+
+	switch m.TypeOrgane.String() {
+	case "ASSEMBLEE":
+		circo := strings.TrimSpace(m.Election.Lieu.Departement.String())
+		if n := m.Election.Lieu.NumCirco.String(); n != "" {
+			circo = strings.TrimSpace(circo + ", " + n + "e circonscription")
+		}
+		return &ligneMandat{
+			personID: personID, mandateType: "DEPUTE", institution: "ASSEMBLEE_NATIONALE",
+			constituency: circo, role: m.InfosQualite.LibQualite.String(), debut: debut, fin: fin,
+		}, nil
+
+	case "MINISTERE":
+		return &ligneMandat{
+			personID: personID, mandateType: "MINISTRE",
+			role: m.InfosQualite.LibQualite.String(), portefeuille: labels[str(m.Organes.OrganeRef)],
+			debut: debut, fin: fin,
+		}, nil
+
+	case "SENAT":
+		return &ligneMandat{
+			personID: personID, mandateType: "SENATEUR", institution: "SENAT",
+			role: m.InfosQualite.LibQualite.String(), debut: debut, fin: fin,
+		}, nil
+
+	case "PRESREP":
+		// Ignoré volontairement : data/presidents.csv fait autorité sur les
+		// présidences, avec les intérims et les dates de passation. Insérer
+		// ici une seconde version, plus pauvre, ferait doublon.
+		return nil, nil
+
+	default:
+		orgUID := str(m.Organes.OrganeRef)
+		orgID, ok := orgByUID[orgUID]
+		if !ok {
+			return nil, nil
+		}
+		kind, ok := organeKind[m.TypeOrgane.String()]
+		if !ok {
+			return nil, nil
+		}
+		// D-009 : le canal de connaissance est stocké. L'appartenance à un
+		// groupe, à une commission ou à une délégation est publiée par
+		// l'assemblée ; le rattachement à un parti dans ce fichier est
+		// déclaratif, et n'a pas la valeur du rattachement publié au Journal
+		// officiel.
+		via := "INSTITUTION"
+		if kind == "PARTY" {
+			via = "PARTY_DECLARATION"
+		}
+		return nil, &ligneAffiliation{
+			personID: personID, organizationID: orgID, organizationKind: kind,
+			role: m.InfosQualite.LibQualite.String(), via: via, debut: debut, fin: fin,
+		}
+	}
+}
+
+// copierMandats : une table temporaire, une copie, un INSERT ... SELECT —
+// les contraintes d'exclusion de core.mandate (un DEPUTE/SENATEUR/MINISTRE
+// ne peut pas chevaucher un autre mandat du même type pour la même
+// personne) refusent un chevauchement exactement comme le ON CONFLICT DO
+// NOTHING ligne à ligne qu'elles remplacent — ORDER BY rn préserve le
+// « plus ancien d'abord » dont recoller/le tri de normalizeMandats dépendent.
+func copierMandats(ctx context.Context, tx pgx.Tx, lignes []ligneMandat) (int, error) {
+	if len(lignes) == 0 {
+		return 0, nil
+	}
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_mandat (
+			rn int, person_id bigint, mandate_type text, institution text,
+			constituency text, role text, portefeuille text, debut text, fin text
+		) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	rows := make([][]any, len(lignes))
+	for i, l := range lignes {
+		rows[i] = []any{l.rn, l.personID, l.mandateType, nullable(l.institution),
+			nullable(l.constituency), nullable(l.role), nullable(l.portefeuille),
+			l.debut, nullable(l.fin)}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_mandat"},
+		[]string{"rn", "person_id", "mandate_type", "institution", "constituency",
+			"role", "portefeuille", "debut", "fin"},
+		pgx.CopyFromRows(rows)); err != nil {
+		return 0, err
+	}
+	res, err := tx.Exec(ctx, `
+		INSERT INTO core.mandate (person_id, mandate_type, institution, constituency, role, portefeuille, validity)
+		SELECT person_id, mandate_type::core.mandate_type, institution::core.institution,
+		       constituency, role, portefeuille, daterange(debut::date, fin::date, '[]')
+		  FROM tmp_mandat
+		 ORDER BY rn
+		ON CONFLICT DO NOTHING`)
+	if err != nil {
+		return 0, err
+	}
+	return int(res.RowsAffected()), nil
+}
+
+// copierAffiliations : même patron que copierMandats pour core.affiliation —
+// la contrainte d'exclusion n'y interdit qu'appartenir à deux groupes
+// parlementaires en même temps (siéger dans plusieurs commissions à la fois
+// est normal), donc ORDER BY rn a la même portée limitée qu'avant.
+func copierAffiliations(ctx context.Context, tx pgx.Tx, lignes []ligneAffiliation) (int, error) {
+	if len(lignes) == 0 {
+		return 0, nil
+	}
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_affiliation (
+			rn int, person_id bigint, organization_id bigint, organization_kind text,
+			role text, via text, debut text, fin text
+		) ON COMMIT DROP`); err != nil {
+		return 0, err
+	}
+	rows := make([][]any, len(lignes))
+	for i, l := range lignes {
+		rows[i] = []any{l.rn, l.personID, l.organizationID, l.organizationKind,
+			nullable(l.role), l.via, l.debut, nullable(l.fin)}
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_affiliation"},
+		[]string{"rn", "person_id", "organization_id", "organization_kind", "role", "via", "debut", "fin"},
+		pgx.CopyFromRows(rows)); err != nil {
+		return 0, err
+	}
+	res, err := tx.Exec(ctx, `
+		INSERT INTO core.affiliation (person_id, organization_id, organization_kind, role, validity, declared_via)
+		SELECT person_id, organization_id, organization_kind::core.organization_kind, role,
+		       daterange(debut::date, fin::date, '[]'), via::core.affiliation_source
+		  FROM tmp_affiliation
+		 ORDER BY rn
+		ON CONFLICT DO NOTHING`)
+	if err != nil {
+		return 0, err
+	}
+	return int(res.RowsAffected()), nil
 }
 
 // recoller règle le chevauchement de deux jours que la source publie à chaque
@@ -460,131 +887,6 @@ func recoller(mandats []mandat, personByUID map[string]int64) map[string]string 
 	return fins
 }
 
-func applyMandat(ctx context.Context, pool *pgxpool.Pool, personID int64, m mandat,
-	orgByUID map[string]int64, labels map[string]string, finRecollee string) (int, error) {
-	debut := m.DateDebut.String()
-	if debut == "" {
-		return 0, nil // un mandat sans date de début n'est pas exploitable
-	}
-	brute := m.DateFin.String()
-	if finRecollee != "" {
-		brute = finRecollee
-	}
-	fin := nullable(brute)
-	if f, ok := fin.(string); ok && f < debut {
-		return 0, nil // anomalie de source : signalée par l'absence, jamais devinée
-	}
-
-	switch m.TypeOrgane.String() {
-	case "ASSEMBLEE":
-		circo := strings.TrimSpace(m.Election.Lieu.Departement.String())
-		if n := m.Election.Lieu.NumCirco.String(); n != "" {
-			circo = strings.TrimSpace(circo + ", " + n + "e circonscription")
-		}
-		// Les contraintes d'exclusion refusent les mandats de même type qui se
-		// chevauchent. Un refus est une anomalie de source, pas une erreur
-		// fatale : on la signale sans interrompre l'ingestion.
-		_, err := pool.Exec(ctx, `
-			INSERT INTO core.mandate
-			  (person_id, mandate_type, institution, constituency, role, validity)
-			VALUES ($1,'DEPUTE','ASSEMBLEE_NATIONALE',$2,$3, daterange($4::date, $5::date, '[]'))
-			ON CONFLICT DO NOTHING`,
-			personID, nullable(circo), nullable(m.InfosQualite.LibQualite.String()), debut, fin)
-		if err != nil {
-			if isExclusion(err) {
-				return 0, nil
-			}
-			return 0, err
-		}
-		return 1, nil
-
-	case "MINISTERE":
-		// La contrainte d'exclusion interdit deux mandats ministériels
-		// simultanés pour une même personne. C'est parfois faux — un ministre
-		// peut cumuler deux portefeuilles — et le refus est alors une anomalie
-		// signalée par l'absence, jamais comblée par une invention.
-		_, err := pool.Exec(ctx, `
-			INSERT INTO core.mandate
-			  (person_id, mandate_type, role, portefeuille, validity)
-			VALUES ($1,'MINISTRE',$2,$3, daterange($4::date, $5::date, '[]'))
-			ON CONFLICT DO NOTHING`,
-			personID, nullable(m.InfosQualite.LibQualite.String()),
-			nullable(labels[str(m.Organes.OrganeRef)]), debut, fin)
-		if err != nil {
-			if isExclusion(err) {
-				return 0, nil
-			}
-			return 0, err
-		}
-		return 1, nil
-
-	case "SENAT":
-		// Un député qui fut sénateur. La source de l'Assemblée le dit ; c'est
-		// la seule trace que nous en ayons, le Sénat ne publiant pas ses
-		// mandats dans le dump Dosleg (D-016).
-		_, err := pool.Exec(ctx, `
-			INSERT INTO core.mandate (person_id, mandate_type, institution, role, validity)
-			VALUES ($1,'SENATEUR','SENAT',$2, daterange($3::date, $4::date, '[]'))
-			ON CONFLICT DO NOTHING`,
-			personID, nullable(m.InfosQualite.LibQualite.String()), debut, fin)
-		if err != nil {
-			if isExclusion(err) {
-				return 0, nil
-			}
-			return 0, err
-		}
-		return 1, nil
-
-	case "PRESREP":
-		// Ignoré volontairement : data/presidents.csv fait autorité sur les
-		// présidences, avec les intérims et les dates de passation. Insérer
-		// ici une seconde version, plus pauvre, ferait doublon.
-		return 0, nil
-
-	default:
-		orgUID := str(m.Organes.OrganeRef)
-		orgID, ok := orgByUID[orgUID]
-		if !ok {
-			return 0, nil
-		}
-		kind, ok := organeKind[m.TypeOrgane.String()]
-		if !ok {
-			return 0, nil
-		}
-		// D-009 : le canal de connaissance est stocké. L'appartenance à un
-		// groupe, à une commission ou à une délégation est publiée par
-		// l'assemblée ; le rattachement à un parti dans ce fichier est
-		// déclaratif, et n'a pas la valeur du rattachement publié au Journal
-		// officiel.
-		via := "INSTITUTION"
-		if kind == "PARTY" {
-			via = "PARTY_DECLARATION"
-		}
-		_, err := pool.Exec(ctx, `
-			INSERT INTO core.affiliation
-			  (person_id, organization_id, organization_kind, role, validity, declared_via)
-			VALUES ($1,$2,$3,$4, daterange($5::date, $6::date, '[]'), $7)
-			ON CONFLICT DO NOTHING`,
-			personID, orgID, kind, nullable(m.InfosQualite.LibQualite.String()),
-			debut, fin, via)
-		if err != nil {
-			// La contrainte d'exclusion n'interdit qu'une chose : appartenir à
-			// deux groupes parlementaires en même temps. Siéger dans plusieurs
-			// commissions simultanément est normal, et rien ne s'y oppose.
-			if isExclusion(err) {
-				return 0, nil
-			}
-			return 0, err
-		}
-		return 1, nil
-	}
-}
-
-func isExclusion(err error) bool {
-	return strings.Contains(err.Error(), "exclusion") ||
-		strings.Contains(err.Error(), "23P01")
-}
-
 // Normalize reconstruit core à partir de raw. L'opération est idempotente :
 // c'est l'invariant central du projet (db/README.md).
 func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
@@ -607,21 +909,80 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	// en était. C'est arrivé : deux exécutions concurrentes se sont marché
 	// dessus, l'une reconstruisant ce que l'autre effaçait, et le message final
 	// parlait d'une clé étrangère au lieu de parler d'une course.
+	//
+	// La décision de sauter la reconstruction des votes (core.scrutin/
+	// core.ballot, voir normalizeScrutins) doit être prise ICI, avant cette
+	// même transaction — pas à l'intérieur de normalizeScrutins, qui ne
+	// serait atteinte qu'après que ballot/ballot_group aient déjà été vidés
+	// ci-dessous. Un repère consulté trop tard verrait une table vide et la
+	// prendrait, à tort, pour une reconstruction déjà sautée.
+	scrutinsCount, scrutinsHigh, err := rawWatermark(ctx, pool, "an.scrutin")
+	if err != nil {
+		return fmt.Errorf("empreinte des scrutins : %w", err)
+	}
+	scrutinsUnchanged, scrutinsRaison, err := watermarkDiff(ctx, pool, watermarkScrutins, scrutinsCount, scrutinsHigh)
+	if err != nil {
+		return fmt.Errorf("empreinte des scrutins : %w", err)
+	}
+
+	// core.organization est TOUJOURS détruite puis reconstruite (identity
+	// column : un id d'organisation change à chaque cycle, même quand rien
+	// n'a changé) — sauf ici : si rien n'est arrivé pour an.organe depuis la
+	// dernière fois, la détruire casserait la clé étrangère de core.ballot
+	// vers l'organisation sous laquelle un vote a été enregistré, alors que
+	// core.ballot vient justement d'être laissée intacte ci-dessus. Les deux
+	// repères doivent donc être vrais ensemble pour que sauter le premier
+	// soit sûr.
+	organeCount, organeHigh, err := rawWatermark(ctx, pool, "an.organe")
+	if err != nil {
+		return fmt.Errorf("empreinte des organes : %w", err)
+	}
+	organeUnchanged, organeRaison, err := watermarkDiff(ctx, pool, watermarkOrganes, organeCount, organeHigh)
+	if err != nil {
+		return fmt.Errorf("empreinte des organes : %w", err)
+	}
+	// Les deux repères doivent être vrais ensemble : core.ballot référence à
+	// la fois un scrutin (id stable, upserté par source_uid) et parfois une
+	// organisation (id instable, détruite puis recréée). Sauter sa
+	// reconstruction n'est sûr que si NI L'UN NI L'AUTRE n'a de raison de
+	// bouger.
+	skipBallots := scrutinsUnchanged && organeUnchanged
+	// Ce qui suit prend un moment (le rebuild de core.ballot, plus d'une
+	// minute sur ~1,3 M lignes) : dire POURQUOI il a lieu, avant qu'il ne
+	// commence, plutôt que de laisser deviner si c'était évitable.
+	ballotsRaison := scrutinsRaison
+	if !organeUnchanged {
+		if ballotsRaison != "" {
+			ballotsRaison += "; " + organeRaison
+		} else {
+			ballotsRaison = organeRaison
+		}
+	}
+
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
 
-	for _, q := range []string{
+	resets := []string{}
+	if !skipBallots {
 		// Portée limitée à l'Assemblée : un DELETE global emporterait les votes
-		// du Parlement européen, qui viennent d'un autre connecteur.
-		`DELETE FROM core.ballot_group_exception e USING core.scrutin s
-		  WHERE s.id = e.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.ballot_group g USING core.scrutin s
-		  WHERE s.id = g.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.ballot b USING core.scrutin s
-		  WHERE s.id = b.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
+		// du Parlement européen, qui viennent d'un autre connecteur. Omises
+		// entièrement quand les scrutins et les organisations sont tous deux
+		// inchangés : normalizeScrutins va alors sauter sa propre
+		// reconstruction, et ces trois tables doivent donc rester telles que
+		// la dernière reconstruction les a laissées.
+		resets = append(resets,
+			`DELETE FROM core.ballot_group_exception e USING core.scrutin s
+			  WHERE s.id = e.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
+			`DELETE FROM core.ballot_group g USING core.scrutin s
+			  WHERE s.id = g.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`,
+			`DELETE FROM core.ballot b USING core.scrutin s
+			  WHERE s.id = b.scrutin_id AND s.institution = 'ASSEMBLEE_NATIONALE'`)
+	}
+
+	resets = append(resets, []string{
 		// Les affiliations proviennent toutes de l'Assemblée aujourd'hui ; la
 		// portée est bornée malgré tout, pour que l'arrivée d'un connecteur
 		// d'affiliations sénatoriales ne fasse pas de dégât silencieux.
@@ -646,45 +1007,57 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		// sans clause a emporté les 8 412 dossiers du Sénat et les 17 660
 		// assignations de thèmes qui s'y rattachaient, faisant tomber
 		// l'héritage de thèmes par la navette (D-019) de 4 806 à 0.
+		// Le filtre sur les colonnes à vider n'est pas là pour la
+		// sélectivité de « institution » (toutes les interventions viennent
+		// aujourd'hui de l'Assemblée) : sans lui, chaque renormalisation
+		// réécrivait les 260 000 lignes de core.intervention même quand
+		// dossier_id y était déjà NULL partout — plus d'une minute d'E/S pour
+		// ne rien changer. Idem pour core.scrutin, dans une moindre mesure.
 		`UPDATE core.scrutin SET dossier_id = NULL, texte_id = NULL, amendement_id = NULL
-		  WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		  WHERE institution = 'ASSEMBLEE_NATIONALE'
+		    AND (dossier_id IS NOT NULL OR texte_id IS NOT NULL OR amendement_id IS NOT NULL)`,
 		// Les interventions en séance pointent le dossier discuté. Elles
 		// survivent à la renormalisation — elles viennent d'un autre jeu — mais
 		// leur pointeur, lui, désigne des dossiers sur le point de disparaître.
 		`UPDATE core.intervention SET dossier_id = NULL
-		  WHERE institution = 'ASSEMBLEE_NATIONALE'`,
-		// Les amendements se rattachent aux textes par clé étrangère. Rebâtir
-		// core.texte sans les effacer d'abord faisait échouer toute la
-		// normalisation — ce qui est le bon comportement : la contrainte a
-		// tenu. Ils sont rechargés par le connecteur des amendements, qui
-		// s'exécute après la normalisation dans la chaîne.
-		`DELETE FROM core.amendement WHERE institution = 'ASSEMBLEE_NATIONALE'`,
+		  WHERE institution = 'ASSEMBLEE_NATIONALE' AND dossier_id IS NOT NULL`,
+		// core.amendement, core.texte et core.dossier ne sont PLUS wipés ici
+		// (voir NormalizeDossiers/normalizeDocuments, internal/an/dossiers.go :
+		// un MERGE sur une vue scopée à l'Assemblée les remplace) — l'ancien
+		// commentaire disait juste : « rebâtir core.texte sans les effacer
+		// d'abord faisait échouer la normalisation, la contrainte a tenu » —
+		// cette contrainte tenait PARCE QUE core.texte recevait un id neuf à
+		// chaque passage ; un MERGE garde l'id stable, donc plus rien ne
+		// pend au-dessus du vide qu'un DELETE laissait derrière lui. C'est
+		// aussi ce qui rend le NOT EXISTS d'internal/an/exposes.go enfin
+		// utile : sans id stable, il ne pouvait jamais reconnaître un texte
+		// déjà pourvu d'un exposé (mesuré : ~47 minutes perdues à tout
+		// retélécharger, une requête toutes les 400 ms, à chaque
+		// renormalisation).
 		`DELETE FROM core.lecture l USING core.dossier d
 		  WHERE d.id = l.dossier_id AND d.institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.dossier_author a USING core.dossier d
 		  WHERE d.id = a.dossier_id AND d.institution = 'ASSEMBLEE_NATIONALE'`,
 		`DELETE FROM core.texte_author a USING core.texte t
 		  WHERE t.id = a.texte_id AND t.institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.texte WHERE institution = 'ASSEMBLEE_NATIONALE'`,
-		`DELETE FROM core.dossier WHERE institution = 'ASSEMBLEE_NATIONALE'`,
-		// La cartographie éditoriale pointe les groupes de l'Assemblée. Elle est
-		// rechargée juste après la normalisation (cmd/ingest), mais tant qu'elle
-		// pointe des organisations sur le point d'être détruites, la clé
-		// étrangère refuse la suppression — et le connecteur échouerait sans
-		// qu'on comprenne pourquoi.
-		`DELETE FROM core.party_group_link l
-		  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
-		                WHERE i.organization_id = l.group_id AND i.scheme = 'AN_ORGANE')`,
-		// Enfin les entités portant un identifiant de l'Assemblée, et elles seules.
-		`DELETE FROM core.organization o
-		  WHERE EXISTS (SELECT 1 FROM core.organization_identifier i
-		                 WHERE i.organization_id = o.id AND i.scheme = 'AN_ORGANE')`,
-		// Les PERSONNES ne sont plus détruites. Elles l'étaient quand
-		// l'Assemblée en était le seul producteur ; depuis que le RNE et la
-		// HATVP y rattachent des mandats et des déclarations, effacer une
-		// personne parce qu'elle est députée emporterait son mandat de maire.
-		// Elles sont donc mises à jour en place, par leur identifiant.
-	} {
+	}...)
+
+	// core.organization n'est plus wipée ici : normalizeOrganes en fait
+	// désormais un MERGE (voir plus haut) — un id d'organisation stable est
+	// ce que core.amendement_attribution.organization_id exige maintenant
+	// que core.amendement lui-même ne disparaît plus à chaque passage (même
+	// gotcha que core.texte, voir le commentaire au-dessus de normalize's
+	// texte/dossier resets). core.party_group_link n'a jamais eu besoin
+	// d'être touché ici : internal/carto/carto.go fait déjà sa propre
+	// remise à zéro scopée (mapping_revision_id) dans l'étape « carto »,
+	// qui s'exécute après « normalize » dans le graphe de dépendance.
+	// Les PERSONNES ne sont plus détruites. Elles l'étaient quand l'Assemblée
+	// en était le seul producteur ; depuis que le RNE et la HATVP y
+	// rattachent des mandats et des déclarations, effacer une personne parce
+	// qu'elle est députée emporterait son mandat de maire. Elles sont donc
+	// mises à jour en place, par leur identifiant.
+
+	for _, q := range resets {
 		if _, err := tx.Exec(ctx, q); err != nil {
 			return fmt.Errorf("remise à zéro : %w", err)
 		}
@@ -693,80 +1066,64 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("remise à zéro : %w", err)
 	}
 
+	// Un NOTICE avant chaque phase, pas seulement le compte après : sans ça,
+	// « etape=normalize » puis plus rien pendant plusieurs minutes se lit
+	// comme une commande bloquée plutôt que comme une phase en cours — voir
+	// la session qui a introduit ce commentaire (normalize seule, sur une
+	// base réelle, prend facilement deux minutes).
+	logs.Notice("normalizing organizations")
 	orgByUID, err := normalizeOrganes(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("organes : %w", err)
 	}
-	fmt.Printf("  organisations   %d\n", len(orgByUID))
+	// normalizeOrganes upserte par slug (id stable) plutôt que d'écraser :
+	// enregistrer ce repère seulement APRÈS son succès, jamais avant, sinon
+	// une organisation en cours d'écriture au moment d'un plantage serait
+	// prise pour déjà à jour au prochain essai.
+	if err := recordWatermark(ctx, pool, watermarkOrganes, organeCount, organeHigh); err != nil {
+		return fmt.Errorf("organes : %w", err)
+	}
+	logs.Notice(logs.Plural(len(orgByUID), "organization") + " normalized")
 
+	logs.Notice("normalizing MPs")
 	personByUID, err := normalizeActeurs(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("acteurs : %w", err)
 	}
-	fmt.Printf("  personnes       %d\n", len(personByUID))
+	logs.Notice(logs.Plural(len(personByUID), "MP") + " normalized")
 
 	labels, err := organeLabels(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("libellés d'organes : %w", err)
 	}
 
+	logs.Notice("normalizing mandates and affiliations")
 	nMandats, err := normalizeMandats(ctx, pool, personByUID, orgByUID, labels)
 	if err != nil {
 		return fmt.Errorf("mandats : %w", err)
 	}
-	fmt.Printf("  mandats et appartenances %d\n", nMandats)
+	logs.Notice(fmt.Sprintf("%d mandates and affiliations normalized", nMandats))
 
-	nScr, nBal, err := normalizeScrutins(ctx, pool, personByUID, orgByUID)
+	logs.Notice("normalizing votes")
+	nScr, nBal, err := normalizeScrutins(ctx, pool, personByUID, orgByUID,
+		skipBallots, ballotsRaison, scrutinsCount, scrutinsHigh)
 	if err != nil {
 		return fmt.Errorf("scrutins : %w", err)
 	}
-	fmt.Printf("  scrutins        %d\n  votes nominatifs %d\n", nScr, nBal)
+	logs.Notice(fmt.Sprintf("%s normalized, %s", logs.Plural(nScr, "roll-call vote"), logs.Plural(nBal, "individual ballot")))
 
+	logs.Notice("normalizing bills")
 	if err := NormalizeDossiers(ctx, pool, personByUID, orgByUID); err != nil {
 		return fmt.Errorf("dossiers : %w", err)
 	}
 	return nil
 }
 
-func normalizeScrutinsLegacy(ctx context.Context, pool *pgxpool.Pool,
-	personByUID, orgByUID map[string]int64) error {
-	nScr, nBal, err := normalizeScrutins(ctx, pool, personByUID, orgByUID)
-	if err != nil {
-		return fmt.Errorf("scrutins : %w", err)
+// hatvpRef isole la référence HATVP portée par l'URI que publie le fichier
+// acteurs, ou "" si l'acteur n'en a pas.
+func hatvpRef(uri string) string {
+	if uri == "" {
+		return ""
 	}
-	fmt.Printf("  scrutins        %d\n  votes nominatifs %d\n", nScr, nBal)
-	return nil
-}
-
-var _ = pgx.Identifier{}
-
-// trouverPersonne renvoie l'identifiant d'une personne déjà connue, ou 0.
-// L'ordre compte : l'identifiant de l'Assemblée fait foi ; à défaut, le triplet
-// exact (nom, prénom, date de naissance) rattrape les personnes créées par un
-// autre connecteur. Sans date de naissance, aucun rapprochement n'est tenté —
-// la même règle que pour le RNE (D-025).
-func trouverPersonne(ctx context.Context, pool *pgxpool.Pool, uid, nom, prenom string, naissance any) (int64, error) {
-	var id int64
-	err := pool.QueryRow(ctx, `
-		SELECT person_id FROM core.person_identifier
-		 WHERE scheme = 'AN_ACTEUR' AND value = $1`, uid).Scan(&id)
-	if err == nil {
-		return id, nil
-	}
-	if err != pgx.ErrNoRows {
-		return 0, err
-	}
-	if naissance == nil {
-		return 0, nil
-	}
-	err = pool.QueryRow(ctx, `
-		SELECT id FROM core.person
-		 WHERE birth_date = $3::date
-		   AND core.f_unaccent(lower(family_name)) = core.f_unaccent(lower($1))
-		   AND core.f_unaccent(lower(given_name))  = core.f_unaccent(lower($2))
-		 ORDER BY id LIMIT 1`, nom, prenom, naissance).Scan(&id)
-	if err == pgx.ErrNoRows {
-		return 0, nil
-	}
-	return id, err
+	return uri[strings.LastIndex(uri, "/")+1:]
 }

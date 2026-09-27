@@ -206,15 +206,53 @@ func IngestSISPEAEauPotable(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.service_eau_potable WHERE annee = 2023`); err != nil {
+
+	// Un seul millésime est chargé par ce connecteur (2023) ; les autres
+	// millésimes, une fois chargés un jour, ne doivent pas être touchés ici.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW service_eau_potable_2023 AS
+		SELECT * FROM core.service_eau_potable WHERE annee = 2023
+		WITH LOCAL CHECK OPTION`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "service_eau_potable"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_service_eau_potable (
+			annee integer, id_sispea text, nom_service text, code_departement text,
+			mode_gestion text, statut_operateur text, nom_operateur text,
+			population_desservie integer, prix_eur_m3 numeric,
+			agence_de_leau text, bassin_code text, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_service_eau_potable"},
 		[]string{"annee", "id_sispea", "nom_service", "code_departement", "mode_gestion",
 			"statut_operateur", "nom_operateur", "population_desservie", "prix_eur_m3",
 			"agence_de_leau", "bassin_code", "source_id"},
 		pgx.CopyFromRows(lignes)); err != nil {
 		return fail(fmt.Errorf("service_eau_potable : %w", err))
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO service_eau_potable_2023 AS tgt
+		USING tmp_service_eau_potable AS src ON tgt.annee = src.annee AND tgt.id_sispea = src.id_sispea
+		WHEN MATCHED AND (tgt.nom_service, tgt.code_departement, tgt.mode_gestion, tgt.statut_operateur,
+		                   tgt.nom_operateur, tgt.population_desservie, tgt.prix_eur_m3,
+		                   tgt.agence_de_leau, tgt.bassin_code, tgt.source_id)
+		     IS DISTINCT FROM (src.nom_service, src.code_departement, src.mode_gestion, src.statut_operateur,
+		                        src.nom_operateur, src.population_desservie, src.prix_eur_m3,
+		                        src.agence_de_leau, src.bassin_code, src.source_id)
+		THEN UPDATE SET nom_service = src.nom_service, code_departement = src.code_departement,
+		     mode_gestion = src.mode_gestion, statut_operateur = src.statut_operateur,
+		     nom_operateur = src.nom_operateur, population_desservie = src.population_desservie,
+		     prix_eur_m3 = src.prix_eur_m3, agence_de_leau = src.agence_de_leau,
+		     bassin_code = src.bassin_code, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (annee, id_sispea, nom_service, code_departement, mode_gestion, statut_operateur,
+		             nom_operateur, population_desservie, prix_eur_m3, agence_de_leau, bassin_code, source_id)
+		     VALUES (src.annee, src.id_sispea, src.nom_service, src.code_departement, src.mode_gestion,
+		             src.statut_operateur, src.nom_operateur, src.population_desservie, src.prix_eur_m3,
+		             src.agence_de_leau, src.bassin_code, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fail(fmt.Errorf("fusion service_eau_potable : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)

@@ -109,8 +109,22 @@ func charger(ctx context.Context, pool *pgxpool.Pool, srcID int64, l *lot) error
 	}
 	defer tx.Rollback(ctx)
 
-	// Les observations suivent par ON DELETE CASCADE.
-	if _, err := tx.Exec(ctx, `DELETE FROM ref.dette_serie WHERE source_id = $1`, srcID); err != nil {
+	// ref.dette_serie et core.dette_observation sont partagées par toutes les
+	// sources de dette (INSEE, Eurostat, FMI, Suisse, AFT, Banque de France),
+	// chacune avec son propre source_id : des vues scopées reproduisent
+	// exactement la portée de l'ancien « DELETE ... WHERE source_id = $1 »,
+	// pour que fusionner l'une ne touche jamais les séries d'une autre.
+	if _, err := tx.Exec(ctx, fmt.Sprintf(`
+		CREATE OR REPLACE TEMPORARY VIEW dette_serie_scope AS
+		SELECT * FROM ref.dette_serie WHERE source_id = %d
+		WITH LOCAL CHECK OPTION`, srcID)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, fmt.Sprintf(`
+		CREATE OR REPLACE TEMPORARY VIEW dette_observation_scope AS
+		SELECT * FROM core.dette_observation
+		WHERE serie IN (SELECT code FROM ref.dette_serie WHERE source_id = %d)
+		WITH LOCAL CHECK OPTION`, srcID)); err != nil {
 		return err
 	}
 	var series, obs [][]any
@@ -139,17 +153,95 @@ func charger(ctx context.Context, pool *pgxpool.Pool, srcID int64, l *lot) error
 			obs = append(obs, []any{s.Code, o.Periode, debut, o.Valeur, nul(o.Statut), o.DocumentID})
 		}
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"ref", "dette_serie"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_dette_serie (
+			code text NOT NULL,
+			source_id bigint NOT NULL,
+			code_source text NOT NULL,
+			libelle text NOT NULL,
+			pays text NOT NULL,
+			frequence text NOT NULL,
+			unite text NOT NULL,
+			concept text NOT NULL,
+			mesure text NOT NULL,
+			secteur_emetteur text NOT NULL,
+			zone_detenteur text NOT NULL,
+			secteur_detenteur text NOT NULL,
+			echeance text NOT NULL,
+			base_echeance text,
+			instrument text NOT NULL,
+			monnaie_emission text NOT NULL,
+			notes text,
+			url text
+		) ON COMMIT DROP`); err != nil {
+		return err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_dette_serie"},
 		[]string{"code", "source_id", "code_source", "libelle", "pays", "frequence", "unite",
 			"concept", "mesure", "secteur_emetteur", "zone_detenteur", "secteur_detenteur",
 			"echeance", "base_echeance", "instrument", "monnaie_emission", "notes", "url"},
 		pgx.CopyFromRows(series)); err != nil {
 		return err
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "dette_observation"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_dette_observation (
+			serie text NOT NULL,
+			periode text NOT NULL,
+			debut date NOT NULL,
+			valeur numeric NOT NULL,
+			statut text,
+			document_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_dette_observation"},
 		[]string{"serie", "periode", "debut", "valeur", "statut", "document_id"},
 		pgx.CopyFromRows(obs)); err != nil {
 		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO dette_serie_scope AS tgt
+		USING tmp_dette_serie AS src
+		ON tgt.code = src.code
+		WHEN MATCHED AND (tgt.code_source, tgt.libelle, tgt.pays, tgt.frequence, tgt.unite,
+				tgt.concept, tgt.mesure, tgt.secteur_emetteur, tgt.zone_detenteur,
+				tgt.secteur_detenteur, tgt.echeance, tgt.base_echeance, tgt.instrument,
+				tgt.monnaie_emission, tgt.notes, tgt.url)
+			IS DISTINCT FROM (src.code_source, src.libelle, src.pays, src.frequence, src.unite,
+				src.concept, src.mesure, src.secteur_emetteur, src.zone_detenteur,
+				src.secteur_detenteur, src.echeance, src.base_echeance, src.instrument,
+				src.monnaie_emission, src.notes, src.url) THEN
+			UPDATE SET code_source = src.code_source, libelle = src.libelle, pays = src.pays,
+				frequence = src.frequence, unite = src.unite, concept = src.concept,
+				mesure = src.mesure, secteur_emetteur = src.secteur_emetteur,
+				zone_detenteur = src.zone_detenteur, secteur_detenteur = src.secteur_detenteur,
+				echeance = src.echeance, base_echeance = src.base_echeance,
+				instrument = src.instrument, monnaie_emission = src.monnaie_emission,
+				notes = src.notes, url = src.url
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (code, source_id, code_source, libelle, pays, frequence, unite, concept,
+				mesure, secteur_emetteur, zone_detenteur, secteur_detenteur, echeance,
+				base_echeance, instrument, monnaie_emission, notes, url)
+			VALUES (src.code, src.source_id, src.code_source, src.libelle, src.pays, src.frequence,
+				src.unite, src.concept, src.mesure, src.secteur_emetteur, src.zone_detenteur,
+				src.secteur_detenteur, src.echeance, src.base_echeance, src.instrument,
+				src.monnaie_emission, src.notes, src.url)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fmt.Errorf("dette_serie, fusion : %w", err)
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO dette_observation_scope AS tgt
+		USING tmp_dette_observation AS src
+		ON tgt.serie = src.serie AND tgt.periode = src.periode
+		WHEN MATCHED AND (tgt.debut, tgt.valeur, tgt.statut, tgt.document_id)
+			IS DISTINCT FROM (src.debut, src.valeur, src.statut, src.document_id) THEN
+			UPDATE SET debut = src.debut, valeur = src.valeur, statut = src.statut,
+				document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (serie, periode, debut, valeur, statut, document_id)
+			VALUES (src.serie, src.periode, src.debut, src.valeur, src.statut, src.document_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fmt.Errorf("dette_observation, fusion : %w", err)
 	}
 	return tx.Commit(ctx)
 }

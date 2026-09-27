@@ -10,6 +10,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -159,8 +160,8 @@ func IngestSenateurs(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"senateurs": len(lignes), "complets": res.RowsAffected()}, "")
-	fmt.Printf("  Sénateurs : %d au répertoire, %d personnes complétées, %d encore sans date de naissance\n",
-		len(lignes), res.RowsAffected(), restants)
+	logs.Notice(fmt.Sprintf("senators: %s in the register, %s completed, %s still without a birth date",
+		logs.Plural(len(lignes), "senator"), logs.Plural(int(res.RowsAffected()), "person"), logs.Plural(restants, "person")))
 	return nil
 }
 

@@ -7,6 +7,7 @@ import (
 	"os"
 	"strings"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -123,9 +124,9 @@ func IngestGouvernements(ctx context.Context, pool *pgxpool.Pool, csvPath string
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	fmt.Printf("  %d gouvernements, de %s à %s\n", len(gs)-ignores, gs[0].debut, gs[len(gs)-1].debut)
+	logs.Notice(fmt.Sprintf("%s, from %s to %s", logs.Plural(len(gs)-ignores, "government"), gs[0].debut, gs[len(gs)-1].debut))
 	if ignores > 0 {
-		fmt.Printf("  %d écarté(s) : même date de début que le suivant\n", ignores)
+		logs.Notice(fmt.Sprintf("%s skipped: same start date as the next one", logs.Plural(ignores, "entry")))
 	}
 	return nil
 }

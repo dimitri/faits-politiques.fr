@@ -115,17 +115,46 @@ func IngestRecettesFiscales(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	}
 	defer tx.Rollback(ctx)
 
+	// core.recette_fiscale est TRUNCATÉE (pas de DELETE+COPY, donc hors du
+	// motif visé ici) : le TRUNCATE ne déclenche pas les triggers RI ligne
+	// par ligne comme le ferait un DELETE, il n'y a donc rien à convertir.
+	// Il doit précéder la fusion de ref.poste_fiscal ci-dessous, pour que la
+	// FK recette_fiscale.poste -> poste_fiscal.code ne bloque jamais un
+	// WHEN NOT MATCHED BY SOURCE THEN DELETE sur un poste disparu.
 	if _, err := tx.Exec(ctx, `TRUNCATE core.recette_fiscale`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM ref.poste_fiscal`); err != nil {
+
+	// MERGE plutôt que DELETE+COPY sur ref.poste_fiscal : l'ancien DELETE
+	// (table entière, ce connecteur en est l'unique propriétaire) payait le
+	// prix des triggers RI pour l'intégralité de la nomenclature à chaque
+	// republication d'Eurostat, changement ou non — une nomenclature qui ne
+	// bouge quasiment jamais.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_poste_fiscal (
+			code text, libelle text, agregat boolean, profondeur smallint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"ref", "poste_fiscal"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_poste_fiscal"},
 		[]string{"code", "libelle", "agregat", "profondeur"},
 		pgx.CopyFromRows(refRows)); err != nil {
 		return fail(err)
 	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO ref.poste_fiscal AS tgt
+		USING tmp_poste_fiscal AS src
+		ON tgt.code = src.code
+		WHEN MATCHED AND (tgt.libelle, tgt.agregat, tgt.profondeur)
+		                  IS DISTINCT FROM (src.libelle, src.agregat, src.profondeur) THEN
+		    UPDATE SET libelle = src.libelle, agregat = src.agregat, profondeur = src.profondeur
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (code, libelle, agregat, profondeur)
+		    VALUES (src.code, src.libelle, src.agregat, src.profondeur)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fail(fmt.Errorf("fusion ref.poste_fiscal : %w", err))
+	}
+
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "recette_fiscale"},
 		[]string{"poste", "secteur", "annee", "montant_meur", "source_id"},
 		pgx.CopyFromRows(valRows)); err != nil {

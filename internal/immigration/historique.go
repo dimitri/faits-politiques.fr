@@ -108,22 +108,62 @@ func IngestHistorique(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.population_historique_nationalite`); err != nil {
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_population_historique_nationalite (
+			annee smallint, population_totale_milliers numeric, immigres_milliers numeric,
+			immigres_pct numeric, francais_naissance_milliers numeric,
+			francais_acquisition_milliers numeric, etrangers_milliers numeric,
+			etrangers_pct numeric, champ text, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "population_historique_nationalite"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_population_historique_nationalite"},
 		[]string{"annee", "population_totale_milliers", "immigres_milliers", "immigres_pct",
 			"francais_naissance_milliers", "francais_acquisition_milliers", "etrangers_milliers",
 			"etrangers_pct", "champ", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("population_historique_nationalite : %w", err))
 	}
+
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table ; l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité de la table à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.population_historique_nationalite AS tgt
+		USING tmp_population_historique_nationalite AS src
+		ON tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.population_totale_milliers, tgt.immigres_milliers, tgt.immigres_pct,
+		                   tgt.francais_naissance_milliers, tgt.francais_acquisition_milliers,
+		                   tgt.etrangers_milliers, tgt.etrangers_pct, tgt.champ, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.population_totale_milliers, src.immigres_milliers, src.immigres_pct,
+		                   src.francais_naissance_milliers, src.francais_acquisition_milliers,
+		                   src.etrangers_milliers, src.etrangers_pct, src.champ, src.source_id) THEN
+		    UPDATE SET population_totale_milliers = src.population_totale_milliers,
+		               immigres_milliers = src.immigres_milliers, immigres_pct = src.immigres_pct,
+		               francais_naissance_milliers = src.francais_naissance_milliers,
+		               francais_acquisition_milliers = src.francais_acquisition_milliers,
+		               etrangers_milliers = src.etrangers_milliers, etrangers_pct = src.etrangers_pct,
+		               champ = src.champ, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, population_totale_milliers, immigres_milliers, immigres_pct,
+		            francais_naissance_milliers, francais_acquisition_milliers, etrangers_milliers,
+		            etrangers_pct, champ, source_id)
+		    VALUES (src.annee, src.population_totale_milliers, src.immigres_milliers, src.immigres_pct,
+		            src.francais_naissance_milliers, src.francais_acquisition_milliers,
+		            src.etrangers_milliers, src.etrangers_pct, src.champ, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion population_historique_nationalite : %w", err))
+	}
+	touchees := ct.RowsAffected()
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"annees_chargees": n}, "")
-	fmt.Printf("  population immigrée et étrangère, 1921-2025 : %d millésimes\n", n)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"annees_chargees": touchees}, "")
+	fmt.Printf("  population immigrée et étrangère, 1921-2025 : %d millésimes touchés\n", touchees)
 	return nil
 }
 

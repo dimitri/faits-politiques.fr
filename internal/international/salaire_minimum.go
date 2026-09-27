@@ -81,7 +81,11 @@ func IngestSalaireMinimum(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.salaire_minimum`); err != nil {
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_salaire_minimum (
+			geo_code text, geo_label text, semestre text, unite text, valeur numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 
@@ -89,17 +93,36 @@ func IngestSalaireMinimum(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	for _, c := range cells {
 		rows = append(rows, []any{c.dims["geo"], libGeo[c.dims["geo"]], c.dims["time"], c.dims["currency"], c.valeur, srcID})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "salaire_minimum"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_salaire_minimum"},
 		[]string{"geo_code", "geo_label", "semestre", "unite", "valeur", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("salaire_minimum : %w", err))
 	}
+
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table ; l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité de la table à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.salaire_minimum AS tgt
+		USING tmp_salaire_minimum AS src
+		ON tgt.geo_code = src.geo_code AND tgt.semestre = src.semestre AND tgt.unite = src.unite
+		WHEN MATCHED AND (tgt.geo_label, tgt.valeur, tgt.source_id)
+		                  IS DISTINCT FROM (src.geo_label, src.valeur, src.source_id) THEN
+		    UPDATE SET geo_label = src.geo_label, valeur = src.valeur, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (geo_code, geo_label, semestre, unite, valeur, source_id)
+		    VALUES (src.geo_code, src.geo_label, src.semestre, src.unite, src.valeur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion salaire_minimum : %w", err))
+	}
+	touchees := ct.RowsAffected()
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
-	fmt.Printf("  salaire minimum (Eurostat) : %d lignes\n", n)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": touchees}, "")
+	fmt.Printf("  salaire minimum (Eurostat) : %d lignes touchées\n", touchees)
 	return nil
 }
 
@@ -129,7 +152,7 @@ type jsonStatSMIC struct {
 	Error []struct {
 		Label string `json:"label"`
 	} `json:"error"`
-	ID        []string                        `json:"id"`
+	ID        []string                         `json:"id"`
 	Size      []int                            `json:"size"`
 	Value     map[string]*float64              `json:"value"`
 	Dimension map[string]jsonStatSMICDimension `json:"dimension"`

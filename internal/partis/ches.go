@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -32,6 +33,26 @@ var SourceCHES = archive.Source{
 }
 
 const CHESURL = "https://github.com/chesdata/chesdata.github.io/releases/download/ches-europe/CHES_2024_final_v2.csv"
+
+// CHESDownloadTargets liste l'unique URL qu'IngestCHES récupère, sans la
+// récupérer — voir DownloadTargets, qui les réunit avec celles des deux
+// autres connecteurs du paquet.
+func CHESDownloadTargets() []archive.DownloadTarget {
+	return []archive.DownloadTarget{{Nom: "ches", Source: SourceCHES, URL: CHESURL, Ext: ".csv"}}
+}
+
+// DownloadTargets liste toutes les URL que ingestPartis récupère (comptes de
+// campagne CNCCFP, PopuList, CHES) — pour la récupération concurrente
+// inter-connecteurs (voir internal/ingest.PrefetchAll, utilisée par
+// fpctl build). Réunies ici, au même endroit que ingestPartis les enchaîne
+// (internal/ingest/ingest.go), plutôt que là où chacune d'elles vit.
+func DownloadTargets() []archive.DownloadTarget {
+	var out []archive.DownloadTarget
+	out = append(out, CNCCFPDownloadTargets()...)
+	out = append(out, PopuListDownloadTargets()...)
+	out = append(out, CHESDownloadTargets()...)
+	return out
+}
 
 // Code pays CHES de la France.
 const chesFrance = "6"
@@ -132,7 +153,8 @@ func IngestCHES(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"partis_france": nParties, "scores": nRows}, "")
-	fmt.Printf("  CHES 2024     %d partis français, %d scores (source RESTRICTED)\n", nParties, nRows)
+	logs.Notice(fmt.Sprintf("CHES 2024: %s, %s (source RESTRICTED)",
+		logs.Plural(nParties, "French party"), logs.Plural(nRows, "score")))
 	return nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/faits-politiques/faits-politiques/internal/fiscalite"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -128,18 +129,74 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.marche_numerique`); err != nil {
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_marche_numerique (
+				uid text, titulaire_id text, titulaire_type_id text, titulaire_nom text, siren text,
+				acheteur_id text, acheteur_nom text, acheteur_categorie text, objet text, code_cpv text,
+				nature text, techniques text, date_notification date, montant_eur numeric,
+				montant_rationalise numeric, montant_anomalie text, produit_nomme text, hebergement boolean,
+				document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "marche_numerique"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_marche_numerique"},
 			[]string{"uid", "titulaire_id", "titulaire_type_id", "titulaire_nom", "siren", "acheteur_id", "acheteur_nom",
 				"acheteur_categorie", "objet", "code_cpv", "nature", "techniques", "date_notification", "montant_eur",
 				"montant_rationalise", "montant_anomalie", "produit_nomme", "hebergement", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
 		}
+		// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+		// connecteur en est l'unique propriétaire) payait le prix des triggers
+		// RI sur plusieurs centaines de milliers de lignes à chaque
+		// republication des DECP, changement ou non.
+		var touchees int64
+		err = bulkload.SansContraintesFK(ctx, tx, "core.marche_numerique", func() error {
+			ct, err := tx.Exec(ctx, `
+				MERGE INTO core.marche_numerique AS tgt
+				USING tmp_marche_numerique AS src
+				ON tgt.uid = src.uid AND tgt.titulaire_id = src.titulaire_id
+				WHEN MATCHED AND (tgt.titulaire_type_id, tgt.titulaire_nom, tgt.siren, tgt.acheteur_id,
+				                   tgt.acheteur_nom, tgt.acheteur_categorie, tgt.objet, tgt.code_cpv,
+				                   tgt.nature, tgt.techniques, tgt.date_notification, tgt.montant_eur,
+				                   tgt.montant_rationalise, tgt.montant_anomalie, tgt.produit_nomme,
+				                   tgt.hebergement, tgt.document_id)
+				                  IS DISTINCT FROM
+				                  (src.titulaire_type_id, src.titulaire_nom, src.siren, src.acheteur_id,
+				                   src.acheteur_nom, src.acheteur_categorie, src.objet, src.code_cpv,
+				                   src.nature, src.techniques, src.date_notification, src.montant_eur,
+				                   src.montant_rationalise, src.montant_anomalie, src.produit_nomme,
+				                   src.hebergement, src.document_id) THEN
+				    UPDATE SET titulaire_type_id = src.titulaire_type_id, titulaire_nom = src.titulaire_nom,
+				               siren = src.siren, acheteur_id = src.acheteur_id, acheteur_nom = src.acheteur_nom,
+				               acheteur_categorie = src.acheteur_categorie, objet = src.objet,
+				               code_cpv = src.code_cpv, nature = src.nature, techniques = src.techniques,
+				               date_notification = src.date_notification, montant_eur = src.montant_eur,
+				               montant_rationalise = src.montant_rationalise, montant_anomalie = src.montant_anomalie,
+				               produit_nomme = src.produit_nomme, hebergement = src.hebergement,
+				               document_id = src.document_id
+				WHEN NOT MATCHED BY TARGET THEN
+				    INSERT (uid, titulaire_id, titulaire_type_id, titulaire_nom, siren, acheteur_id,
+				            acheteur_nom, acheteur_categorie, objet, code_cpv, nature, techniques,
+				            date_notification, montant_eur, montant_rationalise, montant_anomalie,
+				            produit_nomme, hebergement, document_id)
+				    VALUES (src.uid, src.titulaire_id, src.titulaire_type_id, src.titulaire_nom, src.siren,
+				            src.acheteur_id, src.acheteur_nom, src.acheteur_categorie, src.objet, src.code_cpv,
+				            src.nature, src.techniques, src.date_notification, src.montant_eur,
+				            src.montant_rationalise, src.montant_anomalie, src.produit_nomme, src.hebergement,
+				            src.document_id)
+				WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+			if err != nil {
+				return err
+			}
+			touchees = ct.RowsAffected()
+			return nil
+		})
+		if err != nil {
+			return nil, err
+		}
 		return map[string]any{"lignes_lues": lus, "marches_actuels": actuels, "informatiques": len(lignes),
-			"produit_nomme": nommes}, tx.Commit(ctx)
+			"produit_nomme": nommes, "touchees": touchees}, tx.Commit(ctx)
 	})
 }
 

@@ -30,6 +30,8 @@
 
 <!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
+Aucun texte n'est encore chargé pour ce dossier.
+
 <!-- faits:CADRE:fin -->
 
 ### 1. L'appareil légal de Vichy et de la Libération, à partir du corpus du Journal officiel déjà chargé par ce dépôt

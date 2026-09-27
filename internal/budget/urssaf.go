@@ -117,10 +117,6 @@ func ingestExonerations(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.exoneration_cotisation`); err != nil {
-		return fail(err)
-	}
-
 	rows := make([][]any, 0, len(lignes))
 	for _, l := range lignes {
 		annee, err := strconv.Atoi(l.Annee)
@@ -136,14 +132,54 @@ func ingestExonerations(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 			nulF(l.Montant), "SECTEUR_PRIVE_URSSAF", srcID, f.DocumentID,
 		})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "exoneration_cotisation"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_exoneration_cotisation (
+			annee smallint NOT NULL,
+			code_grande_categorie text NOT NULL,
+			grande_categorie text NOT NULL,
+			code_categorie text NOT NULL,
+			categorie text NOT NULL,
+			code_mesure text NOT NULL,
+			mesure text NOT NULL,
+			montant_eur double precision,
+			perimetre text NOT NULL,
+			source_id bigint NOT NULL,
+			document_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_exoneration_cotisation"},
 		[]string{"annee", "code_grande_categorie", "grande_categorie",
 			"code_categorie", "categorie", "code_mesure", "mesure",
 			"montant_eur", "perimetre", "source_id", "document_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("URSSAF exonérations : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.exoneration_cotisation AS tgt
+		USING tmp_exoneration_cotisation AS src
+		ON tgt.annee = src.annee AND tgt.code_mesure = src.code_mesure
+		WHEN MATCHED AND (tgt.code_grande_categorie, tgt.grande_categorie, tgt.code_categorie,
+				tgt.categorie, tgt.mesure, tgt.montant_eur, tgt.perimetre,
+				tgt.source_id, tgt.document_id)
+			IS DISTINCT FROM (src.code_grande_categorie, src.grande_categorie, src.code_categorie,
+				src.categorie, src.mesure, src.montant_eur, src.perimetre,
+				src.source_id, src.document_id) THEN
+			UPDATE SET code_grande_categorie = src.code_grande_categorie,
+				grande_categorie = src.grande_categorie, code_categorie = src.code_categorie,
+				categorie = src.categorie, mesure = src.mesure, montant_eur = src.montant_eur,
+				perimetre = src.perimetre, source_id = src.source_id, document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (annee, code_grande_categorie, grande_categorie, code_categorie, categorie,
+				code_mesure, mesure, montant_eur, perimetre, source_id, document_id)
+			VALUES (src.annee, src.code_grande_categorie, src.grande_categorie, src.code_categorie,
+				src.categorie, src.code_mesure, src.mesure, src.montant_eur, src.perimetre,
+				src.source_id, src.document_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("URSSAF exonérations, fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 
 	var annees, min, max int
 	var total float64
@@ -157,7 +193,7 @@ func ingestExonerations(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "annees": annees}, "")
-	fmt.Printf("  URSSAF exonérations : %d mesures, %d millésimes de %d à %d (%.1f Md€ en %d)\n",
+	fmt.Printf("  URSSAF exonérations : %d mesures touchées par la fusion, %d millésimes de %d à %d (%.1f Md€ en %d)\n",
 		n, annees, min, max, total/1e9, max)
 	return nil
 }
@@ -195,10 +231,6 @@ func ingestMasseSalariale(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.masse_salariale`); err != nil {
-		return fail(err)
-	}
-
 	rows := make([][]any, 0, len(lignes))
 	for _, l := range lignes {
 		annee, err := strconv.Atoi(l.Annee)
@@ -218,13 +250,49 @@ func ingestMasseSalariale(ctx context.Context, pool *pgxpool.Pool, arch *archive
 			"SECTEUR_PRIVE_URSSAF", srcID, f.DocumentID,
 		})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "masse_salariale"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_masse_salariale (
+			annee smallint NOT NULL,
+			trimestre smallint NOT NULL,
+			dernier_jour date NOT NULL,
+			brut_50j_eur double precision,
+			brut_60j_eur double precision,
+			cvs_50j_eur double precision,
+			cvs_60j_eur double precision,
+			perimetre text NOT NULL,
+			source_id bigint NOT NULL,
+			document_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_masse_salariale"},
 		[]string{"annee", "trimestre", "dernier_jour", "brut_50j_eur", "brut_60j_eur",
 			"cvs_50j_eur", "cvs_60j_eur", "perimetre", "source_id", "document_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("URSSAF masse salariale : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.masse_salariale AS tgt
+		USING tmp_masse_salariale AS src
+		ON tgt.annee = src.annee AND tgt.trimestre = src.trimestre
+		WHEN MATCHED AND (tgt.dernier_jour, tgt.brut_50j_eur, tgt.brut_60j_eur,
+				tgt.cvs_50j_eur, tgt.cvs_60j_eur, tgt.perimetre, tgt.source_id, tgt.document_id)
+			IS DISTINCT FROM (src.dernier_jour, src.brut_50j_eur, src.brut_60j_eur,
+				src.cvs_50j_eur, src.cvs_60j_eur, src.perimetre, src.source_id, src.document_id) THEN
+			UPDATE SET dernier_jour = src.dernier_jour, brut_50j_eur = src.brut_50j_eur,
+				brut_60j_eur = src.brut_60j_eur, cvs_50j_eur = src.cvs_50j_eur,
+				cvs_60j_eur = src.cvs_60j_eur, perimetre = src.perimetre,
+				source_id = src.source_id, document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (annee, trimestre, dernier_jour, brut_50j_eur, brut_60j_eur,
+				cvs_50j_eur, cvs_60j_eur, perimetre, source_id, document_id)
+			VALUES (src.annee, src.trimestre, src.dernier_jour, src.brut_50j_eur, src.brut_60j_eur,
+				src.cvs_50j_eur, src.cvs_60j_eur, src.perimetre, src.source_id, src.document_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("URSSAF masse salariale, fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 
 	var min, max int
 	if err := tx.QueryRow(ctx,
@@ -235,6 +303,6 @@ func ingestMasseSalariale(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"trimestres": n}, "")
-	fmt.Printf("  URSSAF masse salariale : %d trimestres, de %d à %d\n", n, min, max)
+	fmt.Printf("  URSSAF masse salariale : %d trimestres touchés par la fusion, de %d à %d\n", n, min, max)
 	return nil
 }

@@ -94,12 +94,6 @@ func IngestDECP(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `SET LOCAL work_mem = '256MB'`); err != nil {
-		return fail(err)
-	}
-	if _, err := tx.Exec(ctx, `DELETE FROM core.public_contract WHERE source_id IN (SELECT id FROM raw.source WHERE slug = $1)`, SourceDECP.Slug); err != nil {
-		return fail(err)
-	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE decp_in (
 		  source_uid text, acheteur_siret text, commune_code text, acheteur_region_code text,
@@ -184,23 +178,60 @@ func IngestDECP(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	// Dédoublonnage : ~0,3 % des lignes retenues partagent un source_uid
 	// (marché, titulaire et modification identiques) — des doublons exacts
 	// déjà documentés par le producteur lui-même, pas des marchés distincts.
-	// DISTINCT ON garde une ligne arbitraire par source_uid plutôt que de
-	// laisser la contrainte UNIQUE faire échouer tout le chargement.
+	// DISTINCT ON garde une ligne arbitraire par source_uid.
+	//
+	// MERGE plutôt que DELETE (la table entière, ce connecteur en est
+	// l'unique propriétaire) + INSERT : core.public_contract porte 2,1
+	// millions de lignes, la plus grosse table de ce projet — un
+	// DELETE+INSERT y paierait le prix des triggers RI pour la table
+	// ENTIÈRE à chaque republication du jeu DECP, changement ou non. Sans
+	// compter un vrai bug que ça évite : core.evidence.public_contract_id
+	// est ON DELETE CASCADE, donc l'ancien DELETE détruisait TOUTE preuve
+	// rattachée à un marché public à chaque ré-ingestion, même pour des
+	// marchés inchangés d'un run à l'autre — un MERGE ne touche que ce qui
+	// a vraiment changé, donc ne cascade plus que sur les marchés
+	// effectivement disparus du jeu de données.
 	res, err := tx.Exec(ctx, `
-		INSERT INTO core.public_contract
-		  (source_uid, acheteur_siret, commune_code, acheteur_region_code,
-		   titulaire_siret, titulaire_nom, titulaire_region_code,
-		   objet, marche_type, montant, montant_anomalie,
-		   cpv, duree_mois, date_notification, source_id)
-		SELECT DISTINCT ON (source_uid)
-		  source_uid, acheteur_siret, commune_code, acheteur_region_code,
-		  titulaire_siret, titulaire_nom, titulaire_region_code,
-		  objet, marche_type, montant, montant_anomalie,
-		  cpv, duree_mois, date_notification, source_id
-		FROM decp_in
-		ORDER BY source_uid`)
+		WITH dedup AS (
+			SELECT DISTINCT ON (source_uid)
+			  source_uid, acheteur_siret, commune_code, acheteur_region_code,
+			  titulaire_siret, titulaire_nom, titulaire_region_code,
+			  objet, marche_type, montant, montant_anomalie,
+			  cpv, duree_mois, date_notification, source_id
+			FROM decp_in
+			ORDER BY source_uid
+		)
+		MERGE INTO core.public_contract AS tgt
+		USING dedup AS src
+		ON tgt.source_uid = src.source_uid
+		WHEN MATCHED AND (tgt.acheteur_siret, tgt.commune_code, tgt.acheteur_region_code,
+		                   tgt.titulaire_siret, tgt.titulaire_nom, tgt.titulaire_region_code,
+		                   tgt.objet, tgt.marche_type, tgt.montant, tgt.montant_anomalie,
+		                   tgt.cpv, tgt.duree_mois, tgt.date_notification, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.acheteur_siret, src.commune_code, src.acheteur_region_code,
+		                   src.titulaire_siret, src.titulaire_nom, src.titulaire_region_code,
+		                   src.objet, src.marche_type, src.montant, src.montant_anomalie,
+		                   src.cpv, src.duree_mois, src.date_notification, src.source_id) THEN
+		    UPDATE SET
+		      acheteur_siret = src.acheteur_siret, commune_code = src.commune_code,
+		      acheteur_region_code = src.acheteur_region_code, titulaire_siret = src.titulaire_siret,
+		      titulaire_nom = src.titulaire_nom, titulaire_region_code = src.titulaire_region_code,
+		      objet = src.objet, marche_type = src.marche_type, montant = src.montant,
+		      montant_anomalie = src.montant_anomalie, cpv = src.cpv, duree_mois = src.duree_mois,
+		      date_notification = src.date_notification, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (source_uid, acheteur_siret, commune_code, acheteur_region_code,
+		            titulaire_siret, titulaire_nom, titulaire_region_code,
+		            objet, marche_type, montant, montant_anomalie,
+		            cpv, duree_mois, date_notification, source_id)
+		    VALUES (src.source_uid, src.acheteur_siret, src.commune_code, src.acheteur_region_code,
+		            src.titulaire_siret, src.titulaire_nom, src.titulaire_region_code,
+		            src.objet, src.marche_type, src.montant, src.montant_anomalie,
+		            src.cpv, src.duree_mois, src.date_notification, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 	if err != nil {
-		return fail(fmt.Errorf("insertion core.public_contract : %w", err))
+		return fail(fmt.Errorf("fusion core.public_contract : %w", err))
 	}
 	inseres := res.RowsAffected()
 
@@ -208,7 +239,7 @@ func IngestDECP(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lues": lu, "retenues": retenues, "inserees": inseres}, "")
-	fmt.Printf("  DECP : %d lignes lues, %d retenues (état actuel), %d insérées après dédoublonnage\n", lu, retenues, inseres)
+	fmt.Printf("  DECP : %d lignes lues, %d retenues (état actuel), %d lignes touchées par la fusion\n", lu, retenues, inseres)
 	return nil
 }
 

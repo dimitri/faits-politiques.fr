@@ -274,39 +274,116 @@ func IngestDelocalisationsInsee(ctx context.Context, pool *pgxpool.Pool, arch *a
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.delocalisation_annuelle`); err != nil {
+
+	// MERGE plutôt que DELETE+COPY sur les trois tables : les anciens DELETE
+	// (tables entières, ce connecteur en est l'unique propriétaire) payaient
+	// le prix des triggers RI pour l'intégralité de chaque table à chaque
+	// republication de l'étude Insee, changement ou non — une étude
+	// ponctuelle qui ne change quasiment jamais.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_delocalisation_annuelle (
+			annee int, unites_legales_bas int, unites_legales_central int, unites_legales_haut int,
+			emplois_etp_bas int, emplois_etp_central int, emplois_etp_haut int, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM core.delocalisation_departement`); err != nil {
-		return fail(err)
-	}
-	if _, err := tx.Exec(ctx, `DELETE FROM core.delocalisation_csp`); err != nil {
-		return fail(err)
-	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "delocalisation_annuelle"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_delocalisation_annuelle"},
 		[]string{"annee", "unites_legales_bas", "unites_legales_central", "unites_legales_haut",
 			"emplois_etp_bas", "emplois_etp_central", "emplois_etp_haut", "source_id"},
 		pgx.CopyFromRows(lignesAnnuelles)); err != nil {
 		return fail(fmt.Errorf("core.delocalisation_annuelle : %w", err))
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "delocalisation_departement"},
+	ctAnnuelle, err := tx.Exec(ctx, `
+		MERGE INTO core.delocalisation_annuelle AS tgt
+		USING tmp_delocalisation_annuelle AS src
+		ON tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.unites_legales_bas, tgt.unites_legales_central, tgt.unites_legales_haut,
+		                   tgt.emplois_etp_bas, tgt.emplois_etp_central, tgt.emplois_etp_haut, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.unites_legales_bas, src.unites_legales_central, src.unites_legales_haut,
+		                   src.emplois_etp_bas, src.emplois_etp_central, src.emplois_etp_haut, src.source_id) THEN
+		    UPDATE SET unites_legales_bas = src.unites_legales_bas,
+		               unites_legales_central = src.unites_legales_central,
+		               unites_legales_haut = src.unites_legales_haut,
+		               emplois_etp_bas = src.emplois_etp_bas, emplois_etp_central = src.emplois_etp_central,
+		               emplois_etp_haut = src.emplois_etp_haut, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, unites_legales_bas, unites_legales_central, unites_legales_haut,
+		            emplois_etp_bas, emplois_etp_central, emplois_etp_haut, source_id)
+		    VALUES (src.annee, src.unites_legales_bas, src.unites_legales_central, src.unites_legales_haut,
+		            src.emplois_etp_bas, src.emplois_etp_central, src.emplois_etp_haut, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion annuelle : %w", err))
+	}
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_delocalisation_departement (
+			code_departement text, nom_departement text, emplois_delocalises_1995_2017 int, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_delocalisation_departement"},
 		[]string{"code_departement", "nom_departement", "emplois_delocalises_1995_2017", "source_id"},
 		pgx.CopyFromRows(lignesDept)); err != nil {
 		return fail(fmt.Errorf("core.delocalisation_departement : %w", err))
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "delocalisation_csp"},
+	ctDept, err := tx.Exec(ctx, `
+		MERGE INTO core.delocalisation_departement AS tgt
+		USING tmp_delocalisation_departement AS src
+		ON tgt.code_departement = src.code_departement
+		WHEN MATCHED AND (tgt.nom_departement, tgt.emplois_delocalises_1995_2017, tgt.source_id)
+		                  IS DISTINCT FROM (src.nom_departement, src.emplois_delocalises_1995_2017, src.source_id) THEN
+		    UPDATE SET nom_departement = src.nom_departement,
+		               emplois_delocalises_1995_2017 = src.emplois_delocalises_1995_2017, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (code_departement, nom_departement, emplois_delocalises_1995_2017, source_id)
+		    VALUES (src.code_departement, src.nom_departement, src.emplois_delocalises_1995_2017, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion départements : %w", err))
+	}
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_delocalisation_csp (
+			categorie_socioprofessionnelle text, part_champ_general_pct numeric,
+			part_postes_delocalises_pct numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_delocalisation_csp"},
 		[]string{"categorie_socioprofessionnelle", "part_champ_general_pct", "part_postes_delocalises_pct", "source_id"},
 		pgx.CopyFromRows(lignesCSP)); err != nil {
 		return fail(fmt.Errorf("core.delocalisation_csp : %w", err))
 	}
+	ctCSP, err := tx.Exec(ctx, `
+		MERGE INTO core.delocalisation_csp AS tgt
+		USING tmp_delocalisation_csp AS src
+		ON tgt.categorie_socioprofessionnelle = src.categorie_socioprofessionnelle
+		WHEN MATCHED AND (tgt.part_champ_general_pct, tgt.part_postes_delocalises_pct, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.part_champ_general_pct, src.part_postes_delocalises_pct, src.source_id) THEN
+		    UPDATE SET part_champ_general_pct = src.part_champ_general_pct,
+		               part_postes_delocalises_pct = src.part_postes_delocalises_pct, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (categorie_socioprofessionnelle, part_champ_general_pct, part_postes_delocalises_pct, source_id)
+		    VALUES (src.categorie_socioprofessionnelle, src.part_champ_general_pct,
+		            src.part_postes_delocalises_pct, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion CSP : %w", err))
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
+	touchees := ctAnnuelle.RowsAffected() + ctDept.RowsAffected() + ctCSP.RowsAffected()
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"annees": len(lignesAnnuelles), "departements": len(lignesDept), "csp": len(lignesCSP),
+		"touchees": touchees,
 	}, "")
-	fmt.Printf("  Délocalisations Insee : %d années, %d départements, %d catégories socioprofessionnelles\n",
-		len(lignesAnnuelles), len(lignesDept), len(lignesCSP))
+	fmt.Printf("  Délocalisations Insee : %d années, %d départements, %d catégories socioprofessionnelles (%d touchées par la fusion)\n",
+		len(lignesAnnuelles), len(lignesDept), len(lignesCSP), touchees)
 	return nil
 }

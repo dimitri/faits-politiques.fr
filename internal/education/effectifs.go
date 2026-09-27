@@ -81,7 +81,14 @@ func IngestEffectifsPersonnel(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.education_personnel_etablissement`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_education_personnel_etablissement (
+			annee smallint, degre text, identifiant_etablissement text, nom_etablissement text,
+			nature_etablissement text, code_departement text, code_academie text, secteur text,
+			etp_total numeric, etp_enseignants numeric, etp_vie_scolaire numeric,
+			proportion_non_titulaires numeric, proportion_agreges numeric, proportion_certifies numeric,
+			source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 
@@ -122,7 +129,7 @@ func IngestEffectifsPersonnel(ctx context.Context, pool *pgxpool.Pool, arch *arc
 				srcID,
 			})
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "education_personnel_etablissement"},
+		n, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_education_personnel_etablissement"},
 			[]string{"annee", "degre", "identifiant_etablissement", "nom_etablissement", "nature_etablissement",
 				"code_departement", "code_academie", "secteur",
 				"etp_total", "etp_enseignants", "etp_vie_scolaire",
@@ -135,11 +142,43 @@ func IngestEffectifsPersonnel(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		total += n
 	}
 
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.education_personnel_etablissement AS tgt
+		USING tmp_education_personnel_etablissement AS src
+		     ON tgt.annee = src.annee AND tgt.degre = src.degre
+		    AND tgt.identifiant_etablissement = src.identifiant_etablissement
+		WHEN MATCHED AND (tgt.nom_etablissement, tgt.nature_etablissement, tgt.code_departement,
+		                   tgt.code_academie, tgt.secteur, tgt.etp_total, tgt.etp_enseignants,
+		                   tgt.etp_vie_scolaire, tgt.proportion_non_titulaires, tgt.proportion_agreges,
+		                   tgt.proportion_certifies, tgt.source_id)
+		     IS DISTINCT FROM (src.nom_etablissement, src.nature_etablissement, src.code_departement,
+		                        src.code_academie, src.secteur, src.etp_total, src.etp_enseignants,
+		                        src.etp_vie_scolaire, src.proportion_non_titulaires, src.proportion_agreges,
+		                        src.proportion_certifies, src.source_id)
+		THEN UPDATE SET nom_etablissement = src.nom_etablissement, nature_etablissement = src.nature_etablissement,
+		     code_departement = src.code_departement, code_academie = src.code_academie, secteur = src.secteur,
+		     etp_total = src.etp_total, etp_enseignants = src.etp_enseignants, etp_vie_scolaire = src.etp_vie_scolaire,
+		     proportion_non_titulaires = src.proportion_non_titulaires, proportion_agreges = src.proportion_agreges,
+		     proportion_certifies = src.proportion_certifies, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (annee, degre, identifiant_etablissement, nom_etablissement, nature_etablissement,
+		             code_departement, code_academie, secteur, etp_total, etp_enseignants, etp_vie_scolaire,
+		             proportion_non_titulaires, proportion_agreges, proportion_certifies, source_id)
+		     VALUES (src.annee, src.degre, src.identifiant_etablissement, src.nom_etablissement,
+		             src.nature_etablissement, src.code_departement, src.code_academie, src.secteur,
+		             src.etp_total, src.etp_enseignants, src.etp_vie_scolaire, src.proportion_non_titulaires,
+		             src.proportion_agreges, src.proportion_certifies, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion education_personnel_etablissement : %w", err))
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
+	touchees := ct.RowsAffected()
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": total}, "")
-	fmt.Printf("  personnels des établissements (Depp) : %d lignes\n", total)
+	fmt.Printf("  personnels des établissements (Depp) : %d lignes reçues, %d touchées par la fusion\n", total, touchees)
 	return nil
 }
 

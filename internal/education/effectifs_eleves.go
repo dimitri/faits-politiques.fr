@@ -78,9 +78,6 @@ func IngestEffectifsEleves(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.education_effectif_eleves`); err != nil {
-		return fail(err)
-	}
 
 	var rows [][]any
 	for _, r := range rep.Results {
@@ -90,16 +87,38 @@ func IngestEffectifsEleves(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		}
 		rows = append(rows, []any{annee, r.Secteur, r.NbEcoles, int64(r.TotalEleves), srcID})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "education_effectif_eleves"},
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_education_effectif_eleves (
+			annee smallint, secteur text, nombre_ecoles integer,
+			nombre_eleves integer, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_education_effectif_eleves"},
 		[]string{"annee", "secteur", "nombre_ecoles", "nombre_eleves", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("education_effectif_eleves : %w", err))
+	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.education_effectif_eleves AS tgt
+		USING tmp_education_effectif_eleves AS src ON tgt.annee = src.annee AND tgt.secteur = src.secteur
+		WHEN MATCHED AND (tgt.nombre_ecoles, tgt.nombre_eleves, tgt.source_id)
+		     IS DISTINCT FROM (src.nombre_ecoles, src.nombre_eleves, src.source_id)
+		THEN UPDATE SET nombre_ecoles = src.nombre_ecoles, nombre_eleves = src.nombre_eleves,
+		     source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (annee, secteur, nombre_ecoles, nombre_eleves, source_id)
+		     VALUES (src.annee, src.secteur, src.nombre_ecoles, src.nombre_eleves, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion education_effectif_eleves : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
-	fmt.Printf("  effectifs d'élèves, premier degré (Depp) : %d lignes\n", n)
+	n := ct.RowsAffected()
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(rows)}, "")
+	fmt.Printf("  effectifs d'élèves, premier degré (Depp) : %d lignes reçues, %d touchées par la fusion\n", len(rows), n)
 	return nil
 }

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -85,6 +86,6 @@ func NormalizeMandats(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	fmt.Printf("  mandats de sénateurs %d, de %s à %s\n", res.RowsAffected(), depuis, jusqua)
+	logs.Notice(fmt.Sprintf("%s, from %s to %s", logs.Plural(int(res.RowsAffected()), "senator mandate"), depuis, jusqua))
 	return nil
 }

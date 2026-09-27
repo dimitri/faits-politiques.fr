@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -95,8 +96,8 @@ func IngestGouvernement(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"fichiers": b.fichiers, "decodes": b.decodes, "echecs": b.echecs,
 		"retenus": b.actes}, "")
-	fmt.Printf("  JORF complet : %d fichiers, %d décodés (%d échecs), %d décrets de gouvernement retenus\n",
-		b.fichiers, b.decodes, b.echecs, b.actes)
+	logs.Notice(fmt.Sprintf("full JORF: %s, %d decoded (%d failed), %d government decrees kept",
+		logs.Plural(b.fichiers, "file"), b.decodes, b.echecs, b.actes))
 	return nil
 }
 
@@ -175,7 +176,7 @@ func parcourirGlobale(ctx context.Context, pool *pgxpool.Pool, chemin string, sr
 		}
 		b.actes++
 		if b.actes%10 == 0 {
-			fmt.Printf("    %d décrets retenus sur %d fichiers lus\n", b.actes, b.fichiers)
+			logs.Notice(fmt.Sprintf("%d decrees kept out of %d files read", b.actes, b.fichiers))
 		}
 	}
 	return tx.Commit(ctx)

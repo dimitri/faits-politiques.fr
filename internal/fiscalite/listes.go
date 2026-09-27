@@ -192,13 +192,32 @@ func IngestListes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM ref.juridiction_non_cooperative`); err != nil {
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_juridiction_non_cooperative (
+				liste text, version date, juridiction text, motif text,
+				jo_texte_id text, source_id bigint, document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"ref", "juridiction_non_cooperative"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_juridiction_non_cooperative"},
 			[]string{"liste", "version", "juridiction", "motif", "jo_texte_id", "source_id", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `
+			MERGE INTO ref.juridiction_non_cooperative AS tgt
+			USING tmp_juridiction_non_cooperative AS src
+			     ON tgt.liste = src.liste AND tgt.version = src.version AND tgt.juridiction = src.juridiction
+			WHEN MATCHED AND (tgt.motif, tgt.jo_texte_id, tgt.source_id, tgt.document_id)
+			     IS DISTINCT FROM (src.motif, src.jo_texte_id, src.source_id, src.document_id)
+			THEN UPDATE SET motif = src.motif, jo_texte_id = src.jo_texte_id,
+			     source_id = src.source_id, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			     INSERT (liste, version, juridiction, motif, jo_texte_id, source_id, document_id)
+			     VALUES (src.liste, src.version, src.juridiction, src.motif, src.jo_texte_id,
+			             src.source_id, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+			return nil, fmt.Errorf("fusion juridiction_non_cooperative : %w", err)
 		}
 		return map[string]any{"versions_ue": len(annexeIUE), "arretes_etnc": arretes, "lignes": len(lignes)}, tx.Commit(ctx)
 	})

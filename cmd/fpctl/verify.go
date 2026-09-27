@@ -16,11 +16,11 @@ func commandeVerify() *cobra.Command {
 			"officiels — une porte de publication qui passe à zéro, jamais un\n" +
 			"contrôle de schéma (voir db/tests/ pour ceux-là).",
 		DisableFlagParsing: true,
-		RunE: func(_ *cobra.Command, args []string) error {
+		RunE: func(cmd *cobra.Command, args []string) error {
 			if estDemandeAide(args) {
 				return afficherManuel("fpctl-verify")
 			}
-			return executerInterne(verify.Run(args))
+			return executerInterne(cmd.Context(), verify.Run(cmd.Context(), args))
 		},
 	})
 	return cmd

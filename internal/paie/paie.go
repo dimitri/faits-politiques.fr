@@ -274,12 +274,13 @@ func charger(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src
 		return nil, err
 	}
 	defer tx.Rollback(ctx)
-	for _, q := range []string{`DELETE FROM ref.bulletin_cas`, `DELETE FROM ref.taux_cotisation`,
-		`DELETE FROM ref.parametre_social`, `DELETE FROM ref.organisme_social`} {
-		if _, err := tx.Exec(ctx, q); err != nil {
-			return nil, err
-		}
+	if _, err := tx.Exec(ctx, `DELETE FROM ref.bulletin_cas`); err != nil {
+		return nil, err
 	}
+	// ref.organisme_social en upsert, pas en DELETE+INSERT : ref.taux_cotisation
+	// (converti plus bas en MERGE, donc plus jamais vidé) porte une FK sur son
+	// code, et un DELETE de la table entière échouerait tant que des taux la
+	// référencent encore.
 	for _, o := range organismes {
 		var jo any
 		if o.joTitre != "" {
@@ -291,20 +292,49 @@ func charger(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src
 		}
 		if _, err := tx.Exec(ctx, `INSERT INTO ref.organisme_social
 			(code, nom, statut, budget, sous_secteur, texte_budget, fondement, jo_texte_id, source_id, document_id)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)`,
+			VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+			ON CONFLICT (code) DO UPDATE SET nom = EXCLUDED.nom, statut = EXCLUDED.statut, budget = EXCLUDED.budget,
+			  sous_secteur = EXCLUDED.sous_secteur, texte_budget = EXCLUDED.texte_budget, fondement = EXCLUDED.fondement,
+			  jo_texte_id = EXCLUDED.jo_texte_id, source_id = EXCLUDED.source_id, document_id = EXCLUDED.document_id`,
 			o.code, o.nom, o.statut, o.budget, nul(o.sousSecteur), o.texteBudget, o.fondement, jo, srcID, docs[o.doc]); err != nil {
 			return nil, fmt.Errorf("organisme %s : %w", o.code, err)
 		}
 	}
+	// MERGE plutôt que DELETE+COPY, sur les deux tables : ce connecteur en est
+	// l'unique propriétaire, et l'ancien DELETE (table entière) payait le prix
+	// des triggers RI à chaque republication du barème, changement ou non.
 	rows := [][]any{}
 	for _, p := range parametres {
 		rows = append(rows, []any{Millesime, p.code, p.libelle, p.valeur, p.unite, p.fondement, srcID, docs[p.doc]})
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"ref", "parametre_social"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_parametre_social (
+			millesime date, code text, libelle text, valeur numeric, unite text, fondement text,
+			source_id bigint, document_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return nil, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_parametre_social"},
 		[]string{"millesime", "code", "libelle", "valeur", "unite", "fondement", "source_id", "document_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return nil, err
 	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO ref.parametre_social AS tgt
+		USING tmp_parametre_social AS src
+		ON tgt.millesime = src.millesime AND tgt.code = src.code
+		WHEN MATCHED AND (tgt.libelle, tgt.valeur, tgt.unite, tgt.fondement, tgt.source_id, tgt.document_id)
+		                  IS DISTINCT FROM
+		                  (src.libelle, src.valeur, src.unite, src.fondement, src.source_id, src.document_id) THEN
+		    UPDATE SET libelle = src.libelle, valeur = src.valeur, unite = src.unite, fondement = src.fondement,
+		               source_id = src.source_id, document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (millesime, code, libelle, valeur, unite, fondement, source_id, document_id)
+		    VALUES (src.millesime, src.code, src.libelle, src.valeur, src.unite, src.fondement, src.source_id, src.document_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return nil, err
+	}
+
 	rows = rows[:0]
 	for _, t := range baremes {
 		var effMax any
@@ -314,13 +344,50 @@ func charger(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src
 		rows = append(rows, []any{Millesime, t.code, t.part, t.libelle, t.rubrique, t.ordre, t.assiette, nul(t.taux), t.taux == "",
 			t.effMin, effMax, t.organisme, t.nature, t.deductible, nul(t.rgduGroupe), nul(t.rgduTaux), t.fondement, srcID, docs[t.doc]})
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"ref", "taux_cotisation"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_taux_cotisation (
+			millesime date, code text, part text, libelle text, rubrique text, ordre smallint, assiette text,
+			taux numeric, variable boolean, effectif_min int, effectif_max int, organisme text, nature_droit text,
+			deductible_ir boolean, rgdu_groupe text, rgdu_taux numeric, fondement text, source_id bigint,
+			document_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return nil, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_taux_cotisation"},
 		[]string{"millesime", "code", "part", "libelle", "rubrique", "ordre", "assiette", "taux", "variable",
 			"effectif_min", "effectif_max", "organisme", "nature_droit", "deductible_ir", "rgdu_groupe", "rgdu_taux",
 			"fondement", "source_id", "document_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return nil, err
 	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO ref.taux_cotisation AS tgt
+		USING tmp_taux_cotisation AS src
+		ON tgt.millesime = src.millesime AND tgt.code = src.code AND tgt.part = src.part
+		   AND tgt.effectif_min = src.effectif_min
+		WHEN MATCHED AND (tgt.libelle, tgt.rubrique, tgt.ordre, tgt.assiette, tgt.taux, tgt.variable,
+		                   tgt.effectif_max, tgt.organisme, tgt.nature_droit, tgt.deductible_ir, tgt.rgdu_groupe,
+		                   tgt.rgdu_taux, tgt.fondement, tgt.source_id, tgt.document_id)
+		                  IS DISTINCT FROM
+		                  (src.libelle, src.rubrique, src.ordre, src.assiette, src.taux, src.variable,
+		                   src.effectif_max, src.organisme, src.nature_droit, src.deductible_ir, src.rgdu_groupe,
+		                   src.rgdu_taux, src.fondement, src.source_id, src.document_id) THEN
+		    UPDATE SET libelle = src.libelle, rubrique = src.rubrique, ordre = src.ordre, assiette = src.assiette,
+		               taux = src.taux, variable = src.variable, effectif_max = src.effectif_max,
+		               organisme = src.organisme, nature_droit = src.nature_droit, deductible_ir = src.deductible_ir,
+		               rgdu_groupe = src.rgdu_groupe, rgdu_taux = src.rgdu_taux, fondement = src.fondement,
+		               source_id = src.source_id, document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (millesime, code, part, libelle, rubrique, ordre, assiette, taux, variable, effectif_min,
+		            effectif_max, organisme, nature_droit, deductible_ir, rgdu_groupe, rgdu_taux, fondement,
+		            source_id, document_id)
+		    VALUES (src.millesime, src.code, src.part, src.libelle, src.rubrique, src.ordre, src.assiette, src.taux,
+		            src.variable, src.effectif_min, src.effectif_max, src.organisme, src.nature_droit,
+		            src.deductible_ir, src.rgdu_groupe, src.rgdu_taux, src.fondement, src.source_id, src.document_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return nil, err
+	}
+
 	for _, c := range cas {
 		if _, err := tx.Exec(ctx, `INSERT INTO ref.bulletin_cas (cas, millesime, brut, effectif, taux_atmp, taux_pas, description)
 			VALUES ($1,$2,$3,$4,$5,$6,$7)`, c.cas, Millesime, c.brut, c.effectif, c.atmp, c.pas, c.descrip); err != nil {

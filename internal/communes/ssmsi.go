@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -105,16 +106,6 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 	}
 	defer tx.Rollback(ctx)
 
-	// Le dédoublonnage final trie 5,2 millions de lignes. Avec le work_mem par
-	// défaut de 4 Mo, PostgreSQL bascule sur un tri externe sur disque et la
-	// requête dépasse le quart d'heure. La mémoire est relevée pour cette
-	// transaction seulement — SET LOCAL, donc rendue à la fin.
-	if _, err := tx.Exec(ctx, `SET LOCAL work_mem = '256MB'`); err != nil {
-		return fail(err)
-	}
-	if _, err := tx.Exec(ctx, `DELETE FROM core.commune_delinquance`); err != nil {
-		return fail(err)
-	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE delinq_in (
 		  commune_code text, cog_millesime int, annee int, indicateur_code text,
@@ -200,27 +191,61 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 	// même indicateur et une même commune. On retient la ligne diffusée, et à
 	// défaut la première — plutôt que de laisser la clé primaire faire échouer
 	// tout le chargement.
-	res, err := tx.Exec(ctx, `
-		INSERT INTO core.commune_delinquance
-		  (commune_code, cog_millesime, annee, indicateur_code, nombre,
-		   taux_pour_mille, diffuse, population, source_id)
-		SELECT DISTINCT ON (commune_code, annee, indicateur_code)
-		       commune_code, cog_millesime, annee, indicateur_code, nombre,
-		       taux_pour_mille, diffuse, population, source_id
-		  FROM delinq_in
-		 ORDER BY commune_code, annee, indicateur_code, diffuse DESC`)
+	//
+	// MERGE plutôt que DELETE+INSERT : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers
+	// RI pour l'intégralité des 5,2 millions de lignes à chaque
+	// republication annuelle du SSMSI, changement ou non.
+	var n int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.commune_delinquance", func() error {
+		ct, err := tx.Exec(ctx, `
+			WITH dedup AS (
+				SELECT DISTINCT ON (commune_code, annee, indicateur_code)
+				       commune_code, cog_millesime, annee, indicateur_code, nombre,
+				       taux_pour_mille, diffuse, population, source_id
+				  FROM delinq_in
+				 ORDER BY commune_code, annee, indicateur_code, diffuse DESC
+			)
+			MERGE INTO core.commune_delinquance AS tgt
+			USING dedup AS src
+			ON tgt.commune_code = src.commune_code AND tgt.annee = src.annee
+			   AND tgt.indicateur_code = src.indicateur_code
+			WHEN MATCHED AND (tgt.cog_millesime, tgt.nombre, tgt.taux_pour_mille,
+			                   tgt.diffuse, tgt.population, tgt.source_id)
+			                  IS DISTINCT FROM
+			                  (src.cog_millesime, src.nombre, src.taux_pour_mille,
+			                   src.diffuse, src.population, src.source_id) THEN
+			    UPDATE SET cog_millesime = src.cog_millesime, nombre = src.nombre,
+			               taux_pour_mille = src.taux_pour_mille, diffuse = src.diffuse,
+			               population = src.population, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (commune_code, cog_millesime, annee, indicateur_code, nombre,
+			            taux_pour_mille, diffuse, population, source_id)
+			    VALUES (src.commune_code, src.cog_millesime, src.annee, src.indicateur_code,
+			            src.nombre, src.taux_pour_mille, src.diffuse, src.population, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		n = ct.RowsAffected()
+		return nil
+	})
 	if err != nil {
-		return fail(fmt.Errorf("insertion : %w", err))
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	var total int64
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM core.commune_delinquance`).Scan(&total); err != nil {
+		return fail(err)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"lignes": res.RowsAffected(), "indicateurs": len(indicateurs),
+		"lignes": total, "touchees": n, "indicateurs": len(indicateurs),
 		"hors_cog": horsCOG}, "")
-	fmt.Printf("  SSMSI : %d séries communales, %d indicateurs (%d lignes lues)\n",
-		res.RowsAffected(), len(indicateurs), nTot)
+	fmt.Printf("  SSMSI : %d séries communales (%d touchées par la fusion), %d indicateurs (%d lignes lues)\n",
+		total, n, len(indicateurs), nTot)
 	if horsCOG > 0 {
 		fmt.Printf("  %d lignes de communes absentes du COG %d (ignorées)\n", horsCOG, COGMillesime)
 	}

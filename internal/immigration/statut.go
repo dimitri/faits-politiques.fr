@@ -89,21 +89,49 @@ func IngestStatutMigratoire(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.population_statut_migratoire`); err != nil {
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_population_statut_migratoire (
+			classification text, categorie text, annee smallint, sexe text, age_tranche text,
+			statut_emploi text, population numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "population_statut_migratoire"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_population_statut_migratoire"},
 		[]string{"classification", "categorie", "annee", "sexe", "age_tranche", "statut_emploi",
 			"population", "source_id"},
-		pgx.CopyFromRows(dedupe(rows)))
-	if err != nil {
+		pgx.CopyFromRows(dedupe(rows))); err != nil {
 		return fail(fmt.Errorf("population_statut_migratoire : %w", err))
 	}
+
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table ; l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité de la table à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.population_statut_migratoire AS tgt
+		USING tmp_population_statut_migratoire AS src
+		ON tgt.classification = src.classification AND tgt.categorie = src.categorie
+		   AND tgt.annee = src.annee AND tgt.sexe = src.sexe
+		   AND tgt.age_tranche = src.age_tranche AND tgt.statut_emploi = src.statut_emploi
+		WHEN MATCHED AND (tgt.population, tgt.source_id) IS DISTINCT FROM (src.population, src.source_id) THEN
+		    UPDATE SET population = src.population, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (classification, categorie, annee, sexe, age_tranche, statut_emploi, population, source_id)
+		    VALUES (src.classification, src.categorie, src.annee, src.sexe, src.age_tranche,
+		            src.statut_emploi, src.population, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion population_statut_migratoire : %w", err))
+	}
+	touchees := ct.RowsAffected()
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": n, "rejet_dimension_inconnue": rejets}, "")
-	fmt.Printf("  population par statut migratoire et nationalité : %d lignes (%d rejetées)\n", n, rejets)
+	arch.EndRun(ctx, runID, "SUCCESS",
+		map[string]any{"lignes_chargees": touchees, "rejet_dimension_inconnue": rejets}, "")
+	fmt.Printf("  population par statut migratoire et nationalité : %d lignes touchées (%d rejetées)\n",
+		touchees, rejets)
 	return nil
 }
 

@@ -128,12 +128,26 @@ func IngestFluxFinancierSNF(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.flux_financier_snf`); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_flux_financier_snf (
+			serie text, trimestre text, valeur_meur numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "flux_financier_snf"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_flux_financier_snf"},
 		[]string{"serie", "trimestre", "valeur_meur", "source_id"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(err)
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO core.flux_financier_snf AS tgt
+		USING tmp_flux_financier_snf AS src ON tgt.serie = src.serie AND tgt.trimestre = src.trimestre
+		WHEN MATCHED AND (tgt.valeur_meur, tgt.source_id) IS DISTINCT FROM (src.valeur_meur, src.source_id)
+		THEN UPDATE SET valeur_meur = src.valeur_meur, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (serie, trimestre, valeur_meur, source_id)
+		     VALUES (src.serie, src.trimestre, src.valeur_meur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fail(fmt.Errorf("fusion flux_financier_snf : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
@@ -233,15 +247,51 @@ func IngestEntrepriseCategorie(ctx context.Context, pool *pgxpool.Pool, arch *ar
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.entreprise_categorie WHERE annee = $1`, esaneMillesime); err != nil {
+
+	// Seul le millésime esaneMillesime est chargé par ce connecteur ; un
+	// autre millésime, une fois chargé, ne doit pas être touché ici.
+	if _, err := tx.Exec(ctx, fmt.Sprintf(`
+		CREATE OR REPLACE TEMPORARY VIEW entreprise_categorie_scope AS
+		SELECT * FROM core.entreprise_categorie WHERE annee = %d
+		WITH LOCAL CHECK OPTION`, esaneMillesime)); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "entreprise_categorie"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_entreprise_categorie (
+			annee integer, categorie text, nb_entreprises integer, effectif_etp_milliers numeric,
+			chiffre_affaires_meur numeric, valeur_ajoutee_meur numeric, taux_investissement_pct numeric,
+			immobilisations_par_salarie_eur numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_entreprise_categorie"},
 		[]string{"annee", "categorie", "nb_entreprises", "effectif_etp_milliers",
 			"chiffre_affaires_meur", "valeur_ajoutee_meur", "taux_investissement_pct",
 			"immobilisations_par_salarie_eur", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(err)
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO entreprise_categorie_scope AS tgt
+		USING tmp_entreprise_categorie AS src ON tgt.annee = src.annee AND tgt.categorie = src.categorie
+		WHEN MATCHED AND (tgt.nb_entreprises, tgt.effectif_etp_milliers, tgt.chiffre_affaires_meur,
+		                   tgt.valeur_ajoutee_meur, tgt.taux_investissement_pct,
+		                   tgt.immobilisations_par_salarie_eur, tgt.source_id)
+		     IS DISTINCT FROM (src.nb_entreprises, src.effectif_etp_milliers, src.chiffre_affaires_meur,
+		                        src.valeur_ajoutee_meur, src.taux_investissement_pct,
+		                        src.immobilisations_par_salarie_eur, src.source_id)
+		THEN UPDATE SET nb_entreprises = src.nb_entreprises, effectif_etp_milliers = src.effectif_etp_milliers,
+		     chiffre_affaires_meur = src.chiffre_affaires_meur, valeur_ajoutee_meur = src.valeur_ajoutee_meur,
+		     taux_investissement_pct = src.taux_investissement_pct,
+		     immobilisations_par_salarie_eur = src.immobilisations_par_salarie_eur, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (annee, categorie, nb_entreprises, effectif_etp_milliers, chiffre_affaires_meur,
+		             valeur_ajoutee_meur, taux_investissement_pct, immobilisations_par_salarie_eur, source_id)
+		     VALUES (src.annee, src.categorie, src.nb_entreprises, src.effectif_etp_milliers,
+		             src.chiffre_affaires_meur, src.valeur_ajoutee_meur, src.taux_investissement_pct,
+		             src.immobilisations_par_salarie_eur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fail(fmt.Errorf("fusion entreprise_categorie : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)

@@ -11,6 +11,8 @@ import (
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
 	"github.com/faits-politiques/faits-politiques/internal/balisage"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -76,6 +78,7 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		 WHERE t.institution = 'ASSEMBLEE_NATIONALE'
 		   AND t.source_uid ~ '^(PION|PRJL)ANR5L17B'
 		   AND NOT EXISTS (SELECT 1 FROM core.texte_expose e WHERE e.texte_id = t.id)
+		   AND NOT EXISTS (SELECT 1 FROM core.texte_expose_verification v WHERE v.texte_id = t.id)
 		 ORDER BY t.id`)
 	if err != nil {
 		return fail(err)
@@ -98,6 +101,17 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	rows.Close()
 
 	var trouves, sansExpose, echecs int
+	// verifie note qu'un texte a été VÉRIFIÉ, trouvé ou non — voir la
+	// migration 0177 : sans elle, sansExpose/echecs redemandaient la même
+	// absence à chaque passage, indéfiniment.
+	verifie := func(id int64, trouve bool, raison string) error {
+		_, err := pool.Exec(ctx, `
+			INSERT INTO core.texte_expose_verification (texte_id, trouve, raison)
+			VALUES ($1,$2,$3)
+			ON CONFLICT (texte_id) DO NOTHING`, id, trouve, raison)
+		return err
+	}
+
 	for i, c := range cibles {
 		url := exposeBase + c.uid + ".html"
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".html")
@@ -105,11 +119,17 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			// Un texte absent du site n'est pas une erreur fatale : il est
 			// compté et signalé, le chargement continue.
 			echecs++
+			if err := verifie(c.id, false, "page inaccessible"); err != nil {
+				return fail(fmt.Errorf("%s : %w", c.uid, err))
+			}
 			continue
 		}
 		texte, ok := extraireExpose(f.Path)
 		if !ok {
 			sansExpose++
+			if err := verifie(c.id, false, "aucun exposé identifié dans la page"); err != nil {
+				return fail(fmt.Errorf("%s : %w", c.uid, err))
+			}
 			continue
 		}
 		if _, err := pool.Exec(ctx, `
@@ -120,9 +140,12 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			c.id, c.uid, url, texte, chapeau(texte), len([]rune(texte)), srcID); err != nil {
 			return fail(fmt.Errorf("%s : %w", c.uid, err))
 		}
+		if err := verifie(c.id, true, ""); err != nil {
+			return fail(fmt.Errorf("%s : %w", c.uid, err))
+		}
 		trouves++
 		if (i+1)%200 == 0 {
-			fmt.Printf("    %d/%d textes traités, %d exposés\n", i+1, len(cibles), trouves)
+			logs.Notice(fmt.Sprintf("statements of reasons: %d/%d processed, %d found", i+1, len(cibles), trouves))
 		}
 		// Un site public n'est pas une API : une requête toutes les 400 ms.
 		time.Sleep(400 * time.Millisecond)
@@ -130,8 +153,8 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"exposes": trouves, "sans_expose": sansExpose, "echecs": echecs}, "")
-	fmt.Printf("  Exposés des motifs : %d récupérés sur %d textes (%d sans exposé, %d inaccessibles)\n",
-		trouves, len(cibles), sansExpose, echecs)
+	logs.Notice(fmt.Sprintf("statements of reasons: %d/%d found (%d without one, %d unreachable)",
+		trouves, len(cibles), sansExpose, echecs))
 	return nil
 }
 
@@ -227,20 +250,40 @@ func ReparseExposes(ctx context.Context, pool *pgxpool.Pool, racine string) erro
 	}
 	rows.Close()
 
-	var n int
+	var lignes [][]any
 	for _, c := range cibles {
 		texte, ok := extraireExpose(filepath.Join(racine, c.key))
 		if !ok {
 			continue
 		}
-		if _, err := pool.Exec(ctx, `
-			UPDATE core.texte_expose
-			   SET integral = $2, chapeau = $3, n_caracteres = $4
-			 WHERE texte_id = $1`, c.id, texte, chapeau(texte), len([]rune(texte))); err != nil {
-			return err
-		}
-		n++
+		lignes = append(lignes, []any{c.id, texte, chapeau(texte), len([]rune(texte))})
 	}
-	fmt.Printf("  exposés réextraits : %d\n", n)
+
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_expose (texte_id bigint, integral text, chapeau text, n_caracteres int)
+		ON COMMIT DROP`); err != nil {
+		return err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_expose"},
+		[]string{"texte_id", "integral", "chapeau", "n_caracteres"},
+		pgx.CopyFromRows(lignes)); err != nil {
+		return err
+	}
+	if _, err := tx.Exec(ctx, `
+		UPDATE core.texte_expose e
+		   SET integral = t.integral, chapeau = t.chapeau, n_caracteres = t.n_caracteres
+		  FROM tmp_expose t
+		 WHERE t.texte_id = e.texte_id`); err != nil {
+		return err
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+	logs.Notice(fmt.Sprintf("%d statements of reasons re-extracted", len(lignes)))
 	return nil
 }

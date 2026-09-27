@@ -1,9 +1,13 @@
 {{define "content"}}
 {{$a := .A}}
-{{/* L'accueil suit la proposition du 15 septembre 2026 : la campagne, ce que
-     pèse chaque sujet dans la dépense publique, les sujets, les trois budgets,
-     le même regard département par département, les candidats, les repères,
-     les institutions, les sources. Le flux des derniers scrutins a quitté la
+{{/* Ordre révisé le 20 septembre 2026 (revue de l'accueil vis-à-vis du
+     contenu du site) : la campagne (hero), ce que pèse chaque sujet dans la
+     dépense publique, les sujets, les trois budgets (+ l'argent public
+     lui-même, absent de la page jusqu'ici bien qu'il ait sa propre entrée de
+     menu), les candidats — remontés juste après le budget plutôt qu'après la
+     carte, pour enchaîner dépense → qui décide sans le détour géographique —
+     puis le même regard département par département, les repères, les
+     institutions, les sources. Le flux des derniers scrutins a quitté la
      première page : il reste en tête de la page Assemblée nationale. */}}
 
 {{/* « Sur 1 000 € de dépense publique » est dans le hero, à côté du titre
@@ -13,13 +17,27 @@
   <div class="tete"><div><span class="sur">Sujets de campagne</span>
     <h2 class="h2">Les sujets dont parlent les candidats</h2></div>
     <a class="plus" href="{{.Root}}/sujets/">Tous les sujets →</a></div>
+  {{/* Trois chiffres avant la liste des familles (révisé le 20 septembre
+       2026) : la donnée qui prouve l'ampleur du site, avant le détail —
+       comme les sites de référence du genre. Le détail complet de chaque
+       sujet (titre, question, dossier lié) reste sur /sujets/ ; ici, un
+       chiffre par famille et des puces de noms, pas une liste à tiroir. */}}
+  <div class="chiffres-cles">
+    <div><b>{{dec $a.Depenses 1}}</b><span>Md€ de dépense publique en {{$a.Annee}} — État, Sécu, collectivités</span></div>
+    <div><b>{{nb $a.NbSujets}}</b><span>sujets de campagne, chacun sourcé document par document</span></div>
+    <div><b>{{nb .Cov.Documents}}</b><span>documents scellés à l'archive, jamais ressaisis à la main</span></div>
+  </div>
   <div class="familles">
     {{range $a.Familles}}<div class="famille">
+      {{if .ParMille}}
+      <span class="poids-n">{{.ParMille}}<span class="poids-u">€ / 1 000</span></span>
+      <span class="jauge"><span style="width:{{.Largeur}}%"></span></span>
+      {{else}}
+      <span class="poids-hors">{{len .Sujets}}</span><span class="poids-hu">sujets · hors budget de l'État</span>
+      {{end}}
       <h3><a href="{{$.Root}}/sujets/#{{.ID}}">{{.Nom}}</a></h3>
-      <span class="poids">{{if .ParMille}}{{.ParMille}}&nbsp;€ sur 1&nbsp;000{{else}}hors fonctions de dépense{{end}}</span>
-      <ul class="liste-sujets">{{range .Sujets}}<li><a href="{{$.Root}}/{{.Lien}}">
-        <span class="nom">{{.Nom}}</span>{{if .D}}<span class="d">{{.D.Titre}}</span>{{else if .Pages}}<span class="d">{{(index .Pages 0).Titre}}</span>{{end}}
-      </a></li>{{end}}</ul>
+      <div class="puces">{{range .Sujets}}<a href="{{$.Root}}/{{.Lien}}">{{.Nom}}</a>{{end}}</div>
+      <a class="voir" href="{{$.Root}}/sujets/#{{.ID}}">Les {{len .Sujets}} sujets →</a>
     </div>{{end}}
   </div>
   <p class="src-bloc">Le poids de chaque famille reprend les fonctions COFOG correspondantes&nbsp;: il
@@ -46,44 +64,21 @@
   <p class="src-bloc">Source&nbsp;: Eurostat, comptes des administrations publiques (sous-secteurs
   S1311, S1313, S1314). Les trois budgets <strong>ne s'additionnent pas</strong>&nbsp;: les transferts
   entre eux (fraction de TVA, dotations) sont comptés chez l'un et chez l'autre.</p>
-</section>
-
-{{if $a.Onglets}}
-<section class="bloc">
-  <div class="tete"><div><span class="sur">Près de chez vous</span>
-    <h2 class="h2">Les sujets de campagne, département par département</h2></div>
-    <a class="plus" href="{{.Root}}/collectivites/">Toutes les cartes →</a></div>
-  {{/* Onglets sans script : des boutons radio, un panneau par onglet. Chaque
-       panneau reprend l'affichage « en ligne » des cartes départementales —
-       vignette à gauche, légende, cartons d'outre-mer et source à droite. */}}
-  <div class="onglets-carte">
-    {{range $i, $o := $a.Onglets}}<input type="radio" name="onglet-carte" id="oc{{add $i 1}}" class="vh"{{if eq $i 0}} checked{{end}}>{{end}}
-    <div class="etiquettes" role="presentation">
-      {{range $i, $o := $a.Onglets}}<label for="oc{{add $i 1}}">{{$o.Libelle}}</label>{{end}}
-    </div>
-    <div class="panneaux cartes-lignes">
-      {{range $i, $o := $a.Onglets}}<a class="bloc-carte ligne p{{add $i 1}}" href="{{$.Root}}/{{$o.URL}}">
-        {{if $o.Apercu.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}{{$o.Apercu.SVG}}{{end}}
-        <div>
-          <h3>{{$o.Titre}}</h3>
-          <p class="q">{{$o.Question}}</p>
-          {{if not $o.Apercu.Vide}}
-          {{$t := $o.Apercu.Teintes}}<span class="echelle"><span class="u">{{$o.Apercu.Unite}}</span>
-            {{range $j, $b := $o.Apercu.Bornes}}<span><i style="background:{{index $t $j}}"></i>{{$b}}</span>{{end}}
-          </span>
-          {{end}}
-          {{template "cartons" $o.Apercu.Cartons}}
-          <span class="src">{{$o.Source}}{{if $o.Apercu.NbAbsents}} · {{$o.Apercu.NbAbsents}} départements sans donnée{{end}}</span>
-          <span class="voir">La carte, le classement des départements et la méthode →</span>
-        </div>
-      </a>{{end}}
-    </div>
+  {{if $a.Argent}}
+  {{/* L'argent public lui-même a sa propre entrée de menu (§ 20 septembre
+       2026, revue de l'accueil) mais n'apparaissait auparavant nulle part sur
+       cette page — seul le budget de l'État y était cité en passant. Repris
+       ici, dans la section qui parle déjà de ce que dépense l'État, plutôt
+       qu'une quatrième carte de famille mélangée aux sujets de campagne : ce
+       n'en est pas un (voir la note de /sujets/). */}}
+  <p class="q" style="margin-top:1.2rem">L'argent public lui-même, au-delà des trois budgets ci-dessus&nbsp;:</p>
+  <div class="decide">
+    {{range $a.Argent.Sujets}}<a href="{{$.Root}}/{{.Lien}}">
+      <b>{{.Nom}}</b>{{if .D}}<span>{{.D.Titre}}</span>{{else if .Pages}}<span>{{(index .Pages 0).Titre}}</span>{{end}}
+    </a>{{end}}
   </div>
-  <p class="src-bloc">Une carte situe, elle n'explique pas&nbsp;: un écart entre départements n'est pas
-  l'effet d'une politique. Contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0.</p>
-  {{$a.Defs}}
+  {{end}}
 </section>
-{{end}}
 
 <section class="bloc">
   <div class="tete"><div><span class="sur">2027</span>
@@ -98,6 +93,47 @@
   <p class="src-bloc">Aucun programme n'est noté, aucun candidat n'est classé. Un candidat sans mandat
   parlementaire n'a pas de vote&nbsp;: la page le dit, elle ne comble pas le vide.</p>
 </section>
+
+{{if $a.Onglets}}
+<section class="bloc">
+  <div class="tete"><div><span class="sur">Près de chez vous</span>
+    <h2 class="h2">Les sujets de campagne, département par département</h2></div>
+    <a class="plus" href="{{.Root}}/collectivites/">Toutes les cartes →</a></div>
+  {{/* Onglets sans script : des boutons radio, un panneau par onglet. Chaque
+       panneau affiche la carte PLEINE de la page de détail vers laquelle il
+       pointe (tracés en clair, infobulle au survol) — la même échelle et le
+       même standard que /sujets/collectivites/, pas une vignette
+       décorative : voir le commentaire d'OngletCarte.Carte. Ratio
+       carte/légende 1.15fr/1fr comme .cartes-empilees, via le modificateur
+       .grandes (jamais .cartes-empilees lui-même, réservé à
+       /collectivites/ — voir l'avertissement au-dessus de sa règle CSS). */}}
+  <div class="onglets-carte">
+    {{range $i, $o := $a.Onglets}}<input type="radio" name="onglet-carte" id="oc{{add $i 1}}" class="vh"{{if eq $i 0}} checked{{end}}>{{end}}
+    <div class="etiquettes" role="presentation">
+      {{range $i, $o := $a.Onglets}}<label for="oc{{add $i 1}}">{{$o.Libelle}}</label>{{end}}
+    </div>
+    <div class="panneaux cartes-lignes grandes">
+      {{range $i, $o := $a.Onglets}}<a class="bloc-carte ligne p{{add $i 1}}" href="{{$.Root}}/{{$o.URL}}">
+        {{if $o.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}{{$o.Carte.SVG}}{{end}}
+        <div>
+          <h3>{{$o.Titre}}</h3>
+          <p class="q">{{$o.Question}}</p>
+          {{if not $o.Carte.Vide}}
+          {{$t := $o.Carte.Teintes}}<span class="echelle"><span class="u">{{$o.Carte.Unite}}</span>
+            {{range $j, $b := $o.Carte.Bornes}}<span><i style="background:{{index $t $j}}"></i>{{$b}}</span>{{end}}
+          </span>
+          {{end}}
+          {{template "cartons" $o.Carte.Cartons}}
+          <span class="src">{{$o.Source}}{{if $o.Carte.NbAbsents}} · {{$o.Carte.NbAbsents}} départements sans donnée{{end}}</span>
+          <span class="voir">La carte, le classement des départements et la méthode →</span>
+        </div>
+      </a>{{end}}
+    </div>
+  </div>
+  <p class="src-bloc">Une carte situe, elle n'explique pas&nbsp;: un écart entre départements n'est pas
+  l'effet d'une politique. Contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0.</p>
+</section>
+{{end}}
 
 {{if $a.Reperes}}
 <section class="bloc">
