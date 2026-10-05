@@ -1,7 +1,7 @@
 DATABASE_URL ?= postgres://fp:fp@localhost:55432/fp?sslmode=disable
 export DATABASE_URL
 
-.PHONY: db-up db-down db-image db-dump db-restore migrate ingest build test reset site man fpctl
+.PHONY: db-up db-down db-image db-dump db-restore migrate ingest build test reset site man fpctl lint-delete-copy
 
 db-up:            ## démarre Postgres local
 	docker compose up -d --wait db
@@ -76,10 +76,10 @@ man:              ## régénère les pages de manuel de fpctl (nécessite pandoc
 	done
 
 migrate: db-up fpctl    ## applique les migrations
-	./bin/fpctl ingest -only=migrate
+	./bin/fpctl ingest migrate
 
 ingest: db-up fpctl     ## télécharge, archive et charge les jeux de données
-	./bin/fpctl ingest
+	./bin/fpctl ingest all
 
 build: fpctl            ## génère le site statique dans ./site
 	./bin/fpctl build
@@ -94,6 +94,9 @@ test: db-up       ## rejoue les garanties structurelles sur la base chargée
 		echo "--- $$f"; \
 		docker compose exec -T db psql -v ON_ERROR_STOP=1 -U fp -d fp -f - < $$f | grep -E 'NOTICE|ERROR' || true; \
 	done
+
+lint-delete-copy: ## interdit le motif DELETE (table entière) + COPY direct dans un connecteur
+	./scripts/check-delete-copy.sh
 
 reset: db-down    ## repart de zéro (détruit la base, garde l'archive brute)
 	docker volume rm -f faits-politiquesfr_fp_pgdata 2>/dev/null || true

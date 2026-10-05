@@ -61,7 +61,16 @@ func IngestAsile(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.demande_asile_ofpra`); err != nil {
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_demande_asile_ofpra (
+			annee smallint, niveau text, continent text, code_pays text, nationalite text,
+			premiere_demande int, reexamen int, reouverture int,
+			mineurs_accompagnants_premiere_demande int, mineurs_accompagnants_reexamen int,
+			mineurs_accompagnants_reouverture int,
+			femmes_premiere_demande int, femmes_reexamen int, femmes_reouverture int,
+			source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 
@@ -74,11 +83,62 @@ func IngestAsile(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 		total += n
 	}
 
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table, mais l'ancien DELETE payait le prix des triggers RI pour
+	// l'intégralité des cinq millésimes à chaque republication, changement ou
+	// non. Clé naturelle = celle de l'index unique existant, avec les mêmes
+	// COALESCE que lui pour traiter les colonnes nullables.
+	var touchees int64
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.demande_asile_ofpra AS tgt
+		USING tmp_demande_asile_ofpra AS src
+		ON tgt.annee = src.annee AND tgt.niveau = src.niveau
+		   AND COALESCE(tgt.continent, '') = COALESCE(src.continent, '')
+		   AND COALESCE(tgt.code_pays, '') = COALESCE(src.code_pays, '')
+		   AND COALESCE(tgt.nationalite, '') = COALESCE(src.nationalite, '')
+		WHEN MATCHED AND (tgt.premiere_demande, tgt.reexamen, tgt.reouverture,
+		                   tgt.mineurs_accompagnants_premiere_demande, tgt.mineurs_accompagnants_reexamen,
+		                   tgt.mineurs_accompagnants_reouverture,
+		                   tgt.femmes_premiere_demande, tgt.femmes_reexamen, tgt.femmes_reouverture,
+		                   tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.premiere_demande, src.reexamen, src.reouverture,
+		                   src.mineurs_accompagnants_premiere_demande, src.mineurs_accompagnants_reexamen,
+		                   src.mineurs_accompagnants_reouverture,
+		                   src.femmes_premiere_demande, src.femmes_reexamen, src.femmes_reouverture,
+		                   src.source_id) THEN
+		    UPDATE SET premiere_demande = src.premiere_demande, reexamen = src.reexamen,
+		               reouverture = src.reouverture,
+		               mineurs_accompagnants_premiere_demande = src.mineurs_accompagnants_premiere_demande,
+		               mineurs_accompagnants_reexamen = src.mineurs_accompagnants_reexamen,
+		               mineurs_accompagnants_reouverture = src.mineurs_accompagnants_reouverture,
+		               femmes_premiere_demande = src.femmes_premiere_demande,
+		               femmes_reexamen = src.femmes_reexamen, femmes_reouverture = src.femmes_reouverture,
+		               source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, niveau, continent, code_pays, nationalite,
+		            premiere_demande, reexamen, reouverture,
+		            mineurs_accompagnants_premiere_demande, mineurs_accompagnants_reexamen,
+		            mineurs_accompagnants_reouverture,
+		            femmes_premiere_demande, femmes_reexamen, femmes_reouverture, source_id)
+		    VALUES (src.annee, src.niveau, src.continent, src.code_pays, src.nationalite,
+		            src.premiere_demande, src.reexamen, src.reouverture,
+		            src.mineurs_accompagnants_premiere_demande, src.mineurs_accompagnants_reexamen,
+		            src.mineurs_accompagnants_reouverture,
+		            src.femmes_premiere_demande, src.femmes_reexamen, src.femmes_reouverture, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees = ct.RowsAffected()
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": total, "annees": len(anneesOFPRA)}, "")
-	fmt.Printf("  demandes d'asile (Ofpra) : %d lignes, %d millésimes\n", total, len(anneesOFPRA))
+	arch.EndRun(ctx, runID, "SUCCESS",
+		map[string]any{"lignes_chargees": total, "annees": len(anneesOFPRA), "touchees": touchees}, "")
+	fmt.Printf("  demandes d'asile (Ofpra) : %d lignes, %d millésimes (%d touchées par la fusion)\n",
+		total, len(anneesOFPRA), touchees)
 	return nil
 }
 
@@ -160,7 +220,7 @@ func chargerAsileAnnee(ctx context.Context, arch *archive.Archive, tx pgx.Tx, sr
 	if len(rows) == 0 {
 		return 0, fmt.Errorf("aucune ligne reconnue sur %d", len(recs)-1)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "demande_asile_ofpra"},
+	n, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_demande_asile_ofpra"},
 		[]string{"annee", "niveau", "continent", "code_pays", "nationalite",
 			"premiere_demande", "reexamen", "reouverture",
 			"mineurs_accompagnants_premiere_demande", "mineurs_accompagnants_reexamen", "mineurs_accompagnants_reouverture",

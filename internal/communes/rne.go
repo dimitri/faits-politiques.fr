@@ -159,11 +159,9 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		return fail(err)
 	}
 
-	// Reconstruction, pas complétion : un élu remplacé entre deux millésimes du
-	// RNE doit disparaître, sinon sa commune finirait avec deux maires
-	// simultanés — que la contrainte d'exclusion du schéma ne verrait pas,
-	// puisqu'elle porte sur la personne et non sur le territoire.
-	// La portée est celle de CE connecteur, et de rien d'autre. Un mandat
+	// Les mandats parlementaires que le RNE aurait créés à tort restent
+	// wipés sans condition : un nettoyage historique étroit (voir plus bas
+	// pourquoi), pas le gros du volume de ce connecteur. Un mandat
 	// parlementaire porte l'institution qui l'a publié ; ceux que le RNE crée
 	// n'en portent aucune. Sans le `institution IS NULL`, cette suppression
 	// emportait les mandats de député de toute personne ayant aussi un mandat
@@ -172,14 +170,17 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	// version pauvre du RNE qui ne connaît que la date de début. Exactement ce
 	// que la règle « le RNE complète, il n'écrase pas » interdit, écrit trente
 	// lignes plus bas.
+	//
+	// Les cinq types locaux (MAIRE, CONSEILLER_*) ne sont PLUS wipés ici :
+	// voir le MERGE plus bas, qui les remplace — même besoin de « reconstruire,
+	// pas compléter » qu'exprimait le commentaire, mais sans détruire les
+	// 543 000 lignes à chaque passage pour ne rien changer.
 	if _, err := tx.Exec(ctx, `
 		DELETE FROM core.mandate m
-		 WHERE m.mandate_type IN ('MAIRE','CONSEILLER_MUNICIPAL','CONSEILLER_COMMUNAUTAIRE',
-		                          'CONSEILLER_DEPARTEMENTAL','CONSEILLER_REGIONAL')
-		    OR (m.institution IS NULL
-		        AND m.mandate_type IN ('DEPUTE','SENATEUR','DEPUTE_EUROPEEN')
-		        AND EXISTS (SELECT 1 FROM core.person_identifier i
-		                     WHERE i.person_id = m.person_id AND i.scheme = 'RNE'))`); err != nil {
+		 WHERE m.institution IS NULL
+		   AND m.mandate_type IN ('DEPUTE','SENATEUR','DEPUTE_EUROPEEN')
+		   AND EXISTS (SELECT 1 FROM core.person_identifier i
+		                WHERE i.person_id = m.person_id AND i.scheme = 'RNE')`); err != nil {
 		return fail(err)
 	}
 
@@ -247,17 +248,22 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		return fail(err)
 	}
 
-	// DISTINCT ON : une personne ne détient qu'un mandat de chaque type. Quand
-	// la source en présente deux — un élu inscrit dans deux communes — on garde
-	// le plus ancien plutôt que de laisser la contrainte d'exclusion faire
-	// échouer tout le chargement.
+	// rne_in couvre HUIT types de mandat, pas seulement les cinq locaux : les
+	// fichiers sénateur/député/eurodéputé y versent aussi leurs lignes (voir
+	// rneFichiers). Les deux groupes suivent des règles OPPOSÉES, donc deux
+	// requêtes distinctes plutôt qu'une seule :
 	//
-	// Le NOT EXISTS écarte ce que d'autres connecteurs savent déjà mieux. Un
-	// député est publié par l'Assemblée avec ses dates de début ET de fin ; le
-	// RNE n'en donne qu'un début. Réinsérer la version pauvre par-dessus la
-	// version riche ferait doublon — et la contrainte d'exclusion le refuse, à
-	// juste titre. La règle : le RNE complète, il n'écrase pas.
-	res, err := tx.Exec(ctx, `
+	//  - les CINQ TYPES LOCAUX (MAIRE, CONSEILLER_*) : le RNE en est la seule
+	//    source, un MERGE reconstruit fidèlement l'état courant (voir plus
+	//    bas).
+	//  - les TROIS TYPES NATIONAUX (DEPUTE, SENATEUR, DEPUTE_EUROPEEN) : le
+	//    RNE ne les publie qu'avec une date de début, quand l'Assemblée/le
+	//    Sénat/le Parlement européen publient aussi la date de FIN — une
+	//    donnée plus pauvre qui ne doit jamais écraser la plus riche. La
+	//    règle reste « le RNE complète, il n'écrase pas » : un INSERT qui ne
+	//    comble que les trous (NOT EXISTS sur un chevauchement de validité),
+	//    jamais un MERGE, qui matcherait sans distinguer la source.
+	ctNationaux, err := tx.Exec(ctx, `
 		INSERT INTO core.mandate
 		  (person_id, mandate_type, commune_code, constituency, validity, role)
 		SELECT DISTINCT ON (p.person_id, r.mandate_type)
@@ -265,23 +271,81 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		       r.commune_code, r.constituency,
 		       daterange(r.debut, NULL, '[)'), r.fonction
 		  FROM rne_in r JOIN rne_pers p USING (cle)
-		 WHERE NOT EXISTS (
+		 WHERE r.mandate_type IN ('DEPUTE', 'SENATEUR', 'DEPUTE_EUROPEEN')
+		   AND NOT EXISTS (
 		         SELECT 1 FROM core.mandate m
 		          WHERE m.person_id = p.person_id
 		            AND m.mandate_type = r.mandate_type::core.mandate_type
 		            AND m.validity && daterange(r.debut, NULL, '[)'))
 		 ORDER BY p.person_id, r.mandate_type, r.debut`)
 	if err != nil {
-		return fail(fmt.Errorf("insertion des mandats : %w", err))
+		return fail(fmt.Errorf("mandats nationaux : %w", err))
+	}
+
+	// MERGE plutôt que DELETE (543 000 lignes, les cinq types locaux) +
+	// INSERT : l'ancien DELETE détruisait la table entière de ce connecteur à
+	// CHAQUE millésime du RNE, changement ou non — le prix des triggers RI
+	// (core.evidence.mandate_id et core.nuance_assignment.mandate_id sont
+	// tous deux ON DELETE CASCADE) payé pour l'intégralité des élus locaux à
+	// chaque republication, même les 99% qui n'ont pas changé de mandat.
+	//
+	// mandate_rne_person_type_key (migration 0176) est l'index unique
+	// partiel qui rend ce MERGE possible : core.mandate n'a autrement aucune
+	// contrainte sur (person_id, mandate_type), à raison pour les mandats
+	// nationaux (plusieurs mandats de DEPUTE dans le temps) — mais le RNE
+	// n'en publie qu'un par élu et par fonction pour ces cinq types-là,
+	// exactement l'invariant que son propre DISTINCT ON exprimait déjà.
+	//
+	// mandate_local (une vue temporaire, pas core.mandate directement) :
+	// même raison que pour core.ballot (internal/senat/senat.go,
+	// internal/europe/europe.go) — cibler la table entière (617 000 lignes,
+	// tous types de mandat confondus) forcerait Postgres à visiter les
+	// mandats nationaux pour décider qu'il n'y a rien à en faire.
+	if _, err := tx.Exec(ctx, `
+		CREATE OR REPLACE TEMPORARY VIEW mandate_local AS
+		  SELECT * FROM core.mandate
+		   WHERE mandate_type IN ('MAIRE','CONSEILLER_MUNICIPAL','CONSEILLER_COMMUNAUTAIRE',
+		                           'CONSEILLER_DEPARTEMENTAL','CONSEILLER_REGIONAL')
+		  WITH LOCAL CHECK OPTION`); err != nil {
+		return fail(err)
+	}
+	res, err := tx.Exec(ctx, `
+		WITH src AS (
+			SELECT DISTINCT ON (p.person_id, r.mandate_type)
+			       p.person_id, r.mandate_type::core.mandate_type AS mandate_type,
+			       r.commune_code, r.constituency,
+			       daterange(r.debut, NULL, '[)') AS validity, r.fonction AS role
+			  FROM rne_in r JOIN rne_pers p USING (cle)
+			 WHERE r.mandate_type IN ('MAIRE','CONSEILLER_MUNICIPAL','CONSEILLER_COMMUNAUTAIRE',
+			                           'CONSEILLER_DEPARTEMENTAL','CONSEILLER_REGIONAL')
+			 ORDER BY p.person_id, r.mandate_type, r.debut
+		)
+		MERGE INTO mandate_local AS tgt
+		USING src
+		ON tgt.person_id = src.person_id AND tgt.mandate_type = src.mandate_type
+		WHEN MATCHED AND (tgt.commune_code, tgt.constituency, tgt.validity, tgt.role)
+		                  IS DISTINCT FROM
+		                  (src.commune_code, src.constituency, src.validity, src.role) THEN
+		    UPDATE SET commune_code = src.commune_code, constituency = src.constituency,
+		               validity = src.validity, role = src.role
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (person_id, mandate_type, commune_code, constituency, validity, role)
+		    VALUES (src.person_id, src.mandate_type, src.commune_code, src.constituency,
+		            src.validity, src.role)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion des mandats : %w", err))
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
+	mandats := res.RowsAffected() + ctNationaux.RowsAffected()
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"mandats": res.RowsAffected(), "reconciliees": reconciliees, "hors_cog": horsCOG}, "")
-	fmt.Printf("  RNE : %d mandats, %d personnes déjà connues reconnues, %d élus hors COG écartés\n",
-		res.RowsAffected(), reconciliees, horsCOG)
+		"mandats": mandats, "reconciliees": reconciliees, "hors_cog": horsCOG}, "")
+	fmt.Printf("  RNE : %d mandats touchés (locaux fusionnés + nationaux comblés), "+
+		"%d personnes déjà connues reconnues, %d élus hors COG écartés\n",
+		mandats, reconciliees, horsCOG)
 	return nil
 }
 

@@ -1,6 +1,6 @@
 # Bassins versants : la gouvernance de l'eau qui existe déjà
 
-> **Dossier** · version 5 · 17 septembre 2026
+> **Dossier** · version 9 · 19 septembre 2026
 >
 > Comment la gestion de l'eau est-elle organisée en France, à quelle échelle, et
 > par qui ? Le dossier décrit l'architecture qui existe — comités de bassin, agences de
@@ -158,9 +158,24 @@ zonage qui ne se sont jamais alignées, chacune légitime pour ce qu'elle
 mesure (le relief et l'écoulement de l'eau, d'un côté ; l'organisation
 politico-administrative, de l'autre).
 
-**Hors métropole** : le fichier source (millésime 2025) ne couvre que la
-France métropolitaine — les bassins d'outre-mer (chacun rattaché à un office
-de l'eau local plutôt qu'à une agence) ne sont pas chargés à ce stade.
+**Outre-mer** : le catalogue Sandre (millésime 2025) ne publie, à ce thème,
+un extrait que pour deux territoires — vérifié par requête directe sur
+chacun des six territoires possibles, pas supposé :
+
+| Bassin | Territoire | Superficie (km²) |
+|---|---|---:|
+| Martinique | outre-mer | 1 105 |
+| Mayotte | outre-mer | 362 |
+
+Guadeloupe, Guyane et Réunion n'ont pas d'extrait à ce thème du catalogue
+(404 pour les trois à l'inspection) — absents, pas oubliés (§ 10). Chacun
+des bassins d'outre-mer est, comme en métropole, rattaché à un office de
+l'eau local plutôt qu'à une agence ; leur superficie et leur position
+géographique (Caraïbes, canal du Mozambique) n'ont pas leur place sur la
+carte des sept bassins métropolitains ci-dessus — un même cadrage forcerait
+soit une carte illisible, soit une reprojection sans validité pour ces
+territoires (chacun a son propre système de coordonnées natif, jamais
+confondu avec le Lambert-93 de la métropole).
 
 ### 4. Qui gère l'eau potable, à quel prix
 
@@ -212,26 +227,32 @@ même export SISPEA mais n'est pas encore chargé.
 
 ### 5. Qui reçoit les aides, et pour quoi
 
-Source : décisions d'aide publiées par deux des six agences — **Loire-Bretagne**
-(11ᵉ programme 2019-2024 et 12ᵉ programme 2025-2030 en cours) et
+Source : décisions d'aide publiées par trois des six agences — **Loire-Bretagne**
+(11ᵉ programme 2019-2024 et 12ᵉ programme 2025-2030 en cours),
 **Artois-Picardie** (conventions publiées au format réglementaire du décret
-n° 2017-779, 2017-2026). Les quatre autres agences (Adour-Garonne, Rhin-Meuse,
-Rhône-Méditerranée-Corse, Seine-Normandie) n'ont pas d'export en masse
-trouvé à l'inspection — seulement des portails de recherche par critères,
-sans fichier téléchargeable — donc pas chargées : un choix documenté, pas un
-oubli.
+n° 2017-779, 2017-2026) et **Rhin-Meuse** (bilan consolidé publié par
+l'agence elle-même, 2000-2026 sans interruption). Les trois agences
+restantes (Adour-Garonne, Rhône-Méditerranée-Corse, Seine-Normandie) ne
+publient, à l'inspection, aucun export en masse exploitable — voir § 10 pour
+le détail par agence.
 
-| Agence | Aides | Bénéficiaires distincts (par raison sociale) | Montant cumulé |
-|---|---:|---:|---:|
-| Loire-Bretagne (11ᵉ + 12ᵉ programmes) | 33 770 | 5 990 | 2,49 Md€ |
-| Artois-Picardie (10ᵉ-11ᵉ + 12ᵉ programmes) | 9 171 | 1 709 | 1,02 Md€ |
+| Agence | Aides | Bénéficiaires distincts (par raison sociale) | Montant cumulé | Période couverte |
+|---|---:|---:|---:|---|
+| Rhin-Meuse | 40 245 | 7 107 | 2,64 Md€ | 2000-2026 |
+| Loire-Bretagne (11ᵉ + 12ᵉ programmes) | 33 770 | 5 990 | 2,49 Md€ | 2019-2026 |
+| Artois-Picardie (10ᵉ-11ᵉ + 12ᵉ programmes) | 9 171 | 1 709 | 1,02 Md€ | 2017-2026 |
+
+**Les montants cumulés ne se comparent pas directement** : Rhin-Meuse couvre
+27 ans de programmes (IX à XII), quand Loire-Bretagne et Artois-Picardie
+n'en couvrent que les deux ou trois derniers — un montant cumulé plus élevé
+peut refléter une période plus longue, pas une agence plus généreuse par an.
 
 **Presque exclusivement des subventions, pas des avances** : sur
 Loire-Bretagne, 33 769 aides sur 33 770 sont classées « Subvention », une
 seule « Avance » — signe que l'agence a quasiment abandonné l'avance
 remboursable au profit de la subvention directe sur ces deux derniers
 programmes (les avances, plus fréquentes, apparaissent sur le 10ᵉ programme
-2013-2018, non chargé ici — voir § 7).
+2013-2018, non chargé ici — voir § 10).
 
 **Les plus gros bénéficiaires cumulés sont des structures qui portent des
 aides pour d'autres, pas toujours le porteur de travaux final** : sur
@@ -239,18 +260,37 @@ Loire-Bretagne, le premier bénéficiaire cumulé (191,7 M€ sur 48 aides) est
 l'ASP (Agence de services et de paiement), qui verse les aides agricoles
 (MAEC) pour le compte de l'agence de l'eau — une aide à l'ASP n'est donc pas
 une aide à un agriculteur nommément identifié, mais un flux qui se
-redistribue en aval, hors du champ de cette charge. Parmi les bénéficiaires
-directs de travaux : Clermont Auvergne Métropole (17,2 M€ pour l'extension
-d'une station de traitement des eaux usées), la Métropole européenne de
-Lille (69,4 M€ sur 247 aides, agence Artois-Picardie).
+redistribue en aval, hors du champ de cette charge. Le même mécanisme
+apparaît sur Rhin-Meuse : l'ASP y est aussi le premier bénéficiaire cumulé
+(166,4 M€ sur 160 aides), suivie de l'Eurométropole de Strasbourg
+(108,1 M€) et du SDEA Alsace Moselle, syndicat des eaux (155 M€ sur deux
+raisons sociales proches). Parmi les bénéficiaires directs de travaux hors
+structures redistributrices : Clermont Auvergne Métropole (17,2 M€ pour
+l'extension d'une station de traitement des eaux usées), la Métropole
+européenne de Lille (69,4 M€ sur 247 aides, agence Artois-Picardie).
 
-**Ce que ce chiffrage ne permet pas encore de dire** : ni la part de l'aide
-qui va aux ménages, aux entreprises ou aux collectivités (aucune colonne de
-catégorie de bénéficiaire n'est publiée par les agences — seule une raison
-sociale, à catégoriser soi-même si ce dossier est approfondi), ni la part
-de chaque euro de redevance qui revient effectivement au payeur d'origine
-(la chaîne payeur → agence → aide reste bloquée par l'absence de
-redevances par payeur, voir § 7).
+**Rhin-Meuse comble une partie du manque signalé sur la catégorie de
+bénéficiaire** : à la différence de Loire-Bretagne et Artois-Picardie, ce
+fichier publie un type de maître d'ouvrage pour chaque aide —
+
+| Type de bénéficiaire | Aides | Montant cumulé |
+|---|---:|---:|
+| Collectivité | 16 087 | 1 120,4 M€ |
+| Territoriale (syndicats, EPTB/EPAGE...) | 10 420 | 816,7 M€ |
+| Autre | 8 343 | 398,2 M€ |
+| Autres entités | 3 874 | 119,9 M€ |
+| Entreprise | 1 521 | 188,7 M€ |
+
+— une collectivité au sens large (les deux premières lignes) reçoit ainsi
+plus des deux tiers du montant cumulé sur ce seul bassin. Cette
+catégorisation n'existe que pour Rhin-Meuse : elle ne peut pas, à ce stade,
+être étendue aux deux autres agences chargées, ni servir à estimer une
+répartition nationale.
+
+**Ce que ce chiffrage ne permet toujours pas de dire** : la part de chaque
+euro de redevance qui revient effectivement au payeur d'origine (la chaîne
+payeur → agence → aide reste bloquée par l'absence de redevances par
+payeur, voir § 10).
 
 ### 6. Où sont les EPTB et les EPAGE
 
@@ -294,15 +334,117 @@ intervient.** Une partie de ces zones a un EPTB ou un EPAGE réel dont le
 contour n'a simplement pas pu être reconstruit (les 14 cas ci-dessus) ; une
 autre partie n'a effectivement aucune structure de ce type.
 
+### 7. Les sous-bassins versants, une résolution bien plus fine
+
+Source : Sandre/IGN, *BD Topage — bassins versants topographiques*,
+millésime 2025, France métropolitaine. **6 190 sous-bassins**, chacun
+rattaché à l'un des sept grands bassins de la carte du § 3 :
+
+| Bassin | Sous-bassins |
+|---|---:|
+| Adour-Garonne | 1 982 |
+| Loire-Bretagne | 1 409 |
+| Seine-Normandie | 986 |
+| Rhin-Meuse | 707 |
+| Rhône-Méditerranée | 836 |
+| Artois-Picardie | 190 |
+| Corse | 80 |
+
+Le nom associé à chaque sous-bassin (`TopoOH`) est, la plupart du temps,
+celui du tronçon de cours d'eau qui le structure plutôt qu'un toponyme de
+sous-bassin standardisé — laissé tel quel dans les données chargées, jamais
+reconstruit ou renommé. Chaque sous-bassin est vérifié rattaché à un des
+sept grands bassins déjà chargés (aucun code orphelin, `fpctl verify data`).
+Le réseau hydrographique linéaire (cours d'eau eux-mêmes) reste couvert par
+les 19 cours d'eau majeurs chargés séparément (§ 3), pas par cette table de
+polygones.
+
+### 8. L'assainissement, commune par commune
+
+Source : SISPEA (eaufrance.fr, OFB), exports « collectif » et « non
+collectif » 2023 — les mêmes jeux « exploités pour les rapports nationaux »
+que l'eau potable (§ 4), mais publiés au niveau de la commune plutôt que du
+service : la composition communale que l'export eau potable ne donne pas.
+
+| Compétence | Communes | Régie | Délégation | Non renseigné |
+|---|---:|---:|---:|---:|
+| Assainissement collectif | 7 426 | 6 239 | 1 099 | 242 |
+| Assainissement non collectif | 852 | 727 | 88 | 42 |
+
+**Même écart régie/délégation que pour l'eau potable** (§ 4), à une échelle
+plus modeste : Veolia (250 communes en délégation), Saur (236) et Suez (172)
+concentrent l'essentiel de la délégation en assainissement collectif, dans
+le même ordre que pour l'eau potable.
+
+**Ce que cette charge ne couvre pas** : seuls les champs d'identification et
+de gestion (commune, service, opérateur, mode de gestion, population
+desservie) sont chargés. Les colonnes d'indicateur (prix de
+l'assainissement, taux de conformité des stations d'épuration...) ne le
+sont pas : leur code exact (`d201_0`, `d301_0`...) n'a pas été vérifié
+contre sa définition officielle au moment de cette charge, à la différence
+de `d101_0`/`d102_0` déjà vérifiés pour l'eau potable (§ 4) — un chargement
+ultérieur est possible, pas deviné ici.
+
+### 9. Le budget annexe eau, enfin accessible
+
+Source : OFGL (Observatoire des finances et de la gestion publique locales),
+jeux *Comptes des communes* et *Comptes des groupements à fiscalité
+propre*, 2018-2025. L'eau et l'assainissement sont un budget **annexe**
+(nomenclature comptable M49/M49A) — les données OFGL déjà chargées ailleurs
+dans ce dépôt (`core.commune_indicator`, § 1.3) ne couvrent que le budget
+**principal**, ce qui avait fait documenter ce pont comme un blocage
+structurel dans une version précédente. Vérification directe faite : l'OFGL
+publie en réalité le budget annexe séparément, par nomenclature — un accès
+qui existait, pas un fichier nouvellement mis en ligne.
+
+| Collectivité | Communes/EPCI avec un budget M49 (2023) | Dépenses totales (2023) |
+|---|---:|---:|
+| Communes | 8 334 | 1 511,5 M€ |
+| EPCI | 905 | 7 269,7 M€ |
+
+**Le transfert vers l'intercommunalité, visible dans les chiffres eux-mêmes,
+pas seulement décrit en principe (§ 1.3)** : entre 2018 et 2025, le nombre
+de communes avec un budget annexe M49 recule de 12 370 à 7 266 (-41 %),
+tandis que le nombre d'EPCI avec un tel budget reste stable (863 puis 912)
+et que leurs dépenses cumulées progressent de 4,92 Md€ à 8,00 Md€ — la
+même compétence, de plus en plus portée par l'intercommunalité plutôt que
+par la commune, exactement dans le sens que la loi NOTRe organise depuis
+2018.
+
+**Dépenses et recettes s'équilibrent, comme l'exige la nomenclature M49** :
+1 511,5 M€ de dépenses pour 1 511,8 M€ de recettes côté communes en 2023,
+7 269,7 M€ pour 7 074,7 M€ côté EPCI — un écart naturel (report d'une année
+sur l'autre), pas une anomalie de lecture.
+
+**Ce que ce chargement ne permet pas de faire** : seuls deux agrégats sont
+chargés (dépenses et recettes totales) sur les 41 que l'API OFGL publie —
+pas de détail par nature de dépense (achats, personnel, investissement) à
+ce stade. Le libellé du budget (`nom_budget`, par exemple « EAU-AUTRECHE »
+ou « SPANC CCRAPC ») permet de deviner eau ou assainissement pour beaucoup
+de lignes, mais reste un texte libre de la collectivité, jamais recatégorisé
+en un champ structuré. Une collectivité qui délègue entièrement le service à
+un opérateur privé peut ne pas avoir de budget annexe M49, ou en avoir un
+réduit à la seule part publique : cette table ne capture pas le chiffre
+d'affaires de l'opérateur lui-même, seulement ce qui transite par le budget
+public.
+
 ## Ce que les données ne disent pas
 
-### 7. Ce qui reste hors de portée de cette version
+### 10. Ce qui reste hors de portée de cette version
 
-- **Les tracés fins des sous-bassins et du réseau hydrographique**
-  (rivières, affluents) : BD Topage les publie séparément, à une résolution
-  bien supérieure aux sept polygones chargés ici — non chargés, le sujet de
-  ce dossier étant la gouvernance par grand bassin, pas la cartographie
-  hydrographique détaillée.
+- **Le millésime 2024 des services d'eau potable et d'assainissement** :
+  l'export bascule, pour les trois compétences (eau potable, assainissement
+  collectif, assainissement non collectif), d'un format `.xlsx` à un binaire
+  Excel hérité (`.xls`, OLE2/CFBF) — vérifié à l'exécution (commande `file`
+  sur le fichier extrait). Une bibliothèque tierce pure Go
+  (`github.com/extrame/xls`) permet de le lire techniquement, mais l'en-tête
+  de ce millésime s'est révélé désaligné des colonnes de données à
+  l'inspection : la colonne 14, intitulée « Nom de l'entité de gestion »,
+  contient en réalité la valeur « eau potable » (un type de compétence, pas
+  un nom) — signe de cellules d'en-tête fusionnées dans le classeur source.
+  Un mappage fiable demanderait de reconstruire les positions réelles
+  colonne par colonne, plus de vérification que ce chantier n'en a fait :
+  documenté précisément plutôt que deviné, à traiter séparément.
 - **Le périmètre officiel des EPTB et EPAGE** (§ 6) : aucune source
   géographique nationale trouvée — le contour affiché est reconstruit par
   union de membres déjà chargés (communes, EPCI), pas téléchargé comme tel,
@@ -312,24 +454,35 @@ autre partie n'a effectivement aucune structure de ce type.
   agriculteur) en open data — le premier maillon de la chaîne
   payeur → agence → aide (§ 5) reste donc hors de portée, à l'inverse du
   dernier maillon (agence → bénéficiaire), chargé.
-- **Le budget eau des collectivités** : l'eau est en budget annexe
-  (nomenclature M49) ; les données OFGL déjà chargées dans ce dépôt
-  (`core.commune_indicator`) ne couvrent que le budget principal — un pont
-  vers un budget-annexe demanderait une source OFGL différente, non
-  identifiée à ce jour. Un blocage structurel, pas un oubli.
-- **Les aides des quatre autres agences** (§ 5) : Adour-Garonne, Rhin-Meuse,
-  Rhône-Méditerranée-Corse et Seine-Normandie n'ont, à l'inspection, que des
-  portails de recherche par critères — aucun fichier exportable trouvé.
-- **Le 10ᵉ programme Loire-Bretagne (2013-2018)** (§ 5) : chaque millésime a
-  son propre jeu de colonnes (vérifié à l'inspection), un connecteur séparé
-  par année serait nécessaire.
-- **Les bassins d'outre-mer** (§ 3).
-- **La carte communale/départementale des prix et opérateurs, et
-  l'assainissement** (§ 4) : la donnée service-par-service est chargée, la
-  composition communale des services et l'assainissement ne le sont pas
-  encore.
-- **Le millésime 2024 des services d'eau potable** (§ 4) : format Excel
-  hérité non lu par ce dépôt pour l'instant.
+- **Le détail par nature du budget annexe eau** (§ 9) : seuls deux agrégats
+  (dépenses et recettes totales) sont chargés sur les 41 que l'API OFGL
+  publie — pas encore de détail par nature de dépense (personnel,
+  investissement...) ni de distinction fiable eau/assainissement (le
+  libellé du budget est un texte libre, jamais recatégorisé).
+- **Les aides des trois agences restantes** (§ 5), chacune pour une raison
+  différente, vérifiée à l'inspection plutôt que supposée commune :
+  **Rhône-Méditerranée-Corse** publie une base de recherche par critères
+  (eaurmc.fr, aides depuis 2013) sans export téléchargeable ; **Adour-Garonne**
+  n'a, à l'inspection de son site et de son organisation data.gouv.fr, aucun
+  fichier de décisions d'aide (seulement un portail de dépôt de dossiers,
+  Rivage) ; **Seine-Normandie** publie des bilans par année, mais fragmentés
+  (plusieurs fichiers par millésime, parfois dupliqués), avec des cellules
+  d'en-tête fusionnées comme le millésime 2024 SISPEA (la colonne « Année »
+  n'est renseignée qu'une ligne sur N) et sans mise à jour au-delà de 2021 —
+  un chargement demanderait de reconstruire le report de valeur ligne par
+  ligne pour un historique déjà vieux de cinq ans, non fait ici.
+- **Le 10ᵉ programme Loire-Bretagne (2013-2018)** (§ 5) : le portail dédié
+  (donnees-documents.eau-loire-bretagne.fr) n'a pas répondu à l'inspection
+  (délai dépassé à deux reprises, requêtes directes et via navigateur) —
+  seul un sous-dispositif agricole (PCAE 2018, un fichier de 52 Ko) a pu être
+  atteint, pas le fichier des décisions du 10ᵉ programme dans son ensemble.
+  Chaque millésime ayant, par ailleurs, son propre jeu de colonnes (vérifié
+  sur les programmes déjà chargés), un connecteur séparé par programme
+  resterait de toute façon nécessaire.
+- **Les bassins d'outre-mer de Guadeloupe, Guyane et Réunion** (§ 3) :
+  absents du thème BassinHydrographique du catalogue Sandre au moment de ce
+  chargement (vérifié directement, 404 pour les trois) — Martinique et
+  Mayotte, elles, sont chargées.
 
 ## Sources
 
@@ -351,9 +504,52 @@ autre partie n'a effectivement aucune structure de ce type.
 - BANATIC (base nationale sur l'intercommunalité), Direction générale des
   collectivités locales — export national des groupements, consulté le
   17 septembre 2026.
+- Sandre / IGN-OFB, *BD Topage — Bassins versants topographiques*,
+  millésime 2025.
+- SISPEA (Observatoire des services publics d'eau et d'assainissement,
+  OFB, eaufrance.fr), exports « assainissement collectif » et « non
+  collectif », millésime 2023.
+- Agence de l'eau Rhin-Meuse, *Bilan des aides accordées*
+  (eau-rhin-meuse.fr, consulté le 19 septembre 2026).
+- Sandre / IGN-OFB, *BD Topage — Bassins hydrographiques, Martinique et
+  Mayotte*, millésime 2025.
+- OFGL (Observatoire des finances et de la gestion publique locales),
+  *Comptes des communes* et *Comptes des groupements à fiscalité propre*,
+  budgets annexes M49/M49A, 2018-2025.
 
 ## Versions
 
+- **Version 9** (19 septembre 2026) : le budget annexe eau (nomenclature
+  M49/M49A), communes et EPCI, 2018-2025 — un manque documenté comme
+  structurellement bloqué dans une version précédente, résolu par
+  vérification directe de l'API OFGL. Le transfert de la compétence vers
+  l'intercommunalité, déjà décrit en principe au § 1.3, se lit maintenant
+  dans les chiffres eux-mêmes (nombre de communes avec un budget M49 en
+  baisse de 41 % entre 2018 et 2025, dépenses des EPCI en hausse de 62 %
+  sur la même période).
+
+- **Version 8** (19 septembre 2026) : deux bassins hydrographiques
+  d'outre-mer (Martinique, Mayotte), les seuls disponibles au thème
+  BassinHydrographique du catalogue Sandre à l'inspection — chacun avec son
+  propre système de coordonnées natif, listés à part de la carte
+  métropolitaine plutôt que fondus dans son cadrage. Guadeloupe, Guyane et
+  Réunion restent absents, vérifié plutôt que supposé.
+
+- **Version 7** (19 septembre 2026) : les aides de l'agence de l'eau
+  Rhin-Meuse (40 245 aides, 2,64 Md€, 2000-2026 — un bilan consolidé plutôt
+  qu'un fichier par programme), avec un type de bénéficiaire que ni
+  Loire-Bretagne ni Artois-Picardie ne publient. Diagnostic précisé pour les
+  trois agences restantes (Adour-Garonne, Rhône-Méditerranée-Corse,
+  Seine-Normandie), chacune pour une raison différente et vérifiée
+  séparément.
+- **Version 6** (19 septembre 2026) : les sous-bassins versants (6 190
+  polygones, une résolution bien plus fine que les sept grands bassins) et
+  l'assainissement commune par commune (7 426 communes en collectif, 852 en
+  non collectif) — deux manques comblés du § 9 précédent. Diagnostic
+  précisé sur le millésime 2024 SISPEA (format lisible techniquement, mais
+  en-têtes désalignés des données à l'inspection — documenté plutôt que
+  deviné) et sur le 10ᵉ programme Loire-Bretagne (portail hors service à
+  l'inspection, un sous-dispositif seulement confirmé accessible).
 - **Version 5** (17 septembre 2026) : où sont les EPTB et les EPAGE — 67
   structures trouvées dans le registre national BANATIC, contour reconstruit
   par union des communes et EPCI membres déjà chargés (aucune source

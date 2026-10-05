@@ -26,13 +26,27 @@ var SourceBassins = archive.Source{
 	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Sandre, BD Topage (IGN/OFB)",
 	Cadence:     "irrégulière (révision du référentiel hydrographique)",
-	Notes: "Millésime 2025, France métropolitaine uniquement (suffixe FXX du fichier source) — " +
-		"pas de bassin d'outre-mer dans ce chargement. Coordonnées natives en Lambert-93 " +
-		"(EPSG:2154), transformées en WGS84 (4326) pour rejoindre la convention de geo.contour.",
+	Notes: "Millésime 2025. France métropolitaine (suffixe FXX, Lambert-93/EPSG:2154) plus " +
+		"deux bassins d'outre-mer disponibles à ce thème du catalogue : Martinique (MTQ, " +
+		"RGAF09/UTM20N — EPSG:5490) et Mayotte (MYT, RGM04/UTM38S — EPSG:4471), chacun " +
+		"transformé depuis son propre SRID natif, jamais supposé être en Lambert-93. " +
+		"Guadeloupe, Guyane et Réunion n'ont pas d'extrait à ce thème (vérifié par requête " +
+		"directe sur le catalogue, 404 pour les trois) — absents, pas oubliés.",
 }
 
-const bassinsURL = "https://services.sandre.eaufrance.fr/telechargement/geo/ETH/BDTopage/2025/" +
-	"BassinHydrographique/BassinHydrographique_FXX-geojson.zip"
+type territoireBassin struct {
+	Code, SuffixeURL string
+	SRIDSource       int
+}
+
+var territoiresBassins = []territoireBassin{
+	{Code: "metropole", SuffixeURL: "FXX", SRIDSource: 2154},
+	{Code: "outremer", SuffixeURL: "MTQ", SRIDSource: 5490},
+	{Code: "outremer", SuffixeURL: "MYT", SRIDSource: 4471},
+}
+
+const bassinsURLBase = "https://services.sandre.eaufrance.fr/telechargement/geo/ETH/BDTopage/2025/" +
+	"BassinHydrographique/BassinHydrographique_"
 
 type featureCollection struct {
 	Features []struct {
@@ -58,24 +72,7 @@ func IngestBassins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, bassinsURL, ".zip")
-	if err != nil {
-		return fail(err)
-	}
-
-	gj, err := lireGeoJSONDuZip(f.Path)
-	if err != nil {
-		return fail(err)
-	}
-
-	var fc featureCollection
-	if err := json.Unmarshal(gj, &fc); err != nil {
-		return fail(err)
-	}
-	if len(fc.Features) == 0 {
-		return fail(fmt.Errorf("bassins hydrographiques : aucune entité dans le GeoJSON"))
-	}
-
+	total := map[string]int{}
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return fail(err)
@@ -84,19 +81,39 @@ func IngestBassins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	if _, err := tx.Exec(ctx, `DELETE FROM geo.contour_bassin`); err != nil {
 		return fail(err)
 	}
-	for _, feat := range fc.Features {
-		if _, err := tx.Exec(ctx, `
-			INSERT INTO geo.contour_bassin (code, nom, geom, source_id)
-			VALUES ($1, $2, ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON($3), 2154), 4326)), $4)`,
-			feat.Properties.CdBH, feat.Properties.LbBH, string(feat.Geometry), srcID); err != nil {
-			return fail(fmt.Errorf("bassin %s (%s) : %w", feat.Properties.CdBH, feat.Properties.LbBH, err))
+	for _, terr := range territoiresBassins {
+		url := bassinsURLBase + terr.SuffixeURL + "-geojson.zip"
+		f, err := arch.Fetch(ctx, srcID, runID, url, ".zip")
+		if err != nil {
+			return fail(fmt.Errorf("%s : %w", terr.SuffixeURL, err))
 		}
+		gj, err := lireGeoJSONDuZip(f.Path)
+		if err != nil {
+			return fail(fmt.Errorf("%s : %w", terr.SuffixeURL, err))
+		}
+		var fc featureCollection
+		if err := json.Unmarshal(gj, &fc); err != nil {
+			return fail(fmt.Errorf("%s : %w", terr.SuffixeURL, err))
+		}
+		if len(fc.Features) == 0 {
+			return fail(fmt.Errorf("%s : aucune entité dans le GeoJSON", terr.SuffixeURL))
+		}
+		for _, feat := range fc.Features {
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO geo.contour_bassin (code, nom, geom, srid_source, territoire, source_id)
+				VALUES ($1, $2, ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON($3), $4), 4326)), $4, $5, $6)`,
+				feat.Properties.CdBH, feat.Properties.LbBH, string(feat.Geometry),
+				terr.SRIDSource, terr.Code, srcID); err != nil {
+				return fail(fmt.Errorf("%s, bassin %s (%s) : %w", terr.SuffixeURL, feat.Properties.CdBH, feat.Properties.LbBH, err))
+			}
+		}
+		total[terr.Code] += len(fc.Features)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"bassins": len(fc.Features)}, "")
-	fmt.Printf("  bassins hydrographiques : %d bassins\n", len(fc.Features))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"metropole": total["metropole"], "outremer": total["outremer"]}, "")
+	fmt.Printf("  bassins hydrographiques : %d métropole, %d outre-mer\n", total["metropole"], total["outremer"])
 	return nil
 }
 

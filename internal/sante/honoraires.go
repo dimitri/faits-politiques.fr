@@ -102,10 +102,6 @@ func IngestHonoraires(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.medecin_honoraires`); err != nil {
-		return fail(err)
-	}
-
 	var rows [][]any
 	for _, l := range lignes {
 		annee, err := strconv.Atoi(l.Annee)
@@ -146,14 +142,61 @@ func IngestHonoraires(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		})
 	}
 
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "medecin_honoraires"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_medecin_honoraires (
+			annee smallint, profession_sante text, code_region text, libelle_region text,
+			code_departement text, libelle_departement text, hono_sans_depassement_total bigint,
+			depassements_total bigint, hono_sans_depassement_moyen bigint, depassements_moyen bigint,
+			taux_depassement_s2 numeric, taux_depassement_s2_optam numeric,
+			taux_depassement_s2_non_optam numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_medecin_honoraires"},
 		[]string{"annee", "profession_sante", "code_region", "libelle_region", "code_departement", "libelle_departement",
 			"hono_sans_depassement_total", "depassements_total", "hono_sans_depassement_moyen", "depassements_moyen",
 			"taux_depassement_s2", "taux_depassement_s2_optam", "taux_depassement_s2_non_optam", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("medecin_honoraires : %w", err))
 	}
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour l'intégralité de 2010-2024 à chaque republication, changement ou non.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.medecin_honoraires AS tgt
+		USING tmp_medecin_honoraires AS src
+		ON tgt.annee = src.annee AND tgt.profession_sante = src.profession_sante
+		   AND tgt.code_region = src.code_region AND tgt.code_departement = src.code_departement
+		WHEN MATCHED AND (tgt.libelle_region, tgt.libelle_departement, tgt.hono_sans_depassement_total,
+		                   tgt.depassements_total, tgt.hono_sans_depassement_moyen, tgt.depassements_moyen,
+		                   tgt.taux_depassement_s2, tgt.taux_depassement_s2_optam,
+		                   tgt.taux_depassement_s2_non_optam, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.libelle_region, src.libelle_departement, src.hono_sans_depassement_total,
+		                   src.depassements_total, src.hono_sans_depassement_moyen, src.depassements_moyen,
+		                   src.taux_depassement_s2, src.taux_depassement_s2_optam,
+		                   src.taux_depassement_s2_non_optam, src.source_id) THEN
+		    UPDATE SET libelle_region = src.libelle_region, libelle_departement = src.libelle_departement,
+		               hono_sans_depassement_total = src.hono_sans_depassement_total,
+		               depassements_total = src.depassements_total,
+		               hono_sans_depassement_moyen = src.hono_sans_depassement_moyen,
+		               depassements_moyen = src.depassements_moyen, taux_depassement_s2 = src.taux_depassement_s2,
+		               taux_depassement_s2_optam = src.taux_depassement_s2_optam,
+		               taux_depassement_s2_non_optam = src.taux_depassement_s2_non_optam, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, profession_sante, code_region, libelle_region, code_departement, libelle_departement,
+		            hono_sans_depassement_total, depassements_total, hono_sans_depassement_moyen,
+		            depassements_moyen, taux_depassement_s2, taux_depassement_s2_optam,
+		            taux_depassement_s2_non_optam, source_id)
+		    VALUES (src.annee, src.profession_sante, src.code_region, src.libelle_region, src.code_departement,
+		            src.libelle_departement, src.hono_sans_depassement_total, src.depassements_total,
+		            src.hono_sans_depassement_moyen, src.depassements_moyen, src.taux_depassement_s2,
+		            src.taux_depassement_s2_optam, src.taux_depassement_s2_non_optam, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion medecin_honoraires : %w", err))
+	}
+	n := ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)

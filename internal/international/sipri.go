@@ -143,19 +143,44 @@ func IngestSIPRIMilex(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.indicateur_mondial WHERE indicateur = 'SIPRI_DEPENSE_MILITAIRE_PIB'`); err != nil {
+
+	// MERGE plutôt que DELETE+COPY, sur une vue scopée à l'indicateur de CE
+	// connecteur : core.indicateur_mondial est partagée avec la Banque
+	// mondiale (pib_epargne_nette.go), l'OCDE (sante_ocde.go) et le commerce
+	// extra-UE (commerce_extra_eu.go), chacun sur ses propres codes.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_indicateur_mondial_sipri (
+			pays_code text, pays_label text, indicateur text, annee smallint, valeur numeric, source_id bigint
+		) ON COMMIT DROP;
+		CREATE OR REPLACE TEMPORARY VIEW indicateur_mondial_sipri AS
+		  SELECT * FROM core.indicateur_mondial WHERE indicateur = 'SIPRI_DEPENSE_MILITAIRE_PIB'
+		  WITH LOCAL CHECK OPTION`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "indicateur_mondial"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_indicateur_mondial_sipri"},
 		[]string{"pays_code", "pays_label", "indicateur", "annee", "valeur", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("indicateur_mondial (SIPRI) : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO indicateur_mondial_sipri AS tgt
+		USING tmp_indicateur_mondial_sipri AS src
+		ON tgt.pays_code = src.pays_code AND tgt.indicateur = src.indicateur AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.pays_label, tgt.valeur, tgt.source_id)
+		                  IS DISTINCT FROM (src.pays_label, src.valeur, src.source_id) THEN
+		    UPDATE SET pays_label = src.pays_label, valeur = src.valeur, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (pays_code, pays_label, indicateur, annee, valeur, source_id)
+		    VALUES (src.pays_code, src.pays_label, src.indicateur, src.annee, src.valeur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion indicateur_mondial (SIPRI) : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
-	fmt.Printf("  Dépense militaire, part du PIB (SIPRI) : %d lignes, 10 pays\n", n)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": touchees}, "")
+	fmt.Printf("  Dépense militaire, part du PIB (SIPRI) : %d lignes touchées, 10 pays\n", touchees)
 	return nil
 }

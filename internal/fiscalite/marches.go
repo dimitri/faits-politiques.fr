@@ -189,15 +189,55 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.marche_public_cible`); err != nil {
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_marche_public_cible (
+				uid text, titulaire_id text, titulaire_type_id text, titulaire_nom text, siren text,
+				groupe text, correspondance text, acheteur_id text, acheteur_nom text, acheteur_categorie text,
+				objet text, nature text, techniques text, procedure text, code_cpv text,
+				date_notification date, duree_mois numeric, montant_eur numeric, montant_rationalise numeric,
+				montant_anomalie text, source_decp text, document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "marche_public_cible"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_marche_public_cible"},
 			[]string{"uid", "titulaire_id", "titulaire_type_id", "titulaire_nom", "siren", "groupe", "correspondance",
 				"acheteur_id", "acheteur_nom", "acheteur_categorie", "objet", "nature", "techniques", "procedure", "code_cpv",
 				"date_notification", "duree_mois", "montant_eur", "montant_rationalise", "montant_anomalie", "source_decp", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `
+			MERGE INTO core.marche_public_cible AS tgt
+			USING tmp_marche_public_cible AS src
+			     ON tgt.uid = src.uid AND tgt.titulaire_id = src.titulaire_id AND tgt.groupe = src.groupe
+			WHEN MATCHED AND (tgt.titulaire_type_id, tgt.titulaire_nom, tgt.siren, tgt.correspondance,
+			                   tgt.acheteur_id, tgt.acheteur_nom, tgt.acheteur_categorie, tgt.objet, tgt.nature,
+			                   tgt.techniques, tgt.procedure, tgt.code_cpv, tgt.date_notification, tgt.duree_mois,
+			                   tgt.montant_eur, tgt.montant_rationalise, tgt.montant_anomalie, tgt.source_decp,
+			                   tgt.document_id)
+			     IS DISTINCT FROM (src.titulaire_type_id, src.titulaire_nom, src.siren, src.correspondance,
+			                        src.acheteur_id, src.acheteur_nom, src.acheteur_categorie, src.objet, src.nature,
+			                        src.techniques, src.procedure, src.code_cpv, src.date_notification, src.duree_mois,
+			                        src.montant_eur, src.montant_rationalise, src.montant_anomalie, src.source_decp,
+			                        src.document_id)
+			THEN UPDATE SET titulaire_type_id = src.titulaire_type_id, titulaire_nom = src.titulaire_nom,
+			     siren = src.siren, correspondance = src.correspondance, acheteur_id = src.acheteur_id,
+			     acheteur_nom = src.acheteur_nom, acheteur_categorie = src.acheteur_categorie, objet = src.objet,
+			     nature = src.nature, techniques = src.techniques, procedure = src.procedure, code_cpv = src.code_cpv,
+			     date_notification = src.date_notification, duree_mois = src.duree_mois, montant_eur = src.montant_eur,
+			     montant_rationalise = src.montant_rationalise, montant_anomalie = src.montant_anomalie,
+			     source_decp = src.source_decp, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			     INSERT (uid, titulaire_id, titulaire_type_id, titulaire_nom, siren, groupe, correspondance,
+			             acheteur_id, acheteur_nom, acheteur_categorie, objet, nature, techniques, procedure, code_cpv,
+			             date_notification, duree_mois, montant_eur, montant_rationalise, montant_anomalie,
+			             source_decp, document_id)
+			     VALUES (src.uid, src.titulaire_id, src.titulaire_type_id, src.titulaire_nom, src.siren, src.groupe,
+			             src.correspondance, src.acheteur_id, src.acheteur_nom, src.acheteur_categorie, src.objet,
+			             src.nature, src.techniques, src.procedure, src.code_cpv, src.date_notification, src.duree_mois,
+			             src.montant_eur, src.montant_rationalise, src.montant_anomalie, src.source_decp, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+			return nil, fmt.Errorf("fusion marche_public_cible : %w", err)
 		}
 		return map[string]any{"lignes_lues": lus, "marches_actuels": actuelles, "retenues": len(lignes),
 			"par_siren": par["SIREN"], "par_nom": par["NOM"], "par_objet": par["OBJET"]}, tx.Commit(ctx)

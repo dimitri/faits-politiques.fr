@@ -80,10 +80,6 @@ func IngestProtectionSociale(ctx context.Context, pool *pgxpool.Pool, arch *arch
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.protection_sociale`); err != nil {
-		return fail(err)
-	}
-
 	rows := make([][]any, 0, len(lignes))
 	var ignorees int
 	for _, l := range lignes {
@@ -112,14 +108,59 @@ func IngestProtectionSociale(ctx context.Context, pool *pgxpool.Pool, arch *arch
 		})
 	}
 
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "protection_sociale"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_protection_sociale (
+			annee smallint NOT NULL,
+			ps_niveau smallint NOT NULL,
+			ps_code text NOT NULL,
+			ps_libelle text NOT NULL,
+			risque text NOT NULL,
+			si_niveau smallint NOT NULL,
+			si_code text NOT NULL,
+			si_nom text NOT NULL,
+			regime text NOT NULL,
+			valeur_meur double precision NOT NULL,
+			perimetre text NOT NULL,
+			comptabilite text NOT NULL,
+			stade text NOT NULL,
+			source_id bigint NOT NULL,
+			document_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_protection_sociale"},
 		[]string{"annee", "ps_niveau", "ps_code", "ps_libelle", "risque",
 			"si_niveau", "si_code", "si_nom", "regime", "valeur_meur",
 			"perimetre", "comptabilite", "stade", "source_id", "document_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("DREES : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.protection_sociale AS tgt
+		USING tmp_protection_sociale AS src
+		ON tgt.annee = src.annee AND tgt.ps_code = src.ps_code
+			AND tgt.si_code = src.si_code AND tgt.regime = src.regime
+		WHEN MATCHED AND (tgt.ps_niveau, tgt.ps_libelle, tgt.risque, tgt.si_niveau, tgt.si_nom,
+				tgt.valeur_meur, tgt.perimetre, tgt.comptabilite, tgt.stade,
+				tgt.source_id, tgt.document_id)
+			IS DISTINCT FROM (src.ps_niveau, src.ps_libelle, src.risque, src.si_niveau, src.si_nom,
+				src.valeur_meur, src.perimetre, src.comptabilite, src.stade,
+				src.source_id, src.document_id) THEN
+			UPDATE SET ps_niveau = src.ps_niveau, ps_libelle = src.ps_libelle, risque = src.risque,
+				si_niveau = src.si_niveau, si_nom = src.si_nom, valeur_meur = src.valeur_meur,
+				perimetre = src.perimetre, comptabilite = src.comptabilite, stade = src.stade,
+				source_id = src.source_id, document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (annee, ps_niveau, ps_code, ps_libelle, risque, si_niveau, si_code, si_nom,
+				regime, valeur_meur, perimetre, comptabilite, stade, source_id, document_id)
+			VALUES (src.annee, src.ps_niveau, src.ps_code, src.ps_libelle, src.risque,
+				src.si_niveau, src.si_code, src.si_nom, src.regime, src.valeur_meur,
+				src.perimetre, src.comptabilite, src.stade, src.source_id, src.document_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("DREES, fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 
 	var annees int
 	var min, max int
@@ -133,7 +174,7 @@ func IngestProtectionSociale(ctx context.Context, pool *pgxpool.Pool, arch *arch
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"lignes": n, "annees": annees, "sans_valeur": ignorees}, "")
-	fmt.Printf("  DREES : %d lignes, %d millésimes de %d à %d (%d sans valeur, non chargées)\n",
+	fmt.Printf("  DREES : %d lignes touchées par la fusion, %d millésimes de %d à %d (%d sans valeur, non chargées)\n",
 		n, annees, min, max, ignorees)
 	return nil
 }

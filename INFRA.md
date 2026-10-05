@@ -178,7 +178,7 @@ l'empreinte, et ne consulte le disque que pour éviter de réécrire. C'est un r
 ## 9. Fonctionnement
 
 **Cycle de build.** Allumer la VM (API Scaleway ou `scw instance server start`),
-`fpctl ingest data`, `fpctl verify data`, `fpctl build site`,
+`fpctl ingest all`, `fpctl verify data`, `fpctl build site`,
 `rclone sync site/ scw:fp-site/`, `rclone sync raw/ scw:fp-archive/`, éteindre. Le tout
 scriptable en une commande, déclenchable depuis une machine tierce.
 

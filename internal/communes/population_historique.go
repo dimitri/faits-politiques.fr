@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/xuri/excelize/v2"
@@ -121,19 +122,47 @@ func IngestPopulationHistorique(ctx context.Context, pool *pgxpool.Pool, arch *a
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.population_historique_commune`); err != nil {
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_population_historique_commune (
+			code_insee text NOT NULL,
+			annee integer NOT NULL,
+			population bigint NOT NULL,
+			source_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "population_historique_commune"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_population_historique_commune"},
 		[]string{"code_insee", "annee", "population", "source_id"},
-		pgx.CopyFromRows(lignes))
-	if err != nil {
+		pgx.CopyFromRows(lignes)); err != nil {
 		return fail(fmt.Errorf("population_historique_commune : %w", err))
+	}
+	var n int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.population_historique_commune", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO core.population_historique_commune AS tgt
+			USING tmp_population_historique_commune AS src
+			ON tgt.code_insee = src.code_insee AND tgt.annee = src.annee
+			WHEN MATCHED AND (tgt.population, tgt.source_id)
+				IS DISTINCT FROM (src.population, src.source_id) THEN
+				UPDATE SET population = src.population, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+				INSERT (code_insee, annee, population, source_id)
+				VALUES (src.code_insee, src.annee, src.population, src.source_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return fmt.Errorf("population_historique_commune, fusion : %w", err)
+		}
+		n = ct.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return fail(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
-	fmt.Printf("  population historique par commune : %d lignes\n", n)
+	fmt.Printf("  population historique par commune : %d lignes touchées par la fusion\n", n)
 	return nil
 }

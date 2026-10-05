@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -72,15 +73,7 @@ func PromulgationDossiers(ctx context.Context, pool *pgxpool.Pool) error {
 	var total, avecTexte int64
 	_ = pool.QueryRow(ctx, `SELECT count(*), count(jo_texte_id) FROM core.dossier_promulgation`).
 		Scan(&total, &avecTexte)
-	fmt.Printf("  dossiers promulgués : %d rattachés à une référence NOR (%d inséré%s), "+
-		"%d retrouvés dans le corpus JORF chargé\n",
-		total, tag.RowsAffected(), plurielS(tag.RowsAffected()), avecTexte)
+	logs.Notice(fmt.Sprintf("%s linked to a NOR reference (%d inserted), %d found in the loaded JORF corpus",
+		logs.Plural(int(total), "bill"), tag.RowsAffected(), avecTexte))
 	return nil
-}
-
-func plurielS(n int64) string {
-	if n > 1 {
-		return "s"
-	}
-	return ""
 }

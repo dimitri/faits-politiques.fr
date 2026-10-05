@@ -91,18 +91,43 @@ func IngestFilosofiDeciles(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.filosofi_decile_national WHERE annee = $1`, annee); err != nil {
+
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire
+	// de la table, mais ne recharge qu'un seul millésime à la fois — une vue
+	// scopée sur cette année, comme internal/communes/ofgl.go, évite qu'un
+	// MERGE non scopé n'efface les millésimes précédents restés en base.
+	if _, err := tx.Exec(ctx, fmt.Sprintf(`
+		CREATE TEMP TABLE tmp_filosofi_decile_national (
+			annee smallint, decile smallint, niveau_vie_mensuel numeric, source_id bigint
+		) ON COMMIT DROP;
+		CREATE OR REPLACE TEMPORARY VIEW filosofi_decile_national_scope AS
+		  SELECT * FROM core.filosofi_decile_national WHERE annee = %d
+		  WITH LOCAL CHECK OPTION`, annee)); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "filosofi_decile_national"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_filosofi_decile_national"},
 		[]string{"annee", "decile", "niveau_vie_mensuel", "source_id"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(err)
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO filosofi_decile_national_scope AS tgt
+		USING tmp_filosofi_decile_national AS src
+		ON tgt.annee = src.annee AND tgt.decile = src.decile
+		WHEN MATCHED AND (tgt.niveau_vie_mensuel, tgt.source_id) IS DISTINCT FROM (src.niveau_vie_mensuel, src.source_id) THEN
+		    UPDATE SET niveau_vie_mensuel = src.niveau_vie_mensuel, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, decile, niveau_vie_mensuel, source_id)
+		    VALUES (src.annee, src.decile, src.niveau_vie_mensuel, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"deciles_charges": len(rows)}, "")
-	fmt.Printf("  Filosofi, déciles nationaux du niveau de vie : 9 points (%d)\n", annee)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"deciles_charges": len(rows), "touchees": n}, "")
+	fmt.Printf("  Filosofi, déciles nationaux du niveau de vie : 9 points (%d), %d touchés par la fusion\n", annee, n)
 	return nil
 }
 

@@ -293,35 +293,76 @@ func IngestEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	if _, err := tx.Exec(ctx, `DELETE FROM geo.contour_eptb_epage`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.Exec(ctx, `DELETE FROM core.eptb_epage_membre`); err != nil {
-		return fail(err)
-	}
-	if _, err := tx.Exec(ctx, `DELETE FROM core.eptb_epage`); err != nil {
-		return fail(err)
-	}
 
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_eptb_epage (
+			siren text, nom text, type text, nature_juridique text,
+			code_departement text, population_totale integer, nb_membres integer,
+			source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
 	groupementRows := make([][]any, 0, len(groupements))
 	for siren, g := range groupements {
 		groupementRows = append(groupementRows, []any{
 			siren, g.Nom, g.Type, g.NatureJuridique, g.CodeDepartement, g.PopulationTotale, g.NbMembres, srcID,
 		})
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "eptb_epage"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_eptb_epage"},
 		[]string{"siren", "nom", "type", "nature_juridique", "code_departement", "population_totale", "nb_membres", "source_id"},
 		pgx.CopyFromRows(groupementRows)); err != nil {
 		return fail(fmt.Errorf("core.eptb_epage : %w", err))
 	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO core.eptb_epage AS tgt
+		USING tmp_eptb_epage AS src ON tgt.siren = src.siren
+		WHEN MATCHED AND (tgt.nom, tgt.type, tgt.nature_juridique, tgt.code_departement,
+		                   tgt.population_totale, tgt.nb_membres, tgt.source_id)
+		     IS DISTINCT FROM (src.nom, src.type, src.nature_juridique, src.code_departement,
+		                        src.population_totale, src.nb_membres, src.source_id)
+		THEN UPDATE SET nom = src.nom, type = src.type, nature_juridique = src.nature_juridique,
+		     code_departement = src.code_departement, population_totale = src.population_totale,
+		     nb_membres = src.nb_membres, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (siren, nom, type, nature_juridique, code_departement, population_totale, nb_membres, source_id)
+		     VALUES (src.siren, src.nom, src.type, src.nature_juridique, src.code_departement,
+		             src.population_totale, src.nb_membres, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fail(fmt.Errorf("fusion core.eptb_epage : %w", err))
+	}
 
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_eptb_epage_membre (
+			eptb_siren text, membre_siren text, membre_nom text,
+			categorie text, commune_code text, population_membre integer
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
 	membreRows := make([][]any, 0, len(membres))
 	for _, m := range membres {
 		membreRows = append(membreRows, []any{
 			m.EPTBSiren, m.MembreSiren, m.MembreNom, m.Categorie, m.CommuneCode, m.PopulationMembre,
 		})
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "eptb_epage_membre"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_eptb_epage_membre"},
 		[]string{"eptb_siren", "membre_siren", "membre_nom", "categorie", "commune_code", "population_membre"},
 		pgx.CopyFromRows(membreRows)); err != nil {
 		return fail(fmt.Errorf("core.eptb_epage_membre : %w", err))
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO core.eptb_epage_membre AS tgt
+		USING tmp_eptb_epage_membre AS src
+		     ON tgt.eptb_siren = src.eptb_siren AND tgt.membre_siren = src.membre_siren
+		WHEN MATCHED AND (tgt.membre_nom, tgt.categorie, tgt.commune_code, tgt.population_membre)
+		     IS DISTINCT FROM (src.membre_nom, src.categorie, src.commune_code, src.population_membre)
+		THEN UPDATE SET membre_nom = src.membre_nom, categorie = src.categorie,
+		     commune_code = src.commune_code, population_membre = src.population_membre
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (eptb_siren, membre_siren, membre_nom, categorie, commune_code, population_membre)
+		     VALUES (src.eptb_siren, src.membre_siren, src.membre_nom, src.categorie,
+		             src.commune_code, src.population_membre)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		return fail(fmt.Errorf("fusion core.eptb_epage_membre : %w", err))
 	}
 
 	if _, err := tx.Exec(ctx, `

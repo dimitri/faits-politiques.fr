@@ -7,22 +7,23 @@ package dossiers
 // cadre ils s'inscrivent et ce qu'en ont conclu les institutions de contrôle.
 
 const (
-	urlHCFP2025        = "https://www.hcfp.fr/sites/default/files/2025-10/Avis%20HCFP%202025%20%E2%80%93%205%20PLF-PLFSS%202026_0.pdf"
-	urlCOR2025         = "https://www.cor-retraites.fr/sites/default/files/2025-06/Synth%C3%A8se_Def_.pdf"
-	urlHCC2025         = "https://www.hautconseilclimat.fr/wp-content/uploads/2025/07/HCC_RA_2025-VDEF0207_web.pdf"
-	urlUnedic2026      = "https://www.unedic.org/storage/uploads/2026/03/04/situation-financiere-assurance-chomage-a-horizon-2028_03-mars-2026_uid_69a7f392cd38b.pdf"
-	urlDDD2024         = "https://www.defenseurdesdroits.fr/sites/default/files/2025-03/ddd_rapport-annuel-2024_20250305.pdf"
-	urlSenatDefense    = "https://www.senat.fr/rap/l25-139-38/l25-139-38-syn.pdf"
-	urlSenatPouvoirs   = "https://www.senat.fr/rap/l25-139-322/l25-139-322-syn.pdf"
-	urlSenatEduc       = "https://www.senat.fr/rap/a25-144-31/a25-144-31-syn.pdf"
-	urlSenatSecu       = "https://www.senat.fr/rap/a25-145-12/a25-145-12-syn.pdf"
-	urlSenatImmig      = "https://www.senat.fr/rap/l25-139-315/l25-139-315_mono.html"
-	urlSenatSolid      = "https://www.senat.fr/rap/a25-142-5/a25-142-5-syn.pdf"
-	urlSenatPLFSS      = "https://www.senat.fr/lessentiel/plfss2026.pdf"
-	urlSenatEau        = "https://www.senat.fr/fileadmin/Office_et_delegations/Annexe_-_Essentiel_-_Les_53_propositions.pdf"
-	urlCPOPatrimoine   = "https://www.ccomptes.fr/sites/default/files/2025-12/20251201-Corriger-les-principales-distorsions-de-l-imposition-du-patrimoine.pdf"
-	urlVoiesMoyens2025 = "https://www2.assemblee-nationale.fr/static/17/Annexes-DL/PLF-2025/Voies_et_moyens_Tome_2_2025.pdf"
-	urlDGFiPEcartTVA   = "https://www.impots.gouv.fr/sites/default/files/media/9_statistiques/0_etudes_et_stats/0_publications/dgfip_analyses/2024/num07_09/dgfip_analyses_07_2024.pdf"
+	urlHCFP2025          = "https://www.hcfp.fr/sites/default/files/2025-10/Avis%20HCFP%202025%20%E2%80%93%205%20PLF-PLFSS%202026_0.pdf"
+	urlCOR2025           = "https://www.cor-retraites.fr/sites/default/files/2025-06/Synth%C3%A8se_Def_.pdf"
+	urlHCC2025           = "https://www.hautconseilclimat.fr/wp-content/uploads/2025/07/HCC_RA_2025-VDEF0207_web.pdf"
+	urlUnedic2026        = "https://www.unedic.org/storage/uploads/2026/03/04/situation-financiere-assurance-chomage-a-horizon-2028_03-mars-2026_uid_69a7f392cd38b.pdf"
+	urlDDD2024           = "https://www.defenseurdesdroits.fr/sites/default/files/2025-03/ddd_rapport-annuel-2024_20250305.pdf"
+	urlSenatDefense      = "https://www.senat.fr/rap/l25-139-38/l25-139-38-syn.pdf"
+	urlSenatPouvoirs     = "https://www.senat.fr/rap/l25-139-322/l25-139-322-syn.pdf"
+	urlSenatEduc         = "https://www.senat.fr/rap/a25-144-31/a25-144-31-syn.pdf"
+	urlSenatSecu         = "https://www.senat.fr/rap/a25-145-12/a25-145-12-syn.pdf"
+	urlSenatImmig        = "https://www.senat.fr/rap/l25-139-315/l25-139-315_mono.html"
+	urlSenatSolid        = "https://www.senat.fr/rap/a25-142-5/a25-142-5-syn.pdf"
+	urlSenatPLFSS        = "https://www.senat.fr/lessentiel/plfss2026.pdf"
+	urlSenatEau          = "https://www.senat.fr/fileadmin/Office_et_delegations/Annexe_-_Essentiel_-_Les_53_propositions.pdf"
+	urlCPOPatrimoine     = "https://www.ccomptes.fr/sites/default/files/2025-12/20251201-Corriger-les-principales-distorsions-de-l-imposition-du-patrimoine.pdf"
+	urlVoiesMoyens2025   = "https://www2.assemblee-nationale.fr/static/17/Annexes-DL/PLF-2025/Voies_et_moyens_Tome_2_2025.pdf"
+	urlDGFiPEcartTVA     = "https://www.impots.gouv.fr/sites/default/files/media/9_statistiques/0_etudes_et_stats/0_publications/dgfip_analyses/2024/num07_09/dgfip_analyses_07_2024.pdf"
+	urlDreesUrgences2023 = "https://drees.solidarites-sante.gouv.fr/publications-communique-de-presse/etudes-et-resultats/250319_ER_urgences-la-moitie-des-patients-y-restent-plus-de-trois-heures-en-2023"
 )
 
 // loi : un texte du Journal officiel chargé, relu par son intitulé.
@@ -199,6 +200,15 @@ func init() {
 			"La loi relative à l'organisation et à la transformation du système de santé",
 			"Loi d'organisation du système de santé, dont l'article 41 crée la plateforme des données de santé.",
 			"JORFTEXT000038821260", "41", "Plateforme des données de santé"),
+		Fait{ID: "drees-enquete-urgences-2023-duree", Dossier: "sante-donnees", Section: "CONTROLE", Theme: "enquête urgences", Type: "CONSTAT",
+			Date: "2025-03-19", Auteur: "Drees, Enquête Urgences 2023 (comparée à l'édition 2013)",
+			Intitule: "Aux urgences, la moitié des patients attendent plus de 3 heures en 2023, 45 minutes de plus qu'en 2013",
+			Constat: "Sur une journée moyenne de semaine dans près de 720 services d'urgence, la moitié des patients pris en charge y " +
+				"passent plus de 3 heures en 2023 contre 2h15 en 2013, et 15 % restent plus de 8 heures contre 9 % en 2013 — deux " +
+				"instantanés à dix ans d'écart, pas une série continue (l'enquête n'a lieu qu'une fois par décennie).",
+			URL: urlDreesUrgences2023, Qualite: "OFFICIEL",
+			Attendus: []string{"la moitié des personnes prises en charge aux urgences y passe plus de 3 heures, soit 45 minutes de plus qu'en 2013",
+				"15 % des patients passent plus de 8 heures aux urgences, contre 9 % en 2013"}},
 		loi("lfss-2024", "securite-sociale-donnees", "CADRE", "2023-12-26", "Parlement (loi n° 2023-1250)",
 			"La loi de financement de la sécurité sociale pour 2024",
 			"Exemple de loi annuelle qui fixe les objectifs de dépenses et les prévisions de recettes des branches de la Sécurité sociale.",

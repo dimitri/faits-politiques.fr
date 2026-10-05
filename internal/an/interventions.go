@@ -11,6 +11,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -105,13 +106,14 @@ func IngestInterventions(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	}
 	defer tx.Rollback(ctx)
 
-	for _, q := range []string{
-		`SET LOCAL work_mem = '256MB'`,
-		`DELETE FROM core.intervention WHERE institution = 'ASSEMBLEE_NATIONALE'`,
-	} {
-		if _, err := tx.Exec(ctx, q); err != nil {
-			return fail(err)
-		}
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_intervention (
+			slug text, institution core.institution, source_uid text, person_id bigint,
+			date_seance date, contenu text, legislature text, session text,
+			numero_seance text, ordre integer, role_debat text, instant_s numeric,
+			source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
 	}
 
 	var lot [][]any
@@ -122,7 +124,7 @@ func IngestInterventions(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		if len(lot) == 0 {
 			return nil
 		}
-		_, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "intervention"},
+		_, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_intervention"},
 			[]string{"slug", "institution", "source_uid", "person_id", "date_seance",
 				"contenu", "legislature", "session", "numero_seance", "ordre",
 				"role_debat", "instant_s", "source_id"},
@@ -186,13 +188,47 @@ func IngestInterventions(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(fmt.Errorf("copie des interventions : %w", err))
 	}
 
+	// MERGE plutôt que DELETE+COPY : cette table n'est wipée nulle part
+	// ailleurs (contrairement à core.amendement, remis à zéro sans condition
+	// par internal/an/normalize.go avant chaque renormalisation — un MERGE
+	// ici y survivrait sans rien changer), donc un id stable via MERGE tient
+	// d'un run à l'autre. dossier_id n'est jamais renseigné par ce
+	// connecteur (voir le commentaire de normalize.go : rien ne l'affecte
+	// aujourd'hui hormis la remise à NULL) : l'UPDATE ne le touche pas, il
+	// garde sa valeur actuelle.
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO core.intervention AS tgt
+		USING tmp_intervention AS src
+		ON tgt.institution = src.institution AND tgt.source_uid = src.source_uid
+		WHEN MATCHED AND (tgt.slug, tgt.person_id, tgt.date_seance, tgt.contenu,
+		                   tgt.legislature, tgt.session, tgt.numero_seance, tgt.ordre,
+		                   tgt.role_debat, tgt.instant_s, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.slug, src.person_id, src.date_seance, src.contenu,
+		                   src.legislature, src.session, src.numero_seance, src.ordre,
+		                   src.role_debat, src.instant_s, src.source_id) THEN
+		    UPDATE SET
+		      slug = src.slug, person_id = src.person_id, date_seance = src.date_seance,
+		      contenu = src.contenu, legislature = src.legislature, session = src.session,
+		      numero_seance = src.numero_seance, ordre = src.ordre,
+		      role_debat = src.role_debat, instant_s = src.instant_s, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (slug, institution, source_uid, person_id, date_seance, contenu,
+		            legislature, session, numero_seance, ordre, role_debat, instant_s, source_id)
+		    VALUES (src.slug, src.institution, src.source_uid, src.person_id, src.date_seance,
+		            src.contenu, src.legislature, src.session, src.numero_seance, src.ordre,
+		            src.role_debat, src.instant_s, src.source_id)
+		WHEN NOT MATCHED BY SOURCE AND tgt.institution = 'ASSEMBLEE_NATIONALE' THEN DELETE`); err != nil {
+		return fail(fmt.Errorf("fusion des interventions : %w", err))
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"interventions": n, "seances": seances, "sans_acteur": sansActeur}, "")
-	fmt.Printf("  interventions  %d sur %d séances (%d orateurs hors Assemblée)\n",
-		n, seances, sansActeur)
+	logs.Notice(fmt.Sprintf("%s across %s (%d speakers outside the Assembly)",
+		logs.Plural(n, "floor speech"), logs.Plural(seances, "sitting"), sansActeur))
 	return nil
 }
 

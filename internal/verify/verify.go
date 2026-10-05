@@ -11,8 +11,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"os"
+	"log/slog"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 )
 
@@ -1073,6 +1074,35 @@ var checks = []check{
 		           AND etp_total < etp_enseignants - 0.5`,
 	},
 	{
+		name:  "les personnels non enseignants par catégorie couvrent les 18 lignes attendues",
+		query: `SELECT count(*) FROM core.education_personnel_categorie WHERE annee = 2024`,
+		min:   18,
+	},
+	{
+		// Chaque sous-total (déjà revérifié à l'ingestion contre ses
+		// composantes) doit rester cohérent au moment de la lecture aussi —
+		// une seconde vérification indépendante du calcul fait par le
+		// connecteur, comme pour le compte de résultat des hôpitaux publics.
+		name: "le total des personnels non enseignants reste la somme de ses quatre grandes filières",
+		query: `SELECT count(*) FROM (
+		          SELECT
+		            (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='NON_ENSEIGNANTS_TOTAL') AS total,
+		            (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='ENCADREMENT_TOTAL')
+		            + (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='VIE_SCOLAIRE_TOTAL')
+		            + (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='ASS_TOTAL')
+		            + (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='ITRF') AS somme
+		        ) x WHERE total IS DISTINCT FROM somme`,
+	},
+	{
+		name: "AESH et AED s'additionnent exactement au total assistance éducative",
+		query: `SELECT count(*) FROM (
+		          SELECT
+		            (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='ASSISTANCE_EDUCATIVE_TOTAL') AS total,
+		            (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='AESH')
+		            + (SELECT effectif FROM core.education_personnel_categorie WHERE annee=2024 AND categorie='AED') AS somme
+		        ) x WHERE total IS DISTINCT FROM somme`,
+	},
+	{
 		name:  "le référentiel FINESS couvre au moins 100 000 établissements",
 		query: `SELECT count(*) FROM ref.finess_etablissement`,
 		min:   100000,
@@ -1104,21 +1134,40 @@ var checks = []check{
 	},
 	{
 		name:  "les sept bassins hydrographiques métropolitains sont chargés",
-		query: `SELECT count(*) FROM geo.contour_bassin`,
+		query: `SELECT count(*) FROM geo.contour_bassin WHERE territoire = 'metropole'`,
 		min:   7,
+	},
+	{
+		name:  "les deux bassins d'outre-mer disponibles (Martinique, Mayotte) sont chargés",
+		query: `SELECT count(*) FROM geo.contour_bassin WHERE territoire = 'outremer'`,
+		min:   2,
 	},
 	{
 		name:  "tous les contours de bassin sont des géométries valides",
 		query: `SELECT count(*) FROM geo.contour_bassin WHERE NOT ST_IsValid(geom)`,
 	},
 	{
-		// La somme des 7 bassins doit rester dans l'ordre de grandeur de la
-		// superficie de la France métropolitaine (543 940 km²) — un écart
-		// large signalerait une reprojection Lambert-93/WGS84 ratée.
-		name: "la surface totale des bassins reste dans l'ordre de grandeur de la métropole",
+		// La somme des 7 bassins métropolitains doit rester dans l'ordre de
+		// grandeur de la superficie de la France métropolitaine
+		// (543 940 km²) — un écart large signalerait une reprojection
+		// Lambert-93/WGS84 ratée. Filtré à la métropole : les bassins
+		// d'outre-mer, avec leur propre SRID, n'ont pas leur place dans
+		// cette même vérification (voir la probe dédiée juste après).
+		name: "la surface totale des bassins métropolitains reste dans l'ordre de grandeur de la métropole",
 		query: `SELECT count(*) FROM (
 		          SELECT sum(ST_Area(geom::geography)) / 1e6 AS km2 FROM geo.contour_bassin
+		          WHERE territoire = 'metropole'
 		        ) x WHERE km2 NOT BETWEEN 450000 AND 650000`,
+	},
+	{
+		// Martinique (≈ 1 128 km²) et Mayotte (≈ 374 km²) réunis : un écart
+		// large signalerait la même erreur de reprojection que ci-dessus,
+		// mais sur les SRID ultramarins (5490, 4471) cette fois.
+		name: "la surface des deux bassins d'outre-mer reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT sum(ST_Area(geom::geography)) / 1e6 AS km2 FROM geo.contour_bassin
+		          WHERE territoire = 'outremer'
+		        ) x WHERE km2 NOT BETWEEN 500 AND 3000`,
 	},
 	{
 		name:  "au moins 15 des grands cours d'eau retenus sont chargés",
@@ -1138,25 +1187,112 @@ var checks = []check{
 		query: `SELECT count(*) FROM geo.cours_eau WHERE NOT (geom && ST_MakeEnvelope(-5.5, 41, 9.7, 51.5, 4326))`,
 	},
 	{
-		name:  "le personnel SAE couvre au moins 3 000 établissements",
-		query: `SELECT count(*) FROM core.sae_personnel_fonction`,
-		min:   3000,
+		name:  "au moins 5 000 sous-bassins versants topographiques sont chargés",
+		query: `SELECT count(*) FROM geo.contour_sous_bassin`,
+		min:   5000,
 	},
 	{
-		// Un établissement ne doit apparaître qu'une fois : le fichier source
-		// publie une ligne par discipline PLUS un total (discipline 9999) —
-		// seul ce total est chargé (internal/sante/sae.go). Un doublon
-		// signalerait qu'une ligne de détail s'est glissée à côté du total.
-		name:  "chaque établissement SAE n'apparaît qu'une fois",
-		query: `SELECT count(*) FROM (SELECT nofinesset FROM core.sae_personnel_fonction GROUP BY 1 HAVING count(*) > 1) x`,
+		// Chaque sous-bassin doit se rattacher à l'un des 7 grands bassins
+		// déjà chargés : un code orphelin signalerait un décalage entre les
+		// deux millésimes Sandre.
+		name: "chaque sous-bassin se rattache à un grand bassin connu",
+		query: `SELECT count(*) FROM geo.contour_sous_bassin sb
+		        WHERE NOT EXISTS (SELECT 1 FROM geo.contour_bassin b WHERE b.code = sb.code_bassin)`,
+	},
+	{
+		name:  "assainissement : au moins 5 000 communes chargées (collectif + non collectif)",
+		query: `SELECT count(*) FROM core.service_assainissement`,
+		min:   5000,
+	},
+	{
+		name:  "budget annexe eau (M49) : au moins 150 000 lignes chargées",
+		query: `SELECT count(*) FROM core.budget_annexe_eau`,
+		min:   150000,
+	},
+	{
+		// Le total 2023 (communes + EPCI, dépenses totales) doit rester dans
+		// un ordre de grandeur plausible pour le secteur eau/assainissement
+		// français porté par le public — 6,6 Md€ mesuré à l'inspection : un
+		// écart large signalerait un mélange d'agrégat (ex. un agrégat par
+		// habitant confondu avec un montant total).
+		name: "le total 2023 du budget annexe eau reste dans un ordre de grandeur plausible",
+		query: `SELECT count(*) FROM (
+		          SELECT sum(montant_eur) AS total FROM core.budget_annexe_eau
+		          WHERE annee = 2023 AND agregat = 'DEPENSES_TOTALES'
+		        ) x WHERE total NOT BETWEEN 3e9 AND 20e9`,
+	},
+	{
+		name:  "budget annexe eau : le type de collectivité ne contient que des valeurs connues",
+		query: `SELECT count(*) FROM core.budget_annexe_eau WHERE type_collectivite NOT IN ('COMMUNE','EPCI')`,
+	},
+	{
+		name: "le personnel SAE couvre au moins 3 000 établissements par exercice, sur au moins 10 exercices",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, count(*) AS n FROM core.sae_personnel_fonction GROUP BY annee HAVING count(*) >= 3000
+		        ) x`,
+		min: 10,
+	},
+	{
+		// Un établissement ne doit apparaître qu'une fois PAR EXERCICE : le
+		// fichier source publie une ligne par discipline PLUS un total
+		// (discipline 9999) — seul ce total est chargé (internal/sante/sae.go),
+		// et la table couvre maintenant plusieurs années (2013-2024, sauf
+		// 2020). Un doublon sur (nofinesset, annee) signalerait qu'une ligne
+		// de détail s'est glissée à côté du total.
+		name:  "chaque établissement SAE n'apparaît qu'une fois par exercice",
+		query: `SELECT count(*) FROM (SELECT nofinesset, annee FROM core.sae_personnel_fonction GROUP BY 1,2 HAVING count(*) > 1) x`,
 	},
 	{
 		// Le total national de personnel non médical hospitalier est de
-		// l'ordre du million — un multiple de ce nombre signalerait le retour
-		// du bug de double comptage par discipline déjà rencontré une fois.
-		name: "le total national de personnel SAE reste dans un ordre de grandeur plausible",
-		query: `SELECT count(*) FROM (SELECT sum(etp_total_pnm) AS t FROM core.sae_personnel_fonction) x
-		         WHERE t NOT BETWEEN 700000 AND 1500000`,
+		// l'ordre du million, CHAQUE ANNÉE — un multiple de ce nombre
+		// signalerait le retour du bug de double comptage par discipline déjà
+		// rencontré une fois, ou un mélange d'exercices dans la même somme.
+		name: "le total annuel de personnel SAE reste dans un ordre de grandeur plausible, chaque exercice",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sum(etp_total_pnm) AS t FROM core.sae_personnel_fonction GROUP BY annee
+		        ) x WHERE t NOT BETWEEN 700000 AND 1500000`,
+	},
+	{
+		name:  "les passages aux urgences (SAE) couvrent au moins 10 exercices, 2013-2024",
+		query: `SELECT count(DISTINCT annee) FROM core.sae_urgences_passages`,
+		min:   10,
+	},
+	{
+		// Le total national de passages aux urgences est de l'ordre de
+		// 18 à 23 millions par an sur la période — un écart large
+		// signalerait une colonne différente de PASSU ou un mélange
+		// d'exercices dans la même somme.
+		name: "le total annuel de passages aux urgences reste dans un ordre de grandeur plausible, chaque exercice",
+		query: `SELECT count(*) FROM (
+		          SELECT annee, sum(passages) AS t FROM core.sae_urgences_passages GROUP BY annee
+		        ) x WHERE t NOT BETWEEN 15000000 AND 26000000`,
+	},
+	{
+		name:  "type_urgence (SAE) ne contient que des valeurs connues",
+		query: `SELECT count(*) FROM core.sae_urgences_passages WHERE type_urgence NOT IN ('GEN','PED','AMU')`,
+	},
+	{
+		name:  "le compte de résultat des hôpitaux publics couvre au moins 15 exercices, sur les quatre indicateurs",
+		query: `SELECT count(DISTINCT annee) FROM core.hopital_public_resultat`,
+		min:   15,
+	},
+	{
+		// Vérifié à l'ingestion (chargerCompteResultat), revérifié ici :
+		// résultat net = exploitation + financier + exceptionnel, à l'arrondi
+		// près (la source arrondit chaque indicateur séparément).
+		name: "résultat net des hôpitaux publics = exploitation + financier + exceptionnel, à l'arrondi près",
+		query: `SELECT count(*) FROM (
+		          SELECT annee,
+		                 sum(montant_meur) FILTER (WHERE indicateur IN
+		                   ('RESULTAT_EXPLOITATION','RESULTAT_FINANCIER','RESULTAT_EXCEPTIONNEL')) AS somme_3,
+		                 max(montant_meur) FILTER (WHERE indicateur = 'RESULTAT_NET') AS net
+		          FROM core.hopital_public_resultat GROUP BY annee
+		        ) x WHERE abs(somme_3 - net) > 2`,
+	},
+	{
+		name:  "le déficit par catégorie d'hôpitaux publics couvre au moins 8 catégories",
+		query: `SELECT count(DISTINCT categorie) FROM core.hopital_public_deficit_categorie`,
+		min:   8,
 	},
 	{
 		// Une tranche de pension ou de chômage manquante décale silencieusement
@@ -1672,7 +1808,7 @@ var checks = []check{
 		// hors la ligne pseudo-département "999" (totaux déjà agrégés), les
 		// généralistes doivent couvrir les 101 départements sans exception —
 		// c'est précisément ce qui a fait préférer cette source au RPPS pour
-		// la carte de densité (cmd/build/territoires.go).
+		// la carte de densité (internal/sitegen/territoires.go).
 		name: "les généralistes du secteur conventionnel couvrent les 101 départements, chaque exercice depuis 2013",
 		query: `SELECT count(*) FROM (
 		          SELECT annee, count(DISTINCT code_departement) AS nb
@@ -1950,11 +2086,14 @@ var checks = []check{
 		        WHERE mode_gestion IS NOT NULL AND mode_gestion NOT IN ('REGIE','DELEGATION')`,
 	},
 	{
-		// Une aide à zéro ou négative trahirait une erreur de colonne (par
-		// exemple un taux en % lu à la place du montant en €) plutôt qu'une
-		// vraie décision d'aide.
-		name: "les aides des agences de l'eau ont toutes un montant strictement positif",
-		query: `SELECT count(*) FROM core.aide_agence_eau WHERE montant_eur <= 0`,
+		// Une aide négative trahirait une erreur de colonne (par exemple un
+		// taux en % lu à la place du montant en €) plutôt qu'une vraie
+		// décision d'aide. Un montant à zéro, en revanche, existe réellement
+		// dans le fichier Rhin-Meuse : 40 dossiers « Soldé » à 0 € (vérifié
+		// à l'inspection, voir SourceAidesRhinMeuse.Notes) — pas une erreur
+		// de chargement, donc pas rejeté ici.
+		name:  "les aides des agences de l'eau n'ont jamais un montant négatif",
+		query: `SELECT count(*) FROM core.aide_agence_eau WHERE montant_eur < 0`,
 	},
 	{
 		// Le total annuel Loire-Bretagne (le plus gros des deux bassins
@@ -1968,15 +2107,24 @@ var checks = []check{
 		        ) x WHERE total NOT BETWEEN 50e6 AND 700e6`,
 	},
 	{
+		name:  "au moins 35 000 aides Rhin-Meuse sont chargées",
+		query: `SELECT count(*) FROM core.aide_agence_eau WHERE agence = 'RHIN_MEUSE'`,
+		min:   35000,
+	},
+	{
+		name:  "aide_agence_eau.agence ne contient que des valeurs connues",
+		query: `SELECT count(*) FROM core.aide_agence_eau WHERE agence NOT IN ('LOIRE_BRETAGNE','ARTOIS_PICARDIE','RHIN_MEUSE')`,
+	},
+	{
 		// Chaque EPTB/EPAGE affiché sur la carte doit avoir un contour
 		// géométrique réel : un contour reconstruit sans membre résolu
 		// n'aurait jamais dû être inséré (garde HAVING count(g.geom)>0 côté
 		// connecteur) — ce contrôle vérifie que ça reste vrai.
-		name: "tout contour EPTB/EPAGE reconstruit couvre au moins un membre",
+		name:  "tout contour EPTB/EPAGE reconstruit couvre au moins un membre",
 		query: `SELECT count(*) FROM geo.contour_eptb_epage WHERE nb_membres_resolus = 0`,
 	},
 	{
-		name: "le type EPTB/EPAGE ne contient que des valeurs connues",
+		name:  "le type EPTB/EPAGE ne contient que des valeurs connues",
 		query: `SELECT count(*) FROM core.eptb_epage WHERE type NOT IN ('EPTB','EPAGE','EPTB_EPAGE')`,
 	},
 	{
@@ -1984,14 +2132,14 @@ var checks = []check{
 		// rester vrai dans les données chargées : une ligne en dessous
 		// trahirait une erreur de colonne ou un fichier différent de celui
 		// documenté.
-		name: "IFICOM : chaque commune publiée dépasse bien le seuil de 50 redevables",
+		name:  "IFICOM : chaque commune publiée dépasse bien le seuil de 50 redevables",
 		query: `SELECT count(*) FROM core.ifi_commune WHERE nombre_redevables <= 50`,
 	},
 	{
 		// Le patrimoine moyen des redevables IFI d'une commune ne peut pas
 		// être inférieur au seuil d'assujettissement (1,3 M€) : ce serait la
 		// preuve d'une colonne mélangée avec une autre valeur.
-		name: "IFICOM : le patrimoine moyen par commune reste au-dessus du seuil d'assujettissement",
+		name:  "IFICOM : le patrimoine moyen par commune reste au-dessus du seuil d'assujettissement",
 		query: `SELECT count(*) FROM core.ifi_commune WHERE patrimoine_moyen_eur < 1300000`,
 	},
 	{
@@ -2076,7 +2224,7 @@ var checks = []check{
 	},
 	{
 		// Reproduit ici la normalisation (accents, apostrophes typographiques)
-		// et les six alias appliqués par cmd/build/francophonie.go, pour
+		// et les six alias appliqués par internal/sitegen/francophonie.go, pour
 		// vérifier le taux de rattachement réel plutôt qu'un plancher
 		// arbitraire — si ce nombre baisse, le rendu de la carte a
 		// probablement le même problème.
@@ -2141,7 +2289,7 @@ var checks = []check{
 		min:   2000,
 	},
 	{
-		// La carte (cmd/build/logement.go) joint core.sru_commune à
+		// La carte (internal/sitegen/logement.go) joint core.sru_commune à
 		// geo.contour_cog par code Insee, avec un repli par nom pour les
 		// quelques communes nouvelles dont le code diverge entre les deux
 		// sources. Si ce repli devient ambigu (plusieurs communes de même
@@ -2308,41 +2456,47 @@ var checks = []check{
 var ErrAnomalies = errors.New("des anomalies ont été trouvées")
 
 // Run exécute la commande verify. Ne prend aucune option ; args n'existe que
-// pour l'uniformité avec les autres commandes routées par fpctl.
-func Run(args []string) error {
+// pour l'uniformité avec les autres commandes routées par fpctl. ctx est
+// celui de fpctl (cmd.Context()), déjà annulé au premier signal — un
+// Ctrl-C pendant les contrôles interrompt la requête en cours plutôt que
+// d'attendre qu'elle se termine.
+func Run(ctx context.Context, args []string) error {
 	if len(args) > 0 {
 		return fmt.Errorf("verify ne prend aucune option (%q inattendu)", args[0])
 	}
-	ctx := context.Background()
 	pool, err := store.Open(ctx)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 
+	logs.Notice("running " + logs.Plural(len(checks), "consistency check"))
 	failed := false
 	for _, c := range checks {
 		var n int
 		if err := pool.QueryRow(ctx, c.query).Scan(&n); err != nil {
-			fmt.Fprintf(os.Stderr, "  ECHEC  %s : %v\n", c.name, err)
+			slog.Error("contrôle en échec", "controle", c.name, "erreur", err)
 			failed = true
 			continue
 		}
 		switch {
 		case c.min > 0 && n < c.min:
-			fmt.Fprintf(os.Stderr, "  ECHEC  %s : %d (minimum attendu %d)\n", c.name, n, c.min)
+			slog.Error("contrôle en échec", "controle", c.name, "valeur", n, "minimum_attendu", c.min)
 			failed = true
 		case c.min == 0 && n != 0:
-			fmt.Fprintf(os.Stderr, "  ECHEC  %s : %d anomalie(s)\n", c.name, n)
+			slog.Error("contrôle en échec", "controle", c.name, "anomalies", n)
 			failed = true
 		default:
-			fmt.Printf("  ok     %s\n", c.name)
+			// 293 contrôles et grandissant : un par un à INFO (le détail
+			// pour qui cherche lequel a tourné), le compte à NOTICE ci-
+			// dessus et ci-dessous est le jalon qui compte par défaut.
+			slog.Info("contrôle ok", "controle", c.name)
 		}
 	}
 	if failed {
-		fmt.Fprintln(os.Stderr, "\nPublication bloquée : les données chargées ne concordent pas.")
+		slog.Error("publication bloquée : les données chargées ne concordent pas")
 		return ErrAnomalies
 	}
-	fmt.Println("\ncohérence vérifiée")
+	logs.Notice(logs.Plural(len(checks), "consistency check") + " passed")
 	return nil
 }

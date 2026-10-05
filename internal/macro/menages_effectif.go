@@ -122,22 +122,44 @@ func IngestMenagesEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	defer tx.Rollback(ctx)
 
 	const annee = 2023
-	if _, err := tx.Exec(ctx, `DELETE FROM core.menage_type_effectif WHERE annee = $1`, annee); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_menage_type_effectif (
+			type_menage text, annee int, nb_menages bigint, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 	var rows [][]any
 	for typ, v := range nb {
 		rows = append(rows, []any{typ, annee, int64(v), srcID})
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "menage_type_effectif"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_menage_type_effectif"},
 		[]string{"type_menage", "annee", "nb_menages", "source_id"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(err)
 	}
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table, qui ne porte jamais qu'un seul millésime à la fois (celui de la
+	// constante annee) — l'ancien DELETE scopé par année payait le prix des
+	// triggers RI pour l'intégralité des types de ménage à chaque republication.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.menage_type_effectif AS tgt
+		USING tmp_menage_type_effectif AS src
+		ON tgt.type_menage = src.type_menage AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.nb_menages, tgt.source_id) IS DISTINCT FROM (src.nb_menages, src.source_id) THEN
+		    UPDATE SET nb_menages = src.nb_menages, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (type_menage, annee, nb_menages, source_id)
+		    VALUES (src.type_menage, src.annee, src.nb_menages, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"types_charges": len(rows)}, "")
-	fmt.Printf("  effectifs de ménages par type : %d types (Insee RP 2023)\n", len(rows))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"types_charges": len(rows), "touchees": touchees}, "")
+	fmt.Printf("  effectifs de ménages par type : %d types (Insee RP 2023), %d touchées par la fusion\n",
+		len(rows), touchees)
 	return nil
 }
 

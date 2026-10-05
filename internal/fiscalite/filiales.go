@@ -442,13 +442,37 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			return nil, err
 		}
 		defer tx.Rollback(ctx)
-		if _, err := tx.Exec(ctx, `DELETE FROM core.entreprise_comptes`); err != nil {
+		if _, err := tx.Exec(ctx, `
+			CREATE TEMP TABLE tmp_entreprise_comptes (
+				siren text, date_cloture date, type_bilan text, chiffre_affaires numeric,
+				ebe numeric, resultat_courant_ai numeric, resultat_net numeric,
+				confidentialite text, document_id bigint
+			) ON COMMIT DROP`); err != nil {
 			return nil, err
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "entreprise_comptes"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_entreprise_comptes"},
 			[]string{"siren", "date_cloture", "type_bilan", "chiffre_affaires", "ebe", "resultat_courant_ai", "resultat_net", "confidentialite", "document_id"},
 			pgx.CopyFromRows(lignes)); err != nil {
 			return nil, err
+		}
+		if _, err := tx.Exec(ctx, `
+			MERGE INTO core.entreprise_comptes AS tgt
+			USING tmp_entreprise_comptes AS src
+			     ON tgt.siren = src.siren AND tgt.date_cloture = src.date_cloture AND tgt.type_bilan = src.type_bilan
+			WHEN MATCHED AND (tgt.chiffre_affaires, tgt.ebe, tgt.resultat_courant_ai, tgt.resultat_net,
+			                   tgt.confidentialite, tgt.document_id)
+			     IS DISTINCT FROM (src.chiffre_affaires, src.ebe, src.resultat_courant_ai, src.resultat_net,
+			                        src.confidentialite, src.document_id)
+			THEN UPDATE SET chiffre_affaires = src.chiffre_affaires, ebe = src.ebe,
+			     resultat_courant_ai = src.resultat_courant_ai, resultat_net = src.resultat_net,
+			     confidentialite = src.confidentialite, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			     INSERT (siren, date_cloture, type_bilan, chiffre_affaires, ebe, resultat_courant_ai,
+			             resultat_net, confidentialite, document_id)
+			     VALUES (src.siren, src.date_cloture, src.type_bilan, src.chiffre_affaires, src.ebe,
+			             src.resultat_courant_ai, src.resultat_net, src.confidentialite, src.document_id)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+			return nil, fmt.Errorf("fusion entreprise_comptes : %w", err)
 		}
 		return map[string]any{"sirens": len(sirens), "comptes": len(lignes)}, tx.Commit(ctx)
 	})

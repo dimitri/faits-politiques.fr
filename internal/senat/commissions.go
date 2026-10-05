@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -155,8 +156,8 @@ func IngestCommissions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"appartenances": res.RowsAffected(), "organes": len(organes),
 		"sans_personne": sansPersonne}, "")
-	fmt.Printf("  commissions du Sénat : %d appartenances sur %d organes (%d sans sénateur connu)\n",
-		res.RowsAffected(), len(organes), sansPersonne)
+	logs.Notice(fmt.Sprintf("Senate committees: %s across %s, %d without a known senator",
+		logs.Plural(int(res.RowsAffected()), "affiliation"), logs.Plural(len(organes), "body"), sansPersonne))
 	return nil
 }
 

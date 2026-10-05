@@ -65,40 +65,70 @@ func IngestChomageUnedic(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	}
 	defer x.Close()
 
-	tx, err := pool.Begin(ctx)
-	if err != nil {
-		return fail(err)
-	}
-	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.chomage_tranche_unedic`); err != nil {
-		return fail(err)
-	}
-
-	var trimestresCharges, lignesTotal, rejetFeuille int
+	var toutesLignes [][]any
+	var trimestresCharges, rejetFeuille int
 	for _, feuille := range x.sheetNames() {
 		if !reFeuilleTranches.MatchString(feuille) || !strings.Contains(strings.ToLower(feuille), "montant") {
 			continue
 		}
-		n, err := chargerFeuilleUnedic(ctx, tx, x, feuille, srcID)
+		rows, err := chargerFeuilleUnedic(x, feuille)
 		if err != nil {
 			rejetFeuille++
 			continue
 		}
+		for _, r := range rows {
+			toutesLignes = append(toutesLignes, append(r, srcID))
+		}
 		trimestresCharges++
-		lignesTotal += n
 	}
 	if trimestresCharges == 0 {
 		return fail(fmt.Errorf("aucune feuille de tranches reconnue sur %d feuilles", len(x.sheetNames())))
 	}
 
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return fail(err)
+	}
+	defer tx.Rollback(ctx)
+
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
+	// connecteur en est l'unique propriétaire) payait le prix des triggers RI
+	// pour tous les trimestres à chaque republication, changement ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_chomage_tranche_unedic (
+			date_reference date, tranche_min int, tranche_max int, effectif int, pct numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_chomage_tranche_unedic"},
+		[]string{"date_reference", "tranche_min", "tranche_max", "effectif", "pct", "source_id"},
+		pgx.CopyFromRows(toutesLignes)); err != nil {
+		return fail(fmt.Errorf("core.chomage_tranche_unedic : %w", err))
+	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.chomage_tranche_unedic AS tgt
+		USING tmp_chomage_tranche_unedic AS src
+		ON tgt.date_reference = src.date_reference AND tgt.tranche_min = src.tranche_min
+		WHEN MATCHED AND (tgt.tranche_max, tgt.effectif, tgt.pct, tgt.source_id)
+		                  IS DISTINCT FROM (src.tranche_max, src.effectif, src.pct, src.source_id) THEN
+		    UPDATE SET tranche_max = src.tranche_max, effectif = src.effectif,
+		               pct = src.pct, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (date_reference, tranche_min, tranche_max, effectif, pct, source_id)
+		    VALUES (src.date_reference, src.tranche_min, src.tranche_max, src.effectif, src.pct, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"trimestres_charges": trimestresCharges, "lignes_chargees": lignesTotal,
-			"rejet_feuille_non_reconnue": rejetFeuille}, "")
-	fmt.Printf("  répartition par tranche d'indemnisation : %d trimestres, %d lignes (Unédic)\n",
-		trimestresCharges, lignesTotal)
+		map[string]any{"trimestres_charges": trimestresCharges, "lignes_chargees": len(toutesLignes),
+			"rejet_feuille_non_reconnue": rejetFeuille, "touchees": touchees}, "")
+	fmt.Printf("  répartition par tranche d'indemnisation : %d trimestres, %d lignes (Unédic), %d touchées par la fusion\n",
+		trimestresCharges, len(toutesLignes), touchees)
 	return nil
 }
 
@@ -108,13 +138,13 @@ func IngestChomageUnedic(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 // trimestres). La colonne « Ensemble Assurance chômage » n'est pas à position
 // fixe : son nombre de sous-allocations a changé (ADM ajouté en 2023), donc sa
 // colonne. On la retrouve par en-tête plutôt que par lettre.
-func chargerFeuilleUnedic(ctx context.Context, tx pgx.Tx, x *xlsxFile, feuille string, srcID int64) (int, error) {
+func chargerFeuilleUnedic(x *xlsxFile, feuille string) ([][]any, error) {
 	lignes, err := x.rows(feuille)
 	if err != nil {
-		return 0, err
+		return nil, err
 	}
 	if len(lignes) < 4 {
-		return 0, fmt.Errorf("feuille %q trop courte", feuille)
+		return nil, fmt.Errorf("feuille %q trop courte", feuille)
 	}
 
 	// Ni le titre ni l'en-tête ne sont à un numéro de ligne fixe : certaines
@@ -147,10 +177,10 @@ func chargerFeuilleUnedic(ctx context.Context, tx pgx.Tx, x *xlsxFile, feuille s
 		}
 	}
 	if date == "" {
-		return 0, fmt.Errorf("feuille %q : date introuvable", feuille)
+		return nil, fmt.Errorf("feuille %q : date introuvable", feuille)
 	}
 	if colEffectif == "" {
-		return 0, fmt.Errorf("feuille %q : colonne « Ensemble Assurance chômage » introuvable", feuille)
+		return nil, fmt.Errorf("feuille %q : colonne « Ensemble Assurance chômage » introuvable", feuille)
 	}
 	colPct := colonneSuivante(colEffectif)
 
@@ -167,28 +197,23 @@ func chargerFeuilleUnedic(ctx context.Context, tx pgx.Tx, x *xlsxFile, feuille s
 		if mm := reTrancheFermee.FindStringSubmatch(lib); mm != nil {
 			min, _ := strconv.Atoi(strings.ReplaceAll(mm[1], " ", ""))
 			max, _ := strconv.Atoi(strings.ReplaceAll(mm[2], " ", ""))
-			rows = append(rows, []any{date, min, max, int64(eff), pct * 100, srcID})
+			rows = append(rows, []any{date, min, max, int64(eff), pct * 100})
 			total += pct
 		} else if mm := reTrancheOuverteM.FindStringSubmatch(lib); mm != nil {
 			min, _ := strconv.Atoi(strings.ReplaceAll(mm[1], " ", ""))
-			rows = append(rows, []any{date, min, nil, int64(eff), pct * 100, srcID})
+			rows = append(rows, []any{date, min, nil, int64(eff), pct * 100})
 			total += pct
 		} else if lib == "Total" {
 			break
 		}
 	}
 	if len(rows) == 0 {
-		return 0, fmt.Errorf("feuille %q : aucune tranche reconnue", feuille)
+		return nil, fmt.Errorf("feuille %q : aucune tranche reconnue", feuille)
 	}
 	if total < 0.99 || total > 1.01 {
-		return 0, fmt.Errorf("feuille %q : les tranches totalisent %.3f, pas 1", feuille, total)
+		return nil, fmt.Errorf("feuille %q : les tranches totalisent %.3f, pas 1", feuille, total)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "chomage_tranche_unedic"},
-		[]string{"date_reference", "tranche_min", "tranche_max", "effectif", "pct", "source_id"},
-		pgx.CopyFromRows(rows)); err != nil {
-		return 0, fmt.Errorf("feuille %q : %w", feuille, err)
-	}
-	return len(rows), nil
+	return rows, nil
 }
 
 func colonneSuivante(col string) string {

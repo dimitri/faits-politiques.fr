@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
+	"github.com/faits-politiques/faits-politiques/internal/bulkload"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -141,16 +142,53 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx,
-		`DELETE FROM core.commune_indicator WHERE indicator_code LIKE 'ofgl.%'`); err != nil {
+	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (indicator_code LIKE
+	// 'ofgl.%', 2,5 millions de lignes sur les 35 000 communes) payait le
+	// prix des triggers RI (FK vers ref.commune) pour l'intégralité de son
+	// périmètre à chaque republication annuelle, changement ou non.
+	// commune_indicator_ofgl, une vue scopée plutôt que core.commune_
+	// indicator directement : la table est partagée avec internal/eau/
+	// budget_annexe.go et internal/communes/fiscalite_locale.go, chacun sur
+	// son propre préfixe d'indicator_code.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_commune_indicator_ofgl (
+			commune_code text, cog_millesime int, indicator_code text,
+			period_year int, value numeric, source_id bigint, budget_scope core.budget_scope
+		) ON COMMIT DROP;
+		CREATE OR REPLACE TEMPORARY VIEW commune_indicator_ofgl AS
+		  SELECT * FROM core.commune_indicator WHERE indicator_code LIKE 'ofgl.%'
+		  WITH LOCAL CHECK OPTION`); err != nil {
 		return fail(err)
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "commune_indicator"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_commune_indicator_ofgl"},
 		[]string{"commune_code", "cog_millesime", "indicator_code", "period_year",
 			"value", "source_id", "budget_scope"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("copie des indicateurs : %w", err))
+	}
+	var n int64
+	err = bulkload.SansContraintesFK(ctx, tx, "core.commune_indicator", func() error {
+		ct, err := tx.Exec(ctx, `
+			MERGE INTO commune_indicator_ofgl AS tgt
+			USING tmp_commune_indicator_ofgl AS src
+			ON tgt.commune_code = src.commune_code AND tgt.budget_scope = src.budget_scope
+			   AND tgt.indicator_code = src.indicator_code AND tgt.period_year = src.period_year
+			WHEN MATCHED AND (tgt.cog_millesime, tgt.value, tgt.source_id)
+			                  IS DISTINCT FROM (src.cog_millesime, src.value, src.source_id) THEN
+			    UPDATE SET cog_millesime = src.cog_millesime, value = src.value, source_id = src.source_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (commune_code, cog_millesime, indicator_code, period_year, value, source_id, budget_scope)
+			    VALUES (src.commune_code, src.cog_millesime, src.indicator_code, src.period_year,
+			            src.value, src.source_id, src.budget_scope)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+		if err != nil {
+			return err
+		}
+		n = ct.RowsAffected()
+		return nil
+	})
+	if err != nil {
+		return fail(fmt.Errorf("fusion des indicateurs : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
@@ -158,7 +196,7 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"indicateurs": n, "communes_hors_cog": len(horsCOG)}, "")
-	fmt.Printf("  OFGL : %d valeurs sur %d-%d\n", n, ofglPremierExercice, ofglDernierExercice)
+	fmt.Printf("  OFGL : %d valeurs touchées sur %d-%d\n", n, ofglPremierExercice, ofglDernierExercice)
 	if len(horsCOG) > 0 {
 		fmt.Printf("  %d communes de l'OFGL absentes du COG %d (communes disparues : ignorées)\n",
 			len(horsCOG), COGMillesime)

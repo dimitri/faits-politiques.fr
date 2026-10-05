@@ -78,9 +78,6 @@ func IngestSecteurConventionnel(ctx context.Context, pool *pgxpool.Pool, arch *a
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.medecin_secteur_effectif`); err != nil {
-		return fail(err)
-	}
 
 	var rows [][]any
 	for _, l := range lignes {
@@ -94,18 +91,52 @@ func IngestSecteurConventionnel(ctx context.Context, pool *pgxpool.Pool, arch *a
 			l.Effectif, srcID,
 		})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "medecin_secteur_effectif"},
+	// MERGE plutôt que DELETE+COPY : table entière, ce connecteur en est
+	// l'unique propriétaire ; l'ancien DELETE payait le prix des triggers RI
+	// pour l'intégralité de la table à chaque republication annuelle,
+	// changement ou non.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_medecin_secteur_effectif (
+			annee smallint, profession_sante text, code_region text, libelle_region text,
+			code_departement text, libelle_departement text, secteur_code text, secteur_libelle text,
+			effectif int, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_medecin_secteur_effectif"},
 		[]string{"annee", "profession_sante", "code_region", "libelle_region",
 			"code_departement", "libelle_departement", "secteur_code", "secteur_libelle",
 			"effectif", "source_id"},
-		pgx.CopyFromRows(rows))
+		pgx.CopyFromRows(rows)); err != nil {
+		return fail(fmt.Errorf("medecin_secteur_effectif : %w", err))
+	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.medecin_secteur_effectif AS tgt
+		USING tmp_medecin_secteur_effectif AS src
+		ON tgt.annee = src.annee AND tgt.profession_sante = src.profession_sante
+		   AND tgt.code_region = src.code_region AND tgt.code_departement = src.code_departement
+		   AND tgt.secteur_code = src.secteur_code
+		WHEN MATCHED AND (tgt.libelle_region, tgt.libelle_departement, tgt.secteur_libelle,
+		                   tgt.effectif, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.libelle_region, src.libelle_departement, src.secteur_libelle,
+		                   src.effectif, src.source_id) THEN
+		    UPDATE SET libelle_region = src.libelle_region, libelle_departement = src.libelle_departement,
+		               secteur_libelle = src.secteur_libelle, effectif = src.effectif, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (annee, profession_sante, code_region, libelle_region, code_departement,
+		            libelle_departement, secteur_code, secteur_libelle, effectif, source_id)
+		    VALUES (src.annee, src.profession_sante, src.code_region, src.libelle_region, src.code_departement,
+		            src.libelle_departement, src.secteur_code, src.secteur_libelle, src.effectif, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
 	if err != nil {
 		return fail(fmt.Errorf("medecin_secteur_effectif : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
-	fmt.Printf("  secteurs conventionnels (Ameli) : %d lignes\n", n)
+	n := ct.RowsAffected()
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(rows), "touchees": n}, "")
+	fmt.Printf("  secteurs conventionnels (Ameli) : %d lignes (%d touchées par la fusion)\n", len(rows), n)
 	return nil
 }

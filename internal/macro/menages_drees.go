@@ -125,20 +125,54 @@ func IngestMenagesDREES(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.menage_type_drees WHERE annee = $1`, annee); err != nil {
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_menage_type_drees (
+			type_menage text, annee int, uc_empirique numeric, revenu_initial_menage numeric,
+			prestations_non_contrib_menage numeric, impots_directs_menage numeric,
+			revenu_disponible_menage numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "menage_type_drees"},
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_menage_type_drees"},
 		[]string{"type_menage", "annee", "uc_empirique", "revenu_initial_menage",
 			"prestations_non_contrib_menage", "impots_directs_menage", "revenu_disponible_menage", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(err)
 	}
+	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
+	// la table, qui ne porte jamais qu'un seul millésime à la fois (celui de la
+	// constante annee) — l'ancien DELETE scopé par année payait le prix des
+	// triggers RI pour l'intégralité des types de ménage à chaque republication.
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.menage_type_drees AS tgt
+		USING tmp_menage_type_drees AS src
+		ON tgt.type_menage = src.type_menage AND tgt.annee = src.annee
+		WHEN MATCHED AND (tgt.uc_empirique, tgt.revenu_initial_menage, tgt.prestations_non_contrib_menage,
+		                   tgt.impots_directs_menage, tgt.revenu_disponible_menage, tgt.source_id)
+		                  IS DISTINCT FROM
+		                  (src.uc_empirique, src.revenu_initial_menage, src.prestations_non_contrib_menage,
+		                   src.impots_directs_menage, src.revenu_disponible_menage, src.source_id) THEN
+		    UPDATE SET uc_empirique = src.uc_empirique, revenu_initial_menage = src.revenu_initial_menage,
+		               prestations_non_contrib_menage = src.prestations_non_contrib_menage,
+		               impots_directs_menage = src.impots_directs_menage,
+		               revenu_disponible_menage = src.revenu_disponible_menage, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (type_menage, annee, uc_empirique, revenu_initial_menage, prestations_non_contrib_menage,
+		            impots_directs_menage, revenu_disponible_menage, source_id)
+		    VALUES (src.type_menage, src.annee, src.uc_empirique, src.revenu_initial_menage,
+		            src.prestations_non_contrib_menage, src.impots_directs_menage,
+		            src.revenu_disponible_menage, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion : %w", err))
+	}
+	touchees := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"types_charges": len(rows)}, "")
-	fmt.Printf("  composition du revenu des ménages : %d types (Drees, ERFS %d)\n", len(rows), annee)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"types_charges": len(rows), "touchees": touchees}, "")
+	fmt.Printf("  composition du revenu des ménages : %d types (Drees, ERFS %d), %d touchées par la fusion\n",
+		len(rows), annee, touchees)
 	return nil
 }
 

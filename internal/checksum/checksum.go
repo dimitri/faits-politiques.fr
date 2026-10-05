@@ -15,7 +15,7 @@
 // fois par ingestion ; répété à chaque construction, ça redeviendrait le
 // problème que ce paquet existe pour éviter — d'où l'écriture dans
 // core.section_checksum par cmd/ingest, jamais un calcul à la volée par
-// cmd/build (voir cmd/build/cache.go, qui ne fait qu'une lecture de ligne).
+// internal/sitegen (voir internal/sitegen/cache.go, qui ne fait qu'une lecture de ligne).
 package checksum
 
 import (

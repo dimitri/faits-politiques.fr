@@ -23,18 +23,20 @@ vérification et la construction du site statique. L'arbre de commandes suit
 un seul principe, comme **git** : chaque verbe s'applique à un nom —
 **fpctl build site**, jamais **fpctl build** seul ni **fpctl site**.
 
-La plupart des verbes routent directement vers le paquet **internal/**
-correspondant ; **build site** reste un binaire séparé, compilé à la volée.
-Dans les deux cas, fpctl ne réimplémente rien.
+Chaque verbe route directement vers le paquet correspondant (**internal/**
+pour la plupart, **internal/sitegen** pour **build**) — un seul binaire, un
+seul `go build`, jamais un second exécutable compilé à la volée. fpctl ne
+réimplémente rien.
 
 # VERBES
 
-**build site** [options]
-:   Génère le site statique et le met en place. Voir **fpctl-build**(1).
+**build site** [options] | **build** *section* | **build page** *nom*
+:   Génère le site statique et le met en place, en entier ou par section
+    (pour itérer localement). Voir **fpctl-build**(1), SECTIONS.
 
-**ingest data** [options]
-:   Télécharge, archive et charge les jeux de données sources.
-    Voir **fpctl-ingest**(1).
+**ingest all** | **ingest** *catégorie* [**all**|*source*]
+:   Télécharge, archive et charge les jeux de données sources, rangées par
+    catégorie thématique. Voir **fpctl-ingest**(1).
 
 **verify data**
 :   Contrôles de cohérence des données chargées, avant publication.
@@ -61,9 +63,9 @@ Dans les deux cas, fpctl ne réimplémente rien.
 
 # OPTIONS
 
-Chaque nom transmet ses propres options telles quelles au paquet ou au
-binaire qu'il route — **-h** ou **--help** en première position ouvre la
-page de manuel dédiée plutôt que de les transmettre.
+Chaque nom transmet ses propres options telles quelles au paquet qu'il
+route — **-h** ou **--help** en première position ouvre la page de manuel
+dédiée plutôt que de les transmettre.
 
 # CONVENTIONS
 

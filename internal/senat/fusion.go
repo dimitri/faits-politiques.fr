@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -77,7 +78,8 @@ func Fusionner(ctx context.Context, pool *pgxpool.Pool) error {
 	}
 
 	if aFusionner == 0 {
-		fmt.Printf("  fusion sénateurs : rien à fusionner (%d appariements ambigus écartés)\n", ambigus)
+		logs.Notice(fmt.Sprintf("senator merge: nothing to merge (%s discarded as ambiguous)",
+			logs.Plural(ambigus, "match")))
 		return tx.Commit(ctx)
 	}
 
@@ -206,7 +208,7 @@ func Fusionner(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	fmt.Printf("  fusion sénateurs : %d fiches réunies, %d supprimées, %d appariements ambigus écartés\n",
-		aFusionner, res.RowsAffected(), ambigus)
+	logs.Notice(fmt.Sprintf("senator merge: %s merged, %s removed, %s discarded as ambiguous",
+		logs.Plural(aFusionner, "record"), logs.Plural(int(res.RowsAffected()), "record"), logs.Plural(ambigus, "match")))
 	return nil
 }

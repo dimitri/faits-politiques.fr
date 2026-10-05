@@ -82,10 +82,6 @@ func IngestURSSAFEncaissements(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM core.encaissement_urssaf`); err != nil {
-		return fail(err)
-	}
-
 	var rows [][]any
 	var sansMontant int
 	for _, l := range lignes {
@@ -103,14 +99,52 @@ func IngestURSSAFEncaissements(ctx context.Context, pool *pgxpool.Pool, arch *ar
 			*l.Montant, "SECTEUR_PRIVE_URSSAF", srcID, f.DocumentID,
 		})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "encaissement_urssaf"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_encaissement_urssaf (
+			annee smallint NOT NULL,
+			organisme text NOT NULL,
+			region text NOT NULL,
+			code_region text NOT NULL,
+			categorie text NOT NULL,
+			categorie_detaillee text NOT NULL,
+			categorie_entreprise boolean NOT NULL,
+			montant_eur double precision NOT NULL,
+			perimetre text NOT NULL,
+			source_id bigint NOT NULL,
+			document_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_encaissement_urssaf"},
 		[]string{"annee", "organisme", "region", "code_region",
 			"categorie", "categorie_detaillee", "categorie_entreprise",
 			"montant_eur", "perimetre", "source_id", "document_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("URSSAF encaissements : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.encaissement_urssaf AS tgt
+		USING tmp_encaissement_urssaf AS src
+		ON tgt.annee = src.annee AND tgt.organisme = src.organisme
+			AND tgt.categorie_detaillee = src.categorie_detaillee
+		WHEN MATCHED AND (tgt.region, tgt.code_region, tgt.categorie, tgt.categorie_entreprise,
+				tgt.montant_eur, tgt.perimetre, tgt.source_id, tgt.document_id)
+			IS DISTINCT FROM (src.region, src.code_region, src.categorie, src.categorie_entreprise,
+				src.montant_eur, src.perimetre, src.source_id, src.document_id) THEN
+			UPDATE SET region = src.region, code_region = src.code_region, categorie = src.categorie,
+				categorie_entreprise = src.categorie_entreprise, montant_eur = src.montant_eur,
+				perimetre = src.perimetre, source_id = src.source_id, document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (annee, organisme, region, code_region, categorie, categorie_detaillee,
+				categorie_entreprise, montant_eur, perimetre, source_id, document_id)
+			VALUES (src.annee, src.organisme, src.region, src.code_region, src.categorie,
+				src.categorie_detaillee, src.categorie_entreprise, src.montant_eur,
+				src.perimetre, src.source_id, src.document_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("URSSAF encaissements, fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 
 	var annees, min, max int
 	var totalEntreprises, totalTout float64
@@ -128,7 +162,7 @@ func IngestURSSAFEncaissements(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"lignes_chargees": n, "rejet_sans_montant": sansMontant, "millesimes": annees}, "")
-	fmt.Printf("  URSSAF encaissements : %d lignes, %d à %d (entreprises %.1f Md€ sur %.1f Md€ en %d)\n",
+	fmt.Printf("  URSSAF encaissements : %d lignes touchées par la fusion, %d à %d (entreprises %.1f Md€ sur %.1f Md€ en %d)\n",
 		n, min, max, totalEntreprises/1e9, totalTout/1e9, max)
 	return nil
 }

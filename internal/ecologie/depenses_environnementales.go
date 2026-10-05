@@ -146,9 +146,6 @@ func IngestDepensesEnvironnementales(ctx context.Context, pool *pgxpool.Pool, ar
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.depense_environnementale`); err != nil {
-		return fail(err)
-	}
 
 	var rows [][]any
 	for _, c := range cells {
@@ -162,18 +159,44 @@ func IngestDepensesEnvironnementales(ctx context.Context, pool *pgxpool.Pool, ar
 			c.dims["unit"], c.valeur, srcID,
 		})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "depense_environnementale"},
+
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_depense_environnementale (
+			annee smallint, purpose_code text, purpose_libelle text,
+			secteur_code text, secteur_libelle text, unite text,
+			valeur numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_depense_environnementale"},
 		[]string{"annee", "purpose_code", "purpose_libelle", "secteur_code", "secteur_libelle",
 			"unite", "valeur", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("depense_environnementale : %w", err))
+	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.depense_environnementale AS tgt
+		USING tmp_depense_environnementale AS src
+		     ON tgt.annee = src.annee AND tgt.purpose_code = src.purpose_code
+		    AND tgt.secteur_code = src.secteur_code AND tgt.unite = src.unite
+		WHEN MATCHED AND (tgt.purpose_libelle, tgt.secteur_libelle, tgt.valeur, tgt.source_id)
+		     IS DISTINCT FROM (src.purpose_libelle, src.secteur_libelle, src.valeur, src.source_id)
+		THEN UPDATE SET purpose_libelle = src.purpose_libelle, secteur_libelle = src.secteur_libelle,
+		     valeur = src.valeur, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+		     INSERT (annee, purpose_code, purpose_libelle, secteur_code, secteur_libelle, unite, valeur, source_id)
+		     VALUES (src.annee, src.purpose_code, src.purpose_libelle, src.secteur_code,
+		             src.secteur_libelle, src.unite, src.valeur, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("fusion depense_environnementale : %w", err))
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
-	fmt.Printf("  dépense environnementale (Eurostat) : %d lignes\n", n)
+	n := ct.RowsAffected()
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(rows)}, "")
+	fmt.Printf("  dépense environnementale (Eurostat) : %d lignes reçues, %d touchées par la fusion\n", len(rows), n)
 	return nil
 }
 

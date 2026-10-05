@@ -4,7 +4,15 @@ on:
   schedule:
     - cron: '0 5 * * *'     # les scrutins sont publiés au fil des séances
   workflow_dispatch:
-  pull_request:             # build sans déploiement : voir l'effet d'une diff de data/
+    inputs:
+      seed_ci_dump_release:
+        description: >-
+          Amorce ci-dump depuis l'actif ci.dump d'une release GitHub, au
+          lieu de lancer build-full/build-pr — tag de la release (laisser
+          vide pour un run normal). Voir le job seed-ci-dump plus bas.
+        required: false
+        default: ""
+  pull_request:             # job léger : périmètre CI en cache, pas d'ingestion
   push:
     branches: [main]
 
@@ -13,7 +21,64 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
-  build:
+  # Amorce ponctuelle du cache ci-dump-* que build-pr restaure : seulement
+  # quand seed_ci_dump_release est renseigné. Casse le chicken-and-egg où
+  # build-pr a besoin d'un cache que seul build-full publie, et où
+  # build-full a besoin d'un ingest complet qui ne tient pas dans le budget
+  # d'un runner hébergé (docs/ci-pipeline.md § 1) — tant qu'aucun run de ce
+  # genre n'a encore abouti sur ce dépôt, rien ne peut sinon jamais amorcer
+  # le cache. Le fichier vient d'un export (fpctl dump ci) produit hors
+  # CI, attaché en tant qu'actif à une release créée pour l'occasion.
+  seed-ci-dump:
+    if: github.event_name == 'workflow_dispatch' && inputs.seed_ci_dump_release != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    # contents: write, pas read : l'API GitHub ne rend une release en
+    # brouillon qu'à un jeton ayant un accès équivalent à push sur le
+    # dépôt — rien n'est pourtant écrit ici, seulement lu.
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer les clients PostgreSQL 17
+        run: ./scripts/install-pg-client.sh
+
+      # gh release download résout par tag via l'endpoint GET .../releases/
+      # tags/{tag}, qui exclut les releases en brouillon — la nôtre en est
+      # une, volontairement (jamais un dump publié comme s'il faisait
+      # référence). Listée puis filtrée via /releases à la place, qui les
+      # inclut toutes.
+      - name: Récupérer ci.dump depuis la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url=$(gh api "repos/${{ github.repository }}/releases" --paginate \
+            -q '.[] | select(.tag_name=="${{ inputs.seed_ci_dump_release }}") | .assets[] | select(.name=="ci.dump") | .url')
+          if [ -z "$url" ]; then
+            echo "aucun actif ci.dump trouvé sur la release ${{ inputs.seed_ci_dump_release }}" >&2
+            exit 1
+          fi
+          gh api "$url" -H "Accept: application/octet-stream" > ci.dump
+
+      - name: Vérifier l'archive avant de la publier
+        run: pg_restore --list ci.dump > /dev/null
+
+      - name: Publier le périmètre CI en cache
+        uses: actions/cache/save@v4
+        with:
+          path: ci.dump
+          key: ci-dump-${{ github.run_id }}
+
+  # Job lourd : ingestion complète (~100 connecteurs), les deux portes de
+  # qualité, construction du site, puis export du périmètre CI (schéma mv +
+  # TablesDirectes, voir cmd/fpctl/man/fpctl-dump.md) pour que build-pr
+  # puisse construire sans tout réingérer. Jamais sur pull_request — voir
+  # docs/ci-pipeline.md § 3.5 : la latence de retour sur une PR ne doit pas
+  # dépendre du temps d'ingestion (1h22 cumulées, INFRA.md § 1), alors que
+  # l'essentiel des PR touche le rendu du site, pas les connecteurs.
+  build-full:
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.seed_ci_dump_release == '')
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -36,8 +101,18 @@ jobs:
           go-version: '1.26'
           cache: true
 
+      - name: Interdire le DELETE+COPY direct dans un connecteur
+        run: ./scripts/check-delete-copy.sh
+
       - name: Compiler fpctl
         run: go build -o bin/fpctl ./cmd/fpctl
+
+      # pg_dump refuse de dumper un serveur plus récent que lui (« aborting
+      # because of server version mismatch ») — le client par défaut de ce
+      # runner ne colle pas forcément à la version 17 du serveur que fpctl
+      # provision db démarre.
+      - name: Installer les clients PostgreSQL 17
+        run: ./scripts/install-pg-client.sh
 
       - name: Provisionner Postgres
         run: ./bin/fpctl provision db
@@ -53,7 +128,7 @@ jobs:
           restore-keys: raw-
 
       - name: Ingestion
-        run: ./bin/fpctl ingest data
+        run: ./bin/fpctl ingest all
 
       # Porte 1 : les garanties structurelles tournent sur la base RÉELLEMENT
       # chargée, pas sur une base vide. Une donnée qui violerait une règle
@@ -86,8 +161,137 @@ jobs:
           path: site/
           retention-days: 7
 
+      # Périmètre CI (mv + TablesDirectes) pour build-pr : voir
+      # cmd/fpctl/man/fpctl-dump.md. En cache plutôt qu'uploadé vers un
+      # object storage — aucune clé S3 n'est encore provisionnée sur ce
+      # dépôt (docs/decisions.md D-012, hébergement pas encore tranché) ;
+      # -upload/-download restent l'option à basculer le jour où ça l'est,
+      # sans changer la logique ci-dessous.
+      - name: Exporter le périmètre CI (mv + TablesDirectes)
+        run: ./bin/fpctl dump ci -out ci.dump
+
+      # Clé toujours neuve (run_id) : chaque run publie sa propre entrée,
+      # jamais un cache-hit qui sauterait la sauvegarde. build-pr retrouve
+      # la plus récente par restore-keys.
+      - name: Publier le périmètre CI en cache
+        uses: actions/cache/save@v4
+        with:
+          path: ci.dump
+          key: ci-dump-${{ github.run_id }}
+
       # Le déploiement n'a lieu que sur la branche principale : une pull request
       # produit un site complet, consultable, mais non publié.
       - name: Déploiement
         if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
         run: echo "cible d'hébergement à trancher — voir docs/decisions.md D-012"
+
+  # Job léger : pas d'ingestion, pas de connecteurs — le site est construit
+  # à partir du dernier périmètre CI publié par build-full (push main ou
+  # planifié). Répond en quelques minutes plutôt qu'en heures, au prix de ne
+  # pas rejouer les garanties structurelles ni la concordance avec les
+  # décomptes officiels (elles ont besoin de core/ref, hors du périmètre) —
+  # ces deux portes restent couvertes par build-full à chaque push sur main
+  # et chaque nuit.
+  build-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # contents: write, pas read : nécessaire au repli sur la release
+    # d'amorçage plus bas (même raison que seed-ci-dump), quand le cache
+    # n'a rien à offrir.
+    permissions:
+      contents: write
+
+    env:
+      DATABASE_URL: postgres://fp:fp@localhost:55432/fp?sslmode=disable
+      # Repli quand le cache ci-dump-* est absent ou invisible depuis cette
+      # ref (une pull_request tourne sur refs/pull/<n>/merge, hors de la
+      # portée de visibilité du cache de refs/heads/<branche> qui l'a
+      # publié — constaté, pas simplement documenté) : la dernière release
+      # d'amorçage connue plutôt qu'un échec dur. À remettre à jour quand
+      # un vrai run de build-full aura fini par aboutir et que son propre
+      # cache sera visible depuis les PR sans ce détour.
+      CI_DUMP_FALLBACK_RELEASE: ci-dump-seed-1
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.26'
+          cache: true
+
+      - name: Interdire le DELETE+COPY direct dans un connecteur
+        run: ./scripts/check-delete-copy.sh
+
+      - name: Compiler fpctl
+        run: go build -o bin/fpctl ./cmd/fpctl
+
+      - name: go vet
+        run: go vet ./...
+
+      - name: gofmt
+        run: |
+          out=$(gofmt -l .)
+          if [ -n "$out" ]; then
+            echo "$out"
+            exit 1
+          fi
+
+      # pg_restore refuse un format d'archive plus récent que ce qu'il
+      # connaît — même raison que dans build-full : coller à la version du
+      # serveur (17), pas au client par défaut du runner.
+      - name: Installer les clients PostgreSQL 17
+        run: ./scripts/install-pg-client.sh
+
+      - name: Provisionner Postgres
+        run: ./bin/fpctl provision db
+
+      # restore-keys (sans clé exacte) retrouve la plus récente entrée
+      # ci-dump-* publiée par build-full — jamais celle de cette PR, qui
+      # n'en produit pas.
+      - name: Restaurer le dernier périmètre CI publié
+        uses: actions/cache/restore@v4
+        with:
+          path: ci.dump
+          key: ci-dump-jamais-cette-cle
+          restore-keys: ci-dump-
+
+      # Repli sur la release d'amorçage, même mécanisme que seed-ci-dump :
+      # seulement si le cache n'a rien restauré.
+      - name: Repli sur la release d'amorçage si le cache est vide
+        if: hashFiles('ci.dump') == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url=$(gh api "repos/${{ github.repository }}/releases" --paginate \
+            -q ".[] | select(.tag_name==\"$CI_DUMP_FALLBACK_RELEASE\") | .assets[] | select(.name==\"ci.dump\") | .url")
+          if [ -z "$url" ]; then
+            echo "aucun périmètre CI en cache, et aucun actif ci.dump sur la release $CI_DUMP_FALLBACK_RELEASE" >&2
+            exit 1
+          fi
+          gh api "$url" -H "Accept: application/octet-stream" > ci.dump
+
+      - name: Vérifier qu'un périmètre CI est disponible
+        run: |
+          if [ ! -f ci.dump ]; then
+            echo "Aucun périmètre CI disponible, ni en cache ni via la release d'amorçage." >&2
+            exit 1
+          fi
+
+      - name: Restaurer le périmètre CI dans Postgres
+        run: ./bin/fpctl dump restore -fichier ci.dump
+
+      - name: Génération du site
+        run: ./bin/fpctl build site
+
+      - name: Taille produite
+        run: |
+          echo "pages : $(find site -name '*.html' | wc -l)"
+          echo "poids : $(du -sh site | cut -f1)"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: site-pr
+          path: site/
+          retention-days: 7

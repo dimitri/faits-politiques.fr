@@ -96,9 +96,6 @@ func IngestPLFDestination(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return fail(err)
 	}
 	defer tx.Rollback(ctx)
-	if _, err := tx.Exec(ctx, `DELETE FROM core.budget_programme`); err != nil {
-		return fail(err)
-	}
 
 	var rows [][]any
 	for _, l := range toutes {
@@ -109,20 +106,75 @@ func IngestPLFDestination(ctx context.Context, pool *pgxpool.Pool, arch *archive
 			l.Categorie, l.Titre, l.AE, l.CP, srcID,
 		})
 	}
-	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "budget_programme"},
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_budget_programme (
+			exercice smallint NOT NULL,
+			loi text NOT NULL,
+			type_budget text NOT NULL,
+			ministere text,
+			mission_code text NOT NULL,
+			mission_libelle text NOT NULL,
+			programme_code text NOT NULL,
+			programme_libelle text NOT NULL,
+			action_code text,
+			action_libelle text,
+			sous_action_code text,
+			sous_action_libelle text,
+			categorie smallint,
+			titre smallint NOT NULL,
+			autorisation_engagement numeric,
+			credit_paiement numeric,
+			source_id bigint NOT NULL
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_budget_programme"},
 		[]string{"exercice", "loi", "type_budget", "ministere",
 			"mission_code", "mission_libelle", "programme_code", "programme_libelle",
 			"action_code", "action_libelle", "sous_action_code", "sous_action_libelle",
 			"categorie", "titre", "autorisation_engagement", "credit_paiement", "source_id"},
-		pgx.CopyFromRows(rows))
-	if err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("budget_programme : %w", err))
 	}
+	ct, err := tx.Exec(ctx, `
+		MERGE INTO core.budget_programme AS tgt
+		USING tmp_budget_programme AS src
+		ON tgt.exercice = src.exercice AND tgt.loi = src.loi AND tgt.type_budget = src.type_budget
+			AND tgt.mission_code = src.mission_code AND tgt.programme_code = src.programme_code
+			AND tgt.action_code IS NOT DISTINCT FROM src.action_code
+			AND tgt.sous_action_code IS NOT DISTINCT FROM src.sous_action_code
+			AND tgt.categorie IS NOT DISTINCT FROM src.categorie
+			AND tgt.titre = src.titre
+		WHEN MATCHED AND (tgt.ministere, tgt.mission_libelle, tgt.programme_libelle,
+				tgt.action_libelle, tgt.sous_action_libelle,
+				tgt.autorisation_engagement, tgt.credit_paiement, tgt.source_id)
+			IS DISTINCT FROM (src.ministere, src.mission_libelle, src.programme_libelle,
+				src.action_libelle, src.sous_action_libelle,
+				src.autorisation_engagement, src.credit_paiement, src.source_id) THEN
+			UPDATE SET ministere = src.ministere, mission_libelle = src.mission_libelle,
+				programme_libelle = src.programme_libelle, action_libelle = src.action_libelle,
+				sous_action_libelle = src.sous_action_libelle,
+				autorisation_engagement = src.autorisation_engagement,
+				credit_paiement = src.credit_paiement, source_id = src.source_id
+		WHEN NOT MATCHED BY TARGET THEN
+			INSERT (exercice, loi, type_budget, ministere, mission_code, mission_libelle,
+				programme_code, programme_libelle, action_code, action_libelle,
+				sous_action_code, sous_action_libelle, categorie, titre,
+				autorisation_engagement, credit_paiement, source_id)
+			VALUES (src.exercice, src.loi, src.type_budget, src.ministere, src.mission_code,
+				src.mission_libelle, src.programme_code, src.programme_libelle, src.action_code,
+				src.action_libelle, src.sous_action_code, src.sous_action_libelle, src.categorie,
+				src.titre, src.autorisation_engagement, src.credit_paiement, src.source_id)
+		WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+	if err != nil {
+		return fail(fmt.Errorf("budget_programme, fusion : %w", err))
+	}
+	n := ct.RowsAffected()
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "exercices": len(anneesPLF)}, "")
-	fmt.Printf("  budget par mission/programme (PLF) : %d lignes, %d exercices\n", n, len(anneesPLF))
+	fmt.Printf("  budget par mission/programme (PLF) : %d lignes touchées par la fusion, %d exercices\n", n, len(anneesPLF))
 	return nil
 }
 

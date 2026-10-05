@@ -7,16 +7,34 @@
 {{if $p.Question}}<p class="lede">{{$p.Question}}</p>{{end}}
 
 {{if $p.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
-<div class="carte-pleine">
-  {{$p.Carte.SVG}}
-  {{$t := $p.Carte.Teintes}}<div class="echelle"><span class="u">{{$p.Carte.Unite}}</span>
-    {{range $i, $b := $p.Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
-    {{if $p.Carte.NbAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
+{{/* Même carte, même colonne de résumé chiffré que « Trois niveaux, trois
+     cartes » sur /sujets/collectivites/ (.cartes-empilees), via le
+     modificateur .carte-dossier déjà utilisé par vieillesse.gohtml et
+     jeunesse.gohtml plutôt que .cartes-empilees lui-même (réservé à
+     /collectivites/, voir son avertissement dans style.css) : une carte
+     seule n'a pas besoin d'être posée à côté de deux autres. */}}
+<div class="cartes-lignes carte-dossier">
+  <div class="bloc-carte ligne">
+    <div>
+      {{$p.Carte.SVG}}
+      {{template "cartons" $p.Carte.Cartons}}
+    </div>
+    <div>
+      {{$t := $p.Carte.Teintes}}<div class="echelle"><span class="u">{{$p.Carte.Unite}}</span>
+        {{range $i, $b := $p.Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+        {{if $p.Carte.NbAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
+      </div>
+      {{with $p.Resume}}<dl class="legende-situation">
+        <div><dt>Départements couverts</dt><dd><b>{{nb .Nombre}}</b></dd></div>
+        <div><dt>Médiane</dt><dd><b>{{.MedianeValeur}}</b></dd></div>
+        <div><dt>Maximum</dt><dd><b>{{.MaxValeur}}</b><span>{{.MaxNom}}</span></dd></div>
+        <div><dt>Minimum</dt><dd><b>{{.MinValeur}}</b><span>{{.MinNom}}</span></dd></div>
+      </dl>{{end}}
+      <span class="src">{{$p.Source}} · {{$p.Carte.Total}} départements renseignés{{if $p.Carte.NbAbsents}},
+        {{$p.Carte.NbAbsents}} sans donnée{{end}} · contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0</span>
+    </div>
   </div>
-  {{template "cartons" $p.Carte.Cartons}}
 </div>
-<p class="src">{{$p.Source}} · {{$p.Carte.Total}} départements renseignés{{if $p.Carte.NbAbsents}},
-  {{$p.Carte.NbAbsents}} sans donnée{{end}} · contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0</p>
 {{end}}
 
 {{if $p.Note}}<p class="note abs">{{$p.Note}}</p>{{end}}
