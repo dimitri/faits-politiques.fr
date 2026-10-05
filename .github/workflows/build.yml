@@ -4,6 +4,14 @@ on:
   schedule:
     - cron: '0 5 * * *'     # les scrutins sont publiés au fil des séances
   workflow_dispatch:
+    inputs:
+      seed_ci_dump_release:
+        description: >-
+          Amorce ci-dump depuis l'actif ci.dump d'une release GitHub, au
+          lieu de lancer build-full/build-pr — tag de la release (laisser
+          vide pour un run normal). Voir le job seed-ci-dump plus bas.
+        required: false
+        default: ""
   pull_request:             # job léger : périmètre CI en cache, pas d'ingestion
   push:
     branches: [main]
@@ -13,6 +21,40 @@ concurrency:
   cancel-in-progress: false
 
 jobs:
+  # Amorce ponctuelle du cache ci-dump-* que build-pr restaure : seulement
+  # quand seed_ci_dump_release est renseigné. Casse le chicken-and-egg où
+  # build-pr a besoin d'un cache que seul build-full publie, et où
+  # build-full a besoin d'un ingest complet qui ne tient pas dans le budget
+  # d'un runner hébergé (docs/ci-pipeline.md § 1) — tant qu'aucun run de ce
+  # genre n'a encore abouti sur ce dépôt, rien ne peut sinon jamais amorcer
+  # le cache. Le fichier vient d'un export (fpctl dump ci) produit hors
+  # CI, attaché en tant qu'actif à une release créée pour l'occasion.
+  seed-ci-dump:
+    if: github.event_name == 'workflow_dispatch' && inputs.seed_ci_dump_release != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Récupérer ci.dump depuis la release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release download "${{ inputs.seed_ci_dump_release }}" \
+            --repo "${{ github.repository }}" \
+            --pattern ci.dump --clobber
+
+      - name: Vérifier l'archive avant de la publier
+        run: pg_restore --list ci.dump > /dev/null
+
+      - name: Publier le périmètre CI en cache
+        uses: actions/cache/save@v4
+        with:
+          path: ci.dump
+          key: ci-dump-${{ github.run_id }}
+
   # Job lourd : ingestion complète (~100 connecteurs), les deux portes de
   # qualité, construction du site, puis export du périmètre CI (schéma mv +
   # TablesDirectes, voir cmd/fpctl/man/fpctl-dump.md) pour que build-pr
@@ -21,7 +63,7 @@ jobs:
   # dépendre du temps d'ingestion (1h22 cumulées, INFRA.md § 1), alors que
   # l'essentiel des PR touche le rendu du site, pas les connecteurs.
   build-full:
-    if: github.event_name != 'pull_request'
+    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.seed_ci_dump_release == '')
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
