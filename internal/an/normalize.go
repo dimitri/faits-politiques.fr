@@ -248,8 +248,19 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
 		return nil, fmt.Errorf("organisations : %w", err)
 	}
+	// JOIN core.organization directement, PAS organization_an : cette vue
+	// filtre sur la présence d'un identifiant AN_ORGANE, que les lignes que
+	// le MERGE vient d'INSÉRER ne portent pas encore (voir le commentaire
+	// au-dessus du MERGE — l'identifiant est ajouté juste après, dans cette
+	// même transaction). Sur une base déjà peuplée, le filtre ne se voyait
+	// jamais : chaque organisation du payload existait déjà et portait
+	// déjà son identifiant. Sur une base vide (premier chargement), TOUTES
+	// les lignes sont neuves : la vue ne retenait alors AUCUNE d'entre
+	// elles, et byUID ressortait vide — « 0 organizations normalized »,
+	// découvert en CI, qui exécute pour la première fois un ingest sur une
+	// base réellement vide.
 	res, err := tx.Query(ctx, `
-		SELECT t.uid, o.id FROM tmp_organe t JOIN organization_an o ON o.slug = t.slug`)
+		SELECT t.uid, o.id FROM tmp_organe t JOIN core.organization o ON o.slug = t.slug`)
 	if err != nil {
 		return nil, fmt.Errorf("organisations : %w", err)
 	}
