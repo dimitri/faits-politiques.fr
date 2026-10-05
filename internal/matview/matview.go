@@ -419,6 +419,9 @@ var TablesDirectes = []TableDirecte{
 	{"raw.document", "un document par relevé, page /sources — 4 482 lignes"},
 	{"raw.fetch_run", "dernier statut d'ingestion par source, page /sources — 734 lignes"},
 	{"core.section_checksum", "empreintes du cache de construction (internal/sitegen/cache.go) — 2 lignes"},
+	{"core.dossier", "lu wholesale par dossiers.go/main.go, jamais agrégé — 15 607 lignes"},
+	{"core.topic_assignment", "lu par dossier/texte/scrutin dans europe.go/main.go, jamais agrégé — 86 499 lignes"},
+	{"ref.topic", "table de référence des thèmes EuroVoc — 1 846 lignes"},
 }
 
 // Perimetre : le nom qualifié de chaque objet nécessaire pour reconstruire
