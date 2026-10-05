@@ -10,17 +10,17 @@ import (
 )
 
 type pointControleFiscal struct {
-	Annee                float64 // en Md€, converti depuis M€
-	Notifie, Encaisse    *float64
-	NotifieCalcule       bool
+	Annee             float64 // en Md€, converti depuis M€
+	Notifie, Encaisse *float64
+	NotifieCalcule    bool
 }
 
 type ControleFiscal struct {
-	SVG                                template.HTML
-	DernierAnnee                       int
-	DernierNotifie, DernierEncaisse    float64
-	DernierNotifieCalcule              bool
-	EcartMoyenPct                      float64
+	SVG                             template.HTML
+	DernierAnnee                    int
+	DernierNotifie, DernierEncaisse float64
+	DernierNotifieCalcule           bool
+	EcartMoyenPct                   float64
 }
 
 // chargerControleFiscal : les résultats du contrôle fiscal, 2015-2024

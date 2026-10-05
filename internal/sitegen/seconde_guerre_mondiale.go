@@ -76,11 +76,11 @@ type pointPopulation struct {
 }
 
 type PopulationGuerres struct {
-	SVG                            template.HTML
-	Pop1911, Pop1921               int64
-	BaisseAbsolue                  int64
-	BaissePct                      float64
-	Pop1936, Pop1954               int64
+	SVG              template.HTML
+	Pop1911, Pop1921 int64
+	BaisseAbsolue    int64
+	BaissePct        float64
+	Pop1936, Pop1954 int64
 }
 
 // chargerPopulationGuerres : la population communale agrégée au niveau

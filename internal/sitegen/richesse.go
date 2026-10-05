@@ -19,14 +19,14 @@ import (
 // une notion distincte, jamais additionnée au revenu. Voir docs/
 // repartition-richesse-donnees.md et la migration 0117.
 type StatsRichesse struct {
-	Seuils      []SeuilRevenu
-	Courbe1Pct  template.HTML
-	Courbe01Pct template.HTML
-	AnneeDebut, AnneeFin int
+	Seuils                       []SeuilRevenu
+	Courbe1Pct                   template.HTML
+	Courbe01Pct                  template.HTML
+	AnneeDebut, AnneeFin         int
 	Part1PctDebut, Part1PctFin   float64
 	Part01PctDebut, Part01PctFin float64
-	Patrimoines []TranchePatrimoine
-	AnneePatrimoine int
+	Patrimoines                  []TranchePatrimoine
+	AnneePatrimoine              int
 
 	// L'héritage comme facteur d'accès à la richesse (§ 4) et la
 	// comparaison patrimoine/niveau de vie (§ 5) — même fiche Insee,
@@ -44,10 +44,10 @@ type StatsRichesse struct {
 	// ORDRE DE GRANDEUR, pas le chiffre exact que publierait Filosofi
 	// lui-même, dont le champ (ménages fiscaux à revenu positif ou nul)
 	// est légèrement plus étroit que la population totale.
-	PopulationApprox int
-	AnneePopulation  int
-	SVGSommetRevenu  template.HTML
-	Repartition2021  []PartGroupe
+	PopulationApprox        int
+	AnneePopulation         int
+	SVGSommetRevenu         template.HTML
+	Repartition2021         []PartGroupe
 	AnneeRepartitionRecente int
 
 	// Écart concret (en fois) entre le seuil du 0,1 % les plus aisés et la
@@ -59,7 +59,7 @@ type StatsRichesse struct {
 }
 
 type Concentration struct {
-	Position                 string
+	Position                        string
 	MassePatrimoine, MasseNiveauVie float64
 }
 
@@ -70,17 +70,17 @@ type PartGroupe struct {
 }
 
 type SeuilRevenu struct {
-	Libelle, Code                string
-	RevenuAvant, NiveauDeVie     int
-	PartPct                      float64
-	Personnes                    int
+	Libelle, Code            string
+	RevenuAvant, NiveauDeVie int
+	PartPct                  float64
+	Personnes                int
 }
 
 type TranchePatrimoine struct {
-	Libelle                        string
-	Seuil2015, Seuil2021           int
-	Moyen2015, Moyen2021           int
-	PartMasse2021                  float64
+	Libelle              string
+	Seuil2015, Seuil2021 int
+	Moyen2015, Moyen2021 int
+	PartMasse2021        float64
 }
 
 var libelleSeuil = map[string]string{

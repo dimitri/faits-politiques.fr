@@ -158,7 +158,7 @@ func chargerFrancophonie(ctx context.Context, pool *pgxpool.Pool) (*StatsFrancop
 	st.TopParPctTable = tableauFrancophonie(parPct, "Francophones",
 		func(p PaysFrancophone) string { return Decimal(p.FrancophonePct, 1) + " %" })
 	st.TopParNombreTable = tableauFrancophonie(parNombre, "Francophones",
-		func(p PaysFrancophone) string { return Nombre(int(p.FrancophoneMilliers*1000)) })
+		func(p PaysFrancophone) string { return Nombre(int(p.FrancophoneMilliers * 1000)) })
 
 	return st, nil
 }

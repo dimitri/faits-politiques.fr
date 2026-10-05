@@ -188,11 +188,11 @@ func chargerCarteInfrastructurePorts(ctx context.Context, pool *pgxpool.Pool) (*
 }
 
 type pointModalPort struct {
-	Port                    string
-	Massifiee               float64
-	EstPlafond              bool
-	Fer, Fleuve             *float64
-	AucunMassifiee          bool
+	Port           string
+	Massifiee      float64
+	EstPlafond     bool
+	Fer, Fleuve    *float64
+	AucunMassifiee bool
 }
 
 // chargerReportModal charge le report modal (fer+fleuve vs route) par port,
@@ -266,9 +266,9 @@ func dessinerReportModal(pts []pointModalPort) template.HTML {
 }
 
 type pointModalConteneurs struct {
-	Port, Pays                    string
-	Fer, Fleuve, Route            float64
-	RouteCalculee                 bool
+	Port, Pays         string
+	Fer, Fleuve, Route float64
+	RouteCalculee      bool
 }
 
 // chargerReportModalConteneurs charge la comparaison conteneurs seuls

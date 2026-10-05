@@ -124,7 +124,7 @@ type jsonStatPauvrete struct {
 	Error []struct {
 		Label string `json:"label"`
 	} `json:"error"`
-	ID        []string                            `json:"id"`
+	ID        []string                             `json:"id"`
 	Size      []int                                `json:"size"`
 	Value     map[string]*float64                  `json:"value"`
 	Dimension map[string]jsonStatPauvreteDimension `json:"dimension"`

@@ -18,12 +18,12 @@ import (
 // annuelle à trois scénarios, une carte départementale, un tableau par
 // catégorie socioprofessionnelle).
 type StatsAppareilProductif struct {
-	GlissementSVG                    template.HTML
-	AnneeDebutGlissement, AnneeFinGlissement int
-	DelocalisationAnnuelleSVG        template.HTML
-	DelocalisationDeptSVG            template.HTML
-	NbDepartements                   int
-	DelocalisationCSPTable           template.HTML
+	GlissementSVG                                               template.HTML
+	AnneeDebutGlissement, AnneeFinGlissement                    int
+	DelocalisationAnnuelleSVG                                   template.HTML
+	DelocalisationDeptSVG                                       template.HTML
+	NbDepartements                                              int
+	DelocalisationCSPTable                                      template.HTML
 	CommerceAutomobile, CommerceTextile, CommerceElectroniqueTV *StatsCommerceSecteur
 }
 
@@ -31,17 +31,17 @@ type StatsAppareilProductif struct {
 // françaises d'un secteur, à deux dates — le couple, pas la valeur seule,
 // est ce que le graphique en haltère (dumbbell) montre.
 type PartenairePart struct {
-	Nom                  string
+	Nom                    string
 	Part2013, PartDerniere float64
 }
 
 type StatsCommerceSecteur struct {
-	Secteur                        string
-	Libelle                        string
-	AnneeDebut, AnneeFin            int
-	TotalUSDDebut, TotalUSDFin      float64
-	Partenaires                     []PartenairePart
-	SVG                             template.HTML
+	Secteur                    string
+	Libelle                    string
+	AnneeDebut, AnneeFin       int
+	TotalUSDDebut, TotalUSDFin float64
+	Partenaires                []PartenairePart
+	SVG                        template.HTML
 }
 
 // chargerCommerceSecteur : additionne, par partenaire, tous les codes HS du
@@ -187,7 +187,7 @@ func dessinerHaltereCommerce(st *StatsCommerceSecteur) template.HTML {
 }
 
 type pointSecteur struct {
-	Annee                              int
+	Annee                                                      int
 	PctAgriculture, PctIndustrie, PctConstruction, PctServices float64
 }
 

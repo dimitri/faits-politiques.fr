@@ -32,7 +32,7 @@ var SourceHautsRevenusPatrimoine = archive.Source{
 }
 
 const (
-	urlHautsRevenus  = "https://www.insee.fr/fr/statistiques/fichier/7941389/RPM2024-F10.xlsx"
+	urlHautsRevenus     = "https://www.insee.fr/fr/statistiques/fichier/7941389/RPM2024-F10.xlsx"
 	urlHautsPatrimoines = "https://www.insee.fr/fr/statistiques/fichier/8272285/RPM2024-F28.xlsx"
 )
 
@@ -180,8 +180,8 @@ func IngestHautsRevenusPatrimoine(ctx context.Context, pool *pgxpool.Pool, arch 
 }
 
 type ligneSeuilRevenu struct {
-	annee                  int
-	seuil                  string
+	annee                    int
+	seuil                    string
 	revenuAvant, niveauDeVie int
 }
 
@@ -276,11 +276,11 @@ func lireRevenuPartGroupe(wb *excelize.File) ([]lignePartGroupe, error) {
 }
 
 type lignePatrimoineHaut struct {
-	annee               int
-	tranche             string
-	seuilBas, moyen     int
-	partMasse           float64
-	partMasseOK         bool
+	annee           int
+	tranche         string
+	seuilBas, moyen int
+	partMasse       float64
+	partMasseOK     bool
 }
 
 var tranchesPatrimoine = []struct{ libelle, code string }{

@@ -138,7 +138,7 @@ func dessinerAgePaliers(pts []PointAnnee, paliers []Palier, format func(float64)
 }
 
 type quantilesRetraite struct {
-	Categorie              string
+	Categorie               string
 	Q10, Q25, Q50, Q75, Q90 float64
 }
 

@@ -129,8 +129,8 @@ func IngestHeritageConcentration(ctx context.Context, pool *pgxpool.Pool, arch *
 }
 
 type ligneHeritage struct {
-	categorie, trancheAge          string
-	partHerite, partDonation       float64
+	categorie, trancheAge    string
+	partHerite, partDonation float64
 }
 
 // lireHeritage : Figures 7a (hérité) et 7b (donation) ont la même mise en
@@ -190,7 +190,7 @@ func lireTableauAge(wb *excelize.File, feuille string) (map[cleAgeCategorie]floa
 }
 
 type ligneConcentration struct {
-	position                       string
+	position                        string
 	massePatrimoine, masseNiveauVie float64
 }
 type ginisMenage struct{ patrimoine, niveauDeVie float64 }

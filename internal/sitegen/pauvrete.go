@@ -17,9 +17,9 @@ import (
 // core.pauvrete_seuil_annuel), inséré dans le document par le marqueur
 // <!-- schema:seuils-pauvrete --> (internal/sitegen/main.go).
 type SeuilsPauvrete struct {
-	Annee           int
+	Annee            int
 	Seuil50, Seuil60 float64
-	SVG             template.HTML
+	SVG              template.HTML
 }
 
 type pointDecile struct {

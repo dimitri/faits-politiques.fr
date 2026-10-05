@@ -96,7 +96,7 @@ func chargerCarteBassins(ctx context.Context, pool *pgxpool.Pool) (*CarteBassins
 // trouvées dans BANATIC, une fraction seulement affichée ici), voir
 // docs/bassins-versants-donnees.md § 1.2.
 const (
-	tolEPTBEPAGE            = tolPleine
+	tolEPTBEPAGE             = tolPleine
 	seuilResolutionEPTBEPAGE = 0.8
 )
 
@@ -105,9 +105,9 @@ var couleursTypeEPTBEPAGE = map[string]string{
 }
 
 type CarteEPTBEPAGE struct {
-	SVG                              template.HTML
-	NbAffiches, NbTrouves            int
-	NbEPTB, NbEPAGE, NbDouble        int
+	SVG                       template.HTML
+	NbAffiches, NbTrouves     int
+	NbEPTB, NbEPAGE, NbDouble int
 }
 
 func chargerCarteEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool) (*CarteEPTBEPAGE, error) {
