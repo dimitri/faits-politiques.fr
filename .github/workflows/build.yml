@@ -77,8 +77,19 @@ jobs:
   # docs/ci-pipeline.md § 3.5 : la latence de retour sur une PR ne doit pas
   # dépendre du temps d'ingestion (1h22 cumulées, INFRA.md § 1), alors que
   # l'essentiel des PR touche le rendu du site, pas les connecteurs.
+  #
+  # Jamais sur schedule non plus, pour une raison différente : ingest all
+  # ne tient structurellement pas dans le budget (temps, disque) d'un
+  # runner hébergé — docs/ci-pipeline.md § 1 conclut qu'une VM dédiée est
+  # nécessaire, pas encore provisionnée. Tant que ce job n'a jamais abouti
+  # une seule fois ici (vérifié : chaque tentative est soit annulée après
+  # ~45 min, soit tuée par le disque), le laisser tourner chaque nuit ne
+  # produit qu'un échec garanti et un jeu de notifications pour rien.
+  # build-pr (schedule y est inclus, plus bas) couvre chaque nuit ce qui
+  # est réellement vérifiable sans cette VM : que le site se construit
+  # encore depuis le dernier périmètre CI connu.
   build-full:
-    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.seed_ci_dump_release == '')
+    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.seed_ci_dump_release == '')
     runs-on: ubuntu-latest
     timeout-minutes: 45
 
@@ -186,14 +197,20 @@ jobs:
         run: echo "cible d'hébergement à trancher — voir docs/decisions.md D-012"
 
   # Job léger : pas d'ingestion, pas de connecteurs — le site est construit
-  # à partir du dernier périmètre CI publié par build-full (push main ou
-  # planifié). Répond en quelques minutes plutôt qu'en heures, au prix de ne
-  # pas rejouer les garanties structurelles ni la concordance avec les
+  # à partir du dernier périmètre CI publié par build-full (push main) ou,
+  # faute de cache visible depuis cette ref, de la release d'amorçage (voir
+  # plus bas). Répond en quelques minutes plutôt qu'en heures, au prix de
+  # ne pas rejouer les garanties structurelles ni la concordance avec les
   # décomptes officiels (elles ont besoin de core/ref, hors du périmètre) —
-  # ces deux portes restent couvertes par build-full à chaque push sur main
-  # et chaque nuit.
+  # ces deux portes restent couvertes par build-full, seulement à chaque
+  # push sur main désormais (schedule ne l'exécute plus, voir plus haut).
+  #
+  # schedule tourne CE job, pas build-full : la seule chose qu'une nuit
+  # sans intervention humaine peut réellement vérifier aujourd'hui est que
+  # le site se construit encore depuis le dernier périmètre CI connu — pas
+  # qu'un ingest complet aboutisse, ce qu'aucun run n'a jamais fait ici.
   build-pr:
-    if: github.event_name == 'pull_request'
+    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # contents: write, pas read : nécessaire au repli sur la release
