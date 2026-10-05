@@ -25,6 +25,13 @@ services:
     # plein texte sur un corpus d'un million d'actes.
     command: postgres -c shared_preload_libraries=pg_stat_statements
     container_name: fp_db
+    # Le défaut Docker (64 Mo) est trop court pour les workers parallèles de
+    # Postgres sous charge réelle : la génération complète du site (communes
+    # et intercommunalités, ~35 000 pages) a fait échouer /dev/shm en CI avec
+    # « could not resize shared memory segment ... No space left on device »
+    # (SQLSTATE 53100) — jamais vu en développement local, où le shm_size par
+    # défaut du démon Docker de bureau est généralement bien plus large.
+    shm_size: "1gb"
     environment:
       POSTGRES_USER: fp
       POSTGRES_PASSWORD: fp
