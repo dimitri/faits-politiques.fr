@@ -173,7 +173,7 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 	if len(noms) == 0 {
 		return nil
 	}
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
@@ -248,13 +248,27 @@ func downloadTargetsFor(noms []string) []archive.DownloadTarget {
 	return out
 }
 
+// concurrenceDuPool : la taille du pool Postgres que contexte doit ouvrir —
+// au moins 4 (le défaut historique de store.Open, jamais réduit), mais
+// élargi si -j demande plus de front que ça. Sans cet ajustement, -j restait
+// sans effet réel au-delà de 4 : reg.Executer lance bien plus de goroutines,
+// mais elles font toutes la queue pour la même poignée de 4 connexions —
+// exactement le défaut qu'actualiserMatviews (plus bas) corrige déjà pour
+// son propre pool, jamais recopié ici jusqu'à présent.
+func concurrenceDuPool(opts []pipeline.Options) int32 {
+	if len(opts) > 0 && int32(opts[0].Concurrence) > 4 {
+		return int32(opts[0].Concurrence)
+	}
+	return 4
+}
+
 // contexte : ce que chaque point d'entrée (RunTout/RunSource/RunCategorie)
 // ouvre avant de faire quoi que ce soit — les migrations en attente, le
 // répertoire de l'archive scellée, le pool. Commun aux trois, pour que
 // « fpctl ingest budget dette » applique les migrations en attente tout
 // aussi sûrement que la chaîne complète.
-func contexte(ctx context.Context, rawDir, migDir string) (pool *pgxpool.Pool, arch *archive.Archive, fermer func(), err error) {
-	pool, err = store.Open(ctx)
+func contexte(ctx context.Context, rawDir, migDir string, maxConns int32) (pool *pgxpool.Pool, arch *archive.Archive, fermer func(), err error) {
+	pool, err = store.OpenWithMaxConns(ctx, maxConns)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -291,7 +305,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 	if _, ok := SourceParNom(nom); !ok {
 		return fmt.Errorf("source inconnue : %s (voir « fpctl ingest » pour la liste)", nom)
 	}
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
@@ -371,7 +385,7 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	if len(sources) == 0 {
 		return fmt.Errorf("catégorie inconnue : %s (voir « fpctl ingest » pour la liste)", categorie)
 	}
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
@@ -574,7 +588,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 // jusqu'ici.
 func RunTout(ctx context.Context, rawDir, migDir string, opts ...pipeline.Options) error {
 	start := time.Now()
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}

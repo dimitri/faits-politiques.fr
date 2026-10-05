@@ -77,10 +77,28 @@ jobs:
   # docs/ci-pipeline.md § 3.5 : la latence de retour sur une PR ne doit pas
   # dépendre du temps d'ingestion (1h22 cumulées, INFRA.md § 1), alors que
   # l'essentiel des PR touche le rendu du site, pas les connecteurs.
+  # Runner auto-hébergé (dev-runner), pas ubuntu-latest : l'ingestion
+  # complète mesure 1 h 22 cumulées, dont 47 minutes pour le seul connecteur
+  # an-exposes (docs/ci-pipeline.md § 3.1) — un runner hébergé, plafonné à
+  # 45 min par ce fichier et à 14 Go de disque, ne pouvait structurellement
+  # pas aboutir : les runs programmés ont été vus annulés pile au timeout,
+  # répétés jour après jour, bien avant cette bascule. INFRA.md § 10 posait
+  # déjà les conditions d'un runner auto-hébergé pour ce dépôt PUBLIC avant
+  # de l'installer — toutes vérifiées ici : jamais de déclenchement sur
+  # pull_request (voir le if: ci-dessous, inchangé), conteneur Docker isolé
+  # du reste de la machine (le même démon docker-ci que les autres dépôts
+  # construits sur dev-runner, DOCKER_HOST fixé par le service systemd du
+  # runner, pas par ce fichier), et aucun secret durable propre à ce
+  # workflow (aucun n'existe encore ici).
   build-full:
     if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.seed_ci_dump_release == '')
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    runs-on: [self-hosted, faits-politiques]
+    # Un filet de sécurité, pas un budget serré comme sur ubuntu-latest : le
+    # runner auto-hébergé n'a plus de plafond de 45 min ni de 14 Go, mais un
+    # connecteur qui boucle pour de vrai doit quand même finir par échouer
+    # plutôt que tourner indéfiniment sur une machine partagée avec d'autres
+    # dépôts.
+    timeout-minutes: 180
 
     # Pas de services: ici. Le mécanisme services: de GitHub Actions ne sait
     # que tirer une image publiée telle quelle — il ne peut pas construire
@@ -127,8 +145,20 @@ jobs:
           key: raw-${{ github.run_id }}
           restore-keys: raw-
 
+      # -j 8 : la quasi-totalité du catalogue (runToutSupplement) n'a aucune
+      # dépendance déclarée entre connecteurs et tournait pourtant un par un
+      # (le -j par défaut de la commande est 1, jamais relevé ici) — la
+      # machinerie de vagues concurrentes existe déjà (internal/pipeline.
+      # Registre, le même mécanisme que fpctl build site et les matvues) et
+      # n'attendait qu'un -j réel pour servir à l'ingestion. 8, pas plus :
+      # an-exposes reste volontairement lent (site public, pas une API,
+      # voir internal/an/exposes.go) et fixe de toute façon le plancher réel
+      # du temps mur, quelle que soit la concurrence par ailleurs ; dev-runner
+      # dispose largement des cœurs et de la RAM pour ce chiffre (24 cœurs,
+      # 188 Go), le pool Postgres de ce même run s'élargit en conséquence
+      # (voir concurrenceDuPool, internal/ingest/ingest.go).
       - name: Ingestion
-        run: ./bin/fpctl ingest all
+        run: ./bin/fpctl ingest all -j 8
 
       # Porte 1 : les garanties structurelles tournent sur la base RÉELLEMENT
       # chargée, pas sur une base vide. Une donnée qui violerait une règle
