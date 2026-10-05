@@ -1,6 +1,6 @@
 # L'Éducation nationale : budget, effectifs, organisation
 
-> **Dossier** · version 6 · 20 septembre 2026
+> **Dossier** · version 7 · 5 octobre 2026
 >
 > Que coûte l'enseignement scolaire, combien de personnes y travaillent par
 > établissement, et comment l'autorité et la rémunération des enseignants sont-elles
@@ -205,6 +205,91 @@ temps de scolarisation des élèves accompagnés), ce qui ramène leurs
 134 775 effectifs à 85 326 ETP — l'écart le plus large de toutes les
 catégories de ce tableau, à ne jamais lire comme une anomalie.
 
+### 8. La dépense par élève depuis 1980 : une hausse réelle, mais qui a calé dans les années 2010
+
+Depp, RERS Interactif, tableau 10.05 (édition 2026, euros constants 2024) — une série
+annuelle complète, pas seulement les points de repère cités jusqu'ici : trouvée en
+rejouant le trafic réseau de l'application JavaScript RERS Interactif (chaque tableau y
+est servi en CSV à une adresse prévisible mais non documentée ni liée depuis les pages du
+site), pas en devinant un format d'export.
+
+| Année | Premier degré | Second degré | Supérieur | Ensemble |
+|---|---:|---:|---:|---:|
+| 1980 | 3 810 € | 6 910 € | 9 840 € | 5 520 € |
+| 1990 | 4 770 € | 8 310 € | 10 860 € | 6 920 € |
+| 2000 | 6 570 € | 10 930 € | 12 580 € | 9 220 € |
+| 2010 | 6 970 € | 11 910 € | 14 320 € | 10 040 € |
+| 2020 | 7 870 € | 11 090 € | 13 080 € | 10 040 € |
+| 2024p | 9 080 € | 11 660 € | 13 300 € | 10 920 € |
+
+**La dépense par élève a quasiment doublé en 44 ans** (5 520 € à 10 920 €, +98 % en euros
+constants) — mais pas régulièrement : elle **stagne exactement entre 2010 et 2020**
+(10 040 € les deux années, colonne « Ensemble »), avant de repartir nettement à la hausse
+depuis (+8,8 % en quatre ans, 2020-2024). Le premier degré, historiquement le moins bien
+doté, est le niveau qui progresse le plus sur l'ensemble de la période (+138 % depuis
+1980, contre +69 % pour le second degré et +35 % pour le supérieur) : l'écart entre
+niveaux se resserre sans se refermer — un élève du supérieur coûte encore 46 % de plus
+qu'un élève du premier degré en 2024, contre 158 % de plus en 1980. 2024 porte la mention
+« p » (provisoire) dans la source elle-même, reprise telle quelle ici.
+
+### 9. Les effectifs d'élèves, en miroir : le premier degré au plus bas depuis 1960, le second degré encore porté par les classes d'âge précédentes
+
+Depp, RERS Interactif, tableaux 3.01 (premier degré, depuis 1960) et 4.01 (second degré,
+depuis 1994) — en milliers d'élèves, secteurs public et privé sous contrat réunis.
+**Piège vérifié avant chargement** : le tableau 3.01 publie déjà en milliers, le tableau
+4.01 en effectifs bruts (3 359 928 pour le collège en 2025, confirmé par le texte du
+tableau lui-même : « 3 360 000 élèves étudient au collège ») — une différence d'échelle
+entre les deux sources RERS, corrigée au chargement (division par 1 000 du second degré
+seulement), sans quoi toute comparaison premier/second degré aurait été faussée d'un
+facteur 1 000.
+
+| Année | Premier degré (total) | Second degré (total) |
+|---|---:|---:|
+| 1960 | 6 290 | n.d. |
+| 1980 | 6 994 | n.d. |
+| 1994 | 6 478 | 5 774 |
+| 2010 | 6 604 | 5 322 |
+| 2017 | 6 693 | 5 603 |
+| 2025 | 6 096 | 5 621 |
+
+Le premier degré retombe, à la rentrée 2025, **sous son niveau de 1960** (6 096 000 contre
+6 290 000) — un minimum depuis le début de la série, après un pic à 7 195 800 en 1974 (la
+génération du baby-boom, succédant au creux des naissances de la guerre). Le second degré
+suit la trajectoire inverse sur la période récente : en baisse jusqu'en 2010 (5 322 000,
+un creux), puis en hausse depuis (5 621 000 en 2025). **Les deux courbes montrent le même
+mouvement démographique, vu à deux endroits du système scolaire, décalé d'une dizaine
+d'années** : les classes qui ont fait grossir le second degré depuis 2010 sont celles dont
+le recul se lit aujourd'hui dans le premier degré — cohérent avec la baisse des naissances
+déjà relevée au § 2 pour expliquer le recul des ETP enseignants du premier degré.
+
+**Deux années portent deux valeurs différentes dans la source elle-même** (1999 et 2011,
+premier degré) — une rupture de série dans RERS Interactif, ni expliquée dans le texte du
+tableau ni corrigée ici : seule la valeur qui prolonge la série vers l'année suivante est
+retenue, l'autre écartée (voir `internal/education/effectifs_historique.go`).
+
+### 10. Le taux de réussite au baccalauréat (INSEE), 2011-2024
+
+INSEE, série BDM 001769473 (« Tous baccalauréats — Taux de réussite — France »,
+republication d'une mesure Depp) — demandée nommément à cette source plutôt qu'à RERS, qui
+publie pourtant le même indicateur sur une période plus longue (depuis 1980) et sans trou
+(tableau 8.02) :
+
+| Année | Taux de réussite |
+|---|---:|
+| 2011 | 85,7 % |
+| 2015 | 87,9 % |
+| 2019 | 88,0 % |
+| 2020 | 95,0 % |
+| 2021 | 93,7 % |
+| 2024 | 91,2 % |
+
+**Deux années manquent dans cette série INSEE (2022 et 2023)** — une vraie lacune de
+cette republication, vérifiée directement sur la réponse de l'API SDMX, pas un filtre de
+ce chargement. Le pic de 2020-2021 (95,0 % puis 93,7 %, contre 88,0 % en 2019 et 91,2 % en
+2024) correspond aux deux sessions organisées en contrôle continu intégral pendant la
+pandémie de Covid-19 — une rupture de méthode d'évaluation, pas une amélioration du
+niveau des candidats, à ne jamais lire comme une tendance.
+
 ### 7. La France en comparaison européenne : taille des classes, résultats PISA
 
 **La taille des classes** : Eurostat publiait une série comparable
@@ -255,9 +340,14 @@ même manière.
 
 ## Ce que les données ne disent pas
 
-La dépense par élève et les séries longues ne sont pas disponibles en jeu de données
-ouvert structuré : la liste « Non chargé, et pourquoi » de l'annexe technique (§ 6) le
-détaille source par source. Les effectifs d'AESH, longtemps cités seulement via un
+La dépense par élève et les effectifs sur longue période sont désormais chargés (§ 8-9) —
+pas via un jeu de données ouvert classique (aucun n'a été trouvé), mais en rejouant le
+trafic réseau de RERS Interactif, qui sert chaque tableau en CSV à une adresse non
+documentée. Restent non chargés : le détail académie par académie de ces deux séries, la
+décomposition de la dépense par activité (enseignement/administration/annexe, tableau
+10.05 figure 4) au-delà de la seule année 2023, et le taux de réussite au baccalauréat
+avant 2011 côté INSEE (RERS le publie depuis 1980, mais la source demandée ici est
+spécifiquement l'INSEE, § 10). Les effectifs d'AESH, longtemps cités seulement via un
 ordre de grandeur de la Cour des comptes, sont désormais chargés par catégorie précise
 (§ 3). La comparaison européenne du § 7 repose sur des citations sourcées précisément,
 pas sur des séries chargées en base : voir ce paragraphe pour le détail de cette
@@ -285,6 +375,12 @@ limite.
 - OCDE, *Regards sur l'éducation 2025*, note pays France (taille des classes,
   citation § 7).
 - OCDE, *Résultats du PISA 2022*, volume I, tableau I.1 (citation § 7).
+- Depp, RERS Interactif (rers.depp.education.fr), tableaux 10.05 (§ 8) et
+  3.01/4.01 (§ 9) — licence non affichée sur le site (pages « conditions »
+  et « mentions légales » vérifiées, aucun texte de licence trouvé),
+  présumée Licence Ouverte v2.0 par défaut (publication d'un service
+  public), à confirmer avant tout usage commercial.
+- INSEE, série BDM 001769473, taux de réussite au baccalauréat (§ 10).
 - [docs/budget-donnees.md](budget-donnees.md), pour le piège voté/exécuté.
 
 ## Annexe technique
@@ -298,22 +394,38 @@ limite.
 | 3 | Depp, personnels des établissements du second degré | 10 697 lignes, 2024 |
 | 4 | Depp, effectifs d'élèves des écoles (premier degré) | 35 lignes, agrégat national par secteur, 2009-2025 |
 | 5 | Depp, Panorama — personnels non enseignants par catégorie (dont AESH) | 18 lignes, national, rentrée 2024 |
+| 6 | Depp, RERS 10.05, dépense par élève et par étudiant | 180 lignes, 4 niveaux × 1980-2024 (§ 8) |
+| 7 | Depp, RERS 3.01 + 4.01, effectifs d'élèves | 228 lignes, 1er degré 1960-2025 + 2nd degré 1994-2025 (§ 9) |
+| 8 | INSEE, série BDM 001769473, réussite au baccalauréat | 12 années, 2011-2024 avec trou 2022-2023 (§ 10) |
 
 **Non chargé, et pourquoi :**
 
-- La dépense par élève (environ 8 450 €/an en primaire, 11 320 €/an dans le secondaire selon les publications de la Depp) : chiffre publié par la Depp dans ses
-  publications (RERS, « L'état de l'École ») mais aucun jeu de données ouvert
-  structuré retrouvé au moment de l'écriture — seulement des documents PDF.
-- Effectifs d'élèves des collèges et lycées (second degré) : le jeu chargé
-  au § 4 ne couvre que le premier degré (écoles) ; un jeu Depp équivalent
-  pour le second degré n'a pas encore été identifié précisément.
-- Séries historiques longues (jusqu'aux années 1980, que la RERS publie
-  en PDF) : les effectifs d'élèves du § 4 remontent à 2009, une amélioration
-  réelle mais qui reste loin des années 1980 ; les personnels enseignants
-  (§ 2) ne remontent toujours pas au-delà de 2024.
+- Le détail académie par académie de la dépense par élève et des effectifs
+  longue période (§ 8-9) : RERS Interactif ne publie ces deux tableaux qu'au
+  niveau national.
+- La décomposition de la dépense par élève par activité (enseignement,
+  administration générale, activités annexes — RERS 10.05 figure 4) : une
+  seule année (2023) publiée dans cette figure, pas une série ; non chargée,
+  citée au besoin directement depuis la source si utile.
+- Le taux de réussite au baccalauréat avant 2011, côté INSEE spécifiquement
+  (§ 10) : la série BDM demandée ne remonte pas plus loin. RERS publie le
+  même indicateur depuis 1980 (tableau 8.02), non chargé ici puisque la
+  source demandée pour cet indicateur est l'INSEE, pas RERS.
 
 ## Versions
 
+- **Version 7** (5 octobre 2026) : trois séries longues ajoutées — la
+  dépense par élève 1980-2024 (§ 8) et les effectifs d'élèves 1960-2025
+  (§ 9), toutes deux trouvées sur RERS Interactif (rers.depp.education.fr)
+  en rejouant le trafic réseau de son application JavaScript (chromium
+  headless, capture réseau) plutôt qu'en se limitant aux chapitres PDF déjà
+  cités — chaque tableau RERS s'y sert en réalité en CSV, à une adresse
+  prévisible mais non documentée ni liée depuis les pages HTML du site ;
+  et le taux de réussite au baccalauréat 2011-2024 (§ 10), demandé
+  nommément à l'INSEE plutôt qu'à RERS (qui publie le même indicateur
+  depuis 1980, sans le trou 2022-2023 que porte la série INSEE). Referme
+  deux des trois lacunes listées dans « Non chargé, et pourquoi » depuis la
+  version 1 (dépense par élève, effectifs du second degré).
 - **Version 6** (20 septembre 2026) : les personnels non enseignants,
   enfin identifiés par catégorie précise (§ 3) — direction, inspection,
   encadrement supérieur, CPE, psychologues de l'Éducation nationale, AESH,

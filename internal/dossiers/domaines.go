@@ -24,6 +24,7 @@ const (
 	urlVoiesMoyens2025   = "https://www2.assemblee-nationale.fr/static/17/Annexes-DL/PLF-2025/Voies_et_moyens_Tome_2_2025.pdf"
 	urlDGFiPEcartTVA     = "https://www.impots.gouv.fr/sites/default/files/media/9_statistiques/0_etudes_et_stats/0_publications/dgfip_analyses/2024/num07_09/dgfip_analyses_07_2024.pdf"
 	urlDreesUrgences2023 = "https://drees.solidarites-sante.gouv.fr/publications-communique-de-presse/etudes-et-resultats/250319_ER_urgences-la-moitie-des-patients-y-restent-plus-de-trois-heures-en-2023"
+	urlANMaintienOrdre   = "https://www.assemblee-nationale.fr/dyn/15/rapports/ceordre/l15b3786_rapport-enquete.pdf"
 )
 
 // loi : un texte du Journal officiel chargé, relu par son intitulé.
@@ -302,6 +303,26 @@ func init() {
 			Qualite: "DECLARATIF",
 			Attendus: []string{"le taux d'élucidation des affaires de violences policières a baissé de 25 % entre 2016 et 2024",
 				"alors qu'il était de 700 en 2016, ce nombre d'affaires est de 1110 en 2024, soit une augmentation de l'ordre de 60%"}},
+		Fait{ID: "an-maintien-ordre-2021-absence-stats", Dossier: "violences-policieres-donnees", Section: "CONTROLE",
+			Theme: "Assemblée nationale", Type: "CONSTAT",
+			Date: "2021-01-20", Auteur: "Commission d'enquête de l'Assemblée nationale sur le maintien de l'ordre",
+			Intitule: "L'Assemblée nationale constate elle-même l'absence de statistiques sur les blessés parmi les manifestants",
+			Constat: "La commission d'enquête, créée après les mobilisations des Gilets jaunes, écrit noir sur blanc qu'il n'existe pas de " +
+				"statistiques précises sur les blessés parmi les manifestants — l'absence documentée dans cette note (§ 6) n'est donc pas " +
+				"un simple constat d'un tiers, mais l'aveu de l'Assemblée nationale elle-même.",
+			URL: urlANMaintienOrdre, Qualite: "OFFICIEL",
+			Attendus: []string{"il n'existe pas de statistiques précises sur les blessés parmi les manifestants"}},
+		Fait{ID: "an-maintien-ordre-2021-signalements-igpn", Dossier: "violences-policieres-donnees", Section: "CONTROLE",
+			Theme: "Assemblée nationale", Type: "CONSTAT",
+			Date: "2021-01-20", Auteur: "Commission d'enquête de l'Assemblée nationale sur le maintien de l'ordre",
+			Intitule: "406 dossiers judiciaires ouverts par l'IGPN sur les Gilets jaunes, quatre condamnations",
+			Constat: "La directrice de l'IGPN, entendue par la commission, indique que son service a traité 406 dossiers judiciaires liés aux " +
+				"Gilets jaunes depuis le 17 novembre 2018, dont 311 retournés à l'autorité judiciaire — pour des suites connues de quatre " +
+				"condamnations, six poursuites, quatre mises en examen et 205 classements sans suite par les parquets. Parallèlement, " +
+				"67 enquêtes administratives ont été ouvertes, dont huit ont retenu un usage disproportionné de la force visant 17 policiers.",
+			URL: urlANMaintienOrdre, Qualite: "OFFICIEL",
+			Attendus: []string{"406 dossiers judiciaires, dont 311 ont été retournés à l'autorité judiciaire",
+				"Soixante-sept enquêtes administratives ont été ouvertes par l'IGPN"}},
 
 		// Écologie et eau.
 		loiArt("loi-energie-climat-2019", "ecologie-donnees", "CADRE", "2019-11-08", "Parlement (loi n° 2019-1147)",

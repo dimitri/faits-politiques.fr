@@ -2,6 +2,7 @@ package sitegen
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"strings"
@@ -36,40 +37,83 @@ var sitesSemiConducteurs = []siteSemiConducteur{
 		5.867065, 45.267187},
 }
 
-// chargerCarteSemiConducteurs : le fond France métropolitaine (déjà utilisé
-// pour la ligne de démarcation, internal/sitegen/seconde_guerre_mondiale.go) et
-// cinq points géocodés à la commune — pas de taille proportionnelle : les
-// montants d'aide publique ne sont connus que pour deux des cinq sites
-// (Crolles, Soitec), les faire varier en taille aurait suggéré une
-// précision que la source n'a que pour deux points sur cinq.
+// chargerCarteSemiConducteurs : le fond France métropolitaine (même
+// technique d'isolation des outre-mer que la carte de la Seconde Guerre
+// mondiale, internal/sitegen/seconde_guerre_mondiale.go) et cinq points
+// géocodés à la commune — pas de taille proportionnelle : les montants
+// d'aide publique ne sont connus que pour deux des cinq sites (Crolles,
+// Soitec), les faire varier en taille aurait suggéré une précision que la
+// source n'a que pour deux points sur cinq.
+//
+// Projetée en Lambert-93 (2154), la convention de ce dépôt pour toute carte
+// de la seule France, plutôt qu'en degrés WGS84 bruts : à la latitude de la
+// France, un degré de longitude vaut environ 0,68 fois un degré de latitude
+// en distance réelle (cosinus de 47°), et la carte paraissait environ 47 %
+// trop large d'ouest en est avant cette correction.
 func chargerCarteSemiConducteurs(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
-	var fondChemin string
-	err := pool.QueryRow(ctx, `
-		SELECT st_assvg(st_union(g.geom), 0, 4)
-		FROM (SELECT (ST_Dump(geom)).path AS path, (ST_Dump(geom)).geom AS geom
-		      FROM geo.contour_pays WHERE nom_fr='France') g
-		WHERE g.path[1] IN (1, 2)`).Scan(&fondChemin)
-	if err != nil || fondChemin == "" {
+	var fondChemin, viewBox sql.NullString
+	if err := pool.QueryRow(ctx, `
+		WITH france AS (
+			SELECT st_union(geom) g
+			FROM (SELECT (ST_Dump(geom)).path AS path, (ST_Dump(geom)).geom AS geom
+			      FROM geo.contour_pays WHERE nom_fr='France') d
+			WHERE d.path[1] IN (1, 2)
+		), proj AS (SELECT st_transform(g, 2154) AS g FROM france)
+		SELECT st_assvg(g, 1, 0),
+		       round(st_xmin(g))||' '||round(-st_ymax(g))||' '||
+		       round(st_xmax(g)-st_xmin(g))||' '||round(st_ymax(g)-st_ymin(g))
+		FROM proj`).Scan(&fondChemin, &viewBox); err != nil {
 		return "", err
 	}
-	fleuves, err := fleuvesSVG(ctx, pool, 4326, 0, 4)
+	if !fondChemin.Valid || fondChemin.String == "" {
+		return "", nil
+	}
+	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
 	if err != nil {
 		return "", err
 	}
-	return dessinerCarteSemiConducteurs(fondChemin, fleuves), nil
+
+	lons := make([]float64, len(sitesSemiConducteurs))
+	lats := make([]float64, len(sitesSemiConducteurs))
+	for i, s := range sitesSemiConducteurs {
+		lons[i], lats[i] = s.Lon, s.Lat
+	}
+	rows, err := pool.Query(ctx, `
+		SELECT st_x(g), st_y(g)
+		FROM unnest($1::float8[], $2::float8[]) WITH ORDINALITY AS v(lon, lat, ord)
+		CROSS JOIN LATERAL (SELECT st_transform(st_setsrid(st_makepoint(v.lon, v.lat), 4326), 2154) g) t
+		ORDER BY v.ord`, lons, lats)
+	if err != nil {
+		return "", err
+	}
+	points := make([]struct{ X, Y float64 }, 0, len(sitesSemiConducteurs))
+	for rows.Next() {
+		var p struct{ X, Y float64 }
+		if err := rows.Scan(&p.X, &p.Y); err != nil {
+			rows.Close()
+			return "", err
+		}
+		points = append(points, p)
+	}
+	if err := rows.Err(); err != nil {
+		rows.Close()
+		return "", err
+	}
+	rows.Close()
+
+	return dessinerCarteSemiConducteurs(fondChemin.String, fleuves, viewBox.String, points), nil
 }
 
-func dessinerCarteSemiConducteurs(fond string, fleuves string) template.HTML {
+func dessinerCarteSemiConducteurs(fond, fleuves, viewBox string, points []struct{ X, Y float64 }) template.HTML {
 	var b strings.Builder
-	b.WriteString(`<svg viewBox="-6 -52 16 12" class="geo france semi-conducteurs" role="img" ` +
-		`aria-label="Sites français de production de semi-conducteurs">`)
+	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo france semi-conducteurs" role="img" `+
+		`aria-label="Sites français de production de semi-conducteurs">`, viewBox)
 	fmt.Fprintf(&b, `<path class="fond" d="%s"/>`, fond)
 	b.WriteString(fleuves)
-	for _, s := range sitesSemiConducteurs {
-		x, y := s.Lon, -s.Lat
+	for i, s := range sitesSemiConducteurs {
 		titre := fmt.Sprintf("%s, %s — %s", s.Nom, s.Commune, s.Note)
-		fmt.Fprintf(&b, `<circle class="site" cx="%.4f" cy="%.4f" r="0.12"><title>%s</title></circle>`,
-			x, y, template.HTMLEscapeString(titre))
+		fmt.Fprintf(&b, `<circle class="site" cx="%.0f" cy="%.0f" r="14000"><title>%s</title></circle>`,
+			points[i].X, -points[i].Y, template.HTMLEscapeString(titre))
 	}
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())

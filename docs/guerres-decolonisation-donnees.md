@@ -1,6 +1,6 @@
 # Les guerres de décolonisation : Algérie et Indochine
 
-> **Dossier** · version 1 · 19 septembre 2026
+> **Dossier** · version 4 · 20 septembre 2026
 >
 > Deux guerres, deux issues, et des bilans humains dont plusieurs restent
 > aujourd'hui encore disputés entre historiens — parfois d'un facteur dix.
@@ -29,19 +29,26 @@
 
 <!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Aucun texte n'est encore chargé pour ce dossier.
+- **La loi qui donne effet aux accords d'Évian** (13 avril 1962). Votée au lendemain du référendum du 8 avril 1962 (90,8 % de oui), cette loi habilite le président de la République à prendre par ordonnances les mesures nécessaires à l'application des déclarations gouvernementales du 19 mars 1962 — le nom officiel des accords d'Évian dans les textes français de l'époque, qui ne parlent pas d'un traité au sens classique. — Parlement (loi n° 62-421) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000000509045) · *officiel*
+- **La loi qui reconnaît juridiquement l'expression « guerre d'Algérie »** (18 octobre 1999). Jusqu'à cette loi, les textes officiels ne parlaient que d'« opérations effectuées en Afrique du Nord » ; votée à l'unanimité des deux chambres, elle substitue partout l'expression « guerre d'Algérie ou combats en Tunisie et au Maroc » — trente-sept ans après le cessez-le-feu. — Parlement (loi n° 99-882) · [source](https://www.legifrance.gouv.fr/jorf/id/JORFTEXT000000578132) · *officiel*
 
 <!-- faits:CADRE:fin -->
 
-### 1. Pourquoi ce dossier n'a pas de carte
+### 1. Ce que la carte ci-dessous montre, et ce qu'elle ne montre pas
 
-Aucune géométrie ouverte vérifiée n'a été trouvée pour ces deux guerres —
-ni pour la « ligne Morice » (le barrage électrifié à la frontière
-algéro-tunisienne), ni pour les sites d'essais nucléaires du Sahara, ni
-pour les frontières résultant des accords d'Évian. Plutôt que de
-construire une carte à partir de coordonnées reconstituées, ce dossier
-reste entièrement sourcé en chiffres et en citations précises — plus utile
-ici qu'une carte approximative.
+**Aucune géométrie de champ de bataille n'a été trouvée pour ces deux
+guerres** — ni pour la « ligne Morice » (le barrage électrifié à la
+frontière algéro-tunisienne), ni pour les sites d'essais nucléaires du
+Sahara, ni pour les frontières résultant des accords d'Évian. Sur ce point,
+ce dossier reste entièrement sourcé en chiffres et en citations précises
+plutôt que de construire une carte à partir de coordonnées reconstituées.
+
+**En revanche, l'étendue territoriale de l'Indochine française et la
+partition du Viêt Nam de 1954 sont, elles, chargées** : CShapes 2.0 (la
+même source que le dossier sur l'empire colonial) modélise ces contours à
+précision journalière, avant comme après les accords de Genève.
+
+<!-- schema:indochine-1954 -->
 
 ## Contrôles et évaluations
 
@@ -121,6 +128,22 @@ peut pas établir à partir des sources trouvées.
 
 ### 5. La guerre d'Indochine (1946-1954)
 
+**L'étendue territoriale et la partition de 1954** sont montrées en carte
+au § 1 : l'Indochine française (Cambodge, Laos, Viêt Nam unifié) à sa
+dernière extension, puis les deux États nés des accords de Genève du
+21 juillet 1954 — République démocratique du Viêt Nam au nord, République
+du Viêt Nam au sud — jusqu'à la chute de Saïgon le 30 avril 1975. Cette
+carte ne couvre ni les lignes de front ni les zones de combat de la guerre
+elle-même (voir § 1) : c'est un repère géographique pour les bilans
+chiffrés ci-dessous, pas une carte militaire.
+
+**La population des trois pays, 1500-2000** (CLIO-INFRA, licence
+CC0-1.0) — un repère démographique de longue durée, jamais un
+recensement de l'Indochine française elle-même (voir la réserve du § 3
+du dossier empire colonial, qui renvoie ici) :
+
+<!-- schema:indochine-population -->
+
 **Les pertes de l'Union française** : le décompte au 1ᵉʳ juin 1954 retient
 environ **92 000 morts, disparus ou morts de maladie**, avec une
 décomposition citée par plusieurs sources — environ 20 000 métropolitains,
@@ -148,8 +171,10 @@ grandeur — ce dossier les cite tous les deux plutôt que d'en choisir un.
 
 ### 6. Ce qui reste hors de portée de cette version
 
-- **Aucune géométrie n'est chargée** (§ 1) : ligne Morice, sites nucléaires,
-  frontières d'Évian n'ont pas de source ouverte vérifiée identifiée.
+- **Aucune géométrie de champ de bataille n'est chargée** (§ 1) : ligne
+  Morice, sites nucléaires, frontières d'Évian n'ont pas de source ouverte
+  vérifiée identifiée — l'étendue territoriale et la partition de 1954
+  (§ 1, § 5), elles, le sont depuis cette version.
 - **La répartition départementale des rapatriés en France** : une étude de
   l'Insee sur le recensement de 1968 existe (*Économie et Statistique*
   n° 45, 1973) mais n'est pas disponible en données brutes réutilisables —
@@ -175,6 +200,12 @@ grandeur — ce dossier les cite tous les deux plutôt que d'en choisir un.
   loi Morin de 2010 (§ 4).
 - Historiographie de la guerre d'Indochine, dont le général Yves Gras pour
   l'estimation des pertes vietnamiennes (§ 5).
+- CShapes 2.0 (ETH Zürich, International Conflict Research), contours
+  historiques de l'Indochine française et de la partition du Viêt Nam de
+  1954, licence CC BY-NC-SA 4.0 (§ 1, § 5) — même source que le dossier sur
+  l'empire colonial, voir ci-dessous.
+- CLIO-INFRA (IISH Amsterdam), population du Viêt Nam, du Cambodge et du
+  Laos, 1500-2000, licence CC0-1.0 (§ 5).
 - [docs/empire-colonial-donnees.md](empire-colonial-donnees.md), pour le
   contexte géographique et chronologique de l'empire colonial français.
 - [docs/seconde-guerre-mondiale-donnees.md](seconde-guerre-mondiale-donnees.md),
@@ -183,6 +214,25 @@ grandeur — ce dossier les cite tous les deux plutôt que d'en choisir un.
 
 ## Versions
 
+- **Version 4** (20 septembre 2026) : la carte de la partition de 1954
+  (§ 1) montrait le Cambodge, le Laos et le Viêt Nam seuls sur un fond
+  uni, reconnaissables seulement par qui connaît déjà leur silhouette —
+  signalé directement à la vue de la carte publiée. Chine, Thaïlande,
+  Birmanie et Malaisie y apparaissent désormais en simple repère
+  géographique (`geo.contour_pays`, chacune limitée à sa part la plus
+  proche de l'Indochine), la carte est recadrée pour laisser de la mer
+  visible à l'est et au sud, et chaque forme porte maintenant un nom
+  affiché au survol ou au focus clavier plutôt que la seule infobulle
+  native du navigateur.
+- **Version 3** (20 septembre 2026) : population du Viêt Nam, du Cambodge
+  et du Laos, 1500-2000 (CLIO-INFRA, CC0-1.0) — un repère démographique de
+  longue durée, jamais un recensement de l'Indochine française.
+- **Version 2** (20 septembre 2026) : première carte du dossier —
+  l'Indochine française avant les accords de Genève et la partition du
+  Viêt Nam de 1954 (CShapes 2.0, `geo.indochine_partition_1954`) ; la
+  limite « aucune géométrie » du § 1 est reformulée pour ne plus porter que
+  sur les champs de bataille (ligne Morice, sites nucléaires, frontières
+  d'Évian), toujours hors de portée.
 - **Version 1** (19 septembre 2026) : premier chargement, entièrement en
   citations sourcées — bilan civil algérien montré en deux chiffres non
   réconciliés (FLN/historiographie française), pertes militaires des deux

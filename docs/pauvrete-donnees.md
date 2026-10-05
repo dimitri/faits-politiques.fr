@@ -1,11 +1,13 @@
 # La pauvreté en France : le seuil statistique et les « foyers modestes »
 
-> **Dossier** · version 2 · 15 septembre 2026
+> **Dossier** · version 3 · 20 septembre 2026
 >
 > Que mesure le seuil de pauvreté, en quoi diffère-t-il des « foyers modestes » des
 > dispositifs publics, et comment la France se situe-t-elle en Europe ? Le dossier charge
 > aussi l'aide alimentaire, qui éclaire une pauvreté vécue que le seuil monétaire ne capte pas
-> toujours.
+> toujours. Les déciles cités ici (§ 1) s'arrêtent au neuvième, non borné par construction :
+> [docs/repartition-richesse-donnees.md](repartition-richesse-donnees.md) ouvre ce dixième
+> décile, l'autre bout de la même distribution.
 
 ---
 
@@ -256,5 +258,7 @@ droit, pas un chiffre à deviner ou à rapprocher de force.
 
 ## Versions
 
+- **Version 3** (20 septembre 2026) : renvoi explicite vers le dossier richesse dès l'en-tête —
+  le dixième décile, non borné ici, y est ouvert (revenu et patrimoine).
 - **Version 2** (15 septembre 2026) : plan commun des dossiers ; cadre (loi RSA) et contrôle du Sénat sur la mission Solidarité.
 - **Version 1** (15 septembre 2026) : seuil de pauvreté, comparaison européenne, aide alimentaire.

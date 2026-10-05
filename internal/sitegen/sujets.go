@@ -53,6 +53,18 @@ func (s *Sujet) Lien() string {
 	return s.URL()
 }
 
+// CarteFamille : une carte illustrative pour la page /sujets/<famille>/,
+// réutilisant une carte déjà calculée ailleurs dans le pipeline (zéro
+// requête supplémentaire) — un simple <figure>, jamais le patron
+// .bloc-carte.ligne des cartes choroplèthes départementales (Cartons/
+// Teintes/Bornes), qui suppose une échelle de valeur que ces cartes n'ont
+// pas toutes (bulles, monde, ou simple fond).
+type CarteFamille struct {
+	SVG             template.HTML
+	Legende         string
+	Lien, LienTexte string
+}
+
 type Famille struct {
 	ID, Nom, Intro string
 	// Base : « sujets » ou « argent-public ».

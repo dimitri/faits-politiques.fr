@@ -79,6 +79,8 @@ pas laisser croire à une case vide.
 regard, sans le faire ici, de la démographie et des capacités de formation,
 hors périmètre de cette note.
 
+<!-- schema:medecins-evolution -->
+
 <!-- schema:carte-medecins-generalistes -->
 
 

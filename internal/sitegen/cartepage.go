@@ -265,7 +265,7 @@ func barresAppariees(pts []PaireAnnee, libA, libB string, format func(float64) s
 // population est plus courte que celle des barres, elle s'arrête net et ne
 // s'invente aucun point.
 func courbeAvecLigne(barres []PointAnnee, ligne []PointAnnee,
-	formatBarres, formatLigne func(float64) string) template.HTML {
+	formatBarres, formatLigne func(float64) string, descriptionLigne string) template.HTML {
 
 	if len(barres) < 2 {
 		return ""
@@ -317,8 +317,8 @@ func courbeAvecLigne(barres []PointAnnee, ligne []PointAnnee,
 
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg class="courbe barres-an avec-ligne" viewBox="0 0 %.0f %.0f" role="img" aria-label="%s">`,
-		w, h, template.HTMLEscapeString(fmt.Sprintf("De %d à %d, avec la population sur une échelle séparée",
-			barres[0].Annee, barres[len(barres)-1].Annee)))
+		w, h, template.HTMLEscapeString(fmt.Sprintf("De %d à %d, %s",
+			barres[0].Annee, barres[len(barres)-1].Annee, descriptionLigne)))
 	fmt.Fprintf(&b, `<line class="axe" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>`,
 		ml, h-mb, w-mr, h-mb)
 	for i, p := range barres {

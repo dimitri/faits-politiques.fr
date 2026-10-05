@@ -1,0 +1,26 @@
+{{define "content"}}
+{{$f := .F}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <a href="{{.Root}}/sujets/">Sujets</a> › <span>{{$f.Nom}}</span></p>
+<span class="sur">Sujets de campagne</span>
+<h1>{{$f.Nom}}</h1>
+<p class="lede">{{$f.Intro}}{{if $f.ParMille}} {{$f.ParMille}}&nbsp;€ sur 1&nbsp;000 de dépense publique
+en {{.Annee}}, toutes fonctions COFOG de la famille confondues.{{end}}</p>
+
+{{with .Carte}}{{if .SVG}}
+<figure class="schema"><div class="carte-pleine">{{.SVG}}</div>
+<figcaption>{{.Legende}}{{if .Lien}} <a href="{{$.Root}}/{{.Lien}}">{{.LienTexte}} →</a>{{end}}</figcaption></figure>
+{{end}}{{end}}
+
+<div class="sujets-cartes">
+  {{range $f.Sujets}}<a class="sujet-carte" href="{{$.Root}}/{{.Lien}}">
+    {{if .EnBref}}{{$c := index .EnBref 0}}
+    <span class="n">{{$c.Valeur}}</span>
+    <span class="d">{{$c.Libelle}}</span>
+    {{end}}
+    <h2>{{.Nom}}</h2>
+    {{if .D}}<p class="q">{{.D.Titre}}</p>{{else if .Pages}}<p class="q">{{(index .Pages 0).Titre}}</p>{{end}}
+  </a>{{end}}
+</div>
+<p class="src-bloc">Chaque sujet se lit avec sa propre page&nbsp;: le contexte, les débats, les chiffres
+sourcés et leurs limites. <a href="{{.Root}}/sujets/">Toutes les familles →</a></p>
+{{end}}
