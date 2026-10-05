@@ -38,13 +38,22 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      # gh release download résout par tag via l'endpoint GET .../releases/
+      # tags/{tag}, qui exclut les releases en brouillon — la nôtre en est
+      # une, volontairement (jamais un dump publié comme s'il faisait
+      # référence). Listée puis filtrée via /releases à la place, qui les
+      # inclut toutes.
       - name: Récupérer ci.dump depuis la release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          gh release download "${{ inputs.seed_ci_dump_release }}" \
-            --repo "${{ github.repository }}" \
-            --pattern ci.dump --clobber
+          url=$(gh api "repos/${{ github.repository }}/releases" --paginate \
+            -q '.[] | select(.tag_name=="${{ inputs.seed_ci_dump_release }}") | .assets[] | select(.name=="ci.dump") | .url')
+          if [ -z "$url" ]; then
+            echo "aucun actif ci.dump trouvé sur la release ${{ inputs.seed_ci_dump_release }}" >&2
+            exit 1
+          fi
+          gh api "$url" -H "Accept: application/octet-stream" > ci.dump
 
       - name: Vérifier l'archive avant de la publier
         run: pg_restore --list ci.dump > /dev/null
