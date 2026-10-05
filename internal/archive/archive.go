@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"strconv"
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/logs"
@@ -251,6 +252,47 @@ func nullableString(primary, fallback string) any {
 	return nil
 }
 
+// faireAvecReprise exécute req, et reprend avec un délai croissant sur 429
+// (quota dépassé) et 503 (indisponibilité temporaire) — jamais sur un autre
+// statut, laissé à l'appelant tel quel. Découvert sur
+// recherche-entreprises.api.gouv.fr : un ingest complet y multiplie les
+// requêtes (une par SIREN) depuis une même adresse IP, en quelques minutes —
+// invisible en développement, où les requêtes s'étalent sur des jours
+// d'essais successifs, mais systématique en CI, où tout part d'une base
+// vide et donc de zéro requête déjà servie par le cache applicatif.
+// Retry-After, quand le serveur le publie, prime sur le backoff par défaut.
+func faireAvecReprise(ctx context.Context, client *http.Client, req *http.Request) (*http.Response, error) {
+	const tentativesMax = 5
+	delai := 2 * time.Second
+	for essai := 1; ; essai++ {
+		resp, err := client.Do(req.Clone(ctx))
+		if err != nil || (resp.StatusCode != http.StatusTooManyRequests && resp.StatusCode != http.StatusServiceUnavailable) {
+			return resp, err
+		}
+		if essai >= tentativesMax {
+			return resp, nil
+		}
+		attente := delai
+		if ra := resp.Header.Get("Retry-After"); ra != "" {
+			if s, err := strconv.Atoi(ra); err == nil && s >= 0 {
+				attente = time.Duration(s) * time.Second
+			}
+		}
+		resp.Body.Close()
+		logs.Notice(fmt.Sprintf("%s : HTTP %d, nouvelle tentative dans %s (%d/%d)",
+			req.URL.String(), resp.StatusCode, attente, essai, tentativesMax))
+		select {
+		case <-ctx.Done():
+			return nil, ctx.Err()
+		case <-time.After(attente):
+		}
+		delai *= 2
+		if delai > 60*time.Second {
+			delai = 60 * time.Second
+		}
+	}
+}
+
 func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header, client *http.Client, urlArchivee string) (*Fetched, error) {
 	if urlArchivee == "" {
 		urlArchivee = url
@@ -317,7 +359,7 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	} else {
 		logs.Notice("downloading " + url)
 	}
-	resp, err := client.Do(req)
+	resp, err := faireAvecReprise(ctx, client, req)
 	if err != nil {
 		tmp.Close()
 		return nil, err
