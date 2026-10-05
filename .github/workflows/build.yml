@@ -41,6 +41,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Installer les clients PostgreSQL 17
+        run: ./scripts/install-pg-client.sh
+
       # gh release download résout par tag via l'endpoint GET .../releases/
       # tags/{tag}, qui exclut les releases en brouillon — la nôtre en est
       # une, volontairement (jamais un dump publié comme s'il faisait
@@ -103,6 +106,13 @@ jobs:
 
       - name: Compiler fpctl
         run: go build -o bin/fpctl ./cmd/fpctl
+
+      # pg_dump refuse de dumper un serveur plus récent que lui (« aborting
+      # because of server version mismatch ») — le client par défaut de ce
+      # runner ne colle pas forcément à la version 17 du serveur que fpctl
+      # provision db démarre.
+      - name: Installer les clients PostgreSQL 17
+        run: ./scripts/install-pg-client.sh
 
       - name: Provisionner Postgres
         run: ./bin/fpctl provision db
@@ -214,6 +224,12 @@ jobs:
             echo "$out"
             exit 1
           fi
+
+      # pg_restore refuse un format d'archive plus récent que ce qu'il
+      # connaît — même raison que dans build-full : coller à la version du
+      # serveur (17), pas au client par défaut du runner.
+      - name: Installer les clients PostgreSQL 17
+        run: ./scripts/install-pg-client.sh
 
       - name: Provisionner Postgres
         run: ./bin/fpctl provision db
