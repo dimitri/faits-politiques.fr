@@ -1,6 +1,6 @@
 # La Francophonie : qui parle français, où, et combien
 
-> **Dossier** · version 1 · 17 septembre 2026
+> **Dossier** · version 2 · 21 septembre 2026
 >
 > Le français n'est la langue majoritaire que dans une poignée de pays,
 > mais il est parlé, à des degrés très divers, sur les cinq continents. Ce
@@ -144,6 +144,14 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 ## Versions
 
+- **Version 2** (21 septembre 2026) : noms des pays ajoutés sur la carte,
+  limités à ceux où le français est parlé par 30 % ou plus de la
+  population (le vrai sujet de cette carte, pas la liste complète des
+  membres et observateurs de l'OIF) et assez grands pour porter un nom
+  lisible (17 pays sur 22 candidats — Monaco, Andorre, Comores, Cap-Vert et
+  les Seychelles trop petits). « République démocratique du Congo »
+  raccourci en « RD Congo » sur la carte (débordait sur ses voisins), nom
+  complet conservé dans l'infobulle.
 - **Version 1** (17 septembre 2026) : carte mondiale et classements par
   part et par nombre de francophones (ODSEF/OIF, 2025) ; liste d'adhésion
   et histoire des sommets de l'OIF.

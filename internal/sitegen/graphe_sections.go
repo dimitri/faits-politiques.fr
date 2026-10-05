@@ -457,12 +457,52 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 				string(statsEmpireColonial.Table)))
 		}
 		if statsSGM != nil && strings.Contains(string(d.Corps), "<!-- schema:sgm-ligne-demarcation -->") {
-			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sgm-ligne-demarcation -->",
-				`<figure class="schema"><div class="carte-pleine">`+string(statsSGM.CarteSVG)+`</div>`+
-					fmt.Sprintf(`<figcaption>Tracé de la ligne de démarcation entre zone occupée et zone libre, `+
-						`1940-1942 (%s km) — Département de l'Ain. Ni l'annexion de fait de l'Alsace-Moselle ni `+
-						`la zone d'occupation italienne (à partir de novembre 1942) n'ont de géométrie vérifiée `+
-						`trouvée ; non représentées ici, voir § 2.</figcaption></figure>`, Decimal(statsSGM.LongueurKm, 0))))
+			var b strings.Builder
+			// Même intégration que carte-detail.gohtml (.cartes-lignes.carte-dossier,
+			// carte à gauche, légende + résumé chiffré à droite), plutôt que le
+			// .carte-pleine nu d'avant l'audit d'intégration cartographique du
+			// 20 septembre 2026.
+			b.WriteString(`<div class="cartes-lignes carte-dossier"><div class="bloc-carte ligne"><div>`)
+			b.WriteString(string(statsSGM.CarteSVG))
+			b.WriteString(`</div><div>`)
+			b.WriteString(`<div class="echelle"><span><i class="axe"></i>Axe</span>` +
+				`<span><i class="occupe"></i>Occupé par l'Axe dès 1939-1940</span>` +
+				`<span><i class="allie"></i>Allié</span>` +
+				`<span><i class="neutre"></i>Neutre</span>` +
+				`<span><i class="non-classe"></i>Hors classement</span></div>`)
+			b.WriteString(`<div class="echelle"><span class="u">France</span>` +
+				`<span><i class="occupee"></i>Zone occupée</span>` +
+				`<span><i class="libre"></i>Zone libre</span></div>`)
+			fmt.Fprintf(&b, `<dl class="legende-situation">`+
+				`<div><dt>Pays de l'Axe</dt><dd><b>%d</b></dd></div>`+
+				`<div><dt>Occupés par l'Axe dès 1939-1940</dt><dd><b>%d</b></dd></div>`+
+				`<div><dt>Alliés</dt><dd><b>%d</b></dd></div>`+
+				`<div><dt>Neutres</dt><dd><b>%d</b></dd></div>`+
+				`<div><dt>Hors classement</dt><dd><b>%d</b><span>Europe centrale et Balkans, non traités par ce dossier</span></dd></div>`+
+				`<div><dt>Ligne de démarcation</dt><dd><b>%s</b><span>km, zone occupée / zone libre, juin 1940 - mars 1943</span></dd></div>`+
+				`</dl>`, statsSGM.NbAxe, statsSGM.NbOccupe, statsSGM.NbAllie, statsSGM.NbNeutre, statsSGM.NbNonClasse,
+				Decimal(statsSGM.LongueurKm, 0))
+			b.WriteString(`<span class="src">Statuts simplifiés à 1940 (l'Italie a changé de camp en 1943, non ` +
+				`représenté) ; convention de couleurs Axe/Alliés/Neutre reprise de la légende Wikimedia « Map of ` +
+				`participants in World War II », la plus citée mais pas la seule en usage. Fond de carte et cours ` +
+				`d'eau : Natural Earth, domaine public. Ni l'annexion de fait de l'Alsace-Moselle ni la zone ` +
+				`d'occupation italienne (à partir de novembre 1942) n'ont de géométrie vérifiée trouvée ; non ` +
+				`représentées ici, voir § 2.</span>`)
+			b.WriteString(`</div></div></div>`)
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sgm-ligne-demarcation -->", b.String()))
+		}
+		if statsSGM != nil && statsSGM.DebarquementSVG != "" &&
+			strings.Contains(string(d.Corps), "<!-- schema:sgm-debarquements -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sgm-debarquements -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(statsSGM.DebarquementSVG)+`</div>`+
+					`<div class="echelle"><span><i class="overlord"></i>Overlord (Normandie, 6 juin)</span>`+
+					`<span><i class="dragoon"></i>Dragoon (Provence, 15 août)</span></div>`+
+					`<figcaption>Emplacement des cinq plages de Normandie et des trois secteurs de Provence, 1944 — `+
+					`repère géographique, pas une carte des lignes de front ou des zones contrôlées. `+
+					`Coordonnées relevées sur le lieu-dit ou le chef-lieu de chaque plage/secteur, pas la précision `+
+					`d'un relevé militaire. Le tracé estompé de l'ancienne ligne de démarcation n'est qu'un repère : `+
+					`elle avait disparu dans les faits depuis novembre 1942, bien avant ces deux débarquements `+
+					`(voir § 2).</figcaption></figure>`))
 		}
 		if populationGuerres != nil && strings.Contains(string(d.Corps), "<!-- schema:population-guerres -->") {
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:population-guerres -->",

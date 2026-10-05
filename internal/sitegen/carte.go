@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"html/template"
 	"sort"
+	"strconv"
 	"strings"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -94,6 +95,13 @@ type JeuContours struct {
 	Codes   []string
 	Noms    map[string]string
 	traces  map[string]string
+	// labels : centre du plus grand cercle inscriptible dans chaque contour
+	// (ST_MaximumInscribedCircle) — calculé pour tous les niveaux (coût
+	// négligeable), mais seul pleine() sur les régions s'en sert : 17 formes
+	// assez grandes pour porter un nom, contrairement aux 96 départements ou
+	// aux milliers d'EPCI, trop nombreux ou trop petits pour ne pas se
+	// chevaucher.
+	labels map[string]struct{ X, Y float64 }
 	// fleuves : le calque des grands cours d'eau (voir fleuvesSVG), chargé une
 	// fois ici plutôt qu'à chaque apercu()/pleine() — département, région ou
 	// EPCI partagent tous la même projection (Lambert-93) et donc le même
@@ -137,7 +145,7 @@ type Carte struct {
 // niveau : une page peut afficher une carte des départements et une carte des
 // régions, et deux <path id="d11"> se marcheraient dessus.
 func jeuContours(ctx context.Context, pool *pgxpool.Pool, niveau string, tolerance float64) (*JeuContours, error) {
-	d, codes, vb, noms, err := contours(ctx, pool, niveau, tolerance)
+	d, codes, vb, noms, labels, err := contours(ctx, pool, niveau, tolerance)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +171,7 @@ func jeuContours(ctx context.Context, pool *pgxpool.Pool, niveau string, toleran
 		Defs: template.HTML(`<svg width="0" height="0" aria-hidden="true" ` +
 			`style="position:absolute"><defs>` + b.String() + `</defs></svg>`),
 		ViewBox: vb, Niveau: niveau, Codes: codes, Noms: noms, traces: d, fleuves: fleuves,
-		outremer: om,
+		outremer: om, labels: labels,
 	}, nil
 }
 
@@ -274,9 +282,40 @@ func pleine(j *JeuContours, cases []CaseCarte, unite string, format func(float64
 	// Les fleuves en dernier : un calque de repère par-dessus les teintes,
 	// jamais dessous où la couleur de la donnée les masquerait.
 	b.WriteString(j.fleuves)
+	if j.Niveau == "REGION" {
+		b.WriteString(etiquettesRegions(j))
+	}
 	c.SVG = j.envelopper(b.String(), false)
 	c.Cartons = j.cartons(c, byCode, format)
 	return c
+}
+
+// etiquettesRegions : le nom de chaque région, au centre du plus grand
+// cercle inscriptible dans son contour — dix-sept formes assez grandes pour
+// porter un nom sans jamais se chevaucher, à la différence des départements
+// ou des EPCI (voir le commentaire de JeuContours.labels). Un <text
+// font-size="..."> direct à l'échelle du viewBox (plusieurs centaines de
+// milliers d'unités Lambert-93) ne rendrait qu'un trait au lieu de lettres
+// lisibles (constaté sur la carte d'Europe du dossier Seconde Guerre
+// mondiale) — un <g transform="scale(...)"> autour d'un texte à taille
+// normale contourne le problème.
+func etiquettesRegions(j *JeuContours) string {
+	largeur, _ := strconv.ParseFloat(strings.Fields(j.ViewBox)[2], 64)
+	if largeur <= 0 {
+		return ""
+	}
+	echelle := largeur / 700 // ≈ la largeur réelle de la carte à l'écran, en pixels
+	var b strings.Builder
+	for _, code := range j.Codes {
+		l, ok := j.labels[code]
+		if !ok {
+			continue
+		}
+		fmt.Fprintf(&b, `<g transform="translate(%.0f,%.0f) scale(%.2f)">`+
+			`<text class="nom-region" x="0" y="0" text-anchor="middle">%s</text></g>`,
+			l.X, l.Y, echelle, template.HTMLEscapeString(j.Noms[code]))
+	}
+	return b.String()
 }
 
 func indexer(cases []CaseCarte) map[string]CaseCarte {
@@ -327,30 +366,33 @@ func (j *JeuContours) envelopper(corps string, apercu bool) template.HTML {
 // abscisse Lambert-93 en demande sept. À tolérance égale, un tiers de poids en
 // moins, au pixel près identique.
 func contours(ctx context.Context, pool *pgxpool.Pool, niveau string, tolerance float64) (
-	map[string]string, []string, string, map[string]string, error) {
+	map[string]string, []string, string, map[string]string, map[string]struct{ X, Y float64 }, error) {
 
 	rows, err := pool.Query(ctx, `
-		SELECT code_insee, nom,
-		       st_assvg(st_transform(st_simplifypreservetopology(geom, $1), 2154), 1, 0)
-		FROM geo.contour
-		WHERE niveau = $2 AND srid_rendu = 2154
+		SELECT code_insee, nom, st_assvg(g, 1, 0), st_x((ic).center), -st_y((ic).center)
+		FROM (SELECT code_insee, nom, st_transform(st_simplifypreservetopology(geom, $1), 2154) AS g
+		      FROM geo.contour WHERE niveau = $2 AND srid_rendu = 2154) x,
+		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l
 		ORDER BY code_insee`, tolerance, niveau)
 	if err != nil {
-		return nil, nil, "", nil, err
+		return nil, nil, "", nil, nil, err
 	}
 	defer rows.Close()
 	d, noms := map[string]string{}, map[string]string{}
+	labels := map[string]struct{ X, Y float64 }{}
 	var codes []string
 	for rows.Next() {
 		var c, n, p string
-		if err := rows.Scan(&c, &n, &p); err != nil {
-			return nil, nil, "", nil, err
+		var lx, ly float64
+		if err := rows.Scan(&c, &n, &p, &lx, &ly); err != nil {
+			return nil, nil, "", nil, nil, err
 		}
 		d[c], noms[c] = p, n
+		labels[c] = struct{ X, Y float64 }{lx, ly}
 		codes = append(codes, c)
 	}
 	if err := rows.Err(); err != nil {
-		return nil, nil, "", nil, err
+		return nil, nil, "", nil, nil, err
 	}
 	// La boîte englobante est fixe : elle ne dépend pas des données affichées,
 	// donc toutes les cartes du site se superposent exactement.
@@ -372,10 +414,10 @@ func contours(ctx context.Context, pool *pgxpool.Pool, niveau string, tolerance 
 		FROM (SELECT st_extent(st_transform(geom,2154)) e FROM geo.contour
 		      WHERE niveau='DEPARTEMENT' AND srid_rendu = 2154) x`).Scan(&vbNull)
 	if err != nil {
-		return nil, nil, "", nil, err
+		return nil, nil, "", nil, nil, err
 	}
 	vb = vbNull.String
-	return d, codes, vb, noms, nil
+	return d, codes, vb, noms, labels, nil
 }
 
 // preparer calcule les classes, les bornes et les teintes — la partie commune

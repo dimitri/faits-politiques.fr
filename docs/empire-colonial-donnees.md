@@ -1,6 +1,6 @@
 # La France coloniale : géographie, chronologie et ce qui reste contesté
 
-> **Dossier** · version 1 · 19 septembre 2026
+> **Dossier** · version 2 · 21 septembre 2026
 >
 > Où, quand, et jusqu'à quand la France a-t-elle administré des territoires
 > hors de la métropole ? Ce dossier montre l'étendue et la chronologie de
@@ -194,6 +194,14 @@ Guerres de décolonisation).
 
 ## Versions
 
+- **Version 2** (21 septembre 2026) : noms des territoires ajoutés sur la
+  carte principale (les 20 territoires assez grands pour porter un nom
+  lisible à l'échelle du monde, sur 22 — Comores et Djibouti trop petits).
+  Le regroupement ouest-africain (Mauritanie, Mali, Niger, Tchad,
+  Haute-Volta, Sénégal, Guinée, Côte d'Ivoire, Dahomey, Cameroun,
+  Oubangui-Chari, Gabon, Congo) reste dense malgré une taille de texte
+  réduite : un vrai algorithme d'évitement de collisions serait nécessaire
+  pour le résoudre complètement, hors de portée de cette itération.
 - **Version 1** (19 septembre 2026) : premier chargement — géographie et
   chronologie de 22 territoires (CShapes 2.0, Wikidata), trois vagues de
   décolonisation identifiées, deux répressions coloniales documentées en
