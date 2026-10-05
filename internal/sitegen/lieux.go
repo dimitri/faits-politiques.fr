@@ -78,10 +78,8 @@ func chargerResolveur(ctx context.Context, pool *pgxpool.Pool, root string,
 		SELECT c.code_insee, c.nom, c.code_departement, c.code_region,
 		       coalesce(c.population_municipale, p.value::int, 0)
 		FROM ref.commune c
-		LEFT JOIN LATERAL (
-		  SELECT value FROM core.commune_indicator i
-		  WHERE i.commune_code=c.code_insee AND i.indicator_code='ofgl.population_totale'
-		  ORDER BY period_year DESC LIMIT 1) p ON true
+		LEFT JOIN mv.commune_indicator_dernier p
+		  ON p.commune_code=c.code_insee AND p.indicator_code='ofgl.population_totale'
 		WHERE c.cog_millesime=(SELECT max(cog_millesime) FROM ref.commune)`)
 	if err != nil {
 		return nil, err

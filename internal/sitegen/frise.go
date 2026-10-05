@@ -260,8 +260,8 @@ func loadFrise(ctx context.Context, pool *pgxpool.Pool, dataDir string) (*StatsF
 				WHERE d.serie_code='dividendes.verses.snf' ORDER BY 1`)
 		case "__securite":
 			rows, qerr = pool.Query(ctx, `
-				SELECT annee, 1000.0*sum(nombre)/nullif(sum(population),0)
-				FROM core.commune_delinquance WHERE diffuse GROUP BY 1 ORDER BY 1`)
+				SELECT annee, 1000.0*sum(nombre_diffuse)/nullif(sum(population_diffuse),0)
+				FROM mv.commune_delinquance_national GROUP BY 1 ORDER BY 1`)
 		default:
 			rows, qerr = pool.Query(ctx,
 				`SELECT annee, valeur FROM core.macro_value WHERE serie_code=$1 ORDER BY 1`, d.code)
@@ -405,10 +405,9 @@ var couleurDelinquance = map[string]string{
 func delinquanceParGroupe(ctx context.Context, pool *pgxpool.Pool) ([]GroupeDelinquance, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT i.unite_de_compte, i.libelle, d.annee,
-		       1000.0*sum(d.nombre)/nullif(sum(d.population),0)
-		FROM core.commune_delinquance d
+		       1000.0*sum(d.nombre_diffuse)/nullif(sum(d.population_diffuse),0)
+		FROM mv.commune_delinquance_national d
 		JOIN ref.indicateur_delinquance i ON i.code=d.indicateur_code
-		WHERE d.diffuse
 		GROUP BY i.unite_de_compte, i.libelle, d.annee
 		ORDER BY i.unite_de_compte, i.libelle, d.annee`)
 	if err != nil {

@@ -672,7 +672,7 @@ func enBref(ctx context.Context, pool *pgxpool.Pool, s *Sujet, acc *DonneesAccue
 		credits0()
 	case "collectivites":
 		sousSecteur("S1313", "de dépenses des administrations publiques locales")
-		requete(`SELECT extract(year from now())::int, count(DISTINCT commune_code)::float8 FROM core.commune_indicator`, "communes couvertes par les comptes chargés", "OFGL / DGCL", func(v float64) string { return Nombre(int(v)) })
+		requete(`SELECT extract(year from now())::int, count(DISTINCT commune_code)::float8 FROM mv.commune_indicator_dernier`, "communes couvertes par les comptes chargés", "OFGL / DGCL", func(v float64) string { return Nombre(int(v)) })
 	case "immigration":
 		requete(`SELECT annee, sum(effectif)::float8 FROM core.titre_sejour_stock WHERE annee=(SELECT max(annee) FROM core.titre_sejour_stock) GROUP BY annee`, "titres de séjour valides au 31 décembre", "DGEF, ministère de l'Intérieur", func(v float64) string { return Nombre(int(v + 0.5)) })
 		requete(`SELECT annee, premiere_demande::float8 FROM core.demande_asile_ofpra WHERE niveau='TOTAL' ORDER BY annee DESC LIMIT 1`, "premières demandes d'asile", "Ofpra", func(v float64) string { return Nombre(int(v + 0.5)) })

@@ -409,7 +409,7 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	}
 	texteExiste := map[string]bool{}
 	if len(idsTextes) > 0 {
-		trows, err := pool.Query(ctx, `SELECT id FROM jo.texte WHERE id = ANY($1)`, idsTextes)
+		trows, err := pool.Query(ctx, `SELECT id FROM mv.jo_texte_id WHERE id = ANY($1)`, idsTextes)
 		if err != nil {
 			return nil, err
 		}

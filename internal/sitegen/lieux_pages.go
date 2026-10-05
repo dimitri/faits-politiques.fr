@@ -123,11 +123,9 @@ func chargerPagesCommunes(ctx context.Context, pool *pgxpool.Pool, r *Resolveur,
 	// 2. Finances : la dernière année publiée, indicateur par indicateur.
 	g.Go(func() error {
 		frows, err := pool.Query(gctx, `
-			SELECT DISTINCT ON (commune_code, indicator_code)
-			       commune_code, indicator_code, period_year, value::float8
-			FROM core.commune_indicator
-			WHERE indicator_code LIKE 'ofgl.%\_par\_hab'
-			ORDER BY commune_code, indicator_code, period_year DESC`)
+			SELECT commune_code, indicator_code, period_year, value::float8
+			FROM mv.commune_indicator_dernier
+			WHERE indicator_code LIKE 'ofgl.%\_par\_hab'`)
 		if err != nil {
 			return err
 		}
@@ -191,8 +189,7 @@ func chargerPagesCommunes(ctx context.Context, pool *pgxpool.Pool, r *Resolveur,
 		srows, err := pool.Query(gctx, `
 			SELECT commune_code, annee, indicateur_code, coalesce(nombre,0),
 			       coalesce(taux_pour_mille,0)::float8, diffuse
-			FROM core.commune_delinquance
-			WHERE annee=(SELECT max(annee) FROM core.commune_delinquance)`)
+			FROM mv.commune_delinquance_dernier`)
 		if err != nil {
 			return err
 		}

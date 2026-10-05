@@ -544,7 +544,7 @@ func coverage(ctx context.Context, pool *pgxpool.Pool) (Coverage, error) {
 		       (SELECT count(DISTINCT mv.person_id) FROM mv.scrutin_vote_nominal mv
 		         JOIN core.scrutin s ON s.id=mv.scrutin_id WHERE s.institution='SENAT'),
 		       (SELECT count(*) FROM ref.topic WHERE taxonomy_version='senat'),
-		       (SELECT count(DISTINCT commune_code) FROM core.commune_indicator)`).
+		       (SELECT count(DISTINCT commune_code) FROM mv.commune_indicator_dernier)`).
 		Scan(&c.Documents, &c.ScrutinsPE, &c.Themes,
 			&c.ScrutinsSenat, &c.VotesSenat, &c.Senateurs, &c.ThemesSenat, &c.Communes)
 	return c, err

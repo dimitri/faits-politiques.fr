@@ -61,7 +61,7 @@ func loadTerritoires(ctx context.Context, pool *pgxpool.Pool) (*StatsTerritoires
 		}
 		return c
 	}
-	_ = pool.QueryRow(ctx, `SELECT count(DISTINCT commune_code) FROM core.commune_indicator`).
+	_ = pool.QueryRow(ctx, `SELECT count(DISTINCT commune_code) FROM mv.commune_indicator_dernier`).
 		Scan(&st.Communes)
 
 	eur := func(v float64) string { return Nombre(int(v+0.5)) + "\u202f€" }

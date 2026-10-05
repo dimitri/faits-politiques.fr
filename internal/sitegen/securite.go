@@ -63,7 +63,7 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 		return nil, err
 	}
 	st := &StatsSecurite{Annee: 2025, Debut: 2016, Defs: vign.Defs}
-	_ = pool.QueryRow(ctx, `SELECT count(DISTINCT commune_code) FROM core.commune_delinquance`).
+	_ = pool.QueryRow(ctx, `SELECT count(DISTINCT commune_code) FROM mv.commune_delinquance_dernier`).
 		Scan(&st.Communes)
 
 	tx := func(v float64) string { return Decimal(v, 1) + " ‰" }
@@ -142,8 +142,8 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 			ind.Page.Courbe = courbe(ind.Serie, tx)
 		}
 		_ = pool.QueryRow(ctx, `
-			SELECT count(*) FILTER (WHERE NOT diffuse), count(*)
-			FROM core.commune_delinquance WHERE indicateur_code=$1 AND annee=$2`,
+			SELECT n_masque, n_diffuse + n_masque
+			FROM mv.commune_delinquance_national WHERE indicateur_code=$1 AND annee=$2`,
 			code, st.Annee).Scan(&ind.Masques, &ind.Diffuses)
 		st.Indicateurs = append(st.Indicateurs, ind)
 	}
