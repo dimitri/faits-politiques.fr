@@ -196,9 +196,22 @@ jobs:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
+    # contents: write, pas read : nécessaire au repli sur la release
+    # d'amorçage plus bas (même raison que seed-ci-dump), quand le cache
+    # n'a rien à offrir.
+    permissions:
+      contents: write
 
     env:
       DATABASE_URL: postgres://fp:fp@localhost:55432/fp?sslmode=disable
+      # Repli quand le cache ci-dump-* est absent ou invisible depuis cette
+      # ref (une pull_request tourne sur refs/pull/<n>/merge, hors de la
+      # portée de visibilité du cache de refs/heads/<branche> qui l'a
+      # publié — constaté, pas simplement documenté) : la dernière release
+      # d'amorçage connue plutôt qu'un échec dur. À remettre à jour quand
+      # un vrai run de build-full aura fini par aboutir et que son propre
+      # cache sera visible depuis les PR sans ce détour.
+      CI_DUMP_FALLBACK_RELEASE: ci-dump-seed-1
 
     steps:
       - uses: actions/checkout@v4
@@ -244,12 +257,25 @@ jobs:
           key: ci-dump-jamais-cette-cle
           restore-keys: ci-dump-
 
+      # Repli sur la release d'amorçage, même mécanisme que seed-ci-dump :
+      # seulement si le cache n'a rien restauré.
+      - name: Repli sur la release d'amorçage si le cache est vide
+        if: hashFiles('ci.dump') == ''
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          url=$(gh api "repos/${{ github.repository }}/releases" --paginate \
+            -q ".[] | select(.tag_name==\"$CI_DUMP_FALLBACK_RELEASE\") | .assets[] | select(.name==\"ci.dump\") | .url")
+          if [ -z "$url" ]; then
+            echo "aucun périmètre CI en cache, et aucun actif ci.dump sur la release $CI_DUMP_FALLBACK_RELEASE" >&2
+            exit 1
+          fi
+          gh api "$url" -H "Accept: application/octet-stream" > ci.dump
+
       - name: Vérifier qu'un périmètre CI est disponible
         run: |
           if [ ! -f ci.dump ]; then
-            echo "Aucun périmètre CI en cache : un run sur push main ou déclenché" >&2
-            echo "à la main doit en publier un premier avant qu'une pull request" >&2
-            echo "puisse construire le site (voir le job build-full)." >&2
+            echo "Aucun périmètre CI disponible, ni en cache ni via la release d'amorçage." >&2
             exit 1
           fi
 
