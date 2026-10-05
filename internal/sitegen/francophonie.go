@@ -54,6 +54,7 @@ func normaliserNomPays(s string) string {
 type PaysFrancophone struct {
 	Nom                                                     string
 	PopulationMilliers, FrancophonePct, FrancophoneMilliers float64
+	LabelX, LabelY, LabelR                                  float64
 }
 
 type StatsFrancophonie struct {
@@ -105,20 +106,27 @@ func chargerFrancophonie(ctx context.Context, pool *pgxpool.Pool) (*StatsFrancop
 
 	const tolFrancophonie = 0.15 // degrés (EPSG:4326) : assez pour un repère mondial
 	geoRows, err := pool.Query(ctx, `
-		SELECT nom_fr, st_assvg(st_simplifypreservetopology(geom, $1), 0, 2) FROM geo.contour_pays`, tolFrancophonie)
+		SELECT nom_fr, st_assvg(g, 0, 2), st_x((ic).center), -st_y((ic).center), (ic).radius
+		FROM (SELECT nom_fr, st_simplifypreservetopology(geom, $1) AS g FROM geo.contour_pays) x,
+		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l`, tolFrancophonie)
 	if err != nil {
 		return nil, err
 	}
 	var fondsChemins []string
-	chemins := map[string]string{}
+	type geoPays struct {
+		chemin                 string
+		labelX, labelY, labelR float64
+	}
+	chemins := map[string]geoPays{}
 	for geoRows.Next() {
-		var nom, chemin string
-		if err := geoRows.Scan(&nom, &chemin); err != nil {
+		var nom string
+		var g geoPays
+		if err := geoRows.Scan(&nom, &g.chemin, &g.labelX, &g.labelY, &g.labelR); err != nil {
 			geoRows.Close()
 			return nil, err
 		}
-		fondsChemins = append(fondsChemins, chemin)
-		chemins[normaliserNomPays(nom)] = chemin
+		fondsChemins = append(fondsChemins, g.chemin)
+		chemins[normaliserNomPays(nom)] = g
 	}
 	if err := geoRows.Err(); err != nil {
 		geoRows.Close()
@@ -133,9 +141,10 @@ func chargerFrancophonie(ctx context.Context, pool *pgxpool.Pool) (*StatsFrancop
 		if a, ok := aliasPaysFrancophonie[p.Nom]; ok {
 			nomRecherche = a
 		}
-		if c, ok := chemins[normaliserNomPays(nomRecherche)]; ok {
+		if g, ok := chemins[normaliserNomPays(nomRecherche)]; ok {
+			p.LabelX, p.LabelY, p.LabelR = g.labelX, g.labelY, g.labelR
 			cartographies = append(cartographies, p)
-			cheminsPays = append(cheminsPays, c)
+			cheminsPays = append(cheminsPays, g.chemin)
 		}
 	}
 
@@ -201,6 +210,30 @@ func dessinerCarteFrancophonie(fonds []string, pays []PaysFrancophone, chemins [
 			p.Nom, Decimal(p.FrancophonePct, 1), Nombre(int(p.FrancophoneMilliers*1000)), Nombre(int(p.PopulationMilliers*1000)))
 		fmt.Fprintf(&b, `<path class="pays-p %s" d="%s"><title>%s</title></path>`,
 			seuil(p.FrancophonePct), chemins[i], template.HTMLEscapeString(titre))
+	}
+	// Nommer les ~90 pays de cette carte les aurait tassés les uns sur les
+	// autres (repéré sur les cartes déjà publiées) — seuls les pays où le
+	// français est la langue d'une majorité substantielle de la population
+	// (30 % ou plus, seuil fr-3 et au-dessus) sont donc nommés : c'est le
+	// vrai sujet de cette carte, pas la liste des 88 membres et observateurs
+	// de l'OIF, dont la plupart ont un pourcentage de francophones proche
+	// de zéro.
+	const seuilPctEtiquette = 30.0
+	const seuilRayonEtiquette = 0.15 // degrés : sous ce seuil (Monaco, les Seychelles...), aucun nom ne tient
+	// « Congo (République démocratique du) » débordait largement de son
+	// pays sur la carte, empiétant sur ses voisins (repéré à la vue de la
+	// carte publiée) — le nom complet Francoscope reste dans l'infobulle.
+	nomEtiquette := map[string]string{"Congo (République démocratique du)": "RD Congo"}
+	for _, p := range pays {
+		if p.FrancophonePct < seuilPctEtiquette || p.LabelR < seuilRayonEtiquette {
+			continue
+		}
+		nom := p.Nom
+		if court, ok := nomEtiquette[nom]; ok {
+			nom = court
+		}
+		fmt.Fprintf(&b, `<text class="nom-francophone" x="%.3f" y="%.3f" text-anchor="middle">%s</text>`,
+			p.LabelX, p.LabelY, template.HTMLEscapeString(nom))
 	}
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())

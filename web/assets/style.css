@@ -531,6 +531,16 @@ transition:opacity .12s}
    entre le fond et les données pour ne recouvrir ni l'un ni l'autre. */
 .geo .fleuve{fill:none;stroke:var(--eau);stroke-width:700;stroke-linejoin:round;
 pointer-events:none;opacity:.6}
+/* Le nom de chaque région (etiquettesRegions, cmd/build/carte.go) : une
+   choroplèthe va du très clair au très foncé selon l'indicateur, jamais la
+   même teinte de page en page — un halo clair tracé sous le texte (au lieu
+   d'une seule couleur de remplissage) reste lisible sur les deux bouts de
+   la rampe. Taille normale, agrandie par le <g transform="scale(...)">
+   généré autour de chaque étiquette, jamais par le font-size lui-même (voir
+   le commentaire de dessinerCarteSGM, seconde_guerre_mondiale.go). */
+.geo .nom-region{font:600 12px/1 var(--sans);fill:var(--encre);opacity:.9;
+  paint-order:stroke fill;stroke:var(--papier);stroke-width:3px;stroke-linejoin:round;
+  pointer-events:none}
 /* Les cartes en degrés (France seule, échelle ~16 unités de large) ont un
    ordre de grandeur de coordonnées totalement différent des cartes en
    Lambert-93 (échelle ~1 000 000 d'unités) : un même stroke-width de 700
@@ -719,6 +729,11 @@ stroke-linejoin:round;stroke-linecap:round}
 .geo.francophonie .fr-3{fill:#448493}
 .geo.francophonie .fr-4{fill:#256270}
 .geo.francophonie .fr-5{fill:#12414B}
+/* Taille calée sur la largeur réelle de cette carte pleine largeur, plus
+   large en degrés que celle de l'empire colonial (360 contre 240) pour un
+   affichage à l'écran de taille comparable. */
+.geo.francophonie .nom-francophone{font:600 4px/1 var(--sans);fill:var(--carte);
+  opacity:.95;pointer-events:none}
 
 /* Empire colonial : chaque territoire coloré par vague de décolonisation,
    pas de fond mondial neutre (les 22 territoires seuls suffisent à situer
@@ -729,6 +744,11 @@ stroke-linejoin:round;stroke-linecap:round}
 .geo.empire-colonial .vague-1{fill:#C97B4A}
 .geo.empire-colonial .vague-2{fill:#8C4B3A}
 .geo.empire-colonial .vague-3{fill:#4A2E3A}
+/* Taille calée sur la largeur réelle de cette carte pleine largeur
+   (~240 degrés pour ~700 px à l'écran) — sans rapport avec celle
+   d'Indochine ou d'Europe, qui n'occupent pas la même part de page. */
+.geo.empire-colonial .nom-territoire{font:600 2.7px/1 var(--sans);fill:var(--carte);
+  opacity:.95;pointer-events:none}
 .echelle i.vague-1{background:#C97B4A}
 .echelle i.vague-2{background:#8C4B3A}
 .echelle i.vague-3{background:#4A2E3A}
@@ -801,11 +821,78 @@ table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 .report-modal-conteneurs .seg-fleuve{fill:var(--eau)}
 .report-modal-conteneurs .seg-route{fill:var(--absent-f)}
 
-/* Seconde Guerre mondiale : la France en silhouette, la ligne de
-   démarcation par-dessus — pas de remplissage par zone, aucune géométrie
-   de zone vérifiée n'ayant été trouvée (voir le dossier). */
-.geo.france.sgm .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:.04}
-.geo.france.sgm .ligne-demarcation{fill:none;stroke:var(--accent);stroke-width:.09}
+/* La France resituée dans l'Europe de l'Ouest de 1940 (§ 20 septembre 2026,
+   la carte ne montrait que la France seule sur un fond vide) : la France
+   elle-même en fond clair et trait plus marqué pour rester le sujet
+   principal, ses voisins classés par statut belligérant (voir
+   statutBelligerant, seconde_guerre_mondiale.go) en retrait derrière elle.
+   Depuis le 20 septembre 2026, ces deux cartes sont projetées (Lambert-93
+   pour les débarquements, LAEA Europe pour celle-ci) plutôt que dessinées
+   en degrés WGS84 bruts, qui étiraient tout d'environ 47 % d'ouest en est
+   à cette latitude — d'où des largeurs de trait à l'échelle du mètre,
+   comme le reste des cartes Lambert-93 du site (voir .geo path plus haut),
+   et non plus les fractions de degré d'avant. */
+.geo.france.sgm .ocean{fill:var(--eau);fill-opacity:.22;stroke:none}
+.geo.france.sgm .fond{fill:var(--papier2);stroke:var(--encre);stroke-width:2500}
+/* La France coupée en deux aplats plutôt qu'un fond uniforme sous la seule
+   ligne de démarcation (repéré à la vue de la carte publiée : le partage
+   réel de 1940-1942 ne se voyait pas). Zone occupée dans la même teinte que
+   .pays-p.occupe ci-dessous : même statut, même couleur, que ce soit la
+   Pologne ou le nord de la France. Zone libre dans un ocre propre à la
+   France — ni bleu (occupation directe), ni le gris neutre des pays neutres
+   : la zone libre n'est ni l'un ni l'autre, un régime français de fait sous
+   tutelle allemande. */
+.geo.france.sgm .fond.occupee{fill:#8FA6C4}
+.geo.france.sgm .fond.libre{fill:#C9A664}
+.geo.france.sgm .fleuve{stroke-width:800}
+.geo.france.sgm .ligne-demarcation{fill:none;stroke:var(--accent);stroke-width:5000}
+.geo.france.sgm .ligne-demarcation.ancienne{stroke:var(--attenue);stroke-width:4000;
+  stroke-dasharray:14000 9000;opacity:.55}
+.geo.france.sgm .pays-p{stroke:var(--carte);stroke-width:5000;opacity:.85}
+.geo.france.sgm .pays-p.axe{fill:#3D5A80}
+.geo.france.sgm .pays-p.occupe{fill:#8FA6C4}
+.geo.france.sgm .pays-p.allie{fill:#3E7A52}
+.geo.france.sgm .pays-p.neutre{fill:var(--absent-f)}
+/* Beaucoup plus discrète que les quatre statuts ci-dessus (opacité et trait
+   réduits) : à l'échelle où cette emprise doit aller pour ne pas amputer la
+   Pologne ou la Suède, la zone hors classement (Europe centrale, Balkans)
+   devient la moitié droite de la carte — pleine et bordée comme un
+   cinquième statut à part entière, elle dominait visuellement les pays que
+   la carte classe réellement, repéré directement à la vue de la carte
+   publiée. */
+.geo.france.sgm .pays-p.non-classe{fill:#CFCABE;opacity:.3;stroke-width:2000}
+/* Taille de police normale : l'agrandissement à l'échelle de la carte se
+   fait par le <g transform="scale(...)"> qui entoure chaque étiquette
+   (cmd/build/seconde_guerre_mondiale.go), pas ici. Un font-size direct à
+   l'échelle du viewBox (des centaines de milliers d'unités) ne rendait
+   qu'un trait au lieu de lettres lisibles — Chromium semble buter sur le
+   rendu des glyphes au-delà d'une certaine taille de police, reproduit en
+   isolation, indépendamment de ce dépôt. */
+.geo.france.sgm .nom-pays{font:600 13px/1 var(--sans);fill:var(--seuil);opacity:.85;
+  letter-spacing:.2px;pointer-events:none}
+.geo.france.sgm .nom-pays.nom-france{font-weight:700;fill:var(--encre);opacity:1;font-size:16px}
+/* Les débarquements de 1944 : deux couleurs, une par opération — jamais les
+   teintes Axe/Alliés/neutre ci-dessus, qui classent des PAYS, pas des
+   plages. Un halo et une étiquette par opération (Normandie, Provence) :
+   à l'échelle de la France entière, les points seuls restent minuscules et
+   quasi confondus — le halo dit où regarder avant le détail des points. */
+.geo.debarquements .debarquement{stroke:var(--carte);stroke-width:1200}
+.geo.debarquements .debarquement.overlord{fill:#3F7D4F}
+.geo.debarquements .debarquement.dragoon{fill:#B5652B}
+.geo.debarquements .halo{stroke:none;opacity:.16}
+.geo.debarquements .halo.overlord{fill:#3F7D4F}
+.geo.debarquements .halo.dragoon{fill:#B5652B}
+.geo.debarquements .repere{font:700 26000px/1 var(--sans);text-transform:uppercase;
+  letter-spacing:1200;fill:var(--encre)}
+.echelle i.overlord{background:#3F7D4F}
+.echelle i.dragoon{background:#B5652B}
+.echelle i.axe{background:#3D5A80}
+.echelle i.occupe{background:#8FA6C4}
+.echelle i.allie{background:#3E7A52}
+.echelle i.neutre{background:var(--absent-f)}
+.echelle i.non-classe{background:#CFCABE}
+.echelle i.occupee{background:#8FA6C4}
+.echelle i.libre{background:#C9A664}
 
 /* Population, 1876-1999 : deux bandes marquent les deux guerres elles-mêmes,
    pas une rupture de série (à la différence du graphique immigration). */

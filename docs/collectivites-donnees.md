@@ -1,6 +1,6 @@
 # Collectivités : d'où vient l'argent, et ce qu'un euro par habitant ne dit pas
 
-> **Dossier** · version 2 · 15 septembre 2026
+> **Dossier** · version 4 · 21 septembre 2026
 >
 > Communes, intercommunalités, départements, régions : d'où vient l'argent que les
 > collectivités dépensent ? Le dossier sépare deux origines — la fiscalité qu'elles votent et
@@ -167,6 +167,12 @@ de grandeur.
 
 ## Versions
 
+- **Version 4** (21 septembre 2026) : noms des 13 régions métropolitaines
+  ajoutés sur la carte par région (les cartons outre-mer gardent leur
+  légende séparée). Infrastructure partagée avec toutes les cartes
+  région/département/EPCI du site (`cmd/build/carte.go`), étiquettes
+  limitées au seul niveau région pour ne pas encombrer les cartes à 96
+  départements ou plusieurs milliers d'EPCI.
 - **Version 3** (16 septembre 2026) : qui paie, via quel mécanisme fiscal
   (DGFiP REI, foncier bâti/non bâti, CFE, TASCOM) — ménages contre
   entreprises, en plus de la distinction déjà chargée fiscalité propre

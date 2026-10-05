@@ -18,6 +18,17 @@ type TerritoireColonial struct {
 	DateIndependance           time.Time
 	NoteIndependance           string
 	Chemin                     string // tracé SVG, "" si géométrie absente
+	LabelX, LabelY, LabelR     float64
+}
+
+// nomCourtTerritoire : le nom affiché sur la carte, sans le pays actuel entre
+// parenthèses (« Dahomey (Bénin) » → « Dahomey ») — le tableau qui suit
+// garde le nom complet, l'étiquette n'a la place que pour le nom d'époque.
+func nomCourtTerritoire(territoire string) string {
+	if i := strings.IndexByte(territoire, '('); i > 1 {
+		return strings.TrimSpace(territoire[:i])
+	}
+	return territoire
 }
 
 type StatsEmpireColonial struct {
@@ -35,9 +46,16 @@ func chargerEmpireColonial(ctx context.Context, pool *pgxpool.Pool) (*StatsEmpir
 	const tol = 0.05 // degrés (EPSG:4326) : les territoires sont plus petits qu'un pays du fond Francophonie
 	rows, err := pool.Query(ctx, `
 		SELECT territoire, region, regime, annee_rattachement, note_rattachement,
-		       date_independance, note_independance,
-		       CASE WHEN geom IS NOT NULL THEN st_assvg(st_simplifypreservetopology(geom, $1), 0, 2) END
-		FROM geo.territoire_colonial
+		       date_independance, note_independance, chemin,
+		       coalesce(st_x((ic).center), 0), coalesce(-st_y((ic).center), 0), coalesce((ic).radius, 0)
+		FROM (
+			SELECT territoire, region, regime, annee_rattachement, note_rattachement,
+			       date_independance, note_independance,
+			       CASE WHEN geom IS NOT NULL THEN st_assvg(st_simplifypreservetopology(geom, $1), 0, 2) END AS chemin,
+			       CASE WHEN geom IS NOT NULL THEN st_simplifypreservetopology(geom, $1) END AS g
+			FROM geo.territoire_colonial
+		) x
+		LEFT JOIN LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l ON true
 		ORDER BY date_independance`, tol)
 	if err != nil {
 		return nil, err
@@ -49,7 +67,7 @@ func chargerEmpireColonial(ctx context.Context, pool *pgxpool.Pool) (*StatsEmpir
 		var t TerritoireColonial
 		var chemin *string
 		if err := rows.Scan(&t.Territoire, &t.Region, &t.Regime, &t.AnneeRattachement, &t.NoteRattachement,
-			&t.DateIndependance, &t.NoteIndependance, &chemin); err != nil {
+			&t.DateIndependance, &t.NoteIndependance, &chemin, &t.LabelX, &t.LabelY, &t.LabelR); err != nil {
 			return nil, err
 		}
 		if chemin != nil {
@@ -94,6 +112,11 @@ func vagueDecolonisation(d time.Time) (classe, libelle string) {
 // avant l'indépendance (CShapes), coloré par vague de décolonisation — pas
 // par région ni par régime juridique, parce que c'est le regroupement
 // temporel qui est le fait marquant de ces données (voir § 2).
+// seuilEtiquetteTerritoire : rayon minimal (degrés) du plus grand cercle
+// inscriptible pour porter un nom — sous ce seuil (les Comores, 0,09°),
+// aucun nom ne tiendrait lisiblement à l'échelle du monde entier.
+const seuilEtiquetteTerritoire = 0.5
+
 func dessinerCarteEmpireColonial(tt []TerritoireColonial) template.HTML {
 	var b strings.Builder
 	b.WriteString(`<svg viewBox="-90 -60 240 120" class="geo monde empire-colonial" role="img" ` +
@@ -107,6 +130,16 @@ func dessinerCarteEmpireColonial(tt []TerritoireColonial) template.HTML {
 			dateJourFr(t.DateIndependance), t.NoteIndependance)
 		fmt.Fprintf(&b, `<path class="territoire-p %s" d="%s"><title>%s</title></path>`,
 			classe, t.Chemin, template.HTMLEscapeString(titre))
+	}
+	// Repéré à la vue des cartes déjà publiées (Seconde Guerre mondiale,
+	// Indochine) : sans nom, chaque territoire n'est identifiable qu'en
+	// survolant l'infobulle native, invisible sans interaction.
+	for _, t := range tt {
+		if t.Chemin == "" || t.LabelR < seuilEtiquetteTerritoire {
+			continue
+		}
+		fmt.Fprintf(&b, `<text class="nom-territoire" x="%.3f" y="%.3f" text-anchor="middle">%s</text>`,
+			t.LabelX, t.LabelY, template.HTMLEscapeString(nomCourtTerritoire(t.Territoire)))
 	}
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())

@@ -1,6 +1,6 @@
 # La France dans la Seconde Guerre mondiale : occupation, pertes, déportation
 
-> **Dossier** · version 2 · 19 septembre 2026
+> **Dossier** · version 7 · 21 septembre 2026
 >
 > Où passait la ligne de démarcation, combien de militaires français sont
 > morts, combien de personnes ont été déportées depuis la France : ce
@@ -81,6 +81,45 @@ démarcation perdant alors sa fonction sans être supprimée avant 1943.
 Aucune géométrie ouverte vérifiée n'a été trouvée pour ces trois
 découpages au moment de l'écriture — cités ici, non montrés sur une carte
 qui laisserait croire à une précision qu'ils n'ont pas.
+
+#### 2.1 Les débarquements de 1944 : Normandie et Provence
+
+<!-- schema:sgm-debarquements -->
+
+**Overlord, Normandie, 6 juin 1944** : le bilan le plus rigoureux disponible
+est celui du National D-Day Memorial (Bedford, Virginie), qui a recensé
+nommément chaque mort allié de cette seule journée après un travail de
+vérification de plusieurs décennies — **4 414 morts alliés** (2 501
+Américains, 1 449 Britanniques, 391 Canadiens, 73 d'autres nationalités
+alliées). **Aucune décomposition par nationalité des troupes coloniales**
+n'a été trouvée pour ce débarquement précis, qui n'en comptait d'ailleurs
+pas au premier rang (les tirailleurs et troupes d'Afrique du Nord
+combattent surtout à partir de Provence, deux mois plus tard, § ci-dessous).
+
+**Dragoon, Provence, 15 août 1944** : le débarquement lui-même a été peu
+disputé — 95 morts alliés et 385 blessés le premier jour, dont 40 dans le
+seul naufrage du LST-282 touché par une bombe planante allemande. Les
+pertes s'alourdissent sur toute la campagne (15 août - 14 septembre 1944) :
+plus de 10 000 pertes françaises et 15 574 pertes américaines (dont 7 301
+tués) côté allié ; 7 000 tués, environ 21 000 blessés et 131 250 prisonniers
+côté allemand. **Aucune décomposition par nationalité des troupes
+coloniales** (tirailleurs algériens, marocains, sénégalais de la 1ʳᵉ armée
+française) n'a été trouvée dans les bilans consultés, alors même que ces
+unités ont fourni une part importante des effectifs de la 1ʳᵉ armée
+française — un chiffrage global existe, un chiffrage par origine des
+soldats non.
+
+**Le bilan civil normand, deux chiffres à ne pas confondre** : la
+« Bataille de Normandie » (juin-août 1944, plus large que le seul jour du
+débarquement) a fait des dizaines de milliers de victimes civiles ;
+le chiffre le plus souvent cité (environ 20 000) est un ordre de grandeur
+médiatique, tandis que le Mémorial des victimes civiles de l'université de
+Caen, à partir d'un dépouillement nominatif conduit depuis 1988, retient
+**13 632 victimes civiles** sur les trois départements bas-normands entre
+juin et décembre 1944 (8 000 dans le Calvados, un peu moins de 4 000 dans
+la Manche, un peu plus de 2 000 dans l'Orne) — un chiffre plus bas que le
+chiffre médiatique, issu d'un travail de recensement nominatif plutôt que
+d'une estimation globale, retenu ici pour cette raison.
 
 ## Contrôles et évaluations
 
@@ -236,6 +275,14 @@ réellement, et dit explicitement ce qu'elle ne peut pas montrer.**
 - Journal officiel de la République française, corpus déjà archivé par ce
   dépôt (§ 1).
 - Insee, séries historiques de population par commune, 1876-2023 (§ 6).
+- National D-Day Memorial (Bedford, Virginie), recensement nominatif des
+  morts alliés du 6 juin 1944 (§ 2.1).
+- Wikipédia (article « Operation Dragoon », infobox), bilan de la campagne
+  de Provence 15 août - 14 septembre 1944 (§ 2.1) — une source
+  secondaire, pas primaire, faute d'un bilan officiel structuré identifié
+  pour cette campagne au moment de l'écriture.
+- Mémorial des victimes civiles, Maison de la recherche en sciences
+  humaines, université de Caen Normandie (§ 2.1).
 
 ## Annexe technique
 
@@ -261,6 +308,79 @@ réellement, et dit explicitement ce qu'elle ne peut pas montrer.**
 
 ## Versions
 
+- **Version 7** (21 septembre 2026) : quatre défauts de la carte d'Europe
+  (§ 2) signalés directement sur la version publiée, corrigés. Le cadrage
+  était découpé par un rectangle en degrés WGS84 AVANT projection : ses
+  bords (méridiens/parallèles, des droites) ressortaient courbes une fois
+  reprojetés en LAEA (3035), visibles comme des bords inclinés ne suivant
+  pas le cadre rectangulaire de la carte — la découpe se fait maintenant
+  après projection, avec un rectangle nativement droit dans la projection
+  d'affichage. L'ancienne borne nord (59°N) excluait la Finlande en entier
+  et amputait presque toute la Norvège ; portée à 71,5°N et 32,5°E (elle
+  couvre aussi, en prime, l'est de la Pologne, coupé par l'ancienne borne
+  est). La France elle-même est désormais coupée en deux aplats — zone
+  occupée et zone libre — plutôt qu'un fond uniforme sous la seule ligne de
+  démarcation : les deux zones sont dérivées par découpe géométrique
+  (ST_Split) de la géométrie de la France par le tracé vérifié de
+  geo.ligne_demarcation, pas devinées. La Corse, jamais traversée par la
+  ligne, est rattachée à la zone libre par proximité géométrique — cohérent
+  avec son statut réel à la date de référence de cette carte (1940),
+  antérieure à l'occupation italienne de novembre 1942.
+- **Version 6** (21 septembre 2026) : refonte de la carte d'Europe (§ 2), à
+  la demande directe de l'utilisateur après relecture de la carte publiée.
+  Statut à quatre catégories plutôt que trois : la Pologne, la Norvège, le
+  Danemark, les Pays-Bas, la Belgique et le Luxembourg — déjà dessinés,
+  jamais colorés — portent maintenant « occupé par l'Axe dès 1939-1940 »,
+  distinct de l'Axe proprement dit. Tout pays de l'emprise (jusqu'en Europe
+  centrale et dans les Balkans, qu'aucun rectangle ne peut exclure
+  proprement sans aussi couper l'Italie) est désormais dessiné, même hors
+  classement, pour ne plus laisser de vide dans le cadrage. Le fond mondial
+  des cours d'eau (Natural Earth, geo.cours_eau_monde, nouvelle table)
+  remplace le silence de geo.cours_eau (France seule) sur cette carte.
+  Chaque pays porte enfin son nom, positionné au centre du plus grand
+  cercle inscriptible dans sa forme (jamais un centroïde, qui peut tomber
+  hors d'une forme concave) — mise en œuvre distincte du texte SVG à taille
+  directe habituel du site : au-delà d'une certaine taille de police,
+  Chromium ne rend plus qu'un trait au lieu de lettres lisibles, contourné
+  par un texte à taille normale agrandi par une transformation matricielle.
+  Intégration reprise sur le patron « carte à gauche, légende chiffrée à
+  droite » déjà en usage ailleurs sur le site (audit du 20 septembre 2026),
+  plutôt que le bloc `.carte-pleine` nu d'avant cette version.
+- **Version 5** (20 septembre 2026) : trois défauts restants sur la carte
+  de la France parmi ses voisins (§ 2), signalés directement à la vue de
+  la carte publiée. La Suède, déjà classée neutre dans le code, avait été
+  oubliée de la liste des pays affichés — corrigé. L'emprise remontait
+  jusqu'au 72ᵉ parallèle pour inclure l'extrémité nord de la Norvège,
+  écrasant toute la carte sous un vide polaire sans même y montrer la
+  Suède ni la Finlande — resserrée au 62ᵉ parallèle (la Finlande reste
+  hors cadre, son statut de cobelligérante de l'Allemagne contre l'URSS ne
+  se résumant à aucune des trois couleurs de cette carte). La mer n'avait
+  aucune couleur propre, indiscernable du fond de page — un rectangle plein
+  aux dimensions de la carte lui donne un bleu clair. Enfin, les fleuves de
+  geo.cours_eau (France seulement) s'arrêtaient net à la frontière comme si
+  le Rhin ou le Danube n'existaient qu'en France : retirés de cette carte,
+  gardés sur celle des débarquements où elle reste entièrement française.
+- **Version 4** (20 septembre 2026) : les deux cartes (§ 2 et § 2.1)
+  dessinaient les degrés WGS84 tels quels — à la latitude de la France, un
+  degré de longitude vaut environ 0,68 fois un degré de latitude en
+  distance réelle, tout y paraissait environ 47 % trop large d'ouest en
+  est. Corrigé par une vraie projection (Lambert-93 pour les
+  débarquements, LAEA Europe pour la carte des voisins). À cette occasion,
+  la carte des débarquements gagne un halo et une étiquette par opération
+  (Normandie, Provence) — les points seuls, à l'échelle de la France
+  entière, restaient minuscules et peu repérables — ainsi que le tracé
+  estompé de l'ancienne ligne de démarcation, en simple repère
+  géographique : elle avait disparu dans les faits dès novembre 1942,
+  bien avant ces deux débarquements, un partage occupée/libre encore actif
+  aurait été faux à ces dates.
+- **Version 3** (20 septembre 2026) : la carte de la ligne de démarcation
+  resituée dans l'Europe de l'Ouest de 1940 (§ 2, statuts belligérants
+  simplifiés) plutôt que la France seule sur un fond vide. Nouvelle carte
+  des débarquements de 1944 (§ 2.1, Overlord et Dragoon), avec les
+  premiers bilans chiffrés — National D-Day Memorial pour Overlord,
+  campagne de Provence pour Dragoon, Mémorial des victimes civiles de
+  Caen pour le bilan civil normand (13 632, plus bas et mieux sourcé que
+  le chiffre médiatique de 20 000).
 - **Version 2** (19 septembre 2026) : cadre légal de Vichy et de la
   Libération cité à partir du corpus JO déjà archivé par ce dépôt (§ 1,
   aucune nouvelle source) ; population communale 1876-1999 chargée
