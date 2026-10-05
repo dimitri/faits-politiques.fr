@@ -33,8 +33,11 @@ jobs:
     if: github.event_name == 'workflow_dispatch' && inputs.seed_ci_dump_release != ''
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    # contents: write, pas read : l'API GitHub ne rend une release en
+    # brouillon qu'à un jeton ayant un accès équivalent à push sur le
+    # dépôt — rien n'est pourtant écrit ici, seulement lu.
     permissions:
-      contents: read
+      contents: write
     steps:
       - uses: actions/checkout@v4
 
