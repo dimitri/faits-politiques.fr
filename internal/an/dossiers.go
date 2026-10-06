@@ -31,6 +31,112 @@ type rawBox struct{ Raw json.RawMessage }
 
 func (b *rawBox) UnmarshalJSON(data []byte) error { b.Raw = append([]byte(nil), data...); return nil }
 
+// slugUnique calcule un slug encore libre dans seenSlug (clé prefix+slug) —
+// le simple essai « titre, et si déjà pris titre-uid » ne suffisait pas :
+// deux versions successives du MÊME texte (Assemblée puis Sénat, ou avant/
+// après amendement) partagent exactement le même titre au caractère près
+// mais un UID différent à chaque étape — vu en pratique jusqu'à neuf fois
+// pour un seul texte (data.assemblee-nationale.fr, source continue, pas un
+// instantané figé). Le titre-uid suffisait tant qu'au plus DEUX versions
+// coexistaient ; au-delà, ou si par coïncidence un titre-uid recoupe un
+// autre titre déjà retenu tel quel, l'ancien essai unique levait
+// « duplicate key value violates unique constraint ... » en base — jamais
+// détecté par seenSlug, qui ne revérifiait pas le résultat de son propre
+// repli. Boucler jusqu'à une clé libre, plutôt qu'un seul essai, ferme la
+// faille quelle qu'en soit la cause exacte.
+func slugUnique(seenSlug map[string]bool, prefix, titre, uid string) string {
+	base := slugify(titre)
+	if base == "" {
+		base = strings.ToLower(uid)
+	}
+	return slugUniqueBase(seenSlug, prefix, base, uid)
+}
+
+// slugUniqueBase : la partie commune à slugUnique et à tout appelant qui a
+// déjà sa propre règle pour construire base (internal/an/normalize.go,
+// ajoute un suffixe de législature avant de vérifier l'unicité).
+func slugUniqueBase(seenSlug map[string]bool, prefix, base, uid string) string {
+	slug := base
+	if seenSlug[prefix+slug] {
+		slug = strings.Trim(base+"-"+strings.ToLower(uid), "-")
+	}
+	for i := 2; seenSlug[prefix+slug]; i++ {
+		slug = fmt.Sprintf("%s-%d", strings.Trim(base+"-"+strings.ToLower(uid), "-"), i)
+	}
+	seenSlug[prefix+slug] = true
+	return slug
+}
+
+// seedSlugsExistants précharge seenSlug avec les slugs DÉJÀ en base
+// (core.dossier et core.texte, institution ASSEMBLEE_NATIONALE) — la
+// cause réelle de « duplicate key value violates ... texte_slug_key » :
+// un document NOUVEAU dans le batch courant, dont le slug calculé
+// coïncide par coïncidence avec celui d'un document DÉJÀ persisté par un
+// run précédent (ni l'un ni l'autre dans CE batch, donc invisible à un
+// seenSlug qui ne connaît que ce qu'il vient de voir), violait la
+// contrainte unique en base — un cas que ni l'ancien essai unique, ni la
+// boucle de slugUniqueBase, ne pouvaient détecter sans connaître l'état
+// déjà écrit. Coût accepté : un document supprimé depuis la dernière
+// exécution libérerait en théorie son slug ; il reste réservé pour ce
+// run, au prix d'un repli évitable mais jamais d'une incorrection.
+func seedSlugsExistants(ctx context.Context, pool *pgxpool.Pool, seenSlug map[string]bool) error {
+	rows, err := pool.Query(ctx,
+		`SELECT slug FROM core.dossier WHERE institution = 'ASSEMBLEE_NATIONALE'`)
+	if err != nil {
+		return fmt.Errorf("préchargement des slugs de dossier : %w", err)
+	}
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			rows.Close()
+			return err
+		}
+		seenSlug[s] = true
+	}
+	rows.Close()
+	if err := rows.Err(); err != nil {
+		return err
+	}
+
+	rows, err = pool.Query(ctx,
+		`SELECT slug FROM core.texte WHERE institution = 'ASSEMBLEE_NATIONALE'`)
+	if err != nil {
+		return fmt.Errorf("préchargement des slugs de texte : %w", err)
+	}
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			rows.Close()
+			return err
+		}
+		seenSlug["t-"+s] = true
+	}
+	rows.Close()
+	return rows.Err()
+}
+
+// seedSlugsOrganisationsExistantes : même précaution que seedSlugsExistants
+// ci-dessus, pour core.organization.slug (internal/an/normalize.go,
+// normalizeOrganes) — contrainte unique globale, aucun institution pour la
+// borner : toute organisation déjà en base, quelle que soit son origine,
+// compte.
+func seedSlugsOrganisationsExistantes(ctx context.Context, pool *pgxpool.Pool, seenSlug map[string]bool) error {
+	rows, err := pool.Query(ctx, `SELECT slug FROM core.organization`)
+	if err != nil {
+		return fmt.Errorf("préchargement des slugs d'organisation : %w", err)
+	}
+	for rows.Next() {
+		var s string
+		if err := rows.Scan(&s); err != nil {
+			rows.Close()
+			return err
+		}
+		seenSlug[s] = true
+	}
+	rows.Close()
+	return rows.Err()
+}
+
 type dossierParlementaire struct {
 	UID          flexStr `json:"uid"`
 	Legislature  flexStr `json:"legislature"`
@@ -135,6 +241,9 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 
 	type ligneDossier struct{ uid, slug, titre, titreChemin, senatChemin string }
 	seenSlug := map[string]bool{}
+	if err := seedSlugsExistants(ctx, pool, seenSlug); err != nil {
+		return err
+	}
 	var lignesDossier []ligneDossier
 	var lignesInitiateur []ligneAuteur
 	for _, d := range dossiers {
@@ -142,11 +251,7 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 		if titre == "" {
 			titre = d.UID.String()
 		}
-		slug := slugify(titre)
-		if slug == "" || seenSlug[slug] {
-			slug = strings.Trim(slug+"-"+strings.ToLower(d.UID.String()), "-")
-		}
-		seenSlug[slug] = true
+		slug := slugUnique(seenSlug, "", titre, d.UID.String())
 		lignesDossier = append(lignesDossier, ligneDossier{
 			uid: d.UID.String(), slug: slug, titre: titre,
 			titreChemin: d.TitreDossier.TitreChemin.String(),
@@ -373,11 +478,7 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 		if titre == "" {
 			titre = d.UID.String()
 		}
-		slug := slugify(titre)
-		if slug == "" || seenSlug["t-"+slug] {
-			slug = strings.Trim(slug+"-"+strings.ToLower(d.UID.String()), "-")
-		}
-		seenSlug["t-"+slug] = true
+		slug := slugUnique(seenSlug, "t-", titre, d.UID.String())
 		lignesTexte = append(lignesTexte, ligneTexte{
 			uid: d.UID.String(), dossierUID: d.DossierRef.String(), slug: slug, kind: kind, titre: titre,
 			dateDepot: dateOnly(d.CycleDeVie.Chrono.DateDepot.String()),
