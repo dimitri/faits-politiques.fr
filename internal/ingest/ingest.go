@@ -215,7 +215,7 @@ func registreDe(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 // connexions que store.Open donne au reste d'une commande d'ingestion — le
 // même choix qu'internal/sitegen fait pour son propre besoin mesuré de
 // parallélisme (store.OpenWithMaxConns), jamais en élargissant le défaut
-// partagé. Sans ce second pool, matview.ActualiserToutesConcurrence pouvait
+// partagé. Sans ce second pool, matview.RefreshAllConcurrency pouvait
 // demander autant de front qu'elle voulait : bridée aux 4 connexions du pool
 // qu'on lui donnait, elle ne l'obtenait jamais.
 func actualiserMatviews(ctx context.Context) error {
@@ -225,7 +225,7 @@ func actualiserMatviews(ctx context.Context) error {
 		return err
 	}
 	defer mvPool.Close()
-	return matview.ActualiserToutesConcurrence(ctx, mvPool, concurrence)
+	return matview.RefreshAllConcurrency(ctx, mvPool, concurrence)
 }
 
 // RunSources exécute plusieurs sources du catalogue à la fois — vagues

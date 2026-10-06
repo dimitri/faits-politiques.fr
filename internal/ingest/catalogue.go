@@ -826,7 +826,7 @@ var catalogue = []Source{
 		}},
 	{Nom: "matviews", Categorie: CategorieSysteme, Description: "actualise les matvues du schéma mv si leurs données ou leur définition ont changé (voir internal/matview)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return matview.ActualiserToutes(ctx, pool)
+			return matview.RefreshAll(ctx, pool)
 		}},
 	{Nom: "contours", Categorie: CategorieSysteme, Description: "contours IGN par millésime du COG",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {

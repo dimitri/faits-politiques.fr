@@ -23,7 +23,7 @@ L\[cq]objectif : valider une reconstruction complète du site en CI à
 partir d\[cq]un seul fichier restauré dans une base vide.
 .PP
 \f[B]fpctl dump ci\f[R] actualise d\[cq]abord chaque matvue
-(\f[B]internal/matview.ActualiserToutes\f[R] \[em] un REFRESH sauté si
+(\f[B]internal/matview.RefreshAll\f[R] \[em] un REFRESH sauté si
 rien n\[cq]a changé), vérifie ensuite que ce périmètre couvre bien tout
 ce que le dernier \f[B]fpctl build site\f[R] a RÉELLEMENT lu
 (\f[B]core.sitegen_table_usage\f[R], mesuré à l\[cq]exécution par

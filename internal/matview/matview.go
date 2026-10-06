@@ -54,7 +54,7 @@ func (d Definition) QualifieNom() string { return "mv." + d.Nom }
 // Catalogue : les matvues connues. Une seule entrée aujourd'hui
 // (scrutin_groupe_vote, le premier étage du chantier) — chaque nouvelle
 // matvue s'y ajoute, jamais ailleurs : fpctl list matviews et
-// ActualiserToutes n'ont besoin de connaître qu'elle.
+// RefreshAll n'ont besoin de connaître qu'elle.
 var Catalogue = []Definition{
 	{
 		Nom:    "scrutin_groupe_vote",
@@ -695,7 +695,7 @@ func Actualiser(ctx context.Context, pool *pgxpool.Pool, def Definition) (rafrai
 // matvue une vague trop tôt, jamais une erreur SQL — juste une lecture
 // d'une matvue pas encore actualisée. Avec la concurrence à 4 (l'ancien
 // pool partagé de l'ingest), ce risque restait largement théorique ; à 8
-// (ActualiserToutesConcurrence, voir OpenWithMaxConns dans internal/
+// (RefreshAllConcurrency, voir OpenWithMaxConns dans internal/
 // ingest) plus de vagues tournent vraiment en parallèle, donc une entrée
 // manquante dans Tables cesse d'être un détail cosmétique.
 func dependancesReellesMV(ctx context.Context, pool *pgxpool.Pool) (map[string][]string, error) {
@@ -849,20 +849,20 @@ func registre(ctx context.Context, pool *pgxpool.Pool) (*pipeline.Registry, erro
 	return reg, nil
 }
 
-// ActualiserToutes actualise chaque matvue du Catalogue, dans l'ordre de
+// RefreshAll actualise chaque matvue du Catalogue, dans l'ordre de
 // dépendance déclaré (registre) plutôt que dans l'ordre du fichier tenu à
 // la main — une matvue construite sur une autre (mv.dept_population,
 // mv.person_actif) est désormais garantie à jour avant que sa dépendante ne
 // soit vérifiée, par construction du graphe plutôt que par une place
 // correcte dans Catalogue. À la concurrence partagée par défaut (4, celle du
 // pool qu'ouvre internal/store.Open) — pour un appelant qui n'a pas de
-// raison de s'en écarter. Voir ActualiserToutesConcurrence pour celui qui en
+// raison de s'en écarter. Voir RefreshAllConcurrency pour celui qui en
 // a une.
-func ActualiserToutes(ctx context.Context, pool *pgxpool.Pool) error {
-	return ActualiserToutesConcurrence(ctx, pool, 4)
+func RefreshAll(ctx context.Context, pool *pgxpool.Pool) error {
+	return RefreshAllConcurrency(ctx, pool, 4)
 }
 
-// ActualiserToutesConcurrence : comme ActualiserToutes, jusqu'à `concurrence`
+// RefreshAllConcurrency : comme RefreshAll, jusqu'à `concurrence`
 // de front plutôt que 4 — la plupart des 25 matvues n'ont aucune dépendance
 // entre elles (voir Catalogue), les enchaîner à une concurrence bridée par
 // défaut n'avait jamais été qu'un héritage du pool à 4 connexions que
@@ -874,7 +874,7 @@ func ActualiserToutes(ctx context.Context, pool *pgxpool.Pool) error {
 // pour le même besoin) : demander plus de front que le pool n'a de
 // connexions ne fait que mettre des goroutines en attente de la même
 // poignée de connexions, sans rien paralléliser de plus.
-func ActualiserToutesConcurrence(ctx context.Context, pool *pgxpool.Pool, concurrence int) error {
+func RefreshAllConcurrency(ctx context.Context, pool *pgxpool.Pool, concurrence int) error {
 	reg, err := registre(ctx, pool)
 	if err != nil {
 		return err

@@ -26,7 +26,7 @@ L'objectif : valider une reconstruction complète du site en CI à partir
 d'un seul fichier restauré dans une base vide.
 
 **fpctl dump ci** actualise d'abord chaque matvue
-(**internal/matview.ActualiserToutes** — un REFRESH sauté si rien n'a
+(**internal/matview.RefreshAll** — un REFRESH sauté si rien n'a
 changé), vérifie ensuite que ce périmètre couvre bien tout ce que le
 dernier **fpctl build site** a RÉELLEMENT lu (**core.sitegen_table_usage**,
 mesuré à l'exécution par **internal/sitegen** — voir MÉTHODE plus bas), puis

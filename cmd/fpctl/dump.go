@@ -30,7 +30,7 @@ func commandeDump() *cobra.Command {
 		&cobra.Command{
 			Use:   "ci [options]",
 			Short: "Actualise les matvues puis exporte le périmètre CI dans un fichier pg_dump -Fc",
-			Long: "Actualise d'abord chaque matvue (internal/matview.ActualiserToutes —\n" +
+			Long: "Actualise d'abord chaque matvue (internal/matview.RefreshAll —\n" +
 				"un REFRESH sauté si rien n'a changé, jamais gratuit à ignorer : sans\n" +
 				"cet appel, un export lancé hors de « fpctl ingest default » capturerait\n" +
 				"silencieusement le contenu d'un cycle d'ingestion antérieur), puis\n" +
@@ -108,9 +108,9 @@ func runDumpCI(ctx context.Context, args []string) error {
 	// Sans cet appel, ExportCI capturerait le contenu déjà présent dans
 	// mv.* — potentiellement celui d'un cycle d'ingestion antérieur si
 	// personne n'a relancé "fpctl ingest default"/"fpctl ingest systeme
-	// matviews" entretemps. ActualiserToutes ne fait rien (donc ne coûte
+	// matviews" entretemps. RefreshAll ne fait rien (donc ne coûte
 	// qu'un aller-retour d'empreinte par matvue) quand tout est déjà à jour.
-	if err := matview.ActualiserToutes(ctx, pool); err != nil {
+	if err := matview.RefreshAll(ctx, pool); err != nil {
 		return fmt.Errorf("actualisation des matvues avant export : %w", err)
 	}
 
