@@ -67,7 +67,13 @@ func DownloadTargets() []archive.DownloadTarget {
 		}
 	}
 
-	out = append(out, archive.DownloadTarget{Nom: "communes-ssmsi", Source: SourceSSMSI, URL: ssmsiURL, Ext: ".csv.gz"})
+	// "-fetch" : seule URL de cette source, donc pas de suffixe naturel
+	// (contrairement à communes-ofgl-2018 ou communes-collectivites-REGION-
+	// 2018) — un nom qui collisionnait avec celui du maillon réel de la
+	// chaîne (catalogue.go), prêtant à confusion dans les logs (deux lignes
+	// "communes-ssmsi : terminé en" sans rapport l'une avec l'autre, l'une
+	// pour la récupération, l'autre pour le traitement).
+	out = append(out, archive.DownloadTarget{Nom: "communes-ssmsi-fetch", Source: SourceSSMSI, URL: ssmsiURL, Ext: ".csv.gz"})
 
 	return out
 }
