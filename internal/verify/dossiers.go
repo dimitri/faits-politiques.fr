@@ -8,14 +8,16 @@ func init() {
 
 var checksDossiers = []check{
 	{
-		name:  "dossiers : les faits sourcés de tous les dossiers sont chargés",
-		query: `SELECT count(*) FROM ref.fait_dossier`,
-		min:   170,
+		name:    "dossiers : les faits sourcés de tous les dossiers sont chargés",
+		query:   `SELECT count(*) FROM ref.fait_dossier`,
+		min:     170,
+		sources: []string{"dossiers-faits"},
 	},
 	{
-		name:  "dossiers : au moins vingt-huit dossiers ont des faits",
-		query: `SELECT count(DISTINCT dossier) FROM ref.fait_dossier`,
-		min:   28,
+		name:    "dossiers : au moins vingt-huit dossiers ont des faits",
+		query:   `SELECT count(DISTINCT dossier) FROM ref.fait_dossier`,
+		min:     28,
+		sources: []string{"dossiers-faits"},
 	},
 	{
 		// Chaque dossier doit dire dans quel cadre ses chiffres s'inscrivent.
@@ -48,9 +50,10 @@ var checksDossiers = []check{
 		query: `SELECT count(*) FROM ref.fait_multinationale WHERE qualite NOT IN (SELECT code FROM ref.qualite_fait)`,
 	},
 	{
-		name:  "acteurs : les acteurs français du numérique sont chargés",
-		query: `SELECT count(*) FROM ref.acteur_numerique`,
-		min:   20,
+		name:    "acteurs : les acteurs français du numérique sont chargés",
+		query:   `SELECT count(*) FROM ref.acteur_numerique`,
+		min:     20,
+		sources: []string{"dossiers-acteurs"},
 	},
 	{
 		name: "acteurs : chaque acteur est une unité légale active",
@@ -58,14 +61,16 @@ var checksDossiers = []check{
 		         WHERE u.siren IS NULL OR u.etat_administratif <> 'A'`,
 	},
 	{
-		name:  "termes : chaque dossier suivi dans les débats a au moins une expression",
-		query: `SELECT count(DISTINCT dossier) FROM ref.dossier_terme`,
-		min:   15,
+		name:    "termes : chaque dossier suivi dans les débats a au moins une expression",
+		query:   `SELECT count(DISTINCT dossier) FROM ref.dossier_terme`,
+		min:     15,
+		sources: []string{"dossiers-faits"},
 	},
 	{
-		name:  "missions : les dossiers verticaux suivent au moins quinze missions de l'État",
-		query: `SELECT count(*) FROM ref.dossier_mission`,
-		min:   15,
+		name:    "missions : les dossiers verticaux suivent au moins quinze missions de l'État",
+		query:   `SELECT count(*) FROM ref.dossier_mission`,
+		min:     15,
+		sources: []string{"dossiers-faits"},
 	},
 	{
 		// Le chargement refuse un motif sans correspondance ; ce contrôle

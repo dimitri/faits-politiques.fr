@@ -8,9 +8,10 @@ func init() {
 
 var checksFiscalite = []check{
 	{
-		name:  "listes UE : chaque version de l'annexe I est chargée",
-		query: `SELECT count(DISTINCT version) FROM ref.juridiction_non_cooperative WHERE liste = 'UE_ANNEXE_I'`,
-		min:   23,
+		name:    "listes UE : chaque version de l'annexe I est chargée",
+		query:   `SELECT count(DISTINCT version) FROM ref.juridiction_non_cooperative WHERE liste = 'UE_ANNEXE_I'`,
+		min:     23,
+		sources: []string{"fiscalite-listes"},
 	},
 	{
 		// Par construction, la liste européenne n'examine que des pays tiers :
@@ -23,9 +24,10 @@ var checksFiscalite = []check{
 		               'Malta','Netherlands','Poland','Portugal','Romania','Slovakia','Slovenia','Spain','Sweden')`,
 	},
 	{
-		name:  "liste ETNC : les arrêtés à tableau depuis 2010 sont lus",
-		query: `SELECT count(DISTINCT version) FROM ref.juridiction_non_cooperative WHERE liste = 'ETNC_FR'`,
-		min:   8,
+		name:    "liste ETNC : les arrêtés à tableau depuis 2010 sont lus",
+		query:   `SELECT count(DISTINCT version) FROM ref.juridiction_non_cooperative WHERE liste = 'ETNC_FR'`,
+		min:     8,
+		sources: []string{"fiscalite-listes"},
 	},
 	{
 		// Depuis 2020 chaque inscription porte son fondement légal : un motif
@@ -38,7 +40,8 @@ var checksFiscalite = []check{
 		name: "CbCR : les groupes américains déclarent la France et le reste du monde chaque année",
 		query: `SELECT count(DISTINCT annee) FROM core.cbcr_agregat
 		         WHERE siege = 'USA' AND juridiction IN ('FRA','WXD') AND mesure = 'PROFIT' AND groupe_profit = '_T'`,
-		min: 8,
+		min:     8,
+		sources: []string{"fiscalite-ocde"},
 	},
 	{
 		// Salariés d'une juridiction ≤ salariés de tout l'étranger du siège.
@@ -66,12 +69,14 @@ var checksFiscalite = []check{
 		name: "taux légal français de l'IS chargé de 2000 à aujourd'hui",
 		query: `SELECT count(*) FROM core.fiscalite_pays
 		         WHERE pays = 'FRA' AND indicateur = 'CIT.CIT_C' AND variante = 'ST.S13'`,
-		min: 26,
+		min:     26,
+		sources: []string{"fiscalite-ocde"},
 	},
 	{
-		name:  "revenus d'IDE de la France chargés",
-		query: `SELECT count(DISTINCT annee) FROM core.ide_revenu WHERE pays_declarant = 'FRA' AND contrepartie = 'W'`,
-		min:   10,
+		name:    "revenus d'IDE de la France chargés",
+		query:   `SELECT count(DISTINCT annee) FROM core.ide_revenu WHERE pays_declarant = 'FRA' AND contrepartie = 'W'`,
+		min:     10,
+		sources: []string{"fiscalite-ide"},
 	},
 	{
 		// Dividendes + bénéfices réinvestis = revenus des actions, à 1 % près.
@@ -94,14 +99,16 @@ var checksFiscalite = []check{
 		           AND abs(d.valeur + r.valeur - w.valeur) > 0.005 * w.valeur`,
 	},
 	{
-		name:  "estimations Tørsløv-Wier-Zucman : la France de 2015 à 2019",
-		query: `SELECT count(*) FROM core.transfert_benefices_estimation WHERE pays = 'France' AND indicateur = 'BENEFICES_TRANSFERES'`,
-		min:   5,
+		name:    "estimations Tørsløv-Wier-Zucman : la France de 2015 à 2019",
+		query:   `SELECT count(*) FROM core.transfert_benefices_estimation WHERE pays = 'France' AND indicateur = 'BENEFICES_TRANSFERES'`,
+		min:     5,
+		sources: []string{"fiscalite-twz"},
 	},
 	{
-		name:  "filiales de groupes étrangers : repérage GLEIF et sélection nommée chargés",
-		query: `SELECT count(*) FROM core.filiale_groupe_etranger`,
-		min:   1500,
+		name:    "filiales de groupes étrangers : repérage GLEIF et sélection nommée chargés",
+		query:   `SELECT count(*) FROM core.filiale_groupe_etranger`,
+		min:     1500,
+		sources: []string{"fiscalite-filiales"},
 	},
 	{
 		// Les sociétés étrangères immatriculées en France (catégories juridiques
@@ -116,9 +123,10 @@ var checksFiscalite = []check{
 		query: `SELECT count(*) FROM core.filiale_groupe_etranger WHERE pays_groupe = 'FR'`,
 	},
 	{
-		name:  "marchés publics : des marchés sont rattachés aux groupes suivis, par SIREN et par objet",
-		query: `SELECT count(DISTINCT correspondance) FROM core.marche_public_cible`,
-		min:   3,
+		name:    "marchés publics : des marchés sont rattachés aux groupes suivis, par SIREN et par objet",
+		query:   `SELECT count(DISTINCT correspondance) FROM core.marche_public_cible`,
+		min:     3,
+		sources: []string{"fiscalite-marches"},
 	},
 	{
 		// Un rattachement par SIREN doit porter un SIREN de la table des filiales,
@@ -131,9 +139,10 @@ var checksFiscalite = []check{
 		           AND m.groupe NOT IN ('Bleu (Orange-Capgemini, technologies Microsoft)', 'Capgemini SE (groupe français)')`,
 	},
 	{
-		name:  "faits documentés : chargés, et tout fait officiel est scellé",
-		query: `SELECT count(*) FROM ref.fait_multinationale WHERE qualite <> 'OFFICIEL' OR document_id IS NOT NULL`,
-		min:   10,
+		name:    "faits documentés : chargés, et tout fait officiel est scellé",
+		query:   `SELECT count(*) FROM ref.fait_multinationale WHERE qualite <> 'OFFICIEL' OR document_id IS NOT NULL`,
+		min:     10,
+		sources: []string{"fiscalite-faits"},
 	},
 	{
 		// Une aide comptée pour deux écritures du même groupe serait comptée deux fois.
@@ -162,9 +171,10 @@ var checksFiscalite = []check{
 		                             AND s.exercice_fin = c.exercice_fin AND s.concept = 'BENEFICE_AVANT_IMPOT')`,
 	},
 	{
-		name:  "SEC : l'impôt annuel est chargé pour les groupes suivis",
-		query: `SELECT count(DISTINCT groupe) FROM core.groupe_resultat_sec WHERE concept = 'IMPOT'`,
-		min:   20,
+		name:    "SEC : l'impôt annuel est chargé pour les groupes suivis",
+		query:   `SELECT count(DISTINCT groupe) FROM core.groupe_resultat_sec WHERE concept = 'IMPOT'`,
+		min:     20,
+		sources: []string{"fiscalite-transparence"},
 	},
 	{
 		// Un statut qui accuse doit reposer sur un fait officiel existant.

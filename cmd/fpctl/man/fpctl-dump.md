@@ -43,7 +43,7 @@ Deux raisons empêchent de dumper **mv** directement :
   introuvable.
 
 L'actualisation préalable des matvues n'est pas cosmétique : sans elle,
-lancer **fpctl dump ci** hors de la séquence **fpctl ingest all** (qui
+lancer **fpctl dump ci** hors de la séquence **fpctl ingest default** (qui
 actualise déjà les matvues en dernière étape) capturerait silencieusement le
 contenu d'un cycle d'ingestion antérieur, jamais signalé comme périmé.
 

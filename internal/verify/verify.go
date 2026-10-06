@@ -13,6 +13,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/faits-politiques/faits-politiques/internal/ingest"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 )
@@ -26,6 +27,47 @@ type check struct {
 	name  string
 	query string
 	min   int // si > 0 : la requête compte des lignes attendues, pas des anomalies
+
+	// sources : les noms du catalogue (internal/ingest.Source.Nom) dont ce
+	// contrôle dépend — vide si la donnée vérifiée appartient au socle
+	// parlementaire ou à runToutSupplement (ingest.ChaineParDefaut), donc
+	// toujours chargée par un « fpctl ingest default » normal, donc toujours
+	// pertinente à vérifier par défaut. Un contrôle qui porte sur une source
+	// hors chaîne (empire colonial, SIRENE, ports...) DOIT lister son nom
+	// ici : « fpctl verify data », sans cette information, ne pourrait pas
+	// distinguer une vraie régression d'une donnée jamais censée être là.
+	// Validé au chargement du paquet contre le catalogue réel (verifySources
+	// ci-dessous) — un nom qui ne correspond à aucune source connue est une
+	// faute de programmation, pas un cas à tolérer silencieusement.
+	sources []string
+}
+
+// init vérifie, une bonne fois pour toutes, que chaque check.sources cite un
+// nom qui existe vraiment dans le catalogue — même discipline que
+// pipeline.Registre.Ajouter pour les dépendances d'ingestion : une faute de
+// frappe ici ferait silencieusement « disparaître » un contrôle du scope par
+// défaut (il ne correspondrait à aucune source de ChaineParDefaut) plutôt que
+// d'échouer bruyamment au chargement.
+func init() {
+	for _, c := range checks {
+		for _, s := range c.sources {
+			if _, ok := ingest.SourceParNom(s); !ok {
+				panic(fmt.Sprintf("verify : le contrôle %q référence une source inconnue du catalogue : %q", c.name, s))
+			}
+		}
+	}
+}
+
+// dansChaine : c ne porte sur aucune source hors de chaine — vrai
+// trivialement pour un contrôle sans sources déclarées (données du socle ou
+// de runToutSupplement, toujours chargées par « fpctl ingest default »).
+func dansChaine(c check, chaine map[string]bool) bool {
+	for _, s := range c.sources {
+		if !chaine[s] {
+			return false
+		}
+	}
+	return true
 }
 
 var checks = []check{
@@ -659,9 +701,10 @@ var checks = []check{
 		        ) x WHERE total IS NOT NULL AND abs(somme - total) > 1`,
 	},
 	{
-		name:  "le stock de titres de séjour couvre au moins dix ans",
-		query: `SELECT count(DISTINCT annee) FROM core.titre_sejour_stock`,
-		min:   10,
+		name:    "le stock de titres de séjour couvre au moins dix ans",
+		query:   `SELECT count(DISTINCT annee) FROM core.titre_sejour_stock`,
+		min:     10,
+		sources: []string{"immigration"},
 	},
 	{
 		// Chaque immigré a un pays de naissance connu (34 % ont la
@@ -708,9 +751,10 @@ var checks = []check{
 		min:   30,
 	},
 	{
-		name:  "la population immigrée et étrangère couvre au moins un siècle",
-		query: `SELECT max(annee) - min(annee) FROM core.population_historique_nationalite`,
-		min:   100,
+		name:    "la population immigrée et étrangère couvre au moins un siècle",
+		query:   `SELECT max(annee) - min(annee) FROM core.population_historique_nationalite`,
+		min:     100,
+		sources: []string{"immigration"},
 	},
 	{
 		// Français de naissance + par acquisition + étrangers doit
@@ -722,9 +766,10 @@ var checks = []check{
 		                    - population_totale_milliers) > population_totale_milliers * 0.01`,
 	},
 	{
-		name:  "les flux migratoires (immigration et naturalisation) couvrent au moins quinze ans chacun",
-		query: `SELECT min(n) FROM (SELECT type_flux, count(*) AS n FROM core.flux_migratoire GROUP BY type_flux) x`,
-		min:   15,
+		name:    "les flux migratoires (immigration et naturalisation) couvrent au moins quinze ans chacun",
+		query:   `SELECT min(n) FROM (SELECT type_flux, count(*) AS n FROM core.flux_migratoire GROUP BY type_flux) x`,
+		min:     15,
+		sources: []string{"immigration"},
 	},
 	{
 		name:  "l'âge de départ à la retraite couvre au moins quinze ans",
@@ -792,9 +837,10 @@ var checks = []check{
 		        ) x WHERE total IS NOT NULL AND somme IS NOT NULL AND somme <> total`,
 	},
 	{
-		name:  "les demandes d'asile Ofpra couvrent au moins quatre ans",
-		query: `SELECT count(DISTINCT annee) FROM core.demande_asile_ofpra`,
-		min:   4,
+		name:    "les demandes d'asile Ofpra couvrent au moins quatre ans",
+		query:   `SELECT count(DISTINCT annee) FROM core.demande_asile_ofpra`,
+		min:     4,
+		sources: []string{"immigration"},
 	},
 	{
 		// Les quantiles d'un taux de remplacement doivent être croissants
@@ -848,9 +894,10 @@ var checks = []check{
 		        ) x WHERE NOT (a_an AND a_senat)`,
 	},
 	{
-		name:  "la dépense environnementale couvre au moins dix ans",
-		query: `SELECT count(DISTINCT annee) FROM core.depense_environnementale WHERE purpose_code='TOT_CEP_EP' AND secteur_code='S1'`,
-		min:   10,
+		name:    "la dépense environnementale couvre au moins dix ans",
+		query:   `SELECT count(DISTINCT annee) FROM core.depense_environnementale WHERE purpose_code='TOT_CEP_EP' AND secteur_code='S1'`,
+		min:     10,
+		sources: []string{"ecologie"},
 	},
 	{
 		// Le secteur S1 (total économie) doit toujours être au moins aussi
@@ -868,9 +915,10 @@ var checks = []check{
 		        ) x WHERE total IS NOT NULL AND sous_secteur IS NOT NULL AND sous_secteur > total`,
 	},
 	{
-		name:  "la certification HAS couvre au moins 300 démarches",
-		query: `SELECT count(*) FROM core.certification_has_demarche`,
-		min:   300,
+		name:    "la certification HAS couvre au moins 300 démarches",
+		query:   `SELECT count(*) FROM core.certification_has_demarche`,
+		min:     300,
+		sources: []string{"sante"},
 	},
 	{
 		// Un score de chapitre est une moyenne sur 100 — hors bornes, une
@@ -879,9 +927,10 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.certification_has_chapitre WHERE score IS NOT NULL AND (score < 0 OR score > 100)`,
 	},
 	{
-		name:  "le taux de pauvreté européen couvre la France sur au moins dix ans",
-		query: `SELECT count(DISTINCT annee) FROM core.pauvrete_taux_eu WHERE geo_code = 'FR'`,
-		min:   10,
+		name:    "le taux de pauvreté européen couvre la France sur au moins dix ans",
+		query:   `SELECT count(DISTINCT annee) FROM core.pauvrete_taux_eu WHERE geo_code = 'FR'`,
+		min:     10,
+		sources: []string{"socle"},
 	},
 	{
 		// Un taux de risque de pauvreté est un pourcentage de population :
@@ -890,9 +939,10 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.pauvrete_taux_eu WHERE taux_pct <= 0 OR taux_pct > 50`,
 	},
 	{
-		name:  "l'aide alimentaire couvre les six réseaux du dispositif Insee-Drees",
-		query: `SELECT count(DISTINCT association) FROM core.aide_alimentaire`,
-		min:   6,
+		name:    "l'aide alimentaire couvre les six réseaux du dispositif Insee-Drees",
+		query:   `SELECT count(DISTINCT association) FROM core.aide_alimentaire`,
+		min:     6,
+		sources: []string{"socle"},
 	},
 	{
 		// Chaque réseau doit porter periode_libelle si et seulement s'il est en
@@ -903,9 +953,10 @@ var checks = []check{
 		          WHERE (periode_type = 'CAMPAGNE') <> (periode_libelle IS NOT NULL)`,
 	},
 	{
-		name:  "le salaire minimum européen couvre la France sur au moins vingt ans",
-		query: `SELECT count(DISTINCT semestre) FROM core.salaire_minimum WHERE geo_code = 'FR'`,
-		min:   40, // deux semestres par an
+		name:    "le salaire minimum européen couvre la France sur au moins vingt ans",
+		query:   `SELECT count(DISTINCT semestre) FROM core.salaire_minimum WHERE geo_code = 'FR'`,
+		min:     40, // deux semestres par an
+		sources: []string{"international"},
 	},
 	{
 		// Un salaire minimum mensuel plausible : au-delà, une colonne a été
@@ -923,14 +974,16 @@ var checks = []check{
 		        ) x WHERE n < 10`,
 	},
 	{
-		name:  "les personnels du premier degré couvrent au moins deux rentrées scolaires",
-		query: `SELECT count(DISTINCT annee) FROM core.education_personnel_etablissement WHERE degre = 'PREMIER'`,
-		min:   2,
+		name:    "les personnels du premier degré couvrent au moins deux rentrées scolaires",
+		query:   `SELECT count(DISTINCT annee) FROM core.education_personnel_etablissement WHERE degre = 'PREMIER'`,
+		min:     2,
+		sources: []string{"education"},
 	},
 	{
-		name:  "les effectifs d'élèves du premier degré couvrent au moins quinze rentrées scolaires",
-		query: `SELECT count(DISTINCT annee) FROM core.education_effectif_eleves`,
-		min:   15,
+		name:    "les effectifs d'élèves du premier degré couvrent au moins quinze rentrées scolaires",
+		query:   `SELECT count(DISTINCT annee) FROM core.education_effectif_eleves`,
+		min:     15,
+		sources: []string{"education"},
 	},
 	{
 		// Un secteur qui perd des écoles doit aussi perdre des élèves — sinon
@@ -949,9 +1002,10 @@ var checks = []check{
 		        ) x WHERE moins_ecoles AND NOT moins_eleves`,
 	},
 	{
-		name:  "le RPPS couvre au moins 300 000 médecins distincts",
-		query: `SELECT count(DISTINCT identifiant_pp) FROM core.rpps_professionnel_activite WHERE code_profession = '10'`,
-		min:   300000,
+		name:    "le RPPS couvre au moins 300 000 médecins distincts",
+		query:   `SELECT count(DISTINCT identifiant_pp) FROM core.rpps_professionnel_activite WHERE code_profession = '10'`,
+		min:     300000,
+		sources: []string{"rpps"},
 	},
 	{
 		// Une ligne sans identifiant de profession serait invisible à toute
@@ -962,9 +1016,10 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.rpps_professionnel_activite WHERE code_profession = ''`,
 	},
 	{
-		name:  "le PMSI-MCO national couvre au moins cinq exercices",
-		query: `SELECT count(DISTINCT annee) FROM core.pmsi_mco_national`,
-		min:   5,
+		name:    "le PMSI-MCO national couvre au moins cinq exercices",
+		query:   `SELECT count(DISTINCT annee) FROM core.pmsi_mco_national`,
+		min:     5,
+		sources: []string{"sante"},
 	},
 	{
 		// 'Tous' doit rester la somme exacte des deux types d'hospitalisation
@@ -980,9 +1035,10 @@ var checks = []check{
 		        ) x WHERE tous <> somme`,
 	},
 	{
-		name:  "le PMSI-MCO par établissement couvre les régions métropolitaines et ultramarines",
-		query: `SELECT count(DISTINCT region) FROM core.pmsi_mco_par_etablissement`,
-		min:   15,
+		name:    "le PMSI-MCO par établissement couvre les régions métropolitaines et ultramarines",
+		query:   `SELECT count(DISTINCT region) FROM core.pmsi_mco_par_etablissement`,
+		min:     15,
+		sources: []string{"sante"},
 	},
 	{
 		// Le total est chez la même ligne 'Tous' (côté patient) : le nombre de
@@ -1000,9 +1056,10 @@ var checks = []check{
 		        ) x WHERE tous IS NOT NULL AND max_region IS NOT NULL AND max_region > tous`,
 	},
 	{
-		name:  "le PMSI-SMR couvre au moins cinq exercices",
-		query: `SELECT count(DISTINCT annee) FROM core.pmsi_smr_regional`,
-		min:   5,
+		name:    "le PMSI-SMR couvre au moins cinq exercices",
+		query:   `SELECT count(DISTINCT annee) FROM core.pmsi_smr_regional`,
+		min:     5,
+		sources: []string{"sante"},
 	},
 	{
 		// Vérifié aussi à l'ingestion (internal/sante/pmsi_smr_had.go) ; sonde
@@ -1020,14 +1077,16 @@ var checks = []check{
 		        ) x WHERE nb_detail = 2 AND tous <> somme`,
 	},
 	{
-		name:  "le PMSI-HAD couvre au moins cinq exercices",
-		query: `SELECT count(DISTINCT annee) FROM core.pmsi_had_regional`,
-		min:   5,
+		name:    "le PMSI-HAD couvre au moins cinq exercices",
+		query:   `SELECT count(DISTINCT annee) FROM core.pmsi_had_regional`,
+		min:     5,
+		sources: []string{"sante"},
 	},
 	{
-		name:  "les honoraires des médecins couvrent au moins dix exercices",
-		query: `SELECT count(DISTINCT annee) FROM core.medecin_honoraires`,
-		min:   10,
+		name:    "les honoraires des médecins couvrent au moins dix exercices",
+		query:   `SELECT count(DISTINCT annee) FROM core.medecin_honoraires`,
+		min:     10,
+		sources: []string{"sante"},
 	},
 	{
 		// 25 à 35 Md€ d'honoraires « Ensemble des médecins » au total national
@@ -1043,9 +1102,10 @@ var checks = []check{
 		        ) x WHERE total NOT BETWEEN 20e9 AND 40e9`,
 	},
 	{
-		name:  "les DECP couvrent au moins deux millions de lignes de marché",
-		query: `SELECT count(*) FROM core.public_contract`,
-		min:   2000000,
+		name:    "les DECP couvrent au moins deux millions de lignes de marché",
+		query:   `SELECT count(*) FROM core.public_contract`,
+		min:     2000000,
+		sources: []string{"decp"},
 	},
 	{
 		// source_uid combine marché, titulaire et modification précisément
@@ -1074,9 +1134,10 @@ var checks = []check{
 		           AND etp_total < etp_enseignants - 0.5`,
 	},
 	{
-		name:  "les personnels non enseignants par catégorie couvrent les 18 lignes attendues",
-		query: `SELECT count(*) FROM core.education_personnel_categorie WHERE annee = 2024`,
-		min:   18,
+		name:    "les personnels non enseignants par catégorie couvrent les 18 lignes attendues",
+		query:   `SELECT count(*) FROM core.education_personnel_categorie WHERE annee = 2024`,
+		min:     18,
+		sources: []string{"education-personnel-categorie"},
 	},
 	{
 		// Chaque sous-total (déjà revérifié à l'ingestion contre ses
@@ -1103,9 +1164,10 @@ var checks = []check{
 		        ) x WHERE total IS DISTINCT FROM somme`,
 	},
 	{
-		name:  "le référentiel FINESS couvre au moins 100 000 établissements",
-		query: `SELECT count(*) FROM ref.finess_etablissement`,
-		min:   100000,
+		name:    "le référentiel FINESS couvre au moins 100 000 établissements",
+		query:   `SELECT count(*) FROM ref.finess_etablissement`,
+		min:     100000,
+		sources: []string{"sante"},
 	},
 	{
 		// nofinesset suit le motif [0-9][0-9A-Z][0-9]{7} de la spécification
@@ -1115,9 +1177,10 @@ var checks = []check{
 		query: `SELECT count(*) FROM ref.finess_etablissement WHERE nofinesset !~ '^[0-9][0-9A-Z][0-9]{7}$'`,
 	},
 	{
-		name:  "les secteurs conventionnels couvrent au moins dix ans",
-		query: `SELECT count(DISTINCT annee) FROM core.medecin_secteur_effectif`,
-		min:   10,
+		name:    "les secteurs conventionnels couvrent au moins dix ans",
+		query:   `SELECT count(DISTINCT annee) FROM core.medecin_secteur_effectif`,
+		min:     10,
+		sources: []string{"sante"},
 	},
 	{
 		// L'agrégat national (région "FRANCE") doit être présent pour "Ensemble
@@ -1133,14 +1196,16 @@ var checks = []check{
 		        ) x`,
 	},
 	{
-		name:  "les sept bassins hydrographiques métropolitains sont chargés",
-		query: `SELECT count(*) FROM geo.contour_bassin WHERE territoire = 'metropole'`,
-		min:   7,
+		name:    "les sept bassins hydrographiques métropolitains sont chargés",
+		query:   `SELECT count(*) FROM geo.contour_bassin WHERE territoire = 'metropole'`,
+		min:     7,
+		sources: []string{"hydro"},
 	},
 	{
-		name:  "les deux bassins d'outre-mer disponibles (Martinique, Mayotte) sont chargés",
-		query: `SELECT count(*) FROM geo.contour_bassin WHERE territoire = 'outremer'`,
-		min:   2,
+		name:    "les deux bassins d'outre-mer disponibles (Martinique, Mayotte) sont chargés",
+		query:   `SELECT count(*) FROM geo.contour_bassin WHERE territoire = 'outremer'`,
+		min:     2,
+		sources: []string{"hydro"},
 	},
 	{
 		name:  "tous les contours de bassin sont des géométries valides",
@@ -1170,9 +1235,10 @@ var checks = []check{
 		        ) x WHERE km2 NOT BETWEEN 500 AND 3000`,
 	},
 	{
-		name:  "au moins 15 des grands cours d'eau retenus sont chargés",
-		query: `SELECT count(DISTINCT nom) FROM geo.cours_eau`,
-		min:   15,
+		name:    "au moins 15 des grands cours d'eau retenus sont chargés",
+		query:   `SELECT count(DISTINCT nom) FROM geo.cours_eau`,
+		min:     15,
+		sources: []string{"cours-eau"},
 	},
 	{
 		name:  "tous les tronçons de cours d'eau sont des géométries valides",
@@ -1187,9 +1253,10 @@ var checks = []check{
 		query: `SELECT count(*) FROM geo.cours_eau WHERE NOT (geom && ST_MakeEnvelope(-5.5, 41, 9.7, 51.5, 4326))`,
 	},
 	{
-		name:  "au moins 5 000 sous-bassins versants topographiques sont chargés",
-		query: `SELECT count(*) FROM geo.contour_sous_bassin`,
-		min:   5000,
+		name:    "au moins 5 000 sous-bassins versants topographiques sont chargés",
+		query:   `SELECT count(*) FROM geo.contour_sous_bassin`,
+		min:     5000,
+		sources: []string{"sous-bassins"},
 	},
 	{
 		// Chaque sous-bassin doit se rattacher à l'un des 7 grands bassins
@@ -1200,14 +1267,16 @@ var checks = []check{
 		        WHERE NOT EXISTS (SELECT 1 FROM geo.contour_bassin b WHERE b.code = sb.code_bassin)`,
 	},
 	{
-		name:  "assainissement : au moins 5 000 communes chargées (collectif + non collectif)",
-		query: `SELECT count(*) FROM core.service_assainissement`,
-		min:   5000,
+		name:    "assainissement : au moins 5 000 communes chargées (collectif + non collectif)",
+		query:   `SELECT count(*) FROM core.service_assainissement`,
+		min:     5000,
+		sources: []string{"assainissement"},
 	},
 	{
-		name:  "budget annexe eau (M49) : au moins 150 000 lignes chargées",
-		query: `SELECT count(*) FROM core.budget_annexe_eau`,
-		min:   150000,
+		name:    "budget annexe eau (M49) : au moins 150 000 lignes chargées",
+		query:   `SELECT count(*) FROM core.budget_annexe_eau`,
+		min:     150000,
+		sources: []string{"eau-budget-annexe"},
 	},
 	{
 		// Le total 2023 (communes + EPCI, dépenses totales) doit rester dans
@@ -1230,7 +1299,8 @@ var checks = []check{
 		query: `SELECT count(*) FROM (
 		          SELECT annee, count(*) AS n FROM core.sae_personnel_fonction GROUP BY annee HAVING count(*) >= 3000
 		        ) x`,
-		min: 10,
+		min:     10,
+		sources: []string{"sae"},
 	},
 	{
 		// Un établissement ne doit apparaître qu'une fois PAR EXERCICE : le
@@ -1253,9 +1323,10 @@ var checks = []check{
 		        ) x WHERE t NOT BETWEEN 700000 AND 1500000`,
 	},
 	{
-		name:  "les passages aux urgences (SAE) couvrent au moins 10 exercices, 2013-2024",
-		query: `SELECT count(DISTINCT annee) FROM core.sae_urgences_passages`,
-		min:   10,
+		name:    "les passages aux urgences (SAE) couvrent au moins 10 exercices, 2013-2024",
+		query:   `SELECT count(DISTINCT annee) FROM core.sae_urgences_passages`,
+		min:     10,
+		sources: []string{"sae"},
 	},
 	{
 		// Le total national de passages aux urgences est de l'ordre de
@@ -1272,9 +1343,10 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.sae_urgences_passages WHERE type_urgence NOT IN ('GEN','PED','AMU')`,
 	},
 	{
-		name:  "le compte de résultat des hôpitaux publics couvre au moins 15 exercices, sur les quatre indicateurs",
-		query: `SELECT count(DISTINCT annee) FROM core.hopital_public_resultat`,
-		min:   15,
+		name:    "le compte de résultat des hôpitaux publics couvre au moins 15 exercices, sur les quatre indicateurs",
+		query:   `SELECT count(DISTINCT annee) FROM core.hopital_public_resultat`,
+		min:     15,
+		sources: []string{"hopital-finances"},
 	},
 	{
 		// Vérifié à l'ingestion (chargerCompteResultat), revérifié ici :
@@ -1290,9 +1362,10 @@ var checks = []check{
 		        ) x WHERE abs(somme_3 - net) > 2`,
 	},
 	{
-		name:  "le déficit par catégorie d'hôpitaux publics couvre au moins 8 catégories",
-		query: `SELECT count(DISTINCT categorie) FROM core.hopital_public_deficit_categorie`,
-		min:   8,
+		name:    "le déficit par catégorie d'hôpitaux publics couvre au moins 8 catégories",
+		query:   `SELECT count(DISTINCT categorie) FROM core.hopital_public_deficit_categorie`,
+		min:     8,
+		sources: []string{"hopital-finances"},
 	},
 	{
 		// Une tranche de pension ou de chômage manquante décale silencieusement
@@ -1651,7 +1724,8 @@ var checks = []check{
 		          FROM core.acte_jo
 		         WHERE titre_complet ~* 'composition du gouvernement|nomination du premier ministre'
 		           AND coalesce(date_texte, date_publi) >= '2014-01-01'`,
-		min: 9,
+		min:     9,
+		sources: []string{"jorf-gouvernement"},
 	},
 	{
 		// « 2999-01-01 » est la sentinelle que la DILA écrit quand la date d'un
@@ -1673,7 +1747,8 @@ var checks = []check{
 		          SELECT acte_id FROM core.gouvernement_membre
 		           WHERE sens = 'NOMINATION' AND fonction IN ('MINISTRE', 'MINISTRE_ETAT')
 		           GROUP BY 1 HAVING count(*) >= 10) x`,
-		min: 10,
+		min:     10,
+		sources: []string{"jorf-gouvernement", "gouvernement-membres"},
 	},
 	{
 		// Les périodes déduites doivent être ordonnées. Une fin antérieure au
@@ -1700,14 +1775,16 @@ var checks = []check{
 		// zéro ligne pendant que les autres réussissent — c'est exactement ce
 		// qui est arrivé quand le routage se faisait sur le chemin et non sur
 		// le nom de base, et seul un compteur resté à zéro l'a dit.
-		name:  "le corpus du Journal officiel porte plus d'un million d'actes",
-		query: `SELECT count(*) FROM jo.texte`,
-		min:   1000000,
+		name:    "le corpus du Journal officiel porte plus d'un million d'actes",
+		query:   `SELECT count(*) FROM jo.texte`,
+		min:     1000000,
+		sources: []string{"jorf-complet"},
 	},
 	{
-		name:  "chaque acte du corpus porte au moins un bloc de texte",
-		query: `SELECT count(*) FROM jo.bloc`,
-		min:   3000000,
+		name:    "chaque acte du corpus porte au moins un bloc de texte",
+		query:   `SELECT count(*) FROM jo.bloc`,
+		min:     3000000,
+		sources: []string{"jorf-complet"},
 	},
 	{
 		// La clé étrangère est retirée pendant le chargement en masse et remise
@@ -1768,9 +1845,10 @@ var checks = []check{
 		min: 3,
 	},
 	{
-		name:  "Open Damir couvre les douze mois de 2025",
-		query: `SELECT count(*) FROM core.remboursement_national WHERE annee = 2025`,
-		min:   12,
+		name:    "Open Damir couvre les douze mois de 2025",
+		query:   `SELECT count(*) FROM core.remboursement_national WHERE annee = 2025`,
+		min:     12,
+		sources: []string{"damir"},
 	},
 	{
 		// Le montant remboursé mensuel observé varie entre 10,2 et 13,5 Md€ sur
@@ -1838,17 +1916,19 @@ var checks = []check{
 		// Chine, Russie et Arabie saoudite l'ont rejointe pour
 		// docs/international-donnees.md § 6 (le seul jeu ouvert qui mesure
 		// leur dette avec un concept proche de celui utilisé pour la France).
-		name:  "la dette brute FMI couvre les dix-sept pays de comparaison",
-		query: `SELECT count(DISTINCT serie) FROM core.dette_observation WHERE serie LIKE 'fmi:GGXWDG_NGDP:%'`,
-		min:   17,
+		name:    "la dette brute FMI couvre les dix-sept pays de comparaison",
+		query:   `SELECT count(DISTINCT serie) FROM core.dette_observation WHERE serie LIKE 'fmi:GGXWDG_NGDP:%'`,
+		min:     17,
+		sources: []string{"dette"},
 	},
 	{
 		// L'Arabie saoudite est absente par construction (l'OCDE ne la
 		// couvre pas pour cet indicateur, internal/international/sante_ocde.go)
 		// : neuf pays, pas dix, sans que ce soit une régression.
-		name:  "l'espérance de vie OCDE couvre les neuf pays qu'elle publie",
-		query: `SELECT count(DISTINCT pays_code) FROM core.indicateur_mondial WHERE indicateur = 'OCDE_ESPERANCE_VIE_NAISSANCE'`,
-		min:   9,
+		name:    "l'espérance de vie OCDE couvre les neuf pays qu'elle publie",
+		query:   `SELECT count(DISTINCT pays_code) FROM core.indicateur_mondial WHERE indicateur = 'OCDE_ESPERANCE_VIE_NAISSANCE'`,
+		min:     9,
+		sources: []string{"international"},
 	},
 	{
 		// Une valeur hors de [65, 95] ans signalerait une colonne mal lue
@@ -1858,14 +1938,16 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.indicateur_mondial WHERE indicateur = 'OCDE_ESPERANCE_VIE_NAISSANCE' AND valeur NOT BETWEEN 65 AND 95`,
 	},
 	{
-		name:  "la dépense de santé OCDE couvre au moins huit pays",
-		query: `SELECT count(DISTINCT pays_code) FROM core.indicateur_mondial WHERE indicateur = 'OCDE_DEPENSE_SANTE_HABITANT'`,
-		min:   8,
+		name:    "la dépense de santé OCDE couvre au moins huit pays",
+		query:   `SELECT count(DISTINCT pays_code) FROM core.indicateur_mondial WHERE indicateur = 'OCDE_DEPENSE_SANTE_HABITANT'`,
+		min:     8,
+		sources: []string{"international"},
 	},
 	{
-		name:  "la dépense militaire SIPRI couvre les dix pays de comparaison",
-		query: `SELECT count(DISTINCT pays_code) FROM core.indicateur_mondial WHERE indicateur = 'SIPRI_DEPENSE_MILITAIRE_PIB'`,
-		min:   10,
+		name:    "la dépense militaire SIPRI couvre les dix pays de comparaison",
+		query:   `SELECT count(DISTINCT pays_code) FROM core.indicateur_mondial WHERE indicateur = 'SIPRI_DEPENSE_MILITAIRE_PIB'`,
+		min:     10,
+		sources: []string{"international"},
 	},
 	{
 		// Un mélange de fraction brute et de pourcentage déjà mis en forme
@@ -1876,9 +1958,10 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.indicateur_mondial WHERE indicateur = 'SIPRI_DEPENSE_MILITAIRE_PIB' AND valeur NOT BETWEEN 0 AND 20`,
 	},
 	{
-		name:  "la participation électorale IDEA couvre au moins huit pays",
-		query: `SELECT count(DISTINCT pays_iso3) FROM core.participation_electorale`,
-		min:   8,
+		name:    "la participation électorale IDEA couvre au moins huit pays",
+		query:   `SELECT count(DISTINCT pays_iso3) FROM core.participation_electorale`,
+		min:     8,
+		sources: []string{"international"},
 	},
 	{
 		// Un taux hors de [0, 100] signalerait une colonne mal alignée
@@ -1918,9 +2001,10 @@ var checks = []check{
 		        ) x WHERE total NOT BETWEEN 1e9 AND 5e9`,
 	},
 	{
-		name:  "InserJeunes couvre au moins six promotions",
-		query: `SELECT count(DISTINCT annee_cumul) FROM core.insertion_apprentissage`,
-		min:   6,
+		name:    "InserJeunes couvre au moins six promotions",
+		query:   `SELECT count(DISTINCT annee_cumul) FROM core.insertion_apprentissage`,
+		min:     6,
+		sources: []string{"jeunesse"},
 	},
 	{
 		name:  "les taux InserJeunes restent des pourcentages valides",
@@ -2107,9 +2191,10 @@ var checks = []check{
 		        ) x WHERE total NOT BETWEEN 50e6 AND 700e6`,
 	},
 	{
-		name:  "au moins 35 000 aides Rhin-Meuse sont chargées",
-		query: `SELECT count(*) FROM core.aide_agence_eau WHERE agence = 'RHIN_MEUSE'`,
-		min:   35000,
+		name:    "au moins 35 000 aides Rhin-Meuse sont chargées",
+		query:   `SELECT count(*) FROM core.aide_agence_eau WHERE agence = 'RHIN_MEUSE'`,
+		min:     35000,
+		sources: []string{"eau-aides-rhin-meuse"},
 	},
 	{
 		name:  "aide_agence_eau.agence ne contient que des valeurs connues",
@@ -2156,9 +2241,10 @@ var checks = []check{
 		        WHERE cc.emploi_milliers > be.emploi_milliers`,
 	},
 	{
-		name:  "emploi par secteur NACE : au moins 40 années chargées (série 1975-2025)",
-		query: `SELECT count(DISTINCT annee) FROM core.emploi_secteur_nace`,
-		min:   40,
+		name:    "emploi par secteur NACE : au moins 40 années chargées (série 1975-2025)",
+		query:   `SELECT count(DISTINCT annee) FROM core.emploi_secteur_nace`,
+		min:     40,
+		sources: []string{"appareil-productif"},
 	},
 	{
 		// Les trois scénarios (bas/central/haut) sont des bornes d'un même
@@ -2176,9 +2262,10 @@ var checks = []check{
 		          AND (emplois_etp_bas > emplois_etp_central OR emplois_etp_central > emplois_etp_haut)`,
 	},
 	{
-		name:  "délocalisations : les 96 départements métropolitains sont chargés",
-		query: `SELECT count(*) FROM core.delocalisation_departement`,
-		min:   96,
+		name:    "délocalisations : les 96 départements métropolitains sont chargés",
+		query:   `SELECT count(*) FROM core.delocalisation_departement`,
+		min:     96,
+		sources: []string{"appareil-productif"},
 	},
 	{
 		// Chaque part est un pourcentage : au-delà de 100, une colonne a été
@@ -2199,14 +2286,16 @@ var checks = []check{
 		          WHERE m.secteur=c.secteur AND m.code_hs=c.code_hs AND m.annee=c.annee AND m.code_partenaire=0)`,
 	},
 	{
-		name:  "commerce par partenaire : les trois secteurs et les deux années sont tous chargés",
-		query: `SELECT count(DISTINCT secteur||code_hs||annee) FROM core.commerce_partenaire_secteur`,
-		min:   8,
+		name:    "commerce par partenaire : les trois secteurs et les deux années sont tous chargés",
+		query:   `SELECT count(DISTINCT secteur||code_hs||annee) FROM core.commerce_partenaire_secteur`,
+		min:     8,
+		sources: []string{"commerce-partenaires"},
 	},
 	{
-		name:  "fond de carte mondial : au moins 200 pays/territoires chargés",
-		query: `SELECT count(*) FROM geo.contour_pays`,
-		min:   200,
+		name:    "fond de carte mondial : au moins 200 pays/territoires chargés",
+		query:   `SELECT count(*) FROM geo.contour_pays`,
+		min:     200,
+		sources: []string{"contour-pays"},
 	},
 	{
 		name:  "fond mondial des cours d'eau : au moins 400 tracés chargés",
@@ -2245,12 +2334,14 @@ var checks = []check{
 		            WHEN 'Fédération de Russie' THEN 'Russie'
 		            ELSE f.entite END, '''', ''), '’', '')))
 		        WHERE f.type_entite='pays'`,
-		min: 100,
+		min:     100,
+		sources: []string{"francophonie", "contour-pays"},
 	},
 	{
-		name:  "Accord de Paris : au moins 190 pays chargés",
-		query: `SELECT count(*) FROM core.ratification_accord_paris`,
-		min:   190,
+		name:    "Accord de Paris : au moins 190 pays chargés",
+		query:   `SELECT count(*) FROM core.ratification_accord_paris`,
+		min:     190,
+		sources: []string{"accord-paris"},
 	},
 	{
 		// La ratification ne peut jamais précéder la signature.
@@ -2260,9 +2351,10 @@ var checks = []check{
 		          AND date_ratification < date_signature`,
 	},
 	{
-		name:  "Empire colonial : les 22 territoires vérifiés sont chargés",
-		query: `SELECT count(*) FROM geo.territoire_colonial`,
-		min:   22,
+		name:    "Empire colonial : les 22 territoires vérifiés sont chargés",
+		query:   `SELECT count(*) FROM geo.territoire_colonial`,
+		min:     22,
+		sources: []string{"empire-colonial"},
 	},
 	{
 		// L'indépendance ne peut jamais précéder l'année de rattachement —
@@ -2273,8 +2365,9 @@ var checks = []check{
 		        WHERE extract(year FROM date_independance) < annee_rattachement`,
 	},
 	{
-		name:  "Indochine : population CLIO-INFRA chargée pour les trois pays",
-		query: `SELECT count(DISTINCT pays) - 3 FROM core.population_indochine_historique`,
+		name:    "Indochine : population CLIO-INFRA chargée pour les trois pays",
+		query:   `SELECT count(DISTINCT pays) - 3 FROM core.population_indochine_historique`,
+		sources: []string{"empire-colonial"},
 	},
 	{
 		// La population ne peut décroître que par accident de saisie sur une
@@ -2289,16 +2382,19 @@ var checks = []check{
 			       lag(population_milliers) OVER (PARTITION BY pays ORDER BY annee) AS precedent
 			FROM core.population_indochine_historique
 		) x WHERE precedent IS NOT NULL AND population_milliers < precedent * 0.5`,
+		sources: []string{"empire-colonial"},
 	},
 	{
-		name:  "Seconde Guerre mondiale : la ligne de démarcation est chargée",
-		query: `SELECT count(*) FROM geo.ligne_demarcation`,
-		min:   1,
+		name:    "Seconde Guerre mondiale : la ligne de démarcation est chargée",
+		query:   `SELECT count(*) FROM geo.ligne_demarcation`,
+		min:     1,
+		sources: []string{"ligne-demarcation"},
 	},
 	{
-		name:  "Justice : les dix directions interrégionales sont chargées",
-		query: `SELECT count(DISTINCT direction_interregionale) FROM core.etablissement_penitentiaire`,
-		min:   10,
+		name:    "Justice : les dix directions interrégionales sont chargées",
+		query:   `SELECT count(DISTINCT direction_interregionale) FROM core.etablissement_penitentiaire`,
+		min:     10,
+		sources: []string{"etablissements-penitentiaires"},
 	},
 	{
 		// La densité (détenus/capacité) ne peut être négative ; une valeur
@@ -2307,9 +2403,10 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.etablissement_penitentiaire WHERE densite_pct < 0`,
 	},
 	{
-		name:  "SRU : au moins 2000 communes dans le dernier millésime chargé",
-		query: `SELECT count(*) FROM core.sru_commune_dernier`,
-		min:   2000,
+		name:    "SRU : au moins 2000 communes dans le dernier millésime chargé",
+		query:   `SELECT count(*) FROM core.sru_commune_dernier`,
+		min:     2000,
+		sources: []string{"sru"},
 	},
 	{
 		// La table est pluriannuelle depuis 0191_sru_pluriannuel.sql (2023 à
@@ -2387,14 +2484,16 @@ var checks = []check{
 		SELECT (SELECT count(*) FROM core.sru_commune_dernier) - (SELECT sum(n)::int FROM jointes)`,
 	},
 	{
-		name:  "Effectifs étudiants : au moins 1000 couples commune/rentrée chargés",
-		query: `SELECT count(*) FROM core.effectifs_etudiants_commune`,
-		min:   1000,
+		name:    "Effectifs étudiants : au moins 1000 couples commune/rentrée chargés",
+		query:   `SELECT count(*) FROM core.effectifs_etudiants_commune`,
+		min:     1000,
+		sources: []string{"effectifs-etudiants"},
 	},
 	{
-		name:  "Effort de recherche : au moins 25 années chargées",
-		query: `SELECT count(*) FROM core.effort_recherche`,
-		min:   25,
+		name:    "Effort de recherche : au moins 25 années chargées",
+		query:   `SELECT count(*) FROM core.effort_recherche`,
+		min:     25,
+		sources: []string{"effort-recherche"},
 	},
 	{
 		// Le DIRD/PIB français reste dans une fourchette de 1,5 à 3 % sur
@@ -2404,19 +2503,22 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.effort_recherche WHERE dird_pib_fr NOT BETWEEN 1.5 AND 3.0`,
 	},
 	{
-		name:  "Ports : au moins 500 tronçons autoroutiers proches des quatre ports chargés",
-		query: `SELECT count(*) FROM geo.autoroute_portuaire`,
-		min:   500,
+		name:    "Ports : au moins 500 tronçons autoroutiers proches des quatre ports chargés",
+		query:   `SELECT count(*) FROM geo.autoroute_portuaire`,
+		min:     500,
+		sources: []string{"ports-infra"},
 	},
 	{
-		name:  "Ports : au moins 50 tronçons de voie ferrée portuaire chargés",
-		query: `SELECT count(*) FROM geo.voie_ferree_portuaire`,
-		min:   50,
+		name:    "Ports : au moins 50 tronçons de voie ferrée portuaire chargés",
+		query:   `SELECT count(*) FROM geo.voie_ferree_portuaire`,
+		min:     50,
+		sources: []string{"ports-infra"},
 	},
 	{
-		name:  "Ports : le report modal est chargé pour les quatre ports suivis",
-		query: `SELECT count(*) FROM core.report_modal_port`,
-		min:   4,
+		name:    "Ports : le report modal est chargé pour les quatre ports suivis",
+		query:   `SELECT count(*) FROM core.report_modal_port`,
+		min:     4,
+		sources: []string{"ports-infra"},
 	},
 	{
 		// Un pourcentage ne peut jamais dépasser 100, qu'il s'agisse d'un
@@ -2433,9 +2535,10 @@ var checks = []check{
 		        WHERE abs(part_fer_pct + part_fleuve_pct + part_route_pct - 100) > 0.2`,
 	},
 	{
-		name:  "Population historique : au moins 15 millésimes chargés",
-		query: `SELECT count(DISTINCT annee) FROM core.population_historique_commune`,
-		min:   15,
+		name:    "Population historique : au moins 15 millésimes chargés",
+		query:   `SELECT count(DISTINCT annee) FROM core.population_historique_commune`,
+		min:     15,
+		sources: []string{"population-historique"},
 	},
 	{
 		// La population totale de la France (hors Mayotte) n'est jamais
@@ -2460,9 +2563,10 @@ var checks = []check{
 		        ) x WHERE p1921 >= p1911`,
 	},
 	{
-		name:  "Contrôle fiscal : au moins 10 années chargées, 2015-2024",
-		query: `SELECT count(*) FROM core.controle_fiscal_resultats WHERE annee BETWEEN 2015 AND 2024`,
-		min:   10,
+		name:    "Contrôle fiscal : au moins 10 années chargées, 2015-2024",
+		query:   `SELECT count(*) FROM core.controle_fiscal_resultats WHERE annee BETWEEN 2015 AND 2024`,
+		min:     10,
+		sources: []string{"controle-fiscal"},
 	},
 	{
 		// Le notifié 2022 et 2023 n'a jamais été retrouvé dans une source
@@ -2478,24 +2582,28 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.controle_fiscal_resultats WHERE montant_notifie_m IS NOT NULL AND montant_encaisse_m > montant_notifie_m`,
 	},
 	{
-		name:  "Outre-mer : l'écart de prix couvre les cinq DOM en 2022",
-		query: `SELECT count(*) FROM core.ecart_prix_dom WHERE annee=2022`,
-		min:   5,
+		name:    "Outre-mer : l'écart de prix couvre les cinq DOM en 2022",
+		query:   `SELECT count(*) FROM core.ecart_prix_dom WHERE annee=2022`,
+		min:     5,
+		sources: []string{"ecart-prix-dom"},
 	},
 	{
-		name:  "Musées : au moins 1000 musées labellisés Musée de France chargés",
-		query: `SELECT count(*) FROM core.musee_france`,
-		min:   1000,
+		name:    "Musées : au moins 1000 musées labellisés Musée de France chargés",
+		query:   `SELECT count(*) FROM core.musee_france`,
+		min:     1000,
+		sources: []string{"museofile"},
 	},
 	{
-		name:  "Revenu agricole : France et Union européenne chargées",
-		query: `SELECT count(DISTINCT geo_code) FROM core.revenu_agricole_reel`,
-		min:   2,
+		name:    "Revenu agricole : France et Union européenne chargées",
+		query:   `SELECT count(DISTINCT geo_code) FROM core.revenu_agricole_reel`,
+		min:     2,
+		sources: []string{"revenu-agricole"},
 	},
 	{
-		name:  "Ports : au moins 40 ports français chargés (SDES)",
-		query: `SELECT count(DISTINCT port) FROM core.trafic_portuaire`,
-		min:   40,
+		name:    "Ports : au moins 40 ports français chargés (SDES)",
+		query:   `SELECT count(DISTINCT port) FROM core.trafic_portuaire`,
+		min:     40,
+		sources: []string{"ports"},
 	},
 	{
 		// tonnage_tot inclut la tare (poids des contenants) : les
@@ -2507,14 +2615,16 @@ var checks = []check{
 		          AND vracs_liquides > tonnage_tot`,
 	},
 	{
-		name:  "Ports : la comparaison européenne couvre les six ports nommés",
-		query: `SELECT count(DISTINCT code_port) FROM core.trafic_portuaire_europe`,
-		min:   6,
+		name:    "Ports : la comparaison européenne couvre les six ports nommés",
+		query:   `SELECT count(DISTINCT code_port) FROM core.trafic_portuaire_europe`,
+		min:     6,
+		sources: []string{"ports"},
 	},
 	{
-		name:  "poids économique mondial : l'UE est chargée aux côtés des dix pays de comparaison",
-		query: `SELECT count(DISTINCT indicateur) FROM core.indicateur_mondial WHERE pays_code='EU'`,
-		min:   10,
+		name:    "poids économique mondial : l'UE est chargée aux côtés des dix pays de comparaison",
+		query:   `SELECT count(DISTINCT indicateur) FROM core.indicateur_mondial WHERE pays_code='EU'`,
+		min:     10,
+		sources: []string{"international"},
 	},
 	{
 		// Le commerce extra-UE ne peut jamais dépasser le PIB de l'UE — ce
@@ -2536,24 +2646,56 @@ var checks = []check{
 // stderr par Run, jamais un message à répéter par l'appelant.
 var ErrAnomalies = errors.New("des anomalies ont été trouvées")
 
-// Run exécute la commande verify. Ne prend aucune option ; args n'existe que
-// pour l'uniformité avec les autres commandes routées par fpctl. ctx est
-// celui de fpctl (cmd.Context()), déjà annulé au premier signal — un
-// Ctrl-C pendant les contrôles interrompt la requête en cours plutôt que
-// d'attendre qu'elle se termine.
+// Run exécute la commande verify. Deux portées, les MÊMES deux noms que
+// « fpctl ingest » (defaut/complet) — jamais « all », qui désignerait une
+// troisième chose du côté ingest (« fpctl ingest <catégorie> all »).
+// Sans option, ou « default » explicitement : seuls les contrôles dont la
+// source est dans ingest.ChaineParDefaut (ce que « fpctl ingest default »
+// charge réellement) tournent — le scope qui correspond à un ingest normal,
+// celui que build-pr/build-full rejouent. « fpctl verify data full » :
+// les 380 et grandissant, sans filtrage — celui qui suppose qu'on a aussi
+// rechargé les sources hors chaîne (fpctl ingest full, ou fpctl ingest
+// <catégorie> all catégorie par catégorie), jamais le cas d'un ingest
+// defaut ordinaire. ctx est celui de fpctl (cmd.Context()), déjà annulé au
+// premier signal — un Ctrl-C pendant les contrôles interrompt la requête en
+// cours plutôt que d'attendre qu'elle se termine.
 func Run(ctx context.Context, args []string) error {
-	if len(args) > 0 {
-		return fmt.Errorf("verify ne prend aucune option (%q inattendu)", args[0])
+	toutLeCatalogue := false
+	switch {
+	case len(args) == 0:
+	case len(args) == 1 && args[0] == "default":
+	case len(args) == 1 && args[0] == "full":
+		toutLeCatalogue = true
+	default:
+		return fmt.Errorf("verify data ne prend qu'une option, « default » ou « full » (%q inattendu)", args[0])
 	}
+
+	var retenus []check
+	if toutLeCatalogue {
+		retenus = checks
+	} else {
+		chaine := ingest.ChaineParDefaut()
+		for _, c := range checks {
+			if dansChaine(c, chaine) {
+				retenus = append(retenus, c)
+			}
+		}
+	}
+
 	pool, err := store.Open(ctx)
 	if err != nil {
 		return err
 	}
 	defer pool.Close()
 
-	logs.Notice("running " + logs.Plural(len(checks), "consistency check"))
+	porte := "scope par défaut (fpctl ingest default)"
+	if toutLeCatalogue {
+		porte = "catalogue complet"
+	}
+	logs.Notice(fmt.Sprintf("running %s (%s, sur %s au total)",
+		logs.Plural(len(retenus), "consistency check"), porte, logs.Plural(len(checks), "contrôle connu")))
 	failed := false
-	for _, c := range checks {
+	for _, c := range retenus {
 		var n int
 		if err := pool.QueryRow(ctx, c.query).Scan(&n); err != nil {
 			slog.Error("contrôle en échec", "controle", c.name, "erreur", err)
@@ -2578,6 +2720,6 @@ func Run(ctx context.Context, args []string) error {
 		slog.Error("publication bloquée : les données chargées ne concordent pas")
 		return ErrAnomalies
 	}
-	logs.Notice(logs.Plural(len(checks), "consistency check") + " passed")
+	logs.Notice(logs.Plural(len(retenus), "consistency check") + " passed")
 	return nil
 }

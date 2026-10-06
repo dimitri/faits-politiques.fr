@@ -22,12 +22,14 @@ var checksDette = []check{
 		         WHERE r.slug IN ('insee-dette','eurostat-dette','fmi-weo-dette','aff-statistique-financiere',
 		                          'bns-rendements-obligataires','aft-p117-performance','bdf-webstat-det2')
 		           AND (SELECT count(*) FROM ref.dette_serie s WHERE s.source_id = r.id) > 0`,
-		min: 7,
+		min:     7,
+		sources: []string{"dette"},
 	},
 	{
-		name:  "des observations de dette sont chargées",
-		query: `SELECT count(*) FROM core.dette_observation`,
-		min:   40000,
+		name:    "des observations de dette sont chargées",
+		query:   `SELECT count(*) FROM core.dette_observation`,
+		min:     40000,
+		sources: []string{"dette"},
 	},
 	{
 		// L'AFT publie un total et ses ventilations ; l'INSEE les republie en
@@ -159,9 +161,10 @@ var checksDette = []check{
 	},
 	{
 		// PLF 2020 à 2023 (Voies et moyens) et 2024 à 2026 (budgets verts).
-		name:  "dépenses fiscales : les sept millésimes sont chargés",
-		query: `SELECT count(DISTINCT millesime) FROM core.depense_fiscale`,
-		min:   7,
+		name:    "dépenses fiscales : les sept millésimes sont chargés",
+		query:   `SELECT count(DISTINCT millesime) FROM core.depense_fiscale`,
+		min:     7,
+		sources: []string{"dette"},
 	},
 	{
 		// Un total annuel exécuté hors de 60-130 Md€ trahirait une erreur
@@ -188,7 +191,8 @@ var checksDette = []check{
 		name: "dépenses fiscales : chaque millésime Voies et moyens déclare ses bénéficiaires",
 		query: `SELECT count(*) FROM (SELECT millesime FROM ref.depense_fiscale_beneficiaire
 		                           GROUP BY millesime HAVING count(*) >= 400) x`,
-		min: 4,
+		min:     4,
+		sources: []string{"dette"},
 	},
 	{
 		// Un total annuel de niches ne doit venir que d'un millésime : un
@@ -215,15 +219,17 @@ var checksDette = []check{
 		// Les personnes morales du répertoire : plusieurs millions. La
 		// catégorie d'entreprise n'est calculée que pour les unités actives
 		// profilées ; sans aucune grande entreprise, la colonne serait mal lue.
-		name:  "SIRENE : les personnes morales sont chargées",
-		query: `SELECT count(*) FROM ref.unite_legale`,
-		min:   3000000,
+		name:    "SIRENE : les personnes morales sont chargées",
+		query:   `SELECT count(*) FROM ref.unite_legale`,
+		min:     3000000,
+		sources: []string{"sirene"},
 	},
 	{
 		name: "SIRENE : les trois catégories d'entreprise sont présentes",
 		query: `SELECT count(DISTINCT categorie_entreprise) FROM ref.unite_legale
 		         WHERE etat_administratif = 'A' AND categorie_entreprise IS NOT NULL`,
-		min: 3,
+		min:     3,
+		sources: []string{"sirene"},
 	},
 	{
 		// Trois sources d'aides nominatives, chacune avec un volume plancher :
@@ -233,7 +239,8 @@ var checksDette = []check{
 		query: `SELECT count(*) FROM (SELECT source, count(*) n FROM core.aide_nominative GROUP BY source) x
 		         WHERE (source = 'TAM' AND n >= 20000) OR (source = 'ADEME' AND n >= 30000)
 		            OR (source = 'MINIMIS' AND n >= 10000)`,
-		min: 3,
+		min:     3,
+		sources: []string{"aides-nominatives"},
 	},
 	{
 		// Le rapprochement avec SIRENE est ce qui donne un sens à ces tables :
@@ -242,7 +249,8 @@ var checksDette = []check{
 		name: "aides nominatives : l'ADEME est rapprochée de SIRENE à plus de 80 %",
 		query: `SELECT count(*) FROM (SELECT avg(personne_morale::int) t FROM core.aide_nominative WHERE source = 'ADEME') x
 		         WHERE t >= 0.8`,
-		min: 1,
+		min:     1,
+		sources: []string{"ademe", "sirene"},
 	},
 	{
 		// Chaque aide du registre européen porte un élément d'aide (ESB), ou à
@@ -282,6 +290,7 @@ var checksDette = []check{
 		          ('insee:010777616', interval '10 months')) c(code, delai)
 		        WHERE (SELECT max(debut) FROM core.dette_observation WHERE serie = c.code)
 		              > current_date - delai`,
-		min: 3,
+		min:     3,
+		sources: []string{"dette"},
 	},
 }

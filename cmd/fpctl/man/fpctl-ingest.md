@@ -12,7 +12,9 @@ fpctl-ingest - télécharge, archive et charge les jeux de données sources
 
 # SYNOPSIS
 
-**fpctl ingest all**
+**fpctl ingest default**
+
+**fpctl ingest full**
 
 **fpctl ingest** *catégorie*
 
@@ -35,12 +37,18 @@ s'obtient à jour avec :
     fpctl ingest -h                    la liste des catégories
     fpctl ingest <catégorie> -h        les sources d'une catégorie
 
-**fpctl ingest all** recharge le socle habituel — pas littéralement chaque
-source du catalogue : plusieurs sont délibérément hors chaîne par défaut
-(coûteuses, ponctuelles, ou exigeant une clé ou un binaire particulier).
-**fpctl ingest** *catégorie* **all** est plus large : toutes les sources de
-cette catégorie, y compris ce qu'elle a de plus coûteux — une décision
-explicite du côté de qui la lance, pas un oubli du côté de fpctl.
+Deux portées globales, les MÊMES deux noms que **fpctl verify data** :
+**fpctl ingest default** recharge le socle habituel — pas littéralement
+chaque source du catalogue : plusieurs sont délibérément hors chaîne par
+défaut (coûteuses, ponctuelles, ou exigeant une clé ou un binaire
+particulier). **fpctl ingest full** les recharge TOUTES, littéralement tout
+le catalogue — l'équivalent de rejouer **fpctl ingest** *catégorie* **all**
+pour chacune des neuf catégories, ponctuel et coûteux par construction,
+jamais la commande qu'un ingest nocturne ou qu'une CI légère doit rejouer.
+**fpctl ingest** *catégorie* **all** est un troisième usage, sans rapport
+avec les deux portées globales : toutes les sources d'UNE SEULE catégorie,
+y compris ce qu'elle a de plus coûteux — une décision explicite du côté de
+qui la lance, pas un oubli du côté de fpctl.
 
 Chaque téléchargement passe par l'archive scellée (**internal/archive**) :
 un document est identifié par l'empreinte de ses octets, jamais écrasé,

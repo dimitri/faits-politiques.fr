@@ -51,6 +51,14 @@ var sitesSemiConducteurs = []siteSemiConducteur{
 // en distance réelle (cosinus de 47°), et la carte paraissait environ 47 %
 // trop large d'ouest en est avant cette correction.
 func chargerCarteSemiConducteurs(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
+	// geo.contour_pays vient d'une source hors chaîne par défaut
+	// (contour-pays, internal/ingest) : absente d'un simple « fpctl ingest
+	// default », l'agrégat st_union ci-dessous porte alors sur zéro ligne et
+	// renvoie NULL — Scan dans sql.NullString plutôt qu'un string non
+	// annulable (qui échouerait avec « cannot scan NULL into *string »),
+	// puis le contrôle .Valid juste en dessous : un France introuvable
+	// n'est pas une panne, juste rien à dessiner. Même défense que
+	// chargerSecondeGuerreMondiale pour cette même table.
 	var fondChemin, viewBox sql.NullString
 	if err := pool.QueryRow(ctx, `
 		WITH france AS (

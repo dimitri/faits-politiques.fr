@@ -7,6 +7,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
@@ -14,6 +15,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/sync/errgroup"
 )
 
 // L'exposé des motifs est le seul texte qui dise l'objet d'une loi sans que
@@ -100,7 +102,7 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	}
 	rows.Close()
 
-	var trouves, sansExpose, echecs int
+	var trouves, sansExpose, echecs, traites int64
 	// verifie note qu'un texte a été VÉRIFIÉ, trouvé ou non — voir la
 	// migration 0177 : sans elle, sansExpose/echecs redemandaient la même
 	// absence à chaque passage, indéfiniment.
@@ -112,43 +114,58 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		return err
 	}
 
-	for i, c := range cibles {
-		url := exposeBase + c.uid + ".html"
-		f, err := arch.Fetch(ctx, srcID, runID, url, ".html")
-		if err != nil {
-			// Un texte absent du site n'est pas une erreur fatale : il est
-			// compté et signalé, le chargement continue.
-			echecs++
-			if err := verifie(c.id, false, "page inaccessible"); err != nil {
-				return fail(fmt.Errorf("%s : %w", c.uid, err))
+	// concurrenceExposes : mesuré sur le passif complet de la 17e législature
+	// (~2 500 textes) — une seule connexion à 400 ms d'intervalle (voir le
+	// Sleep plus bas, inchangé PAR connexion) y passait près d'une heure,
+	// très au-dessus du reste d'un ingest complet (fpctl ingest default tourne
+	// par ailleurs jusqu'à -j connecteurs indépendants de front). Cinq
+	// connexions de front restent une cadence raisonnable pour un site
+	// public (12,5 req/s au total, chacune espacée des siennes par le même
+	// Sleep qu'avant) sans dépendre d'une API que ce site n'offre pas.
+	const concurrenceExposes = 5
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(concurrenceExposes)
+	for _, c := range cibles {
+		c := c
+		g.Go(func() error {
+			defer time.Sleep(400 * time.Millisecond)
+			url := exposeBase + c.uid + ".html"
+			f, err := arch.Fetch(gctx, srcID, runID, url, ".html")
+			if err != nil {
+				// Un texte absent du site n'est pas une erreur fatale : il est
+				// compté et signalé, le chargement continue.
+				atomic.AddInt64(&echecs, 1)
+				if err := verifie(c.id, false, "page inaccessible"); err != nil {
+					return fmt.Errorf("%s : %w", c.uid, err)
+				}
+			} else if texte, ok := extraireExpose(f.Path); !ok {
+				atomic.AddInt64(&sansExpose, 1)
+				if err := verifie(c.id, false, "aucun exposé identifié dans la page"); err != nil {
+					return fmt.Errorf("%s : %w", c.uid, err)
+				}
+			} else {
+				if _, err := pool.Exec(gctx, `
+					INSERT INTO core.texte_expose
+					  (texte_id, source_uid, url, integral, chapeau, n_caracteres, source_id)
+					VALUES ($1,$2,$3,$4,$5,$6,$7)
+					ON CONFLICT (texte_id) DO NOTHING`,
+					c.id, c.uid, url, texte, chapeau(texte), len([]rune(texte)), srcID); err != nil {
+					return fmt.Errorf("%s : %w", c.uid, err)
+				}
+				if err := verifie(c.id, true, ""); err != nil {
+					return fmt.Errorf("%s : %w", c.uid, err)
+				}
+				atomic.AddInt64(&trouves, 1)
 			}
-			continue
-		}
-		texte, ok := extraireExpose(f.Path)
-		if !ok {
-			sansExpose++
-			if err := verifie(c.id, false, "aucun exposé identifié dans la page"); err != nil {
-				return fail(fmt.Errorf("%s : %w", c.uid, err))
+			if n := atomic.AddInt64(&traites, 1); n%200 == 0 {
+				logs.Notice(fmt.Sprintf("statements of reasons: %d/%d processed, %d found",
+					n, len(cibles), atomic.LoadInt64(&trouves)))
 			}
-			continue
-		}
-		if _, err := pool.Exec(ctx, `
-			INSERT INTO core.texte_expose
-			  (texte_id, source_uid, url, integral, chapeau, n_caracteres, source_id)
-			VALUES ($1,$2,$3,$4,$5,$6,$7)
-			ON CONFLICT (texte_id) DO NOTHING`,
-			c.id, c.uid, url, texte, chapeau(texte), len([]rune(texte)), srcID); err != nil {
-			return fail(fmt.Errorf("%s : %w", c.uid, err))
-		}
-		if err := verifie(c.id, true, ""); err != nil {
-			return fail(fmt.Errorf("%s : %w", c.uid, err))
-		}
-		trouves++
-		if (i+1)%200 == 0 {
-			logs.Notice(fmt.Sprintf("statements of reasons: %d/%d processed, %d found", i+1, len(cibles), trouves))
-		}
-		// Un site public n'est pas une API : une requête toutes les 400 ms.
-		time.Sleep(400 * time.Millisecond)
+			return nil
+		})
+	}
+	if err := g.Wait(); err != nil {
+		return fail(err)
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",

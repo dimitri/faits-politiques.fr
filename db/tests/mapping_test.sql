@@ -29,6 +29,16 @@ BEGIN
   INSERT INTO ref.nuance_politique (code, circulaire_millesime, libelle)
     VALUES ('ZZTD', 2026, 'Liste divers droite');
 
+  -- La cartographie réelle (internal/carto) a déjà sa propre lignée de
+  -- référence dès qu'une ingestion complète a tourné au moins une fois —
+  -- ce test veut vérifier LUI-MÊME l'unicité de ce statut (§1 plus bas), ce
+  -- qui suppose de la contrôler depuis zéro. Basculée en COMMUNITY pour la
+  -- durée de cette transaction, jamais commitée (ROLLBACK en fin de
+  -- fichier) : une simple mise à jour, pas de suppression qui cascaderait
+  -- vers les tables qui référencent déjà sa révision réelle
+  -- (party_group_link, party_referential_link...).
+  UPDATE core.mapping_lineage SET kind = 'COMMUNITY' WHERE kind = 'REFERENCE';
+
   INSERT INTO core.mapping_lineage (slug, label, kind, listed)
     VALUES ('zzt-reference','Carte de référence','REFERENCE', true) RETURNING id INTO v_ref_lin;
   INSERT INTO core.mapping_revision (lineage_id, revision)

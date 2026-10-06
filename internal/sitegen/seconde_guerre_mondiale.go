@@ -116,8 +116,19 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 	// France métropolitaine (Corse comprise), isolée des outre-mer par le
 	// découpage en polygones distincts de Natural Earth (path 1 = Corse,
 	// path 2 = continent ; les autres, Guyane, Réunion..., sont exclus).
+	//
+	// geo.contour_pays vient d'une source hors chaîne par défaut
+	// (« contour-pays », internal/ingest/catalogue.go) : absente d'un simple
+	// « fpctl ingest default », la table est vide et le st_union de la CTE france
+	// ci-dessous — une agrégation, donc toujours une ligne — vaut NULL. Les
+	// quatre premières colonnes passent déjà par sql.NullString pour cette
+	// raison ; les deux dernières (le centre du plus grand cercle inscrit)
+	// héritent du même NULL et doivent donc l'être aussi : un float64 nu
+	// échouerait au Scan (« cannot scan NULL into *float64 ») AVANT que le
+	// garde-fou !fond2154.Valid juste en dessous ait pu renvoyer « rien à
+	// dessiner », et cette erreur ferait tomber toute la construction du site.
 	var fond2154, zoneOccupee3035, zoneLibre3035, vb2154 sql.NullString
-	var labelFranceX, labelFranceY float64
+	var labelFranceXN, labelFranceYN sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		WITH france AS (
 			SELECT st_union(geom) g
@@ -183,12 +194,13 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 		               round(st_xmax(g2154)-st_xmin(g2154))||' '||round(st_ymax(g2154)-st_ymin(g2154)) FROM proj),
 		       (SELECT st_x((ST_MaximumInscribedCircle(g3035)).center) FROM proj),
 		       (SELECT -st_y((ST_MaximumInscribedCircle(g3035)).center) FROM proj)
-		`).Scan(&fond2154, &zoneOccupee3035, &zoneLibre3035, &vb2154, &labelFranceX, &labelFranceY); err != nil {
+		`).Scan(&fond2154, &zoneOccupee3035, &zoneLibre3035, &vb2154, &labelFranceXN, &labelFranceYN); err != nil {
 		return nil, err
 	}
 	if !fond2154.Valid || fond2154.String == "" {
 		return nil, nil
 	}
+	labelFranceX, labelFranceY := labelFranceXN.Float64, labelFranceYN.Float64
 
 	// Les voisins viennent de geo.contour_europe_1940 (CShapes 2.0, coupe au
 	// 1ᵉʳ septembre 1940 — voir internal/geo/europe_1940.go), pas des

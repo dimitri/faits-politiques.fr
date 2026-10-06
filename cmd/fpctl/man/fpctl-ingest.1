@@ -5,7 +5,9 @@
 fpctl\-ingest \- télécharge, archive et charge les jeux de données
 sources
 .SH SYNOPSIS
-\f[B]fpctl ingest all\f[R]
+\f[B]fpctl ingest default\f[R]
+.PP
+\f[B]fpctl ingest full\f[R]
 .PP
 \f[B]fpctl ingest\f[R] \f[I]catégorie\f[R]
 .PP
@@ -29,12 +31,19 @@ fpctl ingest \-h                    la liste des catégories
 fpctl ingest <catégorie> \-h        les sources d\[aq]une catégorie
 .EE
 .PP
-\f[B]fpctl ingest all\f[R] recharge le socle habituel \[em] pas
-littéralement chaque source du catalogue : plusieurs sont délibérément
-hors chaîne par défaut (coûteuses, ponctuelles, ou exigeant une clé ou
-un binaire particulier).
-\f[B]fpctl ingest\f[R] \f[I]catégorie\f[R] \f[B]all\f[R] est plus large
-: toutes les sources de cette catégorie, y compris ce qu\[cq]elle a de
+Deux portées globales, les MÊMES deux noms que \f[B]fpctl verify
+data\f[R] : \f[B]fpctl ingest default\f[R] recharge le socle habituel
+\[em] pas littéralement chaque source du catalogue : plusieurs sont
+délibérément hors chaîne par défaut (coûteuses, ponctuelles, ou exigeant
+une clé ou un binaire particulier).
+\f[B]fpctl ingest full\f[R] les recharge TOUTES, littéralement tout le
+catalogue \[em] l\[cq]équivalent de rejouer \f[B]fpctl ingest\f[R]
+\f[I]catégorie\f[R] \f[B]all\f[R] pour chacune des neuf catégories,
+ponctuel et coûteux par construction, jamais la commande qu\[cq]un
+ingest nocturne ou qu\[cq]une CI légère doit rejouer.
+\f[B]fpctl ingest\f[R] \f[I]catégorie\f[R] \f[B]all\f[R] est un
+troisième usage, sans rapport avec les deux portées globales : toutes
+les sources d\[cq]UNE SEULE catégorie, y compris ce qu\[cq]elle a de
 plus coûteux \[em] une décision explicite du côté de qui la lance, pas
 un oubli du côté de fpctl.
 .PP

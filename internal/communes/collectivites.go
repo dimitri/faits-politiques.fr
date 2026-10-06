@@ -22,17 +22,39 @@ import (
 // agrégats — à condition de ne jamais additionner les niveaux : une dépense
 // portée par un groupement l'est POUR ses communes membres, et la sommer avec
 // la leur compterait deux fois le même euro.
-var niveaux = []struct {
+type collectiviteNiveau struct {
 	niveau, dataset, colCode, colNom string
 	// La base départementale est déjà CONSOLIDÉE par l'Observatoire : elle ne
 	// porte pas de colonne type_de_budget, puisque la consolidation a déjà
 	// réuni budget principal et budgets annexes. Filtrer dessus renvoyait une
 	// erreur 400 que rien n'expliquait.
 	filtreBudget bool
-}{
+}
+
+var niveaux = []collectiviteNiveau{
 	{"REGION", "ofgl-base-regions", "reg_code", "reg_name", true},
 	{"DEPARTEMENT", "ofgl-base-departements-consolidee", "dep_code", "dep_name", false},
 	{"GROUPEMENT", "ofgl-base-gfp", "epci_code", "epci_name", true},
+}
+
+// collectivitesURL construit l'URL OFGL d'un niveau et d'un exercice — seule
+// source de vérité pour IngestCollectivites et pour DownloadTargets (voir ce
+// dernier), pour que les deux ne puissent pas diverger.
+func collectivitesURL(n collectiviteNiveau, ex int) string {
+	noms := make([]string, 0, len(ofglAgregats))
+	for a := range ofglAgregats {
+		noms = append(noms, `"`+a+`"`)
+	}
+	where := fmt.Sprintf(`exer=date'%d' AND agregat IN (%s)`, ex, joindre(noms))
+	if n.filtreBudget {
+		where = fmt.Sprintf(
+			`exer=date'%d' AND type_de_budget="Budget principal" AND agregat IN (%s)`,
+			ex, joindre(noms))
+	}
+	return "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/" + n.dataset +
+		"/exports/csv?delimiter=%3B&select=" +
+		url.QueryEscape(n.colCode+","+n.colNom+",agregat,montant,euros_par_habitant,ptot") +
+		"&where=" + url.QueryEscape(where)
 }
 
 func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
@@ -63,27 +85,11 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(err)
 	}
 
-	noms := make([]string, 0, len(ofglAgregats))
-	for a := range ofglAgregats {
-		noms = append(noms, `"`+a+`"`)
-	}
-
 	var total int
 	for _, n := range niveaux {
 		var lignes [][]any
 		for ex := ofglPremierExercice; ex <= ofglDernierExercice; ex++ {
-			where := fmt.Sprintf(`exer=date'%d' AND agregat IN (%s)`, ex, joindre(noms))
-			if n.filtreBudget {
-				where = fmt.Sprintf(
-					`exer=date'%d' AND type_de_budget="Budget principal" AND agregat IN (%s)`,
-					ex, joindre(noms))
-			}
-			u := "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/" + n.dataset +
-				"/exports/csv?delimiter=%3B&select=" +
-				url.QueryEscape(n.colCode+","+n.colNom+",agregat,montant,euros_par_habitant,ptot") +
-				"&where=" + url.QueryEscape(where)
-
-			f, err := arch.Fetch(ctx, srcID, runID, u, ".csv")
+			f, err := arch.Fetch(ctx, srcID, runID, collectivitesURL(n, ex), ".csv")
 			if err != nil {
 				return fail(fmt.Errorf("%s %d : %w", n.niveau, ex, err))
 			}

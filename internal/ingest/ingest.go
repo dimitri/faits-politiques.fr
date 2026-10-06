@@ -3,7 +3,8 @@
 // qui construit ses sous-commandes en itérant le catalogue (catalogue.go)
 // plutôt qu'en recopiant la liste des sources :
 //
-//	fpctl ingest all                    chaîne complète (le socle habituel)
+//	fpctl ingest default                  chaîne par défaut (le socle habituel)
+//	fpctl ingest full                 littéralement tout le catalogue
 //	fpctl ingest <catégorie>             liste les sources de la catégorie
 //	fpctl ingest <catégorie> all         toutes les sources de la catégorie
 //	fpctl ingest <catégorie> <source>    une source précise
@@ -25,7 +26,6 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/europe"
 	"github.com/faits-politiques/faits-politiques/internal/geo"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
-	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/matview"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
 	"github.com/faits-politiques/faits-politiques/internal/partis"
@@ -63,14 +63,56 @@ func EstSurLeSocle(nom string) bool {
 	return false
 }
 
+// ChaineParDefaut : l'ensemble des noms que « fpctl ingest default » charge
+// réellement — le socle parlementaire plus runToutSupplement, jamais les
+// quelque 90 autres sources du catalogue (délibérément hors chaîne par
+// défaut : coûteuses, ponctuelles, ou exigeant une clé/un binaire
+// particulier — voir le commentaire de RunTout). internal/verify s'en sert
+// pour ne rejouer, par défaut, que les contrôles dont la source est dans cet
+// ensemble : sans ça, « fpctl verify data » après un « fpctl ingest default »
+// tout à fait normal échoue systématiquement sur des données que cet ingest
+// n'a jamais eu vocation à charger.
+func ChaineParDefaut() map[string]bool {
+	m := make(map[string]bool, len(socleParlementaire)+len(runToutSupplement))
+	for _, n := range socleParlementaire {
+		m[n] = true
+	}
+	for _, n := range runToutSupplement {
+		m[n] = true
+	}
+	return m
+}
+
+// prefetchDependants : noms d'étapes dont le Fetch attend le futur
+// "prefetch" du registre qui les contient (voir demarrerPrefetch), plutôt
+// que de découvrir leur fichier au fil de l'eau — exactement les noms que
+// downloadTargetsFor sait déjà détecter, dans l'autre sens. amendements :
+// son propre fichier (internal/an/amendements.go, 296 Mo observés) n'est
+// prérécupéré avec le reste de l'Assemblée que depuis qu'il est listé dans
+// an.DownloadTargets — avant, il se téléchargeait seul, au moment précis où
+// cette étape démarrait, derrière normalize et le reste de sa vague.
+var prefetchDependants = func() map[string]bool {
+	m := map[string]bool{"download": true, "partis": true, "senat": true, "europe": true, "amendements": true}
+	for _, n := range communesChaineNoms {
+		m[n] = true
+	}
+	return m
+}()
+
 // registreParlement construit le pipeline.Registre du socle parlementaire à
 // partir du catalogue — une seule référence (catalogue.go) pour les deux :
 // la liste plate que "fpctl ingest parlement" affiche, et le graphe que ce
 // même socle exécute. Publie aussitôt la topologie en base
 // (core.pipeline_etape/pipeline_dependance) : « fpctl ingest deps » reste à
 // jour même si l'appel qui suit ne cible qu'une seule de ces sources.
-func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) (*pipeline.Registre, error) {
+//
+// dryRun : jamais de récupération réelle pendant une simulation — demarrerPrefetch
+// lance une vraie goroutine réseau dès qu'on l'appelle, donc on ne l'appelle
+// simplement pas ici (pf reste nil, attendre() le traverse sans bloquer).
+func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string,
+	concurrence int, dryRun bool) (*pipeline.Registre, error) {
 	reg := pipeline.NouveauRegistre(pool)
+	var pf *prefetchFuture
 	for _, nom := range socleParlementaire {
 		source, ok := SourceParNom(nom)
 		if !ok {
@@ -86,9 +128,21 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+				if prefetchDependants[source.Nom] {
+					var err error
+					if ctx, err = pf.attendre(ctx); err != nil {
+						return nil, err
+					}
+				}
 				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
 			},
 		})
+	}
+	// Déclenché seulement une fois la fermeture connue (reg.Noms(), juste
+	// au-dessus) : ne bloque jamais la construction, seules les étapes qui
+	// en dépendent (via pf.attendre, ci-dessus) patienteront si besoin.
+	if !dryRun {
+		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
 	}
 	if err := reg.Publier(ctx); err != nil {
 		return nil, fmt.Errorf("publication de la topologie : %w", err)
@@ -99,17 +153,20 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 // registreDe construit un pipeline.Registre pour N'IMPORTE QUEL
 // sous-ensemble du catalogue, pas seulement le socle — même mécanique que
 // registreParlement (une copie d'Archive par étape, jamais le pointeur
-// partagé), généralisée. La quasi-totalité des sources hors socle n'ont
-// aucune dépendance déclarée entre elles (Source.Dependances vide) :
-// partagées dans une seule vague, elles tournent alors TOUTES de front
-// jusqu'à Concurrence, là où RunCategorie les exécutait jusqu'ici une par
-// une dans l'ordre du catalogue. Ne publie PAS en base : Publier réécrit
-// core.pipeline_etape pour l'ensemble exact qu'on lui donne — le faire
-// depuis un sous-ensemble effacerait le socle. Publier reste réservé à
-// registreParlement, la seule vue complète et auditée du graphe.
-func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms []string) (*pipeline.Registre, error) {
+// partagé, même futur de prérécupération non bloquant), généralisée. La
+// quasi-totalité des sources hors socle n'ont aucune dépendance déclarée
+// entre elles (Source.Dependances vide) : partagées dans une seule vague,
+// elles tournent alors TOUTES de front jusqu'à Concurrence, là où
+// RunCategorie les exécutait jusqu'ici une par une dans l'ordre du
+// catalogue. Ne publie PAS en base : Publier réécrit core.pipeline_etape
+// pour l'ensemble exact qu'on lui donne — le faire depuis un sous-ensemble
+// effacerait le socle. Publier reste réservé à registreParlement, la seule
+// vue complète et auditée du graphe.
+func registreDe(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms []string,
+	concurrence int, dryRun bool) (*pipeline.Registre, error) {
 	reg := pipeline.NouveauRegistre(pool)
 	vus := map[string]bool{}
+	var pf *prefetchFuture
 	var ajouter func(nom string) error
 	ajouter = func(nom string) error {
 		if vus[nom] {
@@ -132,6 +189,12 @@ func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms [
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+				if prefetchDependants[source.Nom] {
+					var err error
+					if ctx, err = pf.attendre(ctx); err != nil {
+						return nil, err
+					}
+				}
 				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
 			},
 		})
@@ -141,6 +204,9 @@ func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms [
 		if err := ajouter(n); err != nil {
 			return nil, err
 		}
+	}
+	if !dryRun {
+		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
 	}
 	return reg, nil
 }
@@ -173,38 +239,28 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 	if len(noms) == 0 {
 		return nil
 	}
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
 	defer fermer()
-	reg, err := registreDe(pool, arch, rawDir, noms)
+
+	// Une commande fpctl build qui résout normalize+senat+europe+carto+themes
+	// attendait ici que chacun ait fini pour lancer le suivant AVANT de
+	// commencer son propre téléchargement — un ordre hérité de l'écriture du
+	// code, jamais une vraie dépendance de données : aucun de ces
+	// téléchargements n'a besoin qu'un autre ait fini pour commencer le
+	// sien. registreDe démarre maintenant leur récupération dès que sa
+	// fermeture est connue (demarrerPrefetch), sans bloquer la construction
+	// ni les étapes qui n'en dépendent pas.
+	dryRun := len(opts) > 0 && opts[0].DryRun
+	concurrence := 1
+	if len(opts) > 0 && opts[0].Concurrence > 0 {
+		concurrence = opts[0].Concurrence
+	}
+	reg, err := registreDe(ctx, pool, arch, rawDir, noms, concurrence, dryRun)
 	if err != nil {
 		return err
-	}
-
-	// reg.Noms() est déjà la fermeture résolue de noms (registreDe ne pose
-	// que ce dont la cible a réellement besoin) : ce sont exactement les
-	// connecteurs qui vont tourner ci-dessous, avant même de savoir dans
-	// quel ordre le graphe les enchaînera. Une commande fpctl build qui
-	// résout normalize+senat+europe+carto+themes attend aujourd'hui que
-	// chacun ait fini pour lancer le suivant AVANT de commencer son propre
-	// téléchargement — un ordre hérité de l'écriture du code, jamais une
-	// vraie dépendance de données : aucun de ces téléchargements n'a besoin
-	// qu'un autre ait fini pour commencer le sien.
-	// -dry-run affiche le plan sans rien exécuter (pipeline.Registre.Executer
-	// s'en charge plus bas) : télécharger quoi que ce soit ici irait à
-	// l'encontre de cette promesse.
-	dryRun := len(opts) > 0 && opts[0].DryRun
-	if !dryRun {
-		concurrence := 1
-		if len(opts) > 0 && opts[0].Concurrence > 0 {
-			concurrence = opts[0].Concurrence
-		}
-		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
-		if err != nil {
-			return err
-		}
 	}
 
 	if _, err := reg.Executer(ctx, noms, opts...); err != nil {
@@ -245,7 +301,35 @@ func downloadTargetsFor(noms []string) []archive.DownloadTarget {
 	if present["europe"] {
 		out = append(out, europe.DownloadTargets()...)
 	}
+	// "communes" (l'alias) entraîne toujours tout communes-cog..communes-ssmsi
+	// avec elle, mais un appel qui ne cible qu'un maillon précis de la chaîne
+	// (fpctl ingest collectivites communes-ofgl, par exemple) ne fait PAS
+	// apparaître "communes" dans noms — seulement ce maillon et ses
+	// ancêtres. communes.DownloadTargets() reste la même liste complète dans
+	// les deux cas (elle n'est pas découpée par maillon) : plus simple, et
+	// sans incorrection puisqu'un fichier déjà prérécupéré ne l'est jamais
+	// deux fois (archive.WithPrefetched).
+	for _, maillon := range communesChaineNoms {
+		if present[maillon] {
+			out = append(out, communes.DownloadTargets()...)
+			break
+		}
+	}
 	return out
+}
+
+// concurrenceDuPool : la taille du pool Postgres que contexte doit ouvrir —
+// au moins 4 (le défaut historique de store.Open, jamais réduit), mais
+// élargi si -j demande plus de front que ça. Sans cet ajustement, -j restait
+// sans effet réel au-delà de 4 : reg.Executer lance bien plus de goroutines,
+// mais elles font toutes la queue pour la même poignée de 4 connexions —
+// exactement le défaut qu'actualiserMatviews (plus bas) corrige déjà pour
+// son propre pool, jamais recopié ici jusqu'à présent.
+func concurrenceDuPool(opts []pipeline.Options) int32 {
+	if len(opts) > 0 && int32(opts[0].Concurrence) > 4 {
+		return int32(opts[0].Concurrence)
+	}
+	return 4
 }
 
 // contexte : ce que chaque point d'entrée (RunTout/RunSource/RunCategorie)
@@ -253,8 +337,8 @@ func downloadTargetsFor(noms []string) []archive.DownloadTarget {
 // répertoire de l'archive scellée, le pool. Commun aux trois, pour que
 // « fpctl ingest budget dette » applique les migrations en attente tout
 // aussi sûrement que la chaîne complète.
-func contexte(ctx context.Context, rawDir, migDir string) (pool *pgxpool.Pool, arch *archive.Archive, fermer func(), err error) {
-	pool, err = store.Open(ctx)
+func contexte(ctx context.Context, rawDir, migDir string, maxConns int32) (pool *pgxpool.Pool, arch *archive.Archive, fermer func(), err error) {
+	pool, err = store.OpenWithMaxConns(ctx, maxConns)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -291,7 +375,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 	if _, ok := SourceParNom(nom); !ok {
 		return fmt.Errorf("source inconnue : %s (voir « fpctl ingest » pour la liste)", nom)
 	}
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
@@ -302,20 +386,14 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		concurrence = opts[0].Concurrence
 	}
 	if EstSurLeSocle(nom) {
-		reg, err := registreParlement(ctx, pool, arch, rawDir)
+		// registreParlement construit tout le socle, pas seulement nom : la
+		// prérécupération porte donc sur les cibles du socle entier plutôt
+		// que la fermeture exacte de nom (que Niveaux calculerait, un peu de
+		// travail en plus pour un seul appel visé) — un léger surcroît de
+		// téléchargement pour une demande étroite, jamais une incorrection.
+		reg, err := registreParlement(ctx, pool, arch, rawDir, concurrence, dryRun)
 		if err != nil {
 			return err
-		}
-		// registreParlement construit tout le socle, pas seulement nom : on
-		// prétélécharge donc les cibles du socle entier plutôt que la
-		// fermeture exacte de nom (que Niveaux calculerait, un peu de travail
-		// en plus pour un seul appel visé) — un léger surcroît de
-		// téléchargement pour une demande étroite, jamais une incorrection.
-		if !dryRun {
-			ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
-			if err != nil {
-				return err
-			}
 		}
 		if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
 			return err
@@ -325,15 +403,9 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		}
 		return actualiserMatviews(ctx)
 	}
-	reg, err := registreDe(pool, arch, rawDir, []string{nom})
+	reg, err := registreDe(ctx, pool, arch, rawDir, []string{nom}, concurrence, dryRun)
 	if err != nil {
 		return err
-	}
-	if !dryRun {
-		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
-		if err != nil {
-			return err
-		}
 	}
 	if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
 		return err
@@ -371,7 +443,7 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	if len(sources) == 0 {
 		return fmt.Errorf("catégorie inconnue : %s (voir « fpctl ingest » pour la liste)", categorie)
 	}
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
@@ -388,37 +460,40 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	}
 
 	dryRun := len(opts) > 0 && opts[0].DryRun
-	if !dryRun {
-		concurrence := 1
-		if len(opts) > 0 && opts[0].Concurrence > 0 {
-			concurrence = opts[0].Concurrence
-		}
-		// Une seule vague de téléchargement pour la catégorie ENTIÈRE,
-		// socle et reste confondus, avant que l'un ou l'autre registre ne
-		// tourne — même raison que RunSources : aucun de ces
-		// téléchargements n'a besoin qu'un autre ait fini pour commencer
-		// le sien.
-		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(append(append([]string{}, socle...), reste...)), concurrence)
-		if err != nil {
-			return err
-		}
+	concurrence := 1
+	if len(opts) > 0 && opts[0].Concurrence > 0 {
+		concurrence = opts[0].Concurrence
 	}
-
+	// Construire les DEUX registres d'abord, avant d'exécuter l'un ou
+	// l'autre : chacun démarre sa PROPRE récupération de front dès qu'il
+	// connaît sa fermeture (registreParlement/registreDe, demarrerPrefetch),
+	// et les deux futurs doivent partir avant que reg.Executer(socle) ne
+	// bloque plus bas — sinon la récupération de reste n'aurait démarré
+	// qu'une fois tout le socle déjà exécuté. Leurs cibles ne se recoupent
+	// jamais (le socle ne télécharge rien que reste télécharge aussi), donc
+	// deux futurs non bloquants lancés de front reviennent au même résultat
+	// qu'un seul PrefetchAll bloquant pour les deux combinés — sans la
+	// barrière commune devant les deux registres.
+	var regSocle, regReste *pipeline.Registre
 	if len(socle) > 0 {
-		reg, err := registreParlement(ctx, pool, arch, rawDir)
+		regSocle, err = registreParlement(ctx, pool, arch, rawDir, concurrence, dryRun)
 		if err != nil {
-			return err
-		}
-		if _, err := reg.Executer(ctx, socle, opts...); err != nil {
 			return err
 		}
 	}
 	if len(reste) > 0 {
-		reg, err := registreDe(pool, arch, rawDir, reste)
+		regReste, err = registreDe(ctx, pool, arch, rawDir, reste, concurrence, dryRun)
 		if err != nil {
 			return err
 		}
-		if _, err := reg.Executer(ctx, reste, opts...); err != nil {
+	}
+	if regSocle != nil {
+		if _, err := regSocle.Executer(ctx, socle, opts...); err != nil {
+			return err
+		}
+	}
+	if regReste != nil {
+		if _, err := regReste.Executer(ctx, reste, opts...); err != nil {
 			return err
 		}
 	}
@@ -444,24 +519,31 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 // UNIQUEMENT dans le cadre de la chaîne complète, où toutes ces sources
 // tournent de toute façon ensemble.
 //
-//   - communes -> normalize : le RNE ne remplace un mandat national que
+//   - communes-rne -> normalize : le RNE ne remplace un mandat national que
 //     s'il n'en existe pas déjà un publié par l'Assemblée (« le RNE
 //     complète, il n'écrase pas », commentaire au-dessus de
 //     normaliserAssemblee plus bas) — l'ordre inverse a un jour détruit
-//     1 419 mandats de député.
-//   - associations -> communes : associations.Ingest rapproche chaque
+//     1 419 mandats de député. Portée sur communes-rne précisément (pas sur
+//     l'alias « communes ») depuis que la chaîne communes-* existe comme
+//     maillons nommés (catalogue.go) : c'est RNE, et lui seul, qui écrit
+//     core.person/core.mandate parmi les 8 maillons — communes-cog n'a
+//     aucune raison d'attendre normalize.
+//   - associations -> communes-cog : associations.Ingest rapproche chaque
 //     association d'une commune via ref.commune (internal/associations/
-//     associations.go:200-204), remplie par communes.IngestCOG.
-//   - hatvp -> normalize, communes, senat : le rapprochement déclarant ->
-//     personne (D-025, internal/hatvp/hatvp.go:236-242) lit core.person,
-//     alimentée par les trois.
+//     associations.go:248), rempli par communes.IngestCOG seul — pas besoin
+//     du reste de la chaîne (RNE, OFGL, BANATIC...).
+//   - hatvp -> normalize, communes-rne, senat : le rapprochement déclarant ->
+//     personne (internal/hatvp/hatvp.go:292) lit core.person, alimentée par
+//     les trois — core.person vient de normalize et de communes-rne
+//     (internal/communes/rne.go:219), pas du reste de la chaîne communes-*.
 //   - amendements/exposes/interventions -> normalize : lisent
 //     respectivement core.texte (internal/an/amendements.go:301,
 //     internal/an/exposes.go:77-80) et core.person_identifier scheme
 //     AN_ACTEUR (internal/an/interventions.go:92), remplis par
 //     normaliserAssemblee.
-//   - jorf -> normalize, communes, senat : le rapprochement mention -> élu
-//     (internal/jorf/jorf.go:375-384) lit core.person.
+//   - jorf -> normalize, communes-rne, senat : le rapprochement mention ->
+//     élu (internal/jorf/jorf.go:375-384) lit core.person — même source que
+//     hatvp ci-dessus, pas le reste de la chaîne communes-*.
 //   - promulgation -> normalize, jorf : compare la référence NOR publiée
 //     par l'Assemblée (core.dossier) à jo.texte.nor, rempli par jorf.Ingest
 //     (voir déjà le commentaire de RunTout à ce sujet, plus bas).
@@ -469,13 +551,13 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 //     rapprochent par identifiant CNCCFP (internal/ingest/media.go:58-60),
 //     écrit par les trois.
 var dependancesRunTout = map[string][]string{
-	"communes":      {"normalize"},
-	"associations":  {"communes"},
-	"hatvp":         {"normalize", "communes", "senat"},
+	"communes-rne":  {"normalize"},
+	"associations":  {"communes-cog"},
+	"hatvp":         {"normalize", "communes-rne", "senat"},
 	"amendements":   {"normalize"},
 	"exposes":       {"normalize"},
 	"interventions": {"normalize"},
-	"jorf":          {"normalize", "communes", "senat"},
+	"jorf":          {"normalize", "communes-rne", "senat"},
 	"promulgation":  {"normalize", "jorf"},
 	"media":         {"normalize", "partis", "carto"},
 }
@@ -489,7 +571,20 @@ var dependancesRunTout = map[string][]string{
 // core.texte, core.dossier ou jo.texte hors du sien) — ils tournent donc
 // dans la première vague venue, y compris de front avec le socle lui-même.
 var runToutSupplement = []string{
-	"presidentielle", "budget", "macro", "prefets", "agriculture", "entreprises", "campagne",
+	"presidentielle", "budget", "prefets", "agriculture", "entreprises", "campagne",
+	// macro-* d'abord (aucune dépendance entre eux, voir catalogue.go), puis
+	// l'alias "macro" qui les ferme — même raison que la chaîne communes-* :
+	// ajouter ne résout pas les dépendances transitivement ici.
+	"macro-eurostat", "macro-rsa", "macro-prestations-solidarite", "macro-recettes-fiscales",
+	"macro-chomage-insee", "macro-minima-sociaux", "macro-age-retraite", "macro-demandeurs-emploi",
+	"macro-prime-activite", "macro-taux-remplacement", "macro-cotisants-retraites", "macro",
+	// La chaîne communes-* d'abord (son propre ordre, déclaré dans
+	// Source.Dependances), puis l'alias "communes" qui la ferme — ajouter
+	// ne résout PAS les dépendances transitivement (contrairement à
+	// registreDe) : chaque nom doit déjà apparaître plus haut dans cette
+	// liste avant d'être cité en Dependances, d'où cet ordre explicite.
+	"communes-cog", "communes-rne", "communes-municipales", "communes-ofgl",
+	"communes-banatic", "communes-municipales2020", "communes-collectivites", "communes-ssmsi",
 	"communes", "associations", "hatvp",
 	"amendements", "exposes", "interventions",
 	"jorf", "promulgation", "media",
@@ -503,7 +598,7 @@ var runToutSupplement = []string{
 // catalogue :
 //
 //   - "geo-courant" : RunTout appelle geo.Ingest en réutilisant le COG déjà
-//     chargé par "communes" (dimensionLocale), jamais catalogue.go
+//     chargé par la chaîne "communes-*" (catalogue.go), jamais
 //     "contours" (qui recharge le COG lui-même, un jeu de contours par
 //     millésime) — un vrai écart avec le catalogue, pas une erreur : voir
 //     le commentaire d'origine sur ce choix, conservé tel quel plus bas.
@@ -512,8 +607,10 @@ var runToutSupplement = []string{
 //     entier), donc dépend de tout le reste plutôt que d'un sous-ensemble
 //     précis — jamais un fan-in partiel qui laisserait une section
 //     recalculée sur des données d'avant cette exécution.
-func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) (*pipeline.Registre, error) {
+func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string,
+	concurrence int, dryRun bool) (*pipeline.Registre, error) {
 	reg := pipeline.NouveauRegistre(pool)
+	var pf *prefetchFuture
 	ajouter := func(nom string, extraDeps []string) error {
 		source, ok := SourceParNom(nom)
 		if !ok {
@@ -525,6 +622,12 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: deps,
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+				if prefetchDependants[source.Nom] {
+					var err error
+					if ctx, err = pf.attendre(ctx); err != nil {
+						return nil, err
+					}
+				}
 				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
 			},
 		})
@@ -540,13 +643,16 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 			return nil, err
 		}
 	}
-	// Contours communaux et intercommunaux, un jeu par millésime du COG. Le
-	// bloc communes (dimensionLocale) a déjà chargé le COG courant : inutile
-	// de le recharger ici (contrairement à la source « contours » invoquée
-	// seule, catégorie systeme, qui le recharge elle-même).
+	// Contours communaux et intercommunaux, un jeu par millésime du COG.
+	// communes-cog (chaîne communes-*, catalogue.go) a déjà chargé le COG
+	// courant : inutile de le recharger ici (contrairement à la source
+	// « contours » invoquée seule, catégorie systeme, qui le recharge
+	// elle-même). Dépend de communes-cog précisément, pas de l'alias
+	// "communes" ni du reste de la chaîne (RNE, OFGL...) qui ne concerne pas
+	// le COG.
 	reg.Ajouter(pipeline.Etape{
 		Nom: "geo-courant", Description: "IGN boundaries by vintage",
-		Dependances: []string{"communes"},
+		Dependances: []string{"communes-cog"},
 		Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
 			return nil, geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime)
 		},
@@ -554,47 +660,45 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	if err := ajouter("checksums", reg.Noms()); err != nil {
 		return nil, err
 	}
+	if !dryRun {
+		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
+	}
 	return reg, nil
 }
 
 // RunTout exécute la chaîne complète historique : pas littéralement toutes
 // les sources du catalogue (plusieurs sont délibérément hors chaîne par
 // défaut — coûteuses, ponctuelles, ou exigeant une clé/un binaire
-// particulier), mais le socle que « fpctl ingest all » a toujours rechargé.
+// particulier), mais le socle que « fpctl ingest default » a toujours rechargé.
 // Pour une catégorie entière, y compris ce qu'elle a de plus coûteux, voir
 // RunCategorie (« fpctl ingest <catégorie> all »).
 //
 // Passe désormais par le même graphe de dépendances que RunSources/
 // RunCategorie (registreComplet) plutôt qu'une chaîne Go séquentielle codée
-// à la main : le téléchargement de chaque connecteur se fait d'abord, tout
-// de front (PrefetchAll), puis les étapes tournent par vagues topologiques
-// jusqu'à -j de front — presidentielle/budget/macro/prefets/agriculture/
-// entreprises/campagne, entre autres, n'ont jamais eu besoin d'attendre le
-// socle parlementaire, seulement de l'ordre du fichier source pour s'exécuter
-// jusqu'ici.
+// à la main — presidentielle/budget/macro/prefets/agriculture/entreprises/
+// campagne, entre autres, n'ont jamais eu besoin d'attendre le socle
+// parlementaire, seulement de l'ordre du fichier source pour s'exécuter
+// jusqu'ici. Le téléchargement de chaque connecteur démarre de front dès
+// que la fermeture du graphe est connue (registreComplet, demarrerPrefetch),
+// mais SANS bloquer le graphe entier devant lui : une étape qui n'en a pas
+// besoin (carto, normalize...) ne patiente jamais sur des fichiers que
+// d'autres attendent.
 func RunTout(ctx context.Context, rawDir, migDir string, opts ...pipeline.Options) error {
 	start := time.Now()
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
 	defer fermer()
 
-	reg, err := registreComplet(ctx, pool, arch, rawDir)
+	dryRun := len(opts) > 0 && opts[0].DryRun
+	concurrence := 1
+	if len(opts) > 0 && opts[0].Concurrence > 0 {
+		concurrence = opts[0].Concurrence
+	}
+	reg, err := registreComplet(ctx, pool, arch, rawDir, concurrence, dryRun)
 	if err != nil {
 		return err
-	}
-
-	dryRun := len(opts) > 0 && opts[0].DryRun
-	if !dryRun {
-		concurrence := 1
-		if len(opts) > 0 && opts[0].Concurrence > 0 {
-			concurrence = opts[0].Concurrence
-		}
-		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
-		if err != nil {
-			return err
-		}
 	}
 
 	if _, err := reg.Executer(ctx, reg.Noms(), opts...); err != nil {
@@ -678,67 +782,17 @@ func ingestSenat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	return senat.NormalizePresentations(ctx, pool)
 }
 
-// ingestMacro : les grandes séries nationales, plus la représentation de
-// l'État — regroupées ici car RunTout les recharge ensemble depuis toujours ;
-// prefets.Ingest reste appelable seul (catégorie systeme, source « prefets »).
-func ingestMacro(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := macro.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestRSA(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestPrestationsSolidarite(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestRecettesFiscales(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestChomageINSEE(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestMinimaSociaux(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestAgeDepartRetraite(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestDemandeursEmploi(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestPrimeActivite(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestTauxRemplacement(ctx, pool, arch); err != nil {
-		return err
-	}
-	return macro.IngestCotisantsRetraites(ctx, pool, arch)
-}
-
-func ingestSocle(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := macro.IngestPauvrete(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestAideAlimentaire(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestPauvreteTauxEU(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestMenagesDREES(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestMenagesEffectif(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestPensionsEIR(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestChomageUnedic(ctx, pool, arch); err != nil {
-		return err
-	}
-	return macro.IngestFilosofiDeciles(ctx, pool, arch)
-}
+// ingestMacro/ingestSocle ont disparu : leurs appels (onze pour l'un, huit
+// pour l'autre) enchaînaient à la main des connecteurs qui n'ont, par
+// lecture directe, aucune dépendance entre eux — chacun sa propre table
+// (ref.macro_serie pour macro-eurostat, une table core.* dédiée pour tous
+// les autres), jamais la lecture de ce qu'un autre vient d'écrire. Devenus
+// des Source nommées à part entière (catalogue.go, préfixes "macro-" et
+// "socle-"), SANS Dependances entre elles — à la différence de la chaîne
+// communes-*, rien n'impose ici un ordre, donc elles tournent de front
+// jusqu'à Concurrence plutôt que l'une après l'autre : un vrai gain, pas
+// seulement une chronométrie individuelle. Les alias "macro"/"socle"
+// regroupent chacun les leurs (Dependances sur la liste complète).
 
 // recalculerEmpreintes met à jour core.section_checksum pour chaque section
 // que internal/sitegen sait recopier plutôt que reconstruire (checksum.Sections).
@@ -781,46 +835,31 @@ func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := carto.Ingest(ctx, pool, filepath.Join("data", "organisations.csv")); err != nil {
 		return err
 	}
-	logs.Notice("governments of the Fifth Republic")
-	if err := carto.IngestGouvernements(ctx, pool, filepath.Join("data", "gouvernements.csv")); err != nil {
+	// Présidences AVANT gouvernements : le rapprochement du Premier ministre
+	// dans IngestGouvernements cherche un core.mandate de type
+	// PRESIDENT_REPUBLIQUE parmi les mandats nationaux qui le distinguent
+	// d'un homonyme (internal/carto/gouvernements.go, mandate_type IN (...,
+	// 'PRESIDENT_REPUBLIQUE')) — mais ce type de mandat n'est écrit que par
+	// IngestPresidents (internal/carto/presidents.go). Dans l'ordre inverse,
+	// cette branche ne pouvait jamais matcher : un président jamais député
+	// ni sénateur ni ministre par ailleurs (Georges Pompidou, Premier
+	// ministre 1962, data/gouvernements.csv) restait sans
+	// premier_ministre_person_id, silencieusement, le temps d'un premier
+	// passage.
+	logs.Notice("presidencies of the Republic")
+	if err := carto.IngestPresidents(ctx, pool, filepath.Join("data", "presidents.csv")); err != nil {
 		return err
 	}
-	logs.Notice("presidencies of the Republic")
-	return carto.IngestPresidents(ctx, pool, filepath.Join("data", "presidents.csv"))
+	logs.Notice("governments of the Fifth Republic")
+	return carto.IngestGouvernements(ctx, pool, filepath.Join("data", "gouvernements.csv"))
 }
 
-// dimensionLocale charge la dimension communale, dans un ordre contraint :
-// ref.commune est référencé par tout le reste, et les résultats électoraux ne
-// peuvent pas être rattachés à une commune qui n'existe pas encore.
-func dimensionLocale(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	logs.Notice("geographic reference data")
-	if err := communes.IngestCOG(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("mayors")
-	if err := communes.IngestRNE(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("municipal elections")
-	if err := communes.IngestMunicipales(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("municipal accounts")
-	if err := communes.IngestOFGL(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("intermunicipal bodies and their powers")
-	if err := communes.IngestBANATIC(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("2020 municipal elections")
-	if err := communes.IngestMunicipales2020(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("regional, departmental and grouping accounts")
-	if err := communes.IngestCollectivites(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("recorded crime by municipality")
-	return communes.IngestSSMSI(ctx, pool, arch)
-}
+// dimensionLocale a disparu : les 8 sous-étapes qu'elle enchaînait à la main
+// (COG -> RNE -> municipales -> OFGL -> BANATIC -> municipales 2020 ->
+// collectivités -> SSMSI) sont maintenant des Source nommées à part entière
+// (catalogue.go, préfixe "communes-"), chaînées par Dependances comme tout
+// le reste du catalogue — internal/pipeline les chronomètre individuellement
+// (afficherDurees) sans qu'il soit besoin d'un helper dédié ici. Voir le
+// commentaire au-dessus de ces entrées dans catalogue.go pour le pourquoi de
+// la chaîne stricte (verrou ACCESS EXCLUSIVE de bulkload.SansContraintesFK)
+// et pour l'alias "communes" qui les regroupe.

@@ -36,7 +36,14 @@ services:
       POSTGRES_USER: fp
       POSTGRES_PASSWORD: fp
       POSTGRES_DB: fp
-    ports: ["55432:5432"]
+    # FP_DB_PORT : 55432 par défaut (développement local, inchangé). Le
+    # runner self-hosted de build-full tourne sur la même machine que le
+    # Postgres de développement courant (démon Docker isolé docker-ci mais
+    # port hôte partagé avec le démon Docker par défaut — un docker-proxy
+    # lie 0.0.0.0 quel que soit le démon) : sans ce décalage, les deux
+    # entrent en collision sur le port hôte, jamais sur le nom du conteneur
+    # (scopé par démon, lui, pas par la machine).
+    ports: ["${FP_DB_PORT:-55432}:5432"]
     volumes:
       # UN VOLUME NEUF, et non `fp_pgdata`. Ce dernier a été initialisé par
       # l'ancienne image Alpine — musl — et ses index de texte sont rangés selon
