@@ -45,6 +45,14 @@ BEGIN
   VALUES ('zzt-s-2','ASSEMBLEE_NATIONALE','S2','2025-04-01','INDIVIDUAL','Objet 2')
   RETURNING id INTO v_scr2;
 
+  -- Même raison que db/tests/mapping_test.sql : la cartographie réelle
+  -- (internal/carto) a déjà sa propre lignée de référence dès qu'une
+  -- ingestion complète a tourné — basculée en COMMUNITY pour la durée de
+  -- cette transaction (jamais commitée, ROLLBACK en fin de fichier) plutôt
+  -- que supprimée, pour ne pas cascader vers ce qui référence déjà sa
+  -- révision réelle.
+  UPDATE core.mapping_lineage SET kind = 'COMMUNITY' WHERE kind = 'REFERENCE';
+
   INSERT INTO core.mapping_lineage (slug, label, kind, listed)
   VALUES ('zzt-codage-reference','Codage de référence','REFERENCE', true) RETURNING id INTO v_lin;
   INSERT INTO core.mapping_revision (lineage_id, revision)
@@ -64,14 +72,20 @@ BEGIN
   -- 2. Une classification est catégorielle OU numérique, jamais les deux :
   --    « far right » et « 8,2 sur galtan » ne sont pas le même objet.
   ------------------------------------------------------------------
+  -- zzt- comme toutes les autres fixtures de ce fichier, slug ET
+  -- (provider, version) — les deux colonnes sont contraintes à l'unicité
+  -- (migration 0013) et 'populist-v4'/'PopuList'/'v4.0' comme
+  -- 'ches-2024'/'CHES'/'2024' sont les valeurs RÉELLES que les connecteurs
+  -- internal/partis créent : collision garantie dès qu'une ingestion
+  -- complète avait déjà tourné, sur l'une ou l'autre contrainte.
   INSERT INTO ref.classification_set (slug, provider, version, label, vocabulary, source_id)
-  VALUES ('populist-v4','PopuList','v4.0','PopuList v4.0',
+  VALUES ('zzt-populist-v4','ZZT-PopuList','v4.0','PopuList v4.0',
           'far-left / far-right / populist / eurosceptic — vocabulaire anglophone, '
           'non traduit en « extrême gauche / extrême droite »', v_src)
   RETURNING id INTO v_setP;
 
   INSERT INTO ref.classification_set (slug, provider, version, label, vocabulary)
-  VALUES ('ches-2024','CHES','2024','Chapel Hill Expert Survey 2024',
+  VALUES ('zzt-ches-2024','ZZT-CHES','2024','Chapel Hill Expert Survey 2024',
           'scores continus : lrgen, lrecon, galtan')
   RETURNING id INTO v_setC;
 
