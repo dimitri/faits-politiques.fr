@@ -806,35 +806,50 @@ func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 // dimensionLocale charge la dimension communale, dans un ordre contraint :
 // ref.commune est référencé par tout le reste, et les résultats électoraux ne
 // peuvent pas être rattachés à une commune qui n'existe pas encore.
+// etape : un sous-chargement de dimensionLocale, chronométré — ses 8 étapes
+// restent strictement séquentielles (voir le verrou AccessExclusive que
+// bulkload.SansContraintesFK pose sur les tables RÉFÉRENCÉES, pas seulement
+// la cible : un errgroup naïf ici interbloquerait, audit détaillé conservé
+// en mémoire d'équipe), mais laquelle domine mérite d'être visible à chaque
+// run plutôt que redécouvert à chaque fois qu'un ingest réel traîne — même
+// principe que le résumé des durées d'internal/pipeline, pour un nœud qui
+// n'est pas lui-même un Registre.
+func dimensionEtape(nom string, f func() error) error {
+	debut := time.Now()
+	logs.Notice(nom)
+	err := f()
+	logs.Notice(fmt.Sprintf("%s : terminé en %s", nom, time.Since(debut).Round(time.Millisecond)))
+	return err
+}
+func etape(nom string, f func() error) error {
+	debut := time.Now()
+	logs.Notice(nom)
+	err := f()
+	logs.Notice(fmt.Sprintf("%s : terminé en %s", nom, time.Since(debut).Round(time.Millisecond)))
+	return err
+}
+
 func dimensionLocale(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	logs.Notice("geographic reference data")
-	if err := communes.IngestCOG(ctx, pool, arch); err != nil {
+	if err := dimensionEtape("geographic reference data", func() error { return communes.IngestCOG(ctx, pool, arch) }); err != nil {
 		return err
 	}
-	logs.Notice("mayors")
-	if err := communes.IngestRNE(ctx, pool, arch); err != nil {
+	if err := dimensionEtape("mayors", func() error { return communes.IngestRNE(ctx, pool, arch) }); err != nil {
 		return err
 	}
-	logs.Notice("municipal elections")
-	if err := communes.IngestMunicipales(ctx, pool, arch); err != nil {
+	if err := dimensionEtape("municipal elections", func() error { return communes.IngestMunicipales(ctx, pool, arch) }); err != nil {
 		return err
 	}
-	logs.Notice("municipal accounts")
-	if err := communes.IngestOFGL(ctx, pool, arch); err != nil {
+	if err := dimensionEtape("municipal accounts", func() error { return communes.IngestOFGL(ctx, pool, arch) }); err != nil {
 		return err
 	}
-	logs.Notice("intermunicipal bodies and their powers")
-	if err := communes.IngestBANATIC(ctx, pool, arch); err != nil {
+	if err := dimensionEtape("intermunicipal bodies and their powers", func() error { return communes.IngestBANATIC(ctx, pool, arch) }); err != nil {
 		return err
 	}
-	logs.Notice("2020 municipal elections")
-	if err := communes.IngestMunicipales2020(ctx, pool, arch); err != nil {
+	if err := dimensionEtape("2020 municipal elections", func() error { return communes.IngestMunicipales2020(ctx, pool, arch) }); err != nil {
 		return err
 	}
-	logs.Notice("regional, departmental and grouping accounts")
-	if err := communes.IngestCollectivites(ctx, pool, arch); err != nil {
+	if err := dimensionEtape("regional, departmental and grouping accounts", func() error { return communes.IngestCollectivites(ctx, pool, arch) }); err != nil {
 		return err
 	}
-	logs.Notice("recorded crime by municipality")
-	return communes.IngestSSMSI(ctx, pool, arch)
+	return dimensionEtape("recorded crime by municipality", func() error { return communes.IngestSSMSI(ctx, pool, arch) })
 }
