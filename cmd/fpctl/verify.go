@@ -16,7 +16,7 @@ func commandeVerify() *cobra.Command {
 			"officiels — une porte de publication qui passe à zéro, jamais un\n" +
 			"contrôle de schéma (voir db/tests/ pour ceux-là).\n\n" +
 			"Sans option : seuls les contrôles dont la source est chargée par\n" +
-			"« fpctl ingest default » (le socle parlementaire et runToutSupplement).\n" +
+			"« fpctl ingest default » (le socle parlementaire et runAllSupplement).\n" +
 			"« fpctl verify data full » : tous les contrôles connus, y compris ceux\n" +
 			"qui portent sur une source hors chaîne par défaut (empire colonial,\n" +
 			"SIRENE, ports...) — à réserver à un suivi d'un ingest plus large\n" +

@@ -64,20 +64,20 @@ func EstSurLeSocle(nom string) bool {
 }
 
 // ChaineParDefaut : l'ensemble des noms que « fpctl ingest default » charge
-// réellement — le socle parlementaire plus runToutSupplement, jamais les
+// réellement — le socle parlementaire plus runAllSupplement, jamais les
 // quelque 90 autres sources du catalogue (délibérément hors chaîne par
 // défaut : coûteuses, ponctuelles, ou exigeant une clé/un binaire
-// particulier — voir le commentaire de RunTout). internal/verify s'en sert
+// particulier — voir le commentaire de RunAll). internal/verify s'en sert
 // pour ne rejouer, par défaut, que les contrôles dont la source est dans cet
 // ensemble : sans ça, « fpctl verify data » après un « fpctl ingest default »
 // tout à fait normal échoue systématiquement sur des données que cet ingest
 // n'a jamais eu vocation à charger.
 func ChaineParDefaut() map[string]bool {
-	m := make(map[string]bool, len(socleParlementaire)+len(runToutSupplement))
+	m := make(map[string]bool, len(socleParlementaire)+len(runAllSupplement))
 	for _, n := range socleParlementaire {
 		m[n] = true
 	}
-	for _, n := range runToutSupplement {
+	for _, n := range runAllSupplement {
 		m[n] = true
 	}
 	return m
@@ -274,7 +274,7 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 	// sans cette étape ICI, une page qui lit une matvue (14 fichiers de
 	// internal/sitegen le font) verrait un raw -> core tout frais à côté
 	// d'un mv.* resté sur l'exécution précédente — le même bogue que
-	// RunTout évite déjà en bout de chaîne complète, mais dont fpctl build
+	// RunAll évite déjà en bout de chaîne complète, mais dont fpctl build
 	// n'avait jamais hérité.
 	return actualiserMatviews(ctx)
 }
@@ -332,7 +332,7 @@ func concurrenceDuPool(opts []pipeline.Options) int32 {
 	return 4
 }
 
-// contexte : ce que chaque point d'entrée (RunTout/RunSource/RunCategorie)
+// contexte : ce que chaque point d'entrée (RunAll/RunSource/RunCategorie)
 // ouvre avant de faire quoi que ce soit — les migrations en attente, le
 // répertoire de l'archive scellée, le pool. Commun aux trois, pour que
 // « fpctl ingest budget dette » applique les migrations en attente tout
@@ -419,9 +419,9 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 }
 
 // RunCategorie exécute toutes les sources d'une catégorie — un choix
-// délibéré, plus large que la chaîne par défaut (RunTout) : une source
+// délibéré, plus large que la chaîne par défaut (RunAll) : une source
 // marquée « hors chaîne par défaut » (coûteuse, ou exigeant une clé/un
-// binaire particulier) reste hors de RunTout mais fait pleinement partie de
+// binaire particulier) reste hors de RunAll mais fait pleinement partie de
 // sa catégorie ici — demander une catégorie entière est une décision
 // explicite, pas un oubli.
 //
@@ -509,7 +509,7 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	return nil
 }
 
-// dependancesRunTout : dépendances RÉELLES entre sources hors socle,
+// dependenciesRunAll : dépendances RÉELLES entre sources hors socle,
 // établies par lecture de code (chaque preuve est un fichier:ligne précis,
 // pas une supposition) — mais volontairement PAS ajoutées à
 // Source.Dependances dans catalogue.go : un appel isolé (fpctl ingest
@@ -546,11 +546,11 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 //     hatvp ci-dessus, pas le reste de la chaîne communes-*.
 //   - promulgation -> normalize, jorf : compare la référence NOR publiée
 //     par l'Assemblée (core.dossier) à jo.texte.nor, rempli par jorf.Ingest
-//     (voir déjà le commentaire de RunTout à ce sujet, plus bas).
+//     (voir déjà le commentaire de RunAll à ce sujet, plus bas).
 //   - media -> normalize, partis, carto : les logos de partis se
 //     rapprochent par identifiant CNCCFP (internal/ingest/media.go:58-60),
 //     écrit par les trois.
-var dependancesRunTout = map[string][]string{
+var dependenciesRunAll = map[string][]string{
 	"communes-rne":  {"normalize"},
 	"associations":  {"communes-cog"},
 	"hatvp":         {"normalize", "communes-rne", "senat"},
@@ -562,15 +562,15 @@ var dependancesRunTout = map[string][]string{
 	"media":         {"normalize", "partis", "carto"},
 }
 
-// runToutSupplement : les sources hors socle que RunTout a toujours
-// enchaînées, dans un ordre où la dépendance de chacune (dependancesRunTout,
+// runAllSupplement : les sources hors socle que RunAll a toujours
+// enchaînées, dans un ordre où la dépendance de chacune (dependenciesRunAll,
 // plus haut) est déjà ajoutée avant elle — Registry.Add panique sinon.
 // presidentielle, budget, macro, prefets, agriculture, entreprises et
 // campagne n'ont aucune dépendance ici : lecture exhaustive de chaque
 // paquet (aucune référence à core.person, core.mandate, ref.commune,
 // core.texte, core.dossier ou jo.texte hors du sien) — ils tournent donc
 // dans la première vague venue, y compris de front avec le socle lui-même.
-var runToutSupplement = []string{
+var runAllSupplement = []string{
 	"presidentielle", "budget", "prefets", "agriculture", "entreprises", "campagne",
 	// macro-* d'abord (aucune dépendance entre eux, voir catalogue.go), puis
 	// l'alias "macro" qui les ferme — même raison que la chaîne communes-* :
@@ -590,14 +590,14 @@ var runToutSupplement = []string{
 	"jorf", "promulgation", "media",
 }
 
-// registreComplet construit le graphe complet que RunTout exécute : le
+// registreComplet construit le graphe complet que RunAll exécute : le
 // socle parlementaire (les mêmes 7 étapes que registreParlement, jamais
 // republiées une seconde fois — Publier reste réservé à registreParlement,
 // la seule vue auditée du graphe, voir son commentaire), plus
-// runToutSupplement, plus deux étapes sans équivalent exact dans le
+// runAllSupplement, plus deux étapes sans équivalent exact dans le
 // catalogue :
 //
-//   - "geo-courant" : RunTout appelle geo.Ingest en réutilisant le COG déjà
+//   - "geo-courant" : RunAll appelle geo.Ingest en réutilisant le COG déjà
 //     chargé par la chaîne "communes-*" (catalogue.go), jamais
 //     "contours" (qui recharge le COG lui-même, un jeu de contours par
 //     millésime) — un vrai écart avec le catalogue, pas une erreur : voir
@@ -638,8 +638,8 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 			return nil, err
 		}
 	}
-	for _, nom := range runToutSupplement {
-		if err := ajouter(nom, dependancesRunTout[nom]); err != nil {
+	for _, nom := range runAllSupplement {
+		if err := ajouter(nom, dependenciesRunAll[nom]); err != nil {
 			return nil, err
 		}
 	}
@@ -666,7 +666,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	return reg, nil
 }
 
-// RunTout exécute la chaîne complète historique : pas littéralement toutes
+// RunAll exécute la chaîne complète historique : pas littéralement toutes
 // les sources du catalogue (plusieurs sont délibérément hors chaîne par
 // défaut — coûteuses, ponctuelles, ou exigeant une clé/un binaire
 // particulier), mais le socle que « fpctl ingest default » a toujours rechargé.
@@ -683,7 +683,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 // mais SANS bloquer le graphe entier devant lui : une étape qui n'en a pas
 // besoin (carto, normalize...) ne patiente jamais sur des fichiers que
 // d'autres attendent.
-func RunTout(ctx context.Context, rawDir, migDir string, opts ...pipeline.Options) error {
+func RunAll(ctx context.Context, rawDir, migDir string, opts ...pipeline.Options) error {
 	start := time.Now()
 	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
@@ -717,7 +717,7 @@ func RunTout(ctx context.Context, rawDir, migDir string, opts ...pipeline.Option
 	return nil
 }
 
-// --- ce que RunTout et le catalogue partagent : les blocs multi-étapes du
+// --- ce que RunAll et le catalogue partagent : les blocs multi-étapes du
 // socle parlementaire, extraits une fois pour ne jamais diverger entre la
 // chaîne complète et « fpctl ingest parlement <source> ».
 

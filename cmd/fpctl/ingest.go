@@ -20,7 +20,7 @@ import (
 // Deux PORTÉES possibles, nommées pareil des deux côtés de fpctl (voir
 // « fpctl verify data », qui reprend exactement ces deux noms) :
 //   - « default » (internal/ingest.ChaineParDefaut) : le socle parlementaire
-//     plus runToutSupplement — ce que ce dépôt a toujours rechargé sans
+//     plus runAllSupplement — ce que ce dépôt a toujours rechargé sans
 //     -only, jamais littéralement tout le catalogue. C'était l'ancien
 //     « fpctl ingest all », renommé pour ne plus dire « tout » quand il ne
 //     recharge qu'une partie.
@@ -94,7 +94,7 @@ func commandeIngest() *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := ctxForce(cmd)
-			return executerInterne(ctx, ingest.RunTout(ctx, rawDir, migDir, opts()))
+			return executerInterne(ctx, ingest.RunAll(ctx, rawDir, migDir, opts()))
 		},
 	})
 

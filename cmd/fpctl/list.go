@@ -189,9 +189,9 @@ func commandeDeps() *cobra.Command {
 // un résumé de terminal, pas une comptabilité exacte.
 var composantesEtape = map[string]struct {
 	// SlugsSources : repli pour des octets archivés avant que
-	// raw.source.etape existe, ou ingérés par RunTout (la chaîne
+	// raw.source.etape existe, ou ingérés par RunAll (la chaîne
 	// historique, qui n'étiquette pas ses sources — voir
-	// internal/ingest.RunTout) ; ignoré dès que la colonne renvoie un total
+	// internal/ingest.RunAll) ; ignoré dès que la colonne renvoie un total
 	// non nul pour l'étape.
 	SlugsSources []string
 	Tables       []string
@@ -217,7 +217,7 @@ var composantesEtape = map[string]struct {
 // la main pour chacune des dizaines de sources qu'elle peut requérir. Le
 // repli sur composantesEtape[nom].SlugsSources ne joue que si cette requête
 // renvoie 0 : données jamais réingérées depuis la colonne, ou chargées par
-// RunTout (qui ne l'écrit pas).
+// RunAll (qui ne l'écrit pas).
 func tailleEtape(ctx context.Context, pool *pgxpool.Pool, nom string) (archive, base int64, err error) {
 	if pool == nil {
 		return 0, 0, nil

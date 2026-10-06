@@ -263,7 +263,7 @@ func chargerExposes(ctx context.Context, pool *pgxpool.Pool) (map[int64]*ExposeM
 // à plat, plus le GROUP BY sur la totalité de core.ballot (4,9 millions de
 // lignes) que cette fonction refaisait à chaque construction alors que
 // core.ballot ne change qu'à l'ingestion. La matvue se rafraîchit via
-// « fpctl ingest systeme matviews » (ou la chaîne complète, RunTout), pas
+// « fpctl ingest systeme matviews » (ou la chaîne complète, RunAll), pas
 // ici : internal/sitegen ne fait jamais de REFRESH, seulement des SELECT — même
 // principe que core.section_checksum pour le cache de construction.
 func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool) (map[int64][]GroupeLigne, error) {

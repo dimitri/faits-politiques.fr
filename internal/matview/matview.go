@@ -866,7 +866,7 @@ func RefreshAll(ctx context.Context, pool *pgxpool.Pool) error {
 // de front plutôt que 4 — la plupart des 25 matvues n'ont aucune dépendance
 // entre elles (voir Catalogue), les enchaîner à une concurrence bridée par
 // défaut n'avait jamais été qu'un héritage du pool à 4 connexions que
-// RunSources/RunSource/RunCategorie/RunTout ouvrent pour tout le reste de
+// RunSources/RunSource/RunCategorie/RunAll ouvrent pour tout le reste de
 // l'ingestion, jamais une limite propre à cette étape.
 //
 // L'appelant doit fournir un pool dont MaxConns couvre CETTE concurrence

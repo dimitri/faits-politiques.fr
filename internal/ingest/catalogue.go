@@ -271,11 +271,11 @@ var catalogue = []Source{
 	// plutôt que d'attendre toute la chaîne — ce qu'aucune étape n'exploite
 	// encore aujourd'hui (associations/hatvp/jorf/geo-courant dépendent tous
 	// de l'alias "communes" ci-dessous, pas d'un maillon précis ; voir leurs
-	// entrées, et le commentaire de dependancesRunTout qui cite déjà le
+	// entrées, et le commentaire de dependenciesRunAll qui cite déjà le
 	// maillon réel dont chacun a besoin).
 	//
 	// "communes" reste l'alias stable que tout le reste du catalogue connaît
-	// déjà (dependancesRunTout, geo-courant) : un simple relais sans
+	// déjà (dependenciesRunAll, geo-courant) : un simple relais sans
 	// Executer propre, qui ne force PAS la chaîne dans Source.Dependances
 	// directement (ce qui obligerait un appel isolé — fpctl ingest
 	// collectivites communes — à toujours tout recharger, un comportement
