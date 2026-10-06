@@ -119,7 +119,7 @@ func Run(ctx context.Context, args []string) error {
 }
 
 // RunSections builds only the given sections — their real dependency
-// closure (Registre.Niveaux), never the whole site — and never publishes:
+// closure (Registry.Levels), never the whole site — and never publishes:
 // this used to be the -only flag's job. sections names either a value from
 // Sections() or an individual topic ID from Topics(); cmd/fpctl validates
 // against both before calling this, so a typo is caught at the CLI layer,
@@ -237,7 +237,7 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	// ce graphe — mais chaque section n'est plus qu'une CIBLE parmi d'autres
 	// du registre (voir graphe.go, buildRegistry) : demander une seule
 	// section ne charge plus que ce dont elle dépend réellement, la fermeture
-	// transitive calculée par internal/pipeline.Registre.Niveaux, jamais la
+	// transitive calculée par internal/pipeline.Registry.Levels, jamais la
 	// totalité du site.
 	writeSection := func(section string, t *template.Template, path string, data any) error {
 		if excluded(section) {
@@ -371,12 +371,12 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	reg := buildRegistry(env)
 	targets := ResolveTargets(sections)
 
-	// runtime.NumCPU(), pas la Concurrence -j de l'ingest (qui n'existe pas
+	// runtime.NumCPU(), pas la Concurrency -j de l'ingest (qui n'existe pas
 	// ici) : la plupart des nœuds d'une même vague sont des requêtes
 	// indépendantes contre le même pool à 8 connexions (OpenWithMaxConns
 	// ci-dessus) — au-delà, une vague large mettrait simplement en file
 	// d'attente plutôt que d'accélérer quoi que ce soit.
-	results, err := reg.Executer(ctx, targets, pipeline.Options{Concurrence: runtime.NumCPU()})
+	results, err := reg.Run(ctx, targets, pipeline.Options{Concurrency: runtime.NumCPU()})
 	if err != nil {
 		return err
 	}

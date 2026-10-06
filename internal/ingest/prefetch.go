@@ -25,7 +25,7 @@ import (
 // (EnsureSource/StartRun/EndRun, exactement comme le Fetch qu'un connecteur
 // ferait lui-même) : ce qui change n'est que LE MOMENT où il a lieu, jamais
 // sa comptabilité dans raw.source/raw.fetch_run/raw.retrieval. Le graphe
-// construit ici n'est PAS publié (Registre.Publier) : ce sont des cibles
+// construit ici n'est PAS publié (Registry.Publish) : ce sont des cibles
 // jetables pour la durée d'une commande, pas des étapes nommées que
 // fpctl list deps doit connaître.
 //
@@ -41,12 +41,12 @@ func PrefetchAll(ctx context.Context, arch *archive.Archive,
 	}
 	logs.Notice("prefetching " + logs.Plural(len(targets), "file") + " (all connectors, in parallel)")
 
-	reg := pipeline.NouveauRegistre(nil)
+	reg := pipeline.NewRegistry(nil)
 	for _, t := range targets {
 		t := t
-		reg.Ajouter(pipeline.Etape{
-			Nom: t.Nom, Description: "prefetching " + filenameOf(t.URL),
-			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+		reg.Add(pipeline.Step{
+			Name: t.Nom, Description: "prefetching " + filenameOf(t.URL),
+			Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				srcID, err := arch.EnsureSource(ctx, t.Source)
 				if err != nil {
 					return nil, err
@@ -65,7 +65,7 @@ func PrefetchAll(ctx context.Context, arch *archive.Archive,
 			},
 		})
 	}
-	resultats, err := reg.Executer(ctx, reg.Noms(), pipeline.Options{Concurrence: concurrence})
+	resultats, err := reg.Run(ctx, reg.Names(), pipeline.Options{Concurrency: concurrence})
 	if err != nil {
 		return ctx, err
 	}

@@ -53,167 +53,167 @@ func StepName(ctx context.Context) (string, bool) {
 // calcul ou de rouvrir une connexion pour le refaire.
 type Results map[string]any
 
-// Etape : une unité nommée, ce dont elle dépend, ce qu'elle fait — et ce
-// qu'elle produit, lu par ses dépendantes dans Results. Executer garde sa
-// propre logique d'idempotence (comme l'ingest aujourd'hui) — ce paquet ne
-// décide que DE L'ORDRE (et, en option, du parallélisme), jamais de sauter
-// une étape déjà faite : c'est à l'étape elle-même de le constater vite si
+// Step : une unité nommée, ce dont elle dépend, ce qu'elle fait — et ce
+// qu'elle produit, lu par ses dépendantes dans Results. Run garde sa propre
+// logique d'idempotence (comme l'ingest aujourd'hui) — ce paquet ne décide
+// que DE L'ORDRE (et, en option, du parallélisme), jamais de sauter une
+// étape déjà faite : c'est à l'étape elle-même de le constater vite si
 // c'est le cas.
-type Etape struct {
-	Nom         string
-	Description string
-	Dependances []string
-	Executer    func(ctx context.Context, deps Results) (any, error)
+type Step struct {
+	Name         string
+	Description  string
+	Dependencies []string
+	Run          func(ctx context.Context, deps Results) (any, error)
 }
 
-// Registre : les étapes connues, indexées par nom.
-type Registre struct {
-	etapes map[string]Etape
-	ordre  []string // ordre de déclaration, pour un tri stable à dépendances égales
-	pool   *pgxpool.Pool
+// Registry : les étapes connues, indexées par nom.
+type Registry struct {
+	steps map[string]Step
+	order []string // ordre de déclaration, pour un tri stable à dépendances égales
+	pool  *pgxpool.Pool
 }
 
-// NouveauRegistre : pool sert à publier la topologie et l'historique
-// d'exécution dans core.pipeline_etape/pipeline_dependance (voir Publier et
-// Executer) — jamais à lire quoi que ce soit de la base pour décider de
-// l'ordre, qui reste entièrement déterminé par le code Go.
-func NouveauRegistre(pool *pgxpool.Pool) *Registre {
-	return &Registre{etapes: map[string]Etape{}, pool: pool}
+// NewRegistry : pool sert à publier la topologie et l'historique
+// d'exécution dans core.pipeline_etape/pipeline_dependance (voir Publish et
+// Run) — jamais à lire quoi que ce soit de la base pour décider de l'ordre,
+// qui reste entièrement déterminé par le code Go.
+func NewRegistry(pool *pgxpool.Pool) *Registry {
+	return &Registry{steps: map[string]Step{}, pool: pool}
 }
 
-// Ajouter enregistre une étape. Panique sur un nom en double ou une
-// dépendance vers une étape inconnue : ce sont des erreurs de programmation,
-// pas des cas à gérer à l'exécution.
-func (r *Registre) Ajouter(e Etape) {
-	if _, existe := r.etapes[e.Nom]; existe {
-		panic(fmt.Sprintf("pipeline : étape %q déclarée deux fois", e.Nom))
+// Add enregistre une étape. Panique sur un nom en double ou une dépendance
+// vers une étape inconnue : ce sont des erreurs de programmation, pas des
+// cas à gérer à l'exécution.
+func (r *Registry) Add(s Step) {
+	if _, exists := r.steps[s.Name]; exists {
+		panic(fmt.Sprintf("pipeline : étape %q déclarée deux fois", s.Name))
 	}
-	for _, d := range e.Dependances {
-		if _, ok := r.etapes[d]; !ok {
-			panic(fmt.Sprintf("pipeline : étape %q dépend de %q, non déclarée avant elle", e.Nom, d))
+	for _, d := range s.Dependencies {
+		if _, ok := r.steps[d]; !ok {
+			panic(fmt.Sprintf("pipeline : étape %q dépend de %q, non déclarée avant elle", s.Name, d))
 		}
 	}
-	r.etapes[e.Nom] = e
-	r.ordre = append(r.ordre, e.Nom)
+	r.steps[s.Name] = s
+	r.order = append(r.order, s.Name)
 }
 
-// Noms : tous les noms d'étapes connus, dans l'ordre de déclaration — pour
+// Names : tous les noms d'étapes connus, dans l'ordre de déclaration — pour
 // lister les valeurs valides d'un drapeau -only sans les recopier à la main,
 // ou générer une sous-commande par étape (voir cmd/fpctl).
-func (r *Registre) Noms() []string {
-	out := make([]string, len(r.ordre))
-	copy(out, r.ordre)
+func (r *Registry) Names() []string {
+	out := make([]string, len(r.order))
+	copy(out, r.order)
 	return out
 }
 
-// Etape renvoie la déclaration d'une étape par son nom (description,
+// Step renvoie la déclaration d'une étape par son nom (description,
 // dépendances) — pour fpctl list deps et la génération des sous-commandes.
-func (r *Registre) Etape(nom string) (Etape, bool) {
-	e, ok := r.etapes[nom]
-	return e, ok
+func (r *Registry) Step(name string) (Step, bool) {
+	s, ok := r.steps[name]
+	return s, ok
 }
 
-// fermeture calcule, par DFS, l'ensemble des étapes nécessaires aux cibles
+// closure calcule, par DFS, l'ensemble des étapes nécessaires aux cibles
 // demandées (elles-mêmes comprises) — détecte aussi les cycles et les noms
 // inconnus, avant tout calcul de niveaux.
-func (r *Registre) fermeture(cibles []string) (map[string]bool, error) {
-	besoin := map[string]bool{}
-	visite := map[string]int{} // 0 = jamais vu, 1 = en cours (cycle), 2 = fait
-	var visiter func(nom string, chemin []string) error
-	visiter = func(nom string, chemin []string) error {
-		switch visite[nom] {
+func (r *Registry) closure(targets []string) (map[string]bool, error) {
+	needed := map[string]bool{}
+	visited := map[string]int{} // 0 = jamais vu, 1 = en cours (cycle), 2 = fait
+	var visit func(name string, path []string) error
+	visit = func(name string, path []string) error {
+		switch visited[name] {
 		case 2:
 			return nil
 		case 1:
-			return fmt.Errorf("dépendance cyclique : %v -> %s", chemin, nom)
+			return fmt.Errorf("dépendance cyclique : %v -> %s", path, name)
 		}
-		e, ok := r.etapes[nom]
+		s, ok := r.steps[name]
 		if !ok {
-			return fmt.Errorf("étape inconnue : %s", nom)
+			return fmt.Errorf("étape inconnue : %s", name)
 		}
-		visite[nom] = 1
-		for _, d := range e.Dependances {
-			if err := visiter(d, append(chemin, nom)); err != nil {
+		visited[name] = 1
+		for _, d := range s.Dependencies {
+			if err := visit(d, append(path, name)); err != nil {
 				return err
 			}
 		}
-		visite[nom] = 2
-		besoin[nom] = true
+		visited[name] = 2
+		needed[name] = true
 		return nil
 	}
-	for _, c := range cibles {
-		if err := visiter(c, nil); err != nil {
+	for _, t := range targets {
+		if err := visit(t, nil); err != nil {
 			return nil, err
 		}
 	}
-	return besoin, nil
+	return needed, nil
 }
 
-// Niveaux regroupe les étapes nécessaires aux cibles demandées en VAGUES :
+// Levels regroupe les étapes nécessaires aux cibles demandées en VAGUES :
 // chaque vague ne dépend que des vagues précédentes, donc les étapes d'une
 // même vague sont indépendantes entre elles et peuvent s'exécuter en
-// parallèle (voir Executer, Concurrence). L'ordre des étapes DANS une vague
-// suit l'ordre de déclaration, pour un plan reproductible d'un lancement à
+// parallèle (voir Run, Concurrency). L'ordre des étapes DANS une vague suit
+// l'ordre de déclaration, pour un plan reproductible d'un lancement à
 // l'autre.
-func (r *Registre) Niveaux(cibles []string) ([][]string, error) {
-	besoin, err := r.fermeture(cibles)
+func (r *Registry) Levels(targets []string) ([][]string, error) {
+	needed, err := r.closure(targets)
 	if err != nil {
 		return nil, err
 	}
-	fait := map[string]bool{}
-	var niveaux [][]string
-	for len(fait) < len(besoin) {
-		var vague []string
-		for _, nom := range r.ordre { // ordre de déclaration : un plan stable
-			if !besoin[nom] || fait[nom] {
+	done := map[string]bool{}
+	var levels [][]string
+	for len(done) < len(needed) {
+		var wave []string
+		for _, name := range r.order { // ordre de déclaration : un plan stable
+			if !needed[name] || done[name] {
 				continue
 			}
-			pret := true
-			for _, d := range r.etapes[nom].Dependances {
-				if besoin[d] && !fait[d] {
-					pret = false
+			ready := true
+			for _, d := range r.steps[name].Dependencies {
+				if needed[d] && !done[d] {
+					ready = false
 					break
 				}
 			}
-			if pret {
-				vague = append(vague, nom)
+			if ready {
+				wave = append(wave, name)
 			}
 		}
-		if len(vague) == 0 {
+		if len(wave) == 0 {
 			// La fermeture a déjà écarté les cycles ; ne devrait jamais arriver.
 			return nil, fmt.Errorf("pipeline : aucune étape prête alors qu'il en reste — incohérence interne")
 		}
-		for _, nom := range vague {
-			fait[nom] = true
+		for _, name := range wave {
+			done[name] = true
 		}
-		niveaux = append(niveaux, vague)
+		levels = append(levels, wave)
 	}
-	return niveaux, nil
+	return levels, nil
 }
 
-// Options d'exécution. Concurrence <= 1 : séquentiel (comportement par
+// Options d'exécution. Concurrency <= 1 : séquentiel (comportement par
 // défaut, celui qu'avait ce paquet avant) — le parallélisme est une
 // optimisation qu'on choisit, jamais une surprise sur un pipeline qui
 // partage un pool de connexions et des points d'accès externes rate-limités.
 type Options struct {
 	DryRun      bool
-	Concurrence int
+	Concurrency int
 }
 
-// Executer résout les dépendances des cibles demandées et exécute chaque
-// étape nécessaire, une fois — les prérequis silencieusement oubliés
-// deviennent structurellement impossibles plutôt que découverts un par un,
-// en production, à la lecture d'un message d'erreur sans rapport avec ce qui
+// Run résout les dépendances des cibles demandées et exécute chaque étape
+// nécessaire, une fois — les prérequis silencieusement oubliés deviennent
+// structurellement impossibles plutôt que découverts un par un, en
+// production, à la lecture d'un message d'erreur sans rapport avec ce qui
 // manque réellement.
 //
-// Le répartiteur est continu, pas vague par vague (Niveaux reste utile pour
-// LIRE le plan — afficherPlan, fpctl ingest --dry-run — mais ne gouverne
-// plus l'exécution) : une étape part dès que SES PROPRES dépendances sont
+// Le répartiteur est continu, pas vague par vague (Levels reste utile pour
+// LIRE le plan — printPlan, fpctl ingest --dry-run — mais ne gouverne plus
+// l'exécution) : une étape part dès que SES PROPRES dépendances sont
 // faites, jamais en attendant que tout le reste de sa vague nominale ait
 // fini. Deux étapes réelles de ce dépôt le montrent : "media" ne dépend que
 // de "carto" (rapide), pas de "communes" (9+ minutes) — les deux tombaient
 // pourtant dans la même vague nominale que "communes", et media attendait
-// sa fin pour rien. Jusqu'à Concurrence étapes tournent de front, au total,
+// sa fin pour rien. Jusqu'à Concurrency étapes tournent de front, au total,
 // pas par vague ; dès qu'une échoue, aucune étape non encore lancée ne
 // démarre — ses dépendantes ne peuvent de toute façon jamais devenir prêtes
 // (voir plus bas, le compteur restant n'est décrémenté que sur succès), mais
@@ -224,88 +224,87 @@ type Options struct {
 // Le Results renvoyé porte ce que chaque étape exécutée a produit — vide
 // (valeurs nil) pour un registre dont les étapes n'agissent que par effet
 // de bord, comme l'ingest.
-func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Options) (Results, error) {
+func (r *Registry) Run(ctx context.Context, targets []string, opts ...Options) (Results, error) {
 	var opt Options
 	if len(opts) > 0 {
 		opt = opts[0]
 	}
-	niveaux, err := r.Niveaux(cibles)
+	levels, err := r.Levels(targets)
 	if err != nil {
 		return nil, err
 	}
 	if opt.DryRun {
-		r.afficherPlan(niveaux, opt.Concurrence)
+		r.printPlan(levels, opt.Concurrency)
 		return nil, nil
 	}
-	limite := opt.Concurrence
-	if limite < 1 {
-		limite = 1
+	limit := opt.Concurrency
+	if limit < 1 {
+		limit = 1
 	}
 
-	// besoin/priorite : la fermeture déjà calculée par Niveaux, aplatie —
-	// priorite rejoue l'ordre de déclaration pour départager deux étapes
+	// needed/priority : la fermeture déjà calculée par Levels, aplatie —
+	// priority rejoue l'ordre de déclaration pour départager deux étapes
 	// prêtes en même temps, un plan reproductible d'un lancement à l'autre
 	// (même but que l'ordre DANS une vague avant cette réécriture).
-	var ordreBesoin []string
-	priorite := map[string]int{}
-	for _, vague := range niveaux {
-		for _, nom := range vague {
-			priorite[nom] = len(ordreBesoin)
-			ordreBesoin = append(ordreBesoin, nom)
+	var neededOrder []string
+	priority := map[string]int{}
+	for _, wave := range levels {
+		for _, name := range wave {
+			priority[name] = len(neededOrder)
+			neededOrder = append(neededOrder, name)
 		}
 	}
 
-	// dependants/restants : le graphe inverse des Dependances, et pour
+	// dependents/remaining : le graphe inverse des Dependencies, et pour
 	// chaque étape le nombre de prérequis pas encore terminés — une étape
-	// rejoint pret dès que son restants tombe à zéro.
-	dependants := map[string][]string{}
-	restants := map[string]int{}
-	for _, nom := range ordreBesoin {
-		for _, d := range r.etapes[nom].Dependances {
-			if _, besoin := priorite[d]; besoin {
-				restants[nom]++
-				dependants[d] = append(dependants[d], nom)
+	// rejoint ready dès que son remaining tombe à zéro.
+	dependents := map[string][]string{}
+	remaining := map[string]int{}
+	for _, name := range neededOrder {
+		for _, d := range r.steps[name].Dependencies {
+			if _, needed := priority[d]; needed {
+				remaining[name]++
+				dependents[d] = append(dependents[d], name)
 			}
 		}
 	}
-	var pret []string
-	for _, nom := range ordreBesoin {
-		if restants[nom] == 0 {
-			pret = append(pret, nom)
+	var ready []string
+	for _, name := range neededOrder {
+		if remaining[name] == 0 {
+			ready = append(ready, name)
 		}
 	}
 
-	resultats := Results{}
-	durees := map[string]time.Duration{}
+	results := Results{}
+	durations := map[string]time.Duration{}
 	var mu sync.Mutex
-	debutTotal := time.Now()
+	startTotal := time.Now()
 
 	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(limite)
+	g.SetLimit(limit)
 
-	type arrivee struct {
-		nom string
-		err error
+	type arrival struct {
+		name string
+		err  error
 	}
 	// Bufferisé à la taille de la fermeture entière : un envoi n'attend
 	// jamais que le répartiteur soit disponible pour le lire, qu'il soit
-	// occupé à lancer d'autres étapes ou bloqué dans g.Go (voir lancer) —
+	// occupé à lancer d'autres étapes ou bloqué dans g.Go (voir launch) —
 	// seul le sémaphore interne de g borne le nombre de goroutines en vol.
-	arrivees := make(chan arrivee, len(ordreBesoin))
+	arrivals := make(chan arrival, len(neededOrder))
 
-	lancer := func(nom string) {
-		e := r.etapes[nom]
+	launch := func(name string) {
+		s := r.steps[name]
 		// Lu sous mu : contrairement à l'ancien découpage par vagues (où
 		// g.Wait() garantissait la vague précédente entièrement écrite
-		// avant que celle-ci ne lise resultats), une étape peut désormais
+		// avant que celle-ci ne lise results), une étape peut désormais
 		// démarrer pendant que d'autres, sans rapport, sont encore en
-		// cours d'écriture — la même carte résultats est donc lue ET
-		// écrite en concurrence, ce qui réclame le même mutex des deux
-		// côtés.
+		// cours d'écriture — la même carte results est donc lue ET écrite
+		// en concurrence, ce qui réclame le même mutex des deux côtés.
 		mu.Lock()
 		deps := Results{}
-		for _, d := range e.Dependances {
-			deps[d] = resultats[d]
+		for _, d := range s.Dependencies {
+			deps[d] = results[d]
 		}
 		mu.Unlock()
 		g.Go(func() error {
@@ -314,13 +313,13 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 			// sérialiser proprement des écritures concurrentes sur le même
 			// stderr (voir internal/logs/lock.go) — un mutex posé ici ferait
 			// la même chose en moins bien.
-			logs.Notice(e.Description)
-			debut := time.Now()
-			valeur, err := e.Executer(context.WithValue(gctx, stepNameKey{}, nom), deps)
-			duree := time.Since(debut)
+			logs.Notice(s.Description)
+			start := time.Now()
+			value, err := s.Run(context.WithValue(gctx, stepNameKey{}, name), deps)
+			duration := time.Since(start)
 			if err != nil {
-				err = fmt.Errorf("%s (après %s) : %w", nom, duree.Round(time.Millisecond), err)
-				arrivees <- arrivee{nom, err}
+				err = fmt.Errorf("%s (après %s) : %w", name, duration.Round(time.Millisecond), err)
+				arrivals <- arrival{name, err}
 				return err
 			}
 			// Le départ de chaque étape se lit déjà dans les logs (NOTICE
@@ -330,71 +329,71 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 			// dès que plusieurs étapes tournent de front (leurs lignes
 			// s'entrelacent). Les deux bornes dans le même paquet, jamais
 			// recalculées ailleurs.
-			logs.Notice(fmt.Sprintf("%s : terminé en %s", nom, duree.Round(time.Millisecond)))
+			logs.Notice(fmt.Sprintf("%s : terminé en %s", name, duration.Round(time.Millisecond)))
 			mu.Lock()
-			resultats[nom] = valeur
-			durees[nom] = duree
+			results[name] = value
+			durations[name] = duration
 			mu.Unlock()
 			if r.pool != nil {
 				if _, err := r.pool.Exec(gctx,
 					`UPDATE core.pipeline_etape SET derniere_execution_reussie = now() WHERE nom = $1`,
-					nom); err != nil {
-					err = fmt.Errorf("%s : journal d'exécution : %w", nom, err)
-					arrivees <- arrivee{nom, err}
+					name); err != nil {
+					err = fmt.Errorf("%s : journal d'exécution : %w", name, err)
+					arrivals <- arrival{name, err}
 					return err
 				}
 			}
-			arrivees <- arrivee{nom, nil}
+			arrivals <- arrival{name, nil}
 			return nil
 		})
 	}
 
-	// La boucle de répartition elle-même : enVol compte les étapes lancées
-	// dont l'arrivée n'est pas encore lue ici, et borne elle-même le
-	// nombre d'appels à g.Go (jamais au-delà de limite) — PAS g.Go/son
+	// La boucle de répartition elle-même : inFlight compte les étapes
+	// lancées dont l'arrivée n'est pas encore lue ici, et borne elle-même
+	// le nombre d'appels à g.Go (jamais au-delà de limit) — PAS g.Go/son
 	// sémaphore. Lui laisser bloquer reviendrait à pouvoir lancer une
-	// (limite+1)-ième étape avant d'avoir lu l'échec éventuel de l'une des
-	// limite déjà en vol (le sémaphore se libère dès qu'une goroutine
-	// revient, pas quand CE répartiteur a lu son arrivee) : un échec
+	// (limit+1)-ième étape avant d'avoir lu l'échec éventuel de l'une des
+	// limit déjà en vol (le sémaphore se libère dès qu'une goroutine
+	// revient, pas quand CE répartiteur a lu son arrival) : un échec
 	// pourrait alors laisser partir une étape qui n'aurait jamais dû
 	// démarrer. En ne faisant jamais patienter le répartiteur à
 	// l'intérieur de g.Go, chaque échec est vu avant toute nouvelle
 	// répartition.
-	arret := false
-	enVol := 0
+	stopped := false
+	inFlight := 0
 	for {
-		if !arret {
-			for len(pret) > 0 && enVol < limite {
+		if !stopped {
+			for len(ready) > 0 && inFlight < limit {
 				idx := 0
-				for i := 1; i < len(pret); i++ {
-					if priorite[pret[i]] < priorite[pret[idx]] {
+				for i := 1; i < len(ready); i++ {
+					if priority[ready[i]] < priority[ready[idx]] {
 						idx = i
 					}
 				}
-				nom := pret[idx]
-				pret = append(pret[:idx], pret[idx+1:]...)
-				lancer(nom)
-				enVol++
+				name := ready[idx]
+				ready = append(ready[:idx], ready[idx+1:]...)
+				launch(name)
+				inFlight++
 			}
 		}
-		if enVol == 0 {
+		if inFlight == 0 {
 			break
 		}
-		a := <-arrivees
-		enVol--
+		a := <-arrivals
+		inFlight--
 		if a.err != nil {
 			// Ni ses dépendantes (qui ne peuvent de toute façon jamais
-			// devenir prêtes : restants ne descend que sur succès) ni le
+			// devenir prêtes : remaining ne descend que sur succès) ni le
 			// reste du graphe non encore lancé ne démarrent — la même
 			// garantie qu'avant, au niveau du graphe entier plutôt que
 			// vague par vague.
-			arret = true
+			stopped = true
 			continue
 		}
-		for _, dep := range dependants[a.nom] {
-			restants[dep]--
-			if restants[dep] == 0 {
-				pret = append(pret, dep)
+		for _, dep := range dependents[a.name] {
+			remaining[dep]--
+			if remaining[dep] == 0 {
+				ready = append(ready, dep)
 			}
 		}
 	}
@@ -402,65 +401,65 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 	if err := g.Wait(); err != nil {
 		return nil, err
 	}
-	afficherDurees(durees, time.Since(debutTotal))
-	return resultats, nil
+	printDurations(durations, time.Since(startTotal))
+	return results, nil
 }
 
-// afficherDurees : un résumé trié par coût décroissant, pour répondre tout
+// printDurations : un résumé trié par coût décroissant, pour répondre tout
 // de suite à « qu'est-ce qui a pris du temps ? » sans recouper des lignes
-// NOTICE entrelacées à la main — surtout utile sous Concurrence > 1, où
+// NOTICE entrelacées à la main — surtout utile sous Concurrency > 1, où
 // l'ordre d'apparition dans les logs ne reflète plus l'ordre de déclaration
 // ni le coût réel. Les dix étapes les plus lentes suffisent : le but est de
 // repérer un goulot, pas de remplacer un vrai profil (pprof) si le besoin
 // allait plus loin que ça.
-func afficherDurees(durees map[string]time.Duration, totalMur time.Duration) {
-	if len(durees) == 0 {
+func printDurations(durations map[string]time.Duration, wallTotal time.Duration) {
+	if len(durations) == 0 {
 		return
 	}
-	type ligne struct {
-		nom   string
-		duree time.Duration
+	type row struct {
+		name     string
+		duration time.Duration
 	}
-	tri := make([]ligne, 0, len(durees))
-	var somme time.Duration
-	for nom, d := range durees {
-		tri = append(tri, ligne{nom, d})
-		somme += d
+	sorted := make([]row, 0, len(durations))
+	var sum time.Duration
+	for name, d := range durations {
+		sorted = append(sorted, row{name, d})
+		sum += d
 	}
-	sort.Slice(tri, func(i, j int) bool { return tri[i].duree > tri[j].duree })
-	n := len(tri)
+	sort.Slice(sorted, func(i, j int) bool { return sorted[i].duration > sorted[j].duration })
+	n := len(sorted)
 	if n > 10 {
 		n = 10
 	}
 	logs.Notice(fmt.Sprintf("étapes les plus coûteuses (somme des étapes : %s, mur : %s, %d étapes) :",
-		somme.Round(time.Second), totalMur.Round(time.Second), len(tri)))
-	for _, l := range tri[:n] {
-		logs.Notice(fmt.Sprintf("  %s : %s", l.nom, l.duree.Round(time.Millisecond)))
+		sum.Round(time.Second), wallTotal.Round(time.Second), len(sorted)))
+	for _, l := range sorted[:n] {
+		logs.Notice(fmt.Sprintf("  %s : %s", l.name, l.duration.Round(time.Millisecond)))
 	}
 }
 
-func (r *Registre) afficherPlan(niveaux [][]string, concurrence int) {
+func (r *Registry) printPlan(levels [][]string, concurrency int) {
 	fmt.Println("simulation (rien n'est exécuté) :")
-	for i, vague := range niveaux {
+	for i, wave := range levels {
 		var desc []string
-		for _, nom := range vague {
-			desc = append(desc, nom)
+		for _, name := range wave {
+			desc = append(desc, name)
 		}
-		parallele := ""
-		if concurrence > 1 && len(vague) > 1 {
-			parallele = fmt.Sprintf(" (jusqu'à %d en parallèle)", min(concurrence, len(vague)))
+		parallel := ""
+		if concurrency > 1 && len(wave) > 1 {
+			parallel = fmt.Sprintf(" (jusqu'à %d en parallèle)", min(concurrency, len(wave)))
 		}
-		fmt.Printf("  %d. %s%s\n", i+1, strings.Join(desc, ", "), parallele)
+		fmt.Printf("  %d. %s%s\n", i+1, strings.Join(desc, ", "), parallel)
 	}
 }
 
-// Publier réécrit la topologie déclarée dans core.pipeline_etape et
+// Publish réécrit la topologie déclarée dans core.pipeline_etape et
 // core.pipeline_dependance — un reflet, jamais la source de vérité, qui
 // reste le code Go. Une étape retirée du registre (donc absente de cet
 // appel) disparaît de la base par la même occasion : ON DELETE CASCADE
 // emporte ses dépendances avec elle. derniere_execution_reussie n'est
-// jamais touchée ici, seulement par Executer.
-func (r *Registre) Publier(ctx context.Context) error {
+// jamais touchée ici, seulement par Run.
+func (r *Registry) Publish(ctx context.Context) error {
 	if r.pool == nil {
 		return nil
 	}
@@ -470,30 +469,30 @@ func (r *Registre) Publier(ctx context.Context) error {
 	}
 	defer tx.Rollback(ctx)
 
-	noms := r.Noms()
+	names := r.Names()
 	if _, err := tx.Exec(ctx,
-		`DELETE FROM core.pipeline_etape WHERE nom <> ALL($1::text[])`, noms); err != nil {
+		`DELETE FROM core.pipeline_etape WHERE nom <> ALL($1::text[])`, names); err != nil {
 		return fmt.Errorf("nettoyage des étapes disparues : %w", err)
 	}
-	for _, nom := range noms {
-		e := r.etapes[nom]
+	for _, name := range names {
+		s := r.steps[name]
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO core.pipeline_etape (nom, description) VALUES ($1, $2)
 			ON CONFLICT (nom) DO UPDATE SET description = excluded.description`,
-			nom, e.Description); err != nil {
-			return fmt.Errorf("%s : %w", nom, err)
+			name, s.Description); err != nil {
+			return fmt.Errorf("%s : %w", name, err)
 		}
 	}
 	if _, err := tx.Exec(ctx,
-		`DELETE FROM core.pipeline_dependance WHERE etape = ANY($1::text[])`, noms); err != nil {
+		`DELETE FROM core.pipeline_dependance WHERE etape = ANY($1::text[])`, names); err != nil {
 		return fmt.Errorf("nettoyage des dépendances : %w", err)
 	}
-	for _, nom := range noms {
-		for _, dep := range r.etapes[nom].Dependances {
+	for _, name := range names {
+		for _, dep := range r.steps[name].Dependencies {
 			if _, err := tx.Exec(ctx,
 				`INSERT INTO core.pipeline_dependance (etape, depend_de) VALUES ($1, $2)`,
-				nom, dep); err != nil {
-				return fmt.Errorf("%s -> %s : %w", nom, dep, err)
+				name, dep); err != nil {
+				return fmt.Errorf("%s -> %s : %w", name, dep, err)
 			}
 		}
 	}

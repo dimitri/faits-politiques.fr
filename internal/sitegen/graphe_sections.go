@@ -54,12 +54,12 @@ func rienAPublier(v any) bool {
 // chargeur renvoyait nil était quand même écrite — le gabarit plantait
 // alors lui-même sur un pointeur nil ou un index hors bornes, une erreur
 // moins claire et plus tardive que de sauter la page ici.
-func addPageNode[T any](reg *pipeline.Registre, e *environment, nom string, deps []string, titre, gabarit string,
+func addPageNode[T any](reg *pipeline.Registry, e *environment, nom string, deps []string, titre, gabarit string,
 	charger func(ctx context.Context, d pipeline.Results) (T, error),
 	donnees func(l Layout, v T) (string, any)) {
-	reg.Ajouter(pipeline.Etape{
-		Nom: nom, Description: "page " + nom, Dependances: deps,
-		Executer: func(ctx context.Context, d pipeline.Results) (any, error) {
+	reg.Add(pipeline.Step{
+		Name: nom, Description: "page " + nom, Dependencies: deps,
+		Run: func(ctx context.Context, d pipeline.Results) (any, error) {
 			v, err := charger(ctx, d)
 			if err != nil {
 				return nil, err
@@ -1145,7 +1145,7 @@ func Topics() []string {
 	return out
 }
 
-// ResolveTargets translates the requested section names into Registre.Executer
+// ResolveTargets translates the requested section names into Registry.Run
 // targets: nil/empty means everything (every node in sectionNodes, once each),
 // a name not in sectionNodes is assumed to be an individual sujet ID (fpctl
 // build topic <id>) and falls back to "comprendre", the node that dispatches

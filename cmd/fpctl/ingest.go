@@ -68,7 +68,7 @@ func commandeIngest() *cobra.Command {
 	cmd.PersistentFlags().BoolVar(&force, "force", false,
 		"ignore tous les watermarks (internal/watermark, internal/an/watermark.go) : "+
 			"reconstruit comme si rien n'avait jamais tourné")
-	opts := func() pipeline.Options { return pipeline.Options{DryRun: dryRun, Concurrence: concurrence} }
+	opts := func() pipeline.Options { return pipeline.Options{DryRun: dryRun, Concurrency: concurrence} }
 	// ctxForce applique --force à cmd.Context(), jamais l'inverse : un appel
 	// qui l'oublierait garderait le comportement normal (les watermarks
 	// jouent), plutôt que de forcer par défaut sans qu'on l'ait demandé.

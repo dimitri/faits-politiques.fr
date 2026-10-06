@@ -80,7 +80,7 @@ func commandeList() *cobra.Command {
 			Short: "Sections et sujets que fpctl build sait reconstruire un par un",
 			Long: "internal/sitegen construit désormais chaque section (et chaque sujet\n" +
 				"de campagne) comme un nœud nommé d'un graphe de dépendances\n" +
-				"(internal/pipeline.Registre, voir internal/sitegen/graphe.go) : « fpctl\n" +
+				"(internal/pipeline.Registry, voir internal/sitegen/graphe.go) : « fpctl\n" +
 				"build section <nom> » ou « fpctl build topic <id> » ne charge plus\n" +
 				"que la fermeture transitive de ce nœud, jamais la totalité du site.\n" +
 				"Cette commande liste les deux catalogues (sitegen.Sections(),\n" +
@@ -453,14 +453,14 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 		// Seule la dernière exécution vient de la base ; la structure
 		// (Description, DependDe) reste celle du code, au cas où le reflet
 		// publié daterait d'une version antérieure du catalogue.
-		etapes, err := pipeline.LireTopologie(ctx, pool)
+		etapes, err := pipeline.ReadTopology(ctx, pool)
 		if err != nil {
 			return err
 		}
 		for _, e := range etapes {
-			if n, ok := noeuds[e.Nom]; ok {
-				n.DerniereExecutionReussie = e.DerniereExecutionReussie
-				noeuds[e.Nom] = n
+			if n, ok := noeuds[e.Name]; ok {
+				n.DerniereExecutionReussie = e.LastSuccessfulRun
+				noeuds[e.Name] = n
 			}
 		}
 		// tablesParNoeud reste nil (pas une erreur fatale pour cette

@@ -106,7 +106,7 @@ var Catalogue = []Definition{
 	WHERE rang <= 100`,
 	},
 	// Les six matvues de loadTerritoires (internal/sitegen/territoires.go).
-	// dept_population D'ABORD dans ce fichier : Registre.Ajouter (registre,
+	// dept_population D'ABORD dans ce fichier : Registry.Add (registre,
 	// plus bas) panique si une matvue est déclarée avant celle qu'elle cite
 	// dans Tables — les quatre suivantes la lisent par SELECT (une matvue
 	// construite sur une autre, voir la migration 0157), donc leur place ici
@@ -735,7 +735,7 @@ func dependancesReellesMV(ctx context.Context, pool *pgxpool.Pool) (map[string][
 // des AUTRES matvues (directes ou transitives) dont son SELECT dépend —
 // calculé en une requête WITH RECURSIVE sur pg_depend/pg_rewrite (le
 // parcours de dependancesReellesMV, poursuivi de proche en proche) plutôt
-// qu'en re-empilant les niveaux que pipeline.Registre.Niveaux calcule déjà
+// qu'en re-empilant les niveaux que pipeline.Registry.Levels calcule déjà
 // pour l'ORDONNANCEMENT : celle-ci répond à une question différente —
 // « qu'est-ce qui deviendrait périmé, en cascade, si cette matvue-source
 // changeait ? » — utile pour l'afficher (fpctl list matviews), pas pour
@@ -783,33 +783,33 @@ func FermetureDependances(ctx context.Context, pool *pgxpool.Pool) (map[string][
 	return out, rows.Err()
 }
 
-// registre construit le pipeline.Registre du Catalogue pour pool : chaque
-// Definition devient une Etape dont les Dependances sont lues directement
+// registre construit le pipeline.Registry du Catalogue pour pool : chaque
+// Definition devient une Step dont les Dependencies sont lues directement
 // dans Tables — toute entrée qui commence par "mv." y nomme une AUTRE
 // matvue du Catalogue (jamais une TableDirecte, qui ne vit pas dans ce
-// schéma), donc c'est exactement le nom qu'attend Registre.Ajouter.
+// schéma), donc c'est exactement le nom qu'attend Registry.Add.
 // Catalogue reste déclaré dépendance-d'abord (dept_population avant ce qui
-// la lit, person_actif avant ce qui le lit) : Ajouter panique sinon, donc
+// la lit, person_actif avant ce qui le lit) : Add panique sinon, donc
 // cette construction est elle-même une vérification que l'ordre du fichier
 // reste correct.
 //
 // Avant de construire le graphe, on le confronte à dependancesReellesMV :
 // toute dépendance mv-sur-mv que Postgres connaît (pg_depend) et que Tables
-// aurait oubliée panique ici, avec le même esprit que le panic d'Ajouter —
+// aurait oubliée panique ici, avec le même esprit que le panic d'Add —
 // mieux vaut un échec net au démarrage qu'une matvue lue avant d'être à
 // jour, en silence, une fois de plus de front que 4 en train de tourner.
 //
-// pool volontairement absent de pipeline.NouveauRegistre : le journal
-// core.pipeline_etape que pipeline.Registre.Executer tient à jour reste
-// réservé à l'ingest (internal/ingest), jamais à ce registre-ci — un
-// Registre sans pool saute cette écriture (voir pipeline.go, Executer).
-func registre(ctx context.Context, pool *pgxpool.Pool) (*pipeline.Registre, error) {
+// pool volontairement absent de pipeline.NewRegistry : le journal
+// core.pipeline_etape que pipeline.Registry.Run tient à jour reste réservé
+// à l'ingest (internal/ingest), jamais à ce registre-ci — un Registry sans
+// pool saute cette écriture (voir pipeline.go, Run).
+func registre(ctx context.Context, pool *pgxpool.Pool) (*pipeline.Registry, error) {
 	reel, err := dependancesReellesMV(ctx, pool)
 	if err != nil {
 		return nil, err
 	}
 
-	reg := pipeline.NouveauRegistre(nil)
+	reg := pipeline.NewRegistry(nil)
 	for _, def := range Catalogue {
 		def := def
 		var dependances []string
@@ -828,11 +828,11 @@ func registre(ctx context.Context, pool *pgxpool.Pool) (*pipeline.Registre, erro
 					def.Nom, vraie)
 			}
 		}
-		reg.Ajouter(pipeline.Etape{
-			Nom:         def.Nom,
-			Description: "checking " + def.QualifieNom(),
-			Dependances: dependances,
-			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+		reg.Add(pipeline.Step{
+			Name:         def.Nom,
+			Description:  "checking " + def.QualifieNom(),
+			Dependencies: dependances,
+			Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				rafraichie, err := Actualiser(ctx, pool, def)
 				if err != nil {
 					return nil, fmt.Errorf("mv.%s : %w", def.Nom, err)
@@ -879,7 +879,7 @@ func ActualiserToutesConcurrence(ctx context.Context, pool *pgxpool.Pool, concur
 	if err != nil {
 		return err
 	}
-	_, err = reg.Executer(ctx, reg.Noms(), pipeline.Options{Concurrence: concurrence})
+	_, err = reg.Run(ctx, reg.Names(), pipeline.Options{Concurrency: concurrence})
 	return err
 }
 

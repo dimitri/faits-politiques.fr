@@ -11,12 +11,12 @@ import (
 
 // étape minimale : exécute f, renvoie nom pour que les dépendantes puissent
 // le lire dans Results si besoin.
-func ajouterEtape(reg *Registre, nom string, deps []string, f func(ctx context.Context, d Results) (any, error)) {
-	reg.Ajouter(Etape{Nom: nom, Description: nom, Dependances: deps, Executer: f})
+func addStep(reg *Registry, nom string, deps []string, f func(ctx context.Context, d Results) (any, error)) {
+	reg.Add(Step{Name: nom, Description: nom, Dependencies: deps, Run: f})
 }
 
-func TestExecuterRespecteDependances(t *testing.T) {
-	reg := NouveauRegistre(nil)
+func TestRunRespectsDependencies(t *testing.T) {
+	reg := NewRegistry(nil)
 	var ordre []string
 	var mu sync.Mutex
 	noter := func(nom string) func(ctx context.Context, d Results) (any, error) {
@@ -27,13 +27,13 @@ func TestExecuterRespecteDependances(t *testing.T) {
 			return nom, nil
 		}
 	}
-	ajouterEtape(reg, "a", nil, noter("a"))
-	ajouterEtape(reg, "b", []string{"a"}, noter("b"))
-	ajouterEtape(reg, "c", []string{"b"}, noter("c"))
+	addStep(reg, "a", nil, noter("a"))
+	addStep(reg, "b", []string{"a"}, noter("b"))
+	addStep(reg, "c", []string{"b"}, noter("c"))
 
-	resultats, err := reg.Executer(context.Background(), reg.Noms(), Options{Concurrence: 4})
+	resultats, err := reg.Run(context.Background(), reg.Names(), Options{Concurrency: 4})
 	if err != nil {
-		t.Fatalf("Executer: %v", err)
+		t.Fatalf("Run: %v", err)
 	}
 	if got := []string{ordre[0], ordre[1], ordre[2]}; got[0] != "a" || got[1] != "b" || got[2] != "c" {
 		t.Fatalf("ordre attendu a,b,c ; obtenu %v", ordre)
@@ -43,18 +43,18 @@ func TestExecuterRespecteDependances(t *testing.T) {
 	}
 }
 
-// TestExecuterNePasAttendreVague reproduit le cas réel ayant motivé la
+// TestRunDoesNotWaitForWave reproduit le cas réel ayant motivé la
 // réécriture : "media" ne dépend que de "carto" (rapide), pas de "communes"
 // (lent), bien que les deux tombent dans la même vague nominale que
-// "communes" sous l'ancien découpage par Niveaux. Une étape dont la seule
+// "communes" sous l'ancien découpage par Levels. Une étape dont la seule
 // dépendance est déjà prête ne doit pas attendre qu'un autre membre de sa
 // vague nominale, sans rapport, ait fini.
-func TestExecuterNePasAttendreVague(t *testing.T) {
-	reg := NouveauRegistre(nil)
+func TestRunDoesNotWaitForWave(t *testing.T) {
+	reg := NewRegistry(nil)
 	var finCarto, finMedia, finCommunes time.Time
 	var mu sync.Mutex
 
-	ajouterEtape(reg, "carto", nil, func(ctx context.Context, d Results) (any, error) {
+	addStep(reg, "carto", nil, func(ctx context.Context, d Results) (any, error) {
 		time.Sleep(20 * time.Millisecond)
 		mu.Lock()
 		finCarto = time.Now()
@@ -63,7 +63,7 @@ func TestExecuterNePasAttendreVague(t *testing.T) {
 	})
 	// "communes" tombe dans la même vague nominale que carto (aucune
 	// dépendance), mais est délibérément lent.
-	ajouterEtape(reg, "communes", nil, func(ctx context.Context, d Results) (any, error) {
+	addStep(reg, "communes", nil, func(ctx context.Context, d Results) (any, error) {
 		time.Sleep(300 * time.Millisecond)
 		mu.Lock()
 		finCommunes = time.Now()
@@ -73,15 +73,15 @@ func TestExecuterNePasAttendreVague(t *testing.T) {
 	// "media" ne dépend que de carto : sous l'ancien découpage par vagues,
 	// elle tombait dans la vague SUIVANTE (celle de communes) et attendait
 	// sa fin pour rien.
-	ajouterEtape(reg, "media", []string{"carto"}, func(ctx context.Context, d Results) (any, error) {
+	addStep(reg, "media", []string{"carto"}, func(ctx context.Context, d Results) (any, error) {
 		mu.Lock()
 		finMedia = time.Now()
 		mu.Unlock()
 		return nil, nil
 	})
 
-	if _, err := reg.Executer(context.Background(), reg.Noms(), Options{Concurrence: 4}); err != nil {
-		t.Fatalf("Executer: %v", err)
+	if _, err := reg.Run(context.Background(), reg.Names(), Options{Concurrency: 4}); err != nil {
+		t.Fatalf("Run: %v", err)
 	}
 
 	if finMedia.After(finCommunes) {
@@ -94,12 +94,12 @@ func TestExecuterNePasAttendreVague(t *testing.T) {
 	}
 }
 
-func TestExecuterConcurrenceLimitee(t *testing.T) {
-	reg := NouveauRegistre(nil)
+func TestRunLimitsConcurrency(t *testing.T) {
+	reg := NewRegistry(nil)
 	var enCours int32
 	var maxVu int32
 	for i := 0; i < 12; i++ {
-		ajouterEtape(reg, string(rune('a'+i)), nil, func(ctx context.Context, d Results) (any, error) {
+		addStep(reg, string(rune('a'+i)), nil, func(ctx context.Context, d Results) (any, error) {
 			n := atomic.AddInt32(&enCours, 1)
 			for {
 				m := atomic.LoadInt32(&maxVu)
@@ -112,8 +112,8 @@ func TestExecuterConcurrenceLimitee(t *testing.T) {
 			return nil, nil
 		})
 	}
-	if _, err := reg.Executer(context.Background(), reg.Noms(), Options{Concurrence: 3}); err != nil {
-		t.Fatalf("Executer: %v", err)
+	if _, err := reg.Run(context.Background(), reg.Names(), Options{Concurrency: 3}); err != nil {
+		t.Fatalf("Run: %v", err)
 	}
 	if maxVu > 3 {
 		t.Fatalf("concurrence observée %d > limite 3", maxVu)
@@ -123,33 +123,33 @@ func TestExecuterConcurrenceLimitee(t *testing.T) {
 	}
 }
 
-// TestExecuterArreteSurErreur : une étape qui échoue ne doit jamais faire
+// TestRunStopsOnError : une étape qui échoue ne doit jamais faire
 // partir ses dépendantes (elles ne peuvent de toute façon pas devenir
 // prêtes), et ne doit pas non plus laisser partir une étape sans rapport,
 // pas encore lancée au moment de l'échec — la même garantie qu'avant,
 // « aucune vague suivante ne démarre », au niveau du graphe entier.
-func TestExecuterArreteSurErreur(t *testing.T) {
-	reg := NouveauRegistre(nil)
+func TestRunStopsOnError(t *testing.T) {
+	reg := NewRegistry(nil)
 	var aDemarre int32
 
 	echoue := errors.New("échec simulé")
-	ajouterEtape(reg, "rate", nil, func(ctx context.Context, d Results) (any, error) {
+	addStep(reg, "rate", nil, func(ctx context.Context, d Results) (any, error) {
 		return nil, echoue
 	})
-	ajouterEtape(reg, "depend-de-rate", []string{"rate"}, func(ctx context.Context, d Results) (any, error) {
+	addStep(reg, "depend-de-rate", []string{"rate"}, func(ctx context.Context, d Results) (any, error) {
 		atomic.AddInt32(&aDemarre, 1)
 		return nil, nil
 	})
-	// Sans rapport avec "rate", mais lancée avec Concurrence: 1 seulement
+	// Sans rapport avec "rate", mais lancée avec Concurrency: 1 seulement
 	// après elle dans l'ordre de déclaration : ne doit jamais démarrer.
-	ajouterEtape(reg, "sans-rapport", nil, func(ctx context.Context, d Results) (any, error) {
+	addStep(reg, "sans-rapport", nil, func(ctx context.Context, d Results) (any, error) {
 		atomic.AddInt32(&aDemarre, 1)
 		return nil, nil
 	})
 
-	_, err := reg.Executer(context.Background(), reg.Noms(), Options{Concurrence: 1})
+	_, err := reg.Run(context.Background(), reg.Names(), Options{Concurrency: 1})
 	if err == nil {
-		t.Fatal("Executer : attendu une erreur")
+		t.Fatal("Run : attendu une erreur")
 	}
 	if !errors.Is(err, echoue) {
 		t.Fatalf("erreur attendue enveloppant %v, obtenu %v", echoue, err)

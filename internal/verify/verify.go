@@ -44,7 +44,7 @@ type check struct {
 
 // init vérifie, une bonne fois pour toutes, que chaque check.sources cite un
 // nom qui existe vraiment dans le catalogue — même discipline que
-// pipeline.Registre.Ajouter pour les dépendances d'ingestion : une faute de
+// pipeline.Registry.Add pour les dépendances d'ingestion : une faute de
 // frappe ici ferait silencieusement « disparaître » un contrôle du scope par
 // défaut (il ne correspondrait à aucune source de ChaineParDefaut) plutôt que
 // d'échouer bruyamment au chargement.

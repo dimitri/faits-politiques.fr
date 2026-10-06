@@ -195,7 +195,7 @@ func buildSection(cmd *cobra.Command, name string, sections []string, args []str
 	remaining := args
 
 	// Le bandeau « simulation » et le plan par vagues viennent de
-	// pipeline.Registre.afficherPlan (appelé par RunSources ci-dessous) —
+	// pipeline.Registry.printPlan (appelé par RunSources ci-dessous) —
 	// pas d'en-tête à nous ici : en écrire un avant RunSources affichait
 	// la « réponse » AVANT le NOTICE migrations que RunSources émet en
 	// premier (stderr, narration), à l'envers de la règle du projet
@@ -242,7 +242,7 @@ func buildSection(cmd *cobra.Command, name string, sections []string, args []str
 	// c'est ce que la CI utilise pour construire depuis un dump déjà
 	// restauré (fpctl dump restore) sans repasser par l'ingestion complète.
 	if !cache {
-		opts := pipeline.Options{DryRun: dryRun, Concurrence: concurrence}
+		opts := pipeline.Options{DryRun: dryRun, Concurrency: concurrence}
 		if err := ingest.RunSources(ctx, "raw", "db/migrations", prerequisites, opts); err != nil {
 			return fmt.Errorf("préalables (%s) : %w", strings.Join(prerequisites, ", "), err)
 		}

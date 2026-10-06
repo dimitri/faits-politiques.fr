@@ -39,7 +39,7 @@ import (
 // sont déclarées et vérifiées (Source.Dependances) — le socle audité une
 // bonne fois pour toutes (voir internal/pipeline et le commentaire de
 // Source.Dependances), pas encore tout le catalogue. RunSource/RunCategorie
-// les résolvent et les exécutent via un pipeline.Registre (vagues
+// les résolvent et les exécutent via un pipeline.Registry (vagues
 // topologiques, concurrence, simulation) plutôt qu'un simple appel direct.
 var socleParlementaire = []string{"download", "partis", "normalize", "carto", "senat", "europe", "themes"}
 
@@ -99,7 +99,7 @@ var prefetchDependants = func() map[string]bool {
 	return m
 }()
 
-// registreParlement construit le pipeline.Registre du socle parlementaire à
+// registreParlement construit le pipeline.Registry du socle parlementaire à
 // partir du catalogue — une seule référence (catalogue.go) pour les deux :
 // la liste plate que "fpctl ingest parlement" affiche, et le graphe que ce
 // même socle exécute. Publie aussitôt la topologie en base
@@ -110,8 +110,8 @@ var prefetchDependants = func() map[string]bool {
 // lance une vraie goroutine réseau dès qu'on l'appelle, donc on ne l'appelle
 // simplement pas ici (pf reste nil, attendre() le traverse sans bloquer).
 func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string,
-	concurrence int, dryRun bool) (*pipeline.Registre, error) {
-	reg := pipeline.NouveauRegistre(pool)
+	concurrence int, dryRun bool) (*pipeline.Registry, error) {
+	reg := pipeline.NewRegistry(pool)
 	var pf *prefetchFuture
 	for _, nom := range socleParlementaire {
 		source, ok := SourceParNom(nom)
@@ -120,14 +120,14 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		}
 		// Copie propre à cette étape, pas le pointeur partagé : plusieurs
 		// étapes du socle tournent de front dans une même vague
-		// (internal/pipeline, Concurrence) — muter arch.Etape sur l'original
+		// (internal/pipeline, Concurrency) — muter arch.Etape sur l'original
 		// serait une course. Root/Pool restent partagés (immuables après
 		// construction), seul Etape diffère par copie.
 		archEtape := *arch
 		archEtape.Etape = source.Nom
-		reg.Ajouter(pipeline.Etape{
-			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
-			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+		reg.Add(pipeline.Step{
+			Name: source.Nom, Description: source.Description, Dependencies: source.Dependances,
+			Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				if prefetchDependants[source.Nom] {
 					var err error
 					if ctx, err = pf.attendre(ctx); err != nil {
@@ -138,33 +138,33 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 			},
 		})
 	}
-	// Déclenché seulement une fois la fermeture connue (reg.Noms(), juste
+	// Déclenché seulement une fois la fermeture connue (reg.Names(), juste
 	// au-dessus) : ne bloque jamais la construction, seules les étapes qui
 	// en dépendent (via pf.attendre, ci-dessus) patienteront si besoin.
 	if !dryRun {
-		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
+		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Names()), concurrence)
 	}
-	if err := reg.Publier(ctx); err != nil {
+	if err := reg.Publish(ctx); err != nil {
 		return nil, fmt.Errorf("publication de la topologie : %w", err)
 	}
 	return reg, nil
 }
 
-// registreDe construit un pipeline.Registre pour N'IMPORTE QUEL
+// registreDe construit un pipeline.Registry pour N'IMPORTE QUEL
 // sous-ensemble du catalogue, pas seulement le socle — même mécanique que
 // registreParlement (une copie d'Archive par étape, jamais le pointeur
 // partagé, même futur de prérécupération non bloquant), généralisée. La
 // quasi-totalité des sources hors socle n'ont aucune dépendance déclarée
 // entre elles (Source.Dependances vide) : partagées dans une seule vague,
-// elles tournent alors TOUTES de front jusqu'à Concurrence, là où
+// elles tournent alors TOUTES de front jusqu'à Concurrency, là où
 // RunCategorie les exécutait jusqu'ici une par une dans l'ordre du
-// catalogue. Ne publie PAS en base : Publier réécrit core.pipeline_etape
+// catalogue. Ne publie PAS en base : Publish réécrit core.pipeline_etape
 // pour l'ensemble exact qu'on lui donne — le faire depuis un sous-ensemble
 // effacerait le socle. Publier reste réservé à registreParlement, la seule
 // vue complète et auditée du graphe.
 func registreDe(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms []string,
-	concurrence int, dryRun bool) (*pipeline.Registre, error) {
-	reg := pipeline.NouveauRegistre(pool)
+	concurrence int, dryRun bool) (*pipeline.Registry, error) {
+	reg := pipeline.NewRegistry(pool)
 	vus := map[string]bool{}
 	var pf *prefetchFuture
 	var ajouter func(nom string) error
@@ -177,7 +177,7 @@ func registreDe(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 		if !ok {
 			return fmt.Errorf("source inconnue : %s (voir « fpctl ingest » pour la liste)", nom)
 		}
-		// Les dépendances d'abord : Registre.Ajouter panique si l'une
+		// Les dépendances d'abord : Registry.Add panique si l'une
 		// d'elles n'est pas déjà connue au moment où on ajoute nom.
 		for _, d := range source.Dependances {
 			if err := ajouter(d); err != nil {
@@ -186,9 +186,9 @@ func registreDe(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 		}
 		archEtape := *arch
 		archEtape.Etape = source.Nom
-		reg.Ajouter(pipeline.Etape{
-			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
-			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+		reg.Add(pipeline.Step{
+			Name: source.Nom, Description: source.Description, Dependencies: source.Dependances,
+			Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				if prefetchDependants[source.Nom] {
 					var err error
 					if ctx, err = pf.attendre(ctx); err != nil {
@@ -206,7 +206,7 @@ func registreDe(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 		}
 	}
 	if !dryRun {
-		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
+		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Names()), concurrence)
 	}
 	return reg, nil
 }
@@ -229,7 +229,7 @@ func actualiserMatviews(ctx context.Context) error {
 }
 
 // RunSources exécute plusieurs sources du catalogue à la fois — vagues
-// topologiques, jusqu'à opts[0].Concurrence de front par vague, exactement
+// topologiques, jusqu'à opts[0].Concurrency de front par vague, exactement
 // comme RunCategorie pour le socle qu'elle contient, généralisé à
 // n'importe quelle liste : les préalables d'une section de fpctl build,
 // par exemple (voir cmd/fpctl/build.go, ingestPrealables), au lieu de les
@@ -255,15 +255,15 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 	// ni les étapes qui n'en dépendent pas.
 	dryRun := len(opts) > 0 && opts[0].DryRun
 	concurrence := 1
-	if len(opts) > 0 && opts[0].Concurrence > 0 {
-		concurrence = opts[0].Concurrence
+	if len(opts) > 0 && opts[0].Concurrency > 0 {
+		concurrence = opts[0].Concurrency
 	}
 	reg, err := registreDe(ctx, pool, arch, rawDir, noms, concurrence, dryRun)
 	if err != nil {
 		return err
 	}
 
-	if _, err := reg.Executer(ctx, noms, opts...); err != nil {
+	if _, err := reg.Run(ctx, noms, opts...); err != nil {
 		return err
 	}
 	if dryRun {
@@ -326,8 +326,8 @@ func downloadTargetsFor(noms []string) []archive.DownloadTarget {
 // exactement le défaut qu'actualiserMatviews (plus bas) corrige déjà pour
 // son propre pool, jamais recopié ici jusqu'à présent.
 func concurrenceDuPool(opts []pipeline.Options) int32 {
-	if len(opts) > 0 && int32(opts[0].Concurrence) > 4 {
-		return int32(opts[0].Concurrence)
+	if len(opts) > 0 && int32(opts[0].Concurrency) > 4 {
+		return int32(opts[0].Concurrency)
 	}
 	return 4
 }
@@ -382,8 +382,8 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 	defer fermer()
 	dryRun := len(opts) > 0 && opts[0].DryRun
 	concurrence := 1
-	if len(opts) > 0 && opts[0].Concurrence > 0 {
-		concurrence = opts[0].Concurrence
+	if len(opts) > 0 && opts[0].Concurrency > 0 {
+		concurrence = opts[0].Concurrency
 	}
 	if EstSurLeSocle(nom) {
 		// registreParlement construit tout le socle, pas seulement nom : la
@@ -395,7 +395,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		if err != nil {
 			return err
 		}
-		if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
+		if _, err := reg.Run(ctx, []string{nom}, opts...); err != nil {
 			return err
 		}
 		if dryRun {
@@ -407,7 +407,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 	if err != nil {
 		return err
 	}
-	if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
+	if _, err := reg.Run(ctx, []string{nom}, opts...); err != nil {
 		return err
 	}
 	if dryRun {
@@ -436,7 +436,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 // catégorie suit, TOUT ENSEMBLE, par registreDe : la quasi-totalité de ces
 // sources n'ont aucune dépendance déclarée entre elles (Source.Dependances
 // vide), donc partagent une seule vague et tournent de front jusqu'à
-// opts[0].Concurrence, plutôt que l'ancienne boucle séquentielle qui les
+// opts[0].Concurrency, plutôt que l'ancienne boucle séquentielle qui les
 // ingérait une par une dans l'ordre du catalogue sans jamais en profiter.
 func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ...pipeline.Options) error {
 	sources := SourcesDeCategorie(categorie)
@@ -461,20 +461,20 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 
 	dryRun := len(opts) > 0 && opts[0].DryRun
 	concurrence := 1
-	if len(opts) > 0 && opts[0].Concurrence > 0 {
-		concurrence = opts[0].Concurrence
+	if len(opts) > 0 && opts[0].Concurrency > 0 {
+		concurrence = opts[0].Concurrency
 	}
 	// Construire les DEUX registres d'abord, avant d'exécuter l'un ou
 	// l'autre : chacun démarre sa PROPRE récupération de front dès qu'il
 	// connaît sa fermeture (registreParlement/registreDe, demarrerPrefetch),
-	// et les deux futurs doivent partir avant que reg.Executer(socle) ne
+	// et les deux futurs doivent partir avant que reg.Run(socle) ne
 	// bloque plus bas — sinon la récupération de reste n'aurait démarré
 	// qu'une fois tout le socle déjà exécuté. Leurs cibles ne se recoupent
 	// jamais (le socle ne télécharge rien que reste télécharge aussi), donc
 	// deux futurs non bloquants lancés de front reviennent au même résultat
 	// qu'un seul PrefetchAll bloquant pour les deux combinés — sans la
 	// barrière commune devant les deux registres.
-	var regSocle, regReste *pipeline.Registre
+	var regSocle, regReste *pipeline.Registry
 	if len(socle) > 0 {
 		regSocle, err = registreParlement(ctx, pool, arch, rawDir, concurrence, dryRun)
 		if err != nil {
@@ -488,12 +488,12 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 		}
 	}
 	if regSocle != nil {
-		if _, err := regSocle.Executer(ctx, socle, opts...); err != nil {
+		if _, err := regSocle.Run(ctx, socle, opts...); err != nil {
 			return err
 		}
 	}
 	if regReste != nil {
-		if _, err := regReste.Executer(ctx, reste, opts...); err != nil {
+		if _, err := regReste.Run(ctx, reste, opts...); err != nil {
 			return err
 		}
 	}
@@ -564,7 +564,7 @@ var dependancesRunTout = map[string][]string{
 
 // runToutSupplement : les sources hors socle que RunTout a toujours
 // enchaînées, dans un ordre où la dépendance de chacune (dependancesRunTout,
-// plus haut) est déjà ajoutée avant elle — Registre.Ajouter panique sinon.
+// plus haut) est déjà ajoutée avant elle — Registry.Add panique sinon.
 // presidentielle, budget, macro, prefets, agriculture, entreprises et
 // campagne n'ont aucune dépendance ici : lecture exhaustive de chaque
 // paquet (aucune référence à core.person, core.mandate, ref.commune,
@@ -608,8 +608,8 @@ var runToutSupplement = []string{
 //     précis — jamais un fan-in partiel qui laisserait une section
 //     recalculée sur des données d'avant cette exécution.
 func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string,
-	concurrence int, dryRun bool) (*pipeline.Registre, error) {
-	reg := pipeline.NouveauRegistre(pool)
+	concurrence int, dryRun bool) (*pipeline.Registry, error) {
+	reg := pipeline.NewRegistry(pool)
 	var pf *prefetchFuture
 	ajouter := func(nom string, extraDeps []string) error {
 		source, ok := SourceParNom(nom)
@@ -619,9 +619,9 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		archEtape := *arch
 		archEtape.Etape = source.Nom
 		deps := append(append([]string{}, source.Dependances...), extraDeps...)
-		reg.Ajouter(pipeline.Etape{
-			Nom: source.Nom, Description: source.Description, Dependances: deps,
-			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+		reg.Add(pipeline.Step{
+			Name: source.Nom, Description: source.Description, Dependencies: deps,
+			Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				if prefetchDependants[source.Nom] {
 					var err error
 					if ctx, err = pf.attendre(ctx); err != nil {
@@ -650,18 +650,18 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	// elle-même). Dépend de communes-cog précisément, pas de l'alias
 	// "communes" ni du reste de la chaîne (RNE, OFGL...) qui ne concerne pas
 	// le COG.
-	reg.Ajouter(pipeline.Etape{
-		Nom: "geo-courant", Description: "IGN boundaries by vintage",
-		Dependances: []string{"communes-cog"},
-		Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+	reg.Add(pipeline.Step{
+		Name: "geo-courant", Description: "IGN boundaries by vintage",
+		Dependencies: []string{"communes-cog"},
+		Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
 			return nil, geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime)
 		},
 	})
-	if err := ajouter("checksums", reg.Noms()); err != nil {
+	if err := ajouter("checksums", reg.Names()); err != nil {
 		return nil, err
 	}
 	if !dryRun {
-		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
+		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Names()), concurrence)
 	}
 	return reg, nil
 }
@@ -693,15 +693,15 @@ func RunTout(ctx context.Context, rawDir, migDir string, opts ...pipeline.Option
 
 	dryRun := len(opts) > 0 && opts[0].DryRun
 	concurrence := 1
-	if len(opts) > 0 && opts[0].Concurrence > 0 {
-		concurrence = opts[0].Concurrence
+	if len(opts) > 0 && opts[0].Concurrency > 0 {
+		concurrence = opts[0].Concurrency
 	}
 	reg, err := registreComplet(ctx, pool, arch, rawDir, concurrence, dryRun)
 	if err != nil {
 		return err
 	}
 
-	if _, err := reg.Executer(ctx, reg.Noms(), opts...); err != nil {
+	if _, err := reg.Run(ctx, reg.Names(), opts...); err != nil {
 		return err
 	}
 	if dryRun {
@@ -790,7 +790,7 @@ func ingestSenat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 // des Source nommées à part entière (catalogue.go, préfixes "macro-" et
 // "socle-"), SANS Dependances entre elles — à la différence de la chaîne
 // communes-*, rien n'impose ici un ordre, donc elles tournent de front
-// jusqu'à Concurrence plutôt que l'une après l'autre : un vrai gain, pas
+// jusqu'à Concurrency plutôt que l'une après l'autre : un vrai gain, pas
 // seulement une chronométrie individuelle. Les alias "macro"/"socle"
 // regroupent chacun les leurs (Dependances sur la liste complète).
 
