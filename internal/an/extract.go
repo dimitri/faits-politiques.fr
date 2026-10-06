@@ -108,6 +108,14 @@ func DownloadTargets() []archive.DownloadTarget {
 			URL: Base + "/loi/scrutins/Scrutins.json.zip"},
 		{Nom: "an-dossiers", Source: Sources["an-dossiers"], Ext: ".zip",
 			URL: Base + "/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip"},
+		// Amendements.json.zip : 296 Mo observés en CI, de loin le plus gros
+		// fichier de ce paquet — et jusqu'ici le seul que Download ne
+		// récupérait PAS de front avec les autres : IngestAmendements
+		// (amendements.go) l'allait chercher lui-même, au moment précis où
+		// cette étape démarrait (derrière normalize et le reste de sa
+		// vague), jamais prérécupéré. Listé ici, il profite du même
+		// mécanisme que le reste de l'Assemblée.
+		{Nom: "an-amendements", Source: SourceAmendements, Ext: ".zip", URL: amendementsURL},
 	}
 }
 

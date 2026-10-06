@@ -376,9 +376,68 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return budget.Ingest(ctx, pool, arch)
 		}},
-	{Nom: "macro", Categorie: CategorieBudget, Description: "grandes séries nationales (RSA, prestations, fiscalité, chômage, retraite...) et comptes des grandes sociétés",
+	// macro-* : ingestMacro enchaînait ces 11 appels à la main, hors de tout
+	// Registre — aucun ne lit ce qu'un autre écrit (chacun sa propre table,
+	// ref.macro_serie pour macro-eurostat, une table core.* dédiée pour
+	// chacun des dix autres ; vérifié par lecture directe, aucune des dix
+	// autres ne touche ref.macro_serie ni les tables des autres), à la
+	// différence de la chaîne communes-* : ici rien n'impose l'ordre, donc
+	// aucune Dependances entre les onze — ils tournent de front jusqu'à
+	// Concurrence, un vrai gain plutôt qu'une simple commodité d'affichage.
+	// "macro" reste l'alias stable (Dependances sur le dernier listé
+	// seulement — comme "communes", aucun autre ordre n'a de sens ici
+	// puisqu'aucun des onze ne dépend d'un autre).
+	{Nom: "macro-eurostat", Categorie: CategorieBudget, Description: "grandes séries nationales (Eurostat) et comptes des grandes sociétés",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return ingestMacro(ctx, pool, arch)
+			return macro.Ingest(ctx, pool, arch)
+		}},
+	{Nom: "macro-rsa", Categorie: CategorieBudget, Description: "RSA : bénéficiaires et montants",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestRSA(ctx, pool, arch)
+		}},
+	{Nom: "macro-prestations-solidarite", Categorie: CategorieBudget, Description: "prestations de solidarité",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestPrestationsSolidarite(ctx, pool, arch)
+		}},
+	{Nom: "macro-recettes-fiscales", Categorie: CategorieBudget, Description: "recettes fiscales",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestRecettesFiscales(ctx, pool, arch)
+		}},
+	{Nom: "macro-chomage-insee", Categorie: CategorieBudget, Description: "chômage (INSEE)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestChomageINSEE(ctx, pool, arch)
+		}},
+	{Nom: "macro-minima-sociaux", Categorie: CategorieBudget, Description: "minima sociaux",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestMinimaSociaux(ctx, pool, arch)
+		}},
+	{Nom: "macro-age-retraite", Categorie: CategorieBudget, Description: "âge de départ à la retraite",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestAgeDepartRetraite(ctx, pool, arch)
+		}},
+	{Nom: "macro-demandeurs-emploi", Categorie: CategorieBudget, Description: "demandeurs d'emploi",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestDemandeursEmploi(ctx, pool, arch)
+		}},
+	{Nom: "macro-prime-activite", Categorie: CategorieBudget, Description: "prime d'activité",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestPrimeActivite(ctx, pool, arch)
+		}},
+	{Nom: "macro-taux-remplacement", Categorie: CategorieBudget, Description: "taux de remplacement à la retraite",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestTauxRemplacement(ctx, pool, arch)
+		}},
+	{Nom: "macro-cotisants-retraites", Categorie: CategorieBudget, Description: "cotisants aux régimes de retraite",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestCotisantsRetraites(ctx, pool, arch)
+		}},
+	{Nom: "macro", Categorie: CategorieBudget,
+		Description: "grandes séries nationales (RSA, prestations, fiscalité, chômage, retraite...) et comptes des grandes sociétés — alias regroupant macro-* ci-dessus",
+		Dependances: []string{"macro-eurostat", "macro-rsa", "macro-prestations-solidarite", "macro-recettes-fiscales",
+			"macro-chomage-insee", "macro-minima-sociaux", "macro-age-retraite", "macro-demandeurs-emploi",
+			"macro-prime-activite", "macro-taux-remplacement", "macro-cotisants-retraites"},
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return nil
 		}},
 	{Nom: "dette", Categorie: CategorieBudget, Description: "dette publique : encours, détenteurs, coût, comparaisons (WEBSTAT_API_KEY requis pour la détention)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
@@ -468,9 +527,47 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return macro.IngestIFICOM(ctx, pool, arch)
 		}},
-	{Nom: "socle", Categorie: CategorieSocial, Description: "socle universel : seuil, ménages, pensions, chômage, déciles (micro-simulation)",
+	// socle-* : même constat que macro-* ci-dessus (ingestSocle enchaînait
+	// ces 8 appels à la main, chacun sa propre table, aucune lecture
+	// croisée) — aucune Dependances entre eux, de front jusqu'à Concurrence.
+	{Nom: "socle-pauvrete", Categorie: CategorieSocial, Description: "seuils de pauvreté annuels",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return ingestSocle(ctx, pool, arch)
+			return macro.IngestPauvrete(ctx, pool, arch)
+		}},
+	{Nom: "socle-aide-alimentaire", Categorie: CategorieSocial, Description: "aide alimentaire",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestAideAlimentaire(ctx, pool, arch)
+		}},
+	{Nom: "socle-pauvrete-taux-eu", Categorie: CategorieSocial, Description: "taux de pauvreté, comparaison européenne",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestPauvreteTauxEU(ctx, pool, arch)
+		}},
+	{Nom: "socle-menages-drees", Categorie: CategorieSocial, Description: "types de ménages (DREES)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestMenagesDREES(ctx, pool, arch)
+		}},
+	{Nom: "socle-menages-effectif", Categorie: CategorieSocial, Description: "effectifs par type de ménage",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestMenagesEffectif(ctx, pool, arch)
+		}},
+	{Nom: "socle-pensions-eir", Categorie: CategorieSocial, Description: "pensions de retraite par tranche (EIR)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestPensionsEIR(ctx, pool, arch)
+		}},
+	{Nom: "socle-chomage-unedic", Categorie: CategorieSocial, Description: "chômage par tranche (Unedic)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestChomageUnedic(ctx, pool, arch)
+		}},
+	{Nom: "socle-filosofi-deciles", Categorie: CategorieSocial, Description: "déciles de revenu national (Filosofi)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return macro.IngestFilosofiDeciles(ctx, pool, arch)
+		}},
+	{Nom: "socle", Categorie: CategorieSocial,
+		Description: "socle universel : seuil, ménages, pensions, chômage, déciles (micro-simulation) — alias regroupant socle-* ci-dessus",
+		Dependances: []string{"socle-pauvrete", "socle-aide-alimentaire", "socle-pauvrete-taux-eu", "socle-menages-drees",
+			"socle-menages-effectif", "socle-pensions-eir", "socle-chomage-unedic", "socle-filosofi-deciles"},
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return nil
 		}},
 	{Nom: "immigration", Categorie: CategorieSocial, Description: "immigration et nationalité",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
