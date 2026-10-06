@@ -109,7 +109,13 @@ jobs:
     # démarre la même image que le développement local — voir
     # docker-compose.yml.
     env:
-      DATABASE_URL: postgres://fp:fp@localhost:55432/fp?sslmode=disable
+      # Port décalé (docker-compose.yml, FP_DB_PORT) : dev-runner fait déjà
+      # tourner un Postgres de développement sur 55432 (démon Docker par
+      # défaut, deux semaines d'uptime) — le même port hôte sur le démon
+      # docker-ci isolé de ce runner entrerait en collision dessus, constaté
+      # en pratique (« address already in use ») avant ce décalage.
+      FP_DB_PORT: "55433"
+      DATABASE_URL: postgres://fp:fp@localhost:55433/fp?sslmode=disable
 
     steps:
       - uses: actions/checkout@v4
