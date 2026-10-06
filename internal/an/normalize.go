@@ -234,6 +234,25 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 	// ses organisations par ce uid. La sélection séparée plus bas, sur
 	// organization_an déjà à jour, ne dépend d'aucun WHEN et couvre donc
 	// systématiquement tout tmp_organe.
+	// PAS de WHEN NOT MATCHED BY SOURCE THEN DELETE ici, à la différence de
+	// la quasi-totalité des autres MERGE de ce dépôt : une organisation de
+	// l'Assemblée (groupe, commission, délégation...) est référencée
+	// DURABLEMENT par des faits historiques qui ne disparaissent jamais eux-
+	// mêmes (core.amendement_attribution, core.ballot, core.affiliation,
+	// core.texte_author... une quinzaine de tables au total, voir les FK sur
+	// core.organization). Reproduit deux fois en CI, sur dev-runner où le
+	// conteneur Postgres de build-full persiste d'une exécution à l'autre
+	// (docker-compose.yml, volume fp_pgdata_debian) : une organisation
+	// absente du payload AN courant — pagination incomplète, export amont
+	// qui a glissé, etc. — mais déjà référencée par des lignes d'un run
+	// précédent faisait échouer le DELETE sur la contrainte de clé
+	// étrangère (« violates foreign key constraint
+	// amendement_attribution_organization_id_fkey »), qui abandonnait alors
+	// la transaction ENTIÈRE plutôt que de sauter la seule organisation
+	// concernée. Une organisation qui sort du payload reste donc en base
+	// avec son dernier état connu — exact tant qu'elle a existé, jamais une
+	// donnée fausse — plutôt que de risquer de casser l'ingestion pour
+	// protéger une suppression dont ce dépôt n'a jamais eu besoin.
 	if _, err := tx.Exec(ctx, `
 		MERGE INTO organization_an AS tgt
 		USING tmp_organe AS src
@@ -243,8 +262,7 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		WHEN NOT MATCHED BY TARGET THEN
 		    INSERT (slug, kind, name, short_name, validity, organ_type)
 		    VALUES (src.slug, src.kind::core.organization_kind, src.nom, src.abrege,
-		            daterange(src.debut::date, src.fin::date), src.organ_type)
-		WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
+		            daterange(src.debut::date, src.fin::date), src.organ_type)`); err != nil {
 		return nil, fmt.Errorf("organisations : %w", err)
 	}
 	// JOIN core.organization directement, PAS organization_an : cette vue
