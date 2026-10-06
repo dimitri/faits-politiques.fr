@@ -151,20 +151,26 @@ jobs:
           key: raw-${{ github.run_id }}
           restore-keys: raw-
 
-      # -j 8 : la quasi-totalité du catalogue (runToutSupplement) n'a aucune
-      # dépendance déclarée entre connecteurs et tournait pourtant un par un
-      # (le -j par défaut de la commande est 1, jamais relevé ici) — la
-      # machinerie de vagues concurrentes existe déjà (internal/pipeline.
-      # Registre, le même mécanisme que fpctl build site et les matvues) et
-      # n'attendait qu'un -j réel pour servir à l'ingestion. 8, pas plus :
-      # an-exposes reste volontairement lent (site public, pas une API,
-      # voir internal/an/exposes.go) et fixe de toute façon le plancher réel
-      # du temps mur, quelle que soit la concurrence par ailleurs ; dev-runner
-      # dispose largement des cœurs et de la RAM pour ce chiffre (24 cœurs,
-      # 188 Go), le pool Postgres de ce même run s'élargit en conséquence
-      # (voir concurrenceDuPool, internal/ingest/ingest.go).
+      # -j 32 : la quasi-totalité du catalogue (runToutSupplement) n'a aucune
+      # dépendance déclarée entre connecteurs — la machinerie de vagues
+      # concurrentes existe déjà (internal/pipeline.Registre, le même
+      # mécanisme que fpctl build site et les matvues) et n'attendait qu'un
+      # -j réel pour servir à l'ingestion. dev-runner n'a que 24 cœurs, mais
+      # ce travail est dominé par l'attente réseau (téléchargements,
+      # requêtes HTTP) plutôt que par le calcul : 32 goroutines peuvent
+      # attendre leur tour de front sans se disputer un cœur. an-exposes,
+      # lui, reste plafonné à sa propre limite de 5 (internal/an/exposes.go,
+      # une politesse par connexion envers un site public, pas une API) quel
+      # que soit -j ici ; aucun autre connecteur ne vise le même site en
+      # masse, donc élargir -j au-delà de 8 ne fait que mieux recouvrir les
+      # dizaines de connecteurs qui, eux, n'ont pas cette limite. Le pool
+      # Postgres de ce même run s'élargit en conséquence (voir
+      # concurrenceDuPool, internal/ingest/ingest.go) — largement sous les
+      # 100 connexions par défaut de Postgres, même cumulé aux 8 de
+      # l'actualisation des matvues (internal/ingest/ingest.go,
+      # actualiserMatviews) qui suit juste après.
       - name: Ingestion
-        run: ./bin/fpctl ingest all -j 8
+        run: ./bin/fpctl ingest default -j 32
 
       # Porte 1 : les garanties structurelles tournent sur la base RÉELLEMENT
       # chargée, pas sur une base vide. Une donnée qui violerait une règle

@@ -117,7 +117,7 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	// concurrenceExposes : mesuré sur le passif complet de la 17e législature
 	// (~2 500 textes) — une seule connexion à 400 ms d'intervalle (voir le
 	// Sleep plus bas, inchangé PAR connexion) y passait près d'une heure,
-	// très au-dessus du reste d'un ingest complet (fpctl ingest all tourne
+	// très au-dessus du reste d'un ingest complet (fpctl ingest default tourne
 	// par ailleurs jusqu'à -j connecteurs indépendants de front). Cinq
 	// connexions de front restent une cadence raisonnable pour un site
 	// public (12,5 req/s au total, chacune espacée des siennes par le même

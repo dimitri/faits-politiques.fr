@@ -31,7 +31,7 @@ type check struct {
 	// sources : les noms du catalogue (internal/ingest.Source.Nom) dont ce
 	// contrôle dépend — vide si la donnée vérifiée appartient au socle
 	// parlementaire ou à runToutSupplement (ingest.ChaineParDefaut), donc
-	// toujours chargée par un « fpctl ingest all » normal, donc toujours
+	// toujours chargée par un « fpctl ingest default » normal, donc toujours
 	// pertinente à vérifier par défaut. Un contrôle qui porte sur une source
 	// hors chaîne (empire colonial, SIRENE, ports...) DOIT lister son nom
 	// ici : « fpctl verify data », sans cette information, ne pourrait pas
@@ -60,7 +60,7 @@ func init() {
 
 // dansChaine : c ne porte sur aucune source hors de chaine — vrai
 // trivialement pour un contrôle sans sources déclarées (données du socle ou
-// de runToutSupplement, toujours chargées par « fpctl ingest all »).
+// de runToutSupplement, toujours chargées par « fpctl ingest default »).
 func dansChaine(c check, chaine map[string]bool) bool {
 	for _, s := range c.sources {
 		if !chaine[s] {
@@ -2563,24 +2563,28 @@ var checks = []check{
 // stderr par Run, jamais un message à répéter par l'appelant.
 var ErrAnomalies = errors.New("des anomalies ont été trouvées")
 
-// Run exécute la commande verify. Sans option : seuls les contrôles dont la
-// source est dans ingest.ChaineParDefaut (ce que « fpctl ingest all » charge
-// réellement) tournent — le scope qui correspond à un ingest normal, celui
-// que build-pr/build-full rejouent. « fpctl verify data all » : les 293 et
-// grandissant, sans filtrage — celui qui suppose qu'on a aussi rechargé les
-// sources hors chaîne (fpctl ingest <catégorie> all, catégorie par
-// catégorie), jamais le cas d'un ingest all ordinaire. ctx est celui de
-// fpctl (cmd.Context()), déjà annulé au premier signal — un Ctrl-C pendant
-// les contrôles interrompt la requête en cours plutôt que d'attendre
-// qu'elle se termine.
+// Run exécute la commande verify. Deux portées, les MÊMES deux noms que
+// « fpctl ingest » (defaut/complet) — jamais « all », qui désignerait une
+// troisième chose du côté ingest (« fpctl ingest <catégorie> all »).
+// Sans option, ou « default » explicitement : seuls les contrôles dont la
+// source est dans ingest.ChaineParDefaut (ce que « fpctl ingest default »
+// charge réellement) tournent — le scope qui correspond à un ingest normal,
+// celui que build-pr/build-full rejouent. « fpctl verify data full » :
+// les 380 et grandissant, sans filtrage — celui qui suppose qu'on a aussi
+// rechargé les sources hors chaîne (fpctl ingest full, ou fpctl ingest
+// <catégorie> all catégorie par catégorie), jamais le cas d'un ingest
+// defaut ordinaire. ctx est celui de fpctl (cmd.Context()), déjà annulé au
+// premier signal — un Ctrl-C pendant les contrôles interrompt la requête en
+// cours plutôt que d'attendre qu'elle se termine.
 func Run(ctx context.Context, args []string) error {
 	toutLeCatalogue := false
 	switch {
 	case len(args) == 0:
-	case len(args) == 1 && args[0] == "all":
+	case len(args) == 1 && args[0] == "default":
+	case len(args) == 1 && args[0] == "full":
 		toutLeCatalogue = true
 	default:
-		return fmt.Errorf("verify data ne prend qu'une option, « all » (%q inattendu)", args[0])
+		return fmt.Errorf("verify data ne prend qu'une option, « default » ou « full » (%q inattendu)", args[0])
 	}
 
 	var retenus []check
@@ -2601,7 +2605,7 @@ func Run(ctx context.Context, args []string) error {
 	}
 	defer pool.Close()
 
-	porte := "scope par défaut (fpctl ingest all)"
+	porte := "scope par défaut (fpctl ingest default)"
 	if toutLeCatalogue {
 		porte = "catalogue complet"
 	}

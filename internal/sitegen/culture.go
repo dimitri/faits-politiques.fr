@@ -2,6 +2,7 @@ package sitegen
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"math"
@@ -91,14 +92,23 @@ func chargerCarteMusees(ctx context.Context, pool *pgxpool.Pool) (*CarteMusees, 
 		return nil, nil
 	}
 
-	var vb string
+	// st_extent est une agrégation : la ligne existe même sans contour
+	// départemental, avec une valeur NULL — et geo.contour n'a AUCUNE source
+	// dans le catalogue (contours OpenStreetMap de la migration 0058, chargés
+	// hors pipeline), alors que core.musee_france, lui, vient de la source
+	// « museofile » : une base où museofile a tourné mais où geo.contour est
+	// resté vide est donc le cas normal, pas une anomalie. Même défense que
+	// jeuContours (internal/sitegen/carte.go) sur cette même table : une boîte
+	// vide plutôt qu'un échec de toute la construction.
+	var vbN sql.NullString
 	if err := pool.QueryRow(ctx, `
 		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
 		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
 		FROM (SELECT st_extent(st_transform(geom,2154)) e FROM geo.contour
-		      WHERE niveau='DEPARTEMENT' AND srid_rendu=2154) x`).Scan(&vb); err != nil {
+		      WHERE niveau='DEPARTEMENT' AND srid_rendu=2154) x`).Scan(&vbN); err != nil {
 		return nil, err
 	}
+	vb := vbN.String
 
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo musees" role="img" `+

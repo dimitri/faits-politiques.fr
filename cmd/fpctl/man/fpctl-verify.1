@@ -4,7 +4,7 @@
 .SH NOM
 fpctl\-verify \- contrôles de cohérence des données chargées
 .SH SYNOPSIS
-\f[B]fpctl verify data\f[R] [\f[B]all\f[R]]
+\f[B]fpctl verify data\f[R] [\f[B]default\f[R]|\f[B]full\f[R]]
 .SH DESCRIPTION
 Exécute les contrôles portant sur les \f[B]données chargées\f[R] \[em]
 un écart signale une erreur d\[cq]ingestion, jamais une règle de schéma
@@ -17,10 +17,12 @@ qu\[cq]un contrôle de concordance passe trivialement sur une table vide
 : une porte de publication qui s\[cq]ouvre sur une base vide est pire
 qu\[cq]inutile.
 .PP
-Sans option, seuls les contrôles dont la source est couverte par
-\f[B]fpctl ingest all\f[R] (le socle parlementaire et son supplément
-habituel) tournent \[em] le scope qui correspond à un ingest normal,
-celui que \f[B]build\-pr\f[R]/\f[B]build\-full\f[R] rejouent.
+Deux portées, les MÊMES deux noms que \f[B]fpctl ingest\f[R].
+Sans option, ou \f[B]default\f[R] explicitement : seuls les contrôles
+dont la source est couverte par \f[B]fpctl ingest default\f[R] (le socle
+parlementaire et son supplément habituel) tournent \[em] le scope qui
+correspond à un ingest normal, celui que
+\f[B]build\-pr\f[R]/\f[B]build\-full\f[R] rejouent.
 Une centaine d\[cq]autres sources du catalogue restent délibérément hors
 de cette chaîne par défaut (coûteuses, ponctuelles, ou exigeant une
 clé/un binaire particulier \[em] voir \f[B]fpctl\-ingest\f[R](1)) ; les
@@ -28,10 +30,11 @@ contrôles qui en dépendent (empire colonial, SIRENE, ports\&...)
 échoueraient systématiquement après un ingest ordinaire s\[cq]ils
 tournaient quand même.
 .PP
-\f[B]fpctl verify data all\f[R] : tous les contrôles connus, sans
-filtrage \[em] à réserver au suivi d\[cq]un ingest plus large
-(\f[B]fpctl ingest\f[R] \f[I]catégorie\f[R] \f[B]all\f[R], catégorie par
-catégorie), jamais après un \f[B]fpctl ingest all\f[R] ordinaire.
+\f[B]fpctl verify data full\f[R] : tous les contrôles connus, sans
+filtrage \[em] à réserver au suivi de \f[B]fpctl ingest full\f[R] (ou,
+catégorie par catégorie, \f[B]fpctl ingest\f[R] \f[I]catégorie\f[R]
+\f[B]all\f[R]), jamais après un \f[B]fpctl ingest default\f[R]
+ordinaire.
 .PP
 Le code de sortie est non nul si une anomalie est trouvée, pour
 s\[cq]intégrer à un pipeline de publication.

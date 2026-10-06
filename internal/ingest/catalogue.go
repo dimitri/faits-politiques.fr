@@ -231,6 +231,12 @@ var catalogue = []Source{
 			return jorf.IngestGouvernement(ctx, pool, arch)
 		}},
 	{Nom: "gouvernement-membres", Categorie: CategorieParlement, Description: "membres du Gouvernement, d'après les décrets déjà scellés",
+		// jorf.NormalizeMembres lit core.acte_jo : « aucun décret de
+		// composition en base » si jorf-gouvernement n'a pas tourné d'abord
+		// (jamais déclaré avant « fpctl ingest
+		// full », qui met les deux dans la même vague sans cette
+		// Dependances).
+		Dependances: []string{"jorf-gouvernement"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return jorf.NormalizeMembres(ctx, pool)
 		}},
@@ -318,7 +324,15 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return aides.IngestUrssafTaille(ctx, pool, arch)
 		}},
+	// Dependances : []string{"sirene"} sur les quatre entrées ci-dessous —
+	// executerAides (internal/aides/nominatives.go, verifierSirene) refuse
+	// de charger une aide nominative sans ref.unite_legale déjà peuplée
+	// (plus d'un million de lignes attendues) : jamais une dépendance
+	// déclarée nulle part avant « fpctl ingest
+	// full », qui met pour la première fois ces sources dans la MÊME
+	// vague que sirene sans ordre garanti entre elles.
 	{Nom: "aides-nominatives", Categorie: CategorieBudget, Description: "aides publiées bénéficiaire par bénéficiaire (ADEME, minimis, TAM — SIRENE requis)",
+		Dependances: []string{"sirene"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			for _, f := range []func(context.Context, *pgxpool.Pool, *archive.Archive) error{
 				aides.IngestADEME, aides.IngestMinimis, aides.IngestTAM} {
@@ -329,14 +343,17 @@ var catalogue = []Source{
 			return nil
 		}},
 	{Nom: "ademe", Categorie: CategorieBudget, Description: "aides ADEME seules",
+		Dependances: []string{"sirene"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return aides.IngestADEME(ctx, pool, arch)
 		}},
 	{Nom: "minimis", Categorie: CategorieBudget, Description: "registre européen de minimis seul",
+		Dependances: []string{"sirene"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return aides.IngestMinimis(ctx, pool, arch)
 		}},
 	{Nom: "tam", Categorie: CategorieBudget, Description: "registre de transparence des aides (TAM) seul",
+		Dependances: []string{"sirene"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return aides.IngestTAM(ctx, pool, arch)
 		}},

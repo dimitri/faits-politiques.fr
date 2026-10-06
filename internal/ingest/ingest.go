@@ -3,7 +3,8 @@
 // qui construit ses sous-commandes en itérant le catalogue (catalogue.go)
 // plutôt qu'en recopiant la liste des sources :
 //
-//	fpctl ingest all                    chaîne complète (le socle habituel)
+//	fpctl ingest default                  chaîne par défaut (le socle habituel)
+//	fpctl ingest full                 littéralement tout le catalogue
 //	fpctl ingest <catégorie>             liste les sources de la catégorie
 //	fpctl ingest <catégorie> all         toutes les sources de la catégorie
 //	fpctl ingest <catégorie> <source>    une source précise
@@ -63,13 +64,13 @@ func EstSurLeSocle(nom string) bool {
 	return false
 }
 
-// ChaineParDefaut : l'ensemble des noms que « fpctl ingest all » charge
+// ChaineParDefaut : l'ensemble des noms que « fpctl ingest default » charge
 // réellement — le socle parlementaire plus runToutSupplement, jamais les
 // quelque 90 autres sources du catalogue (délibérément hors chaîne par
 // défaut : coûteuses, ponctuelles, ou exigeant une clé/un binaire
 // particulier — voir le commentaire de RunTout). internal/verify s'en sert
 // pour ne rejouer, par défaut, que les contrôles dont la source est dans cet
-// ensemble : sans ça, « fpctl verify data » après un « fpctl ingest all »
+// ensemble : sans ça, « fpctl verify data » après un « fpctl ingest default »
 // tout à fait normal échoue systématiquement sur des données que cet ingest
 // n'a jamais eu vocation à charger.
 func ChaineParDefaut() map[string]bool {
@@ -594,7 +595,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 // RunTout exécute la chaîne complète historique : pas littéralement toutes
 // les sources du catalogue (plusieurs sont délibérément hors chaîne par
 // défaut — coûteuses, ponctuelles, ou exigeant une clé/un binaire
-// particulier), mais le socle que « fpctl ingest all » a toujours rechargé.
+// particulier), mais le socle que « fpctl ingest default » a toujours rechargé.
 // Pour une catégorie entière, y compris ce qu'elle a de plus coûteux, voir
 // RunCategorie (« fpctl ingest <catégorie> all »).
 //
