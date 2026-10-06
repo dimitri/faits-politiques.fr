@@ -100,6 +100,59 @@ func PrefetchAll(ctx context.Context, arch *archive.Archive,
 	return archive.WithPrefetched(ctx, byURL), nil
 }
 
+// prefetchFuture : la récupération de front démarre dès que la fermeture du
+// graphe est connue (registreDe/registreParlement/registreComplet, juste
+// après avoir fini d'ajouter leurs étapes), mais SANS bloquer la suite —
+// construire le reste du registre, voire commencer à exécuter les étapes
+// qui n'en ont pas besoin, continue pendant que les fichiers arrivent.
+// Avant : PrefetchAll bloquait l'appelant jusqu'à ce que TOUT soit arrivé,
+// une barrière devant le graphe entier — y compris les étapes qui ne
+// téléchargent rien (presidentielle, budget, macro, carto...). Seules les
+// étapes qui déclarent vraiment en avoir besoin (prefetchDependants)
+// attendent désormais, chacune au moment précis où ELLE démarre.
+type prefetchFuture struct {
+	pret chan struct{}
+	ctx  context.Context
+	err  error
+}
+
+// demarrerPrefetch lance PrefetchAll dans une goroutine et renvoie
+// immédiatement — cibles vide : rien à attendre, le futur est déjà résolu
+// sur ctx tel quel (le cas courant d'un appel isolé sur une source qui ne
+// télécharge rien, ou qui a déjà sa propre gestion).
+func demarrerPrefetch(ctx context.Context, arch *archive.Archive, cibles []archive.DownloadTarget, concurrence int) *prefetchFuture {
+	pf := &prefetchFuture{pret: make(chan struct{})}
+	if len(cibles) == 0 {
+		pf.ctx = ctx
+		close(pf.pret)
+		return pf
+	}
+	go func() {
+		defer close(pf.pret)
+		pf.ctx, pf.err = PrefetchAll(ctx, arch, cibles, concurrence)
+	}()
+	return pf
+}
+
+// attendre bloque jusqu'à ce que la récupération soit prête (ou que ctx
+// s'annule en premier) et renvoie le ctx enrichi des fichiers déjà
+// récupérés (archive.WithPrefetched) — pf nil (rien à prérécupérer dans ce
+// registre, voir dryRun dans registreDe et consorts) ne bloque jamais.
+func (pf *prefetchFuture) attendre(ctx context.Context) (context.Context, error) {
+	if pf == nil {
+		return ctx, nil
+	}
+	select {
+	case <-pf.pret:
+		if pf.err != nil {
+			return ctx, pf.err
+		}
+		return pf.ctx, nil
+	case <-ctx.Done():
+		return ctx, ctx.Err()
+	}
+}
+
 // filenameOf isole le nom de fichier d'une URL, pour un rapport lisible :
 // "AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip", jamais
 // l'URL entière avec son chemin de dépôt.

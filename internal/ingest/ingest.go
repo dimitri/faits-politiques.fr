@@ -26,7 +26,6 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/europe"
 	"github.com/faits-politiques/faits-politiques/internal/geo"
 	"github.com/faits-politiques/faits-politiques/internal/logs"
-	"github.com/faits-politiques/faits-politiques/internal/macro"
 	"github.com/faits-politiques/faits-politiques/internal/matview"
 	"github.com/faits-politiques/faits-politiques/internal/migrate"
 	"github.com/faits-politiques/faits-politiques/internal/partis"
@@ -84,14 +83,36 @@ func ChaineParDefaut() map[string]bool {
 	return m
 }
 
+// prefetchDependants : noms d'étapes dont le Fetch attend le futur
+// "prefetch" du registre qui les contient (voir demarrerPrefetch), plutôt
+// que de découvrir leur fichier au fil de l'eau — exactement les noms que
+// downloadTargetsFor sait déjà détecter, dans l'autre sens. amendements :
+// son propre fichier (internal/an/amendements.go, 296 Mo observés) n'est
+// prérécupéré avec le reste de l'Assemblée que depuis qu'il est listé dans
+// an.DownloadTargets — avant, il se téléchargeait seul, au moment précis où
+// cette étape démarrait, derrière normalize et le reste de sa vague.
+var prefetchDependants = func() map[string]bool {
+	m := map[string]bool{"download": true, "partis": true, "senat": true, "europe": true, "amendements": true}
+	for _, n := range communesChaineNoms {
+		m[n] = true
+	}
+	return m
+}()
+
 // registreParlement construit le pipeline.Registre du socle parlementaire à
 // partir du catalogue — une seule référence (catalogue.go) pour les deux :
 // la liste plate que "fpctl ingest parlement" affiche, et le graphe que ce
 // même socle exécute. Publie aussitôt la topologie en base
 // (core.pipeline_etape/pipeline_dependance) : « fpctl ingest deps » reste à
 // jour même si l'appel qui suit ne cible qu'une seule de ces sources.
-func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) (*pipeline.Registre, error) {
+//
+// dryRun : jamais de récupération réelle pendant une simulation — demarrerPrefetch
+// lance une vraie goroutine réseau dès qu'on l'appelle, donc on ne l'appelle
+// simplement pas ici (pf reste nil, attendre() le traverse sans bloquer).
+func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string,
+	concurrence int, dryRun bool) (*pipeline.Registre, error) {
 	reg := pipeline.NouveauRegistre(pool)
+	var pf *prefetchFuture
 	for _, nom := range socleParlementaire {
 		source, ok := SourceParNom(nom)
 		if !ok {
@@ -107,9 +128,21 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+				if prefetchDependants[source.Nom] {
+					var err error
+					if ctx, err = pf.attendre(ctx); err != nil {
+						return nil, err
+					}
+				}
 				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
 			},
 		})
+	}
+	// Déclenché seulement une fois la fermeture connue (reg.Noms(), juste
+	// au-dessus) : ne bloque jamais la construction, seules les étapes qui
+	// en dépendent (via pf.attendre, ci-dessus) patienteront si besoin.
+	if !dryRun {
+		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
 	}
 	if err := reg.Publier(ctx); err != nil {
 		return nil, fmt.Errorf("publication de la topologie : %w", err)
@@ -120,17 +153,20 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 // registreDe construit un pipeline.Registre pour N'IMPORTE QUEL
 // sous-ensemble du catalogue, pas seulement le socle — même mécanique que
 // registreParlement (une copie d'Archive par étape, jamais le pointeur
-// partagé), généralisée. La quasi-totalité des sources hors socle n'ont
-// aucune dépendance déclarée entre elles (Source.Dependances vide) :
-// partagées dans une seule vague, elles tournent alors TOUTES de front
-// jusqu'à Concurrence, là où RunCategorie les exécutait jusqu'ici une par
-// une dans l'ordre du catalogue. Ne publie PAS en base : Publier réécrit
-// core.pipeline_etape pour l'ensemble exact qu'on lui donne — le faire
-// depuis un sous-ensemble effacerait le socle. Publier reste réservé à
-// registreParlement, la seule vue complète et auditée du graphe.
-func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms []string) (*pipeline.Registre, error) {
+// partagé, même futur de prérécupération non bloquant), généralisée. La
+// quasi-totalité des sources hors socle n'ont aucune dépendance déclarée
+// entre elles (Source.Dependances vide) : partagées dans une seule vague,
+// elles tournent alors TOUTES de front jusqu'à Concurrence, là où
+// RunCategorie les exécutait jusqu'ici une par une dans l'ordre du
+// catalogue. Ne publie PAS en base : Publier réécrit core.pipeline_etape
+// pour l'ensemble exact qu'on lui donne — le faire depuis un sous-ensemble
+// effacerait le socle. Publier reste réservé à registreParlement, la seule
+// vue complète et auditée du graphe.
+func registreDe(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms []string,
+	concurrence int, dryRun bool) (*pipeline.Registre, error) {
 	reg := pipeline.NouveauRegistre(pool)
 	vus := map[string]bool{}
+	var pf *prefetchFuture
 	var ajouter func(nom string) error
 	ajouter = func(nom string) error {
 		if vus[nom] {
@@ -153,6 +189,12 @@ func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms [
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+				if prefetchDependants[source.Nom] {
+					var err error
+					if ctx, err = pf.attendre(ctx); err != nil {
+						return nil, err
+					}
+				}
 				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
 			},
 		})
@@ -162,6 +204,9 @@ func registreDe(pool *pgxpool.Pool, arch *archive.Archive, rawDir string, noms [
 		if err := ajouter(n); err != nil {
 			return nil, err
 		}
+	}
+	if !dryRun {
+		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
 	}
 	return reg, nil
 }
@@ -199,33 +244,23 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 		return err
 	}
 	defer fermer()
-	reg, err := registreDe(pool, arch, rawDir, noms)
+
+	// Une commande fpctl build qui résout normalize+senat+europe+carto+themes
+	// attendait ici que chacun ait fini pour lancer le suivant AVANT de
+	// commencer son propre téléchargement — un ordre hérité de l'écriture du
+	// code, jamais une vraie dépendance de données : aucun de ces
+	// téléchargements n'a besoin qu'un autre ait fini pour commencer le
+	// sien. registreDe démarre maintenant leur récupération dès que sa
+	// fermeture est connue (demarrerPrefetch), sans bloquer la construction
+	// ni les étapes qui n'en dépendent pas.
+	dryRun := len(opts) > 0 && opts[0].DryRun
+	concurrence := 1
+	if len(opts) > 0 && opts[0].Concurrence > 0 {
+		concurrence = opts[0].Concurrence
+	}
+	reg, err := registreDe(ctx, pool, arch, rawDir, noms, concurrence, dryRun)
 	if err != nil {
 		return err
-	}
-
-	// reg.Noms() est déjà la fermeture résolue de noms (registreDe ne pose
-	// que ce dont la cible a réellement besoin) : ce sont exactement les
-	// connecteurs qui vont tourner ci-dessous, avant même de savoir dans
-	// quel ordre le graphe les enchaînera. Une commande fpctl build qui
-	// résout normalize+senat+europe+carto+themes attend aujourd'hui que
-	// chacun ait fini pour lancer le suivant AVANT de commencer son propre
-	// téléchargement — un ordre hérité de l'écriture du code, jamais une
-	// vraie dépendance de données : aucun de ces téléchargements n'a besoin
-	// qu'un autre ait fini pour commencer le sien.
-	// -dry-run affiche le plan sans rien exécuter (pipeline.Registre.Executer
-	// s'en charge plus bas) : télécharger quoi que ce soit ici irait à
-	// l'encontre de cette promesse.
-	dryRun := len(opts) > 0 && opts[0].DryRun
-	if !dryRun {
-		concurrence := 1
-		if len(opts) > 0 && opts[0].Concurrence > 0 {
-			concurrence = opts[0].Concurrence
-		}
-		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
-		if err != nil {
-			return err
-		}
 	}
 
 	if _, err := reg.Executer(ctx, noms, opts...); err != nil {
@@ -351,20 +386,14 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		concurrence = opts[0].Concurrence
 	}
 	if EstSurLeSocle(nom) {
-		reg, err := registreParlement(ctx, pool, arch, rawDir)
+		// registreParlement construit tout le socle, pas seulement nom : la
+		// prérécupération porte donc sur les cibles du socle entier plutôt
+		// que la fermeture exacte de nom (que Niveaux calculerait, un peu de
+		// travail en plus pour un seul appel visé) — un léger surcroît de
+		// téléchargement pour une demande étroite, jamais une incorrection.
+		reg, err := registreParlement(ctx, pool, arch, rawDir, concurrence, dryRun)
 		if err != nil {
 			return err
-		}
-		// registreParlement construit tout le socle, pas seulement nom : on
-		// prétélécharge donc les cibles du socle entier plutôt que la
-		// fermeture exacte de nom (que Niveaux calculerait, un peu de travail
-		// en plus pour un seul appel visé) — un léger surcroît de
-		// téléchargement pour une demande étroite, jamais une incorrection.
-		if !dryRun {
-			ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
-			if err != nil {
-				return err
-			}
 		}
 		if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
 			return err
@@ -374,15 +403,9 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 		}
 		return actualiserMatviews(ctx)
 	}
-	reg, err := registreDe(pool, arch, rawDir, []string{nom})
+	reg, err := registreDe(ctx, pool, arch, rawDir, []string{nom}, concurrence, dryRun)
 	if err != nil {
 		return err
-	}
-	if !dryRun {
-		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
-		if err != nil {
-			return err
-		}
 	}
 	if _, err := reg.Executer(ctx, []string{nom}, opts...); err != nil {
 		return err
@@ -437,37 +460,40 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	}
 
 	dryRun := len(opts) > 0 && opts[0].DryRun
-	if !dryRun {
-		concurrence := 1
-		if len(opts) > 0 && opts[0].Concurrence > 0 {
-			concurrence = opts[0].Concurrence
-		}
-		// Une seule vague de téléchargement pour la catégorie ENTIÈRE,
-		// socle et reste confondus, avant que l'un ou l'autre registre ne
-		// tourne — même raison que RunSources : aucun de ces
-		// téléchargements n'a besoin qu'un autre ait fini pour commencer
-		// le sien.
-		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(append(append([]string{}, socle...), reste...)), concurrence)
-		if err != nil {
-			return err
-		}
+	concurrence := 1
+	if len(opts) > 0 && opts[0].Concurrence > 0 {
+		concurrence = opts[0].Concurrence
 	}
-
+	// Construire les DEUX registres d'abord, avant d'exécuter l'un ou
+	// l'autre : chacun démarre sa PROPRE récupération de front dès qu'il
+	// connaît sa fermeture (registreParlement/registreDe, demarrerPrefetch),
+	// et les deux futurs doivent partir avant que reg.Executer(socle) ne
+	// bloque plus bas — sinon la récupération de reste n'aurait démarré
+	// qu'une fois tout le socle déjà exécuté. Leurs cibles ne se recoupent
+	// jamais (le socle ne télécharge rien que reste télécharge aussi), donc
+	// deux futurs non bloquants lancés de front reviennent au même résultat
+	// qu'un seul PrefetchAll bloquant pour les deux combinés — sans la
+	// barrière commune devant les deux registres.
+	var regSocle, regReste *pipeline.Registre
 	if len(socle) > 0 {
-		reg, err := registreParlement(ctx, pool, arch, rawDir)
+		regSocle, err = registreParlement(ctx, pool, arch, rawDir, concurrence, dryRun)
 		if err != nil {
-			return err
-		}
-		if _, err := reg.Executer(ctx, socle, opts...); err != nil {
 			return err
 		}
 	}
 	if len(reste) > 0 {
-		reg, err := registreDe(pool, arch, rawDir, reste)
+		regReste, err = registreDe(ctx, pool, arch, rawDir, reste, concurrence, dryRun)
 		if err != nil {
 			return err
 		}
-		if _, err := reg.Executer(ctx, reste, opts...); err != nil {
+	}
+	if regSocle != nil {
+		if _, err := regSocle.Executer(ctx, socle, opts...); err != nil {
+			return err
+		}
+	}
+	if regReste != nil {
+		if _, err := regReste.Executer(ctx, reste, opts...); err != nil {
 			return err
 		}
 	}
@@ -545,7 +571,13 @@ var dependancesRunTout = map[string][]string{
 // core.texte, core.dossier ou jo.texte hors du sien) — ils tournent donc
 // dans la première vague venue, y compris de front avec le socle lui-même.
 var runToutSupplement = []string{
-	"presidentielle", "budget", "macro", "prefets", "agriculture", "entreprises", "campagne",
+	"presidentielle", "budget", "prefets", "agriculture", "entreprises", "campagne",
+	// macro-* d'abord (aucune dépendance entre eux, voir catalogue.go), puis
+	// l'alias "macro" qui les ferme — même raison que la chaîne communes-* :
+	// ajouter ne résout pas les dépendances transitivement ici.
+	"macro-eurostat", "macro-rsa", "macro-prestations-solidarite", "macro-recettes-fiscales",
+	"macro-chomage-insee", "macro-minima-sociaux", "macro-age-retraite", "macro-demandeurs-emploi",
+	"macro-prime-activite", "macro-taux-remplacement", "macro-cotisants-retraites", "macro",
 	// La chaîne communes-* d'abord (son propre ordre, déclaré dans
 	// Source.Dependances), puis l'alias "communes" qui la ferme — ajouter
 	// ne résout PAS les dépendances transitivement (contrairement à
@@ -575,8 +607,10 @@ var runToutSupplement = []string{
 //     entier), donc dépend de tout le reste plutôt que d'un sous-ensemble
 //     précis — jamais un fan-in partiel qui laisserait une section
 //     recalculée sur des données d'avant cette exécution.
-func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) (*pipeline.Registre, error) {
+func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string,
+	concurrence int, dryRun bool) (*pipeline.Registre, error) {
 	reg := pipeline.NouveauRegistre(pool)
+	var pf *prefetchFuture
 	ajouter := func(nom string, extraDeps []string) error {
 		source, ok := SourceParNom(nom)
 		if !ok {
@@ -588,6 +622,12 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: deps,
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+				if prefetchDependants[source.Nom] {
+					var err error
+					if ctx, err = pf.attendre(ctx); err != nil {
+						return nil, err
+					}
+				}
 				return nil, source.Executer(ctx, pool, &archEtape, rawDir)
 			},
 		})
@@ -620,6 +660,9 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	if err := ajouter("checksums", reg.Noms()); err != nil {
 		return nil, err
 	}
+	if !dryRun {
+		pf = demarrerPrefetch(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
+	}
 	return reg, nil
 }
 
@@ -632,12 +675,14 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 //
 // Passe désormais par le même graphe de dépendances que RunSources/
 // RunCategorie (registreComplet) plutôt qu'une chaîne Go séquentielle codée
-// à la main : le téléchargement de chaque connecteur se fait d'abord, tout
-// de front (PrefetchAll), puis les étapes tournent par vagues topologiques
-// jusqu'à -j de front — presidentielle/budget/macro/prefets/agriculture/
-// entreprises/campagne, entre autres, n'ont jamais eu besoin d'attendre le
-// socle parlementaire, seulement de l'ordre du fichier source pour s'exécuter
-// jusqu'ici.
+// à la main — presidentielle/budget/macro/prefets/agriculture/entreprises/
+// campagne, entre autres, n'ont jamais eu besoin d'attendre le socle
+// parlementaire, seulement de l'ordre du fichier source pour s'exécuter
+// jusqu'ici. Le téléchargement de chaque connecteur démarre de front dès
+// que la fermeture du graphe est connue (registreComplet, demarrerPrefetch),
+// mais SANS bloquer le graphe entier devant lui : une étape qui n'en a pas
+// besoin (carto, normalize...) ne patiente jamais sur des fichiers que
+// d'autres attendent.
 func RunTout(ctx context.Context, rawDir, migDir string, opts ...pipeline.Options) error {
 	start := time.Now()
 	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
@@ -646,21 +691,14 @@ func RunTout(ctx context.Context, rawDir, migDir string, opts ...pipeline.Option
 	}
 	defer fermer()
 
-	reg, err := registreComplet(ctx, pool, arch, rawDir)
+	dryRun := len(opts) > 0 && opts[0].DryRun
+	concurrence := 1
+	if len(opts) > 0 && opts[0].Concurrence > 0 {
+		concurrence = opts[0].Concurrence
+	}
+	reg, err := registreComplet(ctx, pool, arch, rawDir, concurrence, dryRun)
 	if err != nil {
 		return err
-	}
-
-	dryRun := len(opts) > 0 && opts[0].DryRun
-	if !dryRun {
-		concurrence := 1
-		if len(opts) > 0 && opts[0].Concurrence > 0 {
-			concurrence = opts[0].Concurrence
-		}
-		ctx, err = PrefetchAll(ctx, arch, downloadTargetsFor(reg.Noms()), concurrence)
-		if err != nil {
-			return err
-		}
 	}
 
 	if _, err := reg.Executer(ctx, reg.Noms(), opts...); err != nil {
@@ -744,67 +782,17 @@ func ingestSenat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	return senat.NormalizePresentations(ctx, pool)
 }
 
-// ingestMacro : les grandes séries nationales, plus la représentation de
-// l'État — regroupées ici car RunTout les recharge ensemble depuis toujours ;
-// prefets.Ingest reste appelable seul (catégorie systeme, source « prefets »).
-func ingestMacro(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := macro.Ingest(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestRSA(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestPrestationsSolidarite(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestRecettesFiscales(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestChomageINSEE(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestMinimaSociaux(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestAgeDepartRetraite(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestDemandeursEmploi(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestPrimeActivite(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestTauxRemplacement(ctx, pool, arch); err != nil {
-		return err
-	}
-	return macro.IngestCotisantsRetraites(ctx, pool, arch)
-}
-
-func ingestSocle(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := macro.IngestPauvrete(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestAideAlimentaire(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestPauvreteTauxEU(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestMenagesDREES(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestMenagesEffectif(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestPensionsEIR(ctx, pool, arch); err != nil {
-		return err
-	}
-	if err := macro.IngestChomageUnedic(ctx, pool, arch); err != nil {
-		return err
-	}
-	return macro.IngestFilosofiDeciles(ctx, pool, arch)
-}
+// ingestMacro/ingestSocle ont disparu : leurs appels (onze pour l'un, huit
+// pour l'autre) enchaînaient à la main des connecteurs qui n'ont, par
+// lecture directe, aucune dépendance entre eux — chacun sa propre table
+// (ref.macro_serie pour macro-eurostat, une table core.* dédiée pour tous
+// les autres), jamais la lecture de ce qu'un autre vient d'écrire. Devenus
+// des Source nommées à part entière (catalogue.go, préfixes "macro-" et
+// "socle-"), SANS Dependances entre elles — à la différence de la chaîne
+// communes-*, rien n'impose ici un ordre, donc elles tournent de front
+// jusqu'à Concurrence plutôt que l'une après l'autre : un vrai gain, pas
+// seulement une chronométrie individuelle. Les alias "macro"/"socle"
+// regroupent chacun les leurs (Dependances sur la liste complète).
 
 // recalculerEmpreintes met à jour core.section_checksum pour chaque section
 // que internal/sitegen sait recopier plutôt que reconstruire (checksum.Sections).
@@ -847,12 +835,23 @@ func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 	if err := carto.Ingest(ctx, pool, filepath.Join("data", "organisations.csv")); err != nil {
 		return err
 	}
-	logs.Notice("governments of the Fifth Republic")
-	if err := carto.IngestGouvernements(ctx, pool, filepath.Join("data", "gouvernements.csv")); err != nil {
+	// Présidences AVANT gouvernements : le rapprochement du Premier ministre
+	// dans IngestGouvernements cherche un core.mandate de type
+	// PRESIDENT_REPUBLIQUE parmi les mandats nationaux qui le distinguent
+	// d'un homonyme (internal/carto/gouvernements.go, mandate_type IN (...,
+	// 'PRESIDENT_REPUBLIQUE')) — mais ce type de mandat n'est écrit que par
+	// IngestPresidents (internal/carto/presidents.go). Dans l'ordre inverse,
+	// cette branche ne pouvait jamais matcher : un président jamais député
+	// ni sénateur ni ministre par ailleurs (Georges Pompidou, Premier
+	// ministre 1962, data/gouvernements.csv) restait sans
+	// premier_ministre_person_id, silencieusement, le temps d'un premier
+	// passage.
+	logs.Notice("presidencies of the Republic")
+	if err := carto.IngestPresidents(ctx, pool, filepath.Join("data", "presidents.csv")); err != nil {
 		return err
 	}
-	logs.Notice("presidencies of the Republic")
-	return carto.IngestPresidents(ctx, pool, filepath.Join("data", "presidents.csv"))
+	logs.Notice("governments of the Fifth Republic")
+	return carto.IngestGouvernements(ctx, pool, filepath.Join("data", "gouvernements.csv"))
 }
 
 // dimensionLocale a disparu : les 8 sous-étapes qu'elle enchaînait à la main
