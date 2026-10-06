@@ -226,6 +226,17 @@ jobs:
           path: ci.dump
           key: ci-dump-${{ github.run_id }}
 
+      # Récupérable depuis n'importe quel run de ce job, sans avoir à
+      # relancer fpctl dump ci en local : rafraîchir la release d'amorçage
+      # (seed-ci-dump plus haut, CI_DUMP_FALLBACK_RELEASE de build-pr) se
+      # fait en téléchargeant cet artefact puis en remplaçant son actif,
+      # jamais en réexportant à la main depuis une base de développement.
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ci-dump
+          path: ci.dump
+          retention-days: 7
+
       # Le déploiement n'a lieu que sur la branche principale : une pull request
       # produit un site complet, consultable, mais non publié.
       - name: Déploiement
