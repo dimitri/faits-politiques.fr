@@ -1,7 +1,7 @@
 {{define "content"}}
 {{$g := .G}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Gouvernement</span></p>
-<span class="sur">Exécutif · Journal officiel, {{$g.PremierDecret}} → {{$g.DernierDecret}}</span>
+<span class="sur">Exécutif{{if $g.PremiersMin}} · Journal officiel, {{$g.PremierDecret}} → {{$g.DernierDecret}}{{end}}</span>
 <h1>Le Gouvernement</h1>
 <p class="lede">Les présidents de la V<sup>e</sup> République, la succession des Premiers ministres,
 et les décrets de composition tels qu'ils ont paru — un par un, sans reconstitution.</p>
@@ -48,6 +48,13 @@ Le second dit quelle fraction du corps électoral a voté pour le président au 
 change rien à la validité de l'élection.
 <a href="{{.Root}}/frise/">Les chiffres datés sous chaque présidence</a> sont sur la frise.</p>
 
+{{/* jorf-gouvernement est hors chaîne par défaut (ingest.ChaineParDefaut) :
+     sous « fpctl ingest default », core.acte_jo ne contient aucun décret de
+     composition, et PremiersMin/Decrets restent le slice nil que loadGouvernement
+     n'a pas eu l'occasion de remplir — jamais une absence à faire planter
+     l'indexation à position fixe de la ligne ci-dessous (sub (len ...) 1 vaut
+     -1 sur un slice vide). */}}
+{{if $g.PremiersMin}}
 <h2>Les Premiers ministres depuis {{(index $g.PremiersMin (sub (len $g.PremiersMin) 1)).Debut}}</h2>
 <p class="q">Reconstitués depuis les décrets du <em>Journal officiel</em>. Une seule déduction est
 faite ici, et le droit la porte&nbsp;: <strong>un Premier ministre reste en fonction jusqu'à la
@@ -96,4 +103,8 @@ un remaniement partiel montre ses quelques lignes, pas une composition complète
     <a href="{{.Root}}/comprendre/gouvernement-donnees/">Le détail, source par source</a>.</p>
   </div>
 </details>
+{{else}}
+<h2>Les Premiers ministres, les décrets de composition</h2>
+<p class="nodata">Aucune donnée — source hors chaîne par défaut.</p>
+{{end}}
 {{end}}
