@@ -266,6 +266,9 @@ func downloadTargetsFor(noms []string) []archive.DownloadTarget {
 	if present["europe"] {
 		out = append(out, europe.DownloadTargets()...)
 	}
+	if present["communes"] {
+		out = append(out, communes.DownloadTargets()...)
+	}
 	return out
 }
 
@@ -835,6 +838,18 @@ func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 // run plutôt que redécouvert à chaque fois qu'un ingest réel traîne — même
 // principe que le résumé des durées d'internal/pipeline, pour un nœud qui
 // n'est pas lui-même un Registre.
+//
+// Ce que ce verrou interdit, c'est de paralléliser le CHARGEMENT — pas la
+// RÉCUPÉRATION réseau de ce que chaque sous-étape va charger, qui ne touche
+// pas la base. communes.DownloadTargets (voir downloadTargetsFor) réunit les
+// URL des 8 sous-étapes pour PrefetchAll, qui les récupère toutes de front,
+// avant que la moindre étape ci-dessous ne tourne. Chaque arch.Fetch de ces
+// 8 étapes retrouve alors directement le fichier déjà sur disque (voir
+// archive.WithPrefetched) : ce qui reste séquentiel ici n'est plus que le
+// temps de traitement (parse, COPY, ré-validation des contraintes), jamais
+// plus l'attente réseau — une part qu'aucune mesure n'avait encore isolée du
+// reste sur OFGL/BANATIC/RNE/SSMSI, les quatre dominant les 9m46 observés ;
+// à constater sur le prochain run complet, pas encore chiffré séparément.
 func dimensionEtape(nom string, f func() error) error {
 	debut := time.Now()
 	logs.Notice(nom)
