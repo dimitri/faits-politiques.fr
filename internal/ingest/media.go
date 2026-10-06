@@ -64,7 +64,7 @@ func ingestMedia(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 			PageFR: page, Libelle: row["libelle"]})
 	}
 
-	return media.Ingest(ctx, pool, arch, mediaDir, cibles)
+	return media.Ingest(ctx, pool, arch, mediaDir, filepath.Join(dataDir, "media-cache.json"), cibles)
 }
 
 func readCSV(path string) ([]map[string]string, error) {
