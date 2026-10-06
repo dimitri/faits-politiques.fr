@@ -161,6 +161,9 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		uid, slug, kind, nom, abrege, debut, fin, organType string
 	}
 	seenSlug := map[string]bool{}
+	if err := seedSlugsOrganisationsExistantes(ctx, pool, seenSlug); err != nil {
+		return nil, err
+	}
 	lignes := make([]ligne, 0, len(items))
 	for _, it := range items {
 		base := slugify(it.o.Libelle.String())
@@ -170,11 +173,7 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		if it.kind == "PARLIAMENTARY_GROUP" && it.o.Legislature != "" {
 			base = base + "-" + it.o.Legislature.String()
 		}
-		slug := base
-		if seenSlug[slug] {
-			slug = base + "-" + strings.ToLower(it.o.UID.String())
-		}
-		seenSlug[slug] = true
+		slug := slugUniqueBase(seenSlug, "", base, it.o.UID.String())
 		lignes = append(lignes, ligne{
 			uid: it.o.UID.String(), slug: slug, kind: it.kind, nom: it.o.Libelle.String(),
 			abrege: it.o.LibelleAbrege.String(), debut: it.o.ViMoDe.DateDebut.String(),
