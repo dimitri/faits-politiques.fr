@@ -77,21 +77,26 @@ jobs:
   # docs/ci-pipeline.md § 3.5 : la latence de retour sur une PR ne doit pas
   # dépendre du temps d'ingestion (1h22 cumulées, INFRA.md § 1), alors que
   # l'essentiel des PR touche le rendu du site, pas les connecteurs.
-  # Runner auto-hébergé (dev-runner), pas ubuntu-latest : l'ingestion
-  # complète mesure 1 h 22 cumulées, dont 47 minutes pour le seul connecteur
-  # an-exposes (docs/ci-pipeline.md § 3.1) — un runner hébergé, plafonné à
-  # 45 min par ce fichier et à 14 Go de disque, ne pouvait structurellement
-  # pas aboutir : les runs programmés ont été vus annulés pile au timeout,
-  # répétés jour après jour, bien avant cette bascule. INFRA.md § 10 posait
-  # déjà les conditions d'un runner auto-hébergé pour ce dépôt PUBLIC avant
-  # de l'installer — toutes vérifiées ici : jamais de déclenchement sur
-  # pull_request (voir le if: ci-dessous, inchangé), conteneur Docker isolé
-  # du reste de la machine (le même démon docker-ci que les autres dépôts
-  # construits sur dev-runner, DOCKER_HOST fixé par le service systemd du
-  # runner, pas par ce fichier), et aucun secret durable propre à ce
-  # workflow (aucun n'existe encore ici).
+  #
+  # Runner auto-hébergé (dev-runner), pas ubuntu-latest : un runner hébergé,
+  # plafonné à 45 min par ce fichier et à 14 Go de disque, ne pouvait
+  # structurellement pas aboutir — les runs programmés ont été vus annulés
+  # pile au timeout, répétés jour après jour, jusqu'à ce qu'une passe de
+  # concurrence (internal/pipeline, PrefetchAll, chaîne communes-* fusionnée
+  # au graphe — voir git log de ce fichier) ramène l'ingestion complète sous
+  # la barre des 20 minutes, cumulée à la génération du site. Le schedule
+  # nocturne, désactivé un temps pour build-full (ce job n'avait alors
+  # jamais abouti ici une seule fois), est donc réactivé ci-dessous : la
+  # raison de l'avoir coupé ne tient plus. INFRA.md § 10 posait déjà les
+  # conditions d'un runner auto-hébergé pour ce dépôt PUBLIC avant de
+  # l'installer — toutes vérifiées ici : jamais de déclenchement sur
+  # pull_request (voir le if: ci-dessous), conteneur Docker isolé du reste
+  # de la machine (le même démon docker-ci que les autres dépôts construits
+  # sur dev-runner, DOCKER_HOST fixé par le service systemd du runner, pas
+  # par ce fichier), et aucun secret durable propre à ce workflow (aucun
+  # n'existe encore ici).
   build-full:
-    if: github.event_name != 'pull_request' && (github.event_name != 'workflow_dispatch' || inputs.seed_ci_dump_release == '')
+    if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.seed_ci_dump_release == '')
     runs-on: [self-hosted, faits-politiques]
     # Un filet de sécurité, pas un budget serré comme sur ubuntu-latest : le
     # runner auto-hébergé n'a plus de plafond de 45 min ni de 14 Go, mais un
@@ -229,11 +234,19 @@ jobs:
 
   # Job léger : pas d'ingestion, pas de connecteurs — le site est construit
   # à partir du dernier périmètre CI publié par build-full (push main ou
-  # planifié). Répond en quelques minutes plutôt qu'en heures, au prix de ne
-  # pas rejouer les garanties structurelles ni la concordance avec les
-  # décomptes officiels (elles ont besoin de core/ref, hors du périmètre) —
-  # ces deux portes restent couvertes par build-full à chaque push sur main
-  # et chaque nuit.
+  # schedule désormais, voir plus haut) ou, faute de cache visible depuis
+  # cette ref, de la release d'amorçage (voir plus bas). Répond en quelques
+  # minutes plutôt qu'en heures, au prix de ne pas rejouer les garanties
+  # structurelles ni la concordance avec les décomptes officiels (elles ont
+  # besoin de core/ref, hors du périmètre) — ces deux portes restent
+  # couvertes par build-full à chaque push sur main ET chaque nuit.
+  #
+  # schedule ne tourne plus CE job en plus de build-full : du temps où
+  # build-full n'aboutissait jamais sur runner hébergé, ce job couvrait seul
+  # la nuit (vérifier que le site se construit encore depuis le dernier
+  # périmètre CI connu) — un stand-in, pas une des deux portes de qualité.
+  # build-full couvre maintenant les deux chaque nuit ; le garder ici aussi
+  # n'ajoutait qu'une exécution redondante du même plus petit dénominateur.
   build-pr:
     if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
