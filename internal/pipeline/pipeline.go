@@ -19,8 +19,10 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -212,7 +214,9 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 	}
 
 	resultats := Results{}
+	durees := map[string]time.Duration{}
 	var mu sync.Mutex
+	debutTotal := time.Now()
 	for _, vague := range niveaux {
 		g, gctx := errgroup.WithContext(ctx)
 		g.SetLimit(limite)
@@ -235,12 +239,23 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 				// sur le même stderr (voir internal/logs/lock.go) — un mutex
 				// posé ici ferait la même chose en moins bien.
 				logs.Notice(e.Description)
+				debut := time.Now()
 				valeur, err := e.Executer(gctx, deps)
+				duree := time.Since(debut)
 				if err != nil {
-					return fmt.Errorf("%s : %w", nom, err)
+					return fmt.Errorf("%s (après %s) : %w", nom, duree.Round(time.Millisecond), err)
 				}
+				// Le départ de chaque étape se lit déjà dans les logs
+				// (NOTICE ci-dessus, horodaté par internal/logs) — sans
+				// cette ligne d'arrivée, retrouver COMBIEN de temps une
+				// étape a pris demandait de recouper deux horodatages à la
+				// main, impossible dès qu'une vague fait tourner plusieurs
+				// étapes de front (leurs lignes s'entrelacent). Les deux
+				// bornes dans le même paquet, jamais recalculées ailleurs.
+				logs.Notice(fmt.Sprintf("%s : terminé en %s", nom, duree.Round(time.Millisecond)))
 				mu.Lock()
 				resultats[nom] = valeur
+				durees[nom] = duree
 				mu.Unlock()
 				if r.pool != nil {
 					if _, err := r.pool.Exec(gctx,
@@ -256,7 +271,41 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 			return nil, err
 		}
 	}
+	afficherDurees(durees, time.Since(debutTotal))
 	return resultats, nil
+}
+
+// afficherDurees : un résumé trié par coût décroissant, pour répondre tout
+// de suite à « qu'est-ce qui a pris du temps ? » sans recouper des lignes
+// NOTICE entrelacées à la main — surtout utile sous Concurrence > 1, où
+// l'ordre d'apparition dans les logs ne reflète plus l'ordre de déclaration
+// ni le coût réel. Les dix étapes les plus lentes suffisent : le but est de
+// repérer un goulot, pas de remplacer un vrai profil (pprof) si le besoin
+// allait plus loin que ça.
+func afficherDurees(durees map[string]time.Duration, totalMur time.Duration) {
+	if len(durees) == 0 {
+		return
+	}
+	type ligne struct {
+		nom   string
+		duree time.Duration
+	}
+	tri := make([]ligne, 0, len(durees))
+	var somme time.Duration
+	for nom, d := range durees {
+		tri = append(tri, ligne{nom, d})
+		somme += d
+	}
+	sort.Slice(tri, func(i, j int) bool { return tri[i].duree > tri[j].duree })
+	n := len(tri)
+	if n > 10 {
+		n = 10
+	}
+	logs.Notice(fmt.Sprintf("étapes les plus coûteuses (somme des étapes : %s, mur : %s, %d étapes) :",
+		somme.Round(time.Second), totalMur.Round(time.Second), len(tri)))
+	for _, l := range tri[:n] {
+		logs.Notice(fmt.Sprintf("  %s : %s", l.nom, l.duree.Round(time.Millisecond)))
+	}
 }
 
 func (r *Registre) afficherPlan(niveaux [][]string, concurrence int) {
