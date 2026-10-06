@@ -3,7 +3,8 @@
 // qui construit ses sous-commandes en itérant le catalogue (catalogue.go)
 // plutôt qu'en recopiant la liste des sources :
 //
-//	fpctl ingest all                    chaîne complète (le socle habituel)
+//	fpctl ingest default                  chaîne par défaut (le socle habituel)
+//	fpctl ingest full                 littéralement tout le catalogue
 //	fpctl ingest <catégorie>             liste les sources de la catégorie
 //	fpctl ingest <catégorie> all         toutes les sources de la catégorie
 //	fpctl ingest <catégorie> <source>    une source précise
@@ -61,6 +62,26 @@ func EstSurLeSocle(nom string) bool {
 		}
 	}
 	return false
+}
+
+// ChaineParDefaut : l'ensemble des noms que « fpctl ingest default » charge
+// réellement — le socle parlementaire plus runToutSupplement, jamais les
+// quelque 90 autres sources du catalogue (délibérément hors chaîne par
+// défaut : coûteuses, ponctuelles, ou exigeant une clé/un binaire
+// particulier — voir le commentaire de RunTout). internal/verify s'en sert
+// pour ne rejouer, par défaut, que les contrôles dont la source est dans cet
+// ensemble : sans ça, « fpctl verify data » après un « fpctl ingest default »
+// tout à fait normal échoue systématiquement sur des données que cet ingest
+// n'a jamais eu vocation à charger.
+func ChaineParDefaut() map[string]bool {
+	m := make(map[string]bool, len(socleParlementaire)+len(runToutSupplement))
+	for _, n := range socleParlementaire {
+		m[n] = true
+	}
+	for _, n := range runToutSupplement {
+		m[n] = true
+	}
+	return m
 }
 
 // registreParlement construit le pipeline.Registre du socle parlementaire à
@@ -173,7 +194,7 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 	if len(noms) == 0 {
 		return nil
 	}
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
@@ -245,7 +266,35 @@ func downloadTargetsFor(noms []string) []archive.DownloadTarget {
 	if present["europe"] {
 		out = append(out, europe.DownloadTargets()...)
 	}
+	// "communes" (l'alias) entraîne toujours tout communes-cog..communes-ssmsi
+	// avec elle, mais un appel qui ne cible qu'un maillon précis de la chaîne
+	// (fpctl ingest collectivites communes-ofgl, par exemple) ne fait PAS
+	// apparaître "communes" dans noms — seulement ce maillon et ses
+	// ancêtres. communes.DownloadTargets() reste la même liste complète dans
+	// les deux cas (elle n'est pas découpée par maillon) : plus simple, et
+	// sans incorrection puisqu'un fichier déjà prérécupéré ne l'est jamais
+	// deux fois (archive.WithPrefetched).
+	for _, maillon := range communesChaineNoms {
+		if present[maillon] {
+			out = append(out, communes.DownloadTargets()...)
+			break
+		}
+	}
 	return out
+}
+
+// concurrenceDuPool : la taille du pool Postgres que contexte doit ouvrir —
+// au moins 4 (le défaut historique de store.Open, jamais réduit), mais
+// élargi si -j demande plus de front que ça. Sans cet ajustement, -j restait
+// sans effet réel au-delà de 4 : reg.Executer lance bien plus de goroutines,
+// mais elles font toutes la queue pour la même poignée de 4 connexions —
+// exactement le défaut qu'actualiserMatviews (plus bas) corrige déjà pour
+// son propre pool, jamais recopié ici jusqu'à présent.
+func concurrenceDuPool(opts []pipeline.Options) int32 {
+	if len(opts) > 0 && int32(opts[0].Concurrence) > 4 {
+		return int32(opts[0].Concurrence)
+	}
+	return 4
 }
 
 // contexte : ce que chaque point d'entrée (RunTout/RunSource/RunCategorie)
@@ -253,8 +302,8 @@ func downloadTargetsFor(noms []string) []archive.DownloadTarget {
 // répertoire de l'archive scellée, le pool. Commun aux trois, pour que
 // « fpctl ingest budget dette » applique les migrations en attente tout
 // aussi sûrement que la chaîne complète.
-func contexte(ctx context.Context, rawDir, migDir string) (pool *pgxpool.Pool, arch *archive.Archive, fermer func(), err error) {
-	pool, err = store.Open(ctx)
+func contexte(ctx context.Context, rawDir, migDir string, maxConns int32) (pool *pgxpool.Pool, arch *archive.Archive, fermer func(), err error) {
+	pool, err = store.OpenWithMaxConns(ctx, maxConns)
 	if err != nil {
 		return nil, nil, nil, err
 	}
@@ -291,7 +340,7 @@ func RunSource(ctx context.Context, rawDir, migDir, nom string, opts ...pipeline
 	if _, ok := SourceParNom(nom); !ok {
 		return fmt.Errorf("source inconnue : %s (voir « fpctl ingest » pour la liste)", nom)
 	}
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
@@ -371,7 +420,7 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 	if len(sources) == 0 {
 		return fmt.Errorf("catégorie inconnue : %s (voir « fpctl ingest » pour la liste)", categorie)
 	}
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
@@ -444,24 +493,31 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 // UNIQUEMENT dans le cadre de la chaîne complète, où toutes ces sources
 // tournent de toute façon ensemble.
 //
-//   - communes -> normalize : le RNE ne remplace un mandat national que
+//   - communes-rne -> normalize : le RNE ne remplace un mandat national que
 //     s'il n'en existe pas déjà un publié par l'Assemblée (« le RNE
 //     complète, il n'écrase pas », commentaire au-dessus de
 //     normaliserAssemblee plus bas) — l'ordre inverse a un jour détruit
-//     1 419 mandats de député.
-//   - associations -> communes : associations.Ingest rapproche chaque
+//     1 419 mandats de député. Portée sur communes-rne précisément (pas sur
+//     l'alias « communes ») depuis que la chaîne communes-* existe comme
+//     maillons nommés (catalogue.go) : c'est RNE, et lui seul, qui écrit
+//     core.person/core.mandate parmi les 8 maillons — communes-cog n'a
+//     aucune raison d'attendre normalize.
+//   - associations -> communes-cog : associations.Ingest rapproche chaque
 //     association d'une commune via ref.commune (internal/associations/
-//     associations.go:200-204), remplie par communes.IngestCOG.
-//   - hatvp -> normalize, communes, senat : le rapprochement déclarant ->
-//     personne (D-025, internal/hatvp/hatvp.go:236-242) lit core.person,
-//     alimentée par les trois.
+//     associations.go:248), rempli par communes.IngestCOG seul — pas besoin
+//     du reste de la chaîne (RNE, OFGL, BANATIC...).
+//   - hatvp -> normalize, communes-rne, senat : le rapprochement déclarant ->
+//     personne (internal/hatvp/hatvp.go:292) lit core.person, alimentée par
+//     les trois — core.person vient de normalize et de communes-rne
+//     (internal/communes/rne.go:219), pas du reste de la chaîne communes-*.
 //   - amendements/exposes/interventions -> normalize : lisent
 //     respectivement core.texte (internal/an/amendements.go:301,
 //     internal/an/exposes.go:77-80) et core.person_identifier scheme
 //     AN_ACTEUR (internal/an/interventions.go:92), remplis par
 //     normaliserAssemblee.
-//   - jorf -> normalize, communes, senat : le rapprochement mention -> élu
-//     (internal/jorf/jorf.go:375-384) lit core.person.
+//   - jorf -> normalize, communes-rne, senat : le rapprochement mention ->
+//     élu (internal/jorf/jorf.go:375-384) lit core.person — même source que
+//     hatvp ci-dessus, pas le reste de la chaîne communes-*.
 //   - promulgation -> normalize, jorf : compare la référence NOR publiée
 //     par l'Assemblée (core.dossier) à jo.texte.nor, rempli par jorf.Ingest
 //     (voir déjà le commentaire de RunTout à ce sujet, plus bas).
@@ -469,13 +525,13 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 //     rapprochent par identifiant CNCCFP (internal/ingest/media.go:58-60),
 //     écrit par les trois.
 var dependancesRunTout = map[string][]string{
-	"communes":      {"normalize"},
-	"associations":  {"communes"},
-	"hatvp":         {"normalize", "communes", "senat"},
+	"communes-rne":  {"normalize"},
+	"associations":  {"communes-cog"},
+	"hatvp":         {"normalize", "communes-rne", "senat"},
 	"amendements":   {"normalize"},
 	"exposes":       {"normalize"},
 	"interventions": {"normalize"},
-	"jorf":          {"normalize", "communes", "senat"},
+	"jorf":          {"normalize", "communes-rne", "senat"},
 	"promulgation":  {"normalize", "jorf"},
 	"media":         {"normalize", "partis", "carto"},
 }
@@ -490,6 +546,13 @@ var dependancesRunTout = map[string][]string{
 // dans la première vague venue, y compris de front avec le socle lui-même.
 var runToutSupplement = []string{
 	"presidentielle", "budget", "macro", "prefets", "agriculture", "entreprises", "campagne",
+	// La chaîne communes-* d'abord (son propre ordre, déclaré dans
+	// Source.Dependances), puis l'alias "communes" qui la ferme — ajouter
+	// ne résout PAS les dépendances transitivement (contrairement à
+	// registreDe) : chaque nom doit déjà apparaître plus haut dans cette
+	// liste avant d'être cité en Dependances, d'où cet ordre explicite.
+	"communes-cog", "communes-rne", "communes-municipales", "communes-ofgl",
+	"communes-banatic", "communes-municipales2020", "communes-collectivites", "communes-ssmsi",
 	"communes", "associations", "hatvp",
 	"amendements", "exposes", "interventions",
 	"jorf", "promulgation", "media",
@@ -503,7 +566,7 @@ var runToutSupplement = []string{
 // catalogue :
 //
 //   - "geo-courant" : RunTout appelle geo.Ingest en réutilisant le COG déjà
-//     chargé par "communes" (dimensionLocale), jamais catalogue.go
+//     chargé par la chaîne "communes-*" (catalogue.go), jamais
 //     "contours" (qui recharge le COG lui-même, un jeu de contours par
 //     millésime) — un vrai écart avec le catalogue, pas une erreur : voir
 //     le commentaire d'origine sur ce choix, conservé tel quel plus bas.
@@ -540,13 +603,16 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 			return nil, err
 		}
 	}
-	// Contours communaux et intercommunaux, un jeu par millésime du COG. Le
-	// bloc communes (dimensionLocale) a déjà chargé le COG courant : inutile
-	// de le recharger ici (contrairement à la source « contours » invoquée
-	// seule, catégorie systeme, qui le recharge elle-même).
+	// Contours communaux et intercommunaux, un jeu par millésime du COG.
+	// communes-cog (chaîne communes-*, catalogue.go) a déjà chargé le COG
+	// courant : inutile de le recharger ici (contrairement à la source
+	// « contours » invoquée seule, catégorie systeme, qui le recharge
+	// elle-même). Dépend de communes-cog précisément, pas de l'alias
+	// "communes" ni du reste de la chaîne (RNE, OFGL...) qui ne concerne pas
+	// le COG.
 	reg.Ajouter(pipeline.Etape{
 		Nom: "geo-courant", Description: "IGN boundaries by vintage",
-		Dependances: []string{"communes"},
+		Dependances: []string{"communes-cog"},
 		Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
 			return nil, geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime)
 		},
@@ -560,7 +626,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 // RunTout exécute la chaîne complète historique : pas littéralement toutes
 // les sources du catalogue (plusieurs sont délibérément hors chaîne par
 // défaut — coûteuses, ponctuelles, ou exigeant une clé/un binaire
-// particulier), mais le socle que « fpctl ingest all » a toujours rechargé.
+// particulier), mais le socle que « fpctl ingest default » a toujours rechargé.
 // Pour une catégorie entière, y compris ce qu'elle a de plus coûteux, voir
 // RunCategorie (« fpctl ingest <catégorie> all »).
 //
@@ -574,7 +640,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 // jusqu'ici.
 func RunTout(ctx context.Context, rawDir, migDir string, opts ...pipeline.Options) error {
 	start := time.Now()
-	pool, arch, fermer, err := contexte(ctx, rawDir, migDir)
+	pool, arch, fermer, err := contexte(ctx, rawDir, migDir, concurrenceDuPool(opts))
 	if err != nil {
 		return err
 	}
@@ -789,38 +855,12 @@ func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 	return carto.IngestPresidents(ctx, pool, filepath.Join("data", "presidents.csv"))
 }
 
-// dimensionLocale charge la dimension communale, dans un ordre contraint :
-// ref.commune est référencé par tout le reste, et les résultats électoraux ne
-// peuvent pas être rattachés à une commune qui n'existe pas encore.
-func dimensionLocale(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	logs.Notice("geographic reference data")
-	if err := communes.IngestCOG(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("mayors")
-	if err := communes.IngestRNE(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("municipal elections")
-	if err := communes.IngestMunicipales(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("municipal accounts")
-	if err := communes.IngestOFGL(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("intermunicipal bodies and their powers")
-	if err := communes.IngestBANATIC(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("2020 municipal elections")
-	if err := communes.IngestMunicipales2020(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("regional, departmental and grouping accounts")
-	if err := communes.IngestCollectivites(ctx, pool, arch); err != nil {
-		return err
-	}
-	logs.Notice("recorded crime by municipality")
-	return communes.IngestSSMSI(ctx, pool, arch)
-}
+// dimensionLocale a disparu : les 8 sous-étapes qu'elle enchaînait à la main
+// (COG -> RNE -> municipales -> OFGL -> BANATIC -> municipales 2020 ->
+// collectivités -> SSMSI) sont maintenant des Source nommées à part entière
+// (catalogue.go, préfixe "communes-"), chaînées par Dependances comme tout
+// le reste du catalogue — internal/pipeline les chronomètre individuellement
+// (afficherDurees) sans qu'il soit besoin d'un helper dédié ici. Voir le
+// commentaire au-dessus de ces entrées dans catalogue.go pour le pourquoi de
+// la chaîne stricte (verrou ACCESS EXCLUSIVE de bulkload.SansContraintesFK)
+// et pour l'alias "communes" qui les regroupe.

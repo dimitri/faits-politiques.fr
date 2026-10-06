@@ -43,14 +43,20 @@ var sitesSemiConducteurs = []siteSemiConducteur{
 // (Crolles, Soitec), les faire varier en taille aurait suggéré une
 // précision que la source n'a que pour deux points sur cinq.
 func chargerCarteSemiConducteurs(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
+	// geo.contour_pays vient d'une source hors chaîne par défaut
+	// (contour-pays, internal/ingest) : absente d'un simple « fpctl ingest
+	// all », l'agrégat st_union ci-dessous porte alors sur zéro ligne et
+	// renvoie NULL — un Scan dans un string non annulable échouerait alors
+	// avec « cannot scan NULL into *string ». Même défense que
+	// chargerSecondeGuerreMondiale pour cette même table : un France
+	// introuvable n'est pas une panne, juste rien à dessiner.
 	var fondChemin string
-	err := pool.QueryRow(ctx, `
+	if err := pool.QueryRow(ctx, `
 		SELECT st_assvg(st_union(g.geom), 0, 4)
 		FROM (SELECT (ST_Dump(geom)).path AS path, (ST_Dump(geom)).geom AS geom
 		      FROM geo.contour_pays WHERE nom_fr='France') g
-		WHERE g.path[1] IN (1, 2)`).Scan(&fondChemin)
-	if err != nil || fondChemin == "" {
-		return "", err
+		WHERE g.path[1] IN (1, 2)`).Scan(&fondChemin); err != nil || fondChemin == "" {
+		return "", nil
 	}
 	fleuves, err := fleuvesSVG(ctx, pool, 4326, 0, 4)
 	if err != nil {

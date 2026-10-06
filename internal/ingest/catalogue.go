@@ -231,6 +231,12 @@ var catalogue = []Source{
 			return jorf.IngestGouvernement(ctx, pool, arch)
 		}},
 	{Nom: "gouvernement-membres", Categorie: CategorieParlement, Description: "membres du Gouvernement, d'après les décrets déjà scellés",
+		// jorf.NormalizeMembres lit core.acte_jo : « aucun décret de
+		// composition en base » si jorf-gouvernement n'a pas tourné d'abord
+		// (jamais déclaré avant « fpctl ingest
+		// full », qui met les deux dans la même vague sans cette
+		// Dependances).
+		Dependances: []string{"jorf-gouvernement"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return jorf.NormalizeMembres(ctx, pool)
 		}},
@@ -247,32 +253,104 @@ var catalogue = []Source{
 
 	// --- collectivites : communes, intercommunalités, élections locales,
 	// finances locales.
-	{Nom: "communes", Categorie: CategorieCollectivites,
-		Description: "dimension communale complète (référentiel géographique, maires, municipales, OFGL, BANATIC, municipales 2020, collectivités, délinquance)",
-		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return dimensionLocale(ctx, pool, arch)
-		}},
-	{Nom: "cog", Categorie: CategorieCollectivites, Description: "référentiel géographique (COG) seul",
+	//
+	// La chaîne communes-* ci-dessous MERGE dimensionLocale (qui enchaînait
+	// ces 8 appels à la main, en dehors de tout Registre — voir l'ancien
+	// internal/ingest.dimensionLocale) dans le même graphe de dépendances
+	// que le reste du catalogue : ref.commune (communes-cog) est référencé
+	// par tout le reste, donc la chaîne doit rester strictement linéaire
+	// (communes-cog -> communes-rne -> ... -> communes-ssmsi) — Paralléliser
+	// le CHARGEMENT interbloquerait (bulkload.SansContraintesFK prend un
+	// verrou ACCESS EXCLUSIVE sur les tables référencées, audit détaillé
+	// conservé en mémoire d'équipe) — mais déclarer la chaîne ICI, dans
+	// Source.Dependances plutôt que dans le corps d'une seule fonction, fait
+	// de chaque maillon une étape nommée : chronométrée individuellement par
+	// le même mécanisme que tout le reste (internal/pipeline.afficherDurees),
+	// et surtout DISPONIBLE comme dépendance précise pour un futur step qui
+	// n'aurait besoin que d'un seul maillon (ref.commune seul, par exemple)
+	// plutôt que d'attendre toute la chaîne — ce qu'aucune étape n'exploite
+	// encore aujourd'hui (associations/hatvp/jorf/geo-courant dépendent tous
+	// de l'alias "communes" ci-dessous, pas d'un maillon précis ; voir leurs
+	// entrées, et le commentaire de dependancesRunTout qui cite déjà le
+	// maillon réel dont chacun a besoin).
+	//
+	// "communes" reste l'alias stable que tout le reste du catalogue connaît
+	// déjà (dependancesRunTout, geo-courant) : un simple relais sans
+	// Executer propre, qui ne force PAS la chaîne dans Source.Dependances
+	// directement (ce qui obligerait un appel isolé — fpctl ingest
+	// collectivites communes — à toujours tout recharger, un comportement
+	// voulu ici, pas une dépendance qu'on pourrait vouloir éviter ailleurs).
+	//
+	// cog/rne/epci/municipales2020/collectivites/ssmsi restent EN PLUS,
+	// inchangées : des rechargements isolés d'un seul maillon, sans
+	// dépendance, pour qui sait déjà que ref.commune existe en base (un
+	// usage différent de la chaîne communes-*, pas remplacé par elle).
+	{Nom: "communes-cog", Categorie: CategorieCollectivites, Description: "chaîne communes, 1/8 : référentiel géographique (COG)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestCOG(ctx, pool, arch)
 		}},
-	{Nom: "rne", Categorie: CategorieCollectivites, Description: "répertoire national des élus (maires) seul",
+	{Nom: "communes-rne", Categorie: CategorieCollectivites, Description: "chaîne communes, 2/8 : répertoire national des élus (maires)",
+		Dependances: []string{"communes-cog"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestRNE(ctx, pool, arch)
 		}},
-	{Nom: "epci", Categorie: CategorieCollectivites, Description: "intercommunalités et compétences (BANATIC) seules",
+	{Nom: "communes-municipales", Categorie: CategorieCollectivites, Description: "chaîne communes, 3/8 : élections municipales 2026",
+		Dependances: []string{"communes-rne"},
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return communes.IngestMunicipales(ctx, pool, arch)
+		}},
+	{Nom: "communes-ofgl", Categorie: CategorieCollectivites, Description: "chaîne communes, 4/8 : comptes communaux (OFGL)",
+		Dependances: []string{"communes-municipales"},
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return communes.IngestOFGL(ctx, pool, arch)
+		}},
+	{Nom: "communes-banatic", Categorie: CategorieCollectivites, Description: "chaîne communes, 5/8 : intercommunalités et compétences (BANATIC)",
+		Dependances: []string{"communes-ofgl"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestBANATIC(ctx, pool, arch)
 		}},
-	{Nom: "municipales2020", Categorie: CategorieCollectivites, Description: "élections municipales 2020 seules",
+	{Nom: "communes-municipales2020", Categorie: CategorieCollectivites, Description: "chaîne communes, 6/8 : élections municipales 2020",
+		Dependances: []string{"communes-banatic"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestMunicipales2020(ctx, pool, arch)
 		}},
-	{Nom: "collectivites", Categorie: CategorieCollectivites, Description: "comptes des régions, départements et groupements seuls",
+	{Nom: "communes-collectivites", Categorie: CategorieCollectivites, Description: "chaîne communes, 7/8 : comptes des régions, départements et groupements",
+		Dependances: []string{"communes-municipales2020"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestCollectivites(ctx, pool, arch)
 		}},
-	{Nom: "ssmsi", Categorie: CategorieCollectivites, Description: "délinquance enregistrée par commune seule",
+	{Nom: "communes-ssmsi", Categorie: CategorieCollectivites, Description: "chaîne communes, 8/8 : délinquance enregistrée par commune",
+		Dependances: []string{"communes-collectivites"},
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return communes.IngestSSMSI(ctx, pool, arch)
+		}},
+	{Nom: "communes", Categorie: CategorieCollectivites,
+		Description: "dimension communale complète — alias regroupant toute la chaîne communes-* ci-dessus",
+		Dependances: []string{"communes-ssmsi"},
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return nil
+		}},
+	{Nom: "cog", Categorie: CategorieCollectivites, Description: "référentiel géographique (COG) seul, sans la chaîne (ref.commune déjà en base)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return communes.IngestCOG(ctx, pool, arch)
+		}},
+	{Nom: "rne", Categorie: CategorieCollectivites, Description: "répertoire national des élus (maires) seul, sans la chaîne (ref.commune déjà en base)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return communes.IngestRNE(ctx, pool, arch)
+		}},
+	{Nom: "epci", Categorie: CategorieCollectivites, Description: "intercommunalités et compétences (BANATIC) seules, sans la chaîne (ref.commune déjà en base)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return communes.IngestBANATIC(ctx, pool, arch)
+		}},
+	{Nom: "municipales2020", Categorie: CategorieCollectivites, Description: "élections municipales 2020 seules, sans la chaîne (ref.commune déjà en base)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return communes.IngestMunicipales2020(ctx, pool, arch)
+		}},
+	{Nom: "collectivites", Categorie: CategorieCollectivites, Description: "comptes des régions, départements et groupements seuls, sans la chaîne (ref.commune déjà en base)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return communes.IngestCollectivites(ctx, pool, arch)
+		}},
+	{Nom: "ssmsi", Categorie: CategorieCollectivites, Description: "délinquance enregistrée par commune seule, sans la chaîne (ref.commune déjà en base)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestSSMSI(ctx, pool, arch)
 		}},
@@ -318,7 +396,15 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return aides.IngestUrssafTaille(ctx, pool, arch)
 		}},
+	// Dependances : []string{"sirene"} sur les quatre entrées ci-dessous —
+	// executerAides (internal/aides/nominatives.go, verifierSirene) refuse
+	// de charger une aide nominative sans ref.unite_legale déjà peuplée
+	// (plus d'un million de lignes attendues) : jamais une dépendance
+	// déclarée nulle part avant « fpctl ingest
+	// full », qui met pour la première fois ces sources dans la MÊME
+	// vague que sirene sans ordre garanti entre elles.
 	{Nom: "aides-nominatives", Categorie: CategorieBudget, Description: "aides publiées bénéficiaire par bénéficiaire (ADEME, minimis, TAM — SIRENE requis)",
+		Dependances: []string{"sirene"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			for _, f := range []func(context.Context, *pgxpool.Pool, *archive.Archive) error{
 				aides.IngestADEME, aides.IngestMinimis, aides.IngestTAM} {
@@ -329,14 +415,17 @@ var catalogue = []Source{
 			return nil
 		}},
 	{Nom: "ademe", Categorie: CategorieBudget, Description: "aides ADEME seules",
+		Dependances: []string{"sirene"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return aides.IngestADEME(ctx, pool, arch)
 		}},
 	{Nom: "minimis", Categorie: CategorieBudget, Description: "registre européen de minimis seul",
+		Dependances: []string{"sirene"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return aides.IngestMinimis(ctx, pool, arch)
 		}},
 	{Nom: "tam", Categorie: CategorieBudget, Description: "registre de transparence des aides (TAM) seul",
+		Dependances: []string{"sirene"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return aides.IngestTAM(ctx, pool, arch)
 		}},
@@ -669,4 +758,13 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return prefets.Ingest(ctx, pool, arch)
 		}},
+}
+
+// communesChaineNoms : les 8 maillons de la chaîne communes-* (voir plus
+// haut), pour downloadTargetsFor (ingest.go) — un appel qui ne cible qu'un
+// maillon précis, jamais l'alias "communes" lui-même, doit quand même
+// prérécupérer les URL de toute la chaîne.
+var communesChaineNoms = []string{
+	"communes-cog", "communes-rne", "communes-municipales", "communes-ofgl",
+	"communes-banatic", "communes-municipales2020", "communes-collectivites", "communes-ssmsi",
 }

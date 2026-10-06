@@ -217,8 +217,11 @@ type Cible struct {
 }
 
 // Ingest récupère les médias des cibles fournies et les dépose dans mediaDir.
+// cachePath : voir cache.go — résolutions déjà vues (positives ou négatives),
+// relues puis réécrites à chaque run, pour ne réinterroger Wikimédia que pour
+// une cible nouvelle ou dont le fichier local a disparu.
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
-	mediaDir string, cibles []Cible) error {
+	mediaDir, cachePath string, cibles []Cible) error {
 
 	srcID, err := arch.EnsureSource(ctx, Source)
 	if err != nil {
@@ -231,13 +234,39 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	if err := os.MkdirAll(mediaDir, 0o755); err != nil {
 		return err
 	}
+	cch, err := chargerCache(cachePath)
+	if err != nil {
+		return fmt.Errorf("cache média %s : %w", cachePath, err)
+	}
 	c := &client{http: &http.Client{Timeout: 60 * time.Second}}
 
-	retenus, refuses := 0, 0
+	retenus, refuses, depuisCache := 0, 0, 0
 	for _, cible := range cibles {
 		if cible.PageFR == "" {
 			continue
 		}
+		cle := cleCache(cible.PageFR, cible.Kind)
+
+		if e, ok := cch.Entries[cle]; ok {
+			if e.Rejete {
+				refuses++
+				depuisCache++
+				continue
+			}
+			if _, err := os.Stat(filepath.Join(mediaDir, e.Local)); err == nil {
+				if err := inserer(ctx, pool, cible, e.Local, e.SourceURL,
+					e.Licence, e.LicenceCode, e.Auteur, e.Largeur, e.Hauteur); err != nil {
+					return err
+				}
+				retenus++
+				depuisCache++
+				continue
+			}
+			// Le fichier a disparu de mediaDir (nettoyage manuel, clone
+			// partiel) : l'entrée ne vaut plus rien, on la résout en direct
+			// comme une cible nouvelle.
+		}
+
 		taille := 400
 		if cible.Kind == "LOGO" {
 			taille = 300
@@ -250,6 +279,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 		if f == nil {
 			fmt.Printf("    %-34s écarté — %s\n", cible.Libelle, raison)
 			refuses++
+			cch.Entries[cle] = entreeCache{Rejete: true, Raison: raison}
 			continue
 		}
 		ext := filepath.Ext(f.Nom)
@@ -261,30 +291,47 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 			fmt.Printf("    %-34s erreur de téléchargement : %v\n", cible.Libelle, err)
 			continue
 		}
-		// Reconstruire plutôt que compléter, comme partout ailleurs.
-		if _, err := pool.Exec(ctx, `
-			DELETE FROM core.media
-			 WHERE kind = $3
-			   AND (person_id IS NOT DISTINCT FROM $1)
-			   AND (organization_id IS NOT DISTINCT FROM $2)`,
-			cible.PersonID, cible.OrganizationID, cible.Kind); err != nil {
-			return err
-		}
-		if _, err := pool.Exec(ctx, `
-			INSERT INTO core.media
-			  (person_id, organization_id, kind, fichier, source_url,
-			   licence, licence_code, auteur, largeur, hauteur)
-			VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),$9,$10)`,
-			cible.PersonID, cible.OrganizationID, cible.Kind, local, f.SourceURL,
+		if err := inserer(ctx, pool, cible, local, f.SourceURL,
 			f.Licence, f.LicenceCode, f.Auteur, f.Largeur, f.Hauteur); err != nil {
 			return err
 		}
+		cch.Entries[cle] = entreeCache{
+			Nom: f.Nom, SourceURL: f.SourceURL, Licence: f.Licence, LicenceCode: f.LicenceCode,
+			Auteur: f.Auteur, URL: f.URL, Largeur: f.Largeur, Hauteur: f.Hauteur, Local: local,
+		}
 		retenus++
 	}
+	if err := cch.sauvegarder(cachePath); err != nil {
+		return fmt.Errorf("cache média %s : %w", cachePath, err)
+	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"retenus": retenus, "ecartes": refuses}, "")
-	fmt.Printf("  médias        %d retenus, %d écartés faute de licence libre\n", retenus, refuses)
+		map[string]any{"retenus": retenus, "ecartes": refuses, "depuis_cache": depuisCache}, "")
+	fmt.Printf("  médias        %d retenus, %d écartés faute de licence libre (%d depuis le cache)\n",
+		retenus, refuses, depuisCache)
 	return nil
+}
+
+// inserer : reconstruit plutôt que compléter, comme partout ailleurs —
+// factorisé parce que le chemin cache et le chemin résolution en direct
+// écrivent tous deux la même ligne, jamais deux copies divergentes de ce SQL.
+func inserer(ctx context.Context, pool *pgxpool.Pool, cible Cible,
+	local, sourceURL, licence, licenceCode, auteur string, largeur, hauteur int) error {
+	if _, err := pool.Exec(ctx, `
+		DELETE FROM core.media
+		 WHERE kind = $3
+		   AND (person_id IS NOT DISTINCT FROM $1)
+		   AND (organization_id IS NOT DISTINCT FROM $2)`,
+		cible.PersonID, cible.OrganizationID, cible.Kind); err != nil {
+		return err
+	}
+	_, err := pool.Exec(ctx, `
+		INSERT INTO core.media
+		  (person_id, organization_id, kind, fichier, source_url,
+		   licence, licence_code, auteur, largeur, hauteur)
+		VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),$9,$10)`,
+		cible.PersonID, cible.OrganizationID, cible.Kind, local, sourceURL,
+		licence, licenceCode, auteur, largeur, hauteur)
+	return err
 }
 
 func download(ctx context.Context, hc *http.Client, src, dst string) error {

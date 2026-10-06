@@ -78,20 +78,32 @@ jobs:
   # dépendre du temps d'ingestion (1h22 cumulées, INFRA.md § 1), alors que
   # l'essentiel des PR touche le rendu du site, pas les connecteurs.
   #
-  # Jamais sur schedule non plus, pour une raison différente : ingest all
-  # ne tient structurellement pas dans le budget (temps, disque) d'un
-  # runner hébergé — docs/ci-pipeline.md § 1 conclut qu'une VM dédiée est
-  # nécessaire, pas encore provisionnée. Tant que ce job n'a jamais abouti
-  # une seule fois ici (vérifié : chaque tentative est soit annulée après
-  # ~45 min, soit tuée par le disque), le laisser tourner chaque nuit ne
-  # produit qu'un échec garanti et un jeu de notifications pour rien.
-  # build-pr (schedule y est inclus, plus bas) couvre chaque nuit ce qui
-  # est réellement vérifiable sans cette VM : que le site se construit
-  # encore depuis le dernier périmètre CI connu.
+  # Runner auto-hébergé (dev-runner), pas ubuntu-latest : un runner hébergé,
+  # plafonné à 45 min par ce fichier et à 14 Go de disque, ne pouvait
+  # structurellement pas aboutir — les runs programmés ont été vus annulés
+  # pile au timeout, répétés jour après jour, jusqu'à ce qu'une passe de
+  # concurrence (internal/pipeline, PrefetchAll, chaîne communes-* fusionnée
+  # au graphe — voir git log de ce fichier) ramène l'ingestion complète sous
+  # la barre des 20 minutes, cumulée à la génération du site. Le schedule
+  # nocturne, désactivé un temps pour build-full (ce job n'avait alors
+  # jamais abouti ici une seule fois), est donc réactivé ci-dessous : la
+  # raison de l'avoir coupé ne tient plus. INFRA.md § 10 posait déjà les
+  # conditions d'un runner auto-hébergé pour ce dépôt PUBLIC avant de
+  # l'installer — toutes vérifiées ici : jamais de déclenchement sur
+  # pull_request (voir le if: ci-dessous), conteneur Docker isolé du reste
+  # de la machine (le même démon docker-ci que les autres dépôts construits
+  # sur dev-runner, DOCKER_HOST fixé par le service systemd du runner, pas
+  # par ce fichier), et aucun secret durable propre à ce workflow (aucun
+  # n'existe encore ici).
   build-full:
-    if: github.event_name == 'push' || (github.event_name == 'workflow_dispatch' && inputs.seed_ci_dump_release == '')
-    runs-on: ubuntu-latest
-    timeout-minutes: 45
+    if: github.event_name == 'push' || github.event_name == 'schedule' || (github.event_name == 'workflow_dispatch' && inputs.seed_ci_dump_release == '')
+    runs-on: [self-hosted, faits-politiques]
+    # Un filet de sécurité, pas un budget serré comme sur ubuntu-latest : le
+    # runner auto-hébergé n'a plus de plafond de 45 min ni de 14 Go, mais un
+    # connecteur qui boucle pour de vrai doit quand même finir par échouer
+    # plutôt que tourner indéfiniment sur une machine partagée avec d'autres
+    # dépôts.
+    timeout-minutes: 180
 
     # Pas de services: ici. Le mécanisme services: de GitHub Actions ne sait
     # que tirer une image publiée telle quelle — il ne peut pas construire
@@ -102,7 +114,13 @@ jobs:
     # démarre la même image que le développement local — voir
     # docker-compose.yml.
     env:
-      DATABASE_URL: postgres://fp:fp@localhost:55432/fp?sslmode=disable
+      # Port décalé (docker-compose.yml, FP_DB_PORT) : dev-runner fait déjà
+      # tourner un Postgres de développement sur 55432 (démon Docker par
+      # défaut, deux semaines d'uptime) — le même port hôte sur le démon
+      # docker-ci isolé de ce runner entrerait en collision dessus, constaté
+      # en pratique (« address already in use ») avant ce décalage.
+      FP_DB_PORT: "55433"
+      DATABASE_URL: postgres://fp:fp@localhost:55433/fp?sslmode=disable
 
     steps:
       - uses: actions/checkout@v4
@@ -138,8 +156,26 @@ jobs:
           key: raw-${{ github.run_id }}
           restore-keys: raw-
 
+      # -j 32 : la quasi-totalité du catalogue (runToutSupplement) n'a aucune
+      # dépendance déclarée entre connecteurs — la machinerie de vagues
+      # concurrentes existe déjà (internal/pipeline.Registre, le même
+      # mécanisme que fpctl build site et les matvues) et n'attendait qu'un
+      # -j réel pour servir à l'ingestion. dev-runner n'a que 24 cœurs, mais
+      # ce travail est dominé par l'attente réseau (téléchargements,
+      # requêtes HTTP) plutôt que par le calcul : 32 goroutines peuvent
+      # attendre leur tour de front sans se disputer un cœur. an-exposes,
+      # lui, reste plafonné à sa propre limite de 5 (internal/an/exposes.go,
+      # une politesse par connexion envers un site public, pas une API) quel
+      # que soit -j ici ; aucun autre connecteur ne vise le même site en
+      # masse, donc élargir -j au-delà de 8 ne fait que mieux recouvrir les
+      # dizaines de connecteurs qui, eux, n'ont pas cette limite. Le pool
+      # Postgres de ce même run s'élargit en conséquence (voir
+      # concurrenceDuPool, internal/ingest/ingest.go) — largement sous les
+      # 100 connexions par défaut de Postgres, même cumulé aux 8 de
+      # l'actualisation des matvues (internal/ingest/ingest.go,
+      # actualiserMatviews) qui suit juste après.
       - name: Ingestion
-        run: ./bin/fpctl ingest all
+        run: ./bin/fpctl ingest default -j 32
 
       # Porte 1 : les garanties structurelles tournent sur la base RÉELLEMENT
       # chargée, pas sur une base vide. Une donnée qui violerait une règle
@@ -197,20 +233,22 @@ jobs:
         run: echo "cible d'hébergement à trancher — voir docs/decisions.md D-012"
 
   # Job léger : pas d'ingestion, pas de connecteurs — le site est construit
-  # à partir du dernier périmètre CI publié par build-full (push main) ou,
-  # faute de cache visible depuis cette ref, de la release d'amorçage (voir
-  # plus bas). Répond en quelques minutes plutôt qu'en heures, au prix de
-  # ne pas rejouer les garanties structurelles ni la concordance avec les
-  # décomptes officiels (elles ont besoin de core/ref, hors du périmètre) —
-  # ces deux portes restent couvertes par build-full, seulement à chaque
-  # push sur main désormais (schedule ne l'exécute plus, voir plus haut).
+  # à partir du dernier périmètre CI publié par build-full (push main ou
+  # schedule désormais, voir plus haut) ou, faute de cache visible depuis
+  # cette ref, de la release d'amorçage (voir plus bas). Répond en quelques
+  # minutes plutôt qu'en heures, au prix de ne pas rejouer les garanties
+  # structurelles ni la concordance avec les décomptes officiels (elles ont
+  # besoin de core/ref, hors du périmètre) — ces deux portes restent
+  # couvertes par build-full à chaque push sur main ET chaque nuit.
   #
-  # schedule tourne CE job, pas build-full : la seule chose qu'une nuit
-  # sans intervention humaine peut réellement vérifier aujourd'hui est que
-  # le site se construit encore depuis le dernier périmètre CI connu — pas
-  # qu'un ingest complet aboutisse, ce qu'aucun run n'a jamais fait ici.
+  # schedule ne tourne plus CE job en plus de build-full : du temps où
+  # build-full n'aboutissait jamais sur runner hébergé, ce job couvrait seul
+  # la nuit (vérifier que le site se construit encore depuis le dernier
+  # périmètre CI connu) — un stand-in, pas une des deux portes de qualité.
+  # build-full couvre maintenant les deux chaque nuit ; le garder ici aussi
+  # n'ajoutait qu'une exécution redondante du même plus petit dénominateur.
   build-pr:
-    if: github.event_name == 'pull_request' || github.event_name == 'schedule'
+    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     # contents: write, pas read : nécessaire au repli sur la release

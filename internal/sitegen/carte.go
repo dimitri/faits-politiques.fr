@@ -300,7 +300,16 @@ func pleine(j *JeuContours, cases []CaseCarte, unite string, format func(float64
 // mondiale) — un <g transform="scale(...)"> autour d'un texte à taille
 // normale contourne le problème.
 func etiquettesRegions(j *JeuContours) string {
-	largeur, _ := strconv.ParseFloat(strings.Fields(j.ViewBox)[2], 64)
+	// ViewBox peut être la chaîne vide : jeuContours renvoie une boîte vide
+	// quand geo.contour est vide (voir son commentaire sur sql.NullString —
+	// aucune source du catalogue ne remplit cette table, contours
+	// OpenStreetMap de la migration 0058 chargés hors pipeline), et indexer
+	// [2] sur zéro champ paniquerait au lieu de ne rien dessiner.
+	champs := strings.Fields(j.ViewBox)
+	if len(champs) < 3 {
+		return ""
+	}
+	largeur, _ := strconv.ParseFloat(champs[2], 64)
 	if largeur <= 0 {
 		return ""
 	}

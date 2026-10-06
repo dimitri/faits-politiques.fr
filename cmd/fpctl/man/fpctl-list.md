@@ -101,7 +101,7 @@ fpctl-list - liste une collection (sources, connecteurs, statistiques, graphe de
 
     **Tailles** : les octets archivés viennent de **raw.source.etape**
     (écrit par **internal/archive.Archive.Etape** à chaque ingestion via
-    **fpctl ingest \<source|catégorie\>** — pas **fpctl ingest all**, la
+    **fpctl ingest \<source|catégorie\>** — pas **fpctl ingest default**, la
     chaîne historique, qui n'étiquette pas ses sources) : un reflet
     générique qui couvre n'importe quelle étape du catalogue, pas
     seulement les sept du socle — c'est ce qui permet de chiffrer le coût

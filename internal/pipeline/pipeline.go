@@ -19,8 +19,10 @@ package pipeline
 import (
 	"context"
 	"fmt"
+	"sort"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -183,12 +185,25 @@ type Options struct {
 }
 
 // Executer résout les dépendances des cibles demandées et exécute chaque
-// étape nécessaire, une fois, vague par vague — les prérequis
-// silencieusement oubliés deviennent structurellement impossibles plutôt
-// que découverts un par un, en production, à la lecture d'un message
-// d'erreur sans rapport avec ce qui manque réellement. À l'intérieur d'une
-// vague, jusqu'à Concurrence étapes tournent de front ; dès qu'une échoue,
-// le contexte des autres est annulé et aucune vague suivante ne démarre.
+// étape nécessaire, une fois — les prérequis silencieusement oubliés
+// deviennent structurellement impossibles plutôt que découverts un par un,
+// en production, à la lecture d'un message d'erreur sans rapport avec ce qui
+// manque réellement.
+//
+// Le répartiteur est continu, pas vague par vague (Niveaux reste utile pour
+// LIRE le plan — afficherPlan, fpctl ingest --dry-run — mais ne gouverne
+// plus l'exécution) : une étape part dès que SES PROPRES dépendances sont
+// faites, jamais en attendant que tout le reste de sa vague nominale ait
+// fini. Deux étapes réelles de ce dépôt le montrent : "media" ne dépend que
+// de "carto" (rapide), pas de "communes" (9+ minutes) — les deux tombaient
+// pourtant dans la même vague nominale que "communes", et media attendait
+// sa fin pour rien. Jusqu'à Concurrence étapes tournent de front, au total,
+// pas par vague ; dès qu'une échoue, aucune étape non encore lancée ne
+// démarre — ses dépendantes ne peuvent de toute façon jamais devenir prêtes
+// (voir plus bas, le compteur restant n'est décrémenté que sur succès), mais
+// un échec arrête aussi tout le reste, lancé ou non, pas seulement la
+// branche touchée : la garantie d'origine ("aucune vague suivante ne
+// démarre") vaut pour le graphe entier, pas étape par étape.
 //
 // Le Results renvoyé porte ce que chaque étape exécutée a produit — vide
 // (valeurs nil) pour un registre dont les étapes n'agissent que par effet
@@ -211,52 +226,201 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 		limite = 1
 	}
 
-	resultats := Results{}
-	var mu sync.Mutex
+	// besoin/priorite : la fermeture déjà calculée par Niveaux, aplatie —
+	// priorite rejoue l'ordre de déclaration pour départager deux étapes
+	// prêtes en même temps, un plan reproductible d'un lancement à l'autre
+	// (même but que l'ordre DANS une vague avant cette réécriture).
+	var ordreBesoin []string
+	priorite := map[string]int{}
 	for _, vague := range niveaux {
-		g, gctx := errgroup.WithContext(ctx)
-		g.SetLimit(limite)
 		for _, nom := range vague {
-			nom := nom
-			e := r.etapes[nom]
-			// Construit avant de lancer la vague, pas depuis la goroutine :
-			// les vagues précédentes sont déjà entièrement écrites
-			// (g.Wait() ci-dessous s'en assure), donc cette lecture n'a pas
-			// besoin de mu — seules les ÉCRITURES concurrentes dans une même
-			// vague en ont besoin.
-			deps := Results{}
-			for _, d := range e.Dependances {
-				deps[d] = resultats[d]
-			}
-			g.Go(func() error {
-				// logs.Notice, pas fmt.Printf : plusieurs étapes de la même
-				// vague narrent de front (Concurrence > 1), et internal/logs
-				// sait déjà sérialiser proprement des écritures concurrentes
-				// sur le même stderr (voir internal/logs/lock.go) — un mutex
-				// posé ici ferait la même chose en moins bien.
-				logs.Notice(e.Description)
-				valeur, err := e.Executer(gctx, deps)
-				if err != nil {
-					return fmt.Errorf("%s : %w", nom, err)
-				}
-				mu.Lock()
-				resultats[nom] = valeur
-				mu.Unlock()
-				if r.pool != nil {
-					if _, err := r.pool.Exec(gctx,
-						`UPDATE core.pipeline_etape SET derniere_execution_reussie = now() WHERE nom = $1`,
-						nom); err != nil {
-						return fmt.Errorf("%s : journal d'exécution : %w", nom, err)
-					}
-				}
-				return nil
-			})
-		}
-		if err := g.Wait(); err != nil {
-			return nil, err
+			priorite[nom] = len(ordreBesoin)
+			ordreBesoin = append(ordreBesoin, nom)
 		}
 	}
+
+	// dependants/restants : le graphe inverse des Dependances, et pour
+	// chaque étape le nombre de prérequis pas encore terminés — une étape
+	// rejoint pret dès que son restants tombe à zéro.
+	dependants := map[string][]string{}
+	restants := map[string]int{}
+	for _, nom := range ordreBesoin {
+		for _, d := range r.etapes[nom].Dependances {
+			if _, besoin := priorite[d]; besoin {
+				restants[nom]++
+				dependants[d] = append(dependants[d], nom)
+			}
+		}
+	}
+	var pret []string
+	for _, nom := range ordreBesoin {
+		if restants[nom] == 0 {
+			pret = append(pret, nom)
+		}
+	}
+
+	resultats := Results{}
+	durees := map[string]time.Duration{}
+	var mu sync.Mutex
+	debutTotal := time.Now()
+
+	g, gctx := errgroup.WithContext(ctx)
+	g.SetLimit(limite)
+
+	type arrivee struct {
+		nom string
+		err error
+	}
+	// Bufferisé à la taille de la fermeture entière : un envoi n'attend
+	// jamais que le répartiteur soit disponible pour le lire, qu'il soit
+	// occupé à lancer d'autres étapes ou bloqué dans g.Go (voir lancer) —
+	// seul le sémaphore interne de g borne le nombre de goroutines en vol.
+	arrivees := make(chan arrivee, len(ordreBesoin))
+
+	lancer := func(nom string) {
+		e := r.etapes[nom]
+		// Lu sous mu : contrairement à l'ancien découpage par vagues (où
+		// g.Wait() garantissait la vague précédente entièrement écrite
+		// avant que celle-ci ne lise resultats), une étape peut désormais
+		// démarrer pendant que d'autres, sans rapport, sont encore en
+		// cours d'écriture — la même carte résultats est donc lue ET
+		// écrite en concurrence, ce qui réclame le même mutex des deux
+		// côtés.
+		mu.Lock()
+		deps := Results{}
+		for _, d := range e.Dependances {
+			deps[d] = resultats[d]
+		}
+		mu.Unlock()
+		g.Go(func() error {
+			// logs.Notice, pas fmt.Printf : plusieurs étapes sans rapport de
+			// dépendance tournent de front, et internal/logs sait déjà
+			// sérialiser proprement des écritures concurrentes sur le même
+			// stderr (voir internal/logs/lock.go) — un mutex posé ici ferait
+			// la même chose en moins bien.
+			logs.Notice(e.Description)
+			debut := time.Now()
+			valeur, err := e.Executer(gctx, deps)
+			duree := time.Since(debut)
+			if err != nil {
+				err = fmt.Errorf("%s (après %s) : %w", nom, duree.Round(time.Millisecond), err)
+				arrivees <- arrivee{nom, err}
+				return err
+			}
+			// Le départ de chaque étape se lit déjà dans les logs (NOTICE
+			// ci-dessus, horodaté par internal/logs) — sans cette ligne
+			// d'arrivée, retrouver COMBIEN de temps une étape a pris
+			// demandait de recouper deux horodatages à la main, impossible
+			// dès que plusieurs étapes tournent de front (leurs lignes
+			// s'entrelacent). Les deux bornes dans le même paquet, jamais
+			// recalculées ailleurs.
+			logs.Notice(fmt.Sprintf("%s : terminé en %s", nom, duree.Round(time.Millisecond)))
+			mu.Lock()
+			resultats[nom] = valeur
+			durees[nom] = duree
+			mu.Unlock()
+			if r.pool != nil {
+				if _, err := r.pool.Exec(gctx,
+					`UPDATE core.pipeline_etape SET derniere_execution_reussie = now() WHERE nom = $1`,
+					nom); err != nil {
+					err = fmt.Errorf("%s : journal d'exécution : %w", nom, err)
+					arrivees <- arrivee{nom, err}
+					return err
+				}
+			}
+			arrivees <- arrivee{nom, nil}
+			return nil
+		})
+	}
+
+	// La boucle de répartition elle-même : enVol compte les étapes lancées
+	// dont l'arrivée n'est pas encore lue ici, et borne elle-même le
+	// nombre d'appels à g.Go (jamais au-delà de limite) — PAS g.Go/son
+	// sémaphore. Lui laisser bloquer reviendrait à pouvoir lancer une
+	// (limite+1)-ième étape avant d'avoir lu l'échec éventuel de l'une des
+	// limite déjà en vol (le sémaphore se libère dès qu'une goroutine
+	// revient, pas quand CE répartiteur a lu son arrivee) : un échec
+	// pourrait alors laisser partir une étape qui n'aurait jamais dû
+	// démarrer. En ne faisant jamais patienter le répartiteur à
+	// l'intérieur de g.Go, chaque échec est vu avant toute nouvelle
+	// répartition.
+	arret := false
+	enVol := 0
+	for {
+		if !arret {
+			for len(pret) > 0 && enVol < limite {
+				idx := 0
+				for i := 1; i < len(pret); i++ {
+					if priorite[pret[i]] < priorite[pret[idx]] {
+						idx = i
+					}
+				}
+				nom := pret[idx]
+				pret = append(pret[:idx], pret[idx+1:]...)
+				lancer(nom)
+				enVol++
+			}
+		}
+		if enVol == 0 {
+			break
+		}
+		a := <-arrivees
+		enVol--
+		if a.err != nil {
+			// Ni ses dépendantes (qui ne peuvent de toute façon jamais
+			// devenir prêtes : restants ne descend que sur succès) ni le
+			// reste du graphe non encore lancé ne démarrent — la même
+			// garantie qu'avant, au niveau du graphe entier plutôt que
+			// vague par vague.
+			arret = true
+			continue
+		}
+		for _, dep := range dependants[a.nom] {
+			restants[dep]--
+			if restants[dep] == 0 {
+				pret = append(pret, dep)
+			}
+		}
+	}
+
+	if err := g.Wait(); err != nil {
+		return nil, err
+	}
+	afficherDurees(durees, time.Since(debutTotal))
 	return resultats, nil
+}
+
+// afficherDurees : un résumé trié par coût décroissant, pour répondre tout
+// de suite à « qu'est-ce qui a pris du temps ? » sans recouper des lignes
+// NOTICE entrelacées à la main — surtout utile sous Concurrence > 1, où
+// l'ordre d'apparition dans les logs ne reflète plus l'ordre de déclaration
+// ni le coût réel. Les dix étapes les plus lentes suffisent : le but est de
+// repérer un goulot, pas de remplacer un vrai profil (pprof) si le besoin
+// allait plus loin que ça.
+func afficherDurees(durees map[string]time.Duration, totalMur time.Duration) {
+	if len(durees) == 0 {
+		return
+	}
+	type ligne struct {
+		nom   string
+		duree time.Duration
+	}
+	tri := make([]ligne, 0, len(durees))
+	var somme time.Duration
+	for nom, d := range durees {
+		tri = append(tri, ligne{nom, d})
+		somme += d
+	}
+	sort.Slice(tri, func(i, j int) bool { return tri[i].duree > tri[j].duree })
+	n := len(tri)
+	if n > 10 {
+		n = 10
+	}
+	logs.Notice(fmt.Sprintf("étapes les plus coûteuses (somme des étapes : %s, mur : %s, %d étapes) :",
+		somme.Round(time.Second), totalMur.Round(time.Second), len(tri)))
+	for _, l := range tri[:n] {
+		logs.Notice(fmt.Sprintf("  %s : %s", l.nom, l.duree.Round(time.Millisecond)))
+	}
 }
 
 func (r *Registre) afficherPlan(niveaux [][]string, concurrence int) {

@@ -2,6 +2,7 @@ package sitegen
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"html/template"
 	"strings"
@@ -56,15 +57,26 @@ func jeuContoursEPCI(ctx context.Context, pool *pgxpool.Pool, millesime int,
 	// pour les départements) plutôt que la seule emprise des EPCI : les
 	// syndicats et zones sans EPCI à fiscalité propre restent dans le cadre,
 	// au lieu de faire flotter la carte sur un territoire aux bords faux.
-	var vb string
+	//
+	// st_extent est une agrégation : la ligne existe même sans contour
+	// départemental, avec une valeur NULL. geo.contour n'a AUCUNE source dans
+	// le catalogue (contours OpenStreetMap de la migration 0058, chargés hors
+	// pipeline) alors que geo.contour_cog, elle, est remplie par « contours » /
+	// « geo-courant » : après un « fpctl ingest default » ordinaire, cette requête
+	// porte donc normalement sur zéro ligne pendant que les tracés d'EPCI
+	// ci-dessus existent. Même défense que jeuContours
+	// (internal/sitegen/carte.go) sur cette même table : une boîte vide plutôt
+	// qu'un échec de toute la construction.
+	var vbN sql.NullString
 	err = pool.QueryRow(ctx, `
 		SELECT round(st_xmin(e))||' '||round(-st_ymax(e))||' '||
 		       round(st_xmax(e)-st_xmin(e))||' '||round(st_ymax(e)-st_ymin(e))
 		FROM (SELECT st_extent(st_transform(geom,2154)) e FROM geo.contour
-		      WHERE niveau='DEPARTEMENT' AND srid_rendu = 2154) x`).Scan(&vb)
+		      WHERE niveau='DEPARTEMENT' AND srid_rendu = 2154) x`).Scan(&vbN)
 	if err != nil {
 		return nil, err
 	}
+	vb := vbN.String
 
 	om, err := contoursOutreMerCOG(ctx, pool, millesime, tolerance)
 	if err != nil {

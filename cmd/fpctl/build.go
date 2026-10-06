@@ -236,7 +236,7 @@ func buildSection(cmd *cobra.Command, name string, sections []string, args []str
 	// l'actualisation des matvues (mesuré : de l'ordre de la minute). « fpctl
 	// build site » n'a jamais ingéré ses propres préalables (voir le
 	// commentaire en tête de ce fichier — c'est la CI qui les ingère à
-	// part, via « fpctl ingest all »), -cache donne aux groupes/sections/
+	// part, via « fpctl ingest default »), -cache donne aux groupes/sections/
 	// sujets isolés la même garantie explicitement : construire depuis le
 	// schéma mv et core tel qu'il est LÀ, MAINTENANT, sans y retoucher —
 	// c'est ce que la CI utilise pour construire depuis un dump déjà

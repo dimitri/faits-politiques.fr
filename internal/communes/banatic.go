@@ -385,6 +385,15 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	return nil
 }
 
+// banaticCorrespondanceSirenURL : seule source de vérité pour
+// correspondanceSiren et pour DownloadTargets, pour que les deux ne puissent
+// pas diverger.
+func banaticCorrespondanceSirenURL() string {
+	return "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/" + ofglDataset +
+		"/exports/csv?delimiter=%3B&select=com_code,siren,exer&where=" +
+		"agregat%3D%22Encours%20de%20dette%22"
+}
+
 // correspondanceSiren construit SIREN -> code INSEE à partir de l'OFGL, qui
 // publie les deux identifiants sur la même ligne.
 func correspondanceSiren(ctx context.Context, arch *archive.Archive, srcID, runID int64) (map[string]string, error) {
@@ -395,10 +404,7 @@ func correspondanceSiren(ctx context.Context, arch *archive.Archive, srcID, runI
 	// n'avaient donc pas de SIREN, et disparaissaient en silence de leur
 	// intercommunalité — 97 des 101 communes « sans EPCI » venaient de là.
 	// L'agrégat ne sert qu'à obtenir une ligne par commune et par exercice.
-	url := "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/" + ofglDataset +
-		"/exports/csv?delimiter=%3B&select=com_code,siren,exer&where=" +
-		"agregat%3D%22Encours%20de%20dette%22"
-	f, err := arch.Fetch(ctx, srcID, runID, url, ".csv")
+	f, err := arch.Fetch(ctx, srcID, runID, banaticCorrespondanceSirenURL(), ".csv")
 	if err != nil {
 		return nil, err
 	}

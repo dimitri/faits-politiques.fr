@@ -11,7 +11,8 @@ var checksNumerique = []check{
 		name: "SecNumCloud : le dernier catalogue de l'ANSSI compte au moins 15 services qualifiés",
 		query: `SELECT count(*) FROM core.qualification_secnumcloud
 		         WHERE catalogue_du = (SELECT max(catalogue_du) FROM core.qualification_secnumcloud)`,
-		min: 15,
+		min:     15,
+		sources: []string{"numerique-anssi"},
 	},
 	{
 		// Une qualification expirée à la date du catalogue n'y figurerait plus :
@@ -30,11 +31,13 @@ var checksNumerique = []check{
 		query: `SELECT count(*) FROM (SELECT sum(montant_eur) s FROM core.sanction_cnil
 		         WHERE date_decision >= '2025-01-01' AND date_decision < '2026-01-01') t
 		         WHERE s IS NULL OR abs(s - 486839500) > 0.005 * 486839500`,
+		sources: []string{"numerique-cnil"},
 	},
 	{
-		name:  "CNIL : chaque année de 2011 à 2025 a au moins une sanction",
-		query: `SELECT count(DISTINCT extract(year FROM date_decision)) FROM core.sanction_cnil WHERE date_decision < '2026-01-01'`,
-		min:   15,
+		name:    "CNIL : chaque année de 2011 à 2025 a au moins une sanction",
+		query:   `SELECT count(DISTINCT extract(year FROM date_decision)) FROM core.sanction_cnil WHERE date_decision < '2026-01-01'`,
+		min:     15,
+		sources: []string{"numerique-cnil"},
 	},
 	{
 		// Aucune ré-identification (D-065) : la table ne contient que les
@@ -44,25 +47,29 @@ var checksNumerique = []check{
 		         WHERE organisme ~* '\m(google|amazon|microsoft|apple|facebook|meta|oracle|ibm|palantir)\M'`,
 	},
 	{
-		name:  "SILL : le socle interministériel de logiciels libres est chargé",
-		query: `SELECT count(*) FROM core.sill_logiciel`,
-		min:   300,
+		name:    "SILL : le socle interministériel de logiciels libres est chargé",
+		query:   `SELECT count(*) FROM core.sill_logiciel`,
+		min:     300,
+		sources: []string{"numerique-sill"},
 	},
 	{
-		name:  "faits : les textes, constats et déclarations du dossier souveraineté sont chargés",
-		query: `SELECT count(*) FROM ref.fait_dossier WHERE dossier = 'souverainete-numerique'`,
-		min:   40,
+		name:    "faits : les textes, constats et déclarations du dossier souveraineté sont chargés",
+		query:   `SELECT count(*) FROM ref.fait_dossier WHERE dossier = 'souverainete-numerique'`,
+		min:     40,
+		sources: []string{"dossiers-faits"},
 	},
 	{
 		name: "contexte : les trois décrets d'attributions relus dans le corpus JORF sont chargés",
 		query: `SELECT count(*) FROM ref.fait_dossier
 		         WHERE dossier = 'souverainete-numerique' AND section = 'CONTEXTE' AND jo_texte_id IS NOT NULL`,
-		min: 3,
+		min:     3,
+		sources: []string{"dossiers-faits"},
 	},
 	{
-		name:  "marchés informatiques : l'ensemble des DECP est lu, pas seulement les groupes suivis",
-		query: `SELECT count(DISTINCT uid) FROM core.marche_numerique`,
-		min:   50000,
+		name:    "marchés informatiques : l'ensemble des DECP est lu, pas seulement les groupes suivis",
+		query:   `SELECT count(DISTINCT uid) FROM core.marche_numerique`,
+		min:     50000,
+		sources: []string{"numerique-marches"},
 	},
 	{
 		// Chaque marché est rangé dans un seul rattachement : la somme des
@@ -70,11 +77,13 @@ var checksNumerique = []check{
 		name: "marchés informatiques : la vue par titulaire compte chaque marché une fois",
 		query: `SELECT abs((SELECT sum(marches) FROM derived.marche_numerique_titulaire)
 		                 - (SELECT count(DISTINCT uid) FROM core.marche_numerique))::int`,
+		sources: []string{"numerique-marches"},
 	},
 	{
 		name: "marchés informatiques : la vue par produit compte chaque marché une fois",
 		query: `SELECT abs((SELECT sum(marches) FROM derived.marche_numerique_produit)
 		                 - (SELECT count(DISTINCT uid) FROM core.marche_numerique))::int`,
+		sources: []string{"numerique-marches"},
 	},
 	{
 		// Les marchés de la sélection de l'évasion fiscale rattachés par SIREN

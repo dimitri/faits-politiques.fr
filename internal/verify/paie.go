@@ -10,9 +10,10 @@ func init() {
 
 var checksPaie = []check{
 	{
-		name:  "barème de paie 2026 chargé : taux, paramètres, destinataires",
-		query: `SELECT count(*) FROM ref.taux_cotisation WHERE millesime = '2026-01-01'`,
-		min:   20,
+		name:    "barème de paie 2026 chargé : taux, paramètres, destinataires",
+		query:   `SELECT count(*) FROM ref.taux_cotisation WHERE millesime = '2026-01-01'`,
+		min:     20,
+		sources: []string{"paie"},
 	},
 	{
 		name: "bulletin d'exemple : net payé 1 925,68 €, coût employeur 3 139,40 €",
@@ -22,9 +23,10 @@ var checksPaie = []check{
 		                OR net_imposable <> 2050.22 OR coefficient <> 0.1719)`,
 	},
 	{
-		name:  "bulletin d'exemple : présent",
-		query: `SELECT count(*) FROM derived.bulletin_synthese WHERE cas = 'technicienne-2500'`,
-		min:   1,
+		name:    "bulletin d'exemple : présent",
+		query:   `SELECT count(*) FROM derived.bulletin_synthese WHERE cas = 'technicienne-2500'`,
+		min:     1,
+		sources: []string{"paie"},
 	},
 	{
 		// Salaire net + impôt + cotisations versées = coût employeur, au centime.

@@ -441,7 +441,12 @@ func buildRegistry(env *environment) *pipeline.Registre {
 	reg.Ajouter(pipeline.Etape{Nom: "vieillesse-carte", Description: "carte vieillesse", Dependances: []string{"vieillesse"},
 		Executer: func(_ context.Context, d pipeline.Results) (any, error) {
 			vieil := dep[*StatsVieillesse](d, "vieillesse")
-			if vieil.CarteAPA.Slug == "" {
+			// nil est un résultat légitime de l'étape dont celle-ci dépend :
+			// addPageNode (graphe_sections.go, rienAPublier) renvoie tel quel
+			// le zéro du chargeur quand il saute la page. loadVieillesse ne
+			// s'en sert pas aujourd'hui, mais loadRichesse si — ne pas faire
+			// de ce détail une condition de non-plantage d'ici.
+			if vieil == nil || vieil.CarteAPA.Slug == "" {
 				return nil, nil
 			}
 			l := e.layout
@@ -468,7 +473,9 @@ func buildRegistry(env *environment) *pipeline.Registre {
 	reg.Ajouter(pipeline.Etape{Nom: "jeunesse-carte", Description: "carte jeunesse", Dependances: []string{"jeunesse"},
 		Executer: func(_ context.Context, d pipeline.Results) (any, error) {
 			jeun := dep[*StatsJeunesse](d, "jeunesse")
-			if jeun.CarteInsertion.Slug == "" {
+			// Même raison qu'au-dessus pour vieillesse-carte : le nil que
+			// rienAPublier reconnaît traverse addPageNode jusqu'ici.
+			if jeun == nil || jeun.CarteInsertion.Slug == "" {
 				return nil, nil
 			}
 			l := e.layout
