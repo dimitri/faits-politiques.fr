@@ -87,17 +87,25 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return err
 	}
 
-	connues, err := communesConnues(ctx, pool)
+	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return fail(err)
 	}
+	defer tx.Rollback(ctx)
 
-	type cle struct {
-		commune, indicateur string
-		annee               int
+	// tmp_ofgl_brut : tout ce que lireCSV a renvoyé, sans filtre ni dédoublonnage
+	// — l'appartenance au COG et le dédoublonnage (une commune peut apparaître
+	// deux fois pour le même indicateur/exercice selon la source) se font
+	// maintenant en SQL, une seule fois, dans le MERGE plus bas, plutôt que
+	// dans une carte Go reconstruite en mémoire à chaque run. ParseFloat reste
+	// en Go : un échec de conversion est une anomalie de ligne, pas un filtre
+	// contre une référence — différent par nature de l'appartenance au COG.
+	if _, err := tx.Exec(ctx, `
+		CREATE TEMP TABLE tmp_ofgl_brut (
+			commune_code text, indicator_code text, period_year int, value numeric, source_id bigint
+		) ON COMMIT DROP`); err != nil {
+		return fail(err)
 	}
-	valeurs := map[cle]float64{}
-	horsCOG := map[string]bool{}
 
 	for ex := ofglPremierExercice; ex <= ofglDernierExercice; ex++ {
 		f, err := arch.Fetch(ctx, srcID, runID, ofglURL(ex), ".csv")
@@ -108,39 +116,45 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		if err != nil {
 			return fail(err)
 		}
+		rows := make([][]any, 0, len(recs)*2)
 		for _, r := range recs {
 			com := r["com_code"]
-			if !connues[com] {
-				if com != "" {
-					horsCOG[com] = true
-				}
-				continue
-			}
 			code, ok := ofglAgregats[r["agregat"]]
 			if !ok {
 				continue
 			}
 			if v, err := strconv.ParseFloat(r["euros_par_habitant"], 64); err == nil {
-				valeurs[cle{com, code, ex}] = v
+				rows = append(rows, []any{com, code, ex, v, srcID})
 			}
 			// La population est publiée sur chaque ligne ; une seule suffit.
 			if p, err := strconv.ParseFloat(r["ptot"], 64); err == nil {
-				valeurs[cle{com, "ofgl.population_totale", ex}] = p
+				rows = append(rows, []any{com, "ofgl.population_totale", ex, p, srcID})
 			}
+		}
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_ofgl_brut"},
+			[]string{"commune_code", "indicator_code", "period_year", "value", "source_id"},
+			pgx.CopyFromRows(rows)); err != nil {
+			return fail(fmt.Errorf("exercice %d : copie : %w", ex, err))
 		}
 		fmt.Printf("    exercice %d : %d lignes\n", ex, len(recs))
 	}
 
-	rows := make([][]any, 0, len(valeurs))
-	for k, v := range valeurs {
-		rows = append(rows, []any{k.commune, COGMillesime, k.indicateur, k.annee, v, srcID, "COMMUNE"})
-	}
-
-	tx, err := pool.Begin(ctx)
-	if err != nil {
+	// Index support à la fois le DISTINCT ON du MERGE ci-dessous (même triplet
+	// que la clé de dédoublonnage) et le NOT EXISTS du comptage hors-COG.
+	if _, err := tx.Exec(ctx, `
+		CREATE INDEX ON tmp_ofgl_brut (commune_code, indicator_code, period_year)`); err != nil {
 		return fail(err)
 	}
-	defer tx.Rollback(ctx)
+
+	var horsCOG int64
+	if err := tx.QueryRow(ctx, `
+		SELECT count(DISTINCT t.commune_code) FROM tmp_ofgl_brut t
+		 WHERE NOT EXISTS (
+		   SELECT 1 FROM ref.commune c
+		    WHERE c.code_insee = t.commune_code AND c.cog_millesime = $1)`,
+		COGMillesime).Scan(&horsCOG); err != nil {
+		return fail(err)
+	}
 
 	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (indicator_code LIKE
 	// 'ofgl.%', 2,5 millions de lignes sur les 35 000 communes) payait le
@@ -150,27 +164,30 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	// indicator directement : la table est partagée avec internal/eau/
 	// budget_annexe.go et internal/communes/fiscalite_locale.go, chacun sur
 	// son propre préfixe d'indicator_code.
+	//
+	// USING fait en un seul SELECT ce qui demandait avant une carte Go
+	// (connues[com], valeurs[cle{...}]) : DISTINCT ON dédoublonne sur la même
+	// clé que l'ancienne carte (dernière valeur rencontrée — l'ordre n'a
+	// jamais été significatif, en Go pas plus qu'ici), et le JOIN ref.commune
+	// ne retient que les communes du millésime courant.
 	if _, err := tx.Exec(ctx, `
-		CREATE TEMP TABLE tmp_commune_indicator_ofgl (
-			commune_code text, cog_millesime int, indicator_code text,
-			period_year int, value numeric, source_id bigint, budget_scope core.budget_scope
-		) ON COMMIT DROP;
 		CREATE OR REPLACE TEMPORARY VIEW commune_indicator_ofgl AS
 		  SELECT * FROM core.commune_indicator WHERE indicator_code LIKE 'ofgl.%'
 		  WITH LOCAL CHECK OPTION`); err != nil {
 		return fail(err)
 	}
-	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_commune_indicator_ofgl"},
-		[]string{"commune_code", "cog_millesime", "indicator_code", "period_year",
-			"value", "source_id", "budget_scope"},
-		pgx.CopyFromRows(rows)); err != nil {
-		return fail(fmt.Errorf("copie des indicateurs : %w", err))
-	}
 	var n int64
 	err = bulkload.SansContraintesFK(ctx, tx, "core.commune_indicator", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO commune_indicator_ofgl AS tgt
-			USING tmp_commune_indicator_ofgl AS src
+			USING (
+			  SELECT DISTINCT ON (t.commune_code, t.indicator_code, t.period_year)
+			         t.commune_code, $1::int AS cog_millesime, t.indicator_code, t.period_year,
+			         t.value, t.source_id, 'COMMUNE'::core.budget_scope AS budget_scope
+			    FROM tmp_ofgl_brut t
+			    JOIN ref.commune c ON c.code_insee = t.commune_code AND c.cog_millesime = $1
+			   ORDER BY t.commune_code, t.indicator_code, t.period_year
+			) AS src
 			ON tgt.commune_code = src.commune_code AND tgt.budget_scope = src.budget_scope
 			   AND tgt.indicator_code = src.indicator_code AND tgt.period_year = src.period_year
 			WHEN MATCHED AND (tgt.cog_millesime, tgt.value, tgt.source_id)
@@ -180,7 +197,8 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 			    INSERT (commune_code, cog_millesime, indicator_code, period_year, value, source_id, budget_scope)
 			    VALUES (src.commune_code, src.cog_millesime, src.indicator_code, src.period_year,
 			            src.value, src.source_id, src.budget_scope)
-			WHEN NOT MATCHED BY SOURCE THEN DELETE`)
+			WHEN NOT MATCHED BY SOURCE THEN DELETE`,
+			COGMillesime)
 		if err != nil {
 			return err
 		}
@@ -195,11 +213,11 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"indicateurs": n, "communes_hors_cog": len(horsCOG)}, "")
+		map[string]any{"indicateurs": n, "communes_hors_cog": horsCOG}, "")
 	fmt.Printf("  OFGL : %d valeurs touchées sur %d-%d\n", n, ofglPremierExercice, ofglDernierExercice)
-	if len(horsCOG) > 0 {
+	if horsCOG > 0 {
 		fmt.Printf("  %d communes de l'OFGL absentes du COG %d (communes disparues : ignorées)\n",
-			len(horsCOG), COGMillesime)
+			horsCOG, COGMillesime)
 	}
 	return nil
 }
