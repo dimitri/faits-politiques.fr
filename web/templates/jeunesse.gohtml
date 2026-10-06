@@ -28,7 +28,13 @@ détail, § 3</a>.</p>
 {{end}}
 
 <h2>Où l'insertion est-elle la meilleure</h2>
-{{if $j.CarteInsertion.Page.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+{{/* Même garde que vieillesse.gohtml : Carte.Vide ne distingue pas « des
+     régions connues, toutes sans valeur » de « aucune carte construite »
+     (core.insertion_apprentissage vide, la source « jeunesse » étant hors
+     chaîne par défaut — ingest.ChaineParDefaut). Le zéro de CarteTerritoire a
+     Carte.Vide à false : sans le test sur Slug, la page publiait un cadre vide,
+     « 0 régions renseignées » et un lien mort vers /jeunesse/carte//. */}}
+{{if or (not $j.CarteInsertion.Slug) $j.CarteInsertion.Page.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
 <div class="cartes-lignes carte-dossier">
 <div class="bloc-carte ligne">
   <div>
@@ -48,7 +54,7 @@ détail, § 3</a>.</p>
 </div>
 </div>
 {{end}}
-<p class="note abs">{{$j.CarteInsertion.Note}}</p>
+{{if $j.CarteInsertion.Note}}<p class="note abs">{{$j.CarteInsertion.Note}}</p>{{end}}
 
 <h2>Les études supérieures et le Contrat d'engagement jeune</h2>
 <table class="donnees">

@@ -138,6 +138,19 @@ func loadRichesse(ctx context.Context, pool *pgxpool.Pool) (*StatsRichesse, erro
 			st.Seuils = append(st.Seuils, s)
 		}
 	}
+	// richesse est une source hors chaîne par défaut (internal/ingest) :
+	// core.filosofi_haut_revenu reste vide après un simple « fpctl ingest
+	// default », et la boucle ci-dessus ne construit alors aucun seuil.
+	// richesse.gohtml indexe st.Seuils à des positions fixes (jusqu'à 3,
+	// le 0,1 % le plus aisé) en supposant ordreSeuil au complet — un
+	// sous-ensemble planterait le gabarit (index hors bornes) au lieu de
+	// simplement ne rien publier. addPageNode (graphe_sections.go,
+	// rienAPublier) sait sauter une page dont le chargeur renvoie nil :
+	// c'est ce signal qu'il faut lui donner ici plutôt qu'un *StatsRichesse
+	// non nil mais incomplet.
+	if len(st.Seuils) < len(ordreSeuil) {
+		return nil, nil
+	}
 	if mediane, ok := parSeuil["D5"]; ok {
 		if sommet, ok := parSeuil["Q99_9"]; ok && mediane.RevenuAvant > 0 {
 			st.RatioSommetMediane = float64(sommet.RevenuAvant) / float64(mediane.RevenuAvant)

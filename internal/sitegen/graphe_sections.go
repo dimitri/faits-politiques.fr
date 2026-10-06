@@ -10,19 +10,50 @@ import (
 	"fmt"
 	"html/template"
 	"path/filepath"
+	"reflect"
 	"runtime"
 	"sort"
 	"strings"
 	"time"
 
+	"github.com/faits-politiques/faits-politiques/internal/logs"
 	"github.com/faits-politiques/faits-politiques/internal/pipeline"
 	"golang.org/x/sync/errgroup"
 )
+
+// rienAPublier : v est-il le zéro d'un type qui peut légitimement le valoir
+// quand sa source est hors chaîne par défaut (ingest.ChaineParDefaut) et
+// n'a simplement rien chargé — un pointeur nil (chargerSecondeGuerreMondiale
+// et consorts renvoient déjà ce signal), mais aussi une interface, un slice
+// ou une map nil : les mêmes types que la plupart des chargeurs renvoient
+// en cas d'absence, pour peu qu'ils renvoient LE ZÉRO plutôt qu'une valeur
+// partiellement construite (voir loadRichesse, corrigé pour s'y conformer).
+// reflect.Value.IsNil panique sur un type qui n'est pas de ces quatre
+// natures (un struct nu, un int...) — Kind() est vérifié avant pour ne
+// jamais l'atteindre sur un type qui ne peut de toute façon pas être nil.
+func rienAPublier(v any) bool {
+	rv := reflect.ValueOf(v)
+	switch rv.Kind() {
+	case reflect.Ptr, reflect.Interface, reflect.Slice, reflect.Map, reflect.Chan, reflect.Func:
+		return rv.IsNil()
+	}
+	return false
+}
 
 // addPageNode : le patron d'une section à un seul chargement — charger(),
 // puis écrire() sous le nom de section nom lui-même, sauf si -only
 // l'exclut. La valeur chargée reste disponible aux dépendantes (la carte
 // vieillesse/jeunesse lit l'état renvoyé par sa propre page).
+//
+// Une page dont la source est hors chaîne par défaut (ingest.
+// ChaineParDefaut) — richesse, empire colonial... — doit pouvoir dire
+// « rien à publier » sans faire échouer toute la construction : charger()
+// renvoyant le zéro de T (nil pour un pointeur/slice/map) est ce signal,
+// reconnu ici une bonne fois pour toutes plutôt que par un garde ad hoc
+// dans chaque gabarit. Avant cette vérification, une page dont le
+// chargeur renvoyait nil était quand même écrite — le gabarit plantait
+// alors lui-même sur un pointeur nil ou un index hors bornes, une erreur
+// moins claire et plus tardive que de sauter la page ici.
 func addPageNode[T any](reg *pipeline.Registre, e *environment, nom string, deps []string, titre, gabarit string,
 	charger func(ctx context.Context, d pipeline.Results) (T, error),
 	donnees func(l Layout, v T) (string, any)) {
@@ -32,6 +63,10 @@ func addPageNode[T any](reg *pipeline.Registre, e *environment, nom string, deps
 			v, err := charger(ctx, d)
 			if err != nil {
 				return nil, err
+			}
+			if rienAPublier(v) {
+				logs.Notice(nom + " : rien à publier (source hors chaîne non chargée), page sautée")
+				return v, nil
 			}
 			l := e.layout
 			l.Title = titre

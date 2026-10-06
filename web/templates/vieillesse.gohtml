@@ -56,7 +56,14 @@ systématiquement deux masses d'ampleur très différente.
 <a href="{{.Root}}/comprendre/vieillesse-donnees/">Le détail, § 3</a>.</p>
 
 <h2>La dépendance : l'APA à domicile</h2>
-{{if $v.CarteAPA.Page.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+{{/* Deux absences distinctes, un seul rendu : Carte.Vide signale des
+     départements connus mais tous sans valeur, tandis qu'un Slug vide signale
+     qu'AUCUNE carte n'a été construite — core.apa_domicile est vide, la source
+     « vieillesse » étant hors chaîne par défaut (ingest.ChaineParDefaut). Dans
+     ce second cas, CarteAPA est le zéro de CarteTerritoire, dont Carte.Vide
+     vaut false : s'en tenir à Vide publiait un cadre de carte sans tracé, « 0
+     départements renseignés » et un lien mort vers /vieillesse/carte//. */}}
+{{if or (not $v.CarteAPA.Slug) $v.CarteAPA.Page.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
 <div class="cartes-lignes carte-dossier">
 <div class="bloc-carte ligne">
   <div>
@@ -76,7 +83,7 @@ systématiquement deux masses d'ampleur très différente.
 </div>
 </div>
 {{end}}
-<p class="note abs">{{$v.CarteAPA.Note}}</p>
+{{if $v.CarteAPA.Note}}<p class="note abs">{{$v.CarteAPA.Note}}</p>{{end}}
 
 <p class="note proc">Cette page reprend <a href="{{.Root}}/comprendre/vieillesse-donnees/">le dossier
 vieillesse</a> : chaque chiffre y est vérifié par une requête directe, avec ses réserves. Voir aussi
