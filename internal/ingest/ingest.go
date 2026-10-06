@@ -63,6 +63,26 @@ func EstSurLeSocle(nom string) bool {
 	return false
 }
 
+// ChaineParDefaut : l'ensemble des noms que « fpctl ingest all » charge
+// réellement — le socle parlementaire plus runToutSupplement, jamais les
+// quelque 90 autres sources du catalogue (délibérément hors chaîne par
+// défaut : coûteuses, ponctuelles, ou exigeant une clé/un binaire
+// particulier — voir le commentaire de RunTout). internal/verify s'en sert
+// pour ne rejouer, par défaut, que les contrôles dont la source est dans cet
+// ensemble : sans ça, « fpctl verify data » après un « fpctl ingest all »
+// tout à fait normal échoue systématiquement sur des données que cet ingest
+// n'a jamais eu vocation à charger.
+func ChaineParDefaut() map[string]bool {
+	m := make(map[string]bool, len(socleParlementaire)+len(runToutSupplement))
+	for _, n := range socleParlementaire {
+		m[n] = true
+	}
+	for _, n := range runToutSupplement {
+		m[n] = true
+	}
+	return m
+}
+
 // registreParlement construit le pipeline.Registre du socle parlementaire à
 // partir du catalogue — une seule référence (catalogue.go) pour les deux :
 // la liste plate que "fpctl ingest parlement" affiche, et le graphe que ce
