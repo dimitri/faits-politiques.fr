@@ -2298,9 +2298,10 @@ var checks = []check{
 		sources: []string{"contour-pays"},
 	},
 	{
-		name:  "fond mondial des cours d'eau : au moins 400 tracés chargés",
-		query: `SELECT count(*) FROM geo.cours_eau_monde`,
-		min:   400,
+		name:    "fond mondial des cours d'eau : au moins 400 tracés chargés",
+		query:   `SELECT count(*) FROM geo.cours_eau_monde`,
+		min:     400,
+		sources: []string{"cours-eau-monde"},
 	},
 	{
 		// Une part de francophones est un pourcentage : au-delà de 100, une
@@ -2419,6 +2420,7 @@ var checks = []check{
 		query: `SELECT count(*) FROM (
 			SELECT annee, count(*) AS n FROM core.sru_commune GROUP BY annee
 		) x WHERE x.n NOT BETWEEN 2000 AND 2300`,
+		sources: []string{"sru"},
 	},
 	{
 		// Le prélèvement net n'existe comme colonne que depuis le millésime
@@ -2433,14 +2435,16 @@ var checks = []check{
 			SELECT annee, count(*) FILTER (WHERE prelevement_net > 0) AS n
 			FROM core.sru_commune WHERE annee <> 2023 GROUP BY annee
 		) x WHERE x.n = 0`,
+		sources: []string{"sru"},
 	},
 	{
 		// core.sru_commune_dernier promet UNE photographie cohérente (voir
 		// son COMMENT ON VIEW) : toutes ses lignes doivent porter le même
 		// millésime, jamais un mélange où chaque commune apporterait sa
 		// propre dernière année connue.
-		name:  "SRU : la vue du dernier millésime ne mélange pas plusieurs années",
-		query: `SELECT count(DISTINCT annee) - 1 FROM core.sru_commune_dernier`,
+		name:    "SRU : la vue du dernier millésime ne mélange pas plusieurs années",
+		query:   `SELECT count(DISTINCT annee) - 1 FROM core.sru_commune_dernier`,
+		sources: []string{"sru"},
 	},
 	{
 		// Colonne « 4 bis » du fichier source (article L. 302-5 CCH),
@@ -2452,6 +2456,7 @@ var checks = []check{
 			SELECT annee, count(*) FILTER (WHERE exemptee) AS n, count(*) AS total
 			FROM core.sru_commune GROUP BY annee
 		) x WHERE x.n = 0 OR x.n = x.total`,
+		sources: []string{"sru"},
 	},
 	{
 		// La carte (internal/sitegen/logement.go) joint core.sru_commune_dernier à
@@ -2482,6 +2487,7 @@ var checks = []check{
 			WHERE NOT EXISTS (SELECT 1 FROM par_code pc WHERE pc.code_insee = s.code_insee)
 		)
 		SELECT (SELECT count(*) FROM core.sru_commune_dernier) - (SELECT sum(n)::int FROM jointes)`,
+		sources: []string{"sru"},
 	},
 	{
 		name:    "Effectifs étudiants : au moins 1000 couples commune/rentrée chargés",
