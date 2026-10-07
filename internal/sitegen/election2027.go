@@ -25,40 +25,40 @@ import (
 // les mêler suggérerait des liens que la donnée n'établit pas.
 type Angle struct {
 	Present bool
-	Raison  string
+	Reason  string
 }
 
-type Candidat2027 struct {
-	*Candidat
+type Candidate2027 struct {
+	*Candidate
 	Votes    Angle
-	Comptes  Angle
+	Accounts Angle
 	Terrain  Angle
-	Interets Angle
+	Interest Angle
 
-	Pour, Contre, Abstention, Exprimes int
-	NuanceCode                         string
-	NuanceRaison                       string
-	CommunesListes                     int
-	SiegesCM                           int
-	VoixMunicipales                    int64
-	Exercices                          int
-	DerniereAnnee                      int
-	TotalCharges                       float64
-	NbInterets                         int
-	Apercu                             Carte
-	Page                               *PageCarte
+	For, Against, Abstention, Expressed int
+	NuanceCode                          string
+	NuanceReason                        string
+	MunicipalitiesLists                 int
+	SeatsCM                             int
+	VotesMunicipal                      int64
+	FiscalYears                         int
+	LastYear                            int
+	TotalCharges                        float64
+	CountInterest                       int
+	Overview                            Map
+	Page                                *PageMap
 }
 
 type Stats2027 struct {
-	Candidats    []*Candidat2027
+	Candidates   []*Candidate2027
 	Defs         template.HTML
-	AvecVotes    int
-	AvecTerrain  int
-	AvecComptes  int
-	AvecInterets int
+	WithVotes    int
+	WithTerrain  int
+	WithAccounts int
+	WithInterest int
 }
 
-func loadNuancePartis(path string) (map[string][2]string, error) {
+func loadNuanceParties(path string) (map[string][2]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -81,18 +81,18 @@ func loadNuancePartis(path string) (map[string][2]string, error) {
 	return out, nil
 }
 
-func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
+func load2027(ctx context.Context, pool *pgxpool.Pool, candidates []*Candidate,
 	dataDir string) (*Stats2027, error) {
 
-	nuances, err := loadNuancePartis(dataDir + "/nuance-partis.csv")
+	nuances, err := loadNuanceParties(dataDir + "/nuance-partis.csv")
 	if err != nil {
 		return nil, err
 	}
-	vign, err := jeuContours(ctx, pool, "DEPARTEMENT", tolApercu)
+	vign, err := setOutlines(ctx, pool, "DEPARTEMENT", toleranceOverview)
 	if err != nil {
 		return nil, err
 	}
-	fin, err := jeuContours(ctx, pool, "DEPARTEMENT", tolPleine)
+	end, err := setOutlines(ctx, pool, "DEPARTEMENT", toleranceFull)
 	if err != nil {
 		return nil, err
 	}
@@ -101,19 +101,19 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 	// Les déclarations HATVP de tous les candidats en une requête, plutôt
 	// qu'une par candidat — un dizaine de candidats déclarés, mais le même
 	// patron N+1 qu'ailleurs dans ce fichier.
-	var idsPersonnes []int64
-	for _, c := range candidats {
+	var idsPeople []int64
+	for _, c := range candidates {
 		if c.Person != nil {
-			idsPersonnes = append(idsPersonnes, c.Person.ID)
+			idsPeople = append(idsPeople, c.Person.ID)
 		}
 	}
-	nbInteretsParPersonne := map[int64]int{}
-	if len(idsPersonnes) > 0 {
+	countInterestPerPerson := map[int64]int{}
+	if len(idsPeople) > 0 {
 		rows, err := pool.Query(ctx, `
 			SELECT d.person_id, count(*) FROM core.declaration_item i
 			JOIN core.declaration d ON d.id = i.declaration_id
 			WHERE d.person_id = ANY($1)
-			GROUP BY d.person_id`, idsPersonnes)
+			GROUP BY d.person_id`, idsPeople)
 		if err != nil {
 			return nil, err
 		}
@@ -124,7 +124,7 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 				rows.Close()
 				return nil, err
 			}
-			nbInteretsParPersonne[pid] = n
+			countInterestPerPerson[pid] = n
 		}
 		rows.Close()
 		if err := rows.Err(); err != nil {
@@ -137,12 +137,12 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 	// terrainDeNuance mémoïse les deux requêtes (l'agrégat, la carte par
 	// département) la première fois qu'une nuance est rencontrée.
 	type terrainNuance struct {
-		communes, sieges int
-		voix             *int64
-		cases            []CaseCarte
+		municipalities, seats int
+		votes                 *int64
+		cells                 []CellMap
 	}
 	terrainCache := map[string]*terrainNuance{}
-	terrainDeNuance := func(nuanceCode string) (*terrainNuance, error) {
+	terrainOfNuance := func(nuanceCode string) (*terrainNuance, error) {
 		if t, ok := terrainCache[nuanceCode]; ok {
 			return t, nil
 		}
@@ -152,10 +152,10 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 			SELECT count(DISTINCT commune_code), coalesce(sum(sieges_cm),0), sum(voix)
 			FROM core.municipal_list
 			WHERE scrutin_annee=2026 AND tour=1 AND nuance_code=$1`, nuanceCode).
-			Scan(&t.communes, &t.sieges, &t.voix); err != nil {
+			Scan(&t.municipalities, &t.seats, &t.votes); err != nil {
 			return nil, err
 		}
-		if t.communes == 0 {
+		if t.municipalities == 0 {
 			return t, nil
 		}
 		rows, err := pool.Query(ctx, `
@@ -172,69 +172,69 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 			return t, nil // cohérent avec l'ancien code : une erreur ici n'empêchait pas le reste
 		}
 		for rows.Next() {
-			var cc CaseCarte
+			var cc CellMap
 			var v *float64
-			if rows.Scan(&cc.Code, &cc.Nom, &v) != nil {
+			if rows.Scan(&cc.Code, &cc.Name, &v) != nil {
 				break
 			}
 			if v == nil {
 				cc.Absent = true
 			} else {
-				cc.Valeur = *v
+				cc.Value = *v
 			}
-			t.cases = append(t.cases, cc)
+			t.cells = append(t.cells, cc)
 		}
 		rows.Close()
 		return t, nil
 	}
 
-	for _, c := range candidats {
-		k := &Candidat2027{Candidat: c}
+	for _, c := range candidates {
+		k := &Candidate2027{Candidate: c}
 
 		// 1. Les votes — seulement si la personne a siégé.
 		if c.Person != nil && c.Person.HasVotes {
 			k.Votes = Angle{Present: true}
-			k.Pour, k.Contre = c.Person.Pour, c.Person.Contre
-			k.Abstention, k.Exprimes = c.Person.Abstention, c.Person.Exprimes
-			st.AvecVotes++
+			k.For, k.Against = c.Person.For, c.Person.Against
+			k.Abstention, k.Expressed = c.Person.Abstention, c.Person.Expressed
+			st.WithVotes++
 		} else {
-			k.Votes = Angle{Raison: "n'a pas siégé dans une assemblée couverte par ce site"}
+			k.Votes = Angle{Reason: "n'a pas siégé dans une assemblée couverte par ce site"}
 		}
 
 		// 2. Les comptes du parti.
-		if c.Org != nil && c.Org.HasComptes {
-			k.Comptes = Angle{Present: true}
-			k.Exercices = len(c.Org.Exercices)
-			st.AvecComptes++
+		if c.Org != nil && c.Org.HasAccounts {
+			k.Accounts = Angle{Present: true}
+			k.FiscalYears = len(c.Org.FiscalYears)
+			st.WithAccounts++
 		} else {
-			k.Comptes = Angle{Raison: "aucun compte CNCCFP rattaché à son organisation"}
+			k.Accounts = Angle{Reason: "aucun compte CNCCFP rattaché à son organisation"}
 		}
 
 		// 3. Le terrain — nécessite une nuance propre au parti. Mémoïsé par
 		// nuance (terrainDeNuance) : plusieurs candidats partagent souvent
 		// la même nuance, et refaire les deux requêtes pour chacun referait
 		// exactement le même calcul.
-		nu, ok := nuances[c.OrganisationSlug]
+		nu, ok := nuances[c.OrganizationSlug]
 		if ok && nu[0] != "" {
 			k.NuanceCode = nu[0]
-			t, err := terrainDeNuance(nu[0])
+			t, err := terrainOfNuance(nu[0])
 			if err != nil {
 				return nil, err
 			}
-			if t.communes > 0 {
+			if t.municipalities > 0 {
 				k.Terrain = Angle{Present: true}
-				k.CommunesListes, k.SiegesCM = t.communes, t.sieges
-				if t.voix != nil {
-					k.VoixMunicipales = *t.voix
+				k.MunicipalitiesLists, k.SeatsCM = t.municipalities, t.seats
+				if t.votes != nil {
+					k.VotesMunicipal = *t.votes
 				}
-				st.AvecTerrain++
+				st.WithTerrain++
 
 				fmtPct := func(v float64) string { return Decimal(v, 1) + " %" }
-				k.Apercu = apercu(vign, t.cases, "part des voix nuancées", fmtPct)
-				rangs := classement(t.cases, vign.Noms, fmtPct)
-				k.Page = &PageCarte{
+				k.Overview = overview(vign, t.cells, "part des voix nuancées", fmtPct)
+				ranks := ranking(t.cells, vign.Noms, fmtPct)
+				k.Page = &PageMap{
 					Slug:  strings.ToLower(nu[0]),
-					Titre: "Municipales 2026 — voix de la nuance " + nu[0],
+					Title: "Municipales 2026 — voix de la nuance " + nu[0],
 					Question: "Où les listes que le ministère de l'Intérieur range sous " +
 						"cette nuance ont-elles recueilli des voix ?",
 					Source: "Ministère de l'Intérieur, municipales 2026, premier tour",
@@ -245,9 +245,9 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 					Section:         "Présidentielle 2027",
 					SectionURL:      "2027",
 					SectionIndexURL: "2027",
-					Carte:           pleine(fin, t.cases, "part des voix nuancées", fmtPct),
-					Resume:          resumerClassement(rangs),
-					Classement:      rangs,
+					Map:             full(end, t.cells, "part des voix nuancées", fmtPct),
+					Summary:         summarizeRanking(ranks),
+					Ranking:         ranks,
 				}
 			}
 		}
@@ -256,21 +256,21 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidats []*Candidat,
 			if ok && nu[1] != "" {
 				r = nu[1]
 			}
-			k.Terrain = Angle{Raison: r}
+			k.Terrain = Angle{Reason: r}
 		}
 
 		// 4. Les intérêts déclarés.
 		if c.Person != nil {
-			k.NbInterets = nbInteretsParPersonne[c.Person.ID]
+			k.CountInterest = countInterestPerPerson[c.Person.ID]
 		}
-		if k.NbInterets > 0 {
-			k.Interets = Angle{Present: true}
-			st.AvecInterets++
+		if k.CountInterest > 0 {
+			k.Interest = Angle{Present: true}
+			st.WithInterest++
 		} else {
-			k.Interets = Angle{Raison: "aucune déclaration HATVP rattachée"}
+			k.Interest = Angle{Reason: "aucune déclaration HATVP rattachée"}
 		}
 
-		st.Candidats = append(st.Candidats, k)
+		st.Candidates = append(st.Candidates, k)
 	}
 	return st, nil
 }

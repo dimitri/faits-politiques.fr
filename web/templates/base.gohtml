@@ -62,11 +62,11 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
   </nav>
 </div></div></header>
 
-{{if .Hero}}<section class="hero{{if .HeroVisuel}} avec-visuel{{end}}">
+{{if .Hero}}<section class="hero{{if .HeroVisual}} avec-visuel{{end}}">
   <div class="champ" aria-hidden="true"></div>
   <div class="wrap hero-grille">
-    <h1>{{.HeroTitre}}</h1>
-    {{if .HeroVisuel}}<div class="h-visuel">{{.HeroVisuel}}</div>{{end}}
+    <h1>{{.HeroTitle}}</h1>
+    {{if .HeroVisual}}<div class="h-visuel">{{.HeroVisual}}</div>{{end}}
     <p class="lede">{{.HeroLede}}</p>
     <div class="outil">
       <button type="button" class="rech grand" data-rech hidden>
@@ -82,7 +82,7 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
       </div>
     </div>
     <dl class="ancrage">
-      <div><dt>Données arrêtées au</dt><dd>{{.DerniereIngestion}}</dd></div>
+      <div><dt>Données arrêtées au</dt><dd>{{.LastIngestion}}</dd></div>
       <div><dt>Documents scellés</dt><dd>{{nb .Cov.Documents}}, empreinte SHA-256</dd></div>
       <div><dt>Reconstruction</dt><dd>recalculée depuis les documents scellés, jamais ressaisie à la main</dd></div>
       <div><dt>Vérifier</dt><dd><a href="{{.Root}}/sources/">Sources, licences et dates →</a></dd></div>
@@ -141,7 +141,7 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
       <li><a href="{{.Root}}/comprendre/perimetre/">Principes et périmètre</a></li>
       <li>Code sous AGPL-3.0, données sous Licence Ouverte</li>
     </ul>
-      <p style="margin-top:.8rem">Données arrêtées au <strong>{{.DerniereIngestion}}</strong>.
+      <p style="margin-top:.8rem">Données arrêtées au <strong>{{.LastIngestion}}</strong>.
       Site reconstruit le {{.BuiltAt}}, <strong>intégralement</strong> depuis l'archive brute.</p></div>
   </div>
   <p class="bas" style="border-top:1px solid var(--filet);margin-top:2rem;padding-top:1.2rem">
@@ -173,16 +173,16 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
 {{/* Le bloc « un décret, tel qu'il a paru » sert à deux pages : l'entrée
      Gouvernement, qui en montre vingt, et la page qui les montre tous. Il vit
      ici parce que chaque page n'est analysée qu'avec base.gohtml. */}}
-{{define "decrets"}}{{$root := .Root}}{{range .Decrets}}
+{{define "decrets"}}{{$root := .Root}}{{range .Decrees}}
 <section class="bloc decret">
   <div class="tete"><div>
     <span class="sur">{{.Date}}</span>
-    <h3 style="margin:.1rem 0 0">{{if .Titre}}{{.Titre}}{{else}}Décret relatif à la composition du Gouvernement{{end}}</h3>
-  </div><code class="small">{{.ActeID}}</code></div>
+    <h3 style="margin:.1rem 0 0">{{if .Title}}{{.Title}}{{else}}Décret relatif à la composition du Gouvernement{{end}}</h3>
+  </div><code class="small">{{.ActID}}</code></div>
 
   {{if .Cessations}}
   <h4>Il est mis fin aux fonctions de</h4>
-  <ul class="tight">{{range .Cessations}}<li>{{if .Fiche}}<a href="{{$root}}/depute/{{.Slug}}/">{{.Nom}}</a>{{else}}{{.Nom}}{{end}} <span class="z small">{{.FonctionFr}}{{if .Portefeuille}}, {{.Portefeuille}}{{end}}</span></li>{{end}}</ul>
+  <ul class="tight">{{range .Cessations}}<li>{{if .Profile}}<a href="{{$root}}/depute/{{.Slug}}/">{{.Name}}</a>{{else}}{{.Name}}{{end}} <span class="z small">{{.FunctionFr}}{{if .Portfolio}}, {{.Portfolio}}{{end}}</span></li>{{end}}</ul>
   {{end}}
 
   {{if .Nominations}}
@@ -190,10 +190,10 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
   <div class="scroll"><table class="pile">
   <thead><tr><th>Fonction</th><th>Nom</th><th>Portefeuille</th><th>Rapproché d'une fiche</th></tr></thead>
   <tbody>{{range .Nominations}}<tr>
-    <td class="small z" data-l="Fonction">{{.FonctionFr}}</td>
-    <td data-l="Nom">{{if .Fiche}}<a href="{{$root}}/depute/{{.Slug}}/">{{.Nom}}</a>{{else}}{{.Nom}}{{end}}</td>
-    <td class="small" data-l="Portefeuille">{{if .Portefeuille}}{{.Portefeuille}}{{else if .Rattachement}}<span class="z">{{.Rattachement}}</span>{{else}}<span class="z">—</span>{{end}}</td>
-    <td class="small" data-l="Rapprochement">{{if eq .Statut "CANDIDAT"}}<span class="z">{{if .Fiche}}fiche liée — {{end}}un seul homonyme, non vérifié</span>{{else if eq .Statut "AMBIGU"}}<span class="z">plusieurs homonymes</span>{{else}}<span class="z">aucune fiche</span>{{end}}</td>
+    <td class="small z" data-l="Fonction">{{.FunctionFr}}</td>
+    <td data-l="Nom">{{if .Profile}}<a href="{{$root}}/depute/{{.Slug}}/">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td>
+    <td class="small" data-l="Portefeuille">{{if .Portfolio}}{{.Portfolio}}{{else if .Attachment}}<span class="z">{{.Attachment}}</span>{{else}}<span class="z">—</span>{{end}}</td>
+    <td class="small" data-l="Rapprochement">{{if eq .Status "CANDIDAT"}}<span class="z">{{if .Profile}}fiche liée — {{end}}un seul homonyme, non vérifié</span>{{else if eq .Status "AMBIGU"}}<span class="z">plusieurs homonymes</span>{{else}}<span class="z">aucune fiche</span>{{end}}</td>
   </tr>{{end}}</tbody></table></div>
   {{end}}
 </section>
@@ -210,7 +210,7 @@ if(t==='dark'||t==='light')document.documentElement.setAttribute('data-theme',t)
   <span class="t">Outre-mer</span>
   {{range .}}<figure class="{{if .Absent}}vide{{end}}">
     {{.SVG}}
-    <figcaption>{{.Nom}}<span>{{.Valeur}}</span></figcaption>
+    <figcaption>{{.Name}}<span>{{.Value}}</span></figcaption>
   </figure>{{end}}
 </div>
 <p class="note-cartons">Chaque carton a <strong>sa propre échelle</strong> et sa propre
@@ -221,7 +221,7 @@ projection&nbsp;: les surfaces ne se comparent pas d'un carton à l'autre, ni à
      Lérins › département des Alpes-Maritimes ». Chaque maillon qui a une page
      est un lien ; les autres — un canton, une circonscription — s'affichent
      sans lien, parce que ce site ne leur consacre pas de page. */}}
-{{define "lieux"}}{{range $i, $l := .}}{{if $i}}<span class="sep" aria-hidden="true"> › </span>{{end}}<span class="lieu"><span class="ech">{{echelon $l.Type}}</span>&nbsp;{{if $l.URL}}<a href="{{$l.URL}}">{{$l.Nom}}</a>{{else}}{{$l.Nom}}{{end}}</span>{{end}}{{end}}
+{{define "lieux"}}{{range $i, $l := .}}{{if $i}}<span class="sep" aria-hidden="true"> › </span>{{end}}<span class="lieu"><span class="ech">{{echelon $l.Type}}</span>&nbsp;{{if $l.URL}}<a href="{{$l.URL}}">{{$l.Name}}</a>{{else}}{{$l.Name}}{{end}}</span>{{end}}{{end}}
 
 {{/* La carte de situation : le territoire dans la France entière, outre-mer
      compris, le reste sans information ; légende à droite (affichage en ligne). */}}
@@ -230,14 +230,14 @@ projection&nbsp;: les surfaces ne se comparent pas d'un carton à l'autre, ni à
   <div class="bloc-carte ligne">
     <div class="situation-cadre">
       <div class="situation-carte">
-        <object data="{{.Fond}}" type="image/svg+xml" style="aspect-ratio:{{.Largeur}}/{{.Hauteur}}" aria-label="Carte des départements : chacun mène à sa page"><img src="{{.Fond}}" alt="" width="{{.Largeur}}" height="{{.Hauteur}}"></object>
-        {{.Calque}}
+        <object data="{{.Background}}" type="image/svg+xml" style="aspect-ratio:{{.Width}}/{{.Height}}" aria-label="Carte des départements : chacun mène à sa page"><img src="{{.Background}}" alt="" width="{{.Width}}" height="{{.Height}}"></object>
+        {{.Layer}}
       </div>
-      <div class="situation-cartons">{{range .Cartons}}<figure{{if .Actif}} class="actif"{{end}}>{{if .URL}}<a href="{{.URL}}">{{end}}<div class="carton-situation"><img src="{{.Fond}}" alt="" loading="lazy">{{.SVG}}</div><figcaption>{{.Nom}}</figcaption>{{if .URL}}</a>{{end}}</figure>{{end}}</div>
+      <div class="situation-cartons">{{range .Tiles}}<figure{{if .Actif}} class="actif"{{end}}>{{if .URL}}<a href="{{.URL}}">{{end}}<div class="carton-situation"><img src="{{.Background}}" alt="" loading="lazy">{{.SVG}}</div><figcaption>{{.Name}}</figcaption>{{if .URL}}</a>{{end}}</figure>{{end}}</div>
     </div>
     <div>
       <h3>Dans la France entière</h3>
-      <dl class="legende-situation">{{range .Legende}}<div><dt>{{.Libelle}}</dt><dd><b>{{if .URL}}<a href="{{.URL}}">{{.Valeur}} <span aria-hidden="true">→</span></a>{{else}}{{.Valeur}}{{end}}</b>{{if .Detail}}<span>{{.Detail}}</span>{{end}}</dd></div>{{end}}</dl>
+      <dl class="legende-situation">{{range .Legend}}<div><dt>{{.Label}}</dt><dd><b>{{if .URL}}<a href="{{.URL}}">{{.Value}} <span aria-hidden="true">→</span></a>{{else}}{{.Value}}{{end}}</b>{{if .Detail}}<span>{{.Detail}}</span>{{end}}</dd></div>{{end}}</dl>
       <span class="src">{{.Note}} Contours&nbsp;: IGN Admin Express COG CARTO (Licence Ouverte), © les contributeurs OpenStreetMap (ODbL). Superficie cadastrale et population&nbsp;: IGN, Insee. Budgets&nbsp;: les comptes propres de chaque collectivité, publiés par l'OFGL — des chiffres locaux, pas une moyenne nationale répartie. Cliquer un département ouvre sa page.</span>
     </div>
   </div>

@@ -15,7 +15,7 @@ import (
 // loadPersons charge les personnes, leurs mandats, leurs appartenances et le
 // décompte de leurs positions. ABSENT et NON_VOTING sont comptés à part : ce
 // sont des données manquantes, pas des positions.
-func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (map[string]*Person, error) {
+func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalElections int) (map[string]*Person, error) {
 	persons := map[string]*Person{}
 	byID := map[int64]*Person{}
 
@@ -39,7 +39,7 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	}
 	for rows.Next() {
 		p := &Person{}
-		if err := rows.Scan(&p.ID, &p.Slug, &p.Prenom, &p.Nom); err != nil {
+		if err := rows.Scan(&p.ID, &p.Slug, &p.FirstName, &p.Name); err != nil {
 			return nil, err
 		}
 		persons[p.Slug] = p
@@ -62,23 +62,23 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	}
 	for rows.Next() {
 		var id int64
-		var m Mandat
-		var debut, fin string
-		if err := rows.Scan(&id, &m.Type, &m.Circo, &m.Role, &m.Portefeuille, &debut, &fin,
-			&m.CommuneCode); err != nil {
+		var m Term
+		var start, end string
+		if err := rows.Scan(&id, &m.Type, &m.District, &m.Role, &m.Portfolio, &start, &end,
+			&m.MunicipalityCode); err != nil {
 			return nil, err
 		}
-		m.Periode = periode(debut, fin)
-		m.DebutISO, m.FinISO = debut, fin
+		m.Period = period(start, end)
+		m.StartISO, m.EndISO = start, end
 		if p, ok := byID[id]; ok {
-			p.Mandats = append(p.Mandats, m)
-			if p.Mandat == "" {
-				p.Mandat = strings.ToLower(m.Type)
+			p.Terms = append(p.Terms, m)
+			if p.Term == "" {
+				p.Term = strings.ToLower(m.Type)
 				if m.Type == "MINISTRE" && m.Role != "" {
-					p.Mandat = m.Role
+					p.Term = m.Role
 				}
-				if m.Circo != "" {
-					p.Mandat += " — " + m.Circo
+				if m.District != "" {
+					p.Term += " — " + m.District
 				}
 			}
 		}
@@ -101,12 +101,12 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 	for rows.Next() {
 		var id int64
 		var a Affil
-		var debut, fin string
-		var courant bool
-		if err := rows.Scan(&id, &a.Nom, &a.Kind, &a.Via, &debut, &fin, &courant); err != nil {
+		var start, end string
+		var current bool
+		if err := rows.Scan(&id, &a.Name, &a.Kind, &a.Via, &start, &end, &current); err != nil {
 			return nil, err
 		}
-		a.Periode = periode(debut, fin)
+		a.Period = period(start, end)
 		a.Kind = map[string]string{
 			"PARLIAMENTARY_GROUP": "groupe parlementaire",
 			"PARTY":               "parti",
@@ -119,7 +119,7 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 		}[a.Via]
 		if p, ok := byID[id]; ok {
 			p.Affiliations = append(p.Affiliations, a)
-			_ = courant
+			_ = current
 		}
 	}
 	rows.Close()
@@ -144,7 +144,7 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 			return nil, err
 		}
 		if p, ok := byID[id]; ok {
-			p.Groupe = g
+			p.Group = g
 		}
 	}
 	rows.Close()
@@ -175,29 +175,29 @@ func loadPersons(ctx context.Context, pool *pgxpool.Pool, totalScrutins int) (ma
 		}
 		switch pos {
 		case "FOR":
-			p.Pour = n
+			p.For = n
 		case "AGAINST":
-			p.Contre = n
+			p.Against = n
 		case "ABSTAIN":
 			p.Abstention = n
 		default:
-			p.NonVotant += n
+			p.NonVoter += n
 		}
 	}
 	rows.Close()
 
 	for _, p := range persons {
-		p.Exprimes = p.Pour + p.Contre + p.Abstention
-		p.HasVotes = p.Exprimes+p.NonVotant > 0
-		if totalScrutins > 0 {
-			p.PctExprimes = p.Exprimes * 100 / totalScrutins
+		p.Expressed = p.For + p.Against + p.Abstention
+		p.HasVotes = p.Expressed+p.NonVoter > 0
+		if totalElections > 0 {
+			p.PctExpressed = p.Expressed * 100 / totalElections
 		}
 		// Répartition des positions EXPRIMÉES : les absents en sont exclus,
 		// faute de quoi la barre mesurerait l'assiduité.
-		if p.Exprimes > 0 {
-			p.PctPour = p.Pour * 100 / p.Exprimes
-			p.PctContre = p.Contre * 100 / p.Exprimes
-			p.PctAbst = 100 - p.PctPour - p.PctContre
+		if p.Expressed > 0 {
+			p.PctFor = p.For * 100 / p.Expressed
+			p.PctAgainst = p.Against * 100 / p.Expressed
+			p.PctAbst = 100 - p.PctFor - p.PctAgainst
 		}
 	}
 	return persons, nil
@@ -240,16 +240,16 @@ func loadVotesBulk(ctx context.Context, pool *pgxpool.Pool, persons map[string]*
 	for rows.Next() {
 		var pid int64
 		var v Vote
-		if err := rows.Scan(&pid, &v.Slug, &v.Objet, &v.Date, &v.Position, &v.Rectifiee, &v.Resultat); err != nil {
+		if err := rows.Scan(&pid, &v.Slug, &v.Object, &v.Date, &v.Position, &v.Adjusted, &v.Result); err != nil {
 			return err
 		}
 		v.PositionFr = positionFr[v.Position]
 		// Même traitement que les titres de fiches : coupé avant les
 		// signataires, première lettre en capitale. Aucun mot ajouté.
-		v.Objet, _ = TitreCourt(v.Objet)
-		v.Resultat = map[string]string{
+		v.Object, _ = TitleShort(v.Object)
+		v.Result = map[string]string{
 			"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié",
-		}[v.Resultat]
+		}[v.Result]
 		byID[pid].Votes = append(byID[pid].Votes, v)
 	}
 	if err := rows.Err(); err != nil {
@@ -261,10 +261,10 @@ func loadVotesBulk(ctx context.Context, pool *pgxpool.Pool, persons map[string]*
 	return nil
 }
 
-// loadCandidats lit la décision éditoriale et la rapproche des personnes
+// loadCandidates lit la décision éditoriale et la rapproche des personnes
 // connues. Un candidat sans correspondance n'est pas une erreur : c'est le cas
 // courant d'un maire, d'un sénateur ou d'un eurodéputé, et la fiche doit le dire.
-func loadCandidats(path string, persons map[string]*Person) ([]*Candidat, error) {
+func loadCandidates(path string, persons map[string]*Person) ([]*Candidate, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -291,14 +291,14 @@ func loadCandidats(path string, persons map[string]*Person) ([]*Candidat, error)
 		return ""
 	}
 
-	var out []*Candidat
+	var out []*Candidate
 	for _, rec := range recs[1:] {
-		c := &Candidat{
-			Slug: get(rec, "slug"), Nom: get(rec, "nom"), Prenom: get(rec, "prenom"),
-			Organisation: get(rec, "organisation"), Statut: get(rec, "statut"),
-			OrganisationSlug: get(rec, "organisation_slug"),
+		c := &Candidate{
+			Slug: get(rec, "slug"), Name: get(rec, "nom"), FirstName: get(rec, "prenom"),
+			Organization: get(rec, "organisation"), Status: get(rec, "statut"),
+			OrganizationSlug: get(rec, "organisation_slug"),
 			DateDeclaration:  get(rec, "date_declaration"), SourceURL: get(rec, "source_url"),
-			SourceConsultee: get(rec, "source_consultee"), SiteCampagne: get(rec, "site_campagne"),
+			SourceConsulted: get(rec, "source_consultee"), SiteCampaign: get(rec, "site_campagne"),
 		}
 		if c.Slug == "" {
 			continue
@@ -307,16 +307,16 @@ func loadCandidats(path string, persons map[string]*Person) ([]*Candidat, error)
 		out = append(out, c)
 	}
 	sort.Slice(out, func(i, j int) bool {
-		return CleTri(out[i].Nom+" "+out[i].Prenom) < CleTri(out[j].Nom+" "+out[j].Prenom)
+		return KeySort(out[i].Name+" "+out[i].FirstName) < KeySort(out[j].Name+" "+out[j].FirstName)
 	})
 	return out, nil
 }
 
-func periode(debut, fin string) string {
-	if fin == "" {
-		return "depuis le " + fr(debut)
+func period(start, end string) string {
+	if end == "" {
+		return "depuis le " + fr(start)
 	}
-	return "du " + fr(debut) + " au " + fr(fin)
+	return "du " + fr(start) + " au " + fr(end)
 }
 
 func fr(iso string) string {

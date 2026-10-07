@@ -16,38 +16,38 @@ import (
 // Une page simple (une courbe, quelques chiffres-clés, une carte) plutôt
 // qu'une grille de cartes : ce dossier n'a qu'une seule mesure géographique
 // chargée pour l'instant (l'APA à domicile).
-type StatsVieillesse struct {
-	CourbeSVG        template.HTML
-	Debut, Fin       int
-	ValeurDebut      float64
-	ValeurFin        float64
+type StatsOldAge struct {
+	CurveSVG         template.HTML
+	Start, End       int
+	ValueStart       float64
+	ValueEnd         float64
 	CasPensions      float64
-	RegimesSpeciaux  float64
+	RegimesSpecial   float64
 	CofogTotal       float64
-	PartCofog        float64
-	APABeneficiaires int
-	APADepenses      float64
-	CarteAPA         CarteTerritoire
+	ShareCofog       float64
+	APABeneficiaries int
+	APAExpenses      float64
+	MapAPA           MapTerritory
 
 	// Qui paie : le budget de l'État ne porte qu'une fraction du total COFOG
 	// (docs/vieillesse-donnees.md § 3) — le reste vient de la Sécurité
 	// sociale, jamais de l'État.
-	TotalEtat float64
-	PartEtat  float64
-	EcartSecu float64
+	TotalState        float64
+	ShareState        float64
+	GapSocialSecurity float64
 
 	// Pression démographique et âge de départ (docs/retraite-donnees.md § 2,
 	// déjà chargés) — rappelés ici plutôt que rechargés.
-	RatioAnnee              int
-	RatioCotisantsRetraites float64
-	AgeAnnee                int
-	AgeEnsemble             float64
-	AgeFemmes               float64
-	AgeHommes               float64
+	RatioYear                 int
+	RatioContributorsPensions float64
+	AgeYear                   int
+	AgeOverall                float64
+	AgeWomen                  float64
+	AgeMen                    float64
 }
 
-func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, error) {
-	st := &StatsVieillesse{}
+func loadOldAge(ctx context.Context, pool *pgxpool.Pool) (*StatsOldAge, error) {
+	st := &StatsOldAge{}
 
 	// Vieillesse + survivants (COFOG GF1002+GF1003), 1995-2024.
 	rows, err := pool.Query(ctx, `
@@ -58,10 +58,10 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 	if err != nil {
 		return nil, err
 	}
-	var pts []PointAnnee
+	var pts []PointYear
 	for rows.Next() {
-		var p PointAnnee
-		if err := rows.Scan(&p.Annee, &p.Valeur); err != nil {
+		var p PointYear
+		if err := rows.Scan(&p.Year, &p.Value); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -72,42 +72,42 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 		return nil, err
 	}
 	if len(pts) > 0 {
-		st.Debut, st.Fin = pts[0].Annee, pts[len(pts)-1].Annee
-		st.ValeurDebut, st.ValeurFin = pts[0].Valeur, pts[len(pts)-1].Valeur
-		st.CourbeSVG = courbe(pts, func(v float64) string { return Decimal(v, 1) + " Md€" })
+		st.Start, st.End = pts[0].Year, pts[len(pts)-1].Year
+		st.ValueStart, st.ValueEnd = pts[0].Value, pts[len(pts)-1].Value
+		st.CurveSVG = curve(pts, func(v float64) string { return Decimal(v, 1) + " Md€" })
 	}
 
 	// sum(...) FILTER (...) est une agrégation : la ligne existe même sans
 	// budget 2025 encore ingéré, avec des sommes NULL — sql.NullFloat64 pour
 	// ne pas faire échouer toute la page pour une donnée pas encore chargée.
-	var casPensions, regimesSpeciaux sql.NullFloat64
+	var casPensions, regimesSpecial sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		SELECT sum(credit_paiement) FILTER (WHERE mission_libelle = 'Pensions'),
 		       sum(credit_paiement) FILTER (WHERE mission_libelle = 'Régimes sociaux et de retraite')
 		FROM core.budget_programme WHERE exercice = 2025`).
-		Scan(&casPensions, &regimesSpeciaux); err != nil {
+		Scan(&casPensions, &regimesSpecial); err != nil {
 		return nil, err
 	}
 	st.CasPensions = casPensions.Float64 / 1e9
-	st.RegimesSpeciaux = regimesSpeciaux.Float64 / 1e9
+	st.RegimesSpecial = regimesSpecial.Float64 / 1e9
 
 	if len(pts) > 0 {
-		st.CofogTotal = pts[len(pts)-1].Valeur
+		st.CofogTotal = pts[len(pts)-1].Value
 	}
 	var totalPublic sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		SELECT sum(mv.valeur)/1e3 FROM core.macro_value mv JOIN ref.macro_serie rs ON rs.code = mv.serie_code
 		WHERE rs.cofog IN ('GF01','GF02','GF03','GF04','GF05','GF06','GF07','GF08','GF09','GF10')
-		  AND mv.annee = $1`, st.Fin).Scan(&totalPublic); err != nil {
+		  AND mv.annee = $1`, st.End).Scan(&totalPublic); err != nil {
 		return nil, err
 	}
 	if totalPublic.Float64 > 0 {
-		st.PartCofog = 100 * st.CofogTotal / totalPublic.Float64
+		st.ShareCofog = 100 * st.CofogTotal / totalPublic.Float64
 	}
-	st.TotalEtat = st.CasPensions + st.RegimesSpeciaux
+	st.TotalState = st.CasPensions + st.RegimesSpecial
 	if st.CofogTotal > 0 {
-		st.PartEtat = 100 * st.TotalEtat / st.CofogTotal
-		st.EcartSecu = st.CofogTotal - st.TotalEtat
+		st.ShareState = 100 * st.TotalState / st.CofogTotal
+		st.GapSocialSecurity = st.CofogTotal - st.TotalState
 	}
 
 	// ORDER BY ... LIMIT 1 sur une table pas encore chargée ne renvoie aucune
@@ -116,26 +116,26 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 	if err := pool.QueryRow(ctx, `
 		SELECT annee, ratio_demographique FROM core.cotisants_retraites_ratio
 		ORDER BY annee DESC LIMIT 1`).
-		Scan(&st.RatioAnnee, &st.RatioCotisantsRetraites); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		Scan(&st.RatioYear, &st.RatioContributorsPensions); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
 	if err := pool.QueryRow(ctx, `
 		SELECT annee, age_ensemble, age_femmes, age_hommes FROM core.age_depart_retraite
 		ORDER BY annee DESC LIMIT 1`).
-		Scan(&st.AgeAnnee, &st.AgeEnsemble, &st.AgeFemmes, &st.AgeHommes); err != nil && !errors.Is(err, pgx.ErrNoRows) {
+		Scan(&st.AgeYear, &st.AgeOverall, &st.AgeWomen, &st.AgeMen); err != nil && !errors.Is(err, pgx.ErrNoRows) {
 		return nil, err
 	}
 
-	var apaBeneficiaires sql.NullInt64
-	var apaDepenses sql.NullFloat64
+	var apaBeneficiaries sql.NullInt64
+	var apaExpenses sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		SELECT sum(nb_beneficiaires), sum(depenses_total_eur)/1e9
 		FROM core.apa_domicile WHERE annee = 2024`).
-		Scan(&apaBeneficiaires, &apaDepenses); err != nil {
+		Scan(&apaBeneficiaries, &apaExpenses); err != nil {
 		return nil, err
 	}
-	st.APABeneficiaires = int(apaBeneficiaires.Int64)
-	st.APADepenses = apaDepenses.Float64
+	st.APABeneficiaries = int(apaBeneficiaries.Int64)
+	st.APAExpenses = apaExpenses.Float64
 
 	// Carte : bénéficiaires de l'APA à domicile pour 100 habitants de 75 ans
 	// ou plus, par département — le dénominateur qui manquait (docs/
@@ -143,7 +143,7 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 	// totale confondait un département dense en bénéficiaires avec un
 	// département simplement plus âgé. CASE plutôt que lpad pour ne pas
 	// tronquer les codes DOM à trois chiffres (internal/sitegen/territoires.go).
-	carteRows, err := pool.Query(ctx, `
+	mapRows, err := pool.Query(ctx, `
 		SELECT m.dep, max(m.libelle_departement),
 		       100.0*max(m.nb_beneficiaires)/nullif(max(pop.p),0)
 		FROM (SELECT *, CASE WHEN code_departement ~ '^[0-9]$'
@@ -156,49 +156,49 @@ func loadVieillesse(ctx context.Context, pool *pgxpool.Pool) (*StatsVieillesse, 
 	if err != nil {
 		return nil, err
 	}
-	var cases []CaseCarte
-	for carteRows.Next() {
-		var cc CaseCarte
+	var cells []CellMap
+	for mapRows.Next() {
+		var cc CellMap
 		var v *float64
-		if err := carteRows.Scan(&cc.Code, &cc.Nom, &v); err != nil {
-			carteRows.Close()
+		if err := mapRows.Scan(&cc.Code, &cc.Name, &v); err != nil {
+			mapRows.Close()
 			return nil, err
 		}
 		if v == nil {
 			cc.Absent = true
 		} else {
-			cc.Valeur = *v
+			cc.Value = *v
 		}
-		cases = append(cases, cc)
+		cells = append(cells, cc)
 	}
-	carteRows.Close()
-	if err := carteRows.Err(); err != nil {
+	mapRows.Close()
+	if err := mapRows.Err(); err != nil {
 		return nil, err
 	}
-	if len(cases) > 0 {
-		fin, err := jeuContours(ctx, pool, "DEPARTEMENT", tolPleine)
+	if len(cells) > 0 {
+		end, err := setOutlines(ctx, pool, "DEPARTEMENT", toleranceFull)
 		if err != nil {
 			return nil, err
 		}
 		format := func(v float64) string { return Decimal(v, 1) }
-		titre := "Bénéficiaires de l'APA à domicile pour 100 personnes de 75 ans ou plus"
+		title := "Bénéficiaires de l'APA à domicile pour 100 personnes de 75 ans ou plus"
 		question := "Où l'allocation personnalisée d'autonomie à domicile couvre-t-elle la plus grande part des personnes de 75 ans ou plus ?"
 		source := "DREES, enquête Aide sociale, 2024 ; Insee, estimations de population 2024"
-		rangs := classement(cases, fin.Noms, format)
-		st.CarteAPA = CarteTerritoire{
-			Slug: "apa-domicile", Titre: titre, Question: question,
+		ranks := ranking(cells, end.Noms, format)
+		st.MapAPA = MapTerritory{
+			Slug: "apa-domicile", Title: title, Question: question,
 			Note: fmt.Sprintf("Compte une présence, pas un besoin couvert : un taux élevé peut aussi "+
 				"tenir à des situations de dépendance plus fréquentes dans ce département, pas "+
 				"seulement à une couverture plus large. %d bénéficiaires, %s Md€ de dépenses couvertes "+
 				"(22 %% des lignes sans donnée, exclues du calcul plutôt que comptées à zéro).",
-				st.APABeneficiaires, Decimal(st.APADepenses, 2)),
+				st.APABeneficiaries, Decimal(st.APAExpenses, 2)),
 			Source: source,
-			Page: PageCarte{
-				Slug: "apa-domicile", Titre: titre, Question: question, Source: source,
+			Page: PageMap{
+				Slug: "apa-domicile", Title: title, Question: question, Source: source,
 				Section: "Vieillesse", SectionURL: "vieillesse", SectionIndexURL: "vieillesse",
-				Carte:      pleine(fin, cases, "pour 100 personnes de 75 ans ou plus", format),
-				Resume:     resumerClassement(rangs),
-				Classement: rangs,
+				Map:     full(end, cells, "pour 100 personnes de 75 ans ou plus", format),
+				Summary: summarizeRanking(ranks),
+				Ranking: ranks,
 			},
 		}
 	}

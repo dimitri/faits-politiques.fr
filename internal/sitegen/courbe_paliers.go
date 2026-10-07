@@ -6,18 +6,18 @@ import (
 	"strings"
 )
 
-// Palier : un régime daté, avec la valeur moyenne qui le caractérise.
+// Bracket : un régime daté, avec la valeur moyenne qui le caractérise.
 //
 // Un palier n'est pas une décoration : c'est une affirmation sur la série —
 // « entre ces deux dates, la valeur tient autour de X ». Il est donc CALCULÉ
 // sur les points de l'intervalle, jamais saisi à la main, et la fonction
 // refuse un palier dont les bornes ne correspondent à aucun point.
-type Palier struct {
-	De, A   int    // années incluses
-	Libelle string // ce que la période désigne, pas ce qu'elle prouve
+type Bracket struct {
+	Of, A int    // années incluses
+	Label string // ce que la période désigne, pas ce qu'elle prouve
 }
 
-// courbePaliers : une série annuelle longue, découpée en régimes datés.
+// curveBrackets : une série annuelle longue, découpée en régimes datés.
 //
 // Motif d'exister, à côté de courbe() : sur cinquante ans, une courbe seule ne
 // se lit pas. L'œil voit une montée et s'arrête là. Les paliers disent où la
@@ -29,7 +29,7 @@ type Palier struct {
 //
 // Aucune couleur n'est écrite ici. Tout passe par les classes CSS de .courbe,
 // qui suivent --accent, --filet et --encre, donc les deux thèmes.
-func courbePaliers(pts []PointAnnee, paliers []Palier, format func(float64) string) template.HTML {
+func curveBrackets(pts []PointYear, brackets []Bracket, format func(float64) string) template.HTML {
 	if len(pts) < 2 {
 		return ""
 	}
@@ -37,8 +37,8 @@ func courbePaliers(pts []PointAnnee, paliers []Palier, format func(float64) stri
 
 	var max float64
 	for _, p := range pts {
-		if p.Valeur > max {
-			max = p.Valeur
+		if p.Value > max {
+			max = p.Value
 		}
 	}
 	if max <= 0 {
@@ -50,78 +50,78 @@ func courbePaliers(pts []PointAnnee, paliers []Palier, format func(float64) stri
 
 	idx := map[int]int{}
 	for i, p := range pts {
-		idx[p.Annee] = i
+		idx[p.Year] = i
 	}
 	x := func(i int) float64 { return ml + (w-ml-mr)*float64(i)/float64(len(pts)-1) }
 	y := func(v float64) float64 { return mt + (h-mt-mb)*(1-v/ech) }
 
 	var seg strings.Builder
 	for i, p := range pts {
-		fmt.Fprintf(&seg, " L%.1f %.1f", x(i), y(p.Valeur))
+		fmt.Fprintf(&seg, " L%.1f %.1f", x(i), y(p.Value))
 	}
 	trace := "M" + strings.TrimPrefix(strings.TrimSpace(seg.String()), "L")
-	aire := fmt.Sprintf("M%.1f %.1f%s L%.1f %.1f Z",
+	area := fmt.Sprintf("M%.1f %.1f%s L%.1f %.1f Z",
 		x(0), h-mb, seg.String(), x(len(pts)-1), h-mb)
 
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg class="courbe paliers" viewBox="0 0 %.0f %.0f" role="img" aria-label="Série annuelle de %d à %d, de %s à %s">`,
-		w, h, pts[0].Annee, pts[len(pts)-1].Annee,
-		format(pts[0].Valeur), format(pts[len(pts)-1].Valeur))
+		w, h, pts[0].Year, pts[len(pts)-1].Year,
+		format(pts[0].Value), format(pts[len(pts)-1].Value))
 
 	// Les bandes d'abord : elles passent DERRIÈRE la courbe, sinon elles la
 	// voilent. Une bande sur deux est teintée — alterner suffit à séparer les
 	// régimes sans tracer de frontière, qui suggérerait une rupture nette là
 	// où il n'y a qu'un changement de régime.
-	for n, pal := range paliers {
-		i, ok := idx[pal.De]
+	for n, pal := range brackets {
+		i, ok := idx[pal.Of]
 		j, ok2 := idx[pal.A]
 		if !ok || !ok2 || j <= i {
 			continue
 		}
-		var somme float64
+		var sum float64
 		for k := i; k <= j; k++ {
-			somme += pts[k].Valeur
+			sum += pts[k].Value
 		}
-		moy := somme / float64(j-i+1)
+		moy := sum / float64(j-i+1)
 		x1, x2 := x(i), x(j)
 		if n%2 == 0 {
 			fmt.Fprintf(&b, `<rect class="bande" x="%.1f" y="%.1f" width="%.1f" height="%.1f"/>`,
 				x1, mt, x2-x1, h-mt-mb)
 		}
-		milieu := (x1 + x2) / 2
+		middle := (x1 + x2) / 2
 		fmt.Fprintf(&b, `<text class="pal" x="%.1f" y="%.1f">%s</text>`,
-			milieu, mt-30, template.HTMLEscapeString(pal.Libelle))
+			middle, mt-30, template.HTMLEscapeString(pal.Label))
 		fmt.Fprintf(&b, `<text class="pal moy" x="%.1f" y="%.1f">%s</text>`,
-			milieu, mt-14, template.HTMLEscapeString(format(moy)))
+			middle, mt-14, template.HTMLEscapeString(format(moy)))
 	}
 
 	fmt.Fprintf(&b, `<line class="axe" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>`,
 		ml, h-mb, w-mr, h-mb)
-	fmt.Fprintf(&b, `<path class="aire" d="%s"/><path class="trait" d="%s"/>`, aire, trace)
+	fmt.Fprintf(&b, `<path class="aire" d="%s"/><path class="trait" d="%s"/>`, area, trace)
 
 	// Les trois points qui se citent : départ, maximum, arrivée. Sur une série
 	// de cinquante ans, en marquer davantage revient à ne rien marquer.
-	repere := func(i int, cl string) {
+	marker := func(i int, cl string) {
 		fmt.Fprintf(&b, `<circle class="pt" cx="%.1f" cy="%.1f" r="4"><title>%d — %s</title></circle>`,
-			x(i), y(pts[i].Valeur), pts[i].Annee, template.HTMLEscapeString(format(pts[i].Valeur)))
+			x(i), y(pts[i].Value), pts[i].Year, template.HTMLEscapeString(format(pts[i].Value)))
 		fmt.Fprintf(&b, `<text class="et%s" x="%.1f" y="%.1f">%s</text>`,
-			cl, x(i), y(pts[i].Valeur)-10, template.HTMLEscapeString(format(pts[i].Valeur)))
+			cl, x(i), y(pts[i].Value)-10, template.HTMLEscapeString(format(pts[i].Value)))
 	}
 	imax := 0
 	for i, p := range pts {
-		if p.Valeur > pts[imax].Valeur {
+		if p.Value > pts[imax].Value {
 			imax = i
 		}
 	}
-	repere(0, "")
+	marker(0, "")
 	if imax != 0 && imax != len(pts)-1 {
-		repere(imax, " haut")
+		marker(imax, " haut")
 	}
-	repere(len(pts)-1, " fin")
+	marker(len(pts)-1, " fin")
 
-	fmt.Fprintf(&b, `<text class="an" x="%.1f" y="%.1f">%d</text>`, x(0), h-8, pts[0].Annee)
+	fmt.Fprintf(&b, `<text class="an" x="%.1f" y="%.1f">%d</text>`, x(0), h-8, pts[0].Year)
 	fmt.Fprintf(&b, `<text class="an fin" x="%.1f" y="%.1f">%d</text>`,
-		x(len(pts)-1), h-8, pts[len(pts)-1].Annee)
+		x(len(pts)-1), h-8, pts[len(pts)-1].Year)
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())
 }

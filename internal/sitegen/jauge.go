@@ -13,9 +13,9 @@ import (
 // des axes gauche-droite : leur appliquer un dégradé rouge-bleu ferait croire
 // à une équivalence qui n'existe pas, et c'est précisément la confusion que la
 // littérature comparée s'attache à défaire.
-var dimensionsGaucheDroite = map[string]bool{"lrgen": true, "lrecon": true}
+var dimensionsLeftRight = map[string]bool{"lrgen": true, "lrecon": true}
 
-var polesDe = map[string][2]string{
+var hubsOf = map[string][2]string{
 	"lrgen":            {"gauche", "droite"},
 	"lrecon":           {"gauche économique", "droite économique"},
 	"galtan":           {"GAL — libertés, minorités, écologie", "TAN — tradition, autorité, nation"},
@@ -23,7 +23,7 @@ var polesDe = map[string][2]string{
 	"immigrate_policy": {"politique ouverte", "politique restrictive"},
 }
 
-// Jauge produit un demi-anneau gradué de 0 à 10 avec une aiguille à la valeur.
+// Gauge produit un demi-anneau gradué de 0 à 10 avec une aiguille à la valeur.
 //
 // Convention de couleurs FRANÇAISE : la gauche est rouge, la droite est bleue.
 // C'est l'inverse de la convention anglo-américaine, et se tromper de sens sur
@@ -32,16 +32,16 @@ var polesDe = map[string][2]string{
 // Les dimensions qui ne sont pas un axe gauche-droite reçoivent un dégradé
 // neutre à une seule teinte : la couleur n'y encode qu'une intensité de
 // position sur l'axe nommé, jamais une famille politique.
-func Jauge(dimension, valeur string) template.HTML {
-	v, err := strconv.ParseFloat(strings.Replace(valeur, ",", ".", 1), 64)
+func Gauge(dimension, value string) template.HTML {
+	v, err := strconv.ParseFloat(strings.Replace(value, ",", ".", 1), 64)
 	if err != nil || v < 0 || v > 10 {
 		return ""
 	}
 	id := "g" + dimension
-	politique := dimensionsGaucheDroite[dimension]
+	policy := dimensionsLeftRight[dimension]
 
 	var stops string
-	if politique {
+	if policy {
 		stops = `<stop offset="0%" stop-color="#C0392B"/>` +
 			`<stop offset="50%" stop-color="#B9B4AC"/>` +
 			`<stop offset="100%" stop-color="#1F5FA8"/>`
@@ -56,7 +56,7 @@ func Jauge(dimension, valeur string) template.HTML {
 	x1, y1 := cx+46*math.Cos(a), cy-46*math.Sin(a)
 	x2, y2 := cx+80*math.Cos(a), cy-80*math.Sin(a)
 
-	poles := polesDe[dimension]
+	hubs := hubsOf[dimension]
 	svg := fmt.Sprintf(`<svg class="jauge" viewBox="0 0 200 116" role="img"
  aria-label="%s sur 10, de %s à %s">
 <defs><linearGradient id="%s" x1="0" x2="1">%s</linearGradient></defs>
@@ -67,14 +67,14 @@ func Jauge(dimension, valeur string) template.HTML {
 <text x="180" y="112" font-size="9" fill="currentColor" opacity=".65" text-anchor="end">10</text>
 <text x="100" y="66" font-size="19" font-weight="650" text-anchor="middle" fill="var(--encre)">%s</text>
 </svg>`,
-		template.HTMLEscapeString(valeur),
-		template.HTMLEscapeString(poles[0]), template.HTMLEscapeString(poles[1]),
-		id, stops, id, x1, y1, x2, y2, cx, cy, template.HTMLEscapeString(valeur))
+		template.HTMLEscapeString(value),
+		template.HTMLEscapeString(hubs[0]), template.HTMLEscapeString(hubs[1]),
+		id, stops, id, x1, y1, x2, y2, cx, cy, template.HTMLEscapeString(value))
 	return template.HTML(svg)
 }
 
-// PoleGauche et PoleDroit nomment littéralement les extrémités : un axe nommé
+// HubLeft et PoleDroit nomment littéralement les extrémités : un axe nommé
 // par un jugement ferait perdre le procès en neutralité, nommé par son contenu
 // il le rend sans objet.
-func PoleGauche(dimension string) string { return polesDe[dimension][0] }
-func PoleDroit(dimension string) string  { return polesDe[dimension][1] }
+func HubLeft(dimension string) string  { return hubsOf[dimension][0] }
+func HubRight(dimension string) string { return hubsOf[dimension][1] }

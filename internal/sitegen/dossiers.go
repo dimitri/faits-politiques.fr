@@ -7,20 +7,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type TexteLigne struct {
-	Kind, Titre, DateDepot string
-	Auteurs                []string
-	Gouvernement           bool
+type TextLine struct {
+	Kind, Title, DateDeposit string
+	Authors                  []string
+	Government               bool
 }
 
-type Initiateur struct{ Nom, Slug string }
+type Initiator struct{ Name, Slug string }
 
 type Dossier struct {
-	Slug, Titre     string
-	URLAN, URLSenat string
-	Textes          []TexteLigne
-	Initiateurs     []Initiateur
-	Gouvernement    bool
+	Slug, Title      string
+	URLAN, URLSenate string
+	Texts            []TextLine
+	Initiators       []Initiator
+	Government       bool
 	// Promulgation : la loi qui est sortie de ce dossier, par égalité EXACTE de
 	// référence NOR entre le flux de l'Assemblée et le Journal officiel — voir
 	// internal/an/promulgation.go. Nil si ce dossier n'a jamais été promulgué
@@ -32,8 +32,8 @@ type Dossier struct {
 // renseigné seulement quand le texte a été retrouvé dans le corpus JORF
 // chargé — voir la colonne jo_texte_id, nullable par construction.
 type Promulgation struct {
-	CodeLoi, DateJO, DatePromulgation, URLLegifrance string
-	TexteURL                                         string
+	CodeLaw, DateJO, DatePromulgation, URLLegifrance string
+	TextURL                                          string
 }
 
 var kindFr = map[string]string{
@@ -63,20 +63,20 @@ func loadDossiers(ctx context.Context, pool *pgxpool.Pool) (map[int64]*Dossier, 
 	for rows.Next() {
 		d := &Dossier{}
 		var id int64
-		var cheminAN, cheminSenat string
-		if err := rows.Scan(&id, &d.Slug, &d.Titre, &cheminAN, &cheminSenat); err != nil {
+		var pathAN, pathSenate string
+		if err := rows.Scan(&id, &d.Slug, &d.Title, &pathAN, &pathSenate); err != nil {
 			return nil, err
 		}
-		if cheminAN != "" {
-			d.URLAN = "https://www.assemblee-nationale.fr/dyn/17/dossiers/" + cheminAN
+		if pathAN != "" {
+			d.URLAN = "https://www.assemblee-nationale.fr/dyn/17/dossiers/" + pathAN
 		}
 		// senatChemin est tantôt un segment, tantôt une URL complète : la
 		// source mélange les deux formes pour le même champ.
 		switch {
-		case strings.HasPrefix(cheminSenat, "http"):
-			d.URLSenat = cheminSenat
-		case cheminSenat != "":
-			d.URLSenat = "https://www.senat.fr/dossier-legislatif/" + cheminSenat + ".html"
+		case strings.HasPrefix(pathSenate, "http"):
+			d.URLSenate = pathSenate
+		case pathSenate != "":
+			d.URLSenate = "https://www.senat.fr/dossier-legislatif/" + pathSenate + ".html"
 		}
 		dossiers[id] = d
 	}
@@ -91,19 +91,19 @@ func loadDossiers(ctx context.Context, pool *pgxpool.Pool) (map[int64]*Dossier, 
 	if err != nil {
 		return nil, err
 	}
-	texteIdx := map[int64]*TexteLigne{}
+	textIdx := map[int64]*TextLine{}
 	for rows.Next() {
 		var did, tid int64
-		var t TexteLigne
-		if err := rows.Scan(&did, &tid, &t.Kind, &t.Titre, &t.DateDepot); err != nil {
+		var t TextLine
+		if err := rows.Scan(&did, &tid, &t.Kind, &t.Title, &t.DateDeposit); err != nil {
 			return nil, err
 		}
 		if d, ok := dossiers[did]; ok {
 			if fr, ok := kindFr[t.Kind]; ok {
 				t.Kind = fr
 			}
-			d.Textes = append(d.Textes, t)
-			texteIdx[tid] = &d.Textes[len(d.Textes)-1]
+			d.Texts = append(d.Texts, t)
+			textIdx[tid] = &d.Texts[len(d.Texts)-1]
 		}
 	}
 	rows.Close()
@@ -125,20 +125,20 @@ func loadDossiers(ctx context.Context, pool *pgxpool.Pool) (map[int64]*Dossier, 
 	}
 	for rows.Next() {
 		var did int64
-		var role, nom, slug string
-		if err := rows.Scan(&did, &role, &nom, &slug); err != nil {
+		var role, name, slug string
+		if err := rows.Scan(&did, &role, &name, &slug); err != nil {
 			return nil, err
 		}
 		d, ok := dossiers[did]
-		if !ok || nom == "" {
+		if !ok || name == "" {
 			continue
 		}
 		if role == "GOUVERNEMENT" {
-			d.Gouvernement = true
+			d.Government = true
 			continue
 		}
-		if len(d.Initiateurs) < 12 {
-			d.Initiateurs = append(d.Initiateurs, Initiateur{Nom: nom, Slug: slug})
+		if len(d.Initiators) < 12 {
+			d.Initiators = append(d.Initiators, Initiator{Name: name, Slug: slug})
 		}
 	}
 	rows.Close()
@@ -152,27 +152,27 @@ func loadDossiers(ctx context.Context, pool *pgxpool.Pool) (map[int64]*Dossier, 
 		LEFT JOIN core.person p ON p.id = a.person_id
 		LEFT JOIN core.organization o ON o.id = a.organization_id
 		WHERE a.texte_id = ANY($1)
-		ORDER BY a.texte_id, a.rang NULLS LAST, a.id`, keysOf(texteIdx))
+		ORDER BY a.texte_id, a.rang NULLS LAST, a.id`, keysOf(textIdx))
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 	for rows.Next() {
 		var tid int64
-		var role, nom string
-		if err := rows.Scan(&tid, &role, &nom); err != nil {
+		var role, name string
+		if err := rows.Scan(&tid, &role, &name); err != nil {
 			return nil, err
 		}
-		t, ok := texteIdx[tid]
-		if !ok || nom == "" {
+		t, ok := textIdx[tid]
+		if !ok || name == "" {
 			continue
 		}
 		if role == "GOUVERNEMENT" {
-			t.Gouvernement = true
+			t.Government = true
 			continue
 		}
-		if len(t.Auteurs) < 8 {
-			t.Auteurs = append(t.Auteurs, nom)
+		if len(t.Authors) < 8 {
+			t.Authors = append(t.Authors, name)
 		}
 	}
 
@@ -194,11 +194,11 @@ func loadDossiers(ctx context.Context, pool *pgxpool.Pool) (map[int64]*Dossier, 
 		var did int64
 		var p Promulgation
 		var joID *string
-		if err := prows.Scan(&did, &p.CodeLoi, &p.DateJO, &p.DatePromulgation, &joID); err != nil {
+		if err := prows.Scan(&did, &p.CodeLaw, &p.DateJO, &p.DatePromulgation, &joID); err != nil {
 			return nil, err
 		}
 		if joID != nil {
-			p.TexteURL = "https://www.legifrance.gouv.fr/jorf/id/" + *joID
+			p.TextURL = "https://www.legifrance.gouv.fr/jorf/id/" + *joID
 		}
 		if d, ok := dossiers[did]; ok {
 			d.Promulgation = &p
@@ -218,7 +218,7 @@ func keys(m map[int64]*Dossier) []int64 {
 	return out
 }
 
-func keysOf(m map[int64]*TexteLigne) []int64 {
+func keysOf(m map[int64]*TextLine) []int64 {
 	out := make([]int64, 0, len(m))
 	for k := range m {
 		out = append(out, k)

@@ -16,18 +16,18 @@ import (
 // Il vit dans data/ parce qu'il relève d'un choix — quel seuil s'applique à
 // quel type de scrutin, et sur quelle base — et que tout choix de ce site doit
 // être une diff relisible, soumise à relecture contradictoire.
-type Seuil struct {
-	TypeVote, Regle, Note, Source, Consultee string
-	Base, Voix                               int
+type Threshold struct {
+	TypeVote, Rule, Note, Source, Consulted string
+	Base, Votes                             int
 }
 
-func loadSeuils(path string) (map[string]Seuil, error) {
+func loadThresholds(path string) (map[string]Threshold, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		// Un seuil manquant n'est pas une erreur de construction : la page
 		// retombe sur la barre proportionnelle. Une absence s'affiche.
 		if os.IsNotExist(err) {
-			return map[string]Seuil{}, nil
+			return map[string]Threshold{}, nil
 		}
 		return nil, err
 	}
@@ -37,19 +37,19 @@ func loadSeuils(path string) (map[string]Seuil, error) {
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]Seuil{}
+	out := map[string]Threshold{}
 	for i, r := range rows {
 		if i == 0 || len(r) < 7 {
 			continue
 		}
 		base, _ := strconv.Atoi(strings.TrimSpace(r[1]))
-		voix, _ := strconv.Atoi(strings.TrimSpace(r[2]))
-		if base <= 0 || voix <= 0 {
+		votes, _ := strconv.Atoi(strings.TrimSpace(r[2]))
+		if base <= 0 || votes <= 0 {
 			continue
 		}
-		out[strings.TrimSpace(r[0])] = Seuil{
-			TypeVote: strings.TrimSpace(r[0]), Base: base, Voix: voix,
-			Regle: r[3], Note: r[4], Source: r[5], Consultee: r[6],
+		out[strings.TrimSpace(r[0])] = Threshold{
+			TypeVote: strings.TrimSpace(r[0]), Base: base, Votes: votes,
+			Rule: r[3], Note: r[4], Source: r[5], Consulted: r[6],
 		}
 	}
 	return out, nil
@@ -58,20 +58,20 @@ func loadSeuils(path string) (map[string]Seuil, error) {
 // coupures : les amorces de la liste des signataires. Couper avant elles est
 // une opération mécanique et réversible — le libellé officiel reste affiché
 // intégralement juste en dessous.
-var coupures = []string{" par M. ", " par Mme ", " par MM. ", " par Mmes "}
+var cuts = []string{" par M. ", " par Mme ", " par MM. ", " par Mmes "}
 
-// TitreCourt rend le libellé source lisible comme un titre SANS le réécrire.
+// TitleShort rend le libellé source lisible comme un titre SANS le réécrire.
 // Deux opérations seulement : couper avant les signataires, et mettre la
 // première lettre en capitale. Aucun mot ajouté, aucun mot remplacé.
 //
 // Le libellé brut commence par une minuscule et court parfois sur neuf lignes :
 // fidèle, mais illisible en h1, surtout à 390 px.
-func TitreCourt(objet string) (string, bool) {
-	t := strings.TrimSpace(objet)
+func TitleShort(object string) (string, bool) {
+	t := strings.TrimSpace(object)
 	orig := t
 	t = strings.TrimRight(t, ".")
 
-	for _, c := range coupures {
+	for _, c := range cuts {
 		if i := strings.Index(t, c); i > 40 {
 			t = t[:i]
 			break
@@ -99,29 +99,29 @@ func TitreCourt(objet string) (string, bool) {
 	return t, t != orig
 }
 
-// ResultatLong accorde le résultat avec l'objet du vote. Une motion est
+// ResultLong accorde le résultat avec l'objet du vote. Une motion est
 // féminine ; un projet de loi ne l'est pas. Le résultat reste en ENCRE :
 // « adopté » n'est pas une position de vote, et le colorer en vert reviendrait
 // à dire qu'adopter est bien.
-func ResultatLong(resultat, typeVote string) string {
-	if resultat == "" {
+func ResultLong(result, typeVote string) string {
+	if result == "" {
 		return "Résultat non publié"
 	}
-	feminin := strings.HasPrefix(typeVote, "motion")
-	switch resultat {
+	feminine := strings.HasPrefix(typeVote, "motion")
+	switch result {
 	case "adopté":
-		if feminin {
+		if feminine {
 			return "Adoptée"
 		}
 		return "Adopté"
 	case "rejeté":
-		if feminin {
+		if feminine {
 			return "Rejetée"
 		}
 		return "Rejeté"
 	}
-	if r, n := utf8.DecodeRuneInString(resultat); n > 0 {
-		return string(unicode.ToUpper(r)) + resultat[n:]
+	if r, n := utf8.DecodeRuneInString(result); n > 0 {
+		return string(unicode.ToUpper(r)) + result[n:]
 	}
-	return resultat
+	return result
 }

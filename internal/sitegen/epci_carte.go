@@ -26,15 +26,15 @@ import (
 // départements (Carte, preparer, pleine, apercu) : seule la façon de charger
 // les tracés change, parce que la source est une autre table, avec une autre
 // clé (le SIREN, pas le code INSEE) et un autre millésime.
-func jeuContoursEPCI(ctx context.Context, pool *pgxpool.Pool, millesime int,
-	tolerance float64) (*JeuContours, error) {
+func setOutlinesEPCI(ctx context.Context, pool *pgxpool.Pool, vintage int,
+	tolerance float64) (*SetOutlines, error) {
 
 	rows, err := pool.Query(ctx, `
 		SELECT code, nom,
 		       st_assvg(st_transform(st_simplifypreservetopology(geom, $1), 2154), 1, 0)
 		FROM geo.contour_cog
 		WHERE niveau='EPCI' AND cog_millesime=$2 AND srid_rendu=2154
-		ORDER BY code`, tolerance, millesime)
+		ORDER BY code`, tolerance, vintage)
 	if err != nil {
 		return nil, err
 	}
@@ -78,30 +78,30 @@ func jeuContoursEPCI(ctx context.Context, pool *pgxpool.Pool, millesime int,
 	}
 	vb := vbN.String
 
-	om, err := contoursOutreMerCOG(ctx, pool, millesime, tolerance)
+	om, err := outlinesOverseasCOG(ctx, pool, vintage, tolerance)
 	if err != nil {
 		return nil, err
 	}
 	for _, o := range om {
-		noms[o.Code] = o.Nom
+		noms[o.Code] = o.Name
 	}
 
 	var b strings.Builder
 	for _, c := range codes {
 		fmt.Fprintf(&b, `<path id="e%s" d="%s"/>`, c, traces[c])
 	}
-	return &JeuContours{
+	return &SetOutlines{
 		Defs: template.HTML(`<svg width="0" height="0" aria-hidden="true" ` +
 			`style="position:absolute"><defs>` + b.String() + `</defs></svg>`),
-		ViewBox: vb, Niveau: "EPCI", Codes: codes, Noms: noms, traces: traces,
-		outremer: om,
+		ViewBox: vb, Level: "EPCI", Codes: codes, Noms: noms, traces: traces,
+		overseas: om,
 	}, nil
 }
 
-// contoursOutreMerCOG : les EPCI d'outre-mer, chacun dans sa propre
+// outlinesOverseasCOG : les EPCI d'outre-mer, chacun dans sa propre
 // projection légale — même principe que contoursOutreMer pour geo.contour.
-func contoursOutreMerCOG(ctx context.Context, pool *pgxpool.Pool, millesime int,
-	tolerance float64) ([]contourSeul, error) {
+func outlinesOverseasCOG(ctx context.Context, pool *pgxpool.Pool, vintage int,
+	tolerance float64) ([]outlineOnly, error) {
 
 	rows, err := pool.Query(ctx, `
 		SELECT code, nom, srid_rendu,
@@ -111,15 +111,15 @@ func contoursOutreMerCOG(ctx context.Context, pool *pgxpool.Pool, millesime int,
 		FROM geo.contour_cog,
 		     LATERAL (SELECT st_envelope(st_transform(geom, srid_rendu)) e) x
 		WHERE niveau='EPCI' AND cog_millesime=$2 AND srid_rendu <> 2154
-		ORDER BY code`, tolerance, millesime)
+		ORDER BY code`, tolerance, vintage)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []contourSeul
+	var out []outlineOnly
 	for rows.Next() {
-		var c contourSeul
-		if err := rows.Scan(&c.Code, &c.Nom, &c.SRID, &c.Trace, &c.ViewBox); err != nil {
+		var c outlineOnly
+		if err := rows.Scan(&c.Code, &c.Name, &c.SRID, &c.Trace, &c.ViewBox); err != nil {
 			return nil, err
 		}
 		out = append(out, c)

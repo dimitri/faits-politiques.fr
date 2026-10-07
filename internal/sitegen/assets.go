@@ -21,30 +21,30 @@ import (
 // cache indéfiniment.
 type Assets struct{ CSS, JS string }
 
-func copierAssets(src, out string) (Assets, error) {
+func copyAssets(src, out string) (Assets, error) {
 	var a Assets
 	for _, f := range []struct {
-		nom  string
+		name string
 		dest *string
 	}{{"style.css", &a.CSS}, {"site.js", &a.JS}} {
-		b, err := os.ReadFile(filepath.Join(src, f.nom))
+		b, err := os.ReadFile(filepath.Join(src, f.name))
 		if err != nil {
 			return a, err
 		}
 		// Les masques d'icônes sont engendrés depuis icones.go : le tracé
 		// n'existe qu'à un seul endroit du dépôt, et il n'atterrit qu'une fois
 		// dans le site.
-		if f.nom == "style.css" {
+		if f.name == "style.css" {
 			b = append(b, []byte(IconesCSS())...)
 		}
 		sum := sha256.Sum256(b)
-		ext := filepath.Ext(f.nom)
-		nom := fmt.Sprintf("%s.%s%s", f.nom[:len(f.nom)-len(ext)],
+		ext := filepath.Ext(f.name)
+		name := fmt.Sprintf("%s.%s%s", f.name[:len(f.name)-len(ext)],
 			hex.EncodeToString(sum[:])[:10], ext)
-		if err := os.WriteFile(filepath.Join(out, nom), b, 0o644); err != nil {
+		if err := os.WriteFile(filepath.Join(out, name), b, 0o644); err != nil {
 			return a, err
 		}
-		*f.dest = nom
+		*f.dest = name
 	}
 	return a, nil
 }

@@ -7,8 +7,8 @@ import (
 )
 
 type Coalition struct {
-	Slug, Libelle, Annee, Scrutin, Source, SourceConsultee string
-	Composantes                                            []*Organisation
+	Slug, Label, Year, Election, Source, SourceConsulted string
+	Components                                           []*Organization
 }
 
 // loadCoalitions lit les coalitions électorales.
@@ -17,7 +17,7 @@ type Coalition struct {
 // n'a pas d'adhérents, et ses composantes gardent leur structure. Un groupe
 // parlementaire peut porter son nom sans la rassembler — les autres composantes
 // constituent leurs propres groupes.
-func loadCoalitions(path string, orgs map[string]*Organisation) ([]*Coalition, error) {
+func loadCoalitions(path string, orgs map[string]*Organization) ([]*Coalition, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
@@ -45,15 +45,15 @@ func loadCoalitions(path string, orgs map[string]*Organisation) ([]*Coalition, e
 	}
 	var out []*Coalition
 	for _, rec := range recs[1:] {
-		c := &Coalition{Slug: get(rec, "slug"), Libelle: get(rec, "libelle"),
-			Annee: get(rec, "annee"), Scrutin: get(rec, "scrutin"),
-			Source: get(rec, "source"), SourceConsultee: get(rec, "source_consultee")}
+		c := &Coalition{Slug: get(rec, "slug"), Label: get(rec, "libelle"),
+			Year: get(rec, "annee"), Election: get(rec, "scrutin"),
+			Source: get(rec, "source"), SourceConsulted: get(rec, "source_consultee")}
 		if c.Slug == "" {
 			continue
 		}
 		for _, s := range strings.Split(get(rec, "composantes"), "|") {
 			if o, ok := orgs[strings.TrimSpace(s)]; ok {
-				c.Composantes = append(c.Composantes, o)
+				c.Components = append(c.Components, o)
 			}
 		}
 		out = append(out, c)

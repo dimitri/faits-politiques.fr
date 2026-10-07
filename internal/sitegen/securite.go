@@ -13,29 +13,29 @@ import (
 // Le mot compte. Ce ne sont pas « les crimes commis » mais les faits ENREGISTRÉS :
 // une hausse peut venir d'une hausse des faits, d'une hausse des plaintes, ou
 // d'un changement d'enregistrement. Le SSMSI le dit lui-même, et le site aussi.
-type IndicSecurite struct {
-	Code, Libelle, Question string
-	Slug                    string
-	Apercu                  Carte
-	Page                    PageCarte
-	Serie                   []PointAnnee
-	National                float64
-	Diffuses, Masques       int
+type IndicatorSecurity struct {
+	Code, Label, Question string
+	Slug                  string
+	Overview              Map
+	Page                  PageMap
+	Series                []PointYear
+	National              float64
+	Published, Masks      int
 }
 
-type PointAnnee struct {
-	Annee  int
-	Valeur float64
+type PointYear struct {
+	Year  int
+	Value float64
 }
 
-type StatsSecurite struct {
-	Indicateurs  []IndicSecurite
-	Defs         template.HTML
-	Annee, Debut int
-	Communes     int
+type StatsSecurity struct {
+	Indicators     []IndicatorSecurity
+	Defs           template.HTML
+	Year, Start    int
+	Municipalities int
 }
 
-var libelleSecurite = map[string][2]string{
+var labelSecurity = map[string][2]string{
 	"violences_physiques_intrafamiliales":            {"Violences intrafamiliales", "Où les violences dans la famille sont-elles le plus enregistrées ?"},
 	"violences_physiques_hors_cadre_familial":        {"Violences hors famille", "Coups et blessures volontaires hors du cadre familial."},
 	"violences_sexuelles":                            {"Violences sexuelles", "Faits enregistrés, très sensibles au taux de plainte."},
@@ -53,22 +53,22 @@ var libelleSecurite = map[string][2]string{
 	"escroqueries_et_fraudes_aux_moyens_de_paiement": {"Escroqueries et fraudes", ""},
 }
 
-func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, error) {
-	vign, err := jeuContours(ctx, pool, "DEPARTEMENT", tolApercu)
+func loadSecurity(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurity, error) {
+	vign, err := setOutlines(ctx, pool, "DEPARTEMENT", toleranceOverview)
 	if err != nil {
 		return nil, err
 	}
-	fin, err := jeuContours(ctx, pool, "DEPARTEMENT", tolPleine)
+	end, err := setOutlines(ctx, pool, "DEPARTEMENT", toleranceFull)
 	if err != nil {
 		return nil, err
 	}
-	st := &StatsSecurite{Annee: 2025, Debut: 2016, Defs: vign.Defs}
+	st := &StatsSecurity{Year: 2025, Start: 2016, Defs: vign.Defs}
 	_ = pool.QueryRow(ctx, `SELECT count(DISTINCT commune_code) FROM mv.commune_delinquance_dernier`).
-		Scan(&st.Communes)
+		Scan(&st.Municipalities)
 
 	tx := func(v float64) string { return Decimal(v, 1) + " ‰" }
 
-	for code, lib := range libelleSecurite {
+	for code, lib := range labelSecurity {
 		// Taux pour 1 000 habitants, agrégé au département : on additionne les
 		// FAITS et les HABITANTS, jamais les taux — une moyenne de taux
 		// donnerait le même poids à une commune de 200 âmes et à Marseille.
@@ -80,40 +80,40 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 			SELECT code_departement, nom_departement,
 			       1000.0*nombre/nullif(population,0)
 			FROM mv.securite_dept_annee
-			WHERE indicateur_code=$1 AND annee=$2`, code, st.Annee)
+			WHERE indicateur_code=$1 AND annee=$2`, code, st.Year)
 		if err != nil {
 			return nil, err
 		}
-		var cases []CaseCarte
+		var cells []CellMap
 		for rows.Next() {
-			var cc CaseCarte
+			var cc CellMap
 			var v *float64
-			if err := rows.Scan(&cc.Code, &cc.Nom, &v); err != nil {
+			if err := rows.Scan(&cc.Code, &cc.Name, &v); err != nil {
 				rows.Close()
 				return nil, err
 			}
 			if v == nil {
 				cc.Absent = true
 			} else {
-				cc.Valeur = *v
+				cc.Value = *v
 			}
-			cases = append(cases, cc)
+			cells = append(cells, cc)
 		}
 		rows.Close()
 
-		rangs := classement(cases, vign.Noms, tx)
-		ind := IndicSecurite{Code: code, Libelle: lib[0], Question: lib[1],
-			Slug:   strings.ReplaceAll(code, "_", "-"),
-			Apercu: apercu(vign, cases, "faits pour 1 000 habitants", tx)}
-		ind.Page = PageCarte{
-			Slug: ind.Slug, Titre: lib[0], Question: lib[1],
+		ranks := ranking(cells, vign.Noms, tx)
+		ind := IndicatorSecurity{Code: code, Label: lib[0], Question: lib[1],
+			Slug:     strings.ReplaceAll(code, "_", "-"),
+			Overview: overview(vign, cells, "faits pour 1 000 habitants", tx)}
+		ind.Page = PageMap{
+			Slug: ind.Slug, Title: lib[0], Question: lib[1],
 			Source:          "SSMSI, bases communales de la délinquance enregistrée",
 			Section:         "Sécurité",
 			SectionURL:      "securite",
 			SectionIndexURL: "securite",
-			Carte:           pleine(fin, cases, "faits pour 1 000 habitants", tx),
-			Resume:          resumerClassement(rangs),
-			Classement:      rangs,
+			Map:             full(end, cells, "faits pour 1 000 habitants", tx),
+			Summary:         summarizeRanking(ranks),
+			Ranking:         ranks,
 		}
 
 		srows, err := pool.Query(ctx, `
@@ -124,46 +124,46 @@ func loadSecurite(ctx context.Context, pool *pgxpool.Pool) (*StatsSecurite, erro
 			return nil, err
 		}
 		for srows.Next() {
-			var p PointAnnee
+			var p PointYear
 			var v *float64
-			if err := srows.Scan(&p.Annee, &v); err != nil {
+			if err := srows.Scan(&p.Year, &v); err != nil {
 				break
 			}
 			if v != nil {
-				p.Valeur = *v
-				ind.Serie = append(ind.Serie, p)
+				p.Value = *v
+				ind.Series = append(ind.Series, p)
 			}
 		}
 		srows.Close()
-		if n := len(ind.Serie); n > 0 {
-			ind.National = ind.Serie[n-1].Valeur
-			ind.Page.Serie = ind.Serie
-			ind.Page.SerieLegende = "Taux national, faits pour 1 000 habitants"
-			ind.Page.Courbe = courbe(ind.Serie, tx)
+		if n := len(ind.Series); n > 0 {
+			ind.National = ind.Series[n-1].Value
+			ind.Page.Series = ind.Series
+			ind.Page.SeriesLegend = "Taux national, faits pour 1 000 habitants"
+			ind.Page.Curve = curve(ind.Series, tx)
 		}
 		_ = pool.QueryRow(ctx, `
 			SELECT n_masque, n_diffuse + n_masque
 			FROM mv.commune_delinquance_national WHERE indicateur_code=$1 AND annee=$2`,
-			code, st.Annee).Scan(&ind.Masques, &ind.Diffuses)
-		st.Indicateurs = append(st.Indicateurs, ind)
+			code, st.Year).Scan(&ind.Masks, &ind.Published)
+		st.Indicators = append(st.Indicators, ind)
 	}
 	// Ordre stable : du fait le plus fréquent au plus rare.
-	for i := 0; i < len(st.Indicateurs); i++ {
-		for j := i + 1; j < len(st.Indicateurs); j++ {
-			if st.Indicateurs[j].National > st.Indicateurs[i].National {
-				st.Indicateurs[i], st.Indicateurs[j] = st.Indicateurs[j], st.Indicateurs[i]
+	for i := 0; i < len(st.Indicators); i++ {
+		for j := i + 1; j < len(st.Indicators); j++ {
+			if st.Indicators[j].National > st.Indicators[i].National {
+				st.Indicators[i], st.Indicators[j] = st.Indicators[j], st.Indicators[i]
 			}
 		}
 	}
-	for i := range st.Indicateurs {
-		ind := &st.Indicateurs[i]
+	for i := range st.Indicators {
+		ind := &st.Indicators[i]
 		ind.Page.Note = "Les communes dont le SSMSI ne diffuse pas la valeur sont " +
 			"exclues du calcul, jamais comptées comme zéro : sous un certain " +
 			"nombre de faits, publier reviendrait à identifier les personnes."
-		for _, autre := range st.Indicateurs {
-			if autre.Slug != ind.Slug {
-				ind.Page.Voisines = append(ind.Page.Voisines,
-					LienCarte{Slug: autre.Slug, Titre: autre.Libelle})
+		for _, other := range st.Indicators {
+			if other.Slug != ind.Slug {
+				ind.Page.Neighboring = append(ind.Page.Neighboring,
+					LinkMap{Slug: other.Slug, Title: other.Label})
 			}
 		}
 	}

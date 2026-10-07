@@ -9,21 +9,21 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type StatsUnionEuropeenne struct {
-	PIBSVG          template.HTML
-	AnneePIB        int
-	SecteursSVG     template.HTML
-	AnneeSecteurs   int
-	CommerceTable   template.HTML
-	SecteursUSTable template.HTML
+type StatsUnionEuropean struct {
+	PIBSVG         template.HTML
+	YearGdp        int
+	SectorsSVG     template.HTML
+	YearSectors    int
+	TradeTable     template.HTML
+	SectorsUSTable template.HTML
 }
 
-// chargerUnionEuropeenne : le PIB, le commerce extérieur et la structure
+// loadUnionEuropean : le PIB, le commerce extérieur et la structure
 // sectorielle de l'UE comparés aux États-Unis et à la Chine (Banque
 // mondiale/Eurostat, déjà chargés dans core.indicateur_mondial — voir
 // internal/international/pib_epargne_nette.go et commerce_extra_eu.go).
-func chargerUnionEuropeenne(ctx context.Context, pool *pgxpool.Pool) (*StatsUnionEuropeenne, error) {
-	st := &StatsUnionEuropeenne{}
+func loadUnionEuropean(ctx context.Context, pool *pgxpool.Pool) (*StatsUnionEuropean, error) {
+	st := &StatsUnionEuropean{}
 
 	// --- PIB : les trois blocs ont 2025, un seul millésime, une seule devise.
 	rows, err := pool.Query(ctx, `
@@ -33,33 +33,33 @@ func chargerUnionEuropeenne(ctx context.Context, pool *pgxpool.Pool) (*StatsUnio
 	if err != nil {
 		return nil, err
 	}
-	type pib struct {
+	type gdp struct {
 		Code, Label string
-		Valeur      float64
+		Value       float64
 	}
-	var pibs []pib
+	var gdps []gdp
 	for rows.Next() {
-		var p pib
-		if err := rows.Scan(&p.Code, &p.Label, &p.Valeur); err != nil {
+		var p gdp
+		if err := rows.Scan(&p.Code, &p.Label, &p.Value); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		pibs = append(pibs, p)
+		gdps = append(gdps, p)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if len(pibs) == 3 {
-		st.AnneePIB = 2025
-		max := pibs[0].Valeur
+	if len(gdps) == 3 {
+		st.YearGdp = 2025
+		max := gdps[0].Value
 		var b strings.Builder
 		b.WriteString(`<div class="barres">`)
-		for _, p := range pibs {
+		for _, p := range gdps {
 			fmt.Fprintf(&b, `<div class="ligne"><span class="n">%s</span>`+
 				`<span class="piste"><i style="width:%.1f%%"></i></span>`+
 				`<span class="v">%s Md$</span></div>`,
-				template.HTMLEscapeString(nomBloc(p.Code)), 100*p.Valeur/max, Nombre(int(p.Valeur/1e9)))
+				template.HTMLEscapeString(nameBlock(p.Code)), 100*p.Value/max, Count(int(p.Value/1e9)))
 		}
 		b.WriteString(`</div>`)
 		st.PIBSVG = template.HTML(b.String())
@@ -69,44 +69,44 @@ func chargerUnionEuropeenne(ctx context.Context, pool *pgxpool.Pool) (*StatsUnio
 	// les États-Unis (2021, dernière année publiée par la Banque mondiale
 	// pour cet indicateur) sont dans un tableau séparé, jamais mélangés dans
 	// le même graphique à une année qu'ils n'ont pas.
-	secteurs, anneeSect, err := chargerSecteurs(ctx, pool, []string{"EU", "CN"}, 2025)
+	sectors, yearSection, err := loadSectorsForBlocs(ctx, pool, []string{"EU", "CN"}, 2025)
 	if err != nil {
 		return nil, err
 	}
-	if len(secteurs) > 0 {
-		st.AnneeSecteurs = anneeSect
-		st.SecteursSVG = dessinerSecteursBloc(secteurs)
+	if len(sectors) > 0 {
+		st.YearSectors = yearSection
+		st.SectorsSVG = drawSectorsBlock(sectors)
 	}
-	secteursUS, _, err := chargerSecteurs(ctx, pool, []string{"US"}, 0)
+	sectorsUS, _, err := loadSectorsForBlocs(ctx, pool, []string{"US"}, 0)
 	if err != nil {
 		return nil, err
 	}
-	if len(secteursUS) > 0 {
+	if len(sectorsUS) > 0 {
 		var t strings.Builder
 		t.WriteString(`<div class="scroll"><table><thead><tr><th>Bloc</th><th>Année</th>` +
 			`<th>Primaire</th><th>Secondaire</th><th>Tertiaire</th></tr></thead><tbody>`)
-		for _, s := range secteursUS {
+		for _, s := range sectorsUS {
 			fmt.Fprintf(&t, `<tr><td>%s</td><td>%d</td><td>%s %%</td><td>%s %%</td><td>%s %%</td></tr>`,
-				template.HTMLEscapeString(nomBloc(s.Code)), s.Annee,
-				Decimal(s.Primaire, 1), Decimal(s.Secondaire, 1), Decimal(s.Tertiaire, 1))
+				template.HTMLEscapeString(nameBlock(s.Code)), s.Year,
+				Decimal(s.Primary, 1), Decimal(s.Secondary, 1), Decimal(s.Tertiary, 1))
 		}
 		t.WriteString(`</tbody></table></div>`)
-		st.SecteursUSTable = template.HTML(t.String())
+		st.SectorsUSTable = template.HTML(t.String())
 	}
 
 	// --- Commerce : EU (extra-UE, biens, Eurostat, EUR) vs US et Chine
 	// (biens+services, Banque mondiale, USD) — deux sources, deux devises,
 	// deux champs : un tableau explicite ligne par ligne, jamais un même
 	// graphique qui laisserait croire à une conversion faite en silence.
-	type ligneCommerce struct {
-		Bloc, Devise, Champ string
-		Annee               int
-		Export, Import      float64
+	type lineTrade struct {
+		Block, Currency, Field string
+		Year                   int
+		Export, Import         float64
 	}
-	var lignes []ligneCommerce
+	var lines []lineTrade
 	for _, e := range []struct {
-		code, devise, champ, indExp, indImp string
-		diviseur                            float64
+		code, currency, field, indExp, indImp string
+		divisor                               float64
 	}{
 		// EU_EXTRA_EXPORT/IMPORT_MEUR sont déjà en MILLIONS d'euros (voir
 		// internal/international/commerce_extra_eu.go) : diviser par 1e3,
@@ -117,35 +117,35 @@ func chargerUnionEuropeenne(ctx context.Context, pool *pgxpool.Pool) (*StatsUnio
 		{"US", "Md$", "biens et services", "NE.EXP.GNFS.CD", "NE.IMP.GNFS.CD", 1e9},
 		{"CN", "Md$", "biens et services", "NE.EXP.GNFS.CD", "NE.IMP.GNFS.CD", 1e9},
 	} {
-		var annee int
+		var year int
 		var exp, imp float64
 		err := pool.QueryRow(ctx, `
 			SELECT e.annee, e.valeur, i.valeur FROM core.indicateur_mondial e
 			JOIN core.indicateur_mondial i ON i.pays_code=e.pays_code AND i.annee=e.annee AND i.indicateur=$3
 			WHERE e.pays_code=$1 AND e.indicateur=$2
-			ORDER BY e.annee DESC LIMIT 1`, e.code, e.indExp, e.indImp).Scan(&annee, &exp, &imp)
+			ORDER BY e.annee DESC LIMIT 1`, e.code, e.indExp, e.indImp).Scan(&year, &exp, &imp)
 		if err != nil {
 			continue
 		}
-		lignes = append(lignes, ligneCommerce{nomBloc(e.code), e.devise, e.champ, annee, exp / e.diviseur, imp / e.diviseur})
+		lines = append(lines, lineTrade{nameBlock(e.code), e.currency, e.field, year, exp / e.divisor, imp / e.divisor})
 	}
-	if len(lignes) > 0 {
+	if len(lines) > 0 {
 		var t strings.Builder
 		t.WriteString(`<div class="scroll"><table><thead><tr><th>Bloc</th><th>Année</th>` +
 			`<th>Exportations</th><th>Importations</th><th>Champ</th></tr></thead><tbody>`)
-		for _, l := range lignes {
+		for _, l := range lines {
 			fmt.Fprintf(&t, `<tr><td>%s</td><td>%d</td><td>%s %s</td><td>%s %s</td><td class="small muted">%s</td></tr>`,
-				template.HTMLEscapeString(l.Bloc), l.Annee, Decimal(l.Export, 0), l.Devise,
-				Decimal(l.Import, 0), l.Devise, template.HTMLEscapeString(l.Champ))
+				template.HTMLEscapeString(l.Block), l.Year, Decimal(l.Export, 0), l.Currency,
+				Decimal(l.Import, 0), l.Currency, template.HTMLEscapeString(l.Field))
 		}
 		t.WriteString(`</tbody></table></div>`)
-		st.CommerceTable = template.HTML(t.String())
+		st.TradeTable = template.HTML(t.String())
 	}
 
 	return st, nil
 }
 
-func nomBloc(code string) string {
+func nameBlock(code string) string {
 	switch code {
 	case "EU":
 		return "Union européenne"
@@ -157,17 +157,17 @@ func nomBloc(code string) string {
 	return code
 }
 
-type pointSecteurBloc struct {
-	Code                            string
-	Annee                           int
-	Primaire, Secondaire, Tertiaire float64
+type pointSectorBlock struct {
+	Code                         string
+	Year                         int
+	Primary, Secondary, Tertiary float64
 }
 
-// chargerSecteurs : pour chaque code, la valeur ajoutée par secteur (%) à
+// loadSectorsForBlocs : pour chaque code, la valeur ajoutée par secteur (%) à
 // l'année demandée (0 = dernière année disponible pour ce code).
-func chargerSecteurs(ctx context.Context, pool *pgxpool.Pool, codes []string, annee int) ([]pointSecteurBloc, int, error) {
-	var out []pointSecteurBloc
-	anneeUtilisee := 0
+func loadSectorsForBlocs(ctx context.Context, pool *pgxpool.Pool, codes []string, year int) ([]pointSectorBlock, int, error) {
+	var out []pointSectorBlock
+	yearUsed := 0
 	for _, code := range codes {
 		q := `SELECT annee,
 		        max(valeur) FILTER (WHERE indicateur='NV.AGR.TOTL.ZS'),
@@ -177,54 +177,54 @@ func chargerSecteurs(ctx context.Context, pool *pgxpool.Pool, codes []string, an
 		      WHERE pays_code=$1 AND indicateur IN ('NV.AGR.TOTL.ZS','NV.IND.TOTL.ZS','NV.SRV.TOTL.ZS')`
 		var args []any
 		args = append(args, code)
-		if annee > 0 {
+		if year > 0 {
 			q += ` AND annee=$2 GROUP BY annee`
-			args = append(args, annee)
+			args = append(args, year)
 		} else {
 			q += ` GROUP BY annee ORDER BY annee DESC LIMIT 1`
 		}
-		var p pointSecteurBloc
+		var p pointSectorBlock
 		p.Code = code
-		if err := pool.QueryRow(ctx, q, args...).Scan(&p.Annee, &p.Primaire, &p.Secondaire, &p.Tertiaire); err != nil {
+		if err := pool.QueryRow(ctx, q, args...).Scan(&p.Year, &p.Primary, &p.Secondary, &p.Tertiary); err != nil {
 			continue
 		}
 		out = append(out, p)
-		anneeUtilisee = p.Annee
+		yearUsed = p.Year
 	}
-	return out, anneeUtilisee, nil
+	return out, yearUsed, nil
 }
 
-// dessinerSecteursBloc : une barre empilée par bloc (primaire, secondaire,
+// drawSectorsBlock : une barre empilée par bloc (primaire, secondaire,
 // tertiaire), même échelle 0-100 %.
-func dessinerSecteursBloc(pts []pointSecteurBloc) template.HTML {
+func drawSectorsBlock(pts []pointSectorBlock) template.HTML {
 	if len(pts) == 0 {
 		return ""
 	}
-	const w, mr, ml, largeurBarre, gap = 720.0, 90.0, 130.0, 40.0, 26.0
-	h := float64(len(pts))*(largeurBarre+gap) + gap
-	largeurAxe := w - ml - mr
-	x := func(pct float64) float64 { return ml + largeurAxe*pct/100 }
+	const w, mr, ml, widthBar, gap = 720.0, 90.0, 130.0, 40.0, 26.0
+	h := float64(len(pts))*(widthBar+gap) + gap
+	widthAxis := w - ml - mr
+	x := func(pct float64) float64 { return ml + widthAxis*pct/100 }
 
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg class="secteurs-bloc" viewBox="0 0 %.0f %.0f" role="img" `+
 		`aria-label="Valeur ajoutée par secteur, en %% du PIB">`, w, h)
 	for i, p := range pts {
-		y := gap + float64(i)*(largeurBarre+gap)
-		fmt.Fprintf(&b, `<text class="cat" x="%.1f" y="%.1f">%s</text>`, ml-10, y+largeurBarre/2+4, template.HTMLEscapeString(nomBloc(p.Code)))
+		y := gap + float64(i)*(widthBar+gap)
+		fmt.Fprintf(&b, `<text class="cat" x="%.1f" y="%.1f">%s</text>`, ml-10, y+widthBar/2+4, template.HTMLEscapeString(nameBlock(p.Code)))
 		xx := ml
-		seg := func(cl string, v float64, libelle string) {
-			largeur := largeurAxe * v / 100
+		seg := func(cl string, v float64, label string) {
+			width := widthAxis * v / 100
 			fmt.Fprintf(&b, `<rect class="%s" x="%.1f" y="%.1f" width="%.1f" height="%.0f">`+
 				`<title>%s, %s : %s %%</title></rect>`,
-				cl, xx, y, largeur, largeurBarre, template.HTMLEscapeString(nomBloc(p.Code)), libelle, Decimal(v, 1))
-			if largeur > 28 {
-				fmt.Fprintf(&b, `<text class="et-seg" x="%.1f" y="%.1f">%s %%</text>`, xx+largeur/2, y+largeurBarre/2+4, Decimal(v, 0))
+				cl, xx, y, width, widthBar, template.HTMLEscapeString(nameBlock(p.Code)), label, Decimal(v, 1))
+			if width > 28 {
+				fmt.Fprintf(&b, `<text class="et-seg" x="%.1f" y="%.1f">%s %%</text>`, xx+width/2, y+widthBar/2+4, Decimal(v, 0))
 			}
-			xx += largeur
+			xx += width
 		}
-		seg("primaire", p.Primaire, "primaire")
-		seg("secondaire", p.Secondaire, "secondaire")
-		seg("tertiaire", p.Tertiaire, "tertiaire")
+		seg("primaire", p.Primary, "primaire")
+		seg("secondaire", p.Secondary, "secondaire")
+		seg("tertiaire", p.Tertiary, "tertiaire")
 	}
 	for _, pct := range []float64{0, 25, 50, 75, 100} {
 		fmt.Fprintf(&b, `<text class="an" x="%.1f" y="%.1f" text-anchor="middle">%d%%</text>`, x(pct), h-4, int(pct))

@@ -10,19 +10,19 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// siteSemiConducteur : les sites français de production de semi-conducteurs
+// siteSemiconductor : les sites français de production de semi-conducteurs
 // identifiés par Sirene (internal/dossiers/souverainete_solutions.go) et
 // déjà cités dans docs/souverainete-numerique.md § 2 — géocodés à la
 // commune (api-adresse.data.gouv.fr, vérifié le 19 septembre 2026), pas à
 // l'adresse exacte de l'usine : la Cour des comptes elle-même relève que
 // l'État ne dispose d'aucune cartographie de cette filière (rapport avril
 // 2026, cité au § 2), ce que cette carte comble partiellement.
-type siteSemiConducteur struct {
-	Nom, Commune, Note string
-	Lon, Lat           float64
+type siteSemiconductor struct {
+	Name, Municipality, Note string
+	Lon, Lat                 float64
 }
 
-var sitesSemiConducteurs = []siteSemiConducteur{
+var sitesSemiconductors = []siteSemiconductor{
 	{"STMicroelectronics (Crolles 2)", "Crolles (Isère)",
 		"Unité légale Sirene 399395581 ; projet « Liberty » avec GlobalFoundries, aide d'État plafonnée à 2,9 Md€.",
 		5.883069, 45.283529},
@@ -37,7 +37,7 @@ var sitesSemiConducteurs = []siteSemiConducteur{
 		5.867065, 45.267187},
 }
 
-// chargerCarteSemiConducteurs : le fond France métropolitaine (même
+// loadMapSemiconductors : le fond France métropolitaine (même
 // technique d'isolation des outre-mer que la carte de la Seconde Guerre
 // mondiale, internal/sitegen/seconde_guerre_mondiale.go) et cinq points
 // géocodés à la commune — pas de taille proportionnelle : les montants
@@ -50,7 +50,7 @@ var sitesSemiConducteurs = []siteSemiConducteur{
 // France, un degré de longitude vaut environ 0,68 fois un degré de latitude
 // en distance réelle (cosinus de 47°), et la carte paraissait environ 47 %
 // trop large d'ouest en est avant cette correction.
-func chargerCarteSemiConducteurs(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
+func loadMapSemiconductors(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
 	// geo.contour_pays vient d'une source hors chaîne par défaut
 	// (contour-pays, internal/ingest) : absente d'un simple « fpctl ingest
 	// default », l'agrégat st_union ci-dessous porte alors sur zéro ligne et
@@ -59,7 +59,7 @@ func chargerCarteSemiConducteurs(ctx context.Context, pool *pgxpool.Pool) (templ
 	// puis le contrôle .Valid juste en dessous : un France introuvable
 	// n'est pas une panne, juste rien à dessiner. Même défense que
 	// chargerSecondeGuerreMondiale pour cette même table.
-	var fondChemin, viewBox sql.NullString
+	var backgroundPath, viewBox sql.NullString
 	if err := pool.QueryRow(ctx, `
 		WITH france AS (
 			SELECT st_union(geom) g
@@ -70,20 +70,20 @@ func chargerCarteSemiConducteurs(ctx context.Context, pool *pgxpool.Pool) (templ
 		SELECT st_assvg(g, 1, 0),
 		       round(st_xmin(g))||' '||round(-st_ymax(g))||' '||
 		       round(st_xmax(g)-st_xmin(g))||' '||round(st_ymax(g)-st_ymin(g))
-		FROM proj`).Scan(&fondChemin, &viewBox); err != nil {
+		FROM proj`).Scan(&backgroundPath, &viewBox); err != nil {
 		return "", err
 	}
-	if !fondChemin.Valid || fondChemin.String == "" {
+	if !backgroundPath.Valid || backgroundPath.String == "" {
 		return "", nil
 	}
-	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	rivers, err := riversSVG(ctx, pool, 2154, 1, 0)
 	if err != nil {
 		return "", err
 	}
 
-	lons := make([]float64, len(sitesSemiConducteurs))
-	lats := make([]float64, len(sitesSemiConducteurs))
-	for i, s := range sitesSemiConducteurs {
+	lons := make([]float64, len(sitesSemiconductors))
+	lats := make([]float64, len(sitesSemiconductors))
+	for i, s := range sitesSemiconductors {
 		lons[i], lats[i] = s.Lon, s.Lat
 	}
 	rows, err := pool.Query(ctx, `
@@ -94,7 +94,7 @@ func chargerCarteSemiConducteurs(ctx context.Context, pool *pgxpool.Pool) (templ
 	if err != nil {
 		return "", err
 	}
-	points := make([]struct{ X, Y float64 }, 0, len(sitesSemiConducteurs))
+	points := make([]struct{ X, Y float64 }, 0, len(sitesSemiconductors))
 	for rows.Next() {
 		var p struct{ X, Y float64 }
 		if err := rows.Scan(&p.X, &p.Y); err != nil {
@@ -109,19 +109,19 @@ func chargerCarteSemiConducteurs(ctx context.Context, pool *pgxpool.Pool) (templ
 	}
 	rows.Close()
 
-	return dessinerCarteSemiConducteurs(fondChemin.String, fleuves, viewBox.String, points), nil
+	return drawMapSemiconductors(backgroundPath.String, rivers, viewBox.String, points), nil
 }
 
-func dessinerCarteSemiConducteurs(fond, fleuves, viewBox string, points []struct{ X, Y float64 }) template.HTML {
+func drawMapSemiconductors(background, rivers, viewBox string, points []struct{ X, Y float64 }) template.HTML {
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo france semi-conducteurs" role="img" `+
 		`aria-label="Sites français de production de semi-conducteurs">`, viewBox)
-	fmt.Fprintf(&b, `<path class="fond" d="%s"/>`, fond)
-	b.WriteString(fleuves)
-	for i, s := range sitesSemiConducteurs {
-		titre := fmt.Sprintf("%s, %s — %s", s.Nom, s.Commune, s.Note)
+	fmt.Fprintf(&b, `<path class="fond" d="%s"/>`, background)
+	b.WriteString(rivers)
+	for i, s := range sitesSemiconductors {
+		title := fmt.Sprintf("%s, %s — %s", s.Name, s.Municipality, s.Note)
 		fmt.Fprintf(&b, `<circle class="site" cx="%.0f" cy="%.0f" r="14000"><title>%s</title></circle>`,
-			points[i].X, -points[i].Y, template.HTMLEscapeString(titre))
+			points[i].X, -points[i].Y, template.HTMLEscapeString(title))
 	}
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())

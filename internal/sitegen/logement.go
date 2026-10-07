@@ -12,17 +12,17 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type communeSRU struct {
-	Commune, Categorie string
-	Population, NbLLS  int
-	TauxSRU, TauxCible float64
-	X, Y               float64
+type municipalitySRU struct {
+	Municipality, Category string
+	Population, CountLLS   int
+	RateSRU, RateTarget    float64
+	X, Y                   float64
 }
 
-type CarteSRU struct {
-	SVG                                                  template.HTML
-	Annee                                                int
-	NbCommunes, NbCarencees, NbDeficitaires, NbConformes int
+type MapSRU struct {
+	SVG                                                               template.HTML
+	Year                                                              int
+	CountMunicipalities, CountDeficient, CountDeficit, CountCompliant int
 	// NbExemptees : une dimension à part, jamais un quatrième statut sur la
 	// carte — le fichier source la place elle-même en « 4 bis », distincte de
 	// carencée/déficitaire (colonne 4), et les deux se recoupent réellement
@@ -32,10 +32,10 @@ type CarteSRU struct {
 	// cinquième statut « exemptée et carencée » sur la carte (prélèvement dû
 	// malgré l'exemption, NbExempteesPrelevees) resterait à ajouter si le
 	// besoin s'en fait sentir — pour l'instant un simple chiffre, en texte.
-	NbExemptees, NbExempteesPrelevees int
+	CountExempted, CountExemptedDeducted int
 }
 
-// chargerCarteSRU : un cercle par commune soumise à la loi SRU, coloré par
+// loadMapSRU : un cercle par commune soumise à la loi SRU, coloré par
 // statut (carencée / déficitaire non carencée / conforme ou en avance),
 // taille proportionnelle à la population — même patron géométrique que
 // chargerCarteIFI (internal/sitegen/ifi.go), mais un statut catégoriel plutôt
@@ -44,19 +44,19 @@ type CarteSRU struct {
 // core.sru_commune porte l'historique 2023-2026 (0191_sru_pluriannuel.sql) ;
 // la carte n'a besoin que d'une seule photographie cohérente, donnée par la
 // vue core.sru_commune_dernier (un seul millésime, le plus récent).
-func chargerCarteSRU(ctx context.Context, pool *pgxpool.Pool) (*CarteSRU, error) {
+func loadMapSRU(ctx context.Context, pool *pgxpool.Pool) (*MapSRU, error) {
 	var total int
-	var annee int
-	if err := pool.QueryRow(ctx, `SELECT count(*), coalesce(max(annee),0) FROM core.sru_commune_dernier`).Scan(&total, &annee); err != nil {
+	var year int
+	if err := pool.QueryRow(ctx, `SELECT count(*), coalesce(max(annee),0) FROM core.sru_commune_dernier`).Scan(&total, &year); err != nil {
 		return nil, err
 	}
 	if total == 0 {
 		return nil, nil
 	}
-	st := &CarteSRU{}
+	st := &MapSRU{}
 	if err := pool.QueryRow(ctx, `
 		SELECT count(*) FILTER (WHERE exemptee), count(*) FILTER (WHERE exemptee AND prelevement_net > 0)
-		FROM core.sru_commune_dernier`).Scan(&st.NbExemptees, &st.NbExempteesPrelevees); err != nil {
+		FROM core.sru_commune_dernier`).Scan(&st.CountExempted, &st.CountExemptedDeducted); err != nil {
 		return nil, err
 	}
 
@@ -113,42 +113,42 @@ func chargerCarteSRU(ctx context.Context, pool *pgxpool.Pool) (*CarteSRU, error)
 		return nil, err
 	}
 	defer rows.Close()
-	var communes []communeSRU
+	var municipalities []municipalitySRU
 	for rows.Next() {
-		var c communeSRU
-		var population, nbLLS *int
-		var carencee, deficitaire bool
-		if err := rows.Scan(&c.Commune, &population, &nbLLS, &c.TauxSRU, &c.TauxCible,
-			&carencee, &deficitaire, &c.X, &c.Y); err != nil {
+		var c municipalitySRU
+		var population, countLLS *int
+		var deficient, deficit bool
+		if err := rows.Scan(&c.Municipality, &population, &countLLS, &c.RateSRU, &c.RateTarget,
+			&deficient, &deficit, &c.X, &c.Y); err != nil {
 			return nil, err
 		}
 		if population != nil {
 			c.Population = *population
 		}
-		if nbLLS != nil {
-			c.NbLLS = *nbLLS
+		if countLLS != nil {
+			c.CountLLS = *countLLS
 		}
 		switch {
-		case carencee:
-			c.Categorie = "carencee"
-			st.NbCarencees++
-		case deficitaire:
-			c.Categorie = "deficitaire"
-			st.NbDeficitaires++
+		case deficient:
+			c.Category = "carencee"
+			st.CountDeficient++
+		case deficit:
+			c.Category = "deficitaire"
+			st.CountDeficit++
 		default:
-			c.Categorie = "conforme"
-			st.NbConformes++
+			c.Category = "conforme"
+			st.CountCompliant++
 		}
-		communes = append(communes, c)
+		municipalities = append(municipalities, c)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if len(communes) == 0 {
+	if len(municipalities) == 0 {
 		return nil, nil
 	}
-	st.Annee = annee
-	st.NbCommunes = len(communes)
+	st.Year = year
+	st.CountMunicipalities = len(municipalities)
 
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo sru" role="img" `+
@@ -156,7 +156,7 @@ func chargerCarteSRU(ctx context.Context, pool *pgxpool.Pool) (*CarteSRU, error)
 
 	depRows, err := pool.Query(ctx, `
 		SELECT st_assvg(st_transform(st_simplifypreservetopology(geom,$1),2154),1,0)
-		FROM geo.contour WHERE niveau='DEPARTEMENT' AND srid_rendu=2154`, tolPleine)
+		FROM geo.contour WHERE niveau='DEPARTEMENT' AND srid_rendu=2154`, toleranceFull)
 	if err != nil {
 		return nil, err
 	}
@@ -173,26 +173,26 @@ func chargerCarteSRU(ctx context.Context, pool *pgxpool.Pool) (*CarteSRU, error)
 		return nil, err
 	}
 	depRows.Close()
-	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	rivers, err := riversSVG(ctx, pool, 2154, 1, 0)
 	if err != nil {
 		return nil, err
 	}
-	b.WriteString(fleuves)
+	b.WriteString(rivers)
 
-	rayon := func(pop int) float64 { return 1300 + 90*math.Sqrt(float64(pop)) }
+	radius := func(pop int) float64 { return 1300 + 90*math.Sqrt(float64(pop)) }
 	// Conformes d'abord dessous, puis déficitaires, puis carencées par-dessus :
 	// l'ordre de dessin ne doit jamais laisser une petite commune carencée
 	// invisible sous une grande commune conforme voisine.
 	for _, cat := range []string{"conforme", "deficitaire", "carencee"} {
-		for _, c := range communes {
-			if c.Categorie != cat {
+		for _, c := range municipalities {
+			if c.Category != cat {
 				continue
 			}
-			titre := fmt.Sprintf("%s — %s %% de logements sociaux (cible %s %%), %s",
-				template.HTMLEscapeString(c.Commune), Decimal(c.TauxSRU, 1), Decimal(c.TauxCible, 0),
+			title := fmt.Sprintf("%s — %s %% de logements sociaux (cible %s %%), %s",
+				template.HTMLEscapeString(c.Municipality), Decimal(c.RateSRU, 1), Decimal(c.RateTarget, 0),
 				map[string]string{"carencee": "carencée", "deficitaire": "déficitaire", "conforme": "conforme ou au-delà"}[cat])
 			fmt.Fprintf(&b, `<circle class="sru-c sru-%s" cx="%.0f" cy="%.0f" r="%.0f"><title>%s</title></circle>`,
-				cat, c.X, -c.Y, rayon(c.Population), titre)
+				cat, c.X, -c.Y, radius(c.Population), title)
 		}
 	}
 	b.WriteString(`</svg>`)
@@ -201,35 +201,35 @@ func chargerCarteSRU(ctx context.Context, pool *pgxpool.Pool) (*CarteSRU, error)
 	return st, nil
 }
 
-// RangPrelevementSRU : une commune et le prélèvement SRU net qu'elle a
+// RankLevySRU : une commune et le prélèvement SRU net qu'elle a
 // supporté au dernier millésime chargé (majoration de carence comprise).
-type RangPrelevementSRU struct {
-	Commune, Departement string
-	Montant              float64
+type RankLevySRU struct {
+	Municipality, Department string
+	Amount                   float64
 }
 
-// PrelevementSRU : le prélèvement SRU agrégé au dernier millésime, et son
+// LevySRU : le prélèvement SRU agrégé au dernier millésime, et son
 // évolution 2023-2026 — la donnée que 0135_sru_communes.sql chargeait déjà
 // dans son fichier source sans jamais la lire (voir 0191_sru_pluriannuel.sql).
-type PrelevementSRU struct {
-	Annee                 int
-	Total                 float64
-	NbCommunesPrelevement int
-	Top                   []RangPrelevementSRU
-	Trend                 template.HTML
-	AnneeDebut, AnneeFin  int
+type LevySRU struct {
+	Year                    int
+	Total                   float64
+	CountMunicipalitiesLevy int
+	Top                     []RankLevySRU
+	Trend                   template.HTML
+	YearStart, YearEnd      int
 }
 
-// chargerPrelevementSRU : le montant réel de la sanction SRU (le
+// loadLevySRU : le montant réel de la sanction SRU (le
 // « prélèvement net », majoration de carence comprise), qui existe comme
 // colonne dans les fichiers sources depuis le millésime 2024 mais n'était
 // lu par aucun connecteur avant 0191_sru_pluriannuel.sql — plus de 130
 // millions d'euros par an, jamais montrés sur le site jusqu'ici.
-func chargerPrelevementSRU(ctx context.Context, pool *pgxpool.Pool) (*PrelevementSRU, error) {
-	st := &PrelevementSRU{}
+func loadLevySRU(ctx context.Context, pool *pgxpool.Pool) (*LevySRU, error) {
+	st := &LevySRU{}
 	if err := pool.QueryRow(ctx, `
 		SELECT annee, coalesce(sum(prelevement_net),0), count(*) FILTER (WHERE prelevement_net > 0)
-		FROM core.sru_commune_dernier GROUP BY annee`).Scan(&st.Annee, &st.Total, &st.NbCommunesPrelevement); err != nil {
+		FROM core.sru_commune_dernier GROUP BY annee`).Scan(&st.Year, &st.Total, &st.CountMunicipalitiesLevy); err != nil {
 		if err == pgx.ErrNoRows {
 			return nil, nil
 		}
@@ -243,8 +243,8 @@ func chargerPrelevementSRU(ctx context.Context, pool *pgxpool.Pool) (*Prelevemen
 		return nil, err
 	}
 	for rows.Next() {
-		var r RangPrelevementSRU
-		if err := rows.Scan(&r.Commune, &r.Departement, &r.Montant); err != nil {
+		var r RankLevySRU
+		if err := rows.Scan(&r.Municipality, &r.Department, &r.Amount); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -264,14 +264,14 @@ func chargerPrelevementSRU(ctx context.Context, pool *pgxpool.Pool) (*Prelevemen
 	if err != nil {
 		return nil, err
 	}
-	var barres []PointAnnee
+	var bars []PointYear
 	for trendRows.Next() {
-		var p PointAnnee
-		if err := trendRows.Scan(&p.Annee, &p.Valeur); err != nil {
+		var p PointYear
+		if err := trendRows.Scan(&p.Year, &p.Value); err != nil {
 			trendRows.Close()
 			return nil, err
 		}
-		barres = append(barres, p)
+		bars = append(bars, p)
 	}
 	if err := trendRows.Err(); err != nil {
 		return nil, err
@@ -284,25 +284,25 @@ func chargerPrelevementSRU(ctx context.Context, pool *pgxpool.Pool) (*Prelevemen
 	if err != nil {
 		return nil, err
 	}
-	var ligne []PointAnnee
+	var line []PointYear
 	for prelRows.Next() {
-		var p PointAnnee
-		if err := prelRows.Scan(&p.Annee, &p.Valeur); err != nil {
+		var p PointYear
+		if err := prelRows.Scan(&p.Year, &p.Value); err != nil {
 			prelRows.Close()
 			return nil, err
 		}
-		ligne = append(ligne, p)
+		line = append(line, p)
 	}
 	if err := prelRows.Err(); err != nil {
 		return nil, err
 	}
 	prelRows.Close()
 
-	if len(barres) > 0 {
-		st.AnneeDebut, st.AnneeFin = barres[0].Annee, barres[len(barres)-1].Annee
+	if len(bars) > 0 {
+		st.YearStart, st.YearEnd = bars[0].Year, bars[len(bars)-1].Year
 	}
 	meur := func(v float64) string { return Decimal(v/1e6, 1) + " M€" }
-	st.Trend = courbeAvecLigne(barres, ligne, func(v float64) string { return Nombre(int(v)) }, meur,
+	st.Trend = curveWithLine(bars, line, func(v float64) string { return Count(int(v)) }, meur,
 		"avec le prélèvement SRU net total sur une échelle séparée")
 
 	return st, nil

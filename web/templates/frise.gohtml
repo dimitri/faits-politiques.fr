@@ -20,39 +20,39 @@ ce site n'en publie pas. Les bandes ne sont jamais colorées par parti, et vous 
 donnée montre.</p>
 
 <div class="scroll">
-<svg viewBox="0 -46 {{len .F.Series | mul 142 | add 200}} {{.F.Hauteur | add 66}}"
+<svg viewBox="0 -46 {{len .F.Series | mul 142 | add 200}} {{.F.Height | add 66}}"
      style="min-width:52rem;width:100%;height:auto" role="img"
      aria-label="Frise des présidents de la Ve République et des indicateurs">
   {{range $i, $p := .F.Presidents}}
     <rect x="0" y="{{$p.Y0}}" width="186" height="{{sub $p.Y1 $p.Y0 | add -2}}" rx="3"
       fill="{{if odd $i}}var(--carte){{else}}var(--filet2){{end}}"/>
     <text x="12" y="{{add $p.Y0 16}}" font-size="12" font-weight="600"
-      fill="var(--encre)">{{$p.Nom}}</text>
+      fill="var(--encre)">{{$p.Name}}</text>
     <text x="12" y="{{add $p.Y0 30}}" font-size="10" font-family="var(--mono)"
-      fill="var(--attenue)">{{$p.Debut}}–{{if lt $p.Fin 2026}}{{$p.Fin}}{{end}}{{if $p.SansAucunChiffre}} · aucun chiffre{{end}}</text>
+      fill="var(--attenue)">{{$p.Start}}–{{if lt $p.End 2026}}{{$p.End}}{{end}}{{if $p.WithoutNoneFigure}} · aucun chiffre{{end}}</text>
   {{end}}
   {{range $i, $s := .F.Series}}
     {{$x := add 200 (mul $i 142)}}
-    <text x="{{$x}}" y="-30" font-size="11.5" font-weight="600" fill="var(--encre)">{{$s.Titre}}</text>
-    <text x="{{$x}}" y="-17" font-size="9.5" font-family="var(--mono)" fill="var(--attenue)">{{$s.Unite}}</text>
-    <text x="{{$x}}" y="-5" font-size="9.5" font-family="var(--mono)" fill="var(--accent)">depuis {{$s.Debut}}</text>
+    <text x="{{$x}}" y="-30" font-size="11.5" font-weight="600" fill="var(--encre)">{{$s.Title}}</text>
+    <text x="{{$x}}" y="-17" font-size="9.5" font-family="var(--mono)" fill="var(--attenue)">{{$s.Unit}}</text>
+    <text x="{{$x}}" y="-5" font-size="9.5" font-family="var(--mono)" fill="var(--accent)">depuis {{$s.Start}}</text>
     {{/* Les deux bornes de l'échelle, écrites. Sans elles, une colonne cadrée
          sur ses propres extrêmes laisserait croire à une variation de zéro à
          tout — c'est le prix à payer pour que la courbe soit lisible. */}}
-    <text x="{{$x}}" y="{{add (mul (sub $s.Debut 1958) 9) -4}}" font-size="9"
-      font-family="var(--mono)" fill="var(--attenue)">{{$s.BasLabel}}</text>
-    <text x="{{add $x 120}}" y="{{add (mul (sub $s.Debut 1958) 9) -4}}" font-size="9"
-      font-family="var(--mono)" fill="var(--attenue)" text-anchor="end">{{$s.HautLabel}}</text>
-    <rect x="{{$x}}" y="0" width="120" height="{{mul (sub $s.Debut 1958) 9}}" fill="var(--filet2)" opacity=".55"/>
-    <rect x="{{$x}}" y="{{mul (sub $s.Debut 1958) 9}}" width="120"
-      height="{{mul (sub $s.Fin $s.Debut) 9}}" fill="none" stroke="var(--filet)" stroke-width="1"/>
+    <text x="{{$x}}" y="{{add (mul (sub $s.Start 1958) 9) -4}}" font-size="9"
+      font-family="var(--mono)" fill="var(--attenue)">{{$s.BottomLabel}}</text>
+    <text x="{{add $x 120}}" y="{{add (mul (sub $s.Start 1958) 9) -4}}" font-size="9"
+      font-family="var(--mono)" fill="var(--attenue)" text-anchor="end">{{$s.TopLabel}}</text>
+    <rect x="{{$x}}" y="0" width="120" height="{{mul (sub $s.Start 1958) 9}}" fill="var(--filet2)" opacity=".55"/>
+    <rect x="{{$x}}" y="{{mul (sub $s.Start 1958) 9}}" width="120"
+      height="{{mul (sub $s.End $s.Start) 9}}" fill="none" stroke="var(--filet)" stroke-width="1"/>
     <g transform="translate({{$x}},0)">
       <path d="{{$s.Path}}" fill="none" stroke="var(--accent)" stroke-width="1.7" stroke-linejoin="round"/>
     </g>
-    <text x="{{add $x 120}}" y="{{add (mul (sub $s.Fin 1958) 9) 4}}" font-size="10.5"
-      font-family="var(--mono)" fill="var(--encre)" text-anchor="end">{{$s.Dernier}}</text>
+    <text x="{{add $x 120}}" y="{{add (mul (sub $s.End 1958) 9) 4}}" font-size="10.5"
+      font-family="var(--mono)" fill="var(--encre)" text-anchor="end">{{$s.Last}}</text>
   {{end}}
-  {{range .F.Decennies}}
+  {{range .F.Decades}}
     <text x="194" y="{{add (mul (sub . 1958) 9) 4}}" font-size="10" font-family="var(--mono)"
       fill="var(--attenue)" text-anchor="end">{{.}}</text>
   {{end}}
@@ -71,28 +71,28 @@ aucun chiffre ici</strong>, et ce n'est pas la même chose que d'avoir eu zéro.
 <div class="cartes">
 {{range .F.Series}}
   {{if eq .Code "__ratio_div"}}
-  <a class="carte" href="{{$.Root}}/dividendes/"><span class="t">{{.Titre}}</span>
-    <span class="v" style="font-size:1.05rem">{{.BasLabel}} → {{.HautLabel}}</span>
+  <a class="carte" href="{{$.Root}}/dividendes/"><span class="t">{{.Title}}</span>
+    <span class="v" style="font-size:1.05rem">{{.BottomLabel}} → {{.TopLabel}}</span>
     {{.Spark}}
-    <span class="d"><strong>{{.Debut}} → {{.Fin}}</strong> · {{.Unite}}{{if .Note}}<br>{{.Note}}{{end}}</span>
+    <span class="d"><strong>{{.Start}} → {{.End}}</strong> · {{.Unit}}{{if .Note}}<br>{{.Note}}{{end}}</span>
     <span class="voir">Montants, ménages, partage de la valeur ajoutée →</span></a>
   {{else if eq .Code "dette.publique.pib"}}
-  <a class="carte" href="{{$.Root}}/dette/"><span class="t">{{.Titre}}</span>
-    <span class="v" style="font-size:1.05rem">{{.BasLabel}} → {{.HautLabel}}</span>
+  <a class="carte" href="{{$.Root}}/dette/"><span class="t">{{.Title}}</span>
+    <span class="v" style="font-size:1.05rem">{{.BottomLabel}} → {{.TopLabel}}</span>
     {{.Spark}}
-    <span class="d"><strong>{{.Debut}} → {{.Fin}}</strong> · {{.Unite}}{{if .Note}}<br>{{.Note}}{{end}}</span>
+    <span class="d"><strong>{{.Start}} → {{.End}}</strong> · {{.Unit}}{{if .Note}}<br>{{.Note}}{{end}}</span>
     <span class="voir">L'encours, qui emprunte, et la dépense par domaine →</span></a>
   {{else if eq .Code "chomeurs.nombre"}}
-  <a class="carte" href="{{$.Root}}/chomage/"><span class="t">{{.Titre}}</span>
-    <span class="v" style="font-size:1.05rem">{{.BasLabel}} → {{.HautLabel}}</span>
+  <a class="carte" href="{{$.Root}}/chomage/"><span class="t">{{.Title}}</span>
+    <span class="v" style="font-size:1.05rem">{{.BottomLabel}} → {{.TopLabel}}</span>
     {{.Spark}}
-    <span class="d"><strong>{{.Debut}} → {{.Fin}}</strong> · {{.Unite}}{{if .Note}}<br>{{.Note}}{{end}}</span>
+    <span class="d"><strong>{{.Start}} → {{.End}}</strong> · {{.Unit}}{{if .Note}}<br>{{.Note}}{{end}}</span>
     <span class="voir">Le taux trimestriel, source INSEE directe →</span></a>
   {{else}}
-  <div class="carte"><span class="t">{{.Titre}}</span>
-    <span class="v" style="font-size:1.05rem">{{.BasLabel}} → {{.HautLabel}}</span>
+  <div class="carte"><span class="t">{{.Title}}</span>
+    <span class="v" style="font-size:1.05rem">{{.BottomLabel}} → {{.TopLabel}}</span>
     {{.Spark}}
-    <span class="d"><strong>{{.Debut}} → {{.Fin}}</strong> · {{.Unite}}{{if .Note}}<br>{{.Note}}{{end}}</span></div>
+    <span class="d"><strong>{{.Start}} → {{.End}}</strong> · {{.Unit}}{{if .Note}}<br>{{.Note}}{{end}}</span></div>
   {{end}}
 {{end}}
 </div>
@@ -103,15 +103,15 @@ statistique pour mille habitants, des faits qui ne comptent pas la même chose&n
 <strong>victimes</strong>, des <strong>mis en cause</strong>, des <strong>véhicules</strong> et des
 <strong>infractions</strong>. Regroupés par ce qu'ils comptent, quinze indicateurs, chacun sur sa
 propre échelle&nbsp;: certains reculent quand d'autres explosent, et la ‰ unique ne le montre pas.</p>
-{{range .F.DelinquanceGroupes}}
+{{range .F.CrimeGroups}}
 <div class="groupe-delinquance">
-  <span class="gt"><i style="background:{{.Couleur}}"></i>{{.UniteDeCompte}}</span>
+  <span class="gt"><i style="background:{{.Color}}"></i>{{.UnitOfAccount}}</span>
   <div class="cartes quatre">
-    {{range .Indicateurs}}
+    {{range .Indicators}}
     <div class="carte creuse mini-delinq">
-      <span class="t">{{.Libelle}}</span>
+      <span class="t">{{.Label}}</span>
       {{.Spark}}
-      <span class="d">{{.DebutLabel}} → {{.FinLabel}}&nbsp;‰ hab. · {{.Debut}}–{{.Fin}}</span>
+      <span class="d">{{.StartLabel}} → {{.EndLabel}}&nbsp;‰ hab. · {{.Start}}–{{.End}}</span>
     </div>
     {{end}}
   </div>
@@ -121,11 +121,11 @@ propre échelle&nbsp;: certains reculent quand d'autres explosent, et la ‰ uni
 signifient pas des taux comparables entre indicateurs, seulement des évolutions comparables dans le
 temps.</p>
 
-{{$c := .F.Chomage}}
+{{$c := .F.Unemployment}}
 <h2 id="chomage">Le chômage a-t-il vraiment baissé&nbsp;?</h2>
 <p class="q">La colonne «&nbsp;Chômeurs&nbsp;» baisse de {{nb (int $c.BIT2015)}} milliers en 2015 à
-{{nb (int $c.BIT2022)}} milliers en 2022, avant de remonter à {{nb (int $c.BITDernier)}} milliers en
-{{$c.AnDernierBIT}}. La question se pose légitimement, et la meilleure réponse que ce site puisse
+{{nb (int $c.BIT2022)}} milliers en 2022, avant de remonter à {{nb (int $c.BITLast)}} milliers en
+{{$c.AnLastBIT}}. La question se pose légitimement, et la meilleure réponse que ce site puisse
 donner n'est pas un chiffre à la place d'un autre&nbsp;: c'est la mesure qu'Eurostat construit
 précisément pour ce doute, la <strong>plus large</strong> qu'il publie du manque de travail —
 les «&nbsp;capacités excédentaires sur le marché du travail&nbsp;».
@@ -138,18 +138,18 @@ emploi sans pouvoir commencer tout de suite, et celles qui seraient disponibles 
 cherché activement — le «&nbsp;halo&nbsp;». Les quatre viennent de la même enquête Emploi, la même
 année, et se somment <strong>exactement</strong> au total&nbsp;: c'est pourquoi la barre ci-dessous
 est empilée plutôt que juxtaposée.</p>
-{{$c.BarresSlack}}
+{{$c.BarsSlack}}
 <div class="legende">
   <span><i style="background:#1E5C69"></i>Chômeurs au sens du BIT</span>
   <span><i style="background:#4A8894"></i>Sous-employés à temps partiel</span>
   <span><i style="background:#8AB6BD"></i>Cherchent un emploi, indisponibles</span>
   <span><i style="background:#C9DDE0"></i>Disponibles, ne cherchent pas (halo)</span>
 </div>
-<p class="note proc"><strong>{{nb (int $c.SlackTotalFin)}} milliers de personnes</strong> entraient
-dans cette mesure élargie en {{$c.SlackFin}}, contre <strong>{{nb (int $c.UNEFin)}} milliers</strong>
-au sens strict du BIT — {{$c.SlackFin}} moins {{$c.SlackDebut}}, où le total était de
-{{nb (int $c.SlackTotalDebut)}} milliers. La mesure élargie n'existe dans les séries d'Eurostat que
-depuis {{$c.SlackDebut}}&nbsp;: la barre ne remonte pas plus loin, et rien n'est extrapolé avant
+<p class="note proc"><strong>{{nb (int $c.SlackTotalEnd)}} milliers de personnes</strong> entraient
+dans cette mesure élargie en {{$c.SlackEnd}}, contre <strong>{{nb (int $c.UNEEnd)}} milliers</strong>
+au sens strict du BIT — {{$c.SlackEnd}} moins {{$c.SlackStart}}, où le total était de
+{{nb (int $c.SlackTotalStart)}} milliers. La mesure élargie n'existe dans les séries d'Eurostat que
+depuis {{$c.SlackStart}}&nbsp;: la barre ne remonte pas plus loin, et rien n'est extrapolé avant
 cette date.</p>
 
 <h3>Deux autres repères, plus anciens et de nature différente</h3>
@@ -163,14 +163,14 @@ cette date.</p>
   fichier administratif.</td>
   <td class="n">{{nb (int $c.BIT2015)}} k <span class="z">2015</span></td>
   <td class="n">{{nb (int $c.BIT2022)}} k <span class="z">2022</span></td>
-  <td class="n">{{nb (int $c.BITDernier)}} k <span class="z">{{$c.AnDernierBIT}}</span></td></tr>
+  <td class="n">{{nb (int $c.BITLast)}} k <span class="z">{{$c.AnLastBIT}}</span></td></tr>
 <tr><td><strong>Foyers allocataires du RSA</strong><br><span class="small z">CNAF, régime général</span></td>
   <td class="small">Des <strong>foyers</strong>, pas des personnes, percevant le revenu de solidarité
   active en décembre. Un droit administratif, qui dépend des ressources et non de la recherche
   d'emploi. Les allocataires de la MSA ne sont pas comptés.</td>
   <td class="n">{{nb (int $c.RSA2016)}} <span class="z">2016</span></td>
   <td class="n">{{nb (int $c.RSA2020)}} <span class="z">2020</span></td>
-  <td class="n">{{nb (int $c.RSADernier)}} <span class="z">{{$c.AnDernierRSA}}</span></td></tr>
+  <td class="n">{{nb (int $c.RSALast)}} <span class="z">{{$c.AnLastRSA}}</span></td></tr>
 </tbody></table></div>
 <p class="note abs"><strong>Le RSA et le BIT ne mesurent pas la même population</strong>&nbsp;: sur
 leur période commune, le nombre de foyers au RSA a peu varié pendant que le chômage BIT reculait. Ce

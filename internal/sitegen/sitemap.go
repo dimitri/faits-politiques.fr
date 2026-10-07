@@ -42,10 +42,10 @@ type sitemapIndex struct {
 
 const nsSitemap = "http://www.sitemaps.org/schemas/sitemap/0.9"
 
-// ecrireSitemap parcourt out/ après que toutes les pages ont été écrites, et
+// writeSitemap parcourt out/ après que toutes les pages ont été écrites, et
 // regroupe chaque index.html trouvé par sa première section d'URL. Renvoie le
 // nombre total d'URL référencées.
-func ecrireSitemap(out, canonicalBase string) (int, error) {
+func writeSitemap(out, canonicalBase string) (int, error) {
 	sections := map[string][]urlEntry{}
 	total := 0
 	err := filepath.Walk(out, func(p string, info os.FileInfo, err error) error {
@@ -86,7 +86,7 @@ func ecrireSitemap(out, canonicalBase string) (int, error) {
 	for _, s := range noms {
 		urls := sections[s]
 		sort.Slice(urls, func(i, j int) bool { return urls[i].Loc < urls[j].Loc })
-		if err := ecrireXML(filepath.Join(out, "sitemap-"+s+".xml"),
+		if err := writeXML(filepath.Join(out, "sitemap-"+s+".xml"),
 			urlSet{Xmlns: nsSitemap, URLs: urls}); err != nil {
 			return 0, err
 		}
@@ -94,13 +94,13 @@ func ecrireSitemap(out, canonicalBase string) (int, error) {
 			Loc: canonicalBase + "/sitemap-" + s + ".xml",
 		})
 	}
-	if err := ecrireXML(filepath.Join(out, "sitemap.xml"), idx); err != nil {
+	if err := writeXML(filepath.Join(out, "sitemap.xml"), idx); err != nil {
 		return 0, err
 	}
 	return total, nil
 }
 
-func ecrireXML(path string, v any) error {
+func writeXML(path string, v any) error {
 	b, err := xml.MarshalIndent(v, "", "  ")
 	if err != nil {
 		return err
@@ -109,13 +109,13 @@ func ecrireXML(path string, v any) error {
 	return os.WriteFile(path, body, 0o644)
 }
 
-// ecrireRobots écrit une politique délibérément permissive : ce site n'a ni
+// writeRobots écrit une politique délibérément permissive : ce site n'a ni
 // recherche à facettes, ni panier, ni espace privé — rien dont l'exploration
 // gaspillerait le budget de Google. Seule exception : les images de partage
 // social (internal/sitegen/social.go), générées pour Slack/X/iMessage, jamais pour
 // la recherche d'images — les y exposer n'apporterait rien et ressemblerait à
 // une série d'images quasi identiques.
-func ecrireRobots(out, canonicalBase string) error {
+func writeRobots(out, canonicalBase string) error {
 	body := fmt.Sprintf(`User-agent: *
 Allow: /
 Disallow: /media/og/

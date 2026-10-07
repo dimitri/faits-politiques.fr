@@ -1,12 +1,12 @@
 {{define "content"}}
 {{$p := .P}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
-  <a href="{{.Root}}/{{$p.SectionIndexURL}}/">{{$p.Section}}</a> › <span>{{$p.Titre}}</span></p>
+  <a href="{{.Root}}/{{$p.SectionIndexURL}}/">{{$p.Section}}</a> › <span>{{$p.Title}}</span></p>
 <span class="sur">Carte par département</span>
-<h1>{{$p.Titre}}</h1>
+<h1>{{$p.Title}}</h1>
 {{if $p.Question}}<p class="lede">{{$p.Question}}</p>{{end}}
 
-{{if $p.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+{{if $p.Map.Empty}}<p class="nodata">Aucune donnée.</p>{{else}}
 {{/* Même carte, même colonne de résumé chiffré que « Trois niveaux, trois
      cartes » sur /sujets/collectivites/ (.cartes-empilees), via le
      modificateur .carte-dossier déjà utilisé par vieillesse.gohtml et
@@ -16,22 +16,22 @@
 <div class="cartes-lignes carte-dossier">
   <div class="bloc-carte ligne">
     <div>
-      {{$p.Carte.SVG}}
-      {{template "cartons" $p.Carte.Cartons}}
+      {{$p.Map.SVG}}
+      {{template "cartons" $p.Map.Tiles}}
     </div>
     <div>
-      {{$t := $p.Carte.Teintes}}<div class="echelle"><span class="u">{{$p.Carte.Unite}}</span>
-        {{range $i, $b := $p.Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
-        {{if $p.Carte.NbAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
+      {{$t := $p.Map.Shades}}<div class="echelle"><span class="u">{{$p.Map.Unit}}</span>
+        {{range $i, $b := $p.Map.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+        {{if $p.Map.CountAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
       </div>
-      {{with $p.Resume}}<dl class="legende-situation">
-        <div><dt>Départements couverts</dt><dd><b>{{nb .Nombre}}</b></dd></div>
-        <div><dt>Médiane</dt><dd><b>{{.MedianeValeur}}</b></dd></div>
-        <div><dt>Maximum</dt><dd><b>{{.MaxValeur}}</b><span>{{.MaxNom}}</span></dd></div>
-        <div><dt>Minimum</dt><dd><b>{{.MinValeur}}</b><span>{{.MinNom}}</span></dd></div>
+      {{with $p.Summary}}<dl class="legende-situation">
+        <div><dt>Départements couverts</dt><dd><b>{{nb .Count}}</b></dd></div>
+        <div><dt>Médiane</dt><dd><b>{{.MedianValue}}</b></dd></div>
+        <div><dt>Maximum</dt><dd><b>{{.MaxValue}}</b><span>{{.MaxName}}</span></dd></div>
+        <div><dt>Minimum</dt><dd><b>{{.MinValue}}</b><span>{{.MinName}}</span></dd></div>
       </dl>{{end}}
-      <span class="src">{{$p.Source}} · {{$p.Carte.Total}} départements renseignés{{if $p.Carte.NbAbsents}},
-        {{$p.Carte.NbAbsents}} sans donnée{{end}} · contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0</span>
+      <span class="src">{{$p.Source}} · {{$p.Map.Total}} départements renseignés{{if $p.Map.CountAbsents}},
+        {{$p.Map.CountAbsents}} sans donnée{{end}} · contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0</span>
     </div>
   </div>
 </div>
@@ -39,35 +39,35 @@
 
 {{if $p.Note}}<p class="note abs">{{$p.Note}}</p>{{end}}
 
-{{if $p.Courbe}}
+{{if $p.Curve}}
 <h2>Évolution nationale</h2>
-<p class="q">{{$p.SerieLegende}}</p>
-{{$p.Courbe}}
+<p class="q">{{$p.SeriesLegend}}</p>
+{{$p.Curve}}
 <p class="note"><strong>L'axe part de zéro.</strong> La question posée est «&nbsp;combien&nbsp;»,
 pas «&nbsp;quelle variation&nbsp;»&nbsp;: couper le bas de l'échelle ferait d'une hausse de
 quelques pour cent une falaise.</p>
 {{end}}
 
-{{if $p.Classement}}
+{{if $p.Ranking}}
 <h2>Tous les départements</h2>
 <p class="q">Du plus haut au plus bas. Aucun palmarès tronqué&nbsp;: un «&nbsp;top&nbsp;10&nbsp;»
 choisirait pour vous le bout de la distribution qui vous intéresse.</p>
 <div class="scroll"><table class="classement">
   <thead><tr><th>#</th><th>Département</th><th>Code</th><th class="n">Valeur</th><th class="barre"></th></tr></thead>
   <tbody>
-  {{range $p.Classement}}<tr>
-    <td class="r">{{.Rang}}</td><td>{{.Nom}}</td><td class="c">{{.Code}}</td>
-    <td class="n">{{.Valeur}}</td>
-    <td class="barre"><span style="width:{{printf "%.1f" .Part}}%"></span></td>
+  {{range $p.Ranking}}<tr>
+    <td class="r">{{.Rank}}</td><td>{{.Name}}</td><td class="c">{{.Code}}</td>
+    <td class="n">{{.Value}}</td>
+    <td class="barre"><span style="width:{{printf "%.1f" .Share}}%"></span></td>
   </tr>{{end}}
   </tbody>
 </table></div>
 {{end}}
 
-{{if $p.Voisines}}
+{{if $p.Neighboring}}
 <h2>Les autres cartes de «&nbsp;{{$p.Section}}&nbsp;»</h2>
 <ul class="liens-cartes">
-  {{range $p.Voisines}}<li><a href="{{$.Root}}/{{$p.SectionURL}}/{{.Slug}}/">{{.Titre}}</a></li>{{end}}
+  {{range $p.Neighboring}}<li><a href="{{$.Root}}/{{$p.SectionURL}}/{{.Slug}}/">{{.Title}}</a></li>{{end}}
 </ul>
 {{end}}
 

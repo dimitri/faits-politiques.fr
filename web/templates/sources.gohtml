@@ -62,34 +62,34 @@ référentiels. Aucune de ces décisions n'est enfouie dans le code.</p>
 sources archivés (téléchargés tels quels, avant toute lecture) et le poids de la base une fois les
 données extraites et normalisées. Qu'elles se ressemblent en ordre de grandeur est une coïncidence.</p>
 <div class="reperes">
-  <div><b>{{nb .Stats.NbSources}}</b><span>sources ingérées</span></div>
-  <div><b>{{nb .Stats.NbFichiers}}</b><span>fichiers sources archivés</span><em>{{octets .Stats.OctetsFichiers}} au total</em></div>
-  <div><b>{{nb .Stats.NbTables}}</b><span>tables en base</span></div>
-  <div><b>{{nb .Stats.NbLignes}}</b><span>lignes en base</span><em>base&nbsp;: {{octets .Stats.OctetsBase}}</em></div>
+  <div><b>{{nb .Stats.CountSources}}</b><span>sources ingérées</span></div>
+  <div><b>{{nb .Stats.CountFiles}}</b><span>fichiers sources archivés</span><em>{{octets .Stats.BytesFiles}} au total</em></div>
+  <div><b>{{nb .Stats.CountTables}}</b><span>tables en base</span></div>
+  <div><b>{{nb .Stats.CountLines}}</b><span>lignes en base</span><em>base&nbsp;: {{octets .Stats.BytesBase}}</em></div>
 </div>
 <p class="small">Types de fichiers les plus fréquents parmi les sources archivées&nbsp;:
-{{range $i, $t := .Stats.TypesFichiers}}{{if $i}}, {{end}}<code>{{$t.Type}}</code> ({{nb $t.Nombre}}, {{octets $t.Octets}}){{end}}.</p>
+{{range $i, $t := .Stats.TypesFiles}}{{if $i}}, {{end}}<code>{{$t.Type}}</code> ({{nb $t.Count}}, {{octets $t.Bytes}}){{end}}.</p>
 <div class="scroll"><table>
 <thead><tr><th>Table les plus volumineuses</th><th class="n">Lignes</th><th class="n">Taille</th></tr></thead>
-<tbody>{{range .Stats.PlusGrossesTables}}<tr><td><code>{{.Nom}}</code></td><td class="n">{{nb .Lignes}}</td><td class="n">{{octets .Octets}}</td></tr>{{end}}</tbody>
+<tbody>{{range .Stats.PlusLargeTables}}<tr><td><code>{{.Name}}</code></td><td class="n">{{nb .Lines}}</td><td class="n">{{octets .Bytes}}</td></tr>{{end}}</tbody>
 </table></div>
 
 <h2>Flux ingérés</h2>
 <p class="small muted">Une source absente de cette liste n'alimente rien.</p>
 
-{{range .Flux}}
+{{range .Flow}}
 <h2>{{.Label}}</h2>
 <dl class="kv">
   <dt>Producteur</dt><dd>{{.Publisher}}</dd>
   <dt>Hiérarchie</dt><dd>{{.Tier}}</dd>
-  <dt>Licence</dt><dd>{{.Licence}}</dd>
+  <dt>Licence</dt><dd>{{.License}}</dd>
   <dt>Réutilisation</dt><dd>{{.ReuseClass}}
-    {{if .Redistribuable}}<span class="pos FOR small"> · reversable dans un export ouvert</span>
+    {{if .Redistributable}}<span class="pos FOR small"> · reversable dans un export ouvert</span>
     {{else}}<span class="pos ABSTAIN small"> · exclue des exports</span>{{end}}</dd>
   <dt>Fréquence annoncée</dt><dd>{{if .Cadence}}{{.Cadence}}{{else}}<span class="muted">non précisée</span>{{end}}</dd>
-  <dt>Dernière ingestion</dt><dd>{{if .DerniereIngestion}}{{.DerniereIngestion}}{{if .Statut}} <span class="small muted">({{.Statut}})</span>{{end}}{{else}}<span class="muted">jamais</span>{{end}}</dd>
-  <dt>Volume archivé</dt><dd>{{nb .Documents}} documents scellés ({{octets .Octets}}){{if .Enregistrements}}, {{nb .Enregistrements}} enregistrements extraits{{end}}</dd>
-  {{if .Empreinte}}<dt>Empreinte du dernier</dt><dd><code>{{.Empreinte}}</code></dd>{{end}}
+  <dt>Dernière ingestion</dt><dd>{{if .LastIngestion}}{{.LastIngestion}}{{if .Status}} <span class="small muted">({{.Status}})</span>{{end}}{{else}}<span class="muted">jamais</span>{{end}}</dd>
+  <dt>Volume archivé</dt><dd>{{nb .Documents}} documents scellés ({{octets .Bytes}}){{if .Records}}, {{nb .Records}} enregistrements extraits{{end}}</dd>
+  {{if .Footprint}}<dt>Empreinte du dernier</dt><dd><code>{{.Footprint}}</code></dd>{{end}}
   <dt>Attribution</dt><dd class="small">{{.Attribution}}</dd>
 </dl>
 {{if .URLs}}
