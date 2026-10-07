@@ -64,28 +64,28 @@ func IngestCertificationHAS(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(fmt.Errorf("resultat_chapitre : %w", err))
 	}
 
-	geo, err := lireCSVMap(fGeo.Path)
+	geo, err := readCSVMap(fGeo.Path)
 	if err != nil {
 		return fail(fmt.Errorf("etablissement_geo : %w", err))
 	}
 	// Un code_demarche apparaît une fois par établissement concerné par la
 	// démarche ; le principal (Site_Principal=True) donne le FINESS de
 	// référence quand plusieurs sites sont visités ensemble.
-	finessParDemarche := map[string]struct{ finesset, finessej, rs string }{}
+	finessByDemarche := map[string]struct{ finesset, finessej, rs string }{}
 	for _, r := range geo {
-		if _, deja := finessParDemarche[r["code_demarche"]]; deja && r["Site_Principal"] != "True" {
+		if _, already := finessByDemarche[r["code_demarche"]]; already && r["Site_Principal"] != "True" {
 			continue
 		}
-		finessParDemarche[r["code_demarche"]] = struct{ finesset, finessej, rs string }{
+		finessByDemarche[r["code_demarche"]] = struct{ finesset, finessej, rs string }{
 			r["FINESS_EG"], r["FINESS_EJ"], r["RS_eg"],
 		}
 	}
 
-	demarches, err := lireCSVMap(fDemarche.Path)
+	demarches, err := readCSVMap(fDemarche.Path)
 	if err != nil {
 		return fail(fmt.Errorf("demarche : %w", err))
 	}
-	chapitres, err := lireCSVMap(fChapitre.Path)
+	chapitres, err := readCSVMap(fChapitre.Path)
 	if err != nil {
 		return fail(fmt.Errorf("resultat_chapitre : %w", err))
 	}
@@ -100,13 +100,13 @@ func IngestCertificationHAS(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	defer tx.Rollback(ctx)
 	var rowsDemarche [][]any
 	for _, d := range demarches {
-		f := finessParDemarche[d["code_demarche"]]
+		f := finessByDemarche[d["code_demarche"]]
 		rowsDemarche = append(rowsDemarche, []any{
-			d["code_demarche"], nilSiVide(f.finesset), nilSiVide(f.finessej), nilSiVide(f.rs),
+			d["code_demarche"], nilIfEmpty(f.finesset), nilIfEmpty(f.finessej), nilIfEmpty(f.rs),
 			d["id_cycle"], d["id_version"],
-			intOuNil(d["annee_visite"]), intOuNil(d["mois_visite"]),
-			dateISOOuNil(d["date_de_decision"]),
-			nilSiVide(d["Decision_de_la_CCES"]), srcID,
+			intOrNil(d["annee_visite"]), intOrNil(d["mois_visite"]),
+			isoDateOrNil(d["date_de_decision"]),
+			nilIfEmpty(d["Decision_de_la_CCES"]), srcID,
 		})
 	}
 	if _, err := tx.Exec(ctx, `
@@ -201,9 +201,9 @@ func IngestCertificationHAS(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	return nil
 }
 
-// lireCSVMap lit un CSV avec en-tête en []map[string]string — le format le
+// readCSVMap lit un CSV avec en-tête en []map[string]string — le format le
 // plus simple pour ces trois fichiers, tous petits (quelques centaines de Ko).
-func lireCSVMap(path string) ([]map[string]string, error) {
+func readCSVMap(path string) ([]map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -235,7 +235,7 @@ func lireCSVMap(path string) ([]map[string]string, error) {
 	return out, nil
 }
 
-func dateISOOuNil(s string) *time.Time {
+func isoDateOrNil(s string) *time.Time {
 	if s == "" {
 		return nil
 	}
@@ -246,7 +246,7 @@ func dateISOOuNil(s string) *time.Time {
 	return &t
 }
 
-func intOuNil(s string) *int {
+func intOrNil(s string) *int {
 	if s == "" {
 		return nil
 	}

@@ -33,51 +33,51 @@ var SourceAFT = archive.Source{
 
 const aftJeu = "performance-de-la-depense-rap-2025"
 
-var aftIndicateurs = map[string]bool{"P117-1-1": true, "P117-1-2": true}
+var aftIndicators = map[string]bool{"P117-1-1": true, "P117-1-2": true}
 
 func IngestAFT(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, pool, arch, SourceAFT, func(srcID, runID int64) (*lot, error) {
+	return run(ctx, pool, arch, SourceAFT, func(srcID, runID int64) (*batch, error) {
 		q := url.Values{"where": {"code_programme=117"}, "order_by": {"code_externe_indicateur,ordre_ssi"}}
 		u := "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/" + aftJeu + "/exports/json?" + q.Encode()
 		f, err := arch.Fetch(ctx, srcID, runID, u, ".json")
 		if err != nil {
 			return nil, err
 		}
-		var lignes []map[string]any
-		if err := lireJSON(f.Path, &lignes); err != nil {
+		var records []map[string]any
+		if err := readJSON(f.Path, &records); err != nil {
 			return nil, err
 		}
-		l := nouveauLot()
-		for _, ln := range lignes {
+		l := newBatch()
+		for _, ln := range records {
 			code, _ := ln["code_externe_indicateur"].(string)
-			if !aftIndicateurs[code] {
+			if !aftIndicators[code] {
 				continue
 			}
-			sous, _ := ln["libelle_sous_indicateur"].(string)
-			unite, _ := ln["unite"].(string)
-			s := &Serie{
-				Code: "aft-p117:" + code + ":" + slug(sous), CodeSource: aftJeu + "#" + code,
-				Libelle: sous, Pays: "FR", Frequence: "A", Concept: "ADJUDICATIONS_AFT",
+			sub, _ := ln["libelle_sous_indicateur"].(string)
+			unit, _ := ln["unite"].(string)
+			s := &Series{
+				Code: "aft-p117:" + code + ":" + slug(sub), CodeSource: aftJeu + "#" + code,
+				Libelle: sub, Pays: "FR", Frequence: "A", Concept: "ADJUDICATIONS_AFT",
 				SecteurEmetteur: "S13111", URL: u,
 			}
-			switch unite {
+			switch unit {
 			case "%":
 				s.Unite, s.Mesure = "PCT", "TAUX"
 			case "Nb":
 				s.Unite, s.Mesure = "NOMBRE", "NOMBRE"
 			default:
-				return nil, fmt.Errorf("%s : unité %q inattendue", code, unite)
+				return nil, fmt.Errorf("%s : unité %q inattendue", code, unit)
 			}
 			var obs []Obs
-			for _, annee := range []string{"2023", "2024", "2025"} {
-				brut, _ := ln["exec_"+annee].(string)
-				v, ok := nombreRAP(brut)
+			for _, year := range []string{"2023", "2024", "2025"} {
+				raw, _ := ln["exec_"+year].(string)
+				v, ok := rapNumber(raw)
 				if !ok {
 					continue
 				}
-				obs = append(obs, Obs{Periode: annee, Valeur: v, DocumentID: f.DocumentID})
+				obs = append(obs, Obs{Periode: year, Valeur: v, DocumentID: f.DocumentID})
 			}
-			l.ajouter(s, obs)
+			l.add(s, obs)
 		}
 		if len(l.series) == 0 {
 			return nil, fmt.Errorf("aucun indicateur d'adjudication dans %s", aftJeu)
@@ -86,9 +86,9 @@ func IngestAFT(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	})
 }
 
-// nombreRAP lit les nombres des RAP : espaces insécables comme séparateurs de
+// rapNumber lit les nombres des RAP : espaces insécables comme séparateurs de
 // milliers, virgule décimale, « - » pour une case vide.
-func nombreRAP(s string) (float64, bool) {
+func rapNumber(s string) (float64, bool) {
 	s = strings.NewReplacer("\u202f", "", "\u00a0", "", " ", "", ",", ".").Replace(strings.TrimSpace(s))
 	if s == "" || s == "-" {
 		return 0, false
