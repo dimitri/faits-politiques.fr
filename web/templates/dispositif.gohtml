@@ -1,18 +1,18 @@
 {{define "content"}}
 {{$m := .M}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
-  <a href="{{.Root}}/budget/">Budget</a> › <span>{{$m.Libelle}}</span></p>
-<span class="sur">Exonération de cotisations · {{$m.Categorie}}</span>
-<h1>{{$m.Libelle}}</h1>
-<p class="lede">{{mdEur $m.MontantMax}} au plus haut, en {{$m.AnneeMontantMax}}. Créé en {{$m.Debut}},
-{{if $m.EnCours}}toujours en vigueur{{else}}arrêté en {{$m.Fin}}{{end}}.</p>
+  <a href="{{.Root}}/budget/">Budget</a> › <span>{{$m.Label}}</span></p>
+<span class="sur">Exonération de cotisations · {{$m.Category}}</span>
+<h1>{{$m.Label}}</h1>
+<p class="lede">{{mdEur $m.AmountMax}} au plus haut, en {{$m.YearAmountMax}}. Créé en {{$m.Start}},
+{{if $m.Ongoing}}toujours en vigueur{{else}}arrêté en {{$m.End}}{{end}}.</p>
 
-{{if $m.Loi}}
-<p class="note proc"><strong>La loi d'origine.</strong> Loi n°&nbsp;{{$m.Loi.Numero}} du
-{{$m.Loi.Date}}, article {{$m.Loi.Article}} — retrouvée en recherchant le nom du dispositif
+{{if $m.Law}}
+<p class="note proc"><strong>La loi d'origine.</strong> Loi n°&nbsp;{{$m.Law.Number}} du
+{{$m.Law.Date}}, article {{$m.Law.Article}} — retrouvée en recherchant le nom du dispositif
 tel que l'URSSAF le publie, puis <strong>vérifiée en lisant l'article lui-même</strong> au
 Journal officiel, jamais supposée d'une simple proximité de date.
-{{if $m.Loi.TexteURL}}<a href="{{$m.Loi.TexteURL}}" target="_blank" rel="noopener">Lire le texte
+{{if $m.Law.TextURL}}<a href="{{$m.Law.TextURL}}" target="_blank" rel="noopener">Lire le texte
 intégral sur Légifrance ↗</a>{{end}} L'auteur parlementaire de l'amendement ou du texte, lui,
 reste inconnu de cette page.</p>
 {{else}}
@@ -26,9 +26,9 @@ dispositif, qui n'a pas été faite pour celui-ci. Cette page appelle donc une v
 {{end}}
 
 <h2>Le montant, année par année</h2>
-<p class="q">{{$m.Debut}}–{{if $m.EnCours}}{{$m.AnneeMontantMax}} et au-delà{{else}}{{$m.Fin}}{{end}},
+<p class="q">{{$m.Start}}–{{if $m.Ongoing}}{{$m.YearAmountMax}} et au-delà{{else}}{{$m.End}}{{end}},
 secteur privé, France entière.</p>
-{{$m.Serie}}
+{{$m.Series}}
 
 <h2>Repère chronologique</h2>
 <p class="note">{{if $m.Presidents}}<strong>{{range $i, $p := $m.Presidents}}{{if $i}}, {{end}}{{$p}}{{end}}</strong>

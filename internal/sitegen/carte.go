@@ -21,7 +21,7 @@ import (
 //
 // La rampe est séquentielle, une seule teinte du clair au foncé : clarté OKLab
 // monotone, pas d'au moins 9. Une rampe arc-en-ciel inventerait des ruptures.
-var rampe = []string{"#DCE9EC", "#B0CFD5", "#7FB0BA", "#4A8894", "#1E5C69"}
+var ramp = []string{"#DCE9EC", "#B0CFD5", "#7FB0BA", "#4A8894", "#1E5C69"}
 
 // absentFill : « aucune donnée » n'est pas « la valeur la plus basse ». Un
 // département où aucune liste ne s'est présentée n'a pas fait zéro pour cent.
@@ -33,15 +33,15 @@ const absentFill = "#EFEBE2"
 // pixel sur une carte de page de détail. Aller plus fin ne change rien à
 // l'écran et multiplie le poids par trois.
 const (
-	tolApercu = 0.04
-	tolPleine = 0.012
+	toleranceOverview = 0.04
+	toleranceFull     = 0.012
 	// Un peu plus fin que tolPleine : les grands méandres d'un fleuve
 	// (la Loire, en particulier) portent une information de reconnaissance
 	// que la tolérance des contours administratifs aplatirait.
-	tolCoursEau = 0.006
+	toleranceWatercourse = 0.006
 )
 
-// fleuvesSVG rend les grands cours d'eau chargés (geo.cours_eau) comme un
+// riversSVG rend les grands cours d'eau chargés (geo.cours_eau) comme un
 // calque de repère commun à toutes les cartes de France métropolitaine — à
 // écrire juste après le fond (départements/communes) et avant les données,
 // jamais avant ni après : ni caché sous la terre, ni recouvrant un point ou
@@ -52,10 +52,10 @@ const (
 // sur les petites cartes en degrés comme la carte des semi-conducteurs ou
 // la ligne de démarcation, où une précision à zéro décimale écraserait le
 // tracé).
-func fleuvesSVG(ctx context.Context, pool *pgxpool.Pool, srid, rel, digits int) (string, error) {
+func riversSVG(ctx context.Context, pool *pgxpool.Pool, srid, rel, digits int) (string, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT st_assvg(st_transform(st_simplifypreservetopology(geom, $1), $2::int), $3::int, $4::int)
-		FROM geo.cours_eau`, tolCoursEau, srid, rel, digits)
+		FROM geo.cours_eau`, toleranceWatercourse, srid, rel, digits)
 	if err != nil {
 		return "", err
 	}
@@ -77,21 +77,21 @@ func fleuvesSVG(ctx context.Context, pool *pgxpool.Pool, srid, rel, digits int) 
 	return b.String(), nil
 }
 
-type CaseCarte struct {
-	Code, Nom string
-	Valeur    float64
-	Absent    bool
+type CellMap struct {
+	Code, Name string
+	Value      float64
+	Absent     bool
 }
 
-// JeuContours : les tracés d'un niveau de détail, chargés une fois par page.
+// SetOutlines : les tracés d'un niveau de détail, chargés une fois par page.
 //
 // C'est ce qui rend tenable une page de quinze cartes. /securite/ pesait
 // 5,8 Mo parce que chaque carte réécrivait les 96 tracés ; ici ils sont écrits
 // une fois dans un <defs> et chaque carte n'est qu'une liste de <use>.
-type JeuContours struct {
+type SetOutlines struct {
 	Defs    template.HTML
 	ViewBox string
-	Niveau  string
+	Level   string
 	Codes   []string
 	Noms    map[string]string
 	traces  map[string]string
@@ -107,79 +107,79 @@ type JeuContours struct {
 	// EPCI partagent tous la même projection (Lambert-93) et donc le même
 	// tracé de fleuves, vérifié une fois pour toutes les cartes qui utilisent
 	// ce jeu de contours plutôt que pour chacune séparément.
-	fleuves string
+	rivers string
 	// Outre-mer : chacun dans SA projection, donc dans son propre repère. Les
 	// poser dans le Lambert-93 de l'hexagone leur donnerait une forme et une
 	// échelle fausses — la Guyane y ferait la taille d'un timbre déformé.
-	outremer []contourSeul
+	overseas []outlineOnly
 }
 
-type contourSeul struct {
-	Code, Nom, Trace, ViewBox string
-	SRID                      int
+type outlineOnly struct {
+	Code, Name, Trace, ViewBox string
+	SRID                       int
 }
 
-// Carton : un outre-mer dessiné à part, à sa propre échelle.
-type Carton struct {
-	Code, Nom string
-	SVG       template.HTML
-	Valeur    string
-	Absent    bool
+// Tile : un outre-mer dessiné à part, à sa propre échelle.
+type Tile struct {
+	Code, Name string
+	SVG        template.HTML
+	Value      string
+	Absent     bool
 }
 
-type Carte struct {
-	SVG       template.HTML
-	Cartons   []Carton
-	Bornes    []string
-	Teintes   []string
-	Vide      bool
-	Unite     string
-	Total     int
-	NbAbsents int
+type Map struct {
+	SVG          template.HTML
+	Tiles        []Tile
+	Bounds       []string
+	Shades       []string
+	Empty        bool
+	Unit         string
+	Total        int
+	CountAbsents int
 
-	classe func(float64) int
-	teinte func(int) string
+	class func(float64) int
+	shade func(int) string
 }
 
-// jeuContours charge un niveau territorial. Le préfixe d'identifiant dépend du
+// setOutlines charge un niveau territorial. Le préfixe d'identifiant dépend du
 // niveau : une page peut afficher une carte des départements et une carte des
 // régions, et deux <path id="d11"> se marcheraient dessus.
-func jeuContours(ctx context.Context, pool *pgxpool.Pool, niveau string, tolerance float64) (*JeuContours, error) {
-	d, codes, vb, noms, labels, err := contours(ctx, pool, niveau, tolerance)
+func setOutlines(ctx context.Context, pool *pgxpool.Pool, level string, tolerance float64) (*SetOutlines, error) {
+	d, codes, vb, noms, labels, err := outlines(ctx, pool, level, tolerance)
 	if err != nil {
 		return nil, err
 	}
-	pre := prefixeNiveau(niveau)
+	pre := prefixLevel(level)
 	var b strings.Builder
 	for _, c := range codes {
 		fmt.Fprintf(&b, `<path id="%s%s" d="%s"/>`, pre, c, d[c])
 	}
-	om, err := contoursOutreMer(ctx, pool, niveau, tolerance)
+	om, err := outlinesOverseas(ctx, pool, level, tolerance)
 	if err != nil {
 		return nil, err
 	}
 	for _, o := range om {
-		noms[o.Code] = o.Nom
+		noms[o.Code] = o.Name
 	}
 	// Même projection (Lambert-93, coordonnées relatives) quel que soit le
 	// niveau territorial : un seul tracé de fleuves sert aux trois.
-	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	rivers, err := riversSVG(ctx, pool, 2154, 1, 0)
 	if err != nil {
 		return nil, err
 	}
-	return &JeuContours{
+	return &SetOutlines{
 		Defs: template.HTML(`<svg width="0" height="0" aria-hidden="true" ` +
 			`style="position:absolute"><defs>` + b.String() + `</defs></svg>`),
-		ViewBox: vb, Niveau: niveau, Codes: codes, Noms: noms, traces: d, fleuves: fleuves,
-		outremer: om, labels: labels,
+		ViewBox: vb, Level: level, Codes: codes, Noms: noms, traces: d, rivers: rivers,
+		overseas: om, labels: labels,
 	}, nil
 }
 
-// contoursOutreMer : un tracé et une boîte PAR territoire, chacun projeté dans
+// outlinesOverseas : un tracé et une boîte PAR territoire, chacun projeté dans
 // le système légal de son territoire (RGAF09, UTM 22N, RGR92…), tel que la
 // colonne srid_rendu le nomme.
-func contoursOutreMer(ctx context.Context, pool *pgxpool.Pool, niveau string, tolerance float64) (
-	[]contourSeul, error) {
+func outlinesOverseas(ctx context.Context, pool *pgxpool.Pool, level string, tolerance float64) (
+	[]outlineOnly, error) {
 
 	rows, err := pool.Query(ctx, `
 		SELECT code_insee, nom, srid_rendu,
@@ -189,15 +189,15 @@ func contoursOutreMer(ctx context.Context, pool *pgxpool.Pool, niveau string, to
 		FROM geo.contour,
 		     LATERAL (SELECT st_envelope(st_transform(geom, srid_rendu)) e) x
 		WHERE niveau=$2 AND srid_rendu <> 2154
-		ORDER BY code_insee`, tolerance, niveau)
+		ORDER BY code_insee`, tolerance, level)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []contourSeul
+	var out []outlineOnly
 	for rows.Next() {
-		var c contourSeul
-		if err := rows.Scan(&c.Code, &c.Nom, &c.SRID, &c.Trace, &c.ViewBox); err != nil {
+		var c outlineOnly
+		if err := rows.Scan(&c.Code, &c.Name, &c.SRID, &c.Trace, &c.ViewBox); err != nil {
 			return nil, err
 		}
 		out = append(out, c)
@@ -205,30 +205,30 @@ func contoursOutreMer(ctx context.Context, pool *pgxpool.Pool, niveau string, to
 	return out, rows.Err()
 }
 
-// cartons dessine les outre-mer d'une carte, chacun à son échelle.
-func (j *JeuContours) cartons(c Carte, byCode map[string]CaseCarte,
-	format func(float64) string) []Carton {
+// tiles dessine les outre-mer d'une carte, chacun à son échelle.
+func (j *SetOutlines) tiles(c Map, byCode map[string]CellMap,
+	format func(float64) string) []Tile {
 
-	var out []Carton
-	for _, o := range j.outremer {
+	var out []Tile
+	for _, o := range j.overseas {
 		cc, ok := byCode[o.Code]
-		k := Carton{Code: o.Code, Nom: o.Nom, Absent: !ok || cc.Absent}
+		k := Tile{Code: o.Code, Name: o.Name, Absent: !ok || cc.Absent}
 		if !k.Absent {
-			k.Valeur = format(cc.Valeur)
+			k.Value = format(cc.Value)
 		} else {
-			k.Valeur = "aucune donnée"
+			k.Value = "aucune donnée"
 		}
 		k.SVG = template.HTML(`<svg viewBox="` + o.ViewBox + `" class="geo carton" ` +
-			`role="img" aria-label="` + template.HTMLEscapeString(o.Nom+" — "+k.Valeur) +
-			`"><path d="` + o.Trace + `" fill="` + c.remplissage(cc) + `"><title>` +
-			template.HTMLEscapeString(o.Nom+" — "+k.Valeur) + `</title></path></svg>`)
+			`role="img" aria-label="` + template.HTMLEscapeString(o.Name+" — "+k.Value) +
+			`"><path d="` + o.Trace + `" fill="` + c.fill(cc) + `"><title>` +
+			template.HTMLEscapeString(o.Name+" — "+k.Value) + `</title></path></svg>`)
 		out = append(out, k)
 	}
 	return out
 }
 
-func prefixeNiveau(niveau string) string {
-	switch niveau {
+func prefixLevel(level string) string {
+	switch level {
 	case "REGION":
 		return "r"
 	case "EPCI":
@@ -238,59 +238,59 @@ func prefixeNiveau(niveau string) string {
 	}
 }
 
-// apercu : la vignette d'une page d'index. Elle renvoie aux tracés du <defs>
+// overview : la vignette d'une page d'index. Elle renvoie aux tracés du <defs>
 // partagé et ne porte AUCUNE infobulle — 96 titres par carte, quinze cartes,
 // c'est 90 Ko de texte que personne ne survolera sur une image de 260 px. Le
 // détail est à un clic, sur la page de la carte.
-func apercu(j *JeuContours, cases []CaseCarte, unite string, format func(float64) string) Carte {
-	c := preparer(cases, unite, format)
-	if c.Vide {
+func overview(j *SetOutlines, cells []CellMap, unit string, format func(float64) string) Map {
+	c := prepare(cells, unit, format)
+	if c.Empty {
 		return c
 	}
-	byCode := indexer(cases)
-	pre := prefixeNiveau(j.Niveau)
+	byCode := index(cells)
+	pre := prefixLevel(j.Level)
 	var b strings.Builder
 	for _, code := range j.Codes {
-		fmt.Fprintf(&b, `<use href="#%s%s" fill="%s"/>`, pre, code, c.remplissage(byCode[code]))
+		fmt.Fprintf(&b, `<use href="#%s%s" fill="%s"/>`, pre, code, c.fill(byCode[code]))
 	}
 	// Les fleuves en dernier : un calque de repère par-dessus les teintes,
 	// jamais dessous où la couleur de la donnée les masquerait.
-	b.WriteString(j.fleuves)
+	b.WriteString(j.rivers)
 	c.SVG = j.envelopper(b.String(), true)
-	c.Cartons = j.cartons(c, byCode, format)
+	c.Tiles = j.tiles(c, byCode, format)
 	return c
 }
 
-// pleine : la carte d'une page de détail. Une seule par page, donc les tracés
+// full : la carte d'une page de détail. Une seule par page, donc les tracés
 // y sont écrits en clair, au niveau de détail fin, avec les infobulles.
-func pleine(j *JeuContours, cases []CaseCarte, unite string, format func(float64) string) Carte {
-	c := preparer(cases, unite, format)
-	if c.Vide {
+func full(j *SetOutlines, cells []CellMap, unit string, format func(float64) string) Map {
+	c := prepare(cells, unit, format)
+	if c.Empty {
 		return c
 	}
-	byCode := indexer(cases)
+	byCode := index(cells)
 	var b strings.Builder
 	for _, code := range j.Codes {
 		cc, ok := byCode[code]
-		titre := j.Noms[code] + " — aucune donnée"
+		title := j.Noms[code] + " — aucune donnée"
 		if ok && !cc.Absent {
-			titre = j.Noms[code] + " — " + format(cc.Valeur)
+			title = j.Noms[code] + " — " + format(cc.Value)
 		}
 		fmt.Fprintf(&b, `<path d="%s" fill="%s"><title>%s</title></path>`,
-			j.traces[code], c.remplissage(cc), template.HTMLEscapeString(titre))
+			j.traces[code], c.fill(cc), template.HTMLEscapeString(title))
 	}
 	// Les fleuves en dernier : un calque de repère par-dessus les teintes,
 	// jamais dessous où la couleur de la donnée les masquerait.
-	b.WriteString(j.fleuves)
-	if j.Niveau == "REGION" {
-		b.WriteString(etiquettesRegions(j))
+	b.WriteString(j.rivers)
+	if j.Level == "REGION" {
+		b.WriteString(labelsRegions(j))
 	}
 	c.SVG = j.envelopper(b.String(), false)
-	c.Cartons = j.cartons(c, byCode, format)
+	c.Tiles = j.tiles(c, byCode, format)
 	return c
 }
 
-// etiquettesRegions : le nom de chaque région, au centre du plus grand
+// labelsRegions : le nom de chaque région, au centre du plus grand
 // cercle inscriptible dans son contour — dix-sept formes assez grandes pour
 // porter un nom sans jamais se chevaucher, à la différence des départements
 // ou des EPCI (voir le commentaire de JeuContours.labels). Un <text
@@ -299,21 +299,21 @@ func pleine(j *JeuContours, cases []CaseCarte, unite string, format func(float64
 // lisibles (constaté sur la carte d'Europe du dossier Seconde Guerre
 // mondiale) — un <g transform="scale(...)"> autour d'un texte à taille
 // normale contourne le problème.
-func etiquettesRegions(j *JeuContours) string {
+func labelsRegions(j *SetOutlines) string {
 	// ViewBox peut être la chaîne vide : jeuContours renvoie une boîte vide
 	// quand geo.contour est vide (voir son commentaire sur sql.NullString —
 	// aucune source du catalogue ne remplit cette table, contours
 	// OpenStreetMap de la migration 0058 chargés hors pipeline), et indexer
 	// [2] sur zéro champ paniquerait au lieu de ne rien dessiner.
-	champs := strings.Fields(j.ViewBox)
-	if len(champs) < 3 {
+	fields := strings.Fields(j.ViewBox)
+	if len(fields) < 3 {
 		return ""
 	}
-	largeur, _ := strconv.ParseFloat(champs[2], 64)
-	if largeur <= 0 {
+	width, _ := strconv.ParseFloat(fields[2], 64)
+	if width <= 0 {
 		return ""
 	}
-	echelle := largeur / 700 // ≈ la largeur réelle de la carte à l'écran, en pixels
+	scale := width / 700 // ≈ la largeur réelle de la carte à l'écran, en pixels
 	var b strings.Builder
 	for _, code := range j.Codes {
 		l, ok := j.labels[code]
@@ -322,36 +322,36 @@ func etiquettesRegions(j *JeuContours) string {
 		}
 		fmt.Fprintf(&b, `<g transform="translate(%.0f,%.0f) scale(%.2f)">`+
 			`<text class="nom-region" x="0" y="0" text-anchor="middle">%s</text></g>`,
-			l.X, l.Y, echelle, template.HTMLEscapeString(j.Noms[code]))
+			l.X, l.Y, scale, template.HTMLEscapeString(j.Noms[code]))
 	}
 	return b.String()
 }
 
-// cartonsHTML : même rendu que le template nommé "cartons" (base.gohtml),
+// tilesHTML : même rendu que le template nommé "cartons" (base.gohtml),
 // pour les rares cas où une carte s'insère depuis du Go plutôt que depuis un
 // gabarit — voir l'injection de carteMedecins dans main.go.
-func cartonsHTML(cartons []Carton) string {
-	if len(cartons) == 0 {
+func tilesHTML(tiles []Tile) string {
+	if len(tiles) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	b.WriteString(`<div class="cartons"><span class="t">Outre-mer</span>`)
-	for _, c := range cartons {
+	for _, c := range tiles {
 		cl := ""
 		if c.Absent {
 			cl = "vide"
 		}
 		fmt.Fprintf(&b, `<figure class="%s">%s<figcaption>%s<span>%s</span></figcaption></figure>`,
-			cl, c.SVG, template.HTMLEscapeString(c.Nom), template.HTMLEscapeString(c.Valeur))
+			cl, c.SVG, template.HTMLEscapeString(c.Name), template.HTMLEscapeString(c.Value))
 	}
 	b.WriteString(`</div><p class="note-cartons">Chaque carton a <strong>sa propre échelle</strong> et sa propre ` +
 		`projection&nbsp;: les surfaces ne se comparent pas d'un carton à l'autre, ni à l'hexagone.</p>`)
 	return b.String()
 }
 
-func indexer(cases []CaseCarte) map[string]CaseCarte {
-	m := make(map[string]CaseCarte, len(cases))
-	for _, c := range cases {
+func index(cells []CellMap) map[string]CellMap {
+	m := make(map[string]CellMap, len(cells))
+	for _, c := range cells {
 		if c.Code != "" {
 			m[c.Code] = c
 		}
@@ -359,14 +359,14 @@ func indexer(cases []CaseCarte) map[string]CaseCarte {
 	return m
 }
 
-func (c Carte) remplissage(cc CaseCarte) string {
+func (c Map) fill(cc CellMap) string {
 	if cc.Code == "" || cc.Absent {
 		return absentFill
 	}
-	return c.teinte(c.classe(cc.Valeur))
+	return c.shade(c.class(cc.Value))
 }
 
-func libelleNiveau(n string) string {
+func labelLevel(n string) string {
 	switch n {
 	case "REGION":
 		return "région"
@@ -377,18 +377,18 @@ func libelleNiveau(n string) string {
 	}
 }
 
-func (j *JeuContours) envelopper(corps string, apercu bool) template.HTML {
-	cl, role := "geo", `role="img" aria-label="Carte de France par `+libelleNiveau(j.Niveau)+`"`
-	if apercu {
+func (j *SetOutlines) envelopper(body string, overview bool) template.HTML {
+	cl, role := "geo", `role="img" aria-label="Carte de France par `+labelLevel(j.Level)+`"`
+	if overview {
 		// Une vignette décorative : la page de détail porte le contenu, la
 		// répéter au lecteur d'écran n'ajoute rien et allonge la liste.
 		cl, role = "geo apercu", `aria-hidden="true" focusable="false"`
 	}
 	return template.HTML(`<svg viewBox="` + j.ViewBox + `" class="` + cl + `" ` + role + `>` +
-		corps + `</svg>`)
+		body + `</svg>`)
 }
 
-// contours renvoie le tracé SVG de chaque entité métropolitaine d'un niveau,
+// outlines renvoie le tracé SVG de chaque entité métropolitaine d'un niveau,
 // en Lambert-93. Les outre-mer ont chacun leur projection et se dessineraient
 // en cartons : ils ne partagent pas ce repère, et sont écartés ici.
 //
@@ -396,7 +396,7 @@ func (j *JeuContours) envelopper(corps string, apercu bool) template.HTML {
 // écarts entre points voisins tiennent en deux ou trois chiffres là où une
 // abscisse Lambert-93 en demande sept. À tolérance égale, un tiers de poids en
 // moins, au pixel près identique.
-func contours(ctx context.Context, pool *pgxpool.Pool, niveau string, tolerance float64) (
+func outlines(ctx context.Context, pool *pgxpool.Pool, level string, tolerance float64) (
 	map[string]string, []string, string, map[string]string, map[string]struct{ X, Y float64 }, error) {
 
 	rows, err := pool.Query(ctx, `
@@ -404,7 +404,7 @@ func contours(ctx context.Context, pool *pgxpool.Pool, niveau string, tolerance 
 		FROM (SELECT code_insee, nom, st_transform(st_simplifypreservetopology(geom, $1), 2154) AS g
 		      FROM geo.contour WHERE niveau = $2 AND srid_rendu = 2154) x,
 		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l
-		ORDER BY code_insee`, tolerance, niveau)
+		ORDER BY code_insee`, tolerance, level)
 	if err != nil {
 		return nil, nil, "", nil, nil, err
 	}
@@ -451,21 +451,21 @@ func contours(ctx context.Context, pool *pgxpool.Pool, niveau string, tolerance 
 	return d, codes, vb, noms, labels, nil
 }
 
-// preparer calcule les classes, les bornes et les teintes — la partie commune
+// prepare calcule les classes, les bornes et les teintes — la partie commune
 // à toutes les formes de rendu. Les classes sont des quintiles sur les seules
 // valeurs présentes, jamais plus nombreuses que les valeurs distinctes.
-func preparer(cases []CaseCarte, unite string, format func(float64) string) Carte {
+func prepare(cells []CellMap, unit string, format func(float64) string) Map {
 	var vals []float64
 	var absents int
-	for _, c := range cases {
+	for _, c := range cells {
 		if c.Absent {
 			absents++
 		} else {
-			vals = append(vals, c.Valeur)
+			vals = append(vals, c.Value)
 		}
 	}
 	if len(vals) == 0 {
-		return Carte{Vide: true}
+		return Map{Empty: true}
 	}
 	sort.Float64s(vals)
 
@@ -475,18 +475,18 @@ func preparer(cases []CaseCarte, unite string, format func(float64) string) Cart
 			distinct++
 		}
 	}
-	nc := len(rampe)
+	nc := len(ramp)
 	if distinct < nc {
 		nc = distinct
 	}
-	seuils := make([]float64, 0, nc-1)
+	thresholds := make([]float64, 0, nc-1)
 	for i := 1; i < nc; i++ {
-		seuils = append(seuils, vals[len(vals)*i/nc])
+		thresholds = append(thresholds, vals[len(vals)*i/nc])
 	}
 
-	c := Carte{Unite: unite, Total: len(vals), NbAbsents: absents}
-	c.classe = func(v float64) int {
-		for i, s := range seuils {
+	c := Map{Unit: unit, Total: len(vals), CountAbsents: absents}
+	c.class = func(v float64) int {
+		for i, s := range thresholds {
 			if v < s {
 				return i
 			}
@@ -495,33 +495,33 @@ func preparer(cases []CaseCarte, unite string, format func(float64) string) Cart
 	}
 	// La rampe garde ses extrêmes : avec trois classes on prend le clair, le
 	// médian et le foncé, pas les trois premiers pas.
-	c.teinte = func(k int) string {
+	c.shade = func(k int) string {
 		if nc == 1 {
-			return rampe[len(rampe)-1]
+			return ramp[len(ramp)-1]
 		}
-		return rampe[k*(len(rampe)-1)/(nc-1)]
+		return ramp[k*(len(ramp)-1)/(nc-1)]
 	}
 
 	// Les bornes affichées sont celles des données, pas des nombres ronds
 	// inventés : le lecteur doit pouvoir retrouver la classe d'une valeur.
-	debut := 0
+	start := 0
 	for i := 0; i < nc; i++ {
-		fin := len(vals)
+		end := len(vals)
 		if i < nc-1 {
-			fin = len(vals) * (i + 1) / nc
+			end = len(vals) * (i + 1) / nc
 		}
-		if fin <= debut {
-			fin = debut + 1
+		if end <= start {
+			end = start + 1
 		}
-		if fin > len(vals) {
-			fin = len(vals)
+		if end > len(vals) {
+			end = len(vals)
 		}
-		if debut >= len(vals) {
+		if start >= len(vals) {
 			break
 		}
-		c.Bornes = append(c.Bornes, format(vals[debut])+" – "+format(vals[fin-1]))
-		c.Teintes = append(c.Teintes, c.teinte(i))
-		debut = fin
+		c.Bounds = append(c.Bounds, format(vals[start])+" – "+format(vals[end-1]))
+		c.Shades = append(c.Shades, c.shade(i))
+		start = end
 	}
 	return c
 }

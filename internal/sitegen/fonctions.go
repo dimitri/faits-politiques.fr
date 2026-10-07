@@ -15,51 +15,51 @@ import (
 // mène désormais (D-073) : trente ans de la même dépense, sa place parmi les
 // neuf autres, et les sujets de campagne qui en relèvent.
 
-type LigneComparaison struct {
-	Libelle     string
-	Milliards   float64
-	Largeur     float64
-	ParMille    int
+type LineComparison struct {
+	Label       string
+	Billions    float64
+	Width       float64
+	PerThousand int
 	URL         string
-	EstCourante bool
+	EstCurrent  bool
 }
 
-type PageFonction struct {
-	Code, Nom, Detail string
-	Milliards         float64
-	ParMille          int
-	Rang              int
-	Sur               int
-	Annee             int
-	Serie             []PointAnnee
-	Courbe            template.HTML
-	Famille           *Famille
-	Comparaison       []LigneComparaison
-	ComparaisonHTML   template.HTML
+type PageFunction struct {
+	Code, Name, Detail string
+	Billions           float64
+	PerThousand        int
+	Rank               int
+	On                 int
+	Year               int
+	Series             []PointYear
+	Curve              template.HTML
+	Family             *Family
+	Comparison         []LineComparison
+	ComparisonHTML     template.HTML
 }
 
-func chargerFonctions(ctx context.Context, pool *pgxpool.Pool, a *DonneesAccueil) (map[string]*PageFonction, error) {
-	pages := map[string]*PageFonction{}
+func loadFunctions(ctx context.Context, pool *pgxpool.Pool, a *DataHome) (map[string]*PageFunction, error) {
+	pages := map[string]*PageFunction{}
 
-	rangs := make([]FonctionCofog, len(a.Fonctions))
-	copy(rangs, a.Fonctions)
-	sort.SliceStable(rangs, func(i, j int) bool { return rangs[i].Milliards > rangs[j].Milliards })
+	ranks := make([]FunctionCofog, len(a.Functions))
+	copy(ranks, a.Functions)
+	sort.SliceStable(ranks, func(i, j int) bool { return ranks[i].Billions > ranks[j].Billions })
 
-	for _, f := range a.Fonctions {
-		p := &PageFonction{
-			Code: f.Code, Nom: f.Libelle, Detail: f.Detail,
-			Milliards: f.Milliards, ParMille: f.ParMille, Sur: len(a.Fonctions),
-			Annee: a.Annee, Famille: f.Famille,
+	for _, f := range a.Functions {
+		p := &PageFunction{
+			Code: f.Code, Name: f.Label, Detail: f.Detail,
+			Billions: f.Billions, PerThousand: f.PerThousand, On: len(a.Functions),
+			Year: a.Year, Family: f.Family,
 		}
-		for r, g := range rangs {
+		for r, g := range ranks {
 			if g.Code == f.Code {
-				p.Rang = r + 1
+				p.Rank = r + 1
 			}
 		}
-		for _, g := range a.Fonctions {
-			p.Comparaison = append(p.Comparaison, LigneComparaison{
-				Libelle: g.Libelle, Milliards: g.Milliards, Largeur: g.Largeur,
-				ParMille: g.ParMille, URL: g.URL(), EstCourante: g.Code == f.Code,
+		for _, g := range a.Functions {
+			p.Comparison = append(p.Comparison, LineComparison{
+				Label: g.Label, Billions: g.Billions, Width: g.Width,
+				PerThousand: g.PerThousand, URL: g.URL(), EstCurrent: g.Code == f.Code,
 			})
 		}
 		pages[f.Code] = p
@@ -74,42 +74,42 @@ func chargerFonctions(ctx context.Context, pool *pgxpool.Pool, a *DonneesAccueil
 	defer rows.Close()
 	for rows.Next() {
 		var code string
-		var annee int
+		var year int
 		var meur float64
-		if err := rows.Scan(&code, &annee, &meur); err != nil {
+		if err := rows.Scan(&code, &year, &meur); err != nil {
 			return nil, err
 		}
 		gf := code[len("depense."):]
 		if p := pages[gf]; p != nil {
-			p.Serie = append(p.Serie, PointAnnee{Annee: annee, Valeur: meur / 1000})
+			p.Series = append(p.Series, PointYear{Year: year, Value: meur / 1000})
 		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	for _, p := range pages {
-		p.Courbe = courbe(p.Serie, func(v float64) string { return Decimal(v, 1) + " Md€" })
-		p.ComparaisonHTML = barresComparaison(p.Comparaison)
+		p.Curve = curve(p.Series, func(v float64) string { return Decimal(v, 1) + " Md€" })
+		p.ComparisonHTML = barsComparison(p.Comparison)
 	}
 	return pages, nil
 }
 
-// barresComparaison : les dix fonctions, une barre chacune, celle de la page
+// barsComparison : les dix fonctions, une barre chacune, celle de la page
 // courante mise en évidence — même principe que barresNiveaux (collectivites.go),
 // à l'échelle d'une seule année plutôt que d'un empilement de niveaux.
-func barresComparaison(lignes []LigneComparaison) template.HTML {
+func barsComparison(lines []LineComparison) template.HTML {
 	var b strings.Builder
-	for _, l := range lignes {
+	for _, l := range lines {
 		tag, attrs := "a", ` href="`+template.HTMLEscapeString(l.URL)+`"`
 		cl := "ligne-mille"
-		if l.EstCourante {
+		if l.EstCurrent {
 			tag, attrs, cl = "span", ` aria-current="page"`, "ligne-mille en-evidence"
 		}
 		fmt.Fprintf(&b, `<%s class="%s"%s><span class="l">%s</span>`+
 			`<span class="b" aria-hidden="true"><i style="width:%.1f%%"></i></span>`+
 			`<span class="v">%d&#8239;€</span></%s>`,
-			tag, cl, attrs, template.HTMLEscapeString(l.Libelle),
-			l.Largeur, l.ParMille, tag)
+			tag, cl, attrs, template.HTMLEscapeString(l.Label),
+			l.Width, l.PerThousand, tag)
 	}
 	return template.HTML(b.String())
 }

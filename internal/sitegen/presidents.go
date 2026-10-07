@@ -6,16 +6,16 @@ import (
 	"strings"
 )
 
-type Presidence struct {
-	Debut, Fin, Nom, Qualite, Source string
+type Presidency struct {
+	Start, End, Name, Quality, Source string
 }
 
-// loadPresidences lit la chronologie des présidences.
+// loadPresidencies lit la chronologie des présidences.
 //
 // Elle sert uniquement de REPÈRE : situer un mandat ministériel dans le temps.
 // Ce n'est pas une imputation — un ministre n'est pas responsable des actes du
 // président, ni l'inverse.
-func loadPresidences(path string) ([]Presidence, error) {
+func loadPresidencies(path string) ([]Presidency, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -38,35 +38,35 @@ func loadPresidences(path string) ([]Presidence, error) {
 		}
 		return ""
 	}
-	var out []Presidence
+	var out []Presidency
 	for _, rec := range recs[1:] {
-		p := Presidence{Debut: get(rec, "debut"), Fin: get(rec, "fin"),
-			Nom: get(rec, "nom"), Qualite: get(rec, "qualite"), Source: get(rec, "source")}
-		if p.Debut != "" {
+		p := Presidency{Start: get(rec, "debut"), End: get(rec, "fin"),
+			Name: get(rec, "nom"), Quality: get(rec, "qualite"), Source: get(rec, "source")}
+		if p.Start != "" {
 			out = append(out, p)
 		}
 	}
 	return out, nil
 }
 
-// presidencesDe retourne les présidences qui recouvrent une période, dans
+// presidenciesOf retourne les présidences qui recouvrent une période, dans
 // l'ordre. Un mandat à cheval sur deux présidences en cite deux : tronquer
 // donnerait une chronologie fausse.
-func presidencesDe(ps []Presidence, debutISO, finISO string) []string {
-	if debutISO == "" {
+func presidenciesOf(ps []Presidency, startISO, endISO string) []string {
+	if startISO == "" {
 		return nil
 	}
-	if finISO == "" {
-		finISO = "9999-12-31"
+	if endISO == "" {
+		endISO = "9999-12-31"
 	}
 	var out []string
 	for _, p := range ps {
-		fin := p.Fin
-		if fin == "" {
-			fin = "9999-12-31"
+		end := p.End
+		if end == "" {
+			end = "9999-12-31"
 		}
-		if p.Debut < finISO && debutISO < fin {
-			out = append(out, p.Nom)
+		if p.Start < endISO && startISO < end {
+			out = append(out, p.Name)
 		}
 	}
 	return out

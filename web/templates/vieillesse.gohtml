@@ -4,29 +4,29 @@
   <a href="{{.Root}}/comprendre/">Comprendre</a> › <span>Vieillesse</span></p>
 <span class="sur">COFOG · COR · DREES</span>
 <h1>La vieillesse : combien, qui paie, et la dépendance au-delà des retraites</h1>
-<p class="lede">{{dec $v.ValeurFin 1}}&nbsp;Md€ en {{$v.Fin}} pour la vieillesse et les survivants
-(comptabilité nationale, toutes administrations), soit {{dec $v.PartCofog 1}}&nbsp;% de la dépense
+<p class="lede">{{dec $v.ValueEnd 1}}&nbsp;Md€ en {{$v.End}} pour la vieillesse et les survivants
+(comptabilité nationale, toutes administrations), soit {{dec $v.ShareCofog 1}}&nbsp;% de la dépense
 publique totale. Le budget de l'État n'en porte que {{dec $v.CasPensions 1}}&nbsp;Md€ (Pensions) +
-{{dec $v.RegimesSpeciaux 1}}&nbsp;Md€ (régimes spéciaux) — le reste vient de la Sécurité sociale,
+{{dec $v.RegimesSpecial 1}}&nbsp;Md€ (régimes spéciaux) — le reste vient de la Sécurité sociale,
 jamais de l'État.</p>
 
-<h2>{{$v.Debut}}–{{$v.Fin}}, vieillesse et survivants (COFOG)</h2>
-<p class="q">De {{dec $v.ValeurDebut 1}}&nbsp;Md€ en {{$v.Debut}} à {{dec $v.ValeurFin 1}}&nbsp;Md€ en
-{{$v.Fin}}.</p>
-{{$v.CourbeSVG}}
+<h2>{{$v.Start}}–{{$v.End}}, vieillesse et survivants (COFOG)</h2>
+<p class="q">De {{dec $v.ValueStart 1}}&nbsp;Md€ en {{$v.Start}} à {{dec $v.ValueEnd 1}}&nbsp;Md€ en
+{{$v.End}}.</p>
+{{$v.CurveSVG}}
 <p class="note abs">Cette mesure (GF1002 + GF1003, Eurostat) ne coïncide pas au chiffre près avec
 celle du Conseil d'orientation des retraites (407&nbsp;Md€ en 2024, 24,4&nbsp;% des dépenses
 publiques) — les deux se recoupent (24 à 26&nbsp;%) sans partager exactement le même périmètre.
 <a href="{{.Root}}/comprendre/vieillesse-donnees/">Le détail, § 2</a>.</p>
 
 <div class="cartes trois">
-  <div class="carte"><span class="v">{{dec $v.RatioCotisantsRetraites 2}}</span>
-    <span class="t">Cotisants pour un retraité, {{$v.RatioAnnee}}</span>
+  <div class="carte"><span class="v">{{dec $v.RatioContributorsPensions 2}}</span>
+    <span class="t">Cotisants pour un retraité, {{$v.RatioYear}}</span>
     <span class="d">Tous régimes. En légère hausse depuis 2020, portée par l'emploi — pas un
       retournement démographique durable.</span></div>
-  <div class="carte"><span class="v">{{dec $v.AgeEnsemble 1}}&nbsp;ans</span>
-    <span class="t">Âge moyen de départ à la retraite, {{$v.AgeAnnee}}</span>
-    <span class="d">{{dec $v.AgeFemmes 1}}&nbsp;ans pour les femmes, {{dec $v.AgeHommes 1}}&nbsp;ans
+  <div class="carte"><span class="v">{{dec $v.AgeOverall 1}}&nbsp;ans</span>
+    <span class="t">Âge moyen de départ à la retraite, {{$v.AgeYear}}</span>
+    <span class="d">{{dec $v.AgeWomen 1}}&nbsp;ans pour les femmes, {{dec $v.AgeMen 1}}&nbsp;ans
       pour les hommes. Âge conjoncturel&nbsp;: les effets de la réforme de 2023 s'y lisent encore
       avec retard.</span></div>
   <div class="carte"><span class="v">407&nbsp;Md€</span>
@@ -43,12 +43,12 @@ deux beaucoup plus étroits que le total COFOG ou le chiffre du COR ci-dessus.</
 <tbody>
 <tr><td>Pensions (CAS)</td><td class="n">{{dec $v.CasPensions 1}}</td>
   <td>Pensions civiles et militaires de retraite des seuls fonctionnaires</td></tr>
-<tr><td>Régimes sociaux et de retraite</td><td class="n">{{dec $v.RegimesSpeciaux 1}}</td>
+<tr><td>Régimes sociaux et de retraite</td><td class="n">{{dec $v.RegimesSpecial 1}}</td>
   <td>Régimes spéciaux subventionnés (SNCF, RATP, marins, mineurs…)</td></tr>
-<tr><td><strong>Total budget de l'État</strong></td><td class="n"><strong>{{dec $v.TotalEtat 1}}</strong></td>
-  <td><strong>{{dec $v.PartEtat 0}}&nbsp;% seulement du total COFOG vieillesse + survivants</strong></td></tr>
+<tr><td><strong>Total budget de l'État</strong></td><td class="n"><strong>{{dec $v.TotalState 1}}</strong></td>
+  <td><strong>{{dec $v.ShareState 0}}&nbsp;% seulement du total COFOG vieillesse + survivants</strong></td></tr>
 </tbody></table></div>
-<p class="note abs">L'écart ({{dec $v.EcartSecu 0}}&nbsp;Md€) est financé par la Sécurité sociale, pas
+<p class="note abs">L'écart ({{dec $v.GapSocialSecurity 0}}&nbsp;Md€) est financé par la Sécurité sociale, pas
 par l'État — la CNAV, les régimes complémentaires (Agirc-Arrco, hors périmètre LFSS) et les autres
 caisses de retraite du secteur privé, dont ce dépôt n'a toujours pas les comptes détaillés. Un
 chiffre de «&nbsp;budget vieillesse&nbsp;» qui ne distingue pas ces deux origines confond
@@ -56,34 +56,34 @@ systématiquement deux masses d'ampleur très différente.
 <a href="{{.Root}}/comprendre/vieillesse-donnees/">Le détail, § 3</a>.</p>
 
 <h2>La dépendance : l'APA à domicile</h2>
-{{/* Deux absences distinctes, un seul rendu : Carte.Vide signale des
+{{/* Deux absences distinctes, un seul rendu : Carte.Empty signale des
      départements connus mais tous sans valeur, tandis qu'un Slug vide signale
      qu'AUCUNE carte n'a été construite — core.apa_domicile est vide, la source
-     « vieillesse » étant hors chaîne par défaut (ingest.ChaineParDefaut). Dans
-     ce second cas, CarteAPA est le zéro de CarteTerritoire, dont Carte.Vide
+     « vieillesse » étant hors chaîne par défaut (ingest.ChainePerDefaut). Dans
+     ce second cas, CarteAPA est le zéro de CarteTerritoire, dont Carte.Empty
      vaut false : s'en tenir à Vide publiait un cadre de carte sans tracé, « 0
      départements renseignés » et un lien mort vers /vieillesse/carte//. */}}
-{{if or (not $v.CarteAPA.Slug) $v.CarteAPA.Page.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+{{if or (not $v.MapAPA.Slug) $v.MapAPA.Page.Map.Empty}}<p class="nodata">Aucune donnée.</p>{{else}}
 <div class="cartes-lignes carte-dossier">
 <div class="bloc-carte ligne">
   <div>
-    {{$v.CarteAPA.Page.Carte.SVG}}
-    {{template "cartons" $v.CarteAPA.Page.Carte.Cartons}}
+    {{$v.MapAPA.Page.Map.SVG}}
+    {{template "cartons" $v.MapAPA.Page.Map.Tiles}}
   </div>
   <div>
-    <h3>{{$v.CarteAPA.Titre}}</h3>
-    <p class="q">{{$v.CarteAPA.Question}}</p>
-    {{$t := $v.CarteAPA.Page.Carte.Teintes}}<div class="echelle"><span class="u">{{$v.CarteAPA.Page.Carte.Unite}}</span>
-      {{range $i, $b := $v.CarteAPA.Page.Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
-      {{if $v.CarteAPA.Page.Carte.NbAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
+    <h3>{{$v.MapAPA.Title}}</h3>
+    <p class="q">{{$v.MapAPA.Question}}</p>
+    {{$t := $v.MapAPA.Page.Map.Shades}}<div class="echelle"><span class="u">{{$v.MapAPA.Page.Map.Unit}}</span>
+      {{range $i, $b := $v.MapAPA.Page.Map.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+      {{if $v.MapAPA.Page.Map.CountAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
     </div>
-    <span class="src">{{$v.CarteAPA.Source}} · {{$v.CarteAPA.Page.Carte.Total}} départements renseignés{{if $v.CarteAPA.Page.Carte.NbAbsents}}, {{$v.CarteAPA.Page.Carte.NbAbsents}} sans donnée{{end}}</span>
-    <a class="voir" href="{{.Root}}/vieillesse/carte/{{$v.CarteAPA.Slug}}/">Le classement des départements et la méthode →</a>
+    <span class="src">{{$v.MapAPA.Source}} · {{$v.MapAPA.Page.Map.Total}} départements renseignés{{if $v.MapAPA.Page.Map.CountAbsents}}, {{$v.MapAPA.Page.Map.CountAbsents}} sans donnée{{end}}</span>
+    <a class="voir" href="{{.Root}}/vieillesse/carte/{{$v.MapAPA.Slug}}/">Le classement des départements et la méthode →</a>
   </div>
 </div>
 </div>
 {{end}}
-{{if $v.CarteAPA.Note}}<p class="note abs">{{$v.CarteAPA.Note}}</p>{{end}}
+{{if $v.MapAPA.Note}}<p class="note abs">{{$v.MapAPA.Note}}</p>{{end}}
 
 <p class="note proc">Cette page reprend <a href="{{.Root}}/comprendre/vieillesse-donnees/">le dossier
 vieillesse</a> : chaque chiffre y est vérifié par une requête directe, avec ses réserves. Voir aussi

@@ -31,25 +31,25 @@ import (
 // recommandation de l'Imprimerie nationale, et c'est ce que fait le reste du
 // site pour les milliers.
 const (
-	fine      = " "
-	insecable = " "
+	fine        = " "
+	nonbreaking = " "
 )
 
-var sansTypo = map[string]bool{"code": true, "pre": true, "script": true, "style": true}
+var withoutTypo = map[string]bool{"code": true, "pre": true, "script": true, "style": true}
 
-func corrigerTypographie(html []byte) []byte {
+func fixTypography(html []byte) []byte {
 	var out bytes.Buffer
 	out.Grow(len(html) + len(html)/64)
 
-	var pile []string // balises ouvertes qu'on ne corrige pas
+	var stack []string // balises ouvertes qu'on ne corrige pas
 	i := 0
 	for i < len(html) {
 		lt := bytes.IndexByte(html[i:], '<')
 		if lt < 0 {
-			ecrireTexte(&out, html[i:], len(pile) == 0)
+			writeText(&out, html[i:], len(stack) == 0)
 			break
 		}
-		ecrireTexte(&out, html[i:i+lt], len(pile) == 0)
+		writeText(&out, html[i:i+lt], len(stack) == 0)
 		i += lt
 
 		gt := bytes.IndexByte(html[i:], '>')
@@ -57,39 +57,39 @@ func corrigerTypographie(html []byte) []byte {
 			out.Write(html[i:])
 			break
 		}
-		balise := html[i : i+gt+1]
-		out.Write(balise)
+		tag := html[i : i+gt+1]
+		out.Write(tag)
 		i += gt + 1
 
-		nom, fermante := nomBalise(balise)
-		if !sansTypo[nom] {
+		name, closing := nameTag(tag)
+		if !withoutTypo[name] {
 			continue
 		}
-		if fermante {
-			if n := len(pile); n > 0 && pile[n-1] == nom {
-				pile = pile[:n-1]
+		if closing {
+			if n := len(stack); n > 0 && stack[n-1] == name {
+				stack = stack[:n-1]
 			}
-		} else if !bytes.HasSuffix(balise, []byte("/>")) {
-			pile = append(pile, nom)
+		} else if !bytes.HasSuffix(tag, []byte("/>")) {
+			stack = append(stack, name)
 		}
 	}
 	return out.Bytes()
 }
 
-func nomBalise(b []byte) (string, bool) {
+func nameTag(b []byte) (string, bool) {
 	s := string(b)
 	s = strings.TrimPrefix(s, "<")
 	s = strings.TrimSuffix(s, ">")
-	fermante := strings.HasPrefix(s, "/")
+	closing := strings.HasPrefix(s, "/")
 	s = strings.TrimPrefix(s, "/")
 	if j := strings.IndexAny(s, " \t\n/"); j >= 0 {
 		s = s[:j]
 	}
-	return strings.ToLower(s), fermante
+	return strings.ToLower(s), closing
 }
 
-// ecrireTexte applique la règle à un fragment de texte pur.
-func ecrireTexte(out *bytes.Buffer, txt []byte, actif bool) {
+// writeText applique la règle à un fragment de texte pur.
+func writeText(out *bytes.Buffer, txt []byte, actif bool) {
 	if !actif || len(txt) == 0 {
 		out.Write(txt)
 		return
@@ -104,22 +104,22 @@ func ecrireTexte(out *bytes.Buffer, txt []byte, actif bool) {
 			// anglais et dans les URL ; on n'agit que sur « mot blanc signe ».
 			// Le blanc peut être un retour à la ligne du gabarit : le navigateur
 			// le rend comme une espace, et couperait la ligne là.
-			if k > 0 && estBlanc(r[k-1]) && !dansEntite(r, k) {
-				retirerBlancFinal(out)
+			if k > 0 && isBlank(r[k-1]) && !inEntity(r, k) {
+				removeBlankFinal(out)
 				out.WriteString(fine)
 			}
 		case '«':
 			out.WriteRune(c)
-			if k+1 < len(r) && estBlanc(r[k+1]) {
-				out.WriteString(insecable)
-				for k+1 < len(r) && estBlanc(r[k+1]) {
+			if k+1 < len(r) && isBlank(r[k+1]) {
+				out.WriteString(nonbreaking)
+				for k+1 < len(r) && isBlank(r[k+1]) {
 					k++
 				}
 			}
 			continue
 		case '»':
-			if k > 0 && estBlanc(r[k-1]) {
-				retirerBlancFinal(out)
+			if k > 0 && isBlank(r[k-1]) {
+				removeBlankFinal(out)
 				out.WriteString(fine)
 			}
 		}
@@ -127,9 +127,9 @@ func ecrireTexte(out *bytes.Buffer, txt []byte, actif bool) {
 	}
 }
 
-// dansEntite : « &nbsp; » se termine par un point-virgule qui n'est pas de la
+// inEntity : « &nbsp; » se termine par un point-virgule qui n'est pas de la
 // ponctuation. On regarde en arrière jusqu'à une esperluette proche.
-func dansEntite(r []rune, k int) bool {
+func inEntity(r []rune, k int) bool {
 	if r[k] != ';' {
 		return false
 	}
@@ -144,11 +144,11 @@ func dansEntite(r []rune, k int) bool {
 	return false
 }
 
-func estBlanc(c rune) bool { return c == ' ' || c == '\n' || c == '\t' || c == '\r' }
+func isBlank(c rune) bool { return c == ' ' || c == '\n' || c == '\t' || c == '\r' }
 
-// retirerBlancFinal enlève la suite de blancs déjà écrite : un gabarit peut
+// removeBlankFinal enlève la suite de blancs déjà écrite : un gabarit peut
 // avoir coupé sa ligne juste avant la ponctuation, ce qui donne « \n\t\t : ».
-func retirerBlancFinal(out *bytes.Buffer) {
+func removeBlankFinal(out *bytes.Buffer) {
 	b := out.Bytes()
 	n := len(b)
 	for n > 0 && (b[n-1] == ' ' || b[n-1] == '\n' || b[n-1] == '\t' || b[n-1] == '\r') {

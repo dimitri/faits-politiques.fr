@@ -14,38 +14,38 @@ patrimoine — une notion distincte, jamais additionnée au revenu.</p>
 on appartient au groupe indiqué. Même principe que la carte des déciles D1 à D9 du
 <a href="{{.Root}}/sujets/pauvrete/">dossier pauvreté</a> : le sommet, lui, n'a pas de plafond connu
 au-delà de 0,01&nbsp;%, la barre s'estompe pour le dire plutôt que de s'arrêter net.</p>
-{{$r.SVGSommetRevenu}}
+{{$r.SVGSummitIncome}}
 <div class="scroll"><table class="donnees">
 <thead><tr><th>Seuil d'appartenance à…</th><th class="n">Revenu avant redistribution</th><th class="n">Niveau de vie (après redistribution)</th><th class="n">Personnes concernées</th></tr></thead>
-<tbody>{{range $r.Seuils}}<tr><td>{{.Libelle}}</td>
-  <td class="n">{{nb .RevenuAvant}}&nbsp;€/an</td>
-  <td class="n">{{nb .NiveauDeVie}}&nbsp;€/an</td>
-  <td class="n">{{nb .Personnes}}</td></tr>{{end}}</tbody>
+<tbody>{{range $r.Thresholds}}<tr><td>{{.Label}}</td>
+  <td class="n">{{nb .IncomeBefore}}&nbsp;€/an</td>
+  <td class="n">{{nb .LevelOfLife}}&nbsp;€/an</td>
+  <td class="n">{{nb .People}}</td></tr>{{end}}</tbody>
 </table></div>
 <p class="note abs">Le revenu avant redistribution (avant impôts et prestations sociales) est
 toujours supérieur au niveau de vie après redistribution, mais l'écart entre les deux ne pèse pas
 pareil selon le niveau : proportionnellement bien plus réduit par la redistribution pour la médiane
 que pour le 0,01&nbsp;% les plus aisés. Ces seuils sont un millésime unique (2021), pas une série.
 <strong>La colonne « personnes concernées » est un ordre de grandeur calculé</strong> — le
-pourcentage du groupe appliqué à la population de France métropolitaine {{$r.AnneePopulation}}
+pourcentage du groupe appliqué à la population de France métropolitaine {{$r.YearPopulation}}
 ({{nb $r.PopulationApprox}} personnes, Insee) — pas un chiffre publié directement par Filosofi, dont
 le champ exact (ménages fiscaux à revenu positif ou nul) est légèrement plus étroit.
 <a href="{{.Root}}/comprendre/repartition-richesse-donnees/">Le détail, § 1</a>.</p>
 
-<h2>La part du revenu captée par le sommet, {{$r.AnneeDebut}}–{{$r.AnneeFin}}</h2>
+<h2>La part du revenu captée par le sommet, {{$r.YearStart}}–{{$r.YearEnd}}</h2>
 <p class="q">Part de la masse des revenus déclarés par unité de consommation. Le 1&nbsp;% les plus
-aisés en captaient {{dec $r.Part1PctDebut 1}}&nbsp;% en {{$r.AnneeDebut}}, {{dec $r.Part1PctFin 1}}&nbsp;%
-en {{$r.AnneeFin}}.</p>
-{{$r.Courbe1Pct}}
+aisés en captaient {{dec $r.Share1PctStart 1}}&nbsp;% en {{$r.YearStart}}, {{dec $r.Share1PctEnd 1}}&nbsp;%
+en {{$r.YearEnd}}.</p>
+{{$r.Curve1Pct}}
 <p class="q" style="margin-top:1.4rem">Le 0,1&nbsp;% les plus aisés, à l'intérieur du précédent : de
-{{dec $r.Part01PctDebut 1}}&nbsp;% à {{dec $r.Part01PctFin 1}}&nbsp;%.</p>
-{{$r.Courbe01Pct}}
-<p class="q" style="margin-top:1.4rem">Concrètement, en {{$r.AnneeFin}}&nbsp;: il fallait un revenu avant
-redistribution supérieur à {{nb (index $r.Seuils 3).RevenuAvant}}&nbsp;€/an par unité de consommation pour
-appartenir aux 0,1&nbsp;% les plus aisés, contre {{nb (index $r.Seuils 0).RevenuAvant}}&nbsp;€/an pour la
-médiane — {{dec $r.RatioSommetMediane 0}} fois plus (seuils du § 1 ci-dessus). C'est l'ancrage en euros
+{{dec $r.Share01PctStart 1}}&nbsp;% à {{dec $r.Share01PctEnd 1}}&nbsp;%.</p>
+{{$r.Curve01Pct}}
+<p class="q" style="margin-top:1.4rem">Concrètement, en {{$r.YearEnd}}&nbsp;: il fallait un revenu avant
+redistribution supérieur à {{nb (index $r.Thresholds 3).IncomeBefore}}&nbsp;€/an par unité de consommation pour
+appartenir aux 0,1&nbsp;% les plus aisés, contre {{nb (index $r.Thresholds 0).IncomeBefore}}&nbsp;€/an pour la
+médiane — {{dec $r.RatioSummitMedian 0}} fois plus (seuils du § 1 ci-dessus). C'est l'ancrage en euros
 que les points de pourcentage seuls ne donnent pas : une part qui passe de
-{{dec $r.Part01PctDebut 1}}&nbsp;% à {{dec $r.Part01PctFin 1}}&nbsp;% se joue entre des revenus de cet
+{{dec $r.Share01PctStart 1}}&nbsp;% à {{dec $r.Share01PctEnd 1}}&nbsp;% se joue entre des revenus de cet
 ordre, pas entre des abstractions statistiques.</p>
 <p class="note abs">Une rupture de série existe en 2012-2013 (changement de source statistique,
 Filosofi remplaçant les revenus fiscaux localisés) — la source elle-même la documente, elle n'est
@@ -60,38 +60,38 @@ des ménages en comptabilité nationale, par exemple) mélangerait deux notions 
 ce que ce dossier évite systématiquement. <a href="{{.Root}}/comprendre/repartition-richesse-donnees/">Le
 détail, § 2</a>.</p>
 
-<h3>Qui capte quoi, {{$r.AnneeRepartitionRecente}}</h3>
+<h3>Qui capte quoi, {{$r.YearDistributionRecent}}</h3>
 <p class="q">Les quatre groupes ci-dessus, non recouvrants, pour la dernière année de la série — la
 largeur de chaque segment EST sa part, pour donner à voir d'un coup ce que les courbes montrent dans
 le temps :</p>
-<div class="repartition-barre" role="img" aria-label="Répartition de la population par part de revenu captée, {{$r.AnneeRepartitionRecente}}">
-  {{range $r.Repartition2021}}<i style="width:{{printf "%.2f" .PartPct}}%;background:{{.Couleur}}" title="{{.Libelle}} — {{dec .PartPct 1}} %"></i>{{end}}
+<div class="repartition-barre" role="img" aria-label="Répartition de la population par part de revenu captée, {{$r.YearDistributionRecent}}">
+  {{range $r.Distribution2021}}<i style="width:{{printf "%.2f" .SharePct}}%;background:{{.Color}}" title="{{.Label}} — {{dec .SharePct 1}} %"></i>{{end}}
 </div>
 <div class="repartition-legende">
-  {{range $r.Repartition2021}}<div><i style="background:{{.Couleur}}"></i>
-    <span><strong>{{.Libelle}}</strong> — {{dec .PartPct 1}}&nbsp;% du revenu, environ
-    {{nb .Personnes}} personnes</span></div>{{end}}
+  {{range $r.Distribution2021}}<div><i style="background:{{.Color}}"></i>
+    <span><strong>{{.Label}}</strong> — {{dec .SharePct 1}}&nbsp;% du revenu, environ
+    {{nb .People}} personnes</span></div>{{end}}
 </div>
 <p class="note abs">Le 100&nbsp;% de ce diagramme, c'est la masse des revenus déclarés par unité de
 consommation de l'ensemble de la population (France métropolitaine, ménages fiscaux à revenu positif
 ou nul) — une masse réelle, mais dont l'Insee ne publie le <strong>montant total en euros</strong>
 nulle part dans cette fiche (§ 2 du détail explique pourquoi ce dossier ne le reconstitue pas depuis
 un autre agrégat). Les effectifs, eux, sont un ordre de grandeur calculé à partir de la population de
-France métropolitaine {{$r.AnneePopulation}}, comme au § 1 — pas un chiffre publié directement par la
+France métropolitaine {{$r.YearPopulation}}, comme au § 1 — pas un chiffre publié directement par la
 source. <strong>Le 0,01&nbsp;% n'apparaît pas comme cinquième segment</strong> : la même fiche qui
 publie ces quatre parts année par année s'arrête au 0,1&nbsp;%, sans le sous-diviser — seul son
-<em>seuil</em> d'entrée ({{nb (index $r.Seuils 4).RevenuAvant}}&nbsp;€/an par UC en 2021), pas sa part du
+<em>seuil</em> d'entrée ({{nb (index $r.Thresholds 4).IncomeBefore}}&nbsp;€/an par UC en 2021), pas sa part du
 revenu, est connu et déjà montré au § 1 ci-dessus.</p>
 
-<h2>Le patrimoine des plus hauts patrimoines, {{$r.AnneePatrimoine}}</h2>
+<h2>Le patrimoine des plus hauts patrimoines, {{$r.YearWealth}}</h2>
 <p class="q">Patrimoine brut (avant déduction des emprunts), France hors Mayotte. Une notion
 distincte du revenu ci-dessus, jamais additionnée.</p>
 <div class="scroll"><table class="donnees">
 <thead><tr><th>Tranche</th><th class="n">Seuil bas 2021</th><th class="n">Patrimoine moyen 2021</th><th class="n">Part de la masse (2021)</th></tr></thead>
-<tbody>{{range $r.Patrimoines}}<tr><td>{{.Libelle}}</td>
-  <td class="n">{{nb .Seuil2021}}&nbsp;€</td>
-  <td class="n">{{nb .Moyen2021}}&nbsp;€</td>
-  <td class="n">{{dec .PartMasse2021 0}}&nbsp;%</td></tr>{{end}}</tbody>
+<tbody>{{range $r.Wealth}}<tr><td>{{.Label}}</td>
+  <td class="n">{{nb .Threshold2021}}&nbsp;€</td>
+  <td class="n">{{nb .Average2021}}&nbsp;€</td>
+  <td class="n">{{dec .ShareMass2021 0}}&nbsp;%</td></tr>{{end}}</tbody>
 </table></div>
 <p class="note abs">La tranche la plus fine ci-dessus (au-delà du 99ᵉ centile) reste très en-deçà du
 sommet absolu du patrimoine : selon une estimation de l'économiste Gabriel Zucman, promoteur d'un
@@ -102,13 +102,13 @@ débat, pas une statistique officielle Insee ou DGFiP</strong> — il n'est pas 
 vérifiée dans ce dossier, seulement cité avec son origine précise, pour situer l'ordre de grandeur.</p>
 <p class="q">Les trois tranches ci-dessus (10&nbsp;% des ménages) détiennent à elles seules près de la
 moitié de la masse de patrimoine brut de l'ensemble des ménages :</p>
-{{$autres := sub64 100 $r.Part10PctPatrimoine}}
+{{$autres := sub64 100 $r.Share10PctWealth}}
 <div class="repartition-barre" role="img" aria-label="Part du patrimoine brut détenue par les 10 % les mieux dotés contre les 90 % restants, 2021">
-  <i style="width:{{printf "%.1f" $r.Part10PctPatrimoine}}%;background:#8C4B3A" title="Les 10 % les mieux dotés — {{dec $r.Part10PctPatrimoine 1}} %"></i>
+  <i style="width:{{printf "%.1f" $r.Share10PctWealth}}%;background:#8C4B3A" title="Les 10 % les mieux dotés — {{dec $r.Share10PctWealth 1}} %"></i>
   <i style="width:{{printf "%.1f" $autres}}%;background:#DCE9EC" title="Les 90 % restants"></i>
 </div>
 <div class="repartition-legende">
-  <div><i style="background:#8C4B3A"></i><span><strong>Les 10&nbsp;% de ménages les mieux dotés</strong> — {{dec $r.Part10PctPatrimoine 1}}&nbsp;% du patrimoine brut total</span></div>
+  <div><i style="background:#8C4B3A"></i><span><strong>Les 10&nbsp;% de ménages les mieux dotés</strong> — {{dec $r.Share10PctWealth 1}}&nbsp;% du patrimoine brut total</span></div>
   <div><i style="background:#DCE9EC"></i><span><strong>Les 90&nbsp;% restants</strong> — {{dec $autres 1}}&nbsp;% du patrimoine brut total</span></div>
 </div>
 <p class="note abs">Comparaison 2015-2021 et composition du patrimoine (financier, immobilier,
@@ -118,12 +118,12 @@ professionnel) : <a href="{{.Root}}/comprendre/repartition-richesse-donnees/">le
 <p class="q">Part des ménages ayant hérité, ou reçu une donation, au moins une fois au cours de leur
 vie (Insee, enquête Histoire de vie et Patrimoine 2020-2021) :</p>
 <div class="cartes trois">
-  <div class="carte"><span class="v">{{dec $r.HeriteHaut 0}}&nbsp;%</span>
+  <div class="carte"><span class="v">{{dec $r.InheritedTop 0}}&nbsp;%</span>
     <span class="t">des ménages à haut patrimoine et haut niveau de vie ont hérité</span>
-    <span class="d">Contre {{dec $r.HeriteEnsemble 0}}&nbsp;% de l'ensemble des ménages.</span></div>
-  <div class="carte"><span class="v">{{dec $r.DonationHaut 0}}&nbsp;%</span>
+    <span class="d">Contre {{dec $r.InheritedOverall 0}}&nbsp;% de l'ensemble des ménages.</span></div>
+  <div class="carte"><span class="v">{{dec $r.DonationTop 0}}&nbsp;%</span>
     <span class="t">ont reçu une donation</span>
-    <span class="d">Contre {{dec $r.DonationEnsemble 0}}&nbsp;% de l'ensemble des ménages.</span></div>
+    <span class="d">Contre {{dec $r.DonationOverall 0}}&nbsp;% de l'ensemble des ménages.</span></div>
 </div>
 <p class="note abs">Cette mesure compte les ménages concernés, pas la part de leur richesse qui
 provient de l'héritage — une question différente, sur laquelle ce dossier n'a pas trouvé de mesure
@@ -132,11 +132,11 @@ détail, § 4</a>.</p>
 
 <h2>Patrimoine contre revenu : deux concentrations très différentes</h2>
 <p class="q">Le patrimoine et le niveau de vie, mesurés par le même indicateur (indice de Gini, 0 =
-égalité parfaite, 1 = concentration totale) sur la même population, {{$r.AnneePatrimoine}} :</p>
+égalité parfaite, 1 = concentration totale) sur la même population, {{$r.YearWealth}} :</p>
 <div class="cartes trois">
-  <div class="carte"><span class="v">{{dec $r.GiniPatrimoine 3}}</span>
+  <div class="carte"><span class="v">{{dec $r.GiniWealth 3}}</span>
     <span class="t">Indice de Gini du patrimoine brut</span></div>
-  <div class="carte"><span class="v">{{dec $r.GiniNiveauVie 3}}</span>
+  <div class="carte"><span class="v">{{dec $r.GiniLevelLife 3}}</span>
     <span class="t">Indice de Gini du niveau de vie</span></div>
 </div>
 <p class="q">La courbe de Lorenz est la façon la plus reconnue de montrer une concentration :
@@ -150,8 +150,8 @@ bien davantage que celle du niveau de vie :</p>
 <div class="scroll"><table class="donnees">
 <thead><tr><th>Position dans la distribution</th><th class="n">Masse de patrimoine détenue</th><th class="n">Masse de niveau de vie détenue</th></tr></thead>
 <tbody>{{range $r.Concentrations}}<tr><td>{{.Position}}</td>
-  <td class="n">{{dec .MassePatrimoine 1}}&nbsp;%</td>
-  <td class="n">{{dec .MasseNiveauVie 1}}&nbsp;%</td></tr>{{end}}</tbody>
+  <td class="n">{{dec .MassWealth 1}}&nbsp;%</td>
+  <td class="n">{{dec .MassLevelLife 1}}&nbsp;%</td></tr>{{end}}</tbody>
 </table></div>
 <p class="note abs">Les ménages classés par patrimoine et ceux classés par niveau de vie ne sont pas
 nécessairement les mêmes ménages : les deux distributions sont mesurées séparément, pas croisées.

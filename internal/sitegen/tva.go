@@ -17,7 +17,7 @@ import (
 // retombe exactement sur la TVA payée par le consommateur final, quel que
 // soit le nombre d'intermédiaires — la preuve chiffrée que seule la valeur
 // ajoutée est taxée.
-func schemaTVAEntreprises() template.HTML {
+func schemaVatCompanies() template.HTML {
 	var b strings.Builder
 	w := func(format string, a ...any) { fmt.Fprintf(&b, format, a...) }
 
@@ -30,24 +30,24 @@ func schemaTVAEntreprises() template.HTML {
 	w(`<defs><marker id="flt" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">` +
 		`<path d="M0 0L10 5L0 10z" class="pointe"/></marker></defs>`)
 
-	boite := func(x, y, wd, h float64, cl, titre, sous string) {
+	box := func(x, y, wd, h float64, cl, title, sub string) {
 		w(`<rect class="noeud %s" x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="8"/>`, cl, x, y, wd, h)
-		w(`<text class="nt" x="%.0f" y="%.0f" text-anchor="middle">%s</text>`, x+wd/2, y+h/2-4, template.HTMLEscapeString(titre))
-		w(`<text class="ns" x="%.0f" y="%.0f" text-anchor="middle">%s</text>`, x+wd/2, y+h/2+13, template.HTMLEscapeString(sous))
+		w(`<text class="nt" x="%.0f" y="%.0f" text-anchor="middle">%s</text>`, x+wd/2, y+h/2-4, template.HTMLEscapeString(title))
+		w(`<text class="ns" x="%.0f" y="%.0f" text-anchor="middle">%s</text>`, x+wd/2, y+h/2+13, template.HTMLEscapeString(sub))
 	}
-	fleche := func(d, cl string) { w(`<path class="flux %s" d="%s" marker-end="url(#flt)"/>`, cl, d) }
-	etiq := func(x, y float64, anchor, txt string) {
+	arrow := func(d, cl string) { w(`<path class="flux %s" d="%s" marker-end="url(#flt)"/>`, cl, d) }
+	label := func(x, y float64, anchor, txt string) {
 		w(`<text class="et" x="%.0f" y="%.0f" text-anchor="%s">%s</text>`, x, y, anchor, template.HTMLEscapeString(txt))
 	}
-	etiqFort := func(x, y float64, anchor, txt string) {
+	labelStrong := func(x, y float64, anchor, txt string) {
 		w(`<text class="et fort" x="%.0f" y="%.0f" text-anchor="%s">%s</text>`, x, y, anchor, template.HTMLEscapeString(txt))
 	}
 
-	type etage struct {
-		nom, sousNom          string
-		collectee, deductible float64
+	type tier struct {
+		name, subName         string
+		collected, deductible float64
 	}
-	etages := []etage{
+	tiers := []tier{
 		{"Agriculteur", "vend 100 € HT", 20, 0},
 		{"Transformateur", "vend 250 € HT", 50, 20},
 		{"Distributeur", "vend 400 € HT", 80, 50},
@@ -61,39 +61,39 @@ func schemaTVAEntreprises() template.HTML {
 	xs := []float64{20, 20 + boxW + gap, 20 + 2*(boxW+gap), 20 + 3*(boxW+gap)}
 
 	// Les trois entreprises, puis le consommateur final.
-	for i, e := range etages {
-		boite(xs[i], boxY, boxW, boxH, "", e.nom, e.sousNom)
+	for i, e := range tiers {
+		box(xs[i], boxY, boxW, boxH, "", e.name, e.subName)
 	}
-	boite(xs[3], boxY, boxW, boxH, "secu", "Consommateur final", "paie 480 € TTC")
+	box(xs[3], boxY, boxW, boxH, "secu", "Consommateur final", "paie 480 € TTC")
 
 	// Flèches de vente entre étages, avec le prix HT au-dessus.
 	for i := 0; i < 3; i++ {
 		x1, x2 := xs[i]+boxW, xs[i+1]
 		y := boxY + boxH/2
-		fleche(fmt.Sprintf("M%.0f,%.0f L%.0f,%.0f", x1, y, x2, y), "verse")
+		arrow(fmt.Sprintf("M%.0f,%.0f L%.0f,%.0f", x1, y, x2, y), "verse")
 	}
-	etiq(xs[0]+boxW+gap/2, boxY+boxH/2-8, "middle", "100 € HT")
-	etiq(xs[1]+boxW+gap/2, boxY+boxH/2-8, "middle", "250 € HT")
-	etiqFort(xs[2]+boxW+gap/2, boxY+boxH/2-8, "middle", "400 € HT")
+	label(xs[0]+boxW+gap/2, boxY+boxH/2-8, "middle", "100 € HT")
+	label(xs[1]+boxW+gap/2, boxY+boxH/2-8, "middle", "250 € HT")
+	labelStrong(xs[2]+boxW+gap/2, boxY+boxH/2-8, "middle", "400 € HT")
 
 	// Une flèche verticale par entreprise vers l'État, avec le détail
 	// collectée / déductible / nette.
-	etatY := 380.0
-	for i, e := range etages {
+	stateY := 380.0
+	for i, e := range tiers {
 		xc := xs[i] + boxW/2
-		fleche(fmt.Sprintf("M%.0f,%.0f L%.0f,%.0f", xc, boxY+boxH, xc, etatY), "exo")
+		arrow(fmt.Sprintf("M%.0f,%.0f L%.0f,%.0f", xc, boxY+boxH, xc, stateY), "exo")
 		yLabel := boxY + boxH + 30
-		etiq(xc, yLabel, "middle", fmt.Sprintf("TVA collectée : %s €", Nombre(int64(e.collectee))))
+		label(xc, yLabel, "middle", fmt.Sprintf("TVA collectée : %s €", Count(int64(e.collected))))
 		if e.deductible > 0 {
-			etiq(xc, yLabel+15, "middle", fmt.Sprintf("− déductible : %s €", Nombre(int64(e.deductible))))
+			label(xc, yLabel+15, "middle", fmt.Sprintf("− déductible : %s €", Count(int64(e.deductible))))
 		} else {
-			etiq(xc, yLabel+15, "middle", "− déductible : 0 €")
+			label(xc, yLabel+15, "middle", "− déductible : 0 €")
 		}
-		etiqFort(xc, yLabel+32, "middle", fmt.Sprintf("= nette versée : %s €", Nombre(int64(e.collectee-e.deductible))))
+		labelStrong(xc, yLabel+32, "middle", fmt.Sprintf("= nette versée : %s €", Count(int64(e.collected-e.deductible))))
 	}
 
-	boite(xs[1]-gap/2, etatY, boxW+gap+boxW, 60, "etat", "État", "20 € + 30 € + 30 € = 80 € reçus")
-	etiqFort((xs[1]-gap/2+xs[2]+boxW+gap/2)/2, etatY+82, "middle",
+	box(xs[1]-gap/2, stateY, boxW+gap+boxW, 60, "etat", "État", "20 € + 30 € + 30 € = 80 € reçus")
+	labelStrong((xs[1]-gap/2+xs[2]+boxW+gap/2)/2, stateY+82, "middle",
 		"Exactement les 80 € de TVA payés par le consommateur final")
 
 	w(`</svg>`)

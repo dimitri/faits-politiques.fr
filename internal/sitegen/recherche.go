@@ -18,30 +18,30 @@ import (
 // de scrutins ne sont PAS indexés — 4,5 Mo de texte brut, dont le découpage et
 // le classement demandent une décision qui n'est pas prise. L'absence est
 // affichée dans le panneau de recherche, avec son code.
-type Entree struct {
+type Entry struct {
 	N string `json:"n"`           // nom affiché
 	S string `json:"s,omitempty"` // complément, entre aussi dans la recherche
 	T string `json:"t"`           // nature, affichée à droite
 	U string `json:"u"`           // chemin RELATIF à la racine du site
 }
 
-func ecrireIndex(out string, persons map[string]*Person, candidats []*Candidat,
-	orgs map[string]*Organisation, groupes map[string]*Groupe,
-	refs map[string]*Referentiel, themes []*Theme, docs []*Doc,
-	senateurs map[string]bool) error {
+func writeIndex(out string, persons map[string]*Person, candidates []*Candidate,
+	orgs map[string]*Organization, groups map[string]*Group,
+	refs map[string]*Reference, themes []*Theme, docs []*Doc,
+	senators map[string]bool) error {
 
-	var idx []Entree
-	vus := map[string]bool{}
-	add := func(e Entree) {
-		if e.N == "" || vus[e.U] {
+	var idx []Entry
+	seen := map[string]bool{}
+	add := func(e Entry) {
+		if e.N == "" || seen[e.U] {
 			return
 		}
-		vus[e.U] = true
+		seen[e.U] = true
 		idx = append(idx, e)
 	}
 
-	for _, c := range candidats {
-		add(Entree{N: c.Prenom + " " + c.Nom, S: c.Organisation,
+	for _, c := range candidates {
+		add(Entry{N: c.FirstName + " " + c.Name, S: c.Organization,
 			T: "Candidat 2027", U: "candidat/" + c.Slug + "/"})
 	}
 	for _, p := range persons {
@@ -51,28 +51,28 @@ func ecrireIndex(out string, persons map[string]*Person, candidats []*Candidat,
 		// affirmation fausse sur 971 d'entre elles.
 		nature := "Personne"
 		switch {
-		case strings.HasPrefix(p.Mandat, "depute"):
+		case strings.HasPrefix(p.Term, "depute"):
 			nature = "Député"
-		case senateurs[p.Slug]:
+		case senators[p.Slug]:
 			nature = "Sénateur"
 		}
-		add(Entree{N: p.Prenom + " " + p.Nom, S: p.Groupe,
+		add(Entry{N: p.FirstName + " " + p.Name, S: p.Group,
 			T: nature, U: "depute/" + p.Slug + "/"})
 	}
 	for _, o := range orgs {
-		add(Entree{N: o.Libelle, T: "Parti", U: "organisation/" + o.Slug + "/"})
+		add(Entry{N: o.Label, T: "Parti", U: "organisation/" + o.Slug + "/"})
 	}
-	for _, g := range groupes {
-		add(Entree{N: g.Nom, S: g.NomCourt, T: "Groupe", U: "groupe/" + g.Slug + "/"})
+	for _, g := range groups {
+		add(Entry{N: g.Name, S: g.NameShort, T: "Groupe", U: "groupe/" + g.Slug + "/"})
 	}
 	for _, r := range refs {
-		add(Entree{N: r.Titre, T: "Référentiel", U: "referentiel/" + r.Slug + "/"})
+		add(Entry{N: r.Title, T: "Référentiel", U: "referentiel/" + r.Slug + "/"})
 	}
 	for _, t := range themes {
-		add(Entree{N: t.Label, T: "Thème", U: "theme/" + t.Slug + "/"})
+		add(Entry{N: t.Label, T: "Thème", U: "theme/" + t.Slug + "/"})
 	}
 	for _, d := range docs {
-		add(Entree{N: d.Titre, S: d.Fichier, T: "Méthode", U: "comprendre/" + d.Slug + "/"})
+		add(Entry{N: d.Title, S: d.File, T: "Méthode", U: "comprendre/" + d.Slug + "/"})
 	}
 
 	b, err := json.Marshal(idx)

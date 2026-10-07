@@ -7,41 +7,41 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type MembreGroupe struct {
-	Slug, Nom, Groupe                  string
-	Pour, Contre, Abstention, Exprimes int
-	Loyaute                            int // % de votes conformes à la position majoritaire du groupe
+type MemberGroup struct {
+	Slug, Name, Group                   string
+	For, Against, Abstention, Expressed int
+	Loyalty                             int // % de votes conformes à la position majoritaire du groupe
 }
 
-type ScrutinGroupe struct {
-	Slug, Objet, Date, Position string
-	Pour, Contre, Abstention    int
+type ElectionGroup struct {
+	Slug, Object, Date, Position string
+	For, Against, Abstention     int
 }
 
-type Groupe struct {
-	Slug, Nom, NomCourt, ANOrganeUID, Periode string
-	Membres                                   []MembreGroupe
-	Scrutins                                  []ScrutinGroupe
-	Effectif                                  int
-	MajPour, MajContre, MajAbst               int
-	Partis                                    []*Organisation
-	PartisDeclares                            []PartiDeclare
-	Coalitions                                []*Coalition
-	Pour, Contre, Abstention, Exprimes        int
-	ScrutinsCouverts                          int
-	Cohesion                                  int
+type Group struct {
+	Slug, Name, NameShort, ANBodyUID, Period   string
+	Members                                    []MemberGroup
+	Elections                                  []ElectionGroup
+	Headcount                                  int
+	MajorityFor, MajorityAgainst, MajorityAbst int
+	Parties                                    []*Organization
+	PartiesDeclared                            []PartyDeclared
+	Coalitions                                 []*Coalition
+	For, Against, Abstention, Expressed        int
+	ElectionsCovered                           int
+	Cohesion                                   int
 }
 
-// loadGroupes charge les groupes parlementaires et leurs positions agrégées.
+// loadGroups charge les groupes parlementaires et leurs positions agrégées.
 //
 // Tout est calculé à partir des VOTES INDIVIDUELS transcrits du relevé : la
 // position d'un groupe n'est jamais une consigne, c'est la somme de ce que ses
 // membres ont voté. La cohésion est la part des votes conformes à la position
 // majoritaire du groupe ce jour-là — elle mesure une régularité observée, pas
 // une discipline supposée.
-func loadGroupes(ctx context.Context, pool *pgxpool.Pool) (map[string]*Groupe, error) {
-	out := map[string]*Groupe{}
-	byID := map[int64]*Groupe{}
+func loadGroups(ctx context.Context, pool *pgxpool.Pool) (map[string]*Group, error) {
+	out := map[string]*Group{}
+	byID := map[int64]*Group{}
 
 	rows, err := pool.Query(ctx, `
 		SELECT o.id, o.slug, o.name, coalesce(o.short_name,''), i.value,
@@ -55,14 +55,14 @@ func loadGroupes(ctx context.Context, pool *pgxpool.Pool) (map[string]*Groupe, e
 		return nil, err
 	}
 	for rows.Next() {
-		g := &Groupe{}
+		g := &Group{}
 		var id int64
-		var debut, fin string
-		if err := rows.Scan(&id, &g.Slug, &g.Nom, &g.NomCourt, &g.ANOrganeUID, &debut, &fin); err != nil {
+		var start, end string
+		if err := rows.Scan(&id, &g.Slug, &g.Name, &g.NameShort, &g.ANBodyUID, &start, &end); err != nil {
 			return nil, err
 		}
-		g.Periode = periode(debut, fin)
-		out[g.ANOrganeUID] = g
+		g.Period = period(start, end)
+		out[g.ANBodyUID] = g
 		byID[id] = g
 	}
 	rows.Close()
@@ -90,9 +90,9 @@ func loadGroupes(ctx context.Context, pool *pgxpool.Pool) (map[string]*Groupe, e
 		}
 		switch pos {
 		case "FOR":
-			g.Pour = n
+			g.For = n
 		case "AGAINST":
-			g.Contre = n
+			g.Against = n
 		case "ABSTAIN":
 			g.Abstention = n
 		}
@@ -100,25 +100,25 @@ func loadGroupes(ctx context.Context, pool *pgxpool.Pool) (map[string]*Groupe, e
 	rows.Close()
 
 	for _, g := range out {
-		g.Exprimes = g.Pour + g.Contre + g.Abstention
+		g.Expressed = g.For + g.Against + g.Abstention
 	}
 
-	if err := loadMembres(ctx, pool, byID); err != nil {
+	if err := loadMembers(ctx, pool, byID); err != nil {
 		return nil, err
 	}
-	if err := loadScrutinsGroupe(ctx, pool, byID); err != nil {
+	if err := loadElectionsGroup(ctx, pool, byID); err != nil {
 		return nil, err
 	}
-	if err := loadPartisDeclares(ctx, pool, byID); err != nil {
+	if err := loadPartiesDeclared(ctx, pool, byID); err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// loadMembres lit mv.scrutin_vote_nominal (internal/matview) — plus le JOIN
+// loadMembers lit mv.scrutin_vote_nominal (internal/matview) — plus le JOIN
 // ballot/person et le GROUP BY sur la totalité de core.ballot que cette
 // fonction refaisait à chaque construction.
-func loadMembres(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe) error {
+func loadMembers(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Group) error {
 	rows, err := pool.Query(ctx, `
 		SELECT organization_id, person_slug, person_given_name, person_family_name,
 		       count(*) FILTER (WHERE position = 'FOR'),
@@ -134,29 +134,29 @@ func loadMembres(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe
 	defer rows.Close()
 	for rows.Next() {
 		var id int64
-		var m MembreGroupe
+		var m MemberGroup
 		var givenName, familyName string
-		if err := rows.Scan(&id, &m.Slug, &givenName, &familyName, &m.Pour, &m.Contre, &m.Abstention); err != nil {
+		if err := rows.Scan(&id, &m.Slug, &givenName, &familyName, &m.For, &m.Against, &m.Abstention); err != nil {
 			return err
 		}
-		m.Nom = givenName + " " + familyName
+		m.Name = givenName + " " + familyName
 		g, ok := byID[id]
 		if !ok {
 			continue
 		}
-		m.Exprimes = m.Pour + m.Contre + m.Abstention
-		g.Membres = append(g.Membres, m)
-		g.Effectif++
+		m.Expressed = m.For + m.Against + m.Abstention
+		g.Members = append(g.Members, m)
+		g.Headcount++
 	}
 	return rows.Err()
 }
 
-// loadScrutinsGroupe lit mv.scrutin_groupe_vote (internal/matview), pivotée
+// loadElectionsGroup lit mv.scrutin_groupe_vote (internal/matview), pivotée
 // par position — plus le GROUP BY sur la totalité de core.ballot que cette
 // fonction refaisait à chaque construction ; le JOIN sur core.scrutin reste
 // applicatif, mais porte sur une table de quelques dizaines de milliers de
 // lignes, pas sur le fait 4,9 millions de lignes.
-func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe) error {
+func loadElectionsGroup(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Group) error {
 	rows, err := pool.Query(ctx, `
 		SELECT x.organization_id, s.slug, s.objet, to_char(s.date_seance,'DD/MM/YYYY'),
 		       x.pour, x.contre, x.abst
@@ -179,12 +179,12 @@ func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]
 	}
 	defer rows.Close()
 
-	conformes := map[int64]int{}
+	compliant := map[int64]int{}
 	total := map[int64]int{}
 	for rows.Next() {
 		var id int64
-		var sg ScrutinGroupe
-		if err := rows.Scan(&id, &sg.Slug, &sg.Objet, &sg.Date, &sg.Pour, &sg.Contre, &sg.Abstention); err != nil {
+		var sg ElectionGroup
+		if err := rows.Scan(&id, &sg.Slug, &sg.Object, &sg.Date, &sg.For, &sg.Against, &sg.Abstention); err != nil {
 			return err
 		}
 		g, ok := byID[id]
@@ -192,43 +192,43 @@ func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]
 			continue
 		}
 		// Position majoritaire du groupe sur ce scrutin, absents exclus.
-		maj, n := "FOR", sg.Pour
-		if sg.Contre > n {
-			maj, n = "AGAINST", sg.Contre
+		majority, n := "FOR", sg.For
+		if sg.Against > n {
+			majority, n = "AGAINST", sg.Against
 		}
 		if sg.Abstention > n {
-			maj, n = "ABSTAIN", sg.Abstention
+			majority, n = "ABSTAIN", sg.Abstention
 		}
-		sg.Position = positionFr[maj]
+		sg.Position = positionFr[majority]
 		// Ce qui caractérise un groupe n'est pas le cumul de ses votes — qui
 		// mesure surtout sa taille — mais la répartition de ses positions
 		// MAJORITAIRES scrutin par scrutin.
-		switch maj {
+		switch majority {
 		case "FOR":
-			g.MajPour++
+			g.MajorityFor++
 		case "AGAINST":
-			g.MajContre++
+			g.MajorityAgainst++
 		case "ABSTAIN":
-			g.MajAbst++
+			g.MajorityAbst++
 		}
-		exprimes := sg.Pour + sg.Contre + sg.Abstention
-		if exprimes > 0 {
-			conformes[id] += n
-			total[id] += exprimes
-			g.ScrutinsCouverts++
-			if len(g.Scrutins) < 40 {
-				sg.Objet, _ = TitreCourt(sg.Objet)
-				g.Scrutins = append(g.Scrutins, sg)
+		expressed := sg.For + sg.Against + sg.Abstention
+		if expressed > 0 {
+			compliant[id] += n
+			total[id] += expressed
+			g.ElectionsCovered++
+			if len(g.Elections) < 40 {
+				sg.Object, _ = TitleShort(sg.Object)
+				g.Elections = append(g.Elections, sg)
 			}
 		}
 	}
 	for id, g := range byID {
 		if total[id] > 0 {
-			g.Cohesion = conformes[id] * 100 / total[id]
+			g.Cohesion = compliant[id] * 100 / total[id]
 		}
-		for i := range g.Membres {
-			if g.Membres[i].Exprimes > 0 {
-				g.Membres[i].Groupe = g.NomCourt
+		for i := range g.Members {
+			if g.Members[i].Expressed > 0 {
+				g.Members[i].Group = g.NameShort
 			}
 		}
 	}
@@ -237,13 +237,13 @@ func loadScrutinsGroupe(ctx context.Context, pool *pgxpool.Pool, byID map[int64]
 
 var _ = fmt.Sprint
 
-type PartiDeclare struct {
-	Nom     string
-	Deputes int
-	Periode string
+type PartyDeclared struct {
+	Name     string
+	Deputies int
+	Period   string
 }
 
-// loadPartisDeclares établit la composition OBSERVÉE d'un groupe à partir des
+// loadPartiesDeclared établit la composition OBSERVÉE d'un groupe à partir des
 // mandats de parti que la source publie pour ses membres.
 //
 // Limite majeure, affichée sur la page : l'Assemblée n'a publié aucune
@@ -253,12 +253,12 @@ type PartiDeclare struct {
 // PRÉCÉDENTE par des députés qui siègent aujourd'hui dans ce groupe. C'est une
 // indication, pas la composition actuelle, et le dire est la seule façon de ne
 // pas induire en erreur.
-// loadPartisDeclares part de la liste (organisation, personne) de mv.
+// loadPartiesDeclared part de la liste (organisation, personne) de mv.
 // scrutin_vote_nominal, DISTINCT — plus le JOIN sur la totalité de
 // core.ballot que cette fonction refaisait à chaque construction pour
 // obtenir seulement cette liste d'appartenances, avant de la croiser avec
 // core.affiliation (une table de quelques milliers de lignes).
-func loadPartisDeclares(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Groupe) error {
+func loadPartiesDeclared(ctx context.Context, pool *pgxpool.Pool, byID map[int64]*Group) error {
 	rows, err := pool.Query(ctx, `
 		SELECT g.organization_id, o.name, count(DISTINCT a.person_id),
 		       min(lower(a.validity))::text, max(coalesce(upper(a.validity)::text,''))
@@ -276,18 +276,18 @@ func loadPartisDeclares(ctx context.Context, pool *pgxpool.Pool, byID map[int64]
 	defer rows.Close()
 	for rows.Next() {
 		var id int64
-		var p PartiDeclare
-		var debut, fin string
-		if err := rows.Scan(&id, &p.Nom, &p.Deputes, &debut, &fin); err != nil {
+		var p PartyDeclared
+		var start, end string
+		if err := rows.Scan(&id, &p.Name, &p.Deputies, &start, &end); err != nil {
 			return err
 		}
 		g, ok := byID[id]
-		if !ok || p.Deputes < 2 {
+		if !ok || p.Deputies < 2 {
 			continue // un député isolé ne caractérise pas un groupe
 		}
-		p.Periode = periode(debut, fin)
-		if len(g.PartisDeclares) < 10 {
-			g.PartisDeclares = append(g.PartisDeclares, p)
+		p.Period = period(start, end)
+		if len(g.PartiesDeclared) < 10 {
+			g.PartiesDeclared = append(g.PartiesDeclared, p)
 		}
 	}
 	return rows.Err()

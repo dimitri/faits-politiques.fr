@@ -15,22 +15,22 @@ import (
 // numérique ne varie d'un bassin à l'autre ici, seule l'identité du bassin
 // est encodée par une couleur catégorielle. Voir
 // docs/bassins-versants-donnees.md § 3.
-const tolBassins = 0.015 // ≈ 1,5 km — sept polygones simples, pleine page
+const toleranceBasins = 0.015 // ≈ 1,5 km — sept polygones simples, pleine page
 
-var couleursBassins = []string{
+var colorsBasins = []string{
 	"#0D3B43", "#8C4B3A", "#1E5C69", "#B0763A", "#4A8894", "#5C2E1F", "#7FB0BA",
 }
 
-type Bassin struct {
-	Code, Nom, Couleur string
+type Basin struct {
+	Code, Name, Color string
 }
 
-type CarteBassins struct {
-	SVG     template.HTML
-	Bassins []Bassin
+type MapBasins struct {
+	SVG    template.HTML
+	Basins []Basin
 }
 
-func chargerCarteBassins(ctx context.Context, pool *pgxpool.Pool) (*CarteBassins, error) {
+func loadMapBasins(ctx context.Context, pool *pgxpool.Pool) (*MapBasins, error) {
 	// Filtré à la métropole : les deux bassins d'outre-mer (Martinique,
 	// Mayotte, § 3) ne sont ni adjacents à la métropole ni valides en
 	// Lambert-93 — un st_extent qui les inclurait ferait exploser le
@@ -50,39 +50,39 @@ func chargerCarteBassins(ctx context.Context, pool *pgxpool.Pool) (*CarteBassins
 
 	rows, err := pool.Query(ctx, `
 		SELECT code, nom, st_assvg(st_transform(st_simplifypreservetopology(geom,$1),2154),1,0)
-		FROM geo.contour_bassin WHERE territoire = 'metropole' ORDER BY code`, tolBassins)
+		FROM geo.contour_bassin WHERE territoire = 'metropole' ORDER BY code`, toleranceBasins)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	ct := &CarteBassins{}
+	ct := &MapBasins{}
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo bassins" role="img" `+
 		`aria-label="Les sept bassins hydrographiques de France métropolitaine">`, vb)
 	i := 0
 	for rows.Next() {
-		var code, nom, d string
-		if err := rows.Scan(&code, &nom, &d); err != nil {
+		var code, name, d string
+		if err := rows.Scan(&code, &name, &d); err != nil {
 			return nil, err
 		}
-		coul := couleursBassins[i%len(couleursBassins)]
+		coul := colorsBasins[i%len(colorsBasins)]
 		fmt.Fprintf(&b, `<path d="%s" fill="%s"><title>%s</title></path>`,
-			d, coul, template.HTMLEscapeString(nom))
-		ct.Bassins = append(ct.Bassins, Bassin{Code: code, Nom: nom, Couleur: coul})
+			d, coul, template.HTMLEscapeString(name))
+		ct.Basins = append(ct.Basins, Basin{Code: code, Name: name, Color: coul})
 		i++
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if len(ct.Bassins) == 0 {
+	if len(ct.Basins) == 0 {
 		return nil, nil // table absente ou vide : le schéma est simplement omis
 	}
-	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	rivers, err := riversSVG(ctx, pool, 2154, 1, 0)
 	if err != nil {
 		return nil, err
 	}
-	b.WriteString(fleuves)
+	b.WriteString(rivers)
 	b.WriteString(`</svg>`)
 	ct.SVG = template.HTML(b.String())
 	return ct, nil
@@ -96,26 +96,26 @@ func chargerCarteBassins(ctx context.Context, pool *pgxpool.Pool) (*CarteBassins
 // trouvées dans BANATIC, une fraction seulement affichée ici), voir
 // docs/bassins-versants-donnees.md § 1.2.
 const (
-	tolEPTBEPAGE             = tolPleine
-	seuilResolutionEPTBEPAGE = 0.8
+	toleranceEPTBEPAGE           = toleranceFull
+	thresholdResolutionEPTBEPAGE = 0.8
 )
 
-var couleursTypeEPTBEPAGE = map[string]string{
+var colorsTypeEPTBEPAGE = map[string]string{
 	"EPTB": "#1E5C69", "EPAGE": "#B0763A", "EPTB_EPAGE": "#7A3B8C",
 }
 
-type CarteEPTBEPAGE struct {
-	SVG                       template.HTML
-	NbAffiches, NbTrouves     int
-	NbEPTB, NbEPAGE, NbDouble int
+type MapEPTBEPAGE struct {
+	SVG                                template.HTML
+	CountDisplayed, CountFound         int
+	CountEPTB, CountEPAGE, CountDouble int
 }
 
-func chargerCarteEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool) (*CarteEPTBEPAGE, error) {
-	var nbTrouves int
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM core.eptb_epage`).Scan(&nbTrouves); err != nil {
+func loadMapEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool) (*MapEPTBEPAGE, error) {
+	var countFound int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM core.eptb_epage`).Scan(&countFound); err != nil {
 		return nil, err
 	}
-	if nbTrouves == 0 {
+	if countFound == 0 {
 		return nil, nil // table absente ou vide : le schéma est simplement omis
 	}
 
@@ -137,7 +137,7 @@ func chargerCarteEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool) (*CarteEPTBE
 
 	depRows, err := pool.Query(ctx, `
 		SELECT st_assvg(st_transform(st_simplifypreservetopology(geom,$1),2154),1,0)
-		FROM geo.contour WHERE niveau='DEPARTEMENT' AND srid_rendu=2154`, tolEPTBEPAGE)
+		FROM geo.contour WHERE niveau='DEPARTEMENT' AND srid_rendu=2154`, toleranceEPTBEPAGE)
 	if err != nil {
 		return nil, err
 	}
@@ -154,50 +154,50 @@ func chargerCarteEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool) (*CarteEPTBE
 		return nil, err
 	}
 	depRows.Close()
-	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	rivers, err := riversSVG(ctx, pool, 2154, 1, 0)
 	if err != nil {
 		return nil, err
 	}
-	b.WriteString(fleuves)
+	b.WriteString(rivers)
 
 	rows, err := pool.Query(ctx, `
 		SELECT e.nom, e.type, c.nb_membres_resolus, c.nb_membres_total,
 		       st_assvg(st_transform(st_simplifypreservetopology(c.geom,$1),2154),1,0)
 		FROM geo.contour_eptb_epage c JOIN core.eptb_epage e ON e.siren = c.siren
 		WHERE c.nb_membres_resolus::float / c.nb_membres_total >= $2
-		ORDER BY e.type, e.nom`, tolEPTBEPAGE, seuilResolutionEPTBEPAGE)
+		ORDER BY e.type, e.nom`, toleranceEPTBEPAGE, thresholdResolutionEPTBEPAGE)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	ct := &CarteEPTBEPAGE{NbTrouves: nbTrouves}
+	ct := &MapEPTBEPAGE{CountFound: countFound}
 	for rows.Next() {
-		var nom, typ, d string
-		var resolus, total int
-		if err := rows.Scan(&nom, &typ, &resolus, &total, &d); err != nil {
+		var name, typ, d string
+		var resolved, total int
+		if err := rows.Scan(&name, &typ, &resolved, &total, &d); err != nil {
 			return nil, err
 		}
-		titre := nom
-		if resolus < total {
-			titre = fmt.Sprintf("%s (contour partiel : %d membres sur %d résolus)", nom, resolus, total)
+		title := name
+		if resolved < total {
+			title = fmt.Sprintf("%s (contour partiel : %d membres sur %d résolus)", name, resolved, total)
 		}
 		fmt.Fprintf(&b, `<path d="%s" fill="%s"><title>%s</title></path>`,
-			d, couleursTypeEPTBEPAGE[typ], template.HTMLEscapeString(titre))
-		ct.NbAffiches++
+			d, colorsTypeEPTBEPAGE[typ], template.HTMLEscapeString(title))
+		ct.CountDisplayed++
 		switch typ {
 		case "EPTB":
-			ct.NbEPTB++
+			ct.CountEPTB++
 		case "EPAGE":
-			ct.NbEPAGE++
+			ct.CountEPAGE++
 		case "EPTB_EPAGE":
-			ct.NbDouble++
+			ct.CountDouble++
 		}
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if ct.NbAffiches == 0 {
+	if ct.CountDisplayed == 0 {
 		return nil, nil
 	}
 	b.WriteString(`</svg>`)

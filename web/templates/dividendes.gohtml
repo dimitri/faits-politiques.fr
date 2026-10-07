@@ -2,23 +2,23 @@
 {{$d := .D}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
   <a href="{{.Root}}/frise/">V<sup>e</sup> République</a> › <span>Dividendes</span></p>
-<span class="sur">Comptes nationaux · {{$d.Debut}}–{{$d.Fin}}</span>
+<span class="sur">Comptes nationaux · {{$d.Start}}–{{$d.End}}</span>
 <h1>Les dividendes versés</h1>
-<p class="lede">{{mdEur $d.VersesSNF}} versés par les sociétés non financières en {{$d.Fin}}, soit
-{{dec $d.DivSurEBE 1}} % de leur excédent brut d'exploitation. {{mdEur $d.RecusMenages}} arrivent aux
+<p class="lede">{{mdEur $d.PaidSNF}} versés par les sociétés non financières en {{$d.End}}, soit
+{{dec $d.DivOnEBE 1}} % de leur excédent brut d'exploitation. {{mdEur $d.ReceivedHouseholds}} arrivent aux
 ménages résidents.</p>
 
 <p class="note proc"><strong>Ces deux chiffres ne se soustraient pas, et l'écart ne «&nbsp;disparaît&nbsp;»
 pas.</strong> Le total versé est <strong>brut et non consolidé</strong>&nbsp;: une filiale qui verse un
 dividende à sa maison mère, qui en verse un à son tour à ses actionnaires, est comptée deux fois.
 Le reste va à d'autres sociétés, aux banques et assurances, et aux détenteurs étrangers. Rapporté au
-total versé par toutes les sociétés, les ménages résidents en reçoivent {{dec $d.PartMenages 0}} %.</p>
+total versé par toutes les sociétés, les ménages résidents en reçoivent {{dec $d.ShareHouseholds 0}} %.</p>
 
 <h2>La part du profit distribuée</h2>
 <p class="q">Dividendes versés par les sociétés non financières, en pourcentage de leur excédent
-brut d'exploitation. De {{dec $d.DivSurEBEDebut 1}} % en {{$d.Debut}} à {{dec $d.DivSurEBE 1}} % en
-{{$d.Fin}}.</p>
-{{$d.BarresRatio}}
+brut d'exploitation. De {{dec $d.DivOnEBEStart 1}} % en {{$d.Start}} à {{dec $d.DivOnEBE 1}} % en
+{{$d.End}}.</p>
+{{$d.BarsRatio}}
 <p class="note">C'est un rapport entre deux montants de la même année, donc <strong>insensible à
 l'inflation</strong> — c'est pourquoi la frise l'utilise plutôt que les milliards. Il peut dépasser
 ce qu'on imagine parce que le numérateur est non consolidé&nbsp;: il n'est pas «&nbsp;la part du
@@ -28,7 +28,7 @@ bénéfice que les actionnaires ont reçue&nbsp;».</p>
 <p class="q">Impôt sur les sociétés payé, rapporté au même excédent brut d'exploitation&nbsp;: le
 même principe que le ratio ci-dessus, pour comparer les deux sans jamais convertir un euro
 courant.</p>
-{{$d.BarresRatioIS}}
+{{$d.BarsRatioIS}}
 <p class="note">Les deux ponctions ne sont pas exclusives l'une de l'autre&nbsp;: l'IS est payé sur
 le bénéfice, dont une partie des dividendes est ensuite prélevée. Additionner les deux ratios ne
 donnerait pas «&nbsp;la part du profit qui part de l'entreprise&nbsp;», parce que les deux ne
@@ -37,11 +37,11 @@ partent pas du même agrégat comptable.</p>
 <h2>Les montants, versés et reçus</h2>
 <p class="q">Les deux séries sur la même échelle, pour voir directement l'écart&nbsp;: ce que les
 sociétés versent, et ce qui arrive effectivement aux ménages résidents.</p>
-{{$d.BarresMontants}}
+{{$d.BarsAmounts}}
 <p class="note abs"><strong>L'écart entre les deux barres n'est pas «&nbsp;ce qui disparaît&nbsp;».</strong>
 Il va à d'autres sociétés (dont des filiales qui reversent à leur tour), aux banques et assurances, et
 aux détenteurs non-résidents&nbsp;: voir la note plus haut. <strong>En euros courants&nbsp;:</strong>
-un euro de {{$d.Debut}} et un euro de {{$d.Fin}} ne valent pas la même chose, et aucun déflateur
+un euro de {{$d.Start}} et un euro de {{$d.End}} ne valent pas la même chose, et aucun déflateur
 n'est en base&nbsp;: la croissance de ces barres mêle celle des dividendes et celle des prix. Pour une
 comparaison dans le temps, le rapport à l'EBE, plus haut, est la seule lecture honnête que la base
 permette.</p>
@@ -52,25 +52,25 @@ exactement 100&nbsp;%&nbsp;: la rémunération des salariés, les impôts sur la
 subventions, et l'excédent brut d'exploitation — la seule des trois parts d'où peuvent sortir des
 dividendes. La largeur de chaque bande est proportionnelle à sa part.</p>
 <div class="donut-bloc">
-  {{$d.FluxDebut}}
-  {{$d.FluxFin}}
+  {{$d.FlowStart}}
+  {{$d.FlowEnd}}
 </div>
 <div class="legende">
   <span><i style="background:#4A8894"></i>Rémunération des salariés</span>
   <span><i style="background:#B0763A"></i>Impôts sur la production (net)</span>
   <span><i style="background:#1E5C69"></i>Excédent brut d'exploitation</span>
 </div>
-<p class="note">{{$d.AnneeFluxDebut}} contre {{$d.AnneeFluxFin}}&nbsp;: mêmes trois teintes, même
+<p class="note">{{$d.YearFlowStart}} contre {{$d.YearFlowEnd}}&nbsp;: mêmes trois teintes, même
 ordre, pour comparer d'un coup d'œil. 1971 n'ouvre pas la comparaison — voir la note sous le
 tableau. <strong>L'EBE n'est pas déjà le dividende&nbsp;:</strong> il finance aussi
 l'investissement, les intérêts et l'impôt sur les sociétés avant qu'un euro ne soit distribué — voir
-plus haut la part qui en repart effectivement en dividendes ({{dec $d.DivSurEBE 1}} % en
-{{$d.Fin}}).</p>
+plus haut la part qui en repart effectivement en dividendes ({{dec $d.DivOnEBE 1}} % en
+{{$d.End}}).</p>
 
 <h3>Le trajet, pas seulement les deux bouts</h3>
-<p class="q">Les mêmes trois parts, en 100&nbsp;% empilé, chaque année depuis {{$d.AnneeFluxDebut}}
+<p class="q">Les mêmes trois parts, en 100&nbsp;% empilé, chaque année depuis {{$d.YearFlowStart}}
 — 1971 excepté, pour la même raison que ci-dessus.</p>
-{{$d.EmpileesPartage}}
+{{$d.StackedShared}}
 <div class="legende">
   <span><i style="background:#4A8894"></i>Rémunération des salariés</span>
   <span><i style="background:#B0763A"></i>Impôts sur la production (net)</span>
@@ -81,13 +81,13 @@ plus haut la part qui en repart effectivement en dividendes ({{dec $d.DivSurEBE 
 <thead><tr><th>Année</th><th class="n">Valeur ajoutée</th><th class="n">Rémunération des salariés</th>
   <th class="n">Part</th><th class="n">Impôts sur la production<sup>*</sup></th><th class="n">Part</th>
   <th class="n">EBE</th><th class="n">Part</th><th class="n">Dividendes / EBE</th></tr></thead>
-<tbody>{{range $d.Partage}}<tr>
-  <td><strong>{{.Annee}}</strong></td>
+<tbody>{{range $d.Shared}}<tr>
+  <td><strong>{{.Year}}</strong></td>
   <td class="n z">{{mdEur .VA}}</td>
-  <td class="n">{{mdEur .Remun}}</td><td class="n">{{dec .PartRemun 1}} %</td>
-  <td class="n">{{mdEur .Impots}}</td><td class="n">{{dec .PartImpots 1}} %</td>
-  <td class="n">{{mdEur .EBE}}</td><td class="n">{{dec .PartEBE 1}} %</td>
-  <td class="n">{{dec .DivSurEBE 1}} %</td>
+  <td class="n">{{mdEur .Remun}}</td><td class="n">{{dec .ShareRemun 1}} %</td>
+  <td class="n">{{mdEur .Taxes}}</td><td class="n">{{dec .ShareTaxes 1}} %</td>
+  <td class="n">{{mdEur .EBE}}</td><td class="n">{{dec .ShareEBE 1}} %</td>
+  <td class="n">{{dec .DivOnEBE 1}} %</td>
 </tr>{{end}}</tbody></table></div>
 <p class="note"><sup>*</sup> Nets des subventions d'exploitation, calculés ici par différence
 (VA − rémunération − EBE)&nbsp;: la comptabilité nationale ne publie pas ce montant comme une série à
@@ -106,8 +106,8 @@ opération D.42 «&nbsp;revenus distribués des sociétés&nbsp;».</p>
     société, que dans les rapports annuels des groupes&nbsp;: aucune source ouverte ne les réunit, et
     ce site ne les additionne pas lui-même.</p>
     <p class="note"><strong>L'EBE n'est pas le bénéfice.</strong> Il est calculé avant les
-    amortissements, les intérêts et l'impôt sur les sociétés — {{mdEur $d.ISPaye}} d'impôts sur le
-    revenu payés par ces sociétés en {{$d.Fin}}. Un rapport dividendes / bénéfice net serait plus
+    amortissements, les intérêts et l'impôt sur les sociétés — {{mdEur $d.ISPaid}} d'impôts sur le
+    revenu payés par ces sociétés en {{$d.End}}. Un rapport dividendes / bénéfice net serait plus
     élevé.</p>
     <p class="note"><strong>Aucune cause n'est attribuée.</strong> La part distribuée dépend des
     taux d'intérêt, de la fiscalité du capital, de la structure des groupes et de l'investissement

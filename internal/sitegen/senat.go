@@ -14,19 +14,19 @@ import (
 // C'est l'inverse de ce que le site annonçait jusqu'ici (« les scrutins y sont
 // publiés par groupe, pas par sénateur ») : les votes sont individuels, et
 // c'est le GROUPE qui manque.
-type StatsSenat struct {
-	Scrutins, Votes, Senateurs int
-	Debut, Fin                 string
-	Derniers                   []FluxLigne
-	Senateurs2                 []*Person
+type StatsSenate struct {
+	Elections, Votes, Senators int
+	Start, End                 string
+	Last                       []FlowLine
+	Senators2                  []*Person
 }
 
-// loadSenat lit mv.scrutin_vote_nominal (internal/matview) au lieu de
+// loadSenate lit mv.scrutin_vote_nominal (internal/matview) au lieu de
 // core.ballot directement — le JOIN sur core.scrutin (institution) reste
 // applicatif, mais porte sur une table de quelques dizaines de milliers de
 // lignes, pas sur le fait 4,9 millions de lignes.
-func loadSenat(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Person) (*StatsSenat, error) {
-	st := &StatsSenat{}
+func loadSenate(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Person) (*StatsSenate, error) {
+	st := &StatsSenate{}
 	if err := pool.QueryRow(ctx, `
 		SELECT (SELECT count(*) FROM core.scrutin WHERE institution='SENAT'),
 		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
@@ -37,7 +37,7 @@ func loadSenat(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Pers
 		         WHERE institution='SENAT'),''),
 		       coalesce((SELECT to_char(max(date_seance),'DD/MM/YYYY') FROM core.scrutin
 		         WHERE institution='SENAT'),'')`).
-		Scan(&st.Scrutins, &st.Votes, &st.Senateurs, &st.Debut, &st.Fin); err != nil {
+		Scan(&st.Elections, &st.Votes, &st.Senators, &st.Start, &st.End); err != nil {
 		return nil, err
 	}
 
@@ -50,16 +50,16 @@ func loadSenat(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Pers
 		return nil, err
 	}
 	for rows.Next() {
-		var f FluxLigne
-		if err := rows.Scan(&f.Slug, &f.Objet, &f.Date, &f.Pour, &f.Contre, &f.Abstentions); err != nil {
+		var f FlowLine
+		if err := rows.Scan(&f.Slug, &f.Object, &f.Date, &f.For, &f.Against, &f.Abstentions); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		f.Objet, _ = TitreCourt(f.Objet)
-		f.Exprimes = f.Pour + f.Contre + f.Abstentions
+		f.Object, _ = TitleShort(f.Object)
+		f.Expressed = f.For + f.Against + f.Abstentions
 		// Le Sénat ne publie pas de résultat : on ne le déduit pas du décompte.
-		f.Resultat = ""
-		st.Derniers = append(st.Derniers, f)
+		f.Result = ""
+		st.Last = append(st.Last, f)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
@@ -80,9 +80,9 @@ func loadSenat(ctx context.Context, pool *pgxpool.Pool, persons map[string]*Pers
 			return nil, err
 		}
 		if p, ok := persons[slug]; ok {
-			st.Senateurs2 = append(st.Senateurs2, p)
+			st.Senators2 = append(st.Senators2, p)
 		}
 	}
-	trierPersonnes(st.Senateurs2)
+	sortPeople(st.Senators2)
 	return st, srows.Err()
 }

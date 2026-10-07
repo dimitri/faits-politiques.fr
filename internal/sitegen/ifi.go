@@ -19,32 +19,32 @@ import (
 // construction : seules les communes de plus de 20 000 habitants comptant
 // plus de 50 redevables sont publiées par la DGFiP (voir
 // docs/sci-holding-donnees.md).
-const tolIFI = tolPleine
+const toleranceIFI = toleranceFull
 
-type CommuneIFI struct {
-	Nom                               string
-	NombreRedevables                  int
-	PatrimoineMoyenEur, ImpotMoyenEur float64
-	X, Y                              float64
+type MunicipalityIFI struct {
+	Name                            string
+	CountLiable                     int
+	WealthAverageEur, TaxAverageEur float64
+	X, Y                            float64
 }
 
-type CarteIFI struct {
-	SVG        template.HTML
-	Annee      int
-	NbCommunes int
+type MapIFI struct {
+	SVG                 template.HTML
+	Year                int
+	CountMunicipalities int
 }
 
-func chargerCarteIFI(ctx context.Context, pool *pgxpool.Pool) (*CarteIFI, error) {
+func loadMapIFI(ctx context.Context, pool *pgxpool.Pool) (*MapIFI, error) {
 	// max(...) est une agrégation : la ligne existe même sans IFI encore
 	// ingéré, avec une année NULL.
-	var anneeN sql.NullInt64
-	if err := pool.QueryRow(ctx, `SELECT max(annee) FROM core.ifi_commune`).Scan(&anneeN); err != nil {
+	var yearN sql.NullInt64
+	if err := pool.QueryRow(ctx, `SELECT max(annee) FROM core.ifi_commune`).Scan(&yearN); err != nil {
 		return nil, err
 	}
-	if !anneeN.Valid {
+	if !yearN.Valid {
 		return nil, nil // table absente ou vide : le schéma est simplement omis
 	}
-	annee := int(anneeN.Int64)
+	year := int(yearN.Int64)
 
 	// st_extent est une agrégation : la ligne existe même sans contour
 	// encore ingéré, avec une valeur NULL (voir internal/sitegen/carte.go).
@@ -74,34 +74,34 @@ func chargerCarteIFI(ctx context.Context, pool *pgxpool.Pool) (*CarteIFI, error)
 		SELECT coalesce(a.nom_direct, 'Paris (tous arrondissements publiés)'), a.nb, a.patrimoine_moyen, a.impot_moyen,
 		       st_x(st_transform(st_centroid(g.geom), 2154)), st_y(st_transform(st_centroid(g.geom), 2154))
 		FROM agrege a JOIN geo.contour_cog g ON g.niveau = 'COMMUNE' AND g.cog_millesime = 2026 AND g.code = a.code_insee
-		ORDER BY a.nb`, annee)
+		ORDER BY a.nb`, year)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var communes []CommuneIFI
+	var municipalities []MunicipalityIFI
 	for rows.Next() {
-		var c CommuneIFI
-		if err := rows.Scan(&c.Nom, &c.NombreRedevables, &c.PatrimoineMoyenEur, &c.ImpotMoyenEur, &c.X, &c.Y); err != nil {
+		var c MunicipalityIFI
+		if err := rows.Scan(&c.Name, &c.CountLiable, &c.WealthAverageEur, &c.TaxAverageEur, &c.X, &c.Y); err != nil {
 			return nil, err
 		}
-		communes = append(communes, c)
+		municipalities = append(municipalities, c)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	if len(communes) == 0 {
+	if len(municipalities) == 0 {
 		return nil, nil
 	}
 
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo ifi" role="img" `+
-		`aria-label="Nombre de redevables à l'impôt sur la fortune immobilière, par commune, %d">`, vb, annee)
+		`aria-label="Nombre de redevables à l'impôt sur la fortune immobilière, par commune, %d">`, vb, year)
 
 	depRows, err := pool.Query(ctx, `
 		SELECT st_assvg(st_transform(st_simplifypreservetopology(geom,$1),2154),1,0)
-		FROM geo.contour WHERE niveau='DEPARTEMENT' AND srid_rendu=2154`, tolIFI)
+		FROM geo.contour WHERE niveau='DEPARTEMENT' AND srid_rendu=2154`, toleranceIFI)
 	if err != nil {
 		return nil, err
 	}
@@ -118,23 +118,23 @@ func chargerCarteIFI(ctx context.Context, pool *pgxpool.Pool) (*CarteIFI, error)
 		return nil, err
 	}
 	depRows.Close()
-	fleuves, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	rivers, err := riversSVG(ctx, pool, 2154, 1, 0)
 	if err != nil {
 		return nil, err
 	}
-	b.WriteString(fleuves)
+	b.WriteString(rivers)
 
 	// Rayon en racine carrée du nombre de redevables (surface proportionnelle,
 	// pas le rayon) : calé pour que la plus petite commune publiée (51
 	// redevables) et la plus grande (plusieurs milliers) restent toutes deux
 	// lisibles sur une carte de France entière.
-	rayon := func(nb int) float64 { return 2400 + 224*math.Sqrt(float64(nb)) }
-	for _, c := range communes {
-		titre := fmt.Sprintf("%s — %s redevables, patrimoine moyen %s M€", c.Nom, Nombre(c.NombreRedevables), Decimal(c.PatrimoineMoyenEur/1e6, 1))
+	radius := func(count int) float64 { return 2400 + 224*math.Sqrt(float64(count)) }
+	for _, c := range municipalities {
+		title := fmt.Sprintf("%s — %s redevables, patrimoine moyen %s M€", c.Name, Count(c.CountLiable), Decimal(c.WealthAverageEur/1e6, 1))
 		fmt.Fprintf(&b, `<circle class="ifi-c" cx="%.0f" cy="%.0f" r="%.0f"><title>%s</title></circle>`,
-			c.X, -c.Y, rayon(c.NombreRedevables), template.HTMLEscapeString(titre))
+			c.X, -c.Y, radius(c.CountLiable), template.HTMLEscapeString(title))
 	}
 
 	b.WriteString(`</svg>`)
-	return &CarteIFI{SVG: template.HTML(b.String()), Annee: annee, NbCommunes: len(communes)}, nil
+	return &MapIFI{SVG: template.HTML(b.String()), Year: year, CountMunicipalities: len(municipalities)}, nil
 }

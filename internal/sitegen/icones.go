@@ -55,11 +55,11 @@ var icones = map[string]icone{
 // Le masque CSS met la même chose dans un fichier téléchargé une fois. La
 // balise reste décorative (aria-hidden), et chaque icône garde son libellé
 // écrit à côté : une icône ne porte jamais seule une information.
-func Icone(cle string) template.HTML {
-	if _, ok := icones[cle]; !ok {
+func Icone(key string) template.HTML {
+	if _, ok := icones[key]; !ok {
 		return ""
 	}
-	return template.HTML(`<i class="ico i-` + cle + `" aria-hidden="true"></i>`)
+	return template.HTML(`<i class="ico i-` + key + `" aria-hidden="true"></i>`)
 }
 
 // IconesCSS produit les règles de masque, une par icône. Le SVG est inséré en
@@ -76,14 +76,14 @@ func IconesCSS() string {
 		"-webkit-mask-repeat:no-repeat;mask-repeat:no-repeat;" +
 		"-webkit-mask-position:center;mask-position:center;" +
 		"-webkit-mask-size:contain;mask-size:contain}\n")
-	cles := make([]string, 0, len(icones))
+	keys := make([]string, 0, len(icones))
 	for c := range icones {
-		cles = append(cles, c)
+		keys = append(keys, c)
 	}
-	sort.Strings(cles)
-	for _, c := range cles {
+	sort.Strings(keys)
+	for _, c := range keys {
 		i := icones[c]
-		u := "data:image/svg+xml," + echapperURL(
+		u := "data:image/svg+xml," + escapeURL(
 			`<svg xmlns="http://www.w3.org/2000/svg" viewBox="`+i.vb+
 				`"><path d="`+i.d+`"/></svg>`)
 		fmt.Fprintf(&b, ".i-%s{-webkit-mask-image:url(\"%s\");mask-image:url(\"%s\")}\n", c, u, u)
@@ -91,10 +91,10 @@ func IconesCSS() string {
 	return b.String()
 }
 
-// echapperURL : dans une url("…") de feuille de style, seuls le guillemet
+// escapeURL : dans une url("…") de feuille de style, seuls le guillemet
 // double, le dièse, le chevron et le pourcent doivent partir. Tout le reste
 // passe tel quel, y compris les espaces et les virgules du tracé.
-func echapperURL(s string) string {
+func escapeURL(s string) string {
 	return strings.NewReplacer(
 		"%", "%25", "\"", "%22", "#", "%23", "<", "%3C", ">", "%3E",
 		"{", "%7B", "}", "%7D", "|", "%7C", "\\", "%5C", "^", "%5E",

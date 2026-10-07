@@ -10,41 +10,41 @@ officielle avant la publication des parrainages par le Conseil constitutionnel, 
 12 mars 2027.</p>
 
 <div class="cards">
-{{range .Candidats}}
+{{range .Candidates}}
 <article class="cand">
   <header class="avec-portrait">
-    {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.Fichier}}" alt=""
+    {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.File}}" alt=""
       width="64" height="64" loading="lazy" class="portrait">{{else}}<div class="portrait vide"></div>{{end}}
     <div>
-    <h3><a href="{{$.Root}}/candidat/{{.Slug}}/">{{.Prenom}} {{.Nom}}</a></h3>
+    <h3><a href="{{$.Root}}/candidat/{{.Slug}}/">{{.FirstName}} {{.Name}}</a></h3>
     <div class="small muted">
-      {{if .Org}}<a href="{{$.Root}}/organisation/{{.Org.Slug}}/">{{.Organisation}}</a>{{else}}{{.Organisation}}{{end}}
-      {{if eq .Statut "PRIMAIRE"}} · candidature à une primaire{{if .DateDeclaration}}, annoncée {{.DateDeclaration}}{{end}}{{else if .DateDeclaration}} · déclaré {{.DateDeclaration}}{{end}}
+      {{if .Org}}<a href="{{$.Root}}/organisation/{{.Org.Slug}}/">{{.Organization}}</a>{{else}}{{.Organization}}{{end}}
+      {{if eq .Status "PRIMAIRE"}} · candidature à une primaire{{if .DateDeclaration}}, annoncée {{.DateDeclaration}}{{end}}{{else if .DateDeclaration}} · déclaré {{.DateDeclaration}}{{end}}
     </div></div>
   </header>
 
   {{if and .Person .Person.HasVotes}}
     <div class="bilan">
-      <div class="chiffre">{{.Person.Exprimes}}<span class="small muted"> positions exprimées</span></div>
+      <div class="chiffre">{{.Person.Expressed}}<span class="small muted"> positions exprimées</span></div>
       <div class="bar">
-        <i style="width:{{.Person.PctPour}}%;background:var(--pour)"></i>
-        <i style="width:{{.Person.PctContre}}%;background:var(--contre)"></i>
+        <i style="width:{{.Person.PctFor}}%;background:var(--pour)"></i>
+        <i style="width:{{.Person.PctAgainst}}%;background:var(--contre)"></i>
         <i style="width:{{.Person.PctAbst}}%;background:var(--abst)"></i>
       </div>
       <div class="small">
-        <span class="pos FOR">{{.Person.Pour}} pour</span> ·
-        <span class="pos AGAINST">{{.Person.Contre}} contre</span> ·
+        <span class="pos FOR">{{.Person.For}} pour</span> ·
+        <span class="pos AGAINST">{{.Person.Against}} contre</span> ·
         <span class="pos ABSTAIN">{{.Person.Abstention}} abst.</span>
       </div>
-      <div class="small muted">{{.Person.Mandat}}</div>
+      <div class="small muted">{{.Person.Term}}</div>
     </div>
   {{else}}
     <div class="bilan vide">
       <div class="etiquette">Pas de mandat à l'Assemblée</div>
-      {{if and .Org .Org.Groupe}}
+      {{if and .Org .Org.Group}}
         <div class="small">Groupe apparenté&nbsp;:
-          <a href="{{$.Root}}/groupe/{{.Org.Groupe.Slug}}/">{{.Org.Groupe.NomCourt}}</a>
-          <span class="muted">({{.Org.Groupe.Effectif}} députés)</span></div>
+          <a href="{{$.Root}}/groupe/{{.Org.Group.Slug}}/">{{.Org.Group.NameShort}}</a>
+          <span class="muted">({{.Org.Group.Headcount}} députés)</span></div>
       {{else}}
         <div class="small muted">Aucun groupe apparenté à l'Assemblée</div>
       {{end}}
@@ -52,7 +52,7 @@ officielle avant la publication des parrainages par le Conseil constitutionnel, 
   {{end}}
 
   <footer class="small muted">
-    {{if .Org}}{{if .Org.HasComptes}}Comptes publics{{else}}Pas de comptes rattachés{{end}}{{end}}
+    {{if .Org}}{{if .Org.HasAccounts}}Comptes publics{{else}}Pas de comptes rattachés{{end}}{{end}}
     {{if and .Org .Org.Classifications}} · {{len .Org.Classifications}} classifications tierces{{end}}
   </footer>
 </article>

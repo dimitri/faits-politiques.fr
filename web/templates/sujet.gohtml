@@ -1,45 +1,45 @@
 {{define "content"}}
 {{$s := .S}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
-  {{if eq $s.Famille.Base "argent-public"}}<a href="{{.Root}}/argent-public/">Argent public</a>{{else}}<a href="{{.Root}}/sujets/">Sujets</a> ›
-  <a href="{{.Root}}/sujets/#{{$s.Famille.ID}}">{{$s.Famille.Nom}}</a>{{end}} › <span>{{$s.Nom}}</span></p>
+  {{if eq $s.Family.Base "argent-public"}}<a href="{{.Root}}/argent-public/">Argent public</a>{{else}}<a href="{{.Root}}/sujets/">Sujets</a> ›
+  <a href="{{.Root}}/sujets/#{{$s.Family.ID}}">{{$s.Family.Name}}</a>{{end}} › <span>{{$s.Name}}</span></p>
 
 <header class="sujet-tete">
-  <span class="sur">{{$s.Famille.Nom}}{{if $s.Famille.ParMille}} · {{$s.Famille.ParMille}}&nbsp;€ sur 1&nbsp;000 de dépense publique{{end}}</span>
-  <h1>{{$s.D.Titre}}</h1>
-  {{if $s.Chapeau}}<p class="lede">{{$s.Chapeau}}</p>{{end}}
+  <span class="sur">{{$s.Family.Name}}{{if $s.Family.PerThousand}} · {{$s.Family.PerThousand}}&nbsp;€ sur 1&nbsp;000 de dépense publique{{end}}</span>
+  <h1>{{$s.D.Title}}</h1>
+  {{if $s.Lead}}<p class="lede">{{$s.Lead}}</p>{{end}}
 </header>
 
 <section class="en-bref" aria-label="En bref">
   <span class="sur">En bref</span>
-  {{if $s.EnBref}}<div class="chiffres-cles">
-    {{range $s.EnBref}}<div><b>{{.Valeur}}</b><span>{{.Libelle}}</span><em>{{.Source}}</em></div>{{end}}
+  {{if $s.InBrief}}<div class="chiffres-cles">
+    {{range $s.InBrief}}<div><b>{{.Value}}</b><span>{{.Label}}</span><em>{{.Source}}</em></div>{{end}}
   </div>{{end}}
-  <p class="compte">{{if $s.NbCadre}}{{$s.NbCadre}} texte{{if gt $s.NbCadre 1}}s{{end}} de cadre{{end}}{{if and $s.NbCadre $s.NbControle}} · {{end}}{{if $s.NbControle}}{{$s.NbControle}} constat{{if gt $s.NbControle 1}}s{{end}} d'institutions de contrôle{{end}}{{if or $s.NbCadre $s.NbControle}}, chacun relu dans sa source.{{end}}</p>
+  <p class="compte">{{if $s.CountFramework}}{{$s.CountFramework}} texte{{if gt $s.CountFramework 1}}s{{end}} de cadre{{end}}{{if and $s.CountFramework $s.CountControl}} · {{end}}{{if $s.CountControl}}{{$s.CountControl}} constat{{if gt $s.CountControl 1}}s{{end}} d'institutions de contrôle{{end}}{{if or $s.CountFramework $s.CountControl}}, chacun relu dans sa source.{{end}}</p>
   <nav class="aller" aria-label="Aller à">
-    {{if $s.Donnees}}<a href="#les-chiffres">Les chiffres</a>{{end}}
-    {{range $s.Sections}}{{if not .Replie}}<a href="#{{.ID}}">{{.Titre}}</a>{{end}}{{end}}
-    {{range $s.Pages}}<a class="ext" href="{{$.Root}}/{{.URL}}">{{.Titre}} →</a>{{end}}
+    {{if $s.Data}}<a href="#les-chiffres">Les chiffres</a>{{end}}
+    {{range $s.Sections}}{{if not .Collapsed}}<a href="#{{.ID}}">{{.Title}}</a>{{end}}{{end}}
+    {{range $s.Pages}}<a class="ext" href="{{$.Root}}/{{.URL}}">{{.Title}} →</a>{{end}}
   </nav>
 </section>
 
-{{if $s.Donnees}}
+{{if $s.Data}}
 <section class="donnees-sujet" id="les-chiffres">
   <span class="sur">Les chiffres</span>
-  {{$s.Donnees}}
+  {{$s.Data}}
 </section>
 {{end}}
 
 <div class="dossier-sujet">
   {{range $s.Sections}}
-  {{if .Replie}}
+  {{if .Collapsed}}
   <details class="plus" id="{{.ID}}">
-    <summary>{{.Titre}}</summary>
+    <summary>{{.Title}}</summary>
     <div class="dedans prose">{{.HTML}}</div>
   </details>
   {{else}}
-  <section class="section-sujet{{if .Encart}} encart{{end}}" id="{{.ID}}">
-    <h2>{{.Titre}}</h2>
+  <section class="section-sujet{{if .Box}} encart{{end}}" id="{{.ID}}">
+    <h2>{{.Title}}</h2>
     <div class="prose">{{.HTML}}</div>
   </section>
   {{end}}
@@ -47,8 +47,8 @@
 </div>
 
 <p class="note abs" style="margin-top:2.5rem">Page construite depuis le dossier
-<code>docs/{{$s.D.Fichier}}</code>{{if $s.Version}} ({{$s.Version}}){{end}} et depuis la base : les faits, les
+<code>docs/{{$s.D.File}}</code>{{if $s.Version}} ({{$s.Version}}){{end}} et depuis la base : les faits, les
 crédits et les mentions en séance sont relus à chaque construction du site.
-{{if gt (len $s.Famille.Sujets) 1}}Dans la même famille&nbsp;:
-{{range $i, $o := $s.Famille.Sujets}}{{if ne $o.ID $s.ID}}{{if $o.D}} <a href="{{$.Root}}/{{$o.URL}}">{{$o.Nom}}</a>{{end}}{{end}}{{end}}.{{end}}</p>
+{{if gt (len $s.Family.Topics) 1}}Dans la même famille&nbsp;:
+{{range $i, $o := $s.Family.Topics}}{{if ne $o.ID $s.ID}}{{if $o.D}} <a href="{{$.Root}}/{{$o.URL}}">{{$o.Name}}</a>{{end}}{{end}}{{end}}.{{end}}</p>
 {{end}}

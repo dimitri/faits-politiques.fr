@@ -18,21 +18,21 @@
     <a class="plus" href="{{.Root}}/argent-public/budget/">Comment ils s'articulent →</a></div>
   <div class="niveaux">
     {{range $a.Budgets}}<a class="niveau" href="{{$.Root}}/{{.URL}}">
-      <span class="t">{{.Nom}}</span>
-      <span class="n">{{dec .Milliards 1}} <small>Md€ en {{$a.Annee}}</small></span>
-      <span class="jauge" aria-hidden="true"><i style="width:{{printf "%.1f" .Largeur}}%"></i></span>
-      <span class="d">{{.Texte}}</span>
+      <span class="t">{{.Name}}</span>
+      <span class="n">{{dec .Billions 1}} <small>Md€ en {{$a.Year}}</small></span>
+      <span class="jauge" aria-hidden="true"><i style="width:{{printf "%.1f" .Width}}%"></i></span>
+      <span class="d">{{.Text}}</span>
     </a>{{end}}
   </div>
   <div class="solde">
-    <div><b>{{dec $a.Recettes 1}}&nbsp;Md€</b><span>recettes publiques en {{$a.Annee}}</span></div>
-    <div><b>{{dec $a.Depenses 1}}&nbsp;Md€</b><span>dépenses publiques en {{$a.Annee}}</span></div>
-    <div><b>{{dec $a.Solde 1}}&nbsp;Md€</b><span>solde{{if $a.SoldePIB}}, soit {{dec $a.SoldePIB 1}}&nbsp;% du PIB{{end}} ({{$a.Annee}})</span></div>
+    <div><b>{{dec $a.Revenues 1}}&nbsp;Md€</b><span>recettes publiques en {{$a.Year}}</span></div>
+    <div><b>{{dec $a.Expenses 1}}&nbsp;Md€</b><span>dépenses publiques en {{$a.Year}}</span></div>
+    <div><b>{{dec $a.Balance 1}}&nbsp;Md€</b><span>solde{{if $a.BalanceGdp}}, soit {{dec $a.BalanceGdp 1}}&nbsp;% du PIB{{end}} ({{$a.Year}})</span></div>
   </div>
   <p class="src-bloc">Source&nbsp;: Eurostat, comptes des administrations publiques (sous-secteurs
   S1311, S1313, S1314). Les trois budgets <strong>ne s'additionnent pas</strong>&nbsp;: les transferts
   entre eux (fraction de TVA, dotations) sont comptés chez l'un et chez l'autre.</p>
-  {{if $a.Argent}}
+  {{if $a.Money}}
   {{/* L'argent public lui-même a sa propre entrée de menu (§ 20 septembre
        2026, revue de l'accueil) mais n'apparaissait auparavant nulle part sur
        cette page — seul le budget de l'État y était cité en passant. Repris
@@ -41,8 +41,8 @@
        n'en est pas un (voir la note de /sujets/). */}}
   <p class="q" style="margin-top:1.2rem">L'argent public lui-même, au-delà des trois budgets ci-dessus&nbsp;:</p>
   <div class="decide">
-    {{range $a.Argent.Sujets}}<a href="{{$.Root}}/{{.Lien}}">
-      <b>{{.Nom}}</b>{{if .D}}<span>{{.D.Titre}}</span>{{else if .Pages}}<span>{{(index .Pages 0).Titre}}</span>{{end}}
+    {{range $a.Money.Topics}}<a href="{{$.Root}}/{{.Link}}">
+      <b>{{.Name}}</b>{{if .D}}<span>{{.D.Title}}</span>{{else if .Pages}}<span>{{(index .Pages 0).Title}}</span>{{end}}
     </a>{{end}}
   </div>
   {{end}}
@@ -56,8 +56,8 @@
        2026) : la donnée qui prouve l'ampleur du site, avant le détail —
        comme les sites de référence du genre. */}}
   <div class="chiffres-cles-accueil">
-    <div><b>{{dec $a.Depenses 1}}</b><span>Md€ de dépense publique en {{$a.Annee}} — État, Sécu, collectivités</span></div>
-    <div><b>{{nb $a.NbSujets}}</b><span>sujets de campagne, chacun sourcé document par document</span></div>
+    <div><b>{{dec $a.Expenses 1}}</b><span>Md€ de dépense publique en {{$a.Year}} — État, Sécu, collectivités</span></div>
+    <div><b>{{nb $a.CountTopics}}</b><span>sujets de campagne, chacun sourcé document par document</span></div>
     <div><b>{{nb .Cov.Documents}}</b><span>documents scellés à l'archive, chacun avec son empreinte SHA-256</span></div>
   </div>
   {{/* Révisé le 20 septembre 2026 (retour direct sur la première version) :
@@ -65,17 +65,17 @@
        lien — le détail (liste des sujets en puces, jauge de poids) faisait
        double emploi et se lisait mal. Chaque famille a maintenant sa propre
        page /sujets/<id>/, une carte par sujet avec son chiffre-clé réel
-       (Sujet.EnBref) plutôt qu'un nuage de noms sans contexte. */}}
+       (Sujet.InBrief) plutôt qu'un nuage de noms sans contexte. */}}
   <div class="familles">
-    {{range $a.Familles}}<a class="famille" href="{{$.Root}}/sujets/{{.ID}}/">
-      {{if .ParMille}}
-      <span class="poids-n">{{.ParMille}}<span class="poids-u">€ / 1 000</span></span>
+    {{range $a.Families}}<a class="famille" href="{{$.Root}}/sujets/{{.ID}}/">
+      {{if .PerThousand}}
+      <span class="poids-n">{{.PerThousand}}<span class="poids-u">€ / 1 000</span></span>
       {{else}}
-      <span class="poids-hors">{{len .Sujets}}<span class="poids-u">sujets</span></span>
+      <span class="poids-hors">{{len .Topics}}<span class="poids-u">sujets</span></span>
       {{end}}
-      <h3>{{.Nom}}</h3>
+      <h3>{{.Name}}</h3>
       <p class="q">{{.Intro}}</p>
-      <span class="voir">Les {{len .Sujets}} sujets →</span>
+      <span class="voir">Les {{len .Topics}} sujets →</span>
     </a>{{end}}
   </div>
   <p class="src-bloc">Le poids de chaque famille reprend les fonctions COFOG correspondantes&nbsp;: il
@@ -85,10 +85,10 @@
 <section class="bloc">
   <div class="tete"><div><span class="sur">2027</span>
     <h2 class="h2">Les candidats déclarés</h2></div>
-    <a class="plus" href="{{.Root}}/2027/">{{sub .Cov.Candidats .Cov.CandidatsPrimaire}} candidatures, {{.Cov.CandidatsPrimaire}} candidats à une primaire →</a></div>
+    <a class="plus" href="{{.Root}}/2027/">{{sub .Cov.Candidates .Cov.CandidatesPrimary}} candidatures, {{.Cov.CandidatesPrimary}} candidats à une primaire →</a></div>
   <div class="quatre-points">
     <div><b>Parcours et mandats</b><span>Les fonctions exercées, datées, sous les présidences successives.</span></div>
-    <div><b>Ce qu'ils ont voté</b><span>Pour {{.Cov.CandidatsAvecBilan}} d'entre eux, les votes d'une assemblée couverte par le site.</span></div>
+    <div><b>Ce qu'ils ont voté</b><span>Pour {{.Cov.CandidatesWithSummary}} d'entre eux, les votes d'une assemblée couverte par le site.</span></div>
     <div><b>Leur parti</b><span>Ses comptes publics déposés à la CNCCFP, et les votes de son groupe.</span></div>
     <div><b>Les sujets</b><span>Pour chaque sujet de campagne, les mêmes chiffres de référence pour tous.</span></div>
   </div>
@@ -96,7 +96,7 @@
   parlementaire n'a pas de vote&nbsp;: la page le dit, elle ne comble pas le vide.</p>
 </section>
 
-{{if $a.Onglets}}
+{{if $a.Tabs}}
 <section class="bloc">
   <div class="tete"><div><span class="sur">Près de chez vous</span>
     <h2 class="h2">Les sujets de campagne, département par département</h2></div>
@@ -105,28 +105,28 @@
        panneau affiche la carte PLEINE de la page de détail vers laquelle il
        pointe (tracés en clair, infobulle au survol) — la même échelle et le
        même standard que /sujets/collectivites/, pas une vignette
-       décorative : voir le commentaire d'OngletCarte.Carte. Ratio
+       décorative : voir le commentaire d'OngletCarte.Map. Ratio
        carte/légende 1.15fr/1fr comme .cartes-empilees, via le modificateur
        .grandes (jamais .cartes-empilees lui-même, réservé à
        /collectivites/ — voir l'avertissement au-dessus de sa règle CSS). */}}
   <div class="onglets-carte">
-    {{range $i, $o := $a.Onglets}}<input type="radio" name="onglet-carte" id="oc{{add $i 1}}" class="vh"{{if eq $i 0}} checked{{end}}>{{end}}
+    {{range $i, $o := $a.Tabs}}<input type="radio" name="onglet-carte" id="oc{{add $i 1}}" class="vh"{{if eq $i 0}} checked{{end}}>{{end}}
     <div class="etiquettes" role="presentation">
-      {{range $i, $o := $a.Onglets}}<label for="oc{{add $i 1}}">{{$o.Libelle}}</label>{{end}}
+      {{range $i, $o := $a.Tabs}}<label for="oc{{add $i 1}}">{{$o.Label}}</label>{{end}}
     </div>
     <div class="panneaux cartes-lignes grandes">
-      {{range $i, $o := $a.Onglets}}<a class="bloc-carte ligne p{{add $i 1}}" href="{{$.Root}}/{{$o.URL}}">
-        {{if $o.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}{{$o.Carte.SVG}}{{end}}
+      {{range $i, $o := $a.Tabs}}<a class="bloc-carte ligne p{{add $i 1}}" href="{{$.Root}}/{{$o.URL}}">
+        {{if $o.Map.Empty}}<p class="nodata">Aucune donnée.</p>{{else}}{{$o.Map.SVG}}{{end}}
         <div>
-          <h3>{{$o.Titre}}</h3>
+          <h3>{{$o.Title}}</h3>
           <p class="q">{{$o.Question}}</p>
-          {{if not $o.Carte.Vide}}
-          {{$t := $o.Carte.Teintes}}<span class="echelle"><span class="u">{{$o.Carte.Unite}}</span>
-            {{range $j, $b := $o.Carte.Bornes}}<span><i style="background:{{index $t $j}}"></i>{{$b}}</span>{{end}}
+          {{if not $o.Map.Empty}}
+          {{$t := $o.Map.Shades}}<span class="echelle"><span class="u">{{$o.Map.Unit}}</span>
+            {{range $j, $b := $o.Map.Bounds}}<span><i style="background:{{index $t $j}}"></i>{{$b}}</span>{{end}}
           </span>
           {{end}}
-          {{template "cartons" $o.Carte.Cartons}}
-          <span class="src">{{$o.Source}}{{if $o.Carte.NbAbsents}} · {{$o.Carte.NbAbsents}} départements sans donnée{{end}}</span>
+          {{template "cartons" $o.Map.Tiles}}
+          <span class="src">{{$o.Source}}{{if $o.Map.CountAbsents}} · {{$o.Map.CountAbsents}} départements sans donnée{{end}}</span>
           <span class="voir">La carte, le classement des départements et la méthode →</span>
         </div>
       </a>{{end}}
@@ -137,13 +137,13 @@
 </section>
 {{end}}
 
-{{if $a.Reperes}}
+{{if $a.Markers}}
 <section class="bloc">
   <div class="tete"><div><span class="sur">Repères</span>
     <h2 class="h2">Des chiffres cités dans tous les débats</h2></div>
     <a class="plus" href="{{.Root}}/frise/">Les séries depuis 1958 →</a></div>
   <div class="reperes">
-    {{range $a.Reperes}}<div><b>{{.Valeur}}</b><span>{{.Libelle}}</span><em>{{.Source}}</em></div>{{end}}
+    {{range $a.Markers}}<div><b>{{.Value}}</b><span>{{.Label}}</span><em>{{.Source}}</em></div>{{end}}
   </div>
   <p class="src-bloc">Chaque mesure a ses concurrentes (taux Insee, demandeurs d'emploi inscrits, seuil à
   50&nbsp;%…)&nbsp;: la page du sujet les met côte à côte.</p>
@@ -156,8 +156,8 @@
     <a class="plus" href="{{.Root}}/qui-decide/">Toutes les institutions →</a></div>
   <div class="decide">
     <a href="{{.Root}}/gouvernement/"><b>Gouvernement</b><span>compositions et décrets du Journal officiel</span></a>
-    <a href="{{.Root}}/assemblee/"><b>Assemblée nationale</b><span>{{nb .Cov.Scrutins}} scrutins publics, groupes, députés</span></a>
-    <a href="{{.Root}}/senat/"><b>Sénat</b><span>{{nb .Cov.VotesSenat}} votes nominatifs</span></a>
+    <a href="{{.Root}}/assemblee/"><b>Assemblée nationale</b><span>{{nb .Cov.Elections}} scrutins publics, groupes, députés</span></a>
+    <a href="{{.Root}}/senat/"><b>Sénat</b><span>{{nb .Cov.VotesSenate}} votes nominatifs</span></a>
     <a href="{{.Root}}/europe/"><b>Parlement européen</b><span>votes des eurodéputés français</span></a>
     <a href="{{.Root}}/collectivites/"><b>Collectivités</b><span>exécutifs, budgets, compétences</span></a>
   </div>
