@@ -250,7 +250,14 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	// graphe une bonne partie du reste du site aussi) sur une machine qui a
 	// sa propre Postgres, pas une base managée partagée entre instances —
 	// voir internal/store.OpenWithMaxConns.
-	pool, err := store.OpenWithMaxConns(ctx, 8)
+	//
+	// OpenWithTracer plutôt qu'OpenWithMaxConns : tracer observe, pendant
+	// cette construction, les tables que chaque nœud lit réellement (voir
+	// table_trace.go) — republié en base une fois reg.Executer terminé
+	// (publierTables, plus bas), pour que fpctl list deps et la
+	// vérification du périmètre CI n'aient plus à deviner.
+	tracer := newTableTracer()
+	pool, err := store.OpenWithTracer(ctx, 8, tracer)
 	if err != nil {
 		return err
 	}
@@ -362,7 +369,7 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 		newCache: &nouveauCache,
 	}
 	reg := buildRegistry(env)
-	targets := resolveTargets(sections)
+	targets := ResolveTargets(sections)
 
 	// runtime.NumCPU(), pas la Concurrence -j de l'ingest (qui n'existe pas
 	// ici) : la plupart des nœuds d'une même vague sont des requêtes
@@ -372,6 +379,13 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	results, err := reg.Executer(ctx, targets, pipeline.Options{Concurrence: runtime.NumCPU()})
 	if err != nil {
 		return err
+	}
+	executes := make([]string, 0, len(results))
+	for nom := range results {
+		executes = append(executes, nom)
+	}
+	if err := publierTables(ctx, pool, reg, tracer, executes); err != nil {
+		return fmt.Errorf("publication des tables lues par page : %w", err)
 	}
 
 	// Page d'erreur 404 : un fichier à la racine (pas .../404/index.html),

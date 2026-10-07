@@ -90,7 +90,12 @@ racine de ses préalables d\[cq]ingestion (voir
 \f[B]fpctl\-build\f[R](1), SECTIONS), avec le total à télécharger et à
 charger en base pour l\[cq]amener à jour depuis rien (dépendances
 comprises, chacune comptée une seule fois même si plusieurs chemins y
-mènent).
+mènent), et les tables \f[B]core/ref/geo\f[R] dont elle a besoin («
+\f[B]tables :\f[R] », dépendances comprises, jamais \f[B]mv.\f[R]* \[em]
+mesuré à l\[cq]exécution par \f[B]internal/sitegen\f[R] dans \f[B]core.
+sitegen_table_usage\f[R], absent tant qu\[cq]un \f[B]fpctl build
+site\f[R] n\[cq]a pas encore tourné depuis la migration qui introduit
+cette table).
 Avec le nom d\[cq]une des sept étapes du socle, cette étape seule et sa
 chaîne de dépendances.
 Avec le nom d\[cq]une section de \f[B]fpctl build\f[R], cette section
@@ -101,10 +106,11 @@ seule, dans la même forme.
 Écrit les nœuds concernés à plat (un objet par nœud : \f[B]nom\f[R],
 \f[B]type\f[R] \[em] \f[B]etape\f[R] ou \f[B]page\f[R] \[em],
 \f[B]commande\f[R], \f[B]description\f[R], \f[B]depend_de\f[R],
-\f[B]archive_octets\f[R]/\f[B]base_octets\f[R] propres au nœud, et pour
-une page \f[B]archive_octets_transitif\f[R]/
-\f[B]base_octets_transitif\f[R], le total dépendances comprises) plutôt
-que l\[cq]arbre déroulé.
+\f[B]archive_octets\f[R]/\f[B]base_octets\f[R] propres au nœud, pour une
+page \f[B]archive_octets_transitif\f[R]/ \f[B]base_octets_transitif\f[R]
+(le total dépendances comprises) et \f[B]tables\f[R] (les tables
+core/ref/geo nécessaires, dépendances comprises)) plutôt que l\[cq]arbre
+déroulé.
 .TP
 \f[B]\[en]pages\f[R]
 N\[cq]affiche que le second arbre (les pages du site et leurs
@@ -114,10 +120,10 @@ préalables), sans argument.
 \f[B]raw.source.etape\f[R] (écrit par
 \f[B]internal/archive.Archive.Etape\f[R] à chaque ingestion via
 \f[B]fpctl ingest <source|catégorie>\f[R] \[em] pas \f[B]fpctl ingest
-all\f[R], la chaîne historique, qui n\[cq]étiquette pas ses sources) :
-un reflet générique qui couvre n\[cq]importe quelle étape du catalogue,
-pas seulement les sept du socle \[em] c\[cq]est ce qui permet de
-chiffrer le coût d\[cq]ingestion d\[cq]une page entière.
+default\f[R], la chaîne historique, qui n\[cq]étiquette pas ses sources)
+: un reflet générique qui couvre n\[cq]importe quelle étape du
+catalogue, pas seulement les sept du socle \[em] c\[cq]est ce qui permet
+de chiffrer le coût d\[cq]ingestion d\[cq]une page entière.
 Les octets en base restent une liste de tables tenue à la main
 (\f[B]cmd/fpctl/list.go\f[R], \f[B]composantesEtape\f[R]), à ce jour
 limitée aux sept étapes du socle.

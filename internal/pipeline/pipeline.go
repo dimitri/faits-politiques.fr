@@ -29,6 +29,22 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
+// stepNameKey n'est jamais exporté : seul StepName y donne accès, pour
+// qu'un appelant ne puisse jamais écrire directement dans le ctx d'une
+// étape en cours d'exécution.
+type stepNameKey struct{}
+
+// StepName : le nom de l'étape en train de s'exécuter, lu dans le ctx
+// qu'Executer passe à Etape.Executer — pour un consommateur qui a besoin de
+// savoir QUI l'appelle sans le faire remonter explicitement à travers
+// chaque fonction intermédiaire (voir internal/sitegen, le traçage des
+// tables lues par page). false si ctx ne vient pas d'un appel d'Executer
+// (par exemple un test qui invoque directement Etape.Executer).
+func StepName(ctx context.Context) (string, bool) {
+	nom, ok := ctx.Value(stepNameKey{}).(string)
+	return nom, ok
+}
+
 // Results : ce que les dépendances déjà exécutées d'une étape ont produit,
 // indexé par nom — nil pour une étape qui n'agit que par effet de bord
 // (le cas de tout l'ingest aujourd'hui). internal/matview et internal/sitegen
@@ -300,7 +316,7 @@ func (r *Registre) Executer(ctx context.Context, cibles []string, opts ...Option
 			// la même chose en moins bien.
 			logs.Notice(e.Description)
 			debut := time.Now()
-			valeur, err := e.Executer(gctx, deps)
+			valeur, err := e.Executer(context.WithValue(gctx, stepNameKey{}, nom), deps)
 			duree := time.Since(debut)
 			if err != nil {
 				err = fmt.Errorf("%s (après %s) : %w", nom, duree.Round(time.Millisecond), err)

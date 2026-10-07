@@ -153,6 +153,12 @@ func commandeDeps() *cobra.Command {
 			"cmd/fpctl/build.go) — --pages n'affiche que celui-là. Avec un nom,\n" +
 			"limite l'affichage à une seule chose : l'une des sept étapes du\n" +
 			"socle, ou une page (--pages ignoré, déjà implicite).\n\n" +
+			"Chaque page affiche aussi « tables : » — les tables core/ref/geo\n" +
+			"qu'elle lit directement, dépendances comprises, jamais mv.* (voir\n" +
+			"internal/matview.Definition.Tables pour ça). Mesuré à l'exécution\n" +
+			"par internal/sitegen (core.sitegen_table_usage), pas deviné par\n" +
+			"relecture du code : absent tant qu'un « fpctl build site » n'a pas\n" +
+			"encore tourné depuis la migration qui introduit cette table.\n\n" +
 			"--json écrit la liste des nœuds concernés à plat (un objet par\n" +
 			"nœud, depend_de nommant les autres par leur nom, commande portant\n" +
 			"l'invocation exacte) plutôt que l'arbre déroulé — la forme qu'un\n" +
@@ -305,6 +311,14 @@ type noeud struct {
 	// la question se pose.
 	ArchiveOctetsTransitif int64 `json:"archive_octets_transitif,omitempty"`
 	BaseOctetsTransitif    int64 `json:"base_octets_transitif,omitempty"`
+	// Tables : les tables core/ref/geo/derived/jo (jamais mv.*) nécessaires
+	// à cette page, dépendances comprises — lu dans core.sitegen_table_usage
+	// (internal/sitegen.TablesPubliees), un REFLET mesuré au dernier
+	// « fpctl build site » réussi, jamais une liste tenue à la main. nil
+	// tant qu'aucune construction n'a encore tourné depuis cette migration,
+	// ou pour un nœud de type "etape" (cette question ne se pose que pour
+	// une page).
+	Tables []string `json:"tables,omitempty"`
 }
 
 // tailleTransitiveMulti additionne ArchiveOctets/BaseOctets de chaque racine
@@ -369,11 +383,20 @@ func ajouterNoeudEtape(ctx context.Context, pool *pgxpool.Pool, noeuds map[strin
 	return nil
 }
 
-// ajouterNoeudPage ajoute la section de fpctl build nomSection à noeuds,
-// avec pour dépendances ses préalables d'ingestion (ingestPrerequisites,
-// cmd/fpctl/build.go) — ajoutés eux aussi si besoin, pour que le nœud page
-// pointe vers des étapes qui existent vraiment dans la carte.
-func ajouterNoeudPage(ctx context.Context, pool *pgxpool.Pool, noeuds map[string]noeud, nomSection, description string) error {
+// ajouterNoeudPage ajoute la section ou le groupe de fpctl build nomSection
+// à noeuds, avec pour dépendances ses préalables d'ingestion
+// (ingestPrerequisites, cmd/fpctl/build.go) — ajoutés eux aussi si besoin,
+// pour que le nœud page pointe vers des étapes qui existent vraiment dans
+// la carte. sectionsSitegen est la liste des VRAIS noms de nœuds internal/
+// sitegen que nomSection recouvre (pour un groupe comme « indicateurs »,
+// buildGroups[i].sections — plusieurs sections ; pour une section isolée
+// comme « dette », []string{nomSection} suffit, nomSection EST déjà le nom
+// sitegen) : nomSection lui-même ne l'est pas forcément, voir buildGroups.
+// tablesParNoeud vient de sitegen.TablesPubliees (nil si aucune base
+// n'était joignable, ou si aucune construction n'a encore tourné depuis la
+// migration qui a introduit core.sitegen_table_usage) ; les tables de
+// chaque section du groupe sont réunies ici en un seul ensemble dédupliqué.
+func ajouterNoeudPage(ctx context.Context, pool *pgxpool.Pool, noeuds map[string]noeud, nomSection, description string, sectionsSitegen []string, tablesParNoeud map[string][]string) error {
 	prealables := ingestPrerequisites[nomSection]
 	for _, p := range prealables {
 		if err := ajouterNoeudEtape(ctx, pool, noeuds, p); err != nil {
@@ -387,12 +410,26 @@ func ajouterNoeudPage(ctx context.Context, pool *pgxpool.Pool, noeuds map[string
 	// préalable additionné ensuite, qui recompterait une dépendance
 	// partagée entre deux d'entre eux.
 	archiveTotal, baseTotal := tailleTransitiveMulti(noeuds, prealables)
+	var tables []string
+	if tablesParNoeud != nil {
+		vues := map[string]bool{}
+		for _, cible := range sitegen.ResolveTargets(sectionsSitegen) {
+			for _, t := range tablesParNoeud[cible] {
+				if !vues[t] {
+					vues[t] = true
+					tables = append(tables, t)
+				}
+			}
+		}
+		sort.Strings(tables)
+	}
 	noeuds[clePage(nomSection)] = noeud{
 		Nom: nomSection, Type: "page",
 		Commande: "fpctl build " + nomSection, Description: description,
 		DependDe:               prealables,
 		ArchiveOctetsTransitif: archiveTotal,
 		BaseOctetsTransitif:    baseTotal,
+		Tables:                 tables,
 	}
 	return nil
 }
@@ -411,6 +448,7 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 			return err
 		}
 	}
+	var tablesParNoeud map[string][]string
 	if pool != nil {
 		// Seule la dernière exécution vient de la base ; la structure
 		// (Description, DependDe) reste celle du code, au cas où le reflet
@@ -425,6 +463,13 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 				noeuds[e.Nom] = n
 			}
 		}
+		// tablesParNoeud reste nil (pas une erreur fatale pour cette
+		// commande d'affichage) si la migration qui introduit
+		// core.sitegen_table_usage n'est pas encore passée — ajouterNoeudPage
+		// se contente alors de ne rien afficher pour Tables.
+		if t, err := sitegen.TablesPubliees(ctx, pool); err == nil {
+			tablesParNoeud = t
+		}
 	}
 
 	// racines : dans la portée demandée, ce dont rien d'autre dans cette
@@ -438,7 +483,7 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 		racines = calculerRacines(noeuds, ingest.SocleParlementaire())
 	case nom == "" && enPages:
 		for _, section := range buildGroups {
-			if err := ajouterNoeudPage(ctx, pool, noeuds, section.name, section.description); err != nil {
+			if err := ajouterNoeudPage(ctx, pool, noeuds, section.name, section.description, section.sections, tablesParNoeud); err != nil {
 				return err
 			}
 			racines = append(racines, clePage(section.name))
@@ -450,7 +495,7 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 		for _, section := range buildGroups {
 			if section.name == nom {
 				trouve = true
-				if err := ajouterNoeudPage(ctx, pool, noeuds, nom, section.description); err != nil {
+				if err := ajouterNoeudPage(ctx, pool, noeuds, nom, section.description, section.sections, tablesParNoeud); err != nil {
 					return err
 				}
 				racines = []string{clePage(nom)}
@@ -474,7 +519,7 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 		fmt.Println("pages du site (fpctl build) :")
 		var racinesPages []string
 		for _, section := range buildGroups {
-			if err := ajouterNoeudPage(ctx, pool, noeuds, section.name, section.description); err != nil {
+			if err := ajouterNoeudPage(ctx, pool, noeuds, section.name, section.description, section.sections, tablesParNoeud); err != nil {
 				return err
 			}
 			racinesPages = append(racinesPages, clePage(section.name))
@@ -604,6 +649,9 @@ func imprimerArbre(pool *pgxpool.Pool, noeuds map[string]noeud, nom, prefixe str
 	if n.Type == "page" && (n.ArchiveOctetsTransitif > 0 || n.BaseOctetsTransitif > 0) {
 		fmt.Printf(suite+"    ≈ %s à télécharger, %s en base (préalables compris)\n",
 			tailleLisible(n.ArchiveOctetsTransitif), tailleLisible(n.BaseOctetsTransitif))
+	}
+	if n.Type == "page" && len(n.Tables) > 0 {
+		fmt.Println(suite + "    tables : " + strings.Join(n.Tables, ", "))
 	}
 	for i, d := range n.DependDe {
 		imprimerArbre(pool, noeuds, d, suite, i == len(n.DependDe)-1, false)

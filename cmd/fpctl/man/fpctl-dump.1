@@ -24,10 +24,14 @@ partir d\[cq]un seul fichier restauré dans une base vide.
 .PP
 \f[B]fpctl dump ci\f[R] actualise d\[cq]abord chaque matvue
 (\f[B]internal/matview.ActualiserToutes\f[R] \[em] un REFRESH sauté si
-rien n\[cq]a changé), puis recopie chaque matvue et chaque TableDirecte
-dans un schéma jetable (\f[B]ci\f[R]) sous forme de tables ordinaires,
-colonnes d\[cq]un type énuméré propre à \f[B]core\f[R]
-(\f[B]mandate_type\f[R], \f[B]organization_kind\f[R]\&...)
+rien n\[cq]a changé), vérifie ensuite que ce périmètre couvre bien tout
+ce que le dernier \f[B]fpctl build site\f[R] a RÉELLEMENT lu
+(\f[B]core.sitegen_table_usage\f[R], mesuré à l\[cq]exécution par
+\f[B]internal/sitegen\f[R] \[em] voir MÉTHODE plus bas), puis recopie
+chaque matvue et chaque TableDirecte dans un schéma jetable
+(\f[B]ci\f[R]) sous forme de tables ordinaires, colonnes d\[cq]un type
+énuméré propre à \f[B]core\f[R] (\f[B]mandate_type\f[R],
+\f[B]organization_kind\f[R]\&...)
 converties en \f[B]text\f[R] au passage, puis exporte ce seul schéma
 avec \f[B]pg_dump \-Fc\f[R].
 Deux raisons empêchent de dumper \f[B]mv\f[R] directement :
@@ -44,7 +48,7 @@ un type introuvable.
 .PP
 L\[cq]actualisation préalable des matvues n\[cq]est pas cosmétique :
 sans elle, lancer \f[B]fpctl dump ci\f[R] hors de la séquence \f[B]fpctl
-ingest all\f[R] (qui actualise déjà les matvues en dernière étape)
+ingest default\f[R] (qui actualise déjà les matvues en dernière étape)
 capturerait silencieusement le contenu d\[cq]un cycle d\[cq]ingestion
 antérieur, jamais signalé comme périmé.
 .PP
@@ -66,9 +70,29 @@ préfixe \f[B]ci/\f[R] du bucket \f[B]fp\-archive\f[R] déjà utilisé pour
 l\[cq]archive scellée, jamais un second bucket à sécuriser séparément
 pour un fichier de quelques dizaines de méga\-octets.
 .SH MÉTHODE
-Pour fermer une lacune du périmètre (une table encore lue directement
-par \f[B]internal/sitegen\f[R] sans matvue ni entrée dans
-TablesDirectes) :
+\f[B]fpctl dump ci\f[R] refuse désormais l\[cq]export lui\-même si une
+page a besoin d\[cq]une table que ce périmètre ne couvre pas : il
+compare \f[B]core.
+sitegen_table_usage\f[R] (ce qu\[cq]un \f[B]pgx.QueryTracer\f[R] a
+observé pendant le dernier \f[B]fpctl build site\f[R] \[em] jamais
+deviné par relecture du code, voir \f[B]fpctl\-list(1)\f[R],
+\f[B]deps\f[R]) à \f[B]internal/matview.Perimetre()\f[R], et liste
+chaque table manquante avec les pages qui en ont besoin.
+Pour fermer une lacune signalée ainsi :
+.IP "1." 3
+Ajouter la table à \f[B]internal/matview\f[R] \[em] une TableDirecte si
+elle reste petite, une matvue si son volume (comme
+\f[B]ref.unite_legale\f[R], 13 millions de lignes) rendrait le périmètre
+CI trop lourd pour une seule statistique.
+.IP "2." 3
+\f[B]fpctl build site\f[R] une fois pour réécrire
+\f[B]core.sitegen_table_usage\f[R] avec la page corrigée, puis
+\f[B]fpctl dump ci\f[R] de nouveau.
+.PP
+Si \f[B]core.sitegen_table_usage\f[R] n\[cq]existe pas encore (migration
+pas encore appliquée) ou si aucune construction n\[cq]a encore tourné
+depuis, ce contrôle ne s\[cq]applique pas \[em] repli sur la méthode
+manuelle d\[cq]avant ce contrôle :
 .IP "1." 3
 \f[B]fpctl dump ci\f[R] puis \f[B]fpctl dump restore\f[R] dans une base
 de test.
@@ -77,8 +101,8 @@ de test.
 fpctl build site\f[R] contre cette base : une relation manquante y
 échoue explicitement, avec son nom.
 .IP "3." 3
-Ajouter cette relation à \f[B]internal/matview\f[R] (matvue si son
-volume se réduit vraiment, TableDirecte sinon), recommencer depuis 1.
+Ajouter cette relation à \f[B]internal/matview\f[R], recommencer depuis
+1.
 .SH OPTIONS
 .TP
 \f[B]\-out\f[R] \f[I]fichier\f[R]

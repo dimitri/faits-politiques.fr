@@ -37,6 +37,29 @@ func Open(ctx context.Context) (*pgxpool.Pool, error) {
 // indépendantes (internal/sitegen/lieux_pages.go) — un connecteur d'ingestion
 // ordinaire n'a pas cette raison de s'écarter du défaut.
 func OpenWithMaxConns(ctx context.Context, maxConns int32) (*pgxpool.Pool, error) {
+	cfg, err := config(maxConns)
+	if err != nil {
+		return nil, err
+	}
+	return open(ctx, cfg)
+}
+
+// OpenWithTracer : comme OpenWithMaxConns, avec un pgx.QueryTracer posé sur
+// chaque connexion — internal/sitegen s'en sert pour observer, à
+// l'exécution, les tables que chaque page lit réellement (voir
+// internal/sitegen/table_trace.go), plutôt que de les deviner par relecture
+// du code à chaque fois qu'une page change.
+func OpenWithTracer(ctx context.Context, maxConns int32, tracer pgx.QueryTracer) (*pgxpool.Pool, error) {
+	cfg, err := config(maxConns)
+	if err != nil {
+		return nil, err
+	}
+	cfg.ConnConfig.Tracer = tracer
+	return open(ctx, cfg)
+}
+
+// config : la part commune à OpenWithMaxConns et OpenWithTracer.
+func config(maxConns int32) (*pgxpool.Config, error) {
 	cfg, err := pgxpool.ParseConfig(DSN())
 	if err != nil {
 		return nil, err
@@ -60,16 +83,22 @@ func OpenWithMaxConns(ctx context.Context, maxConns int32) (*pgxpool.Pool, error
 		_, err := conn.Exec(ctx, `SET work_mem = '1GB'; SET maintenance_work_mem = '1GB'`)
 		return err
 	}
+	return cfg, nil
+}
 
+// open : la part commune à OpenWithMaxConns et OpenWithTracer, une fois la
+// configuration construite.
+func open(ctx context.Context, cfg *pgxpool.Config) (*pgxpool.Pool, error) {
 	pool, err := pgxpool.NewWithConfig(ctx, cfg)
 	if err != nil {
 		return nil, err
 	}
+	var pingErr error
 	for i := 0; i < 30; i++ {
-		if err = pool.Ping(ctx); err == nil {
+		if pingErr = pool.Ping(ctx); pingErr == nil {
 			return pool, nil
 		}
 		time.Sleep(time.Second)
 	}
-	return nil, fmt.Errorf("base injoignable : %w", err)
+	return nil, fmt.Errorf("base injoignable : %w", pingErr)
 }

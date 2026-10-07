@@ -27,8 +27,11 @@ d'un seul fichier restauré dans une base vide.
 
 **fpctl dump ci** actualise d'abord chaque matvue
 (**internal/matview.ActualiserToutes** — un REFRESH sauté si rien n'a
-changé), puis recopie chaque matvue et chaque TableDirecte dans un schéma
-jetable (**ci**) sous forme de tables ordinaires, colonnes d'un type énuméré
+changé), vérifie ensuite que ce périmètre couvre bien tout ce que le
+dernier **fpctl build site** a RÉELLEMENT lu (**core.sitegen_table_usage**,
+mesuré à l'exécution par **internal/sitegen** — voir MÉTHODE plus bas), puis
+recopie chaque matvue et chaque TableDirecte dans un schéma jetable
+(**ci**) sous forme de tables ordinaires, colonnes d'un type énuméré
 propre à **core** (**mandate_type**, **organization_kind**...) converties
 en **text** au passage, puis exporte ce seul schéma avec **pg_dump -Fc**.
 Deux raisons empêchent de dumper **mv** directement :
@@ -63,14 +66,29 @@ mêmes variables d'environnement que **fpctl sync** (voir
 
 # MÉTHODE
 
-Pour fermer une lacune du périmètre (une table encore lue directement par
-**internal/sitegen** sans matvue ni entrée dans TablesDirectes) :
+**fpctl dump ci** refuse désormais l'export lui-même si une page a besoin
+d'une table que ce périmètre ne couvre pas : il compare **core.
+sitegen_table_usage** (ce qu'un **pgx.QueryTracer** a observé pendant le
+dernier **fpctl build site** — jamais deviné par relecture du code, voir
+**fpctl-list(1)**, **deps**) à **internal/matview.Perimetre()**, et liste
+chaque table manquante avec les pages qui en ont besoin. Pour fermer une
+lacune signalée ainsi :
+
+1. Ajouter la table à **internal/matview** — une TableDirecte si elle
+   reste petite, une matvue si son volume (comme **ref.unite_legale**,
+   13 millions de lignes) rendrait le périmètre CI trop lourd pour une
+   seule statistique.
+2. **fpctl build site** une fois pour réécrire **core.sitegen_table_usage**
+   avec la page corrigée, puis **fpctl dump ci** de nouveau.
+
+Si **core.sitegen_table_usage** n'existe pas encore (migration pas encore
+appliquée) ou si aucune construction n'a encore tourné depuis, ce contrôle
+ne s'applique pas — repli sur la méthode manuelle d'avant ce contrôle :
 
 1. **fpctl dump ci** puis **fpctl dump restore** dans une base de test.
 2. **DATABASE_URL=... fpctl build site** contre cette base : une relation
    manquante y échoue explicitement, avec son nom.
-3. Ajouter cette relation à **internal/matview** (matvue si son volume se
-   réduit vraiment, TableDirecte sinon), recommencer depuis 1.
+3. Ajouter cette relation à **internal/matview**, recommencer depuis 1.
 
 # OPTIONS
 

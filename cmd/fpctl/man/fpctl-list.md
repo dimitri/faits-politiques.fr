@@ -82,18 +82,24 @@ fpctl-list - liste une collection (sources, connecteurs, statistiques, graphe de
     préalables d'ingestion (voir **fpctl-build**(1), SECTIONS), avec le
     total à télécharger et à charger en base pour l'amener à jour depuis
     rien (dépendances comprises, chacune comptée une seule fois même si
-    plusieurs chemins y mènent). Avec le nom d'une des sept étapes du
-    socle, cette étape seule et sa chaîne de dépendances. Avec le nom d'une
-    section de **fpctl build**, cette section seule, dans la même forme.
-    Échoue avec la liste des noms valides sur tout autre nom.
+    plusieurs chemins y mènent), et les tables **core/ref/geo** dont elle a
+    besoin (« **tables :** », dépendances comprises, jamais **mv.*** —
+    mesuré à l'exécution par **internal/sitegen** dans **core.
+    sitegen_table_usage**, absent tant qu'un **fpctl build site** n'a pas
+    encore tourné depuis la migration qui introduit cette table). Avec le
+    nom d'une des sept étapes du socle, cette étape seule et sa chaîne de
+    dépendances. Avec le nom d'une section de **fpctl build**, cette
+    section seule, dans la même forme. Échoue avec la liste des noms
+    valides sur tout autre nom.
 
     **--json**
     :   Écrit les nœuds concernés à plat (un objet par nœud : **nom**,
         **type** — **etape** ou **page** —, **commande**, **description**,
         **depend_de**, **archive_octets**/**base_octets** propres au nœud,
-        et pour une page **archive_octets_transitif**/
-        **base_octets_transitif**, le total dépendances comprises) plutôt
-        que l'arbre déroulé.
+        pour une page **archive_octets_transitif**/
+        **base_octets_transitif** (le total dépendances comprises) et
+        **tables** (les tables core/ref/geo nécessaires, dépendances
+        comprises)) plutôt que l'arbre déroulé.
 
     **--pages**
     :   N'affiche que le second arbre (les pages du site et leurs
