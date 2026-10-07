@@ -401,6 +401,17 @@ var Catalogue = []Definition{
 		Tables: []string{"jo.texte"},
 		SQL:    `SELECT id FROM jo.texte`,
 	},
+	{
+		// Une ligne, pour éviter d'exporter les 13 070 047 lignes de
+		// ref.unite_legale (SIRENE) dans le périmètre CI (internal/matview.
+		// TablesDirectes) pour une seule statistique — voir sujet_page.go,
+		// enBref, case "sci-holding".
+		Nom:    "sci_holding_actives",
+		Tables: []string{"ref.unite_legale"},
+		SQL: `SELECT 'sci-holding' AS cle, count(*)::bigint AS actives
+	  FROM ref.unite_legale
+	 WHERE etat_administratif = 'A' AND categorie_juridique IN ('6540', '6541')`,
+	},
 }
 
 // TableDirecte : une table de core/ref/geo que internal/sitegen lit
@@ -522,6 +533,7 @@ var TablesDirectes = []TableDirecte{
 	{"geo.contour_circonscription", "lu directement par internal/sitegen — 558 lignes"},
 	{"ref.circonscription_legislative", "lu directement par internal/sitegen — 566 lignes"},
 	{"core.emploi_secteur_nace", "lu directement par internal/sitegen — 612 lignes"},
+	{"core.flux_financier_snf", "lu directement par internal/sitegen — 620 lignes"},
 	{"core.execution_etat", "lu directement par internal/sitegen — 806 lignes"},
 	{"core.exoneration_cotisation", "lu directement par internal/sitegen — 890 lignes"},
 	{"core.ifi_commune", "lu directement par internal/sitegen — 1 112 lignes"},
@@ -544,6 +556,7 @@ var TablesDirectes = []TableDirecte{
 	{"core.dossier_author", "lu directement par internal/sitegen — 7 305 lignes"},
 	{"core.sru_commune", "lu directement par internal/sitegen — 8 743 lignes"},
 	{"geo.autoroute_portuaire", "lu directement par internal/sitegen — 9 062 lignes"},
+	{"core.service_eau_potable", "lu directement par internal/sitegen — 10 231 lignes"},
 	{"core.bilan_alimentaire", "lu directement par internal/sitegen — 10 770 lignes"},
 	{"core.effectifs_etudiants_commune", "lu directement par internal/sitegen — 14 719 lignes"},
 	{"core.population_age", "lu directement par internal/sitegen — 15 897 lignes"},
@@ -556,6 +569,7 @@ var TablesDirectes = []TableDirecte{
 	{"geo.contour_cog", "lu directement par internal/sitegen — 72 284 lignes"},
 	{"core.marche_numerique", "lu directement par internal/sitegen — 75 228 lignes"},
 	{"core.epci_membre", "lu directement par internal/sitegen — 129 560 lignes"},
+	{"core.medecin_secteur_effectif", "lu directement par internal/sitegen — 177 720 lignes"},
 	{"core.declaration_item", "lu directement par internal/sitegen — 341 931 lignes"},
 	{"core.person_identifier", "lu directement par internal/sitegen — 517 528 lignes"},
 	{"derived.autonomie_alimentaire", "lu directement par internal/sitegen — 1 186 lignes"},

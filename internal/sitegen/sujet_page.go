@@ -732,8 +732,7 @@ func enBref(ctx context.Context, pool *pgxpool.Pool, s *Sujet, acc *DonneesAccue
 			"encaissés par le contrôle fiscal", "Sénat, commission des finances / DGFiP",
 			func(v float64) string { return Decimal(v/1000, 1) + "\u00a0Md€" })
 	case "sci-holding":
-		requete(`SELECT extract(year from now())::int, count(*)::float8 FROM ref.unite_legale
-			WHERE etat_administratif='A' AND categorie_juridique IN ('6540','6541')`,
+		requete(`SELECT extract(year from now())::int, actives::float8 FROM mv.sci_holding_actives WHERE cle='sci-holding'`,
 			"sociétés civiles immobilières actives", "Insee, répertoire Sirene",
 			func(v float64) string { return Nombre(int(v + 0.5)) })
 	case "richesse":
