@@ -498,7 +498,7 @@ var catalogue = []Source{
 		}},
 	{Nom: "investissement-entreprises", Categorie: CategorieBudget, Description: "investissement, dividendes et tissu productif par catégorie d'entreprise",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return entreprises.IngestInvestissement(ctx, pool, arch)
+			return entreprises.IngestInvestment(ctx, pool, arch)
 		}},
 
 	// --- social : santé, vieillesse, jeunesse, pauvreté/richesse, éducation,
@@ -630,11 +630,11 @@ var catalogue = []Source{
 		}},
 	{Nom: "sous-bassins", Categorie: CategorieEnvironnement, Description: "sous-bassins versants topographiques (résolution fine)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return hydro.IngestSousBassins(ctx, pool, arch)
+			return hydro.IngestSubBasins(ctx, pool, arch)
 		}},
 	{Nom: "cours-eau", Categorie: CategorieEnvironnement, Description: "tracé des grands cours d'eau (repère cartographique)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return hydro.IngestCoursEau(ctx, pool, arch)
+			return hydro.IngestWatercourses(ctx, pool, arch)
 		}},
 	{Nom: "eau-potable", Categorie: CategorieEnvironnement, Description: "services publics d'eau potable (SISPEA)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
