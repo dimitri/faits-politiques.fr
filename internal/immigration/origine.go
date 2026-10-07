@@ -13,11 +13,11 @@ import (
 const melodiOrigineURL = "https://api.insee.fr/melodi/data/DS_RP_TD_IMMI_AGESEX_PAYSNAISS_R_PRINC" +
 	"?GEO=FRANCE-FM&maxResult=10000"
 
-// paysLib : le regroupement Insee des pays de naissance — les pays qui pèsent
+// countryLabels : le regroupement Insee des pays de naissance — les pays qui pèsent
 // individuellement (Algérie, Maroc, Tunisie, Italie, Espagne, Portugal,
 // Turquie) et cinq agrégats pour le reste. Ce n'est pas la liste des 195 pays
 // du monde : c'est celle que l'Insee choisit de publier à ce niveau de détail.
-var paysLib = map[string]string{
+var countryLabels = map[string]string{
 	"12": "Algérie", "504": "Maroc", "788": "Tunisie", "380": "Italie",
 	"620": "Portugal", "724": "Espagne", "792": "Turquie",
 	"EUR_OTH": "Autres pays d'Europe", "UE27_OTH": "Autres pays de l'Union européenne",
@@ -38,28 +38,28 @@ func IngestOrigine(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		return err
 	}
 
-	obs, err := melodiLire(ctx, arch, srcID, runID, melodiOrigineURL)
+	obs, err := melodiRead(ctx, arch, srcID, runID, melodiOrigineURL)
 	if err != nil {
 		return fail(err)
 	}
 
 	var rows [][]any
-	var rejets int
+	var rejected int
 	for _, o := range obs {
-		annee, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
+		year, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
 		if err != nil {
-			rejets++
+			rejected++
 			continue
 		}
-		sexe, okS := sexeLib[o.Dimensions["SEX"]]
-		age, okA := ageLib[o.Dimensions["AGE"]]
+		sexe, okS := sexLabels[o.Dimensions["SEX"]]
+		age, okA := ageLabels[o.Dimensions["AGE"]]
 		pays := o.Dimensions["AREA_COUNTRY"]
-		lib, okP := paysLib[pays]
+		lib, okP := countryLabels[pays]
 		if !okS || !okA || !okP {
-			rejets++
+			rejected++
 			continue
 		}
-		rows = append(rows, []any{annee, sexe, age, pays, lib, o.Measures.OBSVALUENIVEAU.Value, srcID})
+		rows = append(rows, []any{year, sexe, age, pays, lib, o.Measures.OBSVALUENIVEAU.Value, srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("aucune ligne reconnue sur %d observations", len(obs)))
@@ -103,14 +103,14 @@ func IngestOrigine(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	if err != nil {
 		return fail(fmt.Errorf("fusion population_immigree_origine : %w", err))
 	}
-	touchees := ct.RowsAffected()
+	affected := ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"lignes_chargees": touchees, "rejet_dimension_inconnue": rejets}, "")
+		map[string]any{"lignes_chargees": affected, "rejet_dimension_inconnue": rejected}, "")
 	fmt.Printf("  population immigrée par pays de naissance : %d lignes touchées (%d rejetées)\n",
-		touchees, rejets)
+		affected, rejected)
 	return nil
 }

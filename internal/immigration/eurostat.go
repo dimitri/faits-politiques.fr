@@ -30,7 +30,7 @@ var SourceEurostatMigration = archive.Source{
 // pays : le national (NAT), le reste de l'Union à 27 (EU27_2020_FOR), le hors
 // UE27 (NEU27_2020_FOR), et leur somme (TOTAL) — assez pour situer la France,
 // pas un inventaire pays par pays que ce projet ne synthétiserait pas.
-var eurostatCategorieLib = map[string]string{
+var eurostatCategoryLabels = map[string]string{
 	"TOTAL": "TOTAL", "NAT": "NATIONAL", "EU27_2020_FOR": "UE27_AUTRE", "NEU27_2020_FOR": "HORS_UE27",
 }
 
@@ -50,13 +50,13 @@ func IngestEurostatMigration(ctx context.Context, pool *pgxpool.Pool, arch *arch
 		return err
 	}
 
-	citoyennete, err := fetchEurostatMigr(ctx, arch, srcID, runID,
+	citizenship, err := fetchEurostatMigr(ctx, arch, srcID, runID,
 		eurostatMigrBase+"migr_pop1ctz?geo=FR&age=TOTAL&sex=T&citizen=TOTAL&citizen=NAT&"+
 			"citizen=EU27_2020_FOR&citizen=NEU27_2020_FOR&format=JSON&lang=EN", "citizen")
 	if err != nil {
 		return fail(fmt.Errorf("citoyenneté : %w", err))
 	}
-	naissance, err := fetchEurostatMigr(ctx, arch, srcID, runID,
+	birthCountry, err := fetchEurostatMigr(ctx, arch, srcID, runID,
 		eurostatMigrBase+"migr_pop3ctb?geo=FR&age=TOTAL&sex=T&c_birth=TOTAL&c_birth=NAT&"+
 			"c_birth=EU27_2020_FOR&c_birth=NEU27_2020_FOR&format=JSON&lang=EN", "c_birth")
 	if err != nil {
@@ -64,11 +64,11 @@ func IngestEurostatMigration(ctx context.Context, pool *pgxpool.Pool, arch *arch
 	}
 
 	var rows [][]any
-	for _, t := range citoyennete {
-		rows = append(rows, []any{"CITOYENNETE", t.Categorie, "FR", t.Annee, t.Valeur, srcID})
+	for _, t := range citizenship {
+		rows = append(rows, []any{"CITOYENNETE", t.Category, "FR", t.Year, t.Value, srcID})
 	}
-	for _, t := range naissance {
-		rows = append(rows, []any{"PAYS_NAISSANCE", t.Categorie, "FR", t.Annee, t.Valeur, srcID})
+	for _, t := range birthCountry {
+		rows = append(rows, []any{"PAYS_NAISSANCE", t.Category, "FR", t.Year, t.Value, srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("aucune valeur décodée"))
@@ -109,22 +109,22 @@ func IngestEurostatMigration(ctx context.Context, pool *pgxpool.Pool, arch *arch
 	if err != nil {
 		return fail(fmt.Errorf("fusion eurostat_population_migratoire : %w", err))
 	}
-	touchees := ct.RowsAffected()
+	affected := ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": touchees}, "")
-	fmt.Printf("  Eurostat, population par citoyenneté et pays de naissance : %d lignes touchées\n", touchees)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": affected}, "")
+	fmt.Printf("  Eurostat, population par citoyenneté et pays de naissance : %d lignes touchées\n", affected)
 	return nil
 }
 
 // triplet : catégorie, année, population — le type de retour de
 // fetchEurostatMigr.
 type triplet struct {
-	Categorie string
-	Annee     int
-	Valeur    float64
+	Category string
+	Year     int
+	Value    float64
 }
 
 // fetchEurostatMigr décode un JSON-stat à DEUX dimensions variables (la
@@ -159,26 +159,26 @@ func fetchEurostatMigr(ctx context.Context, arch *archive.Archive, srcID, runID 
 	}
 	catIdx := doc.Dimension[catDim].Category.Index
 	timeIdx := doc.Dimension["time"].Category.Index
-	nTemps := len(timeIdx)
-	if nTemps == 0 || len(catIdx) == 0 {
+	nTimes := len(timeIdx)
+	if nTimes == 0 || len(catIdx) == 0 {
 		return nil, fmt.Errorf("dimensions %s ou time absentes", catDim)
 	}
 	var out []triplet
 	for code, ci := range catIdx {
-		lib, ok := eurostatCategorieLib[code]
+		label, ok := eurostatCategoryLabels[code]
 		if !ok {
 			continue
 		}
-		for anneeStr, ti := range timeIdx {
-			v, ok := doc.Value[strconv.Itoa(ci*nTemps+ti)]
+		for yearStr, ti := range timeIdx {
+			v, ok := doc.Value[strconv.Itoa(ci*nTimes+ti)]
 			if !ok {
 				continue
 			}
-			annee, err := strconv.Atoi(anneeStr)
+			year, err := strconv.Atoi(yearStr)
 			if err != nil {
 				continue
 			}
-			out = append(out, triplet{lib, annee, v})
+			out = append(out, triplet{label, year, v})
 		}
 	}
 	return out, nil

@@ -39,7 +39,7 @@ var SourceHopitalFinances = archive.Source{
 const urlHopitalFinances = "https://drees.solidarites-sante.gouv.fr/sites/default/files/2026-07/" +
 	"ES%202026%20-%20Fiche%2025%20-%20La%20situation%20%C3%A9conomique%20et%20financi%C3%A8re%20des%20h%C3%B4pitaux%20publics.xlsx"
 
-var enteteNavigateur = http.Header{
+var browserHeader = http.Header{
 	"User-Agent": {"Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36"},
 	"Referer":    {"https://drees.solidarites-sante.gouv.fr/"},
 }
@@ -58,7 +58,7 @@ func IngestHopitalFinances(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return err
 	}
 
-	f, err := arch.FetchEntetes(ctx, srcID, runID, urlHopitalFinances, ".xlsx", enteteNavigateur)
+	f, err := arch.FetchEntetes(ctx, srcID, runID, urlHopitalFinances, ".xlsx", browserHeader)
 	if err != nil {
 		return fail(err)
 	}
@@ -68,11 +68,11 @@ func IngestHopitalFinances(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	}
 	defer wb.Close()
 
-	resultats, err := chargerCompteResultat(wb)
+	incomeRows, err := loadIncomeStatement(wb)
 	if err != nil {
 		return fail(fmt.Errorf("compte de résultat : %w", err))
 	}
-	deficits, err := chargerDeficitCategorie(wb)
+	deficitRows, err := loadDeficitByCategory(wb)
 	if err != nil {
 		return fail(fmt.Errorf("déficit par catégorie : %w", err))
 	}
@@ -93,7 +93,7 @@ func IngestHopitalFinances(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	var rowsR [][]any
-	for _, l := range resultats {
+	for _, l := range incomeRows {
 		rowsR = append(rowsR, []any{l.Annee, l.Indicateur, l.MontantMEUR, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_hopital_public_resultat"},
@@ -122,7 +122,7 @@ func IngestHopitalFinances(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	var rowsD [][]any
-	for _, l := range deficits {
+	for _, l := range deficitRows {
 		rowsD = append(rowsD, []any{l.Annee, l.Categorie, l.DeficitPct, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_hopital_public_deficit_categorie"},
@@ -153,24 +153,24 @@ func IngestHopitalFinances(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	return nil
 }
 
-type ligneResultat struct {
+type incomeRow struct {
 	Annee       int
 	Indicateur  string
 	MontantMEUR float64
 }
 
-var indicateursResultat = map[string]string{
+var resultIndicators = map[string]string{
 	"Résultat d'exploitation": "RESULTAT_EXPLOITATION",
 	"Résultat financier":      "RESULTAT_FINANCIER",
 	"Résultat exceptionnel":   "RESULTAT_EXCEPTIONNEL",
 	"Résultat net":            "RESULTAT_NET",
 }
 
-// parseMontantMEUR : les valeurs de ce classeur utilisent la virgule comme
+// parseAmountMEUR : les valeurs de ce classeur utilisent la virgule comme
 // séparateur de milliers (« 1,880 » = 1880, jamais 1,88) — vérifié sur la
 // cohérence de grandeur entre valeurs voisines d'une même série, pas deviné
 // depuis la seule apparence du séparateur.
-func parseMontantMEUR(s string) (float64, error) {
+func parseAmountMEUR(s string) (float64, error) {
 	s = strings.ReplaceAll(strings.TrimSpace(s), ",", "")
 	if s == "" {
 		return 0, fmt.Errorf("valeur vide")
@@ -178,13 +178,13 @@ func parseMontantMEUR(s string) (float64, error) {
 	return strconv.ParseFloat(s, 64)
 }
 
-// chargerCompteResultat lit la feuille « Graphique 1 » : ligne 3 (indice 3)
+// loadIncomeStatement lit la feuille « Graphique 1 » : ligne 3 (indice 3)
 // porte les années à partir de la colonne 2, chaque ligne d'indicateur suit
 // le même calage de colonnes. Seuls les quatre indicateurs de haut niveau
 // sont retenus (pas « dont compte 7722 », un sous-détail du résultat
 // d'exploitation, ni les lignes de note).
-func chargerCompteResultat(wb *excelize.File) ([]ligneResultat, error) {
-	sheet, err := trouverFeuille(wb, "Graphique 1")
+func loadIncomeStatement(wb *excelize.File) ([]incomeRow, error) {
+	sheet, err := findSheet(wb, "Graphique 1")
 	if err != nil {
 		return nil, err
 	}
@@ -195,53 +195,53 @@ func chargerCompteResultat(wb *excelize.File) ([]ligneResultat, error) {
 	if len(rows) < 5 {
 		return nil, fmt.Errorf("feuille %q : moins de lignes qu'attendu", sheet)
 	}
-	entete := rows[3]
-	var out []ligneResultat
-	vus := map[string]bool{}
+	header := rows[3]
+	var out []incomeRow
+	seen := map[string]bool{}
 	for _, r := range rows[4:] {
 		if len(r) < 2 {
 			continue
 		}
-		code, ok := indicateursResultat[strings.TrimSpace(r[1])]
+		code, ok := resultIndicators[strings.TrimSpace(r[1])]
 		if !ok {
 			continue
 		}
-		if vus[code] {
+		if seen[code] {
 			return nil, fmt.Errorf("indicateur %q en double dans la feuille — le format a peut-être changé", r[1])
 		}
-		vus[code] = true
-		for col := 2; col < len(entete) && col < len(r); col++ {
-			annee, err := strconv.Atoi(strings.TrimSpace(entete[col]))
+		seen[code] = true
+		for col := 2; col < len(header) && col < len(r); col++ {
+			year, err := strconv.Atoi(strings.TrimSpace(header[col]))
 			if err != nil {
 				continue
 			}
-			v, err := parseMontantMEUR(r[col])
+			v, err := parseAmountMEUR(r[col])
 			if err != nil {
-				return nil, fmt.Errorf("%s, %d : %w", code, annee, err)
+				return nil, fmt.Errorf("%s, %d : %w", code, year, err)
 			}
-			out = append(out, ligneResultat{Annee: annee, Indicateur: code, MontantMEUR: v})
+			out = append(out, incomeRow{Annee: year, Indicateur: code, MontantMEUR: v})
 		}
 	}
-	requis := []string{"RESULTAT_EXPLOITATION", "RESULTAT_FINANCIER", "RESULTAT_EXCEPTIONNEL", "RESULTAT_NET"}
-	for _, code := range requis {
-		if !vus[code] {
+	required := []string{"RESULTAT_EXPLOITATION", "RESULTAT_FINANCIER", "RESULTAT_EXCEPTIONNEL", "RESULTAT_NET"}
+	for _, code := range required {
+		if !seen[code] {
 			return nil, fmt.Errorf("indicateur %q absent — le format a peut-être changé", code)
 		}
 	}
 	return out, nil
 }
 
-type ligneDeficit struct {
+type deficitRow struct {
 	Annee      int
 	Categorie  string
 	DeficitPct float64
 }
 
-// chargerDeficitCategorie lit la feuille « Tableau 1 » : ligne 3 porte les
+// loadDeficitByCategory lit la feuille « Tableau 1 » : ligne 3 porte les
 // années à partir de la colonne 4 (colonnes 2 et 3 sont l'effectif 2024 et
 // le poids dans les recettes, hors périmètre de cette table).
-func chargerDeficitCategorie(wb *excelize.File) ([]ligneDeficit, error) {
-	sheet, err := trouverFeuille(wb, "Tableau 1")
+func loadDeficitByCategory(wb *excelize.File) ([]deficitRow, error) {
+	sheet, err := findSheet(wb, "Tableau 1")
 	if err != nil {
 		return nil, err
 	}
@@ -252,26 +252,26 @@ func chargerDeficitCategorie(wb *excelize.File) ([]ligneDeficit, error) {
 	if len(rows) < 5 {
 		return nil, fmt.Errorf("feuille %q : moins de lignes qu'attendu", sheet)
 	}
-	entete := rows[3]
-	var out []ligneDeficit
+	header := rows[3]
+	var out []deficitRow
 	for _, r := range rows[4:] {
 		if len(r) < 5 {
 			continue
 		}
-		categorie := strings.TrimSpace(r[1])
-		if categorie == "" {
+		category := strings.TrimSpace(r[1])
+		if category == "" {
 			continue
 		}
-		for col := 4; col < len(entete) && col < len(r); col++ {
-			annee, err := strconv.Atoi(strings.TrimSpace(entete[col]))
+		for col := 4; col < len(header) && col < len(r); col++ {
+			year, err := strconv.Atoi(strings.TrimSpace(header[col]))
 			if err != nil {
 				continue
 			}
 			v, err := strconv.ParseFloat(strings.TrimSpace(r[col]), 64)
 			if err != nil {
-				return nil, fmt.Errorf("%s, %d : valeur illisible %q : %w", categorie, annee, r[col], err)
+				return nil, fmt.Errorf("%s, %d : valeur illisible %q : %w", category, year, r[col], err)
 			}
-			out = append(out, ligneDeficit{Annee: annee, Categorie: categorie, DeficitPct: v})
+			out = append(out, deficitRow{Annee: year, Categorie: category, DeficitPct: v})
 		}
 	}
 	if len(out) == 0 {
@@ -280,14 +280,14 @@ func chargerDeficitCategorie(wb *excelize.File) ([]ligneDeficit, error) {
 	return out, nil
 }
 
-// trouverFeuille cherche une feuille par sous-chaîne plutôt que par égalité
+// findSheet cherche une feuille par sous-chaîne plutôt que par égalité
 // stricte : le nom exact varie d'une édition à l'autre (espaces doublés,
 // « ES_2026_F25 » vs « ES2026_F25 »), vérifié sur cette édition précise.
-func trouverFeuille(wb *excelize.File, sousChaine string) (string, error) {
+func findSheet(wb *excelize.File, substring string) (string, error) {
 	for _, s := range wb.GetSheetList() {
-		if strings.Contains(s, sousChaine) {
+		if strings.Contains(s, substring) {
 			return s, nil
 		}
 	}
-	return "", fmt.Errorf("aucune feuille ne contient %q — le format a peut-être changé", sousChaine)
+	return "", fmt.Errorf("aucune feuille ne contient %q — le format a peut-être changé", substring)
 }

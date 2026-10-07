@@ -82,8 +82,8 @@ var SourceRatiosINPI = archive.Source{
 		"exceptionnel et participation. Comptes confidentiels (option des petites entreprises) absents.",
 }
 
-// executer encadre un connecteur.
-func executer(ctx context.Context, arch *archive.Archive, src archive.Source,
+// run encadre un connecteur.
+func run(ctx context.Context, arch *archive.Archive, src archive.Source,
 	f func(srcID, runID int64) (map[string]any, error)) error {
 	srcID, err := arch.EnsureSource(ctx, src)
 	if err != nil {
@@ -104,8 +104,8 @@ func executer(ctx context.Context, arch *archive.Archive, src archive.Source,
 	return nil
 }
 
-// lireCSV lit un CSV avec en-tête en tableaux de colonnes nommées.
-func lireCSV(path string) ([]map[string]string, error) {
+// readCSV lit un CSV avec en-tête en tableaux de colonnes nommées.
+func readCSV(path string) ([]map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -113,12 +113,12 @@ func lireCSV(path string) ([]map[string]string, error) {
 	defer f.Close()
 	cr := csv.NewReader(f)
 	cr.FieldsPerRecord = -1
-	entete, err := cr.Read()
+	header, err := cr.Read()
 	if err != nil {
 		return nil, err
 	}
-	for i := range entete {
-		entete[i] = strings.TrimPrefix(entete[i], "\uFEFF")
+	for i := range header {
+		header[i] = strings.TrimPrefix(header[i], "\uFEFF")
 	}
 	var out []map[string]string
 	for {
@@ -129,8 +129,8 @@ func lireCSV(path string) ([]map[string]string, error) {
 			}
 			return nil, err
 		}
-		m := make(map[string]string, len(entete))
-		for i, k := range entete {
+		m := make(map[string]string, len(header))
+		for i, k := range header {
 			if i < len(rec) {
 				m[k] = rec[i]
 			}

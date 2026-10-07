@@ -45,14 +45,14 @@ var SourceFMI = archive.Source{
 
 const fmiURL = "https://api.imf.org/external/sdmx/2.1/data/IMF.RES,WEO,/"
 
-var fmiIndicateurs = map[string]string{
+var fmiIndicators = map[string]string{
 	"GGXWDG_NGDP":  "DETTE_BRUTE_FMI",
 	"GGXWDN_NGDP":  "DETTE_NETTE_FMI",
 	"GGXCNL_NGDP":  "SOLDE_PUBLIC",
 	"GGXONLB_NGDP": "SOLDE_PRIMAIRE",
 }
 
-var fmiPays = map[string]string{
+var fmiCountries = map[string]string{
 	"CHE": "CH", "FRA": "FR", "DEU": "DE", "ITA": "IT", "ESP": "ES", "NLD": "NL", "BEL": "BE",
 	"AUT": "AT", "SWE": "SE", "DNK": "DK", "NOR": "NO", "GBR": "GB", "USA": "US", "JPN": "JP",
 	// Chine et Arabie saoudite ne suivent pas la même méthodologie que les
@@ -65,28 +65,28 @@ var fmiPays = map[string]string{
 }
 
 type fmiMessage struct {
-	Groupes []struct {
-		Pays       string `xml:"COUNTRY,attr"`
-		Indicateur string `xml:"INDICATOR,attr"`
-		Derniere   string `xml:"LATEST_ACTUAL_ANNUAL_DATA,attr"`
+	Groups []struct {
+		Country   string `xml:"COUNTRY,attr"`
+		Indicator string `xml:"INDICATOR,attr"`
+		Latest    string `xml:"LATEST_ACTUAL_ANNUAL_DATA,attr"`
 	} `xml:"DataSet>Group"`
 	Series []struct {
-		Pays       string `xml:"COUNTRY,attr"`
-		Indicateur string `xml:"INDICATOR,attr"`
-		Frequence  string `xml:"FREQUENCY,attr"`
-		Echelle    string `xml:"SCALE,attr"`
-		Obs        []struct {
-			Periode string `xml:"TIME_PERIOD,attr"`
-			Valeur  string `xml:"OBS_VALUE,attr"`
+		Country   string `xml:"COUNTRY,attr"`
+		Indicator string `xml:"INDICATOR,attr"`
+		Frequency string `xml:"FREQUENCY,attr"`
+		Scale     string `xml:"SCALE,attr"`
+		Obs       []struct {
+			Period string `xml:"TIME_PERIOD,attr"`
+			Value  string `xml:"OBS_VALUE,attr"`
 		} `xml:"Obs"`
 	} `xml:"DataSet>Series"`
 }
 
 func IngestFMI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, pool, arch, SourceFMI, func(srcID, runID int64) (*lot, error) {
-		pays := cles(fmiPays)
-		inds := cles(fmiIndicateurs)
-		url := fmiURL + strings.Join(pays, "+") + "." + strings.Join(inds, "+") + ".A"
+	return run(ctx, pool, arch, SourceFMI, func(srcID, runID int64) (*batch, error) {
+		countries := keys(fmiCountries)
+		inds := keys(fmiIndicators)
+		url := fmiURL + strings.Join(countries, "+") + "." + strings.Join(inds, "+") + ".A"
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".xml")
 		if err != nil {
 			return nil, err
@@ -99,60 +99,60 @@ func IngestFMI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		if err := xml.Unmarshal(b, &m); err != nil {
 			return nil, fmt.Errorf("réponse SDMX illisible : %w", err)
 		}
-		derniere := map[string]int{}
-		for _, g := range m.Groupes {
-			if g.Pays == "" || g.Derniere == "" {
+		latest := map[string]int{}
+		for _, g := range m.Groups {
+			if g.Country == "" || g.Latest == "" {
 				continue
 			}
-			a, err := strconv.Atoi(g.Derniere)
+			a, err := strconv.Atoi(g.Latest)
 			if err != nil {
-				return nil, fmt.Errorf("%s/%s : dernière année %q illisible", g.Pays, g.Indicateur, g.Derniere)
+				return nil, fmt.Errorf("%s/%s : dernière année %q illisible", g.Country, g.Indicator, g.Latest)
 			}
-			derniere[g.Pays+"|"+g.Indicateur] = a
+			latest[g.Country+"|"+g.Indicator] = a
 		}
-		l := nouveauLot()
+		l := newBatch()
 		for _, s := range m.Series {
-			concept, ok := fmiIndicateurs[s.Indicateur]
-			if !ok || fmiPays[s.Pays] == "" {
-				return nil, fmt.Errorf("série inattendue : %s/%s", s.Pays, s.Indicateur)
+			concept, ok := fmiIndicators[s.Indicator]
+			if !ok || fmiCountries[s.Country] == "" {
+				return nil, fmt.Errorf("série inattendue : %s/%s", s.Country, s.Indicator)
 			}
-			if s.Frequence != "A" || (s.Echelle != "" && s.Echelle != "0") {
-				return nil, fmt.Errorf("%s/%s : fréquence %q ou échelle %q inattendue", s.Pays, s.Indicateur, s.Frequence, s.Echelle)
+			if s.Frequency != "A" || (s.Scale != "" && s.Scale != "0") {
+				return nil, fmt.Errorf("%s/%s : fréquence %q ou échelle %q inattendue", s.Country, s.Indicator, s.Frequency, s.Scale)
 			}
 			// Sans dernière année observée, impossible de séparer données et
 			// projections : la série est écartée plutôt que chargée en bloc.
-			fin, ok := derniere[s.Pays+"|"+s.Indicateur]
+			latestYear, ok := latest[s.Country+"|"+s.Indicator]
 			if !ok {
-				return nil, fmt.Errorf("%s/%s : LATEST_ACTUAL_ANNUAL_DATA absente", s.Pays, s.Indicateur)
+				return nil, fmt.Errorf("%s/%s : LATEST_ACTUAL_ANNUAL_DATA absente", s.Country, s.Indicator)
 			}
-			serie := &Serie{
-				Code: "fmi:" + s.Indicateur + ":" + s.Pays, CodeSource: "WEO/" + s.Pays + "." + s.Indicateur + ".A",
-				Libelle: s.Indicateur + " (" + s.Pays + ")", Pays: fmiPays[s.Pays], Frequence: "A",
+			series := &Series{
+				Code: "fmi:" + s.Indicator + ":" + s.Country, CodeSource: "WEO/" + s.Country + "." + s.Indicator + ".A",
+				Libelle: s.Indicator + " (" + s.Country + ")", Pays: fmiCountries[s.Country], Frequence: "A",
 				Unite: "PCT_PIB", Concept: concept, Mesure: "ENCOURS", SecteurEmetteur: "S13", URL: url,
-				Notes: fmt.Sprintf("Dernière année observée selon le FMI : %d", fin),
+				Notes: fmt.Sprintf("Dernière année observée selon le FMI : %d", latestYear),
 			}
 			if concept == "SOLDE_PUBLIC" || concept == "SOLDE_PRIMAIRE" {
-				serie.Mesure = "FLUX"
+				series.Mesure = "FLUX"
 			}
 			var obs []Obs
 			for _, o := range s.Obs {
-				a, err := strconv.Atoi(o.Periode)
-				if err != nil || a > fin {
+				a, err := strconv.Atoi(o.Period)
+				if err != nil || a > latestYear {
 					continue
 				}
-				v, err := strconv.ParseFloat(o.Valeur, 64)
+				v, err := strconv.ParseFloat(o.Value, 64)
 				if err != nil {
 					continue
 				}
-				obs = append(obs, Obs{Periode: o.Periode, Valeur: v, DocumentID: f.DocumentID})
+				obs = append(obs, Obs{Periode: o.Period, Valeur: v, DocumentID: f.DocumentID})
 			}
-			l.ajouter(serie, obs)
+			l.add(series, obs)
 		}
 		return l, nil
 	})
 }
 
-func cles[V any](m map[string]V) []string {
+func keys[V any](m map[string]V) []string {
 	out := make([]string, 0, len(m))
 	for k := range m {
 		out = append(out, k)

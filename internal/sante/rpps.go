@@ -76,13 +76,13 @@ func IngestRPPS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	if err != nil {
 		return fail(err)
 	}
-	fichier, err := os.Open(f.Path)
+	file, err := os.Open(f.Path)
 	if err != nil {
 		return fail(err)
 	}
-	defer fichier.Close()
+	defer file.Close()
 
-	sc := bufio.NewScanner(fichier)
+	sc := bufio.NewScanner(file)
 	sc.Buffer(make([]byte, 0, 64*1024), 4*1024*1024)
 
 	if !sc.Scan() {
@@ -98,14 +98,14 @@ func IngestRPPS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 			return fail(fmt.Errorf("colonne attendue absente de l'en-tête : %q", c))
 		}
 	}
-	champ := func(l []string, nom string) string {
-		i := idx[nom]
+	field := func(l []string, name string) string {
+		i := idx[name]
 		if i >= len(l) {
 			return ""
 		}
 		return l[i]
 	}
-	ouNil := func(s string) any {
+	orNil := func(s string) any {
 		if s == "" {
 			return nil
 		}
@@ -137,69 +137,69 @@ func IngestRPPS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return fail(err)
 	}
 
-	colonnesCible := []string{
+	targetColumns := []string{
 		"identifiant_pp", "rang", "nom", "prenom", "code_civilite",
 		"code_profession", "libelle_profession", "code_categorie_pro", "libelle_categorie_pro",
 		"code_savoir_faire", "libelle_savoir_faire", "code_mode_exercice", "libelle_mode_exercice",
 		"numero_finess_site", "code_departement", "libelle_departement", "code_commune",
 		"code_role", "libelle_role", "source_id",
 	}
-	var lot [][]any
-	var totalCopie int64
-	const tailleLot = 50000
-	rangParPP := map[string]int{}
+	var batch [][]any
+	var totalCopied int64
+	const batchSize = 50000
+	rankByPP := map[string]int{}
 
-	vider := func() error {
-		if len(lot) == 0 {
+	flush := func() error {
+		if len(batch) == 0 {
 			return nil
 		}
-		n, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_rpps_professionnel_activite"}, colonnesCible,
-			pgx.CopyFromRows(lot))
+		n, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_rpps_professionnel_activite"}, targetColumns,
+			pgx.CopyFromRows(batch))
 		if err != nil {
 			return err
 		}
-		totalCopie += n
-		lot = lot[:0]
+		totalCopied += n
+		batch = batch[:0]
 		return nil
 	}
 
-	nLignes := 0
+	lineCount := 0
 	for sc.Scan() {
-		nLignes++
+		lineCount++
 		l := strings.Split(sc.Text(), "|")
-		idPP := champ(l, "Identifiant PP")
+		idPP := field(l, "Identifiant PP")
 		if idPP == "" {
 			continue
 		}
-		rang := rangParPP[idPP]
-		rangParPP[idPP] = rang + 1
-		lot = append(lot, []any{
-			idPP, rang,
-			ouNil(champ(l, "Nom d'exercice")), ouNil(champ(l, "Prénom d'exercice")),
-			ouNil(champ(l, "Code civilité")),
-			champ(l, "Code profession"), champ(l, "Libellé profession"),
-			ouNil(champ(l, "Code catégorie professionnelle")), ouNil(champ(l, "Libellé catégorie professionnelle")),
-			ouNil(champ(l, "Code savoir-faire")), ouNil(champ(l, "Libellé savoir-faire")),
-			ouNil(champ(l, "Code mode exercice")), ouNil(champ(l, "Libellé mode exercice")),
-			ouNil(champ(l, "Numéro FINESS site")),
-			ouNil(champ(l, "Code Département (structure)")), ouNil(champ(l, "Libellé Département (structure)")),
-			ouNil(champ(l, "Code commune (coord. structure)")),
-			ouNil(champ(l, "Code rôle")), ouNil(champ(l, "Libellé rôle")),
+		rank := rankByPP[idPP]
+		rankByPP[idPP] = rank + 1
+		batch = append(batch, []any{
+			idPP, rank,
+			orNil(field(l, "Nom d'exercice")), orNil(field(l, "Prénom d'exercice")),
+			orNil(field(l, "Code civilité")),
+			field(l, "Code profession"), field(l, "Libellé profession"),
+			orNil(field(l, "Code catégorie professionnelle")), orNil(field(l, "Libellé catégorie professionnelle")),
+			orNil(field(l, "Code savoir-faire")), orNil(field(l, "Libellé savoir-faire")),
+			orNil(field(l, "Code mode exercice")), orNil(field(l, "Libellé mode exercice")),
+			orNil(field(l, "Numéro FINESS site")),
+			orNil(field(l, "Code Département (structure)")), orNil(field(l, "Libellé Département (structure)")),
+			orNil(field(l, "Code commune (coord. structure)")),
+			orNil(field(l, "Code rôle")), orNil(field(l, "Libellé rôle")),
 			srcID,
 		})
-		if len(lot) >= tailleLot {
-			if err := vider(); err != nil {
-				return fail(fmt.Errorf("ligne %d : %w", nLignes, err))
+		if len(batch) >= batchSize {
+			if err := flush(); err != nil {
+				return fail(fmt.Errorf("ligne %d : %w", lineCount, err))
 			}
 		}
 	}
 	if err := sc.Err(); err != nil {
 		return fail(fmt.Errorf("lecture du fichier : %w", err))
 	}
-	if err := vider(); err != nil {
+	if err := flush(); err != nil {
 		return fail(fmt.Errorf("dernier lot : %w", err))
 	}
-	if totalCopie == 0 {
+	if totalCopied == 0 {
 		return fail(fmt.Errorf("aucune ligne chargée"))
 	}
 
@@ -252,7 +252,7 @@ func IngestRPPS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": totalCopie, "touchees": total}, "")
-	fmt.Printf("  RPPS, professionnels de santé (ANS) : %d lignes (%d touchées par la fusion)\n", totalCopie, total)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": totalCopied, "touchees": total}, "")
+	fmt.Printf("  RPPS, professionnels de santé (ANS) : %d lignes (%d touchées par la fusion)\n", totalCopied, total)
 	return nil
 }

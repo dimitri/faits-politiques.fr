@@ -25,9 +25,9 @@ import (
 
 const ConnectorVersion = "dette-v1"
 
-// Serie reprend une ligne de ref.dette_serie. Les dimensions laissées vides
+// Series reprend une ligne de ref.dette_serie. Les dimensions laissées vides
 // prennent la valeur totale ('_T', 'W0') au chargement.
-type Serie struct {
+type Series struct {
 	Code             string
 	CodeSource       string
 	Libelle          string
@@ -54,18 +54,18 @@ type Obs struct {
 	DocumentID int64
 }
 
-// lot accumule les séries d'une source avant de les écrire d'un bloc : une
+// batch accumule les séries d'une source avant de les écrire d'un bloc : une
 // source se recharge entièrement ou pas du tout. Les producteurs révisent
 // leurs séries (l'INSEE à chaque compte trimestriel, Eurostat deux fois
 // l'an) : compléter plutôt que remplacer mêlerait deux millésimes.
-type lot struct {
-	series []*Serie
+type batch struct {
+	series []*Series
 	obs    map[string][]Obs
 }
 
-func nouveauLot() *lot { return &lot{obs: map[string][]Obs{}} }
+func newBatch() *batch { return &batch{obs: map[string][]Obs{}} }
 
-func (l *lot) ajouter(s *Serie, obs []Obs) {
+func (l *batch) add(s *Series, obs []Obs) {
 	if len(obs) == 0 {
 		return // une série sans valeur n'apporte rien et fausserait les comptages
 	}
@@ -75,7 +75,7 @@ func (l *lot) ajouter(s *Serie, obs []Obs) {
 	l.obs[s.Code] = append(l.obs[s.Code], obs...)
 }
 
-func (l *lot) nObs() int {
+func (l *batch) obsCount() int {
 	n := 0
 	for _, o := range l.obs {
 		n += len(o)
@@ -83,23 +83,23 @@ func (l *lot) nObs() int {
 	return n
 }
 
-func defaut(v, d string) string {
+func orDefault(v, d string) string {
 	if v == "" {
 		return d
 	}
 	return v
 }
 
-func nul(v string) any {
+func nullable(v string) any {
 	if v == "" {
 		return nil
 	}
 	return v
 }
 
-// charger remplace toutes les séries de la source par celles du lot, dans
+// load remplace toutes les séries de la source par celles du lot, dans
 // une transaction.
-func charger(ctx context.Context, pool *pgxpool.Pool, srcID int64, l *lot) error {
+func load(ctx context.Context, pool *pgxpool.Pool, srcID int64, l *batch) error {
 	if len(l.series) == 0 {
 		return fmt.Errorf("aucune série à charger : la source a changé de forme")
 	}
@@ -128,29 +128,29 @@ func charger(ctx context.Context, pool *pgxpool.Pool, srcID int64, l *lot) error
 		return err
 	}
 	var series, obs [][]any
-	vus := map[string]bool{}
+	seen := map[string]bool{}
 	for _, s := range l.series {
-		echeance := defaut(s.Echeance, "_T")
+		echeance := orDefault(s.Echeance, "_T")
 		if (echeance == "_T") != (s.BaseEcheance == "") {
 			return fmt.Errorf("%s : échéance %q sans base d'échéance cohérente", s.Code, echeance)
 		}
 		series = append(series, []any{
 			s.Code, srcID, s.CodeSource, s.Libelle, s.Pays, s.Frequence, s.Unite, s.Concept,
-			s.Mesure, s.SecteurEmetteur, defaut(s.ZoneDetenteur, "W0"),
-			defaut(s.SecteurDetenteur, "_T"), echeance, nul(s.BaseEcheance),
-			defaut(s.Instrument, "_T"), defaut(s.MonnaieEmission, "_T"), nul(s.Notes), nul(s.URL),
+			s.Mesure, s.SecteurEmetteur, orDefault(s.ZoneDetenteur, "W0"),
+			orDefault(s.SecteurDetenteur, "_T"), echeance, nullable(s.BaseEcheance),
+			orDefault(s.Instrument, "_T"), orDefault(s.MonnaieEmission, "_T"), nullable(s.Notes), nullable(s.URL),
 		})
 		for _, o := range l.obs[s.Code] {
-			cle := s.Code + "|" + o.Periode
-			if vus[cle] {
+			key := s.Code + "|" + o.Periode
+			if seen[key] {
 				return fmt.Errorf("%s : période %s en double", s.Code, o.Periode)
 			}
-			vus[cle] = true
-			debut, err := debutPeriode(o.Periode)
+			seen[key] = true
+			start, err := periodStart(o.Periode)
 			if err != nil {
 				return fmt.Errorf("%s : %w", s.Code, err)
 			}
-			obs = append(obs, []any{s.Code, o.Periode, debut, o.Valeur, nul(o.Statut), o.DocumentID})
+			obs = append(obs, []any{s.Code, o.Periode, start, o.Valeur, nullable(o.Statut), o.DocumentID})
 		}
 	}
 	if _, err := tx.Exec(ctx, `
@@ -246,9 +246,9 @@ func charger(ctx context.Context, pool *pgxpool.Pool, srcID int64, l *lot) error
 	return tx.Commit(ctx)
 }
 
-// debutPeriode lit les trois formes de période des producteurs : 'AAAA',
+// periodStart lit les trois formes de période des producteurs : 'AAAA',
 // 'AAAA-Qn' et 'AAAA-MM'.
-func debutPeriode(p string) (time.Time, error) {
+func periodStart(p string) (time.Time, error) {
 	if len(p) < 4 {
 		return time.Time{}, fmt.Errorf("période inattendue : %q", p)
 	}
@@ -276,8 +276,8 @@ func debutPeriode(p string) (time.Time, error) {
 	return time.Date(annee, time.Month(mois), 1, 0, 0, 0, 0, time.UTC), nil
 }
 
-// multiplicateur applique UNIT_MULT (puissance de dix) : 6 = millions.
-func multiplicateur(unitMult string) (float64, error) {
+// multiplier applique UNIT_MULT (puissance de dix) : 6 = millions.
+func multiplier(unitMult string) (float64, error) {
 	if unitMult == "" {
 		return 1, nil
 	}
@@ -292,9 +292,9 @@ func multiplicateur(unitMult string) (float64, error) {
 	return m, nil
 }
 
-// executer encadre un connecteur : source, exécution, échec tracé.
-func executer(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src archive.Source,
-	f func(srcID, runID int64) (*lot, error)) error {
+// run encadre un connecteur : source, exécution, échec tracé.
+func run(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src archive.Source,
+	f func(srcID, runID int64) (*batch, error)) error {
 	srcID, err := arch.EnsureSource(ctx, src)
 	if err != nil {
 		return err
@@ -305,15 +305,15 @@ func executer(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, sr
 	}
 	l, err := f(srcID, runID)
 	if err == nil {
-		err = charger(ctx, pool, srcID, l)
+		err = load(ctx, pool, srcID, l)
 	}
 	if err != nil {
 		err = fmt.Errorf("%s : %w", src.Slug, err)
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 		return err
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"series": len(l.series), "observations": l.nObs()}, "")
-	fmt.Printf("  %-28s %4d séries  %6d observations\n", src.Slug, len(l.series), l.nObs())
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"series": len(l.series), "observations": l.obsCount()}, "")
+	fmt.Printf("  %-28s %4d séries  %6d observations\n", src.Slug, len(l.series), l.obsCount())
 	return nil
 }
 
@@ -321,10 +321,10 @@ func executer(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, sr
 // clé d'API (WEBSTAT_API_KEY) : sans elle, la détention est sautée avec un
 // avertissement plutôt que de bloquer les sources ouvertes.
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	etapes := []func(context.Context, *pgxpool.Pool, *archive.Archive) error{
+	steps := []func(context.Context, *pgxpool.Pool, *archive.Archive) error{
 		IngestINSEE, IngestEurostat, IngestFMI, IngestSuisse, IngestAFT, IngestDepensesFiscales, IngestBanqueDeFrance,
 	}
-	for _, e := range etapes {
+	for _, e := range steps {
 		if err := e(ctx, pool, arch); err != nil {
 			return err
 		}

@@ -29,14 +29,14 @@ var SourceDECP = archive.Source{
 
 const urlDECP = "https://www.data.gouv.fr/api/1/datasets/donnees-essentielles-de-la-commande-publique-consolidees-format-tabulaire/"
 
-// Les groupes suivis dans les marchés publics. nom : motif sur la dénomination
+// Les groupes tracked dans les marchés publics. nom : motif sur la dénomination
 // du titulaire ; objet : motif sur l'objet du marché, pour les achats de leurs
 // produits via un revendeur. Les noms de groupe reprennent ceux de la sélection
 // des filiales, pour que les vues se rejoignent.
-var groupesMarches = []struct {
-	groupe     string
-	nom, objet string
-	sirensHors []string // sociétés du groupe hors de la table des filiales (partenaires)
+var trackedGroups = []struct {
+	group                       string
+	namePattern, subjectPattern string
+	extraSirens                 []string // sociétés du groupe hors de la table des filiales (partenaires)
 }{
 	{"Microsoft Corporation", `\bmicrosoft\b`, `\bmicrosoft\b|\bazure\b|office ?365|\bm365\b`, nil},
 	{"Alphabet Inc.", `\bgoogle\b`, `\bgoogle\b`, nil},
@@ -83,34 +83,34 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	if len(sirens) < 40 {
 		return fmt.Errorf("sélection des filiales absente (charger -only=fiscalite-filiales)")
 	}
-	type motifs struct {
-		groupe     string
-		nom, objet *regexp.Regexp
+	type matchers struct {
+		group                       string
+		namePattern, subjectPattern *regexp.Regexp
 	}
-	var ms []motifs
-	suivis := map[string]bool{}
-	for _, g := range groupesMarches {
-		suivis[g.groupe] = true
-		m := motifs{groupe: g.groupe}
-		if g.nom != "" {
-			m.nom = regexp.MustCompile("(?i)" + g.nom)
+	var compiled []matchers
+	tracked := map[string]bool{}
+	for _, g := range trackedGroups {
+		tracked[g.group] = true
+		m := matchers{group: g.group}
+		if g.namePattern != "" {
+			m.namePattern = regexp.MustCompile("(?i)" + g.namePattern)
 		}
-		if g.objet != "" {
-			m.objet = regexp.MustCompile("(?i)" + g.objet)
+		if g.subjectPattern != "" {
+			m.subjectPattern = regexp.MustCompile("(?i)" + g.subjectPattern)
 		}
-		ms = append(ms, m)
-		for _, s := range g.sirensHors {
-			sirens[s] = g.groupe
+		compiled = append(compiled, m)
+		for _, s := range g.extraSirens {
+			sirens[s] = g.group
 		}
 	}
 
-	return executer(ctx, arch, SourceDECP, func(srcID, runID int64) (map[string]any, error) {
+	return run(ctx, arch, SourceDECP, func(srcID, runID int64) (map[string]any, error) {
 		// L'URL du fichier du jour est lue dans la fiche du jeu de données.
-		fiche, err := arch.Fetch(ctx, srcID, runID, urlDECP, ".json")
+		info, err := arch.Fetch(ctx, srcID, runID, urlDECP, ".json")
 		if err != nil {
 			return nil, err
 		}
-		urlCSV, err := ressourceDataGouv(fiche.Path, "decp.csv")
+		urlCSV, err := dataGouvResource(info.Path, "decp.csv")
 		if err != nil {
 			return nil, err
 		}
@@ -118,62 +118,62 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		if err != nil {
 			return nil, err
 		}
-		var lignes [][]any
-		lus, actuelles := 0, 0
-		vus := map[string]bool{}
-		par := map[string]int{}
-		err = lireCSVFlux(f.Path, func(col map[string]int, rec []string) error {
-			if lus == 0 {
-				if err := exigerColonnes(col, "uid", "titulaire_id", "titulaire_typeIdentifiant", "titulaire_nom",
+		var rows [][]any
+		read, current := 0, 0
+		seen := map[string]bool{}
+		byMatch := map[string]int{}
+		err = readCSVStream(f.Path, func(col map[string]int, rec []string) error {
+			if read == 0 {
+				if err := requireColumns(col, "uid", "titulaire_id", "titulaire_typeIdentifiant", "titulaire_nom",
 					"acheteur_id", "acheteur_nom", "objet", "montant", "nature", "techniques", "procedure", "codeCPV",
 					"dateNotification", "dureeMois", "donneesActuelles", "montant_rationalise", "montant_anomalie",
 					"acheteur_categorie", "sourceDataset"); err != nil {
 					return err
 				}
 			}
-			lus++
+			read++
 			v := func(k string) string { return rec[col[k]] }
 			if v("donneesActuelles") != "true" {
 				return nil
 			}
-			actuelles++
+			current++
 			tid, ttype := v("titulaire_id"), v("titulaire_typeIdentifiant")
 			siren := ""
 			if ttype == "SIRET" && len(tid) >= 9 {
 				siren = tid[:9]
 			}
-			ajoute := func(groupe, corr string) {
-				k := v("uid") + "|" + tid + "|" + groupe
-				if vus[k] {
+			add := func(group, match string) {
+				k := v("uid") + "|" + tid + "|" + group
+				if seen[k] {
 					return
 				}
-				vus[k] = true
-				par[corr]++
+				seen[k] = true
+				byMatch[match]++
 				var date any
 				if d, err := time.Parse("2006-01-02", v("dateNotification")); err == nil {
 					date = d
 				}
-				lignes = append(lignes, []any{v("uid"), tid, nul(ttype), nul(v("titulaire_nom")), nul(siren), groupe, corr,
-					nul(v("acheteur_id")), nul(v("acheteur_nom")), nul(v("acheteur_categorie")), nul(v("objet")),
-					nul(v("nature")), nul(v("techniques")), nul(v("procedure")), nul(v("codeCPV")), date,
-					nombre(v("dureeMois")), nombre(v("montant")), nombre(v("montant_rationalise")), nul(v("montant_anomalie")),
-					nul(v("sourceDataset")), f.DocumentID})
+				rows = append(rows, []any{v("uid"), tid, nullable(ttype), nullable(v("titulaire_nom")), nullable(siren), group, match,
+					nullable(v("acheteur_id")), nullable(v("acheteur_nom")), nullable(v("acheteur_categorie")), nullable(v("objet")),
+					nullable(v("nature")), nullable(v("techniques")), nullable(v("procedure")), nullable(v("codeCPV")), date,
+					numberOrNil(v("dureeMois")), numberOrNil(v("montant")), numberOrNil(v("montant_rationalise")), nullable(v("montant_anomalie")),
+					nullable(v("sourceDataset")), f.DocumentID})
 			}
 			// Du plus sûr au moins sûr ; un marché n'est rattaché qu'une fois
 			// par groupe.
-			if g, ok := sirens[siren]; ok && siren != "" && suivis[g] {
-				ajoute(g, "SIREN")
+			if g, ok := sirens[siren]; ok && siren != "" && tracked[g] {
+				add(g, "SIREN")
 				return nil
 			}
-			for _, m := range ms {
-				if m.nom != nil && m.nom.MatchString(v("titulaire_nom")) {
-					ajoute(m.groupe, "NOM")
+			for _, m := range compiled {
+				if m.namePattern != nil && m.namePattern.MatchString(v("titulaire_nom")) {
+					add(m.group, "NOM")
 					return nil
 				}
 			}
-			for _, m := range ms {
-				if m.objet != nil && m.objet.MatchString(v("objet")) {
-					ajoute(m.groupe, "OBJET")
+			for _, m := range compiled {
+				if m.subjectPattern != nil && m.subjectPattern.MatchString(v("objet")) {
+					add(m.group, "OBJET")
 				}
 			}
 			return nil
@@ -181,8 +181,8 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		if err != nil {
 			return nil, err
 		}
-		if actuelles < 500000 {
-			return nil, fmt.Errorf("%d marchés actuels seulement sur %d lignes", actuelles, lus)
+		if current < 500000 {
+			return nil, fmt.Errorf("%d marchés actuels seulement sur %d lignes", current, read)
 		}
 		tx, err := pool.Begin(ctx)
 		if err != nil {
@@ -203,7 +203,7 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			[]string{"uid", "titulaire_id", "titulaire_type_id", "titulaire_nom", "siren", "groupe", "correspondance",
 				"acheteur_id", "acheteur_nom", "acheteur_categorie", "objet", "nature", "techniques", "procedure", "code_cpv",
 				"date_notification", "duree_mois", "montant_eur", "montant_rationalise", "montant_anomalie", "source_decp", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(ctx, `
@@ -239,12 +239,12 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
 			return nil, fmt.Errorf("fusion marche_public_cible : %w", err)
 		}
-		return map[string]any{"lignes_lues": lus, "marches_actuels": actuelles, "retenues": len(lignes),
-			"par_siren": par["SIREN"], "par_nom": par["NOM"], "par_objet": par["OBJET"]}, tx.Commit(ctx)
+		return map[string]any{"lignes_lues": read, "marches_actuels": current, "retenues": len(rows),
+			"par_siren": byMatch["SIREN"], "par_nom": byMatch["NOM"], "par_objet": byMatch["OBJET"]}, tx.Commit(ctx)
 	})
 }
 
-func nombre(s string) any {
+func numberOrNil(s string) any {
 	s = strings.TrimSpace(s)
 	if s == "" || s == "nan" || s == "NaN" {
 		return nil

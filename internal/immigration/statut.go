@@ -35,49 +35,49 @@ func IngestStatutMigratoire(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return err
 	}
 
-	immi, err := melodiLire(ctx, arch, srcID, runID, melodiImmiEmploiURL)
+	immi, err := melodiRead(ctx, arch, srcID, runID, melodiImmiEmploiURL)
 	if err != nil {
 		return fail(fmt.Errorf("immigration × emploi : %w", err))
 	}
-	nat, err := melodiLire(ctx, arch, srcID, runID, melodiNatEmploiURL)
+	nat, err := melodiRead(ctx, arch, srcID, runID, melodiNatEmploiURL)
 	if err != nil {
 		return fail(fmt.Errorf("nationalité × emploi : %w", err))
 	}
 
 	var rows [][]any
-	var rejets int
+	var rejected int
 	for _, o := range immi {
-		annee, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
+		year, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
 		if err != nil {
-			rejets++
+			rejected++
 			continue
 		}
 		cat, ok := map[string]string{"0": "NON_IMMIGRE", "1": "IMMIGRE", "_T": "TOTAL"}[o.Dimensions["IMMI"]]
-		sexe, okS := sexeLib[o.Dimensions["SEX"]]
-		age, okA := ageLib[o.Dimensions["AGE"]]
-		emp, okE := empstaLib[o.Dimensions["EMPSTA_ENQ"]]
+		sexe, okS := sexLabels[o.Dimensions["SEX"]]
+		age, okA := ageLabels[o.Dimensions["AGE"]]
+		emp, okE := empstaLabels[o.Dimensions["EMPSTA_ENQ"]]
 		if !ok || !okS || !okA || !okE {
-			rejets++
+			rejected++
 			continue
 		}
-		rows = append(rows, []any{"IMMIGRATION", cat, annee, sexe, age, emp,
+		rows = append(rows, []any{"IMMIGRATION", cat, year, sexe, age, emp,
 			o.Measures.OBSVALUENIVEAU.Value, srcID})
 	}
 	for _, o := range nat {
-		annee, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
+		year, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
 		if err != nil {
-			rejets++
+			rejected++
 			continue
 		}
 		cat, ok := map[string]string{"100": "ETRANGER", "250": "FRANCAIS", "_T": "TOTAL"}[o.Dimensions["NATIONALITY_TYPE"]]
-		sexe, okS := sexeLib[o.Dimensions["SEX"]]
-		age, okA := ageLib[o.Dimensions["AGE"]]
-		emp, okE := empstaLib[o.Dimensions["EMPSTA_ENQ"]]
+		sexe, okS := sexLabels[o.Dimensions["SEX"]]
+		age, okA := ageLabels[o.Dimensions["AGE"]]
+		emp, okE := empstaLabels[o.Dimensions["EMPSTA_ENQ"]]
 		if !ok || !okS || !okA || !okE {
-			rejets++
+			rejected++
 			continue
 		}
-		rows = append(rows, []any{"NATIONALITE", cat, annee, sexe, age, emp,
+		rows = append(rows, []any{"NATIONALITE", cat, year, sexe, age, emp,
 			o.Measures.OBSVALUENIVEAU.Value, srcID})
 	}
 	if len(rows) == 0 {
@@ -123,15 +123,15 @@ func IngestStatutMigratoire(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	if err != nil {
 		return fail(fmt.Errorf("fusion population_statut_migratoire : %w", err))
 	}
-	touchees := ct.RowsAffected()
+	affected := ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"lignes_chargees": touchees, "rejet_dimension_inconnue": rejets}, "")
+		map[string]any{"lignes_chargees": affected, "rejet_dimension_inconnue": rejected}, "")
 	fmt.Printf("  population par statut migratoire et nationalité : %d lignes touchées (%d rejetées)\n",
-		touchees, rejets)
+		affected, rejected)
 	return nil
 }
 

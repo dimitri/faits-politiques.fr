@@ -34,12 +34,12 @@ type jsonStatDimension struct {
 	} `json:"category"`
 }
 
-type cellule struct {
-	dims   map[string]string
-	valeur float64
+type cell struct {
+	dims  map[string]string
+	value float64
 }
 
-func (js *jsonStat) cellules() ([]cellule, error) {
+func (js *jsonStat) cells() ([]cell, error) {
 	if len(js.ID) != len(js.Size) {
 		return nil, fmt.Errorf("JSON-stat : %d dimensions pour %d tailles", len(js.ID), len(js.Size))
 	}
@@ -57,26 +57,26 @@ func (js *jsonStat) cellules() ([]cellule, error) {
 			codes[i][pos] = code
 		}
 	}
-	out := make([]cellule, 0, len(js.Value))
-	for cle, v := range js.Value {
+	out := make([]cell, 0, len(js.Value))
+	for key, v := range js.Value {
 		// Valeur confidentielle ou absente : null, écartée (jamais 0).
 		if v == nil {
 			continue
 		}
-		n, err := strconv.Atoi(cle)
+		n, err := strconv.Atoi(key)
 		if err != nil {
-			return nil, fmt.Errorf("JSON-stat : index %q", cle)
+			return nil, fmt.Errorf("JSON-stat : index %q", key)
 		}
 		dims := make(map[string]string, len(js.ID))
-		reste := n
+		remainder := n
 		for i := len(js.ID) - 1; i >= 0; i-- {
-			dims[js.ID[i]] = codes[i][reste%js.Size[i]]
-			reste /= js.Size[i]
+			dims[js.ID[i]] = codes[i][remainder%js.Size[i]]
+			remainder /= js.Size[i]
 		}
-		if reste != 0 {
+		if remainder != 0 {
 			return nil, fmt.Errorf("JSON-stat : index %d hors du cube", n)
 		}
-		out = append(out, cellule{dims: dims, valeur: *v})
+		out = append(out, cell{dims: dims, value: *v})
 	}
 	return out, nil
 }
@@ -85,7 +85,7 @@ func (js *jsonStat) cellules() ([]cellule, error) {
 // l'économie marchande hors finance (B-N_S95_X_K), depuis 2021 la nomenclature
 // « indic_sbs » sur un champ un peu plus large (B-S_X_O_S94). Les deux
 // séries sont gardées côte à côte, jamais raccordées.
-var jeuxFATS = []struct {
+var fatsDatasets = []struct {
 	jeu, activite, indic string
 }{
 	{"fats_g1b_08", "B-N_S95_X_K", "indic_sb"},
@@ -93,10 +93,10 @@ var jeuxFATS = []struct {
 }
 
 func IngestFATS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, arch, SourceEurostatFATS, func(srcID, runID int64) (map[string]any, error) {
-		var lignes [][]any
+	return run(ctx, arch, SourceEurostatFATS, func(srcID, runID int64) (map[string]any, error) {
+		var rows [][]any
 		stats := map[string]any{}
-		for _, j := range jeuxFATS {
+		for _, j := range fatsDatasets {
 			u := eurostatBase + j.jeu + "?format=JSON&lang=EN&geo=FR&nace_r2=" + j.activite
 			f, err := arch.Fetch(ctx, srcID, runID, u, ".json")
 			if err != nil {
@@ -113,7 +113,7 @@ func IngestFATS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 			if len(js.Error) > 0 {
 				return nil, fmt.Errorf("%s : Eurostat : %s", j.jeu, js.Error[0].Label)
 			}
-			cells, err := js.cellules()
+			cells, err := js.cells()
 			if err != nil {
 				return nil, fmt.Errorf("%s : %w", j.jeu, err)
 			}
@@ -121,11 +121,11 @@ func IngestFATS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 				return nil, fmt.Errorf("%s : %d valeurs seulement", j.jeu, len(cells))
 			}
 			for _, c := range cells {
-				annee, err := strconv.Atoi(c.dims["time"])
+				year, err := strconv.Atoi(c.dims["time"])
 				if err != nil {
 					return nil, fmt.Errorf("%s : période %q", j.jeu, c.dims["time"])
 				}
-				lignes = append(lignes, []any{"FR", annee, c.dims["c_ctrl"], j.activite, c.dims[j.indic], j.jeu, c.valeur, f.DocumentID})
+				rows = append(rows, []any{"FR", year, c.dims["c_ctrl"], j.activite, c.dims[j.indic], j.jeu, c.value, f.DocumentID})
 			}
 			stats[j.jeu] = len(cells)
 		}
@@ -152,7 +152,7 @@ func IngestFATS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_fats_controle"},
 			[]string{"pays_hote", "annee", "pays_controle", "activite", "indicateur", "serie", "valeur", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(ctx, `

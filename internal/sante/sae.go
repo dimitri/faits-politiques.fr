@@ -52,13 +52,13 @@ var SourceSAE = archive.Source{
 }
 
 const (
-	saeAnneeDebut = 2013
-	saeAnneeFin   = 2024
+	yearStart = 2013
+	yearEnd   = 2024
 )
 
-func saeURL(annee int) string {
+func saeURL(year int) string {
 	return fmt.Sprintf("https://data.drees.solidarites-sante.gouv.fr/api/datasets/1.0/708_bases-statistiques-sae/"+
-		"attachments/sae_%d_bases_statistiques_formats_sas_csv_7z/", annee)
+		"attachments/sae_%d_bases_statistiques_formats_sas_csv_7z/", year)
 }
 
 func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
@@ -79,26 +79,26 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		return fail(fmt.Errorf("binaire 7z introuvable sur le PATH : %w", err))
 	}
 
-	var toutesQ24 []ligneQ24
-	var toutesUrgences []ligneUrgences
-	for annee := saeAnneeDebut; annee <= saeAnneeFin; annee++ {
-		f, err := arch.Fetch(ctx, srcID, runID, saeURL(annee), ".7z")
+	var allQ24 []q24Row
+	var allUrgences []urgencesRow
+	for year := yearStart; year <= yearEnd; year++ {
+		f, err := arch.Fetch(ctx, srcID, runID, saeURL(year), ".7z")
 		if err != nil {
-			return fail(fmt.Errorf("exercice %d : %w", annee, err))
+			return fail(fmt.Errorf("exercice %d : %w", year, err))
 		}
 
-		tmp, err := os.MkdirTemp("", fmt.Sprintf("sae-%d-*", annee))
+		tmp, err := os.MkdirTemp("", fmt.Sprintf("sae-%d-*", year))
 		if err != nil {
 			return fail(err)
 		}
 
-		q24Fichier := fmt.Sprintf("Q24_%dr.csv", annee)
-		urgFichier := fmt.Sprintf("URGENCES2_%dr.csv", annee)
-		cmd := exec.CommandContext(ctx, "7z", "e", f.Path, "-o"+tmp, "-y", "-r", q24Fichier, urgFichier)
+		q24File := fmt.Sprintf("Q24_%dr.csv", year)
+		urgFile := fmt.Sprintf("URGENCES2_%dr.csv", year)
+		cmd := exec.CommandContext(ctx, "7z", "e", f.Path, "-o"+tmp, "-y", "-r", q24File, urgFile)
 		out, err := cmd.CombinedOutput()
 		if err != nil {
 			os.RemoveAll(tmp)
-			return fail(fmt.Errorf("exercice %d, extraction 7z : %w : %s", annee, err, out))
+			return fail(fmt.Errorf("exercice %d, extraction 7z : %w : %s", year, err, out))
 		}
 
 		// 2020 est le seul exercice de la période sans bordereau Q24 dans
@@ -106,47 +106,47 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		// la collecte SAE liée au covid) — une absence réelle de la source,
 		// pas une erreur d'extraction : sautée pour cette seule année,
 		// jamais silencieusement pour une autre.
-		nQ24Annee := 0
-		q24Path := filepath.Join(tmp, q24Fichier)
+		q24YearCount := 0
+		q24Path := filepath.Join(tmp, q24File)
 		if _, err := os.Stat(q24Path); err != nil {
-			if annee != 2020 {
+			if year != 2020 {
 				os.RemoveAll(tmp)
-				return fail(fmt.Errorf("exercice %d : %s absent de l'archive après extraction : %w", annee, q24Fichier, err))
+				return fail(fmt.Errorf("exercice %d : %s absent de l'archive après extraction : %w", year, q24File, err))
 			}
 		} else {
-			lignesQ24, err := lireCSVQ24(q24Path)
+			q24Records, err := readCSVQ24(q24Path)
 			if err != nil {
 				os.RemoveAll(tmp)
-				return fail(fmt.Errorf("exercice %d, Q24 : %w", annee, err))
+				return fail(fmt.Errorf("exercice %d, Q24 : %w", year, err))
 			}
-			toutesQ24 = append(toutesQ24, lignesQ24...)
-			nQ24Annee = len(lignesQ24)
+			allQ24 = append(allQ24, q24Records...)
+			q24YearCount = len(q24Records)
 		}
 
-		urgPath := filepath.Join(tmp, urgFichier)
+		urgPath := filepath.Join(tmp, urgFile)
 		if _, err := os.Stat(urgPath); err != nil {
 			os.RemoveAll(tmp)
-			return fail(fmt.Errorf("exercice %d : %s absent de l'archive après extraction : %w", annee, urgFichier, err))
+			return fail(fmt.Errorf("exercice %d : %s absent de l'archive après extraction : %w", year, urgFile, err))
 		}
-		lignesUrg, err := lireCSVUrgences(urgPath)
+		urgRecords, err := readCSVUrgences(urgPath)
 		if err != nil {
 			os.RemoveAll(tmp)
-			return fail(fmt.Errorf("exercice %d, URGENCES2 : %w", annee, err))
+			return fail(fmt.Errorf("exercice %d, URGENCES2 : %w", year, err))
 		}
-		toutesUrgences = append(toutesUrgences, lignesUrg...)
+		allUrgences = append(allUrgences, urgRecords...)
 
 		os.RemoveAll(tmp)
-		if nQ24Annee == 0 {
+		if q24YearCount == 0 {
 			fmt.Printf("    SAE %d : bordereau Q24 absent de la source (connu, année covid), %d lignes URGENCES2\n",
-				annee, len(lignesUrg))
+				year, len(urgRecords))
 		} else {
-			fmt.Printf("    SAE %d : %d lignes Q24, %d lignes URGENCES2\n", annee, nQ24Annee, len(lignesUrg))
+			fmt.Printf("    SAE %d : %d lignes Q24, %d lignes URGENCES2\n", year, q24YearCount, len(urgRecords))
 		}
 	}
-	if len(toutesQ24) == 0 {
+	if len(allQ24) == 0 {
 		return fail(fmt.Errorf("SAE Q24 : aucune ligne lue"))
 	}
-	if len(toutesUrgences) == 0 {
+	if len(allUrgences) == 0 {
 		return fail(fmt.Errorf("SAE URGENCES2 : aucune ligne lue"))
 	}
 
@@ -161,7 +161,7 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	// prix des triggers RI pour l'intégralité de la table à chaque
 	// republication annuelle, changement ou non.
 	var rowsQ24 [][]any
-	for _, l := range toutesQ24 {
+	for _, l := range allQ24 {
 		rowsQ24 = append(rowsQ24, []any{
 			l.Annee, l.FI, l.FIEJ,
 			l.Direc, l.Dirsoin, l.Admin, l.Admto, l.Cadre, l.Infns, l.Infsp,
@@ -251,7 +251,7 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	}
 
 	var rowsUrg [][]any
-	for _, l := range toutesUrgences {
+	for _, l := range allUrgences {
 		rowsUrg = append(rowsUrg, []any{l.Annee, l.FI, l.FIEJ, l.TypeUrgence, l.Passages, srcID})
 	}
 	if _, err := tx.Exec(ctx, `
@@ -295,18 +295,18 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		"lignes_q24": len(rowsQ24), "q24_touchees": nQ24,
 		"lignes_urgences": len(rowsUrg), "urgences_touchees": nUrg}, "")
 	fmt.Printf("  SAE : %d lignes Q24 (%d touchées), %d lignes URGENCES2 (%d touchées), %d-%d\n",
-		len(rowsQ24), nQ24, len(rowsUrg), nUrg, saeAnneeDebut, saeAnneeFin)
+		len(rowsQ24), nQ24, len(rowsUrg), nUrg, yearStart, yearEnd)
 	return nil
 }
 
-type ligneQ24 struct {
+type q24Row struct {
 	Annee                                                                                       int
 	FI, FIEJ                                                                                    string
 	Direc, Dirsoin, Admin, Admto, Cadre, Infns, Infsp, Aides, Ashau, Psych, Sagfe, Reedu, Soito *float64
 	Educs, Assis, Eduto, Phlab, Techn, Etppnm                                                   *float64
 }
 
-func lireCSVQ24(path string) ([]ligneQ24, error) {
+func readCSVQ24(path string) ([]q24Row, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -316,23 +316,23 @@ func lireCSVQ24(path string) ([]ligneQ24, error) {
 	r := csv.NewReader(f)
 	r.Comma = ';'
 	r.FieldsPerRecord = -1
-	entetes, err := r.Read()
+	headers, err := r.Read()
 	if err != nil {
 		return nil, err
 	}
 	idx := map[string]int{}
-	for i, h := range entetes {
+	for i, h := range headers {
 		idx[strings.ToUpper(strings.TrimSpace(h))] = i
 	}
-	col := func(rec []string, nom string) string {
-		i, ok := idx[nom]
+	column := func(rec []string, name string) string {
+		i, ok := idx[name]
 		if !ok || i >= len(rec) {
 			return ""
 		}
 		return strings.TrimSpace(rec[i])
 	}
-	numCol := func(rec []string, nom string) *float64 {
-		s := col(rec, nom)
+	numColumn := func(rec []string, name string) *float64 {
+		s := column(rec, name)
 		if s == "" {
 			return nil
 		}
@@ -344,7 +344,7 @@ func lireCSVQ24(path string) ([]ligneQ24, error) {
 		return &v
 	}
 
-	var out []ligneQ24
+	var out []q24Row
 	for {
 		rec, err := r.Read()
 		if err != nil {
@@ -362,41 +362,41 @@ func lireCSVQ24(path string) ([]ligneQ24, error) {
 		// (010000024 : 1000 + 2000 = 9999 à l'euro d'ETP près) — additionner
 		// toutes les lignes doublerait ou triplerait chaque effectif. Seule
 		// la ligne 9999 (le total déjà calculé par la Drees) est retenue.
-		if col(rec, "DISCI") != "9999" {
+		if column(rec, "DISCI") != "9999" {
 			continue
 		}
-		annee, err := strconv.Atoi(col(rec, "AN"))
+		year, err := strconv.Atoi(column(rec, "AN"))
 		if err != nil {
-			return nil, fmt.Errorf("SAE Q24 : année illisible sur la ligne FI=%s", col(rec, "FI"))
+			return nil, fmt.Errorf("SAE Q24 : année illisible sur la ligne FI=%s", column(rec, "FI"))
 		}
-		out = append(out, ligneQ24{
-			Annee: annee, FI: col(rec, "FI"), FIEJ: col(rec, "FI_EJ"),
-			Direc: numCol(rec, "DIREC"), Dirsoin: numCol(rec, "DIRSOIN"),
-			Admin: numCol(rec, "ADMIN"), Admto: numCol(rec, "ADMTO"), Cadre: numCol(rec, "CADRE"),
-			Infns: numCol(rec, "INFNS"), Infsp: numCol(rec, "INFSP"), Aides: numCol(rec, "AIDES"),
-			Ashau: numCol(rec, "ASHAU"), Psych: numCol(rec, "PSYCH"), Sagfe: numCol(rec, "SAGFE"),
-			Reedu: numCol(rec, "REEDU"), Soito: numCol(rec, "SOITO"), Educs: numCol(rec, "EDUCS"),
-			Assis: numCol(rec, "ASSIS"), Eduto: numCol(rec, "EDUTO"), Phlab: numCol(rec, "PHLAB"),
-			Techn: numCol(rec, "TECHN"), Etppnm: numCol(rec, "ETPPNM"),
+		out = append(out, q24Row{
+			Annee: year, FI: column(rec, "FI"), FIEJ: column(rec, "FI_EJ"),
+			Direc: numColumn(rec, "DIREC"), Dirsoin: numColumn(rec, "DIRSOIN"),
+			Admin: numColumn(rec, "ADMIN"), Admto: numColumn(rec, "ADMTO"), Cadre: numColumn(rec, "CADRE"),
+			Infns: numColumn(rec, "INFNS"), Infsp: numColumn(rec, "INFSP"), Aides: numColumn(rec, "AIDES"),
+			Ashau: numColumn(rec, "ASHAU"), Psych: numColumn(rec, "PSYCH"), Sagfe: numColumn(rec, "SAGFE"),
+			Reedu: numColumn(rec, "REEDU"), Soito: numColumn(rec, "SOITO"), Educs: numColumn(rec, "EDUCS"),
+			Assis: numColumn(rec, "ASSIS"), Eduto: numColumn(rec, "EDUTO"), Phlab: numColumn(rec, "PHLAB"),
+			Techn: numColumn(rec, "TECHN"), Etppnm: numColumn(rec, "ETPPNM"),
 		})
 	}
 	return out, nil
 }
 
-type ligneUrgences struct {
+type urgencesRow struct {
 	Annee       int
 	FI, FIEJ    string
 	TypeUrgence string
 	Passages    *int
 }
 
-// lireCSVUrgences lit le bordereau URGENCES2 — une ligne par établissement
+// readCSVUrgences lit le bordereau URGENCES2 — une ligne par établissement
 // ET par type d'accueil (GEN/PED/AMU, colonne URG), pas une ligne par
 // établissement : un CHU avec un accueil général et un accueil pédiatrique
 // distinct porte deux lignes, jamais un doublon (vérifié : FI identique,
 // URG différent). PASSU est le nombre de passages, la colonne qui répond à
 // « combien de patients aux urgences », pas un temps d'attente.
-func lireCSVUrgences(path string) ([]ligneUrgences, error) {
+func readCSVUrgences(path string) ([]urgencesRow, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -406,23 +406,23 @@ func lireCSVUrgences(path string) ([]ligneUrgences, error) {
 	r := csv.NewReader(f)
 	r.Comma = ';'
 	r.FieldsPerRecord = -1
-	entetes, err := r.Read()
+	headers, err := r.Read()
 	if err != nil {
 		return nil, err
 	}
 	idx := map[string]int{}
-	for i, h := range entetes {
+	for i, h := range headers {
 		idx[strings.ToUpper(strings.TrimSpace(h))] = i
 	}
-	col := func(rec []string, nom string) string {
-		i, ok := idx[nom]
+	column := func(rec []string, name string) string {
+		i, ok := idx[name]
 		if !ok || i >= len(rec) {
 			return ""
 		}
 		return strings.TrimSpace(rec[i])
 	}
-	intCol := func(rec []string, nom string) *int {
-		s := col(rec, nom)
+	intColumn := func(rec []string, name string) *int {
+		s := column(rec, name)
 		if s == "" {
 			return nil
 		}
@@ -433,7 +433,7 @@ func lireCSVUrgences(path string) ([]ligneUrgences, error) {
 		return &v
 	}
 
-	var out []ligneUrgences
+	var out []urgencesRow
 	for {
 		rec, err := r.Read()
 		if err != nil {
@@ -445,17 +445,17 @@ func lireCSVUrgences(path string) ([]ligneUrgences, error) {
 		if len(rec) == 0 {
 			continue
 		}
-		annee, err := strconv.Atoi(col(rec, "AN"))
+		year, err := strconv.Atoi(column(rec, "AN"))
 		if err != nil {
-			return nil, fmt.Errorf("SAE URGENCES2 : année illisible sur la ligne FI=%s", col(rec, "FI"))
+			return nil, fmt.Errorf("SAE URGENCES2 : année illisible sur la ligne FI=%s", column(rec, "FI"))
 		}
-		typeUrg := col(rec, "URG")
+		typeUrg := column(rec, "URG")
 		if typeUrg == "" {
 			continue // ligne sans type d'accueil renseigné, pas un accueil réel
 		}
-		out = append(out, ligneUrgences{
-			Annee: annee, FI: col(rec, "FI"), FIEJ: col(rec, "FI_EJ"),
-			TypeUrgence: typeUrg, Passages: intCol(rec, "PASSU"),
+		out = append(out, urgencesRow{
+			Annee: year, FI: column(rec, "FI"), FIEJ: column(rec, "FI_EJ"),
+			TypeUrgence: typeUrg, Passages: intColumn(rec, "PASSU"),
 		})
 	}
 	return out, nil
