@@ -109,11 +109,11 @@ func IngestPopuList(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 		if get(rec, "country_name") != "France" {
 			continue
 		}
-		nom := get(rec, "party_name")
-		if nom == "" {
+		name := get(rec, "party_name")
+		if name == "" {
 			continue
 		}
-		orgID, err := upsertClassifiedParty(ctx, pool, nom, get(rec, "party_name_short"),
+		orgID, err := upsertClassifiedParty(ctx, pool, name, get(rec, "party_name_short"),
 			get(rec, "partyfacts_id"))
 		if err != nil {
 			return err
@@ -145,14 +145,14 @@ func IngestPopuList(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 // upsertClassifiedParty crée l'organisation portant le nom publié par le
 // référentiel. Elle est distincte d'une éventuelle entrée CNCCFP : les
 // rapprocher est une décision, prise dans data/organisations.csv.
-func upsertClassifiedParty(ctx context.Context, pool *pgxpool.Pool, nom, abrev, pf string) (int64, error) {
+func upsertClassifiedParty(ctx context.Context, pool *pgxpool.Pool, name, abbr, pf string) (int64, error) {
 	var orgID int64
-	slug := "populist-" + Slugify(nom)
+	slug := "populist-" + Slugify(name)
 	err := pool.QueryRow(ctx, `
 		INSERT INTO core.organization (slug, kind, name, short_name)
 		VALUES ($1,'PARTY',$2,NULLIF($3,''))
 		ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-		RETURNING id`, slug, nom, abrev).Scan(&orgID)
+		RETURNING id`, slug, name, abbr).Scan(&orgID)
 	if err != nil {
 		return 0, err
 	}

@@ -738,7 +738,7 @@ func telechargerAssemblee(ctx context.Context, pool *pgxpool.Pool, arch *archive
 }
 
 func ingestPartis(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := partis.IngestComptes(ctx, pool, arch); err != nil {
+	if err := partis.IngestAccounts(ctx, pool, arch); err != nil {
 		return err
 	}
 	if err := partis.IngestPopuList(ctx, pool, arch); err != nil {

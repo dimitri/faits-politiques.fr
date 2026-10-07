@@ -31,7 +31,7 @@ import (
 //
 // Le résultat, glissé dans le contexte renvoyé via archive.WithPrefetched,
 // fait que chaque connecteur qui récupère ensuite CES MÊMES URL (an.Download,
-// senat.Ingest, europe.Ingest, partis.IngestComptes/IngestPopuList/IngestCHES)
+// senat.Ingest, europe.Ingest, partis.IngestAccounts/IngestPopuList/IngestCHES)
 // retrouve directement ce qui vient d'être pris, sans repasser par le réseau.
 func PrefetchAll(ctx context.Context, arch *archive.Archive,
 	targets []archive.DownloadTarget, concurrence int) (context.Context, error) {
