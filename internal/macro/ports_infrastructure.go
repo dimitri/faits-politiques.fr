@@ -16,7 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var SourceAutoroutesPortuaires = archive.Source{
+var SourcePortHighways = archive.Source{
 	Slug: "osm-autoroutes-france", Label: "Autoroutes de France (OpenStreetMap)",
 	// Comme les autres calques géographiques de repère de ce dépôt (contours
 	// administratifs, bassins hydrographiques), une couche de fond n'est pas
@@ -36,13 +36,13 @@ var SourceAutoroutesPortuaires = archive.Source{
 		"coordonnées.",
 }
 
-const urlAutoroutesFrance = "https://www.data.gouv.fr/api/1/datasets/r/4780d322-97d8-4eb4-8d4b-7bf68ec16d75"
+const franceHighwaysURL = "https://www.data.gouv.fr/api/1/datasets/r/4780d322-97d8-4eb4-8d4b-7bf68ec16d75"
 
-// ancragesPorts : un point WGS84 (lon, lat) par port suivi (ou par ville de
+// portAnchors : un point WGS84 (lon, lat) par port suivi (ou par ville de
 // l'axe HAROPA), vérifié via geo.contour_cog (centroïde de la commune, IGN
 // COG 2026) plutôt que saisi à l'estime. Sert à filtrer géographiquement
 // les couches autoroute/rail de ce dossier, pas à autre chose.
-var ancragesPorts = map[string][2]float64{
+var portAnchors = map[string][2]float64{
 	"Dunkerque":    {2.3374, 51.0304},
 	"LeHavre":      {0.1412, 49.4983},
 	"Rouen":        {1.0939, 49.4412},
@@ -50,45 +50,45 @@ var ancragesPorts = map[string][2]float64{
 	"SaintNazaire": {-2.2510, 47.2799},
 }
 
-const rayonPortM = 80_000.0 // 80 km, distance réelle (grand cercle)
+const portRadiusM = 80_000.0 // 80 km, distance réelle (grand cercle)
 
 // webMercatorXY : projection directe lon/lat (WGS84) vers Web Mercator
 // (EPSG:3857), en forme close — évite un aller-retour PostGIS pour chaque
 // point testé pendant la lecture du fichier CSV national (56 938 lignes).
 func webMercatorXY(lon, lat float64) (float64, float64) {
-	const rayonTerre = 6378137.0
-	x := lon * math.Pi / 180 * rayonTerre
-	y := math.Log(math.Tan(math.Pi/4+lat*math.Pi/360)) * rayonTerre
+	const earthRadius = 6378137.0
+	x := lon * math.Pi / 180 * earthRadius
+	y := math.Log(math.Tan(math.Pi/4+lat*math.Pi/360)) * earthRadius
 	return x, y
 }
 
-// presLarge : un premier filtre approximatif en Web Mercator (marge large,
+// broadlyNear : un premier filtre approximatif en Web Mercator (marge large,
 // 160 km, pour absorber la déformation du mode conforme aux latitudes
 // françaises) — juste pour éviter d'insérer les 56 938 tronçons du fichier
 // national avant le filtre précis (celui-là en distance réelle, exécuté en
 // SQL après chargement, voir la clause DELETE plus bas).
-const rayonPreFiltreM = 160_000.0
+const preFilterRadiusM = 160_000.0
 
-func presLarge(x1, y1 float64) bool {
-	for _, a := range ancragesPorts {
+func broadlyNear(x1, y1 float64) bool {
+	for _, a := range portAnchors {
 		ax, ay := webMercatorXY(a[0], a[1])
-		if math.Hypot(x1-ax, y1-ay) <= rayonPreFiltreM {
+		if math.Hypot(x1-ax, y1-ay) <= preFilterRadiusM {
 			return true
 		}
 	}
 	return false
 }
 
-var reWKTPremierPoint = regexp.MustCompile(`\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)`)
+var reWKTFirstPoint = regexp.MustCompile(`\(\s*(-?\d+(?:\.\d+)?)\s+(-?\d+(?:\.\d+)?)`)
 
-// IngestAutoroutesPortuaires télécharge le fichier national des
+// IngestPortHighways télécharge le fichier national des
 // autoroutes (OSM) et ne conserve que les tronçons proches d'un des
 // quatre grands ports — filtrage sur le premier point du tracé, les
 // tronçons de ce fichier étant courts (56 938 tronçons pour tout le
 // réseau national, soit quelques centaines de mètres chacun en moyenne) :
 // une approximation négligeable au regard du rayon de 80 km retenu.
-func IngestAutoroutesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceAutoroutesPortuaires)
+func IngestPortHighways(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourcePortHighways)
 	if err != nil {
 		return err
 	}
@@ -101,7 +101,7 @@ func IngestAutoroutesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch *a
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, urlAutoroutesFrance, ".csv")
+	f, err := arch.Fetch(ctx, srcID, runID, franceHighwaysURL, ".csv")
 	if err != nil {
 		return fail(err)
 	}
@@ -136,7 +136,7 @@ func IngestAutoroutesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch *a
 		return fail(err)
 	}
 
-	total, retenus := 0, 0
+	total, kept := 0, 0
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {
@@ -151,13 +151,13 @@ func IngestAutoroutesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch *a
 			continue
 		}
 		wkt := rec[idx["the_geom"]]
-		m := reWKTPremierPoint.FindStringSubmatch(wkt)
+		m := reWKTFirstPoint.FindStringSubmatch(wkt)
 		if m == nil {
 			continue
 		}
 		x, errX := strconv.ParseFloat(m[1], 64)
 		y, errY := strconv.ParseFloat(m[2], 64)
-		if errX != nil || errY != nil || !presLarge(x, y) {
+		if errX != nil || errY != nil || !broadlyNear(x, y) {
 			continue
 		}
 		ref := rec[idx["ref"]]
@@ -167,32 +167,32 @@ func IngestAutoroutesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch *a
 			ref, highway, wkt, srcID); err != nil {
 			return fail(fmt.Errorf("tronçon %q : insertion : %w", ref, err))
 		}
-		retenus++
+		kept++
 	}
-	if retenus == 0 {
+	if kept == 0 {
 		return fail(fmt.Errorf("autoroutes portuaires : aucun tronçon retenu sur %d lus", total))
 	}
 
 	// Filtre précis en distance réelle (grand cercle, via geography) : le
-	// filtre ci-dessus (presLarge) n'est qu'une marge large en Web Mercator
+	// filtre ci-dessus (broadlyNear) n'est qu'une marge large en Web Mercator
 	// pour limiter le volume inséré, déformée par la latitude — celui-ci
-	// applique le rayon de 80 km exact annoncé dans SourceAutoroutesPortuaires.
+	// applique le rayon de 80 km exact annoncé dans SourcePortHighways.
 	var conditions []string
 	var args []any
 	i := 1
-	for _, a := range ancragesPorts {
+	for _, a := range portAnchors {
 		conditions = append(conditions, fmt.Sprintf(
 			"ST_DWithin(ST_Transform(t.geom,4326)::geography, ST_SetSRID(ST_MakePoint($%d,$%d),4326)::geography, $%d)", i, i+1, i+2))
-		args = append(args, a[0], a[1], rayonPortM)
+		args = append(args, a[0], a[1], portRadiusM)
 		i += 3
 	}
-	supprimes, err := tx.Exec(ctx, fmt.Sprintf(`
+	deleted, err := tx.Exec(ctx, fmt.Sprintf(`
 		DELETE FROM geo.autoroute_portuaire t WHERE NOT (%s)`,
 		strings.Join(conditions, " OR ")), args...)
 	if err != nil {
 		return fail(err)
 	}
-	final := retenus - int(supprimes.RowsAffected())
+	final := kept - int(deleted.RowsAffected())
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
@@ -202,7 +202,7 @@ func IngestAutoroutesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch *a
 	return nil
 }
 
-var SourceVoiesFerreesPortuaires = archive.Source{
+var SourcePortRailLines = archive.Source{
 	Slug: "sncf-lignes-voie-portuaire", Label: "Lignes du réseau ferré national, type « voie portuaire »",
 	Publisher: "SNCF Réseau", Tier: "PRIMARY_OFFICIAL",
 	Licence: "Licence Ouverte", ReuseClass: "OPEN",
@@ -216,18 +216,18 @@ var SourceVoiesFerreesPortuaires = archive.Source{
 
 const urlLignesParType = "https://ressources.data.sncf.com/api/explore/v2.1/catalog/datasets/lignes-par-type/exports/geojson?lang=fr&timezone=Europe%2FParis"
 
-type featureLigneType struct {
+type lineTypeFeature struct {
 	Properties struct {
-		TypeLigne string `json:"type_ligne"`
-		CodeLigne string `json:"code_ligne"`
+		LineType string `json:"type_ligne"`
+		LineCode string `json:"code_ligne"`
 	} `json:"properties"`
 	Geometry json.RawMessage `json:"geometry"`
 }
 
-// IngestVoiesFerreesPortuaires charge les tronçons classés « voie
+// IngestPortRailLines charge les tronçons classés « voie
 // portuaire » du réseau ferré national. Voir docs/ports-donnees.md.
-func IngestVoiesFerreesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceVoiesFerreesPortuaires)
+func IngestPortRailLines(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourcePortRailLines)
 	if err != nil {
 		return err
 	}
@@ -250,7 +250,7 @@ func IngestVoiesFerreesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch 
 		return fail(err)
 	}
 	var fc struct {
-		Features []featureLigneType `json:"features"`
+		Features []lineTypeFeature `json:"features"`
 	}
 	if err := json.Unmarshal(raw, &fc); err != nil {
 		return fail(err)
@@ -264,9 +264,9 @@ func IngestVoiesFerreesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch 
 	if _, err := tx.Exec(ctx, `DELETE FROM geo.voie_ferree_portuaire`); err != nil {
 		return fail(err)
 	}
-	n, sansGeom := 0, 0
+	n, noGeom := 0, 0
 	for _, feat := range fc.Features {
-		if feat.Properties.TypeLigne != "Vport" {
+		if feat.Properties.LineType != "Vport" {
 			continue
 		}
 		// Quelques tronçons Vport du fichier source n'ont aucune géométrie
@@ -274,19 +274,19 @@ func IngestVoiesFerreesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch 
 		// erreur de lecture : ignorés plutôt que de faire échouer tout le
 		// chargement pour une poignée de lignes.
 		if len(feat.Geometry) == 0 || string(feat.Geometry) == "null" {
-			sansGeom++
+			noGeom++
 			continue
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO geo.voie_ferree_portuaire (code_ligne, geom, source_id)
 			VALUES ($1, ST_SetSRID(ST_GeomFromGeoJSON($2), 4326), $3)`,
-			feat.Properties.CodeLigne, string(feat.Geometry), srcID); err != nil {
-			return fail(fmt.Errorf("ligne %s : insertion : %w", feat.Properties.CodeLigne, err))
+			feat.Properties.LineCode, string(feat.Geometry), srcID); err != nil {
+			return fail(fmt.Errorf("ligne %s : insertion : %w", feat.Properties.LineCode, err))
 		}
 		n++
 	}
-	if sansGeom > 0 {
-		fmt.Printf("  voies ferrées portuaires : %d tronçons Vport sans géométrie dans la source, ignorés\n", sansGeom)
+	if noGeom > 0 {
+		fmt.Printf("  voies ferrées portuaires : %d tronçons Vport sans géométrie dans la source, ignorés\n", noGeom)
 	}
 	if n == 0 {
 		return fail(fmt.Errorf("voies ferrées portuaires : aucun tronçon Vport trouvé"))

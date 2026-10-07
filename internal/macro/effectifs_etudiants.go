@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var SourceEffectifsEtudiants = archive.Source{
+var SourceStudentHeadcount = archive.Source{
 	Slug: "sies-atlas-effectifs-etudiants", Label: "Atlas régional des effectifs d'étudiants, détail par établissement",
 	Publisher: "SIES (ministère de l'Enseignement supérieur et de la Recherche)", Tier: "PRIMARY_OFFICIAL",
 	Licence: "Licence Ouverte", ReuseClass: "OPEN",
@@ -24,12 +24,12 @@ var SourceEffectifsEtudiants = archive.Source{
 		"être compté deux fois, comme dans la source elle-même.",
 }
 
-const urlEffectifsEtudiants = "https://data.enseignementsup-recherche.gouv.fr/api/explore/v2.1/catalog/datasets/fr-esr-atlas_regional-effectifs-d-etudiants-inscrits-detail_etablissements/exports/csv"
+const studentHeadcountURL = "https://data.enseignementsup-recherche.gouv.fr/api/explore/v2.1/catalog/datasets/fr-esr-atlas_regional-effectifs-d-etudiants-inscrits-detail_etablissements/exports/csv"
 
-// IngestEffectifsEtudiants charge les effectifs étudiants, agrégés par
+// IngestStudentHeadcount charge les effectifs étudiants, agrégés par
 // commune et par rentrée. Voir docs/recherche-enseignement-superieur-donnees.md.
-func IngestEffectifsEtudiants(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceEffectifsEtudiants)
+func IngestStudentHeadcount(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceStudentHeadcount)
 	if err != nil {
 		return err
 	}
@@ -42,7 +42,7 @@ func IngestEffectifsEtudiants(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, urlEffectifsEtudiants, ".csv")
+	f, err := arch.Fetch(ctx, srcID, runID, studentHeadcountURL, ".csv")
 	if err != nil {
 		return fail(err)
 	}
@@ -71,13 +71,13 @@ func IngestEffectifsEtudiants(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		}
 	}
 
-	type cle struct {
-		codeInsee string
-		rentree   int
+	type key struct {
+		codeInsee  string
+		schoolYear int
 	}
-	agrege := map[cle]int64{}
-	noms := map[string]string{}
-	geoms := map[string]string{}
+	aggregated := map[key]int64{}
+	names := map[string]string{}
+	geometries := map[string]string{}
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {
@@ -90,26 +90,26 @@ func IngestEffectifsEtudiants(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		if code == "" {
 			continue
 		}
-		annee, err := strconv.Atoi(strings.TrimSpace(rec[col["rentree"]]))
+		schoolYear, err := strconv.Atoi(strings.TrimSpace(rec[col["rentree"]]))
 		if err != nil {
 			continue
 		}
-		eff, err := strconv.ParseInt(strings.TrimSpace(rec[col["effectifhdccpge"]]), 10, 64)
+		count, err := strconv.ParseInt(strings.TrimSpace(rec[col["effectifhdccpge"]]), 10, 64)
 		if err != nil {
 			continue
 		}
-		agrege[cle{code, annee}] += eff
-		if _, ok := noms[code]; !ok {
-			noms[code] = strings.TrimSpace(rec[col["com_nom"]])
+		aggregated[key{code, schoolYear}] += count
+		if _, ok := names[code]; !ok {
+			names[code] = strings.TrimSpace(rec[col["com_nom"]])
 		}
-		if _, ok := geoms[code]; !ok {
+		if _, ok := geometries[code]; !ok {
 			if g := strings.TrimSpace(rec[col["geo"]]); g != "" {
-				geoms[code] = g
+				geometries[code] = g
 			}
 		}
 	}
-	if len(agrege) < 1000 {
-		return fail(fmt.Errorf("seulement %d couples commune/rentrée lus, attendu au moins 1000", len(agrege)))
+	if len(aggregated) < 1000 {
+		return fail(fmt.Errorf("seulement %d couples commune/rentrée lus, attendu au moins 1000", len(aggregated)))
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -120,9 +120,9 @@ func IngestEffectifsEtudiants(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	if _, err := tx.Exec(ctx, `DELETE FROM core.effectifs_etudiants_commune`); err != nil {
 		return fail(err)
 	}
-	for k, eff := range agrege {
+	for k, count := range aggregated {
 		var geomExpr any
-		if g, ok := geoms[k.codeInsee]; ok {
+		if g, ok := geometries[k.codeInsee]; ok {
 			parts := strings.Split(g, ",")
 			if len(parts) == 2 {
 				lat, errLat := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
@@ -136,15 +136,15 @@ func IngestEffectifsEtudiants(ctx context.Context, pool *pgxpool.Pool, arch *arc
 			INSERT INTO core.effectifs_etudiants_commune (code_insee, commune, rentree, effectif, geom, source_id)
 			VALUES ($1,$2,$3,$4,ST_GeomFromEWKT($5),$6)
 			ON CONFLICT (code_insee, rentree) DO NOTHING`,
-			k.codeInsee, noms[k.codeInsee], k.rentree, eff, geomExpr, srcID); err != nil {
-			return fail(fmt.Errorf("%s %d : insertion : %w", k.codeInsee, k.rentree, err))
+			k.codeInsee, names[k.codeInsee], k.schoolYear, count, geomExpr, srcID); err != nil {
+			return fail(fmt.Errorf("%s %d : insertion : %w", k.codeInsee, k.schoolYear, err))
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(agrege)}, "")
-	fmt.Printf("  Effectifs étudiants par commune (SIES) : %d couples commune/rentrée\n", len(agrege))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(aggregated)}, "")
+	fmt.Printf("  Effectifs étudiants par commune (SIES) : %d couples commune/rentrée\n", len(aggregated))
 	return nil
 }

@@ -19,7 +19,7 @@ import (
 // dans la même fiche, une comparaison directe patrimoine/niveau de vie
 // (concentration, indice de Gini) qui manquait à docs/repartition-richesse-
 // donnees.md. Voir la migration 0118.
-var SourceHeritageConcentration = archive.Source{
+var SourceInheritanceConcentration = archive.Source{
 	Slug: "insee-heritage-concentration", Label: "INSEE — héritage et concentration patrimoine/niveau de vie",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
 	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
@@ -30,27 +30,27 @@ var SourceHeritageConcentration = archive.Source{
 		"pas la part de la RICHESSE qui provient de l'héritage — deux questions différentes.",
 }
 
-const urlHeritageConcentration = "https://www.insee.fr/fr/statistiques/fichier/8612590/FPORSOC25-E3.xlsx"
+const inheritanceConcentrationURL = "https://www.insee.fr/fr/statistiques/fichier/8612590/FPORSOC25-E3.xlsx"
 
-var categoriesMenage = []struct{ libelle, code string }{
+var householdCategories = []struct{ label, code string }{
 	{"haut patrimoine et haut niveau de vie", "HAUT_PATRIMOINE_ET_NIVEAU_VIE"},
 	{"haut patrimoine uniquement", "HAUT_PATRIMOINE_SEUL"},
 	{"haut niveau de vie uniquement", "HAUT_NIVEAU_VIE_SEUL"},
 	{"ensemble des ménages", "ENSEMBLE"},
 }
 
-func codeCategorieMenage(libelle string) (string, error) {
-	l := strings.ToLower(strings.TrimSpace(libelle))
-	for _, c := range categoriesMenage {
-		if l == c.libelle {
+func householdCategoryCode(label string) (string, error) {
+	l := strings.ToLower(strings.TrimSpace(label))
+	for _, c := range householdCategories {
+		if l == c.label {
 			return c.code, nil
 		}
 	}
-	return "", fmt.Errorf("catégorie de ménage illisible : %q", libelle)
+	return "", fmt.Errorf("catégorie de ménage illisible : %q", label)
 }
 
-func IngestHeritageConcentration(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceHeritageConcentration)
+func IngestInheritanceConcentration(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceInheritanceConcentration)
 	if err != nil {
 		return err
 	}
@@ -63,7 +63,7 @@ func IngestHeritageConcentration(ctx context.Context, pool *pgxpool.Pool, arch *
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, urlHeritageConcentration, ".xlsx")
+	f, err := arch.Fetch(ctx, srcID, runID, inheritanceConcentrationURL, ".xlsx")
 	if err != nil {
 		return fail(err)
 	}
@@ -73,11 +73,11 @@ func IngestHeritageConcentration(ctx context.Context, pool *pgxpool.Pool, arch *
 	}
 	defer wb.Close()
 
-	heritages, err := lireHeritage(wb)
+	inheritances, err := readInheritance(wb)
 	if err != nil {
 		return fail(err)
 	}
-	concentration, ginis, err := lireConcentration(wb)
+	concentration, ginis, err := readConcentration(wb)
 	if err != nil {
 		return fail(err)
 	}
@@ -92,29 +92,29 @@ func IngestHeritageConcentration(ctx context.Context, pool *pgxpool.Pool, arch *
 		return fail(err)
 	}
 
-	var rowsHeritage [][]any
-	for _, h := range heritages {
-		rowsHeritage = append(rowsHeritage, []any{h.categorie, h.trancheAge, h.partHerite, h.partDonation, srcID})
+	var inheritanceRows [][]any
+	for _, h := range inheritances {
+		inheritanceRows = append(inheritanceRows, []any{h.category, h.ageBracket, h.inheritedShare, h.giftShare, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "menage_heritage"},
 		[]string{"categorie", "tranche_age", "part_herite_pct", "part_donation_pct", "source_id"},
-		pgx.CopyFromRows(rowsHeritage)); err != nil {
+		pgx.CopyFromRows(inheritanceRows)); err != nil {
 		return fail(fmt.Errorf("menage_heritage : %w", err))
 	}
 
-	var rowsConcentration [][]any
+	var concentrationRows [][]any
 	for _, c := range concentration {
-		rowsConcentration = append(rowsConcentration, []any{c.position, c.massePatrimoine, c.masseNiveauVie, srcID})
+		concentrationRows = append(concentrationRows, []any{c.position, c.wealthMass, c.livingStandardMass, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "concentration_patrimoine_niveau_vie"},
 		[]string{"position_distribution", "masse_patrimoine_pct", "masse_niveau_vie_pct", "source_id"},
-		pgx.CopyFromRows(rowsConcentration)); err != nil {
+		pgx.CopyFromRows(concentrationRows)); err != nil {
 		return fail(fmt.Errorf("concentration_patrimoine_niveau_vie : %w", err))
 	}
 
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO core.gini_patrimoine_niveau_vie (annee, indice_patrimoine, indice_niveau_vie, source_id)
-		VALUES ($1, $2, $3, $4)`, 2021, ginis.patrimoine, ginis.niveauDeVie, srcID); err != nil {
+		VALUES ($1, $2, $3, $4)`, 2021, ginis.wealth, ginis.livingStandard, srcID); err != nil {
 		return fail(fmt.Errorf("gini_patrimoine_niveau_vie : %w", err))
 	}
 
@@ -122,115 +122,115 @@ func IngestHeritageConcentration(ctx context.Context, pool *pgxpool.Pool, arch *
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"heritages": len(heritages), "concentration": len(concentration)}, "")
+		map[string]any{"heritages": len(inheritances), "concentration": len(concentration)}, "")
 	fmt.Printf("  héritage et concentration (Insee) : %d lignes d'héritage, %d lignes de concentration, indices de Gini %.3f / %.3f\n",
-		len(heritages), len(concentration), ginis.patrimoine, ginis.niveauDeVie)
+		len(inheritances), len(concentration), ginis.wealth, ginis.livingStandard)
 	return nil
 }
 
-type ligneHeritage struct {
-	categorie, trancheAge    string
-	partHerite, partDonation float64
+type inheritanceRow struct {
+	category, ageBracket      string
+	inheritedShare, giftShare float64
 }
 
-// lireHeritage : Figures 7a (hérité) et 7b (donation) ont la même mise en
+// readInheritance : Figures 7a (hérité) et 7b (donation) ont la même mise en
 // page (catégorie en ligne, 40-59 / 60 ou plus / tous âges en colonne) —
 // lues ensemble puis assemblées par (catégorie, tranche d'âge).
-func lireHeritage(wb *excelize.File) ([]ligneHeritage, error) {
-	herite, err := lireTableauAge(wb, "Figure 7a")
+func readInheritance(wb *excelize.File) ([]inheritanceRow, error) {
+	inherited, err := readAgeTable(wb, "Figure 7a")
 	if err != nil {
 		return nil, fmt.Errorf("Figure 7a (héritage) : %w", err)
 	}
-	donation, err := lireTableauAge(wb, "Figure 7b")
+	gift, err := readAgeTable(wb, "Figure 7b")
 	if err != nil {
 		return nil, fmt.Errorf("Figure 7b (donation) : %w", err)
 	}
-	out := make([]ligneHeritage, 0, len(herite))
-	for k, v := range herite {
-		d, ok := donation[k]
+	out := make([]inheritanceRow, 0, len(inherited))
+	for k, v := range inherited {
+		d, ok := gift[k]
 		if !ok {
 			return nil, fmt.Errorf("%v : aucune donnée de donation correspondante", k)
 		}
-		out = append(out, ligneHeritage{k.categorie, k.trancheAge, v, d})
+		out = append(out, inheritanceRow{k.category, k.ageBracket, v, d})
 	}
 	return out, nil
 }
 
-type cleAgeCategorie struct{ categorie, trancheAge string }
+type ageCategoryKey struct{ category, ageBracket string }
 
-// lireTableauAge : une feuille "Figure 7a"/"Figure 7b", catégories en ligne
+// readAgeTable : une feuille "Figure 7a"/"Figure 7b", catégories en ligne
 // (4-7), colonnes 40-59 ans / 60 ans ou plus / tous âges (index 1, 2, 3).
-func lireTableauAge(wb *excelize.File, feuille string) (map[cleAgeCategorie]float64, error) {
-	rows, err := wb.GetRows(feuille)
+func readAgeTable(wb *excelize.File, sheet string) (map[ageCategoryKey]float64, error) {
+	rows, err := wb.GetRows(sheet)
 	if err != nil {
 		return nil, err
 	}
 	if len(rows) < 8 {
 		return nil, fmt.Errorf("feuille trop courte (%d lignes) — format changé", len(rows))
 	}
-	out := map[cleAgeCategorie]float64{}
-	tranches := []string{"40_59", "60_PLUS", "TOUS_AGES"}
-	for _, l := range rows[4:8] {
-		if len(l) < 4 {
-			return nil, fmt.Errorf("ligne trop courte : %q", l)
+	out := map[ageCategoryKey]float64{}
+	brackets := []string{"40_59", "60_PLUS", "TOUS_AGES"}
+	for _, row := range rows[4:8] {
+		if len(row) < 4 {
+			return nil, fmt.Errorf("ligne trop courte : %q", row)
 		}
-		code, err := codeCategorieMenage(l[0])
+		code, err := householdCategoryCode(row[0])
 		if err != nil {
 			return nil, err
 		}
-		for i, tranche := range tranches {
-			v, err := strconv.ParseFloat(strings.TrimSpace(l[i+1]), 64)
+		for i, bracket := range brackets {
+			v, err := strconv.ParseFloat(strings.TrimSpace(row[i+1]), 64)
 			if err != nil {
-				return nil, fmt.Errorf("%s %s : %q illisible : %w", code, tranche, l[i+1], err)
+				return nil, fmt.Errorf("%s %s : %q illisible : %w", code, bracket, row[i+1], err)
 			}
-			out[cleAgeCategorie{code, tranche}] = v
+			out[ageCategoryKey{code, bracket}] = v
 		}
 	}
 	return out, nil
 }
 
-type ligneConcentration struct {
-	position                        string
-	massePatrimoine, masseNiveauVie float64
+type concentrationRow struct {
+	position                       string
+	wealthMass, livingStandardMass float64
 }
-type ginisMenage struct{ patrimoine, niveauDeVie float64 }
+type householdGinis struct{ wealth, livingStandard float64 }
 
-// lireConcentration : feuille "Encadré – Figure", six lignes de position
+// readConcentration : feuille "Encadré – Figure", six lignes de position
 // dans la distribution puis une ligne "Indice de Gini" à part.
-func lireConcentration(wb *excelize.File) ([]ligneConcentration, ginisMenage, error) {
+func readConcentration(wb *excelize.File) ([]concentrationRow, householdGinis, error) {
 	rows, err := wb.GetRows("Encadré – Figure")
 	if err != nil {
-		return nil, ginisMenage{}, fmt.Errorf("feuille 'Encadré – Figure' : %w", err)
+		return nil, householdGinis{}, fmt.Errorf("feuille 'Encadré – Figure' : %w", err)
 	}
 	if len(rows) < 10 {
-		return nil, ginisMenage{}, fmt.Errorf("feuille 'Encadré – Figure' trop courte (%d lignes) — format changé", len(rows))
+		return nil, householdGinis{}, fmt.Errorf("feuille 'Encadré – Figure' trop courte (%d lignes) — format changé", len(rows))
 	}
-	var out []ligneConcentration
-	var g ginisMenage
-	for _, l := range rows[3:10] {
-		if len(l) < 3 {
+	var out []concentrationRow
+	var g householdGinis
+	for _, row := range rows[3:10] {
+		if len(row) < 3 {
 			continue
 		}
-		label := strings.TrimSpace(l[0])
+		label := strings.TrimSpace(row[0])
 		// "Inférieure au 2e décile1" : le "1" est un renvoi de note collé au
 		// mot, pas une partie du libellé — jamais présent ailleurs dans cette
 		// colonne (vérifié sur les six lignes de la feuille).
 		if strings.HasSuffix(label, "décile1") {
 			label = strings.TrimSuffix(label, "1")
 		}
-		patrimoine, err1 := strconv.ParseFloat(strings.TrimSpace(l[1]), 64)
-		niveau, err2 := strconv.ParseFloat(strings.TrimSpace(l[2]), 64)
+		wealth, err1 := strconv.ParseFloat(strings.TrimSpace(row[1]), 64)
+		livingStandard, err2 := strconv.ParseFloat(strings.TrimSpace(row[2]), 64)
 		if err1 != nil || err2 != nil {
-			return nil, ginisMenage{}, fmt.Errorf("ligne %q illisible", l)
+			return nil, householdGinis{}, fmt.Errorf("ligne %q illisible", row)
 		}
 		if strings.EqualFold(label, "Indice de Gini") {
-			g = ginisMenage{patrimoine, niveau}
+			g = householdGinis{wealth, livingStandard}
 			continue
 		}
-		out = append(out, ligneConcentration{label, patrimoine, niveau})
+		out = append(out, concentrationRow{label, wealth, livingStandard})
 	}
-	if g == (ginisMenage{}) {
-		return nil, ginisMenage{}, fmt.Errorf("ligne 'Indice de Gini' introuvable — format changé")
+	if g == (householdGinis{}) {
+		return nil, householdGinis{}, fmt.Errorf("ligne 'Indice de Gini' introuvable — format changé")
 	}
 	return out, g, nil
 }

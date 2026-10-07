@@ -29,79 +29,79 @@ var SourceSRU = archive.Source{
 		"colonne qu'à partir du millésime 2024.",
 }
 
-// anneeSRU décrit un millésime : son adresse, son délimiteur réel et le nom
+// sruYearConfig décrit un millésime : son adresse, son délimiteur réel et le nom
 // EXACT de chaque colonne dans CE fichier. Les noms ne suivent aucun motif
 // commun d'un millésime à l'autre (accents tantôt présents, tantôt non ;
 // année tantôt dans le nom, tantôt absente) — vérifiés directement sur
 // chaque fichier téléchargé plutôt que supposés identiques au millésime 2025
 // déjà chargé.
-type anneeSRU struct {
-	Annee          int
-	URL            string
-	Delimiteur     rune
-	SauterLignes   int // le fichier 2024 commence par une ligne entièrement vide avant l'en-tête
-	ColDept        string
-	DeptEstCode    bool // 2023/2024 : ColDept est un CODE de département (résolu via geo.contour) ; 2025/2026 : c'est déjà le nom
-	ColPopulation  string
-	ColTaux        string
-	ColCible       string
-	ColDeficitaire string
-	ColCarencee    string
-	ColExemptee    string
-	ColPrelevement string // "" : colonne absente de ce millésime (2023)
+type sruYearConfig struct {
+	Year          int
+	URL           string
+	Delimiter     rune
+	SkipLines     int // le fichier 2024 commence par une ligne entièrement vide avant l'en-tête
+	DeptCol       string
+	DeptIsCode    bool // 2023/2024 : DeptCol est un CODE de département (résolu via geo.contour) ; 2025/2026 : c'est déjà le nom
+	PopulationCol string
+	RateCol       string
+	TargetCol     string
+	DeficientCol  string
+	SanctionedCol string
+	ExemptCol     string
+	LevyCol       string // "" : colonne absente de ce millésime (2023)
 }
 
-var anneesSRU = []anneeSRU{
+var sruYears = []sruYearConfig{
 	{
-		Annee: 2023, Delimiteur: ',', SauterLignes: 0,
+		Year: 2023, Delimiter: ',', SkipLines: 0,
 		URL:     "https://static.data.gouv.fr/resources/communes-et-inventaire-sru/20250922-104633/donnees-sru-data-gouv-maj2023-vf.csv",
-		ColDept: "Code_Departement", DeptEstCode: true,
-		ColPopulation:  "Population_municipale_01_01_2023",
-		ColTaux:        "Taux_SRU_au_01_01_2022",
-		ColCible:       "Taux_cible_commune_2023_2025",
-		ColDeficitaire: "Commune_deficitaire_2023",
-		ColCarencee:    "Commune_carencee_2023_2025",
-		ColExemptee:    "Commune_exemptee_2023_2025",
+		DeptCol: "Code_Departement", DeptIsCode: true,
+		PopulationCol: "Population_municipale_01_01_2023",
+		RateCol:       "Taux_SRU_au_01_01_2022",
+		TargetCol:     "Taux_cible_commune_2023_2025",
+		DeficientCol:  "Commune_deficitaire_2023",
+		SanctionedCol: "Commune_carencee_2023_2025",
+		ExemptCol:     "Commune_exemptee_2023_2025",
 	},
 	{
-		Annee: 2024, Delimiteur: ',', SauterLignes: 1,
+		Year: 2024, Delimiter: ',', SkipLines: 1,
 		URL:     "https://static.data.gouv.fr/resources/communes-et-inventaire-sru/20250929-132410/donnees-sru-data-gouv-maj2024-vf.csv",
-		ColDept: "Code_Département", DeptEstCode: true,
-		ColPopulation:  "Population_municipale_01_01_2024",
-		ColTaux:        "Taux_SRU_au_01_01_2023",
-		ColCible:       "Taux_cible_commune_2023_2025",
-		ColDeficitaire: "Commune_déficitaire_2024",
-		ColCarencee:    "Commune_carencée_2023_2025",
-		ColExemptee:    "Commune_exemptée_2023_2025",
-		ColPrelevement: "Prélèvement_net_2024_dont_majoration",
+		DeptCol: "Code_Département", DeptIsCode: true,
+		PopulationCol: "Population_municipale_01_01_2024",
+		RateCol:       "Taux_SRU_au_01_01_2023",
+		TargetCol:     "Taux_cible_commune_2023_2025",
+		DeficientCol:  "Commune_déficitaire_2024",
+		SanctionedCol: "Commune_carencée_2023_2025",
+		ExemptCol:     "Commune_exemptée_2023_2025",
+		LevyCol:       "Prélèvement_net_2024_dont_majoration",
 	},
 	{
-		Annee: 2025, Delimiteur: ';', SauterLignes: 0,
+		Year: 2025, Delimiter: ';', SkipLines: 0,
 		URL:     "https://static.data.gouv.fr/resources/communes-et-inventaire-sru/20251219-143258/donnees-sru-data-gouv-2025-v2.csv",
-		ColDept: "Departement", DeptEstCode: false,
-		ColPopulation:  "Population_municipale_01_01_2025",
-		ColTaux:        "Taux_SRU_au_01_01_2024",
-		ColCible:       "Taux_cible_commune_2023_2025",
-		ColDeficitaire: "commune_deficitaire",
-		ColCarencee:    "Commune_carencée",
-		ColExemptee:    "Commune_exemptée_2023_2025",
-		ColPrelevement: "Prélèvement_net_2025_dont_majoration",
+		DeptCol: "Departement", DeptIsCode: false,
+		PopulationCol: "Population_municipale_01_01_2025",
+		RateCol:       "Taux_SRU_au_01_01_2024",
+		TargetCol:     "Taux_cible_commune_2023_2025",
+		DeficientCol:  "commune_deficitaire",
+		SanctionedCol: "Commune_carencée",
+		ExemptCol:     "Commune_exemptée_2023_2025",
+		LevyCol:       "Prélèvement_net_2025_dont_majoration",
 	},
 	{
-		Annee: 2026, Delimiteur: ';', SauterLignes: 0,
+		Year: 2026, Delimiter: ';', SkipLines: 0,
 		URL:     "https://static.data.gouv.fr/resources/communes-et-inventaire-sru/20260811-123753/donnees-sru-data-gouv-2026.csv",
-		ColDept: "Departement", DeptEstCode: false,
-		ColPopulation:  "Population_municipale_01_01_2026",
-		ColTaux:        "Taux_SRU_au_01_01_2025",
-		ColCible:       "Taux_cible_commune",
-		ColDeficitaire: "commune_deficitaire_au_01-01-2025",
-		ColCarencee:    "Commune_carencee_2023_2025",
-		ColExemptee:    "Commune_exemptee_2026_2028",
-		ColPrelevement: "Prelevement_net_2026_dont_majoration",
+		DeptCol: "Departement", DeptIsCode: false,
+		PopulationCol: "Population_municipale_01_01_2026",
+		RateCol:       "Taux_SRU_au_01_01_2025",
+		TargetCol:     "Taux_cible_commune",
+		DeficientCol:  "commune_deficitaire_au_01-01-2025",
+		SanctionedCol: "Commune_carencee_2023_2025",
+		ExemptCol:     "Commune_exemptee_2026_2028",
+		LevyCol:       "Prelevement_net_2026_dont_majoration",
 	},
 }
 
-func parserPourcentageFr(s string) (float64, bool) {
+func parseFrenchPercent(s string) (float64, bool) {
 	s = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(s), "%"))
 	s = strings.ReplaceAll(s, ",", ".")
 	if s == "" {
@@ -111,14 +111,14 @@ func parserPourcentageFr(s string) (float64, bool) {
 	return v, err == nil
 }
 
-func aBool01(s string) bool { return strings.TrimSpace(s) == "1" }
+func boolFrom01(s string) bool { return strings.TrimSpace(s) == "1" }
 
-// parserMontantEUR lit un montant en euros au format de la source
+// parseEuroAmount lit un montant en euros au format de la source
 // (« 64 509,48 € », espace fine insécable en séparateur de milliers, virgule
 // décimale, et « - € » ou « 0,00 € » pour un prélèvement nul — les deux
 // formes valent 0, jamais NULL : la colonne existe et dit explicitement
 // zéro, ce qui diffère du millésime 2023 où la colonne n'existe pas du tout.
-func parserMontantEUR(s string) (float64, bool) {
+func parseEuroAmount(s string) (float64, bool) {
 	s = strings.ReplaceAll(s, "€", "")
 	s = strings.Map(func(r rune) rune {
 		if r == ' ' || r == ' ' || r == ' ' {
@@ -134,154 +134,154 @@ func parserMontantEUR(s string) (float64, bool) {
 	return v, err == nil
 }
 
-type ligneSRU struct {
-	annee                           int
-	codeInsee, commune, departement string
-	population, nbLLS               *int
-	tauxSRU, tauxCible, prelevement *float64
-	deficitaire, carencee, exemptee bool
+type sruRow struct {
+	year                                int
+	codeInsee, municipality, department string
+	population, socialHousingCount      *int
+	sruRate, targetRate, levy           *float64
+	deficient, sanctioned, exempt       bool
 }
 
-// chargerDepartements : code -> nom, pour résoudre les millésimes 2023 et
+// loadDepartments : code -> nom, pour résoudre les millésimes 2023 et
 // 2024 qui ne publient que le CODE du département (les millésimes 2025 et
 // 2026 publient directement son nom, dans une colonne distincte).
-func chargerDepartements(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) {
+func loadDepartments(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) {
 	rows, err := pool.Query(ctx, `SELECT code_insee, nom FROM geo.contour WHERE niveau='DEPARTEMENT'`)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	m := map[string]string{}
+	byCode := map[string]string{}
 	for rows.Next() {
-		var code, nom string
-		if err := rows.Scan(&code, &nom); err != nil {
+		var code, name string
+		if err := rows.Scan(&code, &name); err != nil {
 			return nil, err
 		}
-		m[code] = nom
+		byCode[code] = name
 	}
-	return m, rows.Err()
+	return byCode, rows.Err()
 }
 
-// parserAnneeSRU télécharge et lit un millésime. Le fichier est encodé en
+// parseSRUYear télécharge et lit un millésime. Le fichier est encodé en
 // Windows-1252 (et non le Latin-1 pur utilisé par internal/macro/accord_paris.go
 // ailleurs sur ce site) : la distinction n'était pas visible tant que personne
 // ne lisait le prélèvement, mais son signe euro (octet 0x80) n'a pas la même
 // signification dans les deux jeux de caractères — une conversion Latin-1
 // l'aurait laissé comme caractère de contrôle invisible plutôt que « € ».
-func parserAnneeSRU(ctx context.Context, arch *archive.Archive, srcID, runID int64,
-	cfg anneeSRU, deptParCode map[string]string) ([]ligneSRU, error) {
+func parseSRUYear(ctx context.Context, arch *archive.Archive, srcID, runID int64,
+	cfg sruYearConfig, deptByCode map[string]string) ([]sruRow, error) {
 
 	f, err := arch.Fetch(ctx, srcID, runID, cfg.URL, ".csv")
 	if err != nil {
-		return nil, fmt.Errorf("millésime %d : %w", cfg.Annee, err)
+		return nil, fmt.Errorf("millésime %d : %w", cfg.Year, err)
 	}
-	octets, err := os.ReadFile(f.Path)
+	raw, err := os.ReadFile(f.Path)
 	if err != nil {
 		return nil, err
 	}
-	texte, err := charmap.Windows1252.NewDecoder().String(string(octets))
+	text, err := charmap.Windows1252.NewDecoder().String(string(raw))
 	if err != nil {
-		return nil, fmt.Errorf("millésime %d : décodage Windows-1252 : %w", cfg.Annee, err)
+		return nil, fmt.Errorf("millésime %d : décodage Windows-1252 : %w", cfg.Year, err)
 	}
 
-	r := csv.NewReader(strings.NewReader(texte))
-	r.Comma = cfg.Delimiteur
+	r := csv.NewReader(strings.NewReader(text))
+	r.Comma = cfg.Delimiter
 	r.LazyQuotes = true
 	r.FieldsPerRecord = -1
 
-	for i := 0; i < cfg.SauterLignes; i++ {
+	for i := 0; i < cfg.SkipLines; i++ {
 		if _, err := r.Read(); err != nil {
-			return nil, fmt.Errorf("millésime %d : ligne à sauter illisible : %w", cfg.Annee, err)
+			return nil, fmt.Errorf("millésime %d : ligne à sauter illisible : %w", cfg.Year, err)
 		}
 	}
 	header, err := r.Read()
 	if err != nil {
-		return nil, fmt.Errorf("millésime %d : en-tête illisible : %w", cfg.Annee, err)
+		return nil, fmt.Errorf("millésime %d : en-tête illisible : %w", cfg.Year, err)
 	}
 	col := map[string]int{}
 	for i, h := range header {
 		col[strings.TrimSpace(h)] = i
 	}
-	must := []string{"Code_INSEE_commune", "Nom_commune", cfg.ColDept, cfg.ColPopulation,
-		cfg.ColTaux, cfg.ColCible, cfg.ColDeficitaire, cfg.ColCarencee, cfg.ColExemptee}
-	if cfg.ColPrelevement != "" {
-		must = append(must, cfg.ColPrelevement)
+	must := []string{"Code_INSEE_commune", "Nom_commune", cfg.DeptCol, cfg.PopulationCol,
+		cfg.RateCol, cfg.TargetCol, cfg.DeficientCol, cfg.SanctionedCol, cfg.ExemptCol}
+	if cfg.LevyCol != "" {
+		must = append(must, cfg.LevyCol)
 	}
 	for _, m := range must {
 		if _, ok := col[m]; !ok {
-			return nil, fmt.Errorf("millésime %d : colonne %q absente (en-tête : %v)", cfg.Annee, m, header)
+			return nil, fmt.Errorf("millésime %d : colonne %q absente (en-tête : %v)", cfg.Year, m, header)
 		}
 	}
-	colLLS := -1
+	socialHousingCol := -1
 	for h, i := range col {
 		if strings.HasPrefix(h, "Nombre_lls") {
-			colLLS = i
+			socialHousingCol = i
 		}
 	}
-	if colLLS == -1 {
-		return nil, fmt.Errorf("millésime %d : colonne du nombre de logements sociaux introuvable", cfg.Annee)
+	if socialHousingCol == -1 {
+		return nil, fmt.Errorf("millésime %d : colonne du nombre de logements sociaux introuvable", cfg.Year)
 	}
 
-	var lignes []ligneSRU
+	var rows []sruRow
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {
 			break
 		}
 		if err != nil {
-			return nil, fmt.Errorf("millésime %d : ligne illisible : %w", cfg.Annee, err)
+			return nil, fmt.Errorf("millésime %d : ligne illisible : %w", cfg.Year, err)
 		}
-		champ := func(nom string) string {
-			i, ok := col[nom]
+		field := func(name string) string {
+			i, ok := col[name]
 			if !ok || i >= len(rec) {
 				return ""
 			}
 			return rec[i]
 		}
-		l := ligneSRU{
-			annee:       cfg.Annee,
-			codeInsee:   strings.TrimSpace(champ("Code_INSEE_commune")),
-			commune:     strings.TrimSpace(champ("Nom_commune")),
-			deficitaire: aBool01(champ(cfg.ColDeficitaire)),
-			carencee:    aBool01(champ(cfg.ColCarencee)),
-			exemptee:    aBool01(champ(cfg.ColExemptee)),
+		row := sruRow{
+			year:         cfg.Year,
+			codeInsee:    strings.TrimSpace(field("Code_INSEE_commune")),
+			municipality: strings.TrimSpace(field("Nom_commune")),
+			deficient:    boolFrom01(field(cfg.DeficientCol)),
+			sanctioned:   boolFrom01(field(cfg.SanctionedCol)),
+			exempt:       boolFrom01(field(cfg.ExemptCol)),
 		}
-		if l.codeInsee == "" {
+		if row.codeInsee == "" {
 			continue
 		}
-		dept := strings.TrimSpace(champ(cfg.ColDept))
-		if cfg.DeptEstCode {
-			if nom, ok := deptParCode[dept]; ok {
-				l.departement = nom
+		dept := strings.TrimSpace(field(cfg.DeptCol))
+		if cfg.DeptIsCode {
+			if name, ok := deptByCode[dept]; ok {
+				row.department = name
 			} else {
-				l.departement = dept
+				row.department = dept
 			}
 		} else {
-			l.departement = dept
+			row.department = dept
 		}
-		if v, err := strconv.Atoi(strings.TrimSpace(champ(cfg.ColPopulation))); err == nil {
-			l.population = &v
+		if v, err := strconv.Atoi(strings.TrimSpace(field(cfg.PopulationCol))); err == nil {
+			row.population = &v
 		}
-		if v, err := strconv.Atoi(strings.TrimSpace(rec[colLLS])); err == nil {
-			l.nbLLS = &v
+		if v, err := strconv.Atoi(strings.TrimSpace(rec[socialHousingCol])); err == nil {
+			row.socialHousingCount = &v
 		}
-		if v, ok := parserPourcentageFr(champ(cfg.ColTaux)); ok {
-			l.tauxSRU = &v
+		if v, ok := parseFrenchPercent(field(cfg.RateCol)); ok {
+			row.sruRate = &v
 		}
-		if v, ok := parserPourcentageFr(champ(cfg.ColCible)); ok {
-			l.tauxCible = &v
+		if v, ok := parseFrenchPercent(field(cfg.TargetCol)); ok {
+			row.targetRate = &v
 		}
-		if cfg.ColPrelevement != "" {
-			if v, ok := parserMontantEUR(champ(cfg.ColPrelevement)); ok {
-				l.prelevement = &v
+		if cfg.LevyCol != "" {
+			if v, ok := parseEuroAmount(field(cfg.LevyCol)); ok {
+				row.levy = &v
 			}
 		}
-		lignes = append(lignes, l)
+		rows = append(rows, row)
 	}
-	if len(lignes) < 2000 {
-		return nil, fmt.Errorf("millésime %d : seulement %d lignes lues, attendu au moins 2000", cfg.Annee, len(lignes))
+	if len(rows) < 2000 {
+		return nil, fmt.Errorf("millésime %d : seulement %d lignes lues, attendu au moins 2000", cfg.Year, len(rows))
 	}
-	return lignes, nil
+	return rows, nil
 }
 
 // IngestSRU charge l'inventaire SRU par commune, sur les quatre millésimes
@@ -300,17 +300,17 @@ func IngestSRU(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		return err
 	}
 
-	deptParCode, err := chargerDepartements(ctx, pool)
+	deptByCode, err := loadDepartments(ctx, pool)
 	if err != nil {
 		return fail(fmt.Errorf("départements (geo.contour) : %w", err))
 	}
-	if len(deptParCode) == 0 {
+	if len(deptByCode) == 0 {
 		return fail(fmt.Errorf("geo.contour ne contient aucun département : ingérer les contours avant SRU"))
 	}
 
 	stats := map[string]any{}
-	for _, cfg := range anneesSRU {
-		lignes, err := parserAnneeSRU(ctx, arch, srcID, runID, cfg, deptParCode)
+	for _, cfg := range sruYears {
+		rows, err := parseSRUYear(ctx, arch, srcID, runID, cfg, deptByCode)
 		if err != nil {
 			return fail(err)
 		}
@@ -319,28 +319,28 @@ func IngestSRU(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		if err != nil {
 			return fail(err)
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM core.sru_commune WHERE annee = $1`, cfg.Annee); err != nil {
+		if _, err := tx.Exec(ctx, `DELETE FROM core.sru_commune WHERE annee = $1`, cfg.Year); err != nil {
 			tx.Rollback(ctx)
 			return fail(err)
 		}
-		for _, l := range lignes {
+		for _, row := range rows {
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO core.sru_commune
 					(code_insee, annee, commune, departement, population, nombre_logements_sociaux,
 					 taux_sru_pct, taux_cible_pct, deficitaire, carencee, exemptee, prelevement_net, source_id)
 				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
 				ON CONFLICT (code_insee, annee) DO NOTHING`,
-				l.codeInsee, l.annee, l.commune, l.departement, l.population, l.nbLLS,
-				l.tauxSRU, l.tauxCible, l.deficitaire, l.carencee, l.exemptee, l.prelevement, srcID); err != nil {
+				row.codeInsee, row.year, row.municipality, row.department, row.population, row.socialHousingCount,
+				row.sruRate, row.targetRate, row.deficient, row.sanctioned, row.exempt, row.levy, srcID); err != nil {
 				tx.Rollback(ctx)
-				return fail(fmt.Errorf("millésime %d, %s : insertion : %w", cfg.Annee, l.codeInsee, err))
+				return fail(fmt.Errorf("millésime %d, %s : insertion : %w", cfg.Year, row.codeInsee, err))
 			}
 		}
 		if err := tx.Commit(ctx); err != nil {
 			return fail(err)
 		}
-		stats[fmt.Sprintf("communes_%d", cfg.Annee)] = len(lignes)
-		fmt.Printf("  Inventaire SRU %d : %d communes\n", cfg.Annee, len(lignes))
+		stats[fmt.Sprintf("communes_%d", cfg.Year)] = len(rows)
+		fmt.Printf("  Inventaire SRU %d : %d communes\n", cfg.Year, len(rows))
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS", stats, "")

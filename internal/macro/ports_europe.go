@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var SourceTraficPortuaireEurope = archive.Source{
+var SourcePortTrafficEurope = archive.Source{
 	Slug: "eurostat-mar-go-aa", Label: "Eurostat, mar_go_aa — trafic portuaire, six ports nommés",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
 	Licence: "Eurostat (réutilisation libre avec attribution)", ReuseClass: "OPEN",
@@ -20,11 +20,11 @@ var SourceTraficPortuaireEurope = archive.Source{
 		"même logique de sélection nommée que pour SIPRI ou le PIB des blocs déjà chargés.",
 }
 
-// portEurope : code Eurostat (rep_mar, avec son préfixe pays), libellé,
+// europeanPort : code Eurostat (rep_mar, avec son préfixe pays), libellé,
 // pays — vérifié directement dans le référentiel Eurostat REP_MAR (les
 // codes ont un préfixe pays qui fait partie de la valeur de dimension,
 // pas un simple identifiant de port).
-var portsEurope = []struct{ code, label, pays string }{
+var europeanPorts = []struct{ code, label, country string }{
 	{"FR_1FR001", "HAROPA (Le Havre, Rouen)", "FR"},
 	{"FR_1FRLEH", "Le Havre (avant fusion HAROPA)", "FR"},
 	{"FR_2FRMRS", "Marseille", "FR"},
@@ -53,11 +53,11 @@ type jsonStatMar struct {
 	Size []int `json:"size"`
 }
 
-// IngestTraficPortuaireEurope charge, pour six ports nommés (France, Pays-Bas,
+// IngestPortTrafficEurope charge, pour six ports nommés (France, Pays-Bas,
 // Belgique, Allemagne), le trafic total annuel (Eurostat mar_go_aa). Voir
 // docs/ports-donnees.md.
-func IngestTraficPortuaireEurope(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceTraficPortuaireEurope)
+func IngestPortTrafficEurope(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourcePortTrafficEurope)
 	if err != nil {
 		return err
 	}
@@ -97,12 +97,12 @@ func IngestTraficPortuaireEurope(ctx context.Context, pool *pgxpool.Pool, arch *
 	}
 
 	var n int
-	for _, p := range portsEurope {
+	for _, p := range europeanPorts {
 		iPort, ok := doc.Dimension.RepMar.Category.Index[p.code]
 		if !ok {
 			return fail(fmt.Errorf("%s : code absent de la réponse Eurostat", p.code))
 		}
-		for anneeStr, iTime := range doc.Dimension.Time.Category.Index {
+		for yearStr, iTime := range doc.Dimension.Time.Category.Index {
 			// JSON-stat : indice à plat = ((0*1 + 0)*1 + 0)*1*nPortsIndex... —
 			// avec un seul filtre par dimension sauf rep_mar (6) et time (nTime),
 			// l'indice à plat est iPort*nTime + iTime (les trois dimensions
@@ -112,14 +112,14 @@ func IngestTraficPortuaireEurope(ctx context.Context, pool *pgxpool.Pool, arch *
 			if !ok {
 				continue // valeur manquante pour ce port/cette année, pas une erreur
 			}
-			var annee int
-			if _, err := fmt.Sscanf(anneeStr, "%d", &annee); err != nil {
-				return fail(fmt.Errorf("année illisible : %q", anneeStr))
+			var year int
+			if _, err := fmt.Sscanf(yearStr, "%d", &year); err != nil {
+				return fail(fmt.Errorf("année illisible : %q", yearStr))
 			}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO core.trafic_portuaire_europe (code_port, port_label, pays_code, annee, tonnage_milliers, source_id)
-				VALUES ($1,$2,$3,$4,$5,$6)`, p.code, p.label, p.pays, annee, v, srcID); err != nil {
-				return fail(fmt.Errorf("%s %d : insertion : %w", p.code, annee, err))
+				VALUES ($1,$2,$3,$4,$5,$6)`, p.code, p.label, p.country, year, v, srcID); err != nil {
+				return fail(fmt.Errorf("%s %d : insertion : %w", p.code, year, err))
 			}
 			n++
 		}
@@ -132,6 +132,6 @@ func IngestTraficPortuaireEurope(ctx context.Context, pool *pgxpool.Pool, arch *
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n}, "")
-	fmt.Printf("  Trafic portuaire européen (Eurostat) : %d lignes, %d ports\n", n, len(portsEurope))
+	fmt.Printf("  Trafic portuaire européen (Eurostat) : %d lignes, %d ports\n", n, len(europeanPorts))
 	return nil
 }

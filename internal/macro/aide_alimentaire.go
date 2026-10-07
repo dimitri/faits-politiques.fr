@@ -17,7 +17,7 @@ import (
 // pauvreté qui échappe au seul seuil monétaire (core.pauvrete_seuil_annuel) :
 // un foyer au-dessus du seuil peut recourir à l'aide alimentaire, et
 // inversement.
-var SourceAideAlimentaire = archive.Source{
+var SourceFoodAid = archive.Source{
 	Slug: "drees-aide-alimentaire", Label: "Drees — dispositif de suivi de l'aide alimentaire en France",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
@@ -32,12 +32,12 @@ var SourceAideAlimentaire = archive.Source{
 		"core.aide_alimentaire pour le format long qui les rassemble sans les confondre.",
 }
 
-const aideAlimentaireURL = "https://data.drees.solidarites-sante.gouv.fr/api/explore/v2.1/catalog/datasets/" +
+const foodAidURL = "https://data.drees.solidarites-sante.gouv.fr/api/explore/v2.1/catalog/datasets/" +
 	"laide-alimentaire-en-france-depuis-2019/attachments/l_aide_alimentaire_en_france_depuis_2019_xlsx"
 
 // Un intitulé de colonne peut porter un retour à la ligne dans le classeur
 // source ("Volumes \n(en tonnes)") : normalisé avant correspondance.
-var libelleIndicateur = map[string]string{
+var indicatorLabel = map[string]string{
 	"Volumes (en tonnes)":                "volume_tonnes",
 	"Foyers inscrits":                    "foyers_inscrits",
 	"Personnes inscrites":                "personnes_inscrites",
@@ -58,17 +58,17 @@ var libelleIndicateur = map[string]string{
 	"Dépenses d'aide directe (en euros)": "depenses_aide_directe_eur",
 }
 
-var reperiode = regexp.MustCompile(`^(\d{4}) - (Total année|(\d)(?:er|ère|ème|e) trimestre)$`)
+var rePeriod = regexp.MustCompile(`^(\d{4}) - (Total année|(\d)(?:er|ère|ème|e) trimestre)$`)
 
 // Les Restos du Cœur (Tableau 4) ne suivent pas le calendrier civil des cinq
 // autres réseaux : leurs deux campagnes de distribution (hiver et été)
 // s'intitulent « Décembre 2020 à Février 2021 », « Juin 2020 à Août 2020»,
 // etc. — un format de période à part, jamais un trimestre ou une année civile.
-var recampagne = regexp.MustCompile(`^\p{L}+ (\d{4}) à \p{L}+ \d{4}$`)
+var reCampaign = regexp.MustCompile(`^\p{L}+ (\d{4}) à \p{L}+ \d{4}$`)
 
-type feuilleAssociation struct{ Feuille, Nom string }
+type associationSheet struct{ Sheet, Name string }
 
-var feuillesAideAlimentaire = []feuilleAssociation{
+var foodAidSheets = []associationSheet{
 	{"Tableau 1", "ANDES"},
 	{"Tableau 2", "Croix-Rouge française"},
 	{"Tableau 3", "Fédération française des banques alimentaires"},
@@ -77,8 +77,8 @@ var feuillesAideAlimentaire = []feuilleAssociation{
 	{"Tableau 6", "Secours populaire français"},
 }
 
-func IngestAideAlimentaire(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceAideAlimentaire)
+func IngestFoodAid(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceFoodAid)
 	if err != nil {
 		return err
 	}
@@ -91,7 +91,7 @@ func IngestAideAlimentaire(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, aideAlimentaireURL, ".xlsx")
+	f, err := arch.Fetch(ctx, srcID, runID, foodAidURL, ".xlsx")
 	if err != nil {
 		return fail(err)
 	}
@@ -101,20 +101,20 @@ func IngestAideAlimentaire(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	}
 	defer x.Close()
 
-	var toutesLignes [][]any
-	for _, fa := range feuillesAideAlimentaire {
-		lignes, err := x.rows(fa.Feuille)
+	var allRows [][]any
+	for _, fa := range foodAidSheets {
+		sheetRows, err := x.rows(fa.Sheet)
 		if err != nil {
-			return fail(fmt.Errorf("%s (%s) : %w", fa.Feuille, fa.Nom, err))
+			return fail(fmt.Errorf("%s (%s) : %w", fa.Sheet, fa.Name, err))
 		}
-		rows, err := ligneAssociation(lignes, fa.Nom, srcID)
+		rows, err := associationRows(sheetRows, fa.Name, srcID)
 		if err != nil {
-			return fail(fmt.Errorf("%s (%s) : %w", fa.Feuille, fa.Nom, err))
+			return fail(fmt.Errorf("%s (%s) : %w", fa.Sheet, fa.Name, err))
 		}
 		if len(rows) == 0 {
-			return fail(fmt.Errorf("%s (%s) : aucune donnée reconnue", fa.Feuille, fa.Nom))
+			return fail(fmt.Errorf("%s (%s) : aucune donnée reconnue", fa.Sheet, fa.Name))
 		}
-		toutesLignes = append(toutesLignes, rows...)
+		allRows = append(allRows, rows...)
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -136,7 +136,7 @@ func IngestAideAlimentaire(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_aide_alimentaire"},
 		[]string{"association", "periode_type", "annee", "trimestre", "periode_libelle", "indicateur", "valeur", "source_id"},
-		pgx.CopyFromRows(toutesLignes)); err != nil {
+		pgx.CopyFromRows(allRows)); err != nil {
 		return fail(fmt.Errorf("core.aide_alimentaire : %w", err))
 	}
 	ct, err := tx.Exec(ctx, `
@@ -161,72 +161,72 @@ func IngestAideAlimentaire(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(toutesLignes), "touchees": touchees}, "")
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(allRows), "touchees": touchees}, "")
 	fmt.Printf("  aide alimentaire (Insee-Drees) : %d lignes, %d réseaux (%d touchées par la fusion)\n",
-		len(toutesLignes), len(feuillesAideAlimentaire), touchees)
+		len(allRows), len(foodAidSheets), touchees)
 	return nil
 }
 
-// ligneAssociation repère la ligne d'en-tête (colonne A = "Période") puis lit
+// associationRows repère la ligne d'en-tête (colonne A = "Période") puis lit
 // les lignes suivantes tant que la colonne A ressemble à une période connue —
-// même principe que colonneAnnees pour minima_sociaux.go, adapté à un
+// même principe que yearColumns pour minima_sociaux.go, adapté à un
 // en-tête en ligne plutôt qu'en colonne.
-func ligneAssociation(lignes []map[string]string, association string, srcID int64) ([][]any, error) {
-	var colonnes map[string]string // lettre de colonne -> indicateur
+func associationRows(sheetRows []map[string]string, association string, srcID int64) ([][]any, error) {
+	var columns map[string]string // lettre de colonne -> indicateur
 	var rows [][]any
-	for _, l := range lignes {
+	for _, l := range sheetRows {
 		if l["A"] == "Période" {
-			colonnes = map[string]string{}
-			for col, libelle := range l {
+			columns = map[string]string{}
+			for col, label := range l {
 				if col == "A" {
 					continue
 				}
-				norm := strings.Join(strings.Fields(strings.NewReplacer("\r", " ", "\n", " ").Replace(libelle)), " ")
-				if ind, ok := libelleIndicateur[norm]; ok {
-					colonnes[col] = ind
+				normalized := strings.Join(strings.Fields(strings.NewReplacer("\r", " ", "\n", " ").Replace(label)), " ")
+				if ind, ok := indicatorLabel[normalized]; ok {
+					columns[col] = ind
 				}
 			}
 			continue
 		}
-		if colonnes == nil {
+		if columns == nil {
 			continue // avant l'en-tête : titre, source, champ
 		}
 
-		var periodeType string
-		var annee int
-		var trimestre *int
-		var periodeLibelle *string
+		var periodType string
+		var year int
+		var quarter *int
+		var periodLabel *string
 
-		if m := reperiode.FindStringSubmatch(l["A"]); m != nil {
+		if m := rePeriod.FindStringSubmatch(l["A"]); m != nil {
 			a, err := strconv.Atoi(m[1])
 			if err != nil {
 				return nil, err
 			}
-			annee = a
+			year = a
 			if m[2] == "Total année" {
-				periodeType = "ANNEE"
+				periodType = "ANNEE"
 			} else {
 				t, err := strconv.Atoi(m[3])
 				if err != nil {
 					return nil, err
 				}
-				periodeType = "TRIMESTRE"
-				trimestre = &t
+				periodType = "TRIMESTRE"
+				quarter = &t
 			}
-		} else if m := recampagne.FindStringSubmatch(l["A"]); m != nil {
+		} else if m := reCampaign.FindStringSubmatch(l["A"]); m != nil {
 			a, err := strconv.Atoi(m[1])
 			if err != nil {
 				return nil, err
 			}
-			periodeType = "CAMPAGNE"
-			annee = a
-			libelle := l["A"]
-			periodeLibelle = &libelle
+			periodType = "CAMPAGNE"
+			year = a
+			label := l["A"]
+			periodLabel = &label
 		} else {
 			continue // fin du tableau (ligne vide ou note de bas de page)
 		}
 
-		for col, ind := range colonnes {
+		for col, ind := range columns {
 			v, ok := l[col]
 			if !ok || v == "" {
 				continue
@@ -235,7 +235,7 @@ func ligneAssociation(lignes []map[string]string, association string, srcID int6
 			if err != nil {
 				continue
 			}
-			rows = append(rows, []any{association, periodeType, annee, trimestre, periodeLibelle, ind, val, srcID})
+			rows = append(rows, []any{association, periodType, year, quarter, periodLabel, ind, val, srcID})
 		}
 	}
 	return rows, nil

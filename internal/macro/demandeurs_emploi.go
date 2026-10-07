@@ -15,7 +15,7 @@ import (
 // dans le débat public français, distincte du taux de chômage au sens du BIT
 // (core.chomage_taux_trimestriel, une enquête, pas une inscription
 // administrative). Voir docs/chomage-donnees.md.
-var SourceDemandeursEmploi = archive.Source{
+var SourceJobSeekers = archive.Source{
 	Slug: "dares-defm-categorie", Label: "Dares — demandeurs d'emploi inscrits par catégorie",
 	Publisher: "Direction de l'animation de la recherche, des études et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
@@ -31,22 +31,22 @@ var SourceDemandeursEmploi = archive.Source{
 // L'API Opendatasoft de la Dares refuse offset+limit > 10 000, comme celles
 // de la DREES et de data.economie.gouv.fr déjà rencontrées dans ce projet :
 // l'export en un seul appel est le seul chemin correct pour ~10 500 lignes.
-const demandeursEmploiURL = "https://data.dares.travail-emploi.gouv.fr/api/explore/v2.1/catalog/datasets/" +
+const jobSeekersURL = "https://data.dares.travail-emploi.gouv.fr/api/explore/v2.1/catalog/datasets/" +
 	"dares_defm_stock_france_cvs/exports/json?where=" +
 	"sexe%3D%22Total%22%20and%20tranche_d_age%3D%22Total%22%20and%20" +
 	"tranche_d_heures_travaillees%3D%22Total%22%20and%20anciennete%3D%22Total%22"
 
-type ligneDEFM struct {
-	Date      string   `json:"date"`
-	Champ     string   `json:"champ"`
-	Categorie string   `json:"categorie"`
-	Nombre    *float64 `json:"nombre_de_demandeurs_d_emploi"`
+type defmRow struct {
+	Date     string   `json:"date"`
+	Scope    string   `json:"champ"`
+	Category string   `json:"categorie"`
+	Count    *float64 `json:"nombre_de_demandeurs_d_emploi"`
 }
 
-var champDEFM = map[string]string{"France": "FRANCE", "France métropolitaine": "FRANCE_METRO"}
+var defmScope = map[string]string{"France": "FRANCE", "France métropolitaine": "FRANCE_METRO"}
 
-func IngestDemandeursEmploi(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceDemandeursEmploi)
+func IngestJobSeekers(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceJobSeekers)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func IngestDemandeursEmploi(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, demandeursEmploiURL, ".json")
+	f, err := arch.Fetch(ctx, srcID, runID, jobSeekersURL, ".json")
 	if err != nil {
 		return fail(err)
 	}
@@ -67,31 +67,31 @@ func IngestDemandeursEmploi(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	if err != nil {
 		return fail(err)
 	}
-	var lignes []ligneDEFM
-	if err := json.Unmarshal(raw, &lignes); err != nil {
+	var records []defmRow
+	if err := json.Unmarshal(raw, &records); err != nil {
 		return fail(fmt.Errorf("export illisible : %w", err))
 	}
-	if len(lignes) == 0 {
+	if len(records) == 0 {
 		return fail(fmt.Errorf("export vide"))
 	}
 
 	var rows [][]any
-	var rejetChamp, rejetValeur int
-	for _, l := range lignes {
-		champ, ok := champDEFM[l.Champ]
+	var rejectedScope, rejectedNoValue int
+	for _, rec := range records {
+		scope, ok := defmScope[rec.Scope]
 		if !ok {
-			rejetChamp++
+			rejectedScope++
 			continue
 		}
-		if l.Nombre == nil {
-			rejetValeur++
+		if rec.Count == nil {
+			rejectedNoValue++
 			continue
 		}
-		dateMois := l.Date + "-01"
-		rows = append(rows, []any{dateMois, champ, l.Categorie, *l.Nombre, srcID})
+		monthDate := rec.Date + "-01"
+		rows = append(rows, []any{monthDate, scope, rec.Category, *rec.Count, srcID})
 	}
 	if len(rows) == 0 {
-		return fail(fmt.Errorf("aucune ligne reconnue sur %d", len(lignes)))
+		return fail(fmt.Errorf("aucune ligne reconnue sur %d", len(records)))
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -132,8 +132,8 @@ func IngestDemandeursEmploi(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"lignes_chargees": len(rows), "rejet_champ_inconnu": rejetChamp,
-			"rejet_sans_valeur": rejetValeur, "touchees": n}, "")
+		map[string]any{"lignes_chargees": len(rows), "rejet_champ_inconnu": rejectedScope,
+			"rejet_sans_valeur": rejectedNoValue, "touchees": n}, "")
 	fmt.Printf("  demandeurs d'emploi inscrits par catégorie : %d lignes (%d touchées par la fusion)\n", len(rows), n)
 	return nil
 }
