@@ -52,7 +52,7 @@ var SourceURSSAFMasseSalariale = archive.Source{
 		"être totalisées sur l'année.",
 }
 
-type ligneExo struct {
+type exoRow struct {
 	GrandeCategorie     string   `json:"grande_categorie_de_mesures"`
 	CodeGrandeCategorie string   `json:"code_grande_categorie_de_mesures"`
 	Categorie           string   `json:"categorie_de_mesures"`
@@ -63,7 +63,7 @@ type ligneExo struct {
 	Montant             *float64 `json:"montant_des_exonerations"`
 }
 
-type ligneMasse struct {
+type payrollRow struct {
 	Annee       string   `json:"annee"`
 	Trimestre   *int     `json:"trimestre"`
 	DernierJour string   `json:"dernier_jour_trim"`
@@ -78,13 +78,13 @@ type ligneMasse struct {
 // d'exonérations qui augmente pendant que la masse salariale augmente autant ne
 // dit pas la même chose qu'un montant qui augmente seul.
 func IngestURSSAF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := ingestExonerations(ctx, pool, arch); err != nil {
+	if err := ingestExemptions(ctx, pool, arch); err != nil {
 		return err
 	}
-	return ingestMasseSalariale(ctx, pool, arch)
+	return ingestPayroll(ctx, pool, arch)
 }
 
-func ingestExonerations(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+func ingestExemptions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceURSSAFExonerations)
 	if err != nil {
 		return err
@@ -103,11 +103,11 @@ func ingestExonerations(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	if err != nil {
 		return fail(err)
 	}
-	var lignes []ligneExo
-	if err := lireJSON(f.Path, &lignes); err != nil {
+	var records []exoRow
+	if err := readJSON(f.Path, &records); err != nil {
 		return fail(err)
 	}
-	if len(lignes) == 0 {
+	if len(records) == 0 {
 		return fail(fmt.Errorf("URSSAF exonérations : export vide"))
 	}
 
@@ -117,19 +117,19 @@ func ingestExonerations(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	}
 	defer tx.Rollback(ctx)
 
-	rows := make([][]any, 0, len(lignes))
-	for _, l := range lignes {
-		annee, err := strconv.Atoi(l.Annee)
+	rows := make([][]any, 0, len(records))
+	for _, l := range records {
+		year, err := strconv.Atoi(l.Annee)
 		if err != nil {
 			return fail(fmt.Errorf("URSSAF exonérations : année illisible %q", l.Annee))
 		}
 		if l.CodeMesure == "" {
-			return fail(fmt.Errorf("URSSAF exonérations : mesure sans code en %d (%q)", annee, l.Mesure))
+			return fail(fmt.Errorf("URSSAF exonérations : mesure sans code en %d (%q)", year, l.Mesure))
 		}
 		rows = append(rows, []any{
-			annee, l.CodeGrandeCategorie, l.GrandeCategorie,
+			year, l.CodeGrandeCategorie, l.GrandeCategorie,
 			l.CodeCategorie, l.Categorie, l.CodeMesure, l.Mesure,
-			nulF(l.Montant), "SECTEUR_PRIVE_URSSAF", srcID, f.DocumentID,
+			nilFloat(l.Montant), "SECTEUR_PRIVE_URSSAF", srcID, f.DocumentID,
 		})
 	}
 	if _, err := tx.Exec(ctx, `
@@ -181,24 +181,24 @@ func ingestExonerations(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	}
 	n := ct.RowsAffected()
 
-	var annees, min, max int
+	var years, min, max int
 	var total float64
 	if err := tx.QueryRow(ctx, `
 		SELECT count(DISTINCT annee), min(annee), max(annee),
 		       coalesce(sum(montant_eur) FILTER (WHERE annee = (SELECT max(annee) FROM core.exoneration_cotisation)), 0)
-		  FROM core.exoneration_cotisation`).Scan(&annees, &min, &max, &total); err != nil {
+		  FROM core.exoneration_cotisation`).Scan(&years, &min, &max, &total); err != nil {
 		return fail(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "annees": annees}, "")
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "annees": years}, "")
 	fmt.Printf("  URSSAF exonérations : %d mesures touchées par la fusion, %d millésimes de %d à %d (%.1f Md€ en %d)\n",
-		n, annees, min, max, total/1e9, max)
+		n, years, min, max, total/1e9, max)
 	return nil
 }
 
-func ingestMasseSalariale(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+func ingestPayroll(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceURSSAFMasseSalariale)
 	if err != nil {
 		return err
@@ -217,11 +217,11 @@ func ingestMasseSalariale(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	if err != nil {
 		return fail(err)
 	}
-	var lignes []ligneMasse
-	if err := lireJSON(f.Path, &lignes); err != nil {
+	var records []payrollRow
+	if err := readJSON(f.Path, &records); err != nil {
 		return fail(err)
 	}
-	if len(lignes) == 0 {
+	if len(records) == 0 {
 		return fail(fmt.Errorf("URSSAF masse salariale : export vide"))
 	}
 
@@ -231,22 +231,22 @@ func ingestMasseSalariale(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	}
 	defer tx.Rollback(ctx)
 
-	rows := make([][]any, 0, len(lignes))
-	for _, l := range lignes {
-		annee, err := strconv.Atoi(l.Annee)
+	rows := make([][]any, 0, len(records))
+	for _, l := range records {
+		year, err := strconv.Atoi(l.Annee)
 		if err != nil {
 			return fail(fmt.Errorf("URSSAF masse salariale : année illisible %q", l.Annee))
 		}
 		if l.Trimestre == nil || *l.Trimestre < 1 || *l.Trimestre > 4 {
-			return fail(fmt.Errorf("URSSAF masse salariale : trimestre absent ou hors bornes en %d", annee))
+			return fail(fmt.Errorf("URSSAF masse salariale : trimestre absent ou hors bornes en %d", year))
 		}
 		if l.DernierJour == "" {
 			return fail(fmt.Errorf("URSSAF masse salariale : dernier jour de trimestre absent en %d T%d",
-				annee, *l.Trimestre))
+				year, *l.Trimestre))
 		}
 		rows = append(rows, []any{
-			annee, *l.Trimestre, l.DernierJour,
-			nulF(l.Brut50), nulF(l.Brut60), nulF(l.Cvs50), nulF(l.Cvs60),
+			year, *l.Trimestre, l.DernierJour,
+			nilFloat(l.Brut50), nilFloat(l.Brut60), nilFloat(l.Cvs50), nilFloat(l.Cvs60),
 			"SECTEUR_PRIVE_URSSAF", srcID, f.DocumentID,
 		})
 	}

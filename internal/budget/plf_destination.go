@@ -23,7 +23,7 @@ var SourcePLFDestination = archive.Source{
 	Attribution: "Source : Direction du budget, data.economie.gouv.fr",
 	Cadence:     "annuelle (dépôt du PLF, généralement en octobre)",
 	Notes: "Deux millésimes chargés (2024, 2025), sous deux schémas de champs différents d'une " +
-		"édition à l'autre — voir normaliserLigne. Ce sont des montants VOTÉS au PROJET de loi de " +
+		"édition à l'autre — voir normalizeLine. Ce sont des montants VOTÉS au PROJET de loi de " +
 		"finances (PLF), pas la loi de finances initiale telle qu'adoptée ni l'exécution réelle : " +
 		"même piège voté/exécuté que docs/budget-donnees.md § 2, le champ `loi` le porte pour ne " +
 		"jamais le perdre en aval. Couvre TOUTES les missions du budget général, pas seulement " +
@@ -31,13 +31,13 @@ var SourcePLFDestination = archive.Source{
 		"y sont aussi, pour des chantiers ultérieurs.",
 }
 
-type anneePLF struct {
-	Annee  int
+type yearPLF struct {
+	Year   int
 	URL    string
 	Schema string
 }
 
-var anneesPLF = []anneePLF{
+var yearsPLF = []yearPLF{
 	{2024, exportJSON("data.economie.gouv.fr", "plf-2024-depenses-2024-selon-nomenclatures-destination-et-nature"), "2024"},
 	{2025, exportJSON("data.economie.gouv.fr", "plf25-depenses-2025-selon-destination"), "2025"},
 }
@@ -69,25 +69,25 @@ func IngestPLFDestination(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return err
 	}
 
-	var toutes []ligneBudgetProgramme
-	for _, an := range anneesPLF {
-		f, err := arch.Fetch(ctx, srcID, runID, an.URL, ".json")
+	var all []ligneBudgetProgramme
+	for _, y := range yearsPLF {
+		f, err := arch.Fetch(ctx, srcID, runID, y.URL, ".json")
 		if err != nil {
-			return fail(fmt.Errorf("PLF %d : %w", an.Annee, err))
+			return fail(fmt.Errorf("PLF %d : %w", y.Year, err))
 		}
-		var brut []map[string]any
-		if err := lireJSON(f.Path, &brut); err != nil {
-			return fail(fmt.Errorf("PLF %d : %w", an.Annee, err))
+		var raw []map[string]any
+		if err := readJSON(f.Path, &raw); err != nil {
+			return fail(fmt.Errorf("PLF %d : %w", y.Year, err))
 		}
-		if len(brut) == 0 {
-			return fail(fmt.Errorf("PLF %d : export vide", an.Annee))
+		if len(raw) == 0 {
+			return fail(fmt.Errorf("PLF %d : export vide", y.Year))
 		}
-		for _, r := range brut {
-			ln, err := normaliserLigne(an.Annee, an.Schema, r)
+		for _, r := range raw {
+			line, err := normalizeLine(y.Year, y.Schema, r)
 			if err != nil {
-				return fail(fmt.Errorf("PLF %d : %w", an.Annee, err))
+				return fail(fmt.Errorf("PLF %d : %w", y.Year, err))
 			}
-			toutes = append(toutes, ln)
+			all = append(all, line)
 		}
 	}
 
@@ -98,7 +98,7 @@ func IngestPLFDestination(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	defer tx.Rollback(ctx)
 
 	var rows [][]any
-	for _, l := range toutes {
+	for _, l := range all {
 		rows = append(rows, []any{
 			l.Exercice, l.Loi, l.TypeBudget, l.Ministere,
 			l.MissionCode, l.MissionLibelle, l.ProgrammeCode, l.ProgrammeLibelle,
@@ -173,18 +173,18 @@ func IngestPLFDestination(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "exercices": len(anneesPLF)}, "")
-	fmt.Printf("  budget par mission/programme (PLF) : %d lignes touchées par la fusion, %d exercices\n", n, len(anneesPLF))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "exercices": len(yearsPLF)}, "")
+	fmt.Printf("  budget par mission/programme (PLF) : %d lignes touchées par la fusion, %d exercices\n", n, len(yearsPLF))
 	return nil
 }
 
-// normaliserLigne absorbe le changement de schéma d'une édition du PLF à
+// normalizeLine absorbe le changement de schéma d'une édition du PLF à
 // l'autre : le champ « mission » porte le LIBELLÉ en 2024 et le CODE en
 // 2025 (l'inverse pour « code_mission »/« libelle_mission ») — une inversion
 // vérifiée sur les jeux réels, pas supposée.
-func normaliserLigne(annee int, schema string, r map[string]any) (ligneBudgetProgramme, error) {
+func normalizeLine(year int, schema string, r map[string]any) (ligneBudgetProgramme, error) {
 	var l ligneBudgetProgramme
-	l.Exercice = annee
+	l.Exercice = year
 	switch schema {
 	case "2024":
 		l.Loi = "PLF"
