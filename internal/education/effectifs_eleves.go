@@ -21,7 +21,7 @@ var SourceStudentHeadcount = archive.Source{
 	Slug: "depp-effectifs-eleves-premier-degre", Label: "Depp — effectifs d'élèves des écoles (premier degré)",
 	Publisher: "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de l'Éducation nationale (Depp)",
 	Cadence:     "annuelle (à la rentrée scolaire)",
 	Notes: "Premier degré seulement (écoles maternelles et élémentaires) — ne couvre pas les " +

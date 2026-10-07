@@ -20,7 +20,7 @@ import (
 var SourcePopulationAgeDepartement = archive.Source{
 	Slug: "insee-population-age-departement", Label: "INSEE — population par département, sexe et grande classe d'âge",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : INSEE, estimations de population",
 	Cadence:     "annuelle",

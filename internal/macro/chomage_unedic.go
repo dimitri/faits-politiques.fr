@@ -19,7 +19,7 @@ import (
 var SourceUnemploymentUnedic = archive.Source{
 	Slug: "unedic-tranches-indemnisation", Label: "Unédic — répartition des allocataires par tranche d'indemnisation",
 	Publisher: "Unédic / France Travail", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Unédic, Fichier national des allocataires (FNA)",
 	Cadence:     "trimestrielle",
 	Notes: "Allocataires de la solidarité-État (ASS, ATS, AER) exclus : leur montant " +

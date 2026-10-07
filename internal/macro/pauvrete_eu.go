@@ -18,7 +18,7 @@ import (
 var SourcePovertyRateEU = archive.Source{
 	Slug: "eurostat-taux-pauvrete", Label: "Eurostat — taux de risque de pauvreté par pays (tps00184)",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat (tps00184)",
 	Cadence:     "annuelle",
 	Notes: "Seuil à 60 % du revenu médian équivalent, population totale (sexe=T). Ne couvre " +

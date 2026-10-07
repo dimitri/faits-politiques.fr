@@ -16,7 +16,7 @@ var SourceRetirementAge = archive.Source{
 	Slug: "drees-age-depart-retraite", Label: "Drees — âge conjoncturel moyen de départ à la retraite",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees",
 	Cadence:     "annuelle",
 	Notes: "Indicateur CONJONCTUREL, calculé sur les départs d'une seule année (comme un " +

@@ -27,7 +27,7 @@ const Version = "senat/1"
 var Source = archive.Source{
 	Slug: "senat-dosleg", Label: "Sénat — base Dosleg (dossiers législatifs, scrutins, votes)",
 	Publisher: "Sénat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+	License: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Sénat, base Dosleg, Licence Ouverte",
 	Cadence:     "périodique",
 	Notes: "Dump PostgreSQL complet de 126 Mo. Contient les votes INDIVIDUELS des " +
@@ -45,9 +45,9 @@ const DumpURL = "https://data.senat.fr/data/dosleg/dosleg.zip"
 // internal/ingest.PrefetchAll, utilisée par fpctl build).
 func DownloadTargets() []archive.DownloadTarget {
 	return []archive.DownloadTarget{
-		{Nom: "senat-dosleg", Source: Source, URL: DumpURL, Ext: ".zip"},
-		{Nom: "senat-senateurs", Source: SourceSenateurs, URL: senateursURL, Ext: ".csv"},
-		{Nom: "senat-commissions", Source: SourceSenateurs, URL: commissionsURL, Ext: ".csv"},
+		{Name: "senat-dosleg", Source: Source, URL: DumpURL, Ext: ".zip"},
+		{Name: "senat-senateurs", Source: SourceSenateurs, URL: senateursURL, Ext: ".csv"},
+		{Name: "senat-commissions", Source: SourceSenateurs, URL: commissionsURL, Ext: ".csv"},
 	}
 }
 

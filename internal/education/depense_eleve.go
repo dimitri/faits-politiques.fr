@@ -35,7 +35,7 @@ var SourceRERSStudentSpending = archive.Source{
 	Slug: "depp-rers-depense-eleve", Label: "Depp — RERS, la dépense par élève et par étudiant (tableau 10.05)",
 	Publisher:  "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:       "PRIMARY_OFFICIAL",
-	Licence:    "Licence Ouverte v2.0",
+	License:    "Licence Ouverte v2.0",
 	ReuseClass: "ATTRIBUTION", // aucune mention de licence trouvée sur rers.depp.education.fr
 	// (page /conditions et /mentions-legales vérifiées, aucun texte de licence) —
 	// présumée Licence Ouverte par défaut (publication Depp, service public),

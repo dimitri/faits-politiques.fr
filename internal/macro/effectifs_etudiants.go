@@ -16,7 +16,7 @@ import (
 var SourceStudentHeadcount = archive.Source{
 	Slug: "sies-atlas-effectifs-etudiants", Label: "Atlas régional des effectifs d'étudiants, détail par établissement",
 	Publisher: "SIES (ministère de l'Enseignement supérieur et de la Recherche)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : SIES, data.enseignementsup-recherche.gouv.fr",
 	Cadence:     "annuelle",
 	Notes: "Agrégé ici par commune et par rentrée à partir du détail établissement × " +

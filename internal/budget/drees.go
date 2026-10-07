@@ -19,7 +19,7 @@ var SourceDREES = archive.Source{
 	Label:       "DREES — Les comptes de la protection sociale",
 	Publisher:   "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : DREES, comptes de la protection sociale",
 	Cadence:     "annuelle",

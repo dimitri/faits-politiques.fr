@@ -27,7 +27,7 @@ var SourceStaffCategory = archive.Source{
 	Slug: "depp-panorama-personnels-categorie", Label: "Depp — personnels non enseignants par catégorie précise (Panorama)",
 	Publisher: "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de l'Éducation nationale (Depp), Panorama statistique des personnels de l'enseignement scolaire",
 	Cadence:     "annuelle (édition d'octobre)",
 	Notes: "Rentrée 2024 seulement (édition 2024-2025 du Panorama). Extrait de deux tableaux du " +

@@ -17,7 +17,7 @@ import (
 var SourceSRU = archive.Source{
 	Slug: "sru-inventaire-communes", Label: "Inventaire SRU par commune",
 	Publisher: "DGALN/DHUP (ministère du Logement)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : DGALN/DHUP, data.gouv.fr",
 	Cadence:     "annuelle",
 	Notes: "Ne couvre que les communes dans le périmètre de l'article 55 de la loi SRU " +

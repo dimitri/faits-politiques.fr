@@ -19,7 +19,7 @@ var SourceReplacementRate = archive.Source{
 	Slug: "drees-taux-remplacement-retraite", Label: "Drees — taux de remplacement à la retraite",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees",
 	Cadence:     "annuelle",
 	Notes: "100 = pension égale au revenu d'avant la retraite. Plusieurs revenus de " +

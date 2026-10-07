@@ -23,7 +23,7 @@ var SourceBasins = archive.Source{
 	Slug: "sandre-bassins-hydrographiques", Label: "Sandre/IGN — bassins hydrographiques (BD Topage)",
 	Publisher: "Service d'administration nationale des données et référentiels sur l'eau (Sandre)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Sandre, BD Topage (IGN/OFB)",
 	Cadence:     "irrégulière (révision du référentiel hydrographique)",
 	Notes: "Millésime 2025. France métropolitaine (suffixe FXX, Lambert-93/EPSG:2154) plus " +

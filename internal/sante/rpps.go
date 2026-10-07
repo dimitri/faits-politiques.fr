@@ -19,7 +19,7 @@ import (
 var SourceRPPS = archive.Source{
 	Slug: "ans-rpps-annuaire-sante", Label: "ANS — Annuaire Santé, professionnels (RPPS)",
 	Publisher: "Agence du Numérique en Santé (ANS)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Agence du Numérique en Santé, Annuaire Santé (RPPS)",
 	Cadence:     "quotidienne (à la source) ; ce dépôt la relit ponctuellement",
 	Notes: "Une ligne par activité déclarée, pas par professionnel : un même identifiant_pp " +

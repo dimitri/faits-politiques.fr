@@ -28,7 +28,7 @@ import (
 type Archive struct {
 	Root string
 	Pool *pgxpool.Pool
-	// Etape : le nom (internal/ingest.Source.Nom) de l'étape du catalogue
+	// Step : le nom (internal/ingest.Source.Nom) de l'étape du catalogue
 	// pour le compte de laquelle tourne cet appel — écrit dans
 	// raw.source.etape par EnsureSource, pour que « fpctl list deps »
 	// calcule les octets à télécharger par étape sans liste tenue à la
@@ -40,7 +40,7 @@ type Archive struct {
 	// chaque étape reçoit sa PROPRE copie de l'Archive plutôt que de muter
 	// ce champ sur un pointeur partagé — voir registreParlement,
 	// internal/ingest/ingest.go.
-	Etape string
+	Step string
 }
 
 // Source décrit un flux, avec sa licence : elle alimente le bandeau
@@ -50,7 +50,7 @@ type Source struct {
 	Label       string
 	Publisher   string
 	Tier        string
-	Licence     string
+	License     string
 	ReuseClass  string
 	Attribution string
 	Cadence     string
@@ -65,18 +65,18 @@ type Source struct {
 // propre DownloadTargets() : c'est elle, jamais une seconde liste, que son
 // propre Ingest/Download parcourt.
 type DownloadTarget struct {
-	Nom    string
+	Name   string
 	Source Source
 	URL    string
 	Ext    string
 }
 
 func (a *Archive) EnsureSource(ctx context.Context, s Source) (int64, error) {
-	// nil (colonne NULL), pas "" : un appel hors du catalogue (a.Etape
+	// nil (colonne NULL), pas "" : un appel hors du catalogue (a.Step
 	// jamais renseigné) ne doit pas se lire comme une étape nommée "".
-	var etape any
-	if a.Etape != "" {
-		etape = a.Etape
+	var step any
+	if a.Step != "" {
+		step = a.Step
 	}
 	var id int64
 	err := a.Pool.QueryRow(ctx, `
@@ -85,8 +85,8 @@ func (a *Archive) EnsureSource(ctx context.Context, s Source) (int64, error) {
 		VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
 		ON CONFLICT (slug) DO UPDATE SET label = EXCLUDED.label, etape = EXCLUDED.etape
 		RETURNING id`,
-		s.Slug, s.Label, s.Publisher, s.Tier, s.Licence, s.ReuseClass,
-		s.Attribution, s.Cadence, s.Notes, etape).Scan(&id)
+		s.Slug, s.Label, s.Publisher, s.Tier, s.License, s.ReuseClass,
+		s.Attribution, s.Cadence, s.Notes, step).Scan(&id)
 	return id, err
 }
 
@@ -139,10 +139,10 @@ func (a *Archive) Fetch(ctx context.Context, sourceID int64, runID int64, url, e
 // en-tête et JAMAIS dans l'URL : raw.retrieval conserve l'URL telle quelle,
 // et une clé qui y figurerait serait publiée avec la provenance. Les en-têtes
 // ne sont pas archivés ; seule compte l'empreinte des octets reçus.
-func (a *Archive) FetchEntetes(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header) (*Fetched, error) {
+func (a *Archive) FetchEntetes(ctx context.Context, sourceID int64, runID int64, url, ext string, headers http.Header) (*Fetched, error) {
 	var last error
 	for attempt := 1; attempt <= 3; attempt++ {
-		f, err := a.fetchOnce(ctx, sourceID, runID, url, ext, entetes, nil, "")
+		f, err := a.fetchOnce(ctx, sourceID, runID, url, ext, headers, nil, "")
 		if err == nil {
 			return f, nil
 		}
@@ -159,13 +159,13 @@ func (a *Archive) FetchEntetes(ctx context.Context, sourceID int64, runID int64,
 // FetchSession télécharge avec un client fourni — typiquement porteur d'un
 // cookie de session, pour un export qui dépend d'une recherche faite juste
 // avant (registre européen des aides d'État). L'URL d'export seule ne dit pas
-// ce qui a été exporté : urlArchivee, enregistrée à sa place dans
+// ce qui a été exporté : archivedURL, enregistrée à sa place dans
 // raw.retrieval, porte la description de la recherche en fragment (#...),
 // jamais envoyé au serveur.
-func (a *Archive) FetchSession(ctx context.Context, sourceID int64, runID int64, url, urlArchivee, ext string, client *http.Client) (*Fetched, error) {
+func (a *Archive) FetchSession(ctx context.Context, sourceID int64, runID int64, url, archivedURL, ext string, client *http.Client) (*Fetched, error) {
 	var last error
 	for attempt := 1; attempt <= 3; attempt++ {
-		f, err := a.fetchOnce(ctx, sourceID, runID, url, ext, nil, client, urlArchivee)
+		f, err := a.fetchOnce(ctx, sourceID, runID, url, ext, nil, client, archivedURL)
 		if err == nil {
 			return f, nil
 		}
@@ -179,11 +179,11 @@ func (a *Archive) FetchSession(ctx context.Context, sourceID int64, runID int64,
 	return nil, last
 }
 
-// retenuePrecedente : ce qu'a laissé le dernier fetch RÉUSSI (2xx ou 304)
+// previousRetrieval : ce qu'a laissé le dernier fetch RÉUSSI (2xx ou 304)
 // sur cette URL EXACTE — de quoi construire une requête conditionnelle, et,
 // si le serveur répond 304, de quoi renvoyer le même Fetched qu'avant sans
 // rien retélécharger.
-type retenuePrecedente struct {
+type previousRetrieval struct {
 	documentID   int64
 	sha256       string
 	path         string
@@ -192,13 +192,13 @@ type retenuePrecedente struct {
 	lastModified time.Time
 }
 
-// derniereRetenue relit raw.retrieval/raw.document pour url — jamais
-// urlArchivee, qui peut différer (voir FetchSession) : c'est ce qui est
+// lookupPreviousRetrieval relit raw.retrieval/raw.document pour url — jamais
+// archivedURL, qui peut différer (voir FetchSession) : c'est ce qui est
 // vraiment envoyé au serveur qui doit correspondre à l'etag qu'on lui
 // renvoie. nil, sans erreur, si cette URL n'a encore jamais été récupérée
 // avec succès.
-func (a *Archive) derniereRetenue(ctx context.Context, url string) (*retenuePrecedente, error) {
-	var p retenuePrecedente
+func (a *Archive) lookupPreviousRetrieval(ctx context.Context, url string) (*previousRetrieval, error) {
+	var p previousRetrieval
 	var etag *string
 	var storageKey *string
 	var lastModified *time.Time
@@ -253,7 +253,7 @@ func nullableString(primary, fallback string) any {
 	return nil
 }
 
-// statutReprenable : les statuts qu'une nouvelle tentative peut corriger —
+// resumableStatus : les statuts qu'une nouvelle tentative peut corriger —
 // jamais un autre 4xx (qui ne changera pas en réessayant), jamais un succès
 // ou un 304. Découvert sur recherche-entreprises.api.gouv.fr (429 : un
 // ingest complet y multiplie les requêtes, une par SIREN, depuis une même
@@ -263,8 +263,8 @@ func nullableString(primary, fallback string) any {
 // data.assemblee-nationale.fr (un relais CDN, « x-cdn-pop » dans ses
 // en-têtes, qui renvoie 206/Accept-Ranges normalement mais a renvoyé un 502
 // ponctuel sur un fichier de 296 Mo).
-func statutReprenable(statut int) bool {
-	switch statut {
+func resumableStatus(status int) bool {
+	switch status {
 	case http.StatusTooManyRequests, http.StatusBadGateway,
 		http.StatusServiceUnavailable, http.StatusGatewayTimeout:
 		return true
@@ -272,28 +272,28 @@ func statutReprenable(statut int) bool {
 	return false
 }
 
-// patienter attend delai (ou l'annulation de ctx), puis le double pour la
+// wait attend delay (ou l'annulation de ctx), puis le double pour la
 // prochaine fois, plafonné à 60s — le même rythme pour une panne réseau et
 // pour un statut reprenable, jamais deux politiques de repli différentes
 // dans la même fonction.
-func patienter(ctx context.Context, delai *time.Duration) bool {
+func wait(ctx context.Context, delay *time.Duration) bool {
 	select {
 	case <-ctx.Done():
 		return false
-	case <-time.After(*delai):
+	case <-time.After(*delay):
 	}
-	*delai *= 2
-	if *delai > 60*time.Second {
-		*delai = 60 * time.Second
+	*delay *= 2
+	if *delay > 60*time.Second {
+		*delay = 60 * time.Second
 	}
 	return true
 }
 
-// totalDepuisContentRange extrait le total après le "/" d'un en-tête
+// totalFromContentRange extrait le total après le "/" d'un en-tête
 // Content-Range ("bytes 0-100/310464306") — -1 si absent ou illisible,
 // jamais une erreur : seule la vérification de taille en fin de
 // téléchargement en dépend, pas la reprise elle-même.
-func totalDepuisContentRange(cr string) int64 {
+func totalFromContentRange(cr string) int64 {
 	i := strings.LastIndexByte(cr, '/')
 	if i < 0 || cr[i+1:] == "*" {
 		return -1
@@ -305,9 +305,9 @@ func totalDepuisContentRange(cr string) int64 {
 	return n
 }
 
-// telechargerCorps récupère le corps de req dans tmp (déjà ouvert en
+// downloadBody récupère le corps de req dans tmp (déjà ouvert en
 // écriture, par l'appelant), avec reprise : une panne réseau, une coupure en
-// cours de corps, ou un statut de statutReprenable ne redémarrent pas le
+// cours de corps, ou un statut de resumableStatus ne redémarrent pas le
 // téléchargement à zéro — la tentative suivante reprend par Range après les
 // octets déjà écrits dans tmp. Si le serveur ignore Range (renvoie 200 au
 // lieu de 206) ou renvoie 416 (nos octets ne correspondent plus à ce qu'il a
@@ -320,90 +320,90 @@ func totalDepuisContentRange(cr string) int64 {
 // : fetchOnce relit tmp au complet une fois le transfert terminé — correct
 // quel que soit le nombre de tentatives qu'il a fallu, jamais un état de
 // hachage à recoller entre elles.
-func telechargerCorps(ctx context.Context, client *http.Client, req *http.Request, tmp *os.File) (statut int, entetes http.Header, tailleAnnoncee int64, err error) {
-	const tentativesMax = 8
-	delai := 2 * time.Second
-	var ecrit int64
-	tailleAnnoncee = -1
-	redemarrer := func() error {
+func downloadBody(ctx context.Context, client *http.Client, req *http.Request, tmp *os.File) (status int, headers http.Header, announcedSize int64, err error) {
+	const maxAttempts = 8
+	delay := 2 * time.Second
+	var written int64
+	announcedSize = -1
+	restart := func() error {
 		if err := tmp.Truncate(0); err != nil {
 			return err
 		}
 		if _, err := tmp.Seek(0, io.SeekStart); err != nil {
 			return err
 		}
-		ecrit, tailleAnnoncee = 0, -1
+		written, announcedSize = 0, -1
 		return nil
 	}
-	for essai := 1; ; essai++ {
+	for attempt := 1; ; attempt++ {
 		r := req.Clone(ctx)
-		if ecrit > 0 {
-			r.Header.Set("Range", fmt.Sprintf("bytes=%d-", ecrit))
+		if written > 0 {
+			r.Header.Set("Range", fmt.Sprintf("bytes=%d-", written))
 		}
 		resp, errReq := client.Do(r)
 		if errReq != nil {
-			if ctx.Err() != nil || essai >= tentativesMax {
-				return 0, nil, tailleAnnoncee, errReq
+			if ctx.Err() != nil || attempt >= maxAttempts {
+				return 0, nil, announcedSize, errReq
 			}
 			logs.Notice(fmt.Sprintf("%s : %s, nouvelle tentative dans %s (%d/%d)",
-				req.URL.String(), errReq, delai, essai, tentativesMax))
-			if !patienter(ctx, &delai) {
-				return 0, nil, tailleAnnoncee, ctx.Err()
+				req.URL.String(), errReq, delay, attempt, maxAttempts))
+			if !wait(ctx, &delay) {
+				return 0, nil, announcedSize, ctx.Err()
 			}
 			continue
 		}
 
 		switch resp.StatusCode {
 		case http.StatusOK:
-			if ecrit > 0 {
+			if written > 0 {
 				// Range ignoré (ou une autre route a répondu) : impossible
 				// de recoller un début et une suite qui ne viennent pas du
 				// même corps — on repart de zéro pour de vrai.
-				if err := redemarrer(); err != nil {
+				if err := restart(); err != nil {
 					resp.Body.Close()
-					return 0, nil, tailleAnnoncee, err
+					return 0, nil, announcedSize, err
 				}
 			}
 			if resp.ContentLength >= 0 {
-				tailleAnnoncee = resp.ContentLength
+				announcedSize = resp.ContentLength
 			}
 		case http.StatusPartialContent:
-			if tailleAnnoncee < 0 {
-				tailleAnnoncee = totalDepuisContentRange(resp.Header.Get("Content-Range"))
+			if announcedSize < 0 {
+				announcedSize = totalFromContentRange(resp.Header.Get("Content-Range"))
 			}
 		case http.StatusRequestedRangeNotSatisfiable:
 			resp.Body.Close()
-			if err := redemarrer(); err != nil {
-				return 0, nil, tailleAnnoncee, err
+			if err := restart(); err != nil {
+				return 0, nil, announcedSize, err
 			}
-			if essai >= tentativesMax {
-				return 0, nil, tailleAnnoncee, fmt.Errorf("%s : HTTP 416 persistant", req.URL.String())
+			if attempt >= maxAttempts {
+				return 0, nil, announcedSize, fmt.Errorf("%s : HTTP 416 persistant", req.URL.String())
 			}
 			continue
 		default:
-			if statutReprenable(resp.StatusCode) {
-				attente := delai
+			if resumableStatus(resp.StatusCode) {
+				waitTime := delay
 				if ra := resp.Header.Get("Retry-After"); ra != "" {
 					if s, err := strconv.Atoi(ra); err == nil && s >= 0 {
-						attente = time.Duration(s) * time.Second
+						waitTime = time.Duration(s) * time.Second
 					}
 				}
 				resp.Body.Close()
-				if essai >= tentativesMax {
+				if attempt >= maxAttempts {
 					// Budget épuisé : rendu tel quel, fetchOnce traite ce
 					// statut comme n'importe quel échec terminal.
-					return resp.StatusCode, resp.Header, tailleAnnoncee, nil
+					return resp.StatusCode, resp.Header, announcedSize, nil
 				}
 				logs.Notice(fmt.Sprintf("%s : HTTP %d, nouvelle tentative dans %s (%d/%d)",
-					req.URL.String(), resp.StatusCode, attente, essai, tentativesMax))
+					req.URL.String(), resp.StatusCode, waitTime, attempt, maxAttempts))
 				select {
 				case <-ctx.Done():
-					return 0, nil, tailleAnnoncee, ctx.Err()
-				case <-time.After(attente):
+					return 0, nil, announcedSize, ctx.Err()
+				case <-time.After(waitTime):
 				}
-				delai *= 2
-				if delai > 60*time.Second {
-					delai = 60 * time.Second
+				delay *= 2
+				if delay > 60*time.Second {
+					delay = 60 * time.Second
 				}
 				continue
 			}
@@ -411,54 +411,54 @@ func telechargerCorps(ctx context.Context, client *http.Client, req *http.Reques
 			// autre 4xx...) : aucun corps qui nous concerne ici (304 n'en a
 			// pas ; un 4xx porte une page d'erreur, pas le document) —
 			// rendu tel quel, jamais de copie.
-			return resp.StatusCode, resp.Header, tailleAnnoncee, nil
+			return resp.StatusCode, resp.Header, announcedSize, nil
 		}
 
 		n, errCopy := io.Copy(tmp, resp.Body)
 		resp.Body.Close()
-		ecrit += n
+		written += n
 		if errCopy != nil {
 			if ctx.Err() != nil {
-				return 0, nil, tailleAnnoncee, ctx.Err()
+				return 0, nil, announcedSize, ctx.Err()
 			}
-			if essai >= tentativesMax {
-				return 0, nil, tailleAnnoncee, fmt.Errorf("%s : %w (après %s reçus)",
-					req.URL.String(), errCopy, tailleLisible(ecrit))
+			if attempt >= maxAttempts {
+				return 0, nil, announcedSize, fmt.Errorf("%s : %w (après %s reçus)",
+					req.URL.String(), errCopy, readableSize(written))
 			}
 			logs.Notice(fmt.Sprintf("%s : coupure après %s, reprise dans %s (%d/%d)",
-				req.URL.String(), tailleLisible(ecrit), delai, essai, tentativesMax))
-			if !patienter(ctx, &delai) {
-				return 0, nil, tailleAnnoncee, ctx.Err()
+				req.URL.String(), readableSize(written), delay, attempt, maxAttempts))
+			if !wait(ctx, &delay) {
+				return 0, nil, announcedSize, ctx.Err()
 			}
 			continue
 		}
-		if tailleAnnoncee >= 0 && ecrit != tailleAnnoncee {
+		if announcedSize >= 0 && written != announcedSize {
 			// Le corps s'est terminé SANS erreur réseau mais plus court
 			// qu'annoncé : certains relais ferment la connexion proprement
 			// sans la signaler comme une panne — jamais un fichier tronqué
 			// scellé comme bon, traité comme une coupure ordinaire.
-			if essai >= tentativesMax {
-				return 0, nil, tailleAnnoncee, fmt.Errorf("%s : %d octets reçus sur %d annoncés",
-					req.URL.String(), ecrit, tailleAnnoncee)
+			if attempt >= maxAttempts {
+				return 0, nil, announcedSize, fmt.Errorf("%s : %d octets reçus sur %d annoncés",
+					req.URL.String(), written, announcedSize)
 			}
 			logs.Notice(fmt.Sprintf("%s : %s reçus sur %s annoncés, reprise (%d/%d)",
-				req.URL.String(), tailleLisible(ecrit), tailleLisible(tailleAnnoncee), essai, tentativesMax))
+				req.URL.String(), readableSize(written), readableSize(announcedSize), attempt, maxAttempts))
 			continue
 		}
-		return resp.StatusCode, resp.Header, tailleAnnoncee, nil
+		return resp.StatusCode, resp.Header, announcedSize, nil
 	}
 }
 
-func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, url, ext string, entetes http.Header, client *http.Client, urlArchivee string) (*Fetched, error) {
-	if urlArchivee == "" {
-		urlArchivee = url
+func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, url, ext string, headers http.Header, client *http.Client, archivedURL string) (*Fetched, error) {
+	if archivedURL == "" {
+		archivedURL = url
 	}
 	if pf, ok := prefetched(ctx, url); ok {
 		var retID int64
 		if err := a.Pool.QueryRow(ctx, `
 			INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status, document_id)
 			VALUES ($1,$2,$3,200,$4) RETURNING id`,
-			sourceID, runID, urlArchivee, pf.DocumentID).Scan(&retID); err != nil {
+			sourceID, runID, archivedURL, pf.DocumentID).Scan(&retID); err != nil {
 			return nil, err
 		}
 		return &Fetched{DocumentID: pf.DocumentID, RetrievalID: retID, Path: pf.Path, SHA256: pf.SHA256, Cached: true}, nil
@@ -470,7 +470,7 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	defer os.Remove(tmp.Name())
 
 	req, _ := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
-	for k, vs := range entetes {
+	for k, vs := range headers {
 		for _, v := range vs {
 			req.Header.Add(k, v)
 		}
@@ -488,16 +488,16 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	// possible. Vérifié en direct sur data.assemblee-nationale.fr,
 	// data.senat.fr, static.data.gouv.fr et popu-list.github.io (GitHub
 	// Pages) : les quatre rendent un vrai 304 à une requête conditionnelle.
-	precedent, err := a.derniereRetenue(ctx, url)
+	previous, err := a.lookupPreviousRetrieval(ctx, url)
 	if err != nil {
 		return nil, err
 	}
-	if precedent != nil {
-		if precedent.etag != "" {
-			req.Header.Set("If-None-Match", precedent.etag)
+	if previous != nil {
+		if previous.etag != "" {
+			req.Header.Set("If-None-Match", previous.etag)
 		}
-		if !precedent.lastModified.IsZero() {
-			req.Header.Set("If-Modified-Since", precedent.lastModified.UTC().Format(http.TimeFormat))
+		if !previous.lastModified.IsZero() {
+			req.Header.Set("If-Modified-Since", previous.lastModified.UTC().Format(http.TimeFormat))
 		}
 	}
 	if client == nil {
@@ -511,53 +511,53 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	// champ absent, jamais une raison d'échouer le HEAD ne doit faire
 	// échouer le GET qui suit.
 	if taille := headContentLength(ctx, client, req.URL.String(), req.Header); taille > 0 {
-		logs.Notice(fmt.Sprintf("downloading %s (%s)", url, tailleLisible(taille)))
+		logs.Notice(fmt.Sprintf("downloading %s (%s)", url, readableSize(taille)))
 	} else {
 		logs.Notice("downloading " + url)
 	}
-	statut, entetes, annonce, err := telechargerCorps(ctx, client, req, tmp)
+	status, headers, announcedSize, err := downloadBody(ctx, client, req, tmp)
 	if err != nil {
 		tmp.Close()
 		return nil, err
 	}
 
-	// 304 : le serveur confirme que precedent.documentID est toujours le bon
+	// 304 : le serveur confirme que previous.documentID est toujours le bon
 	// document, sans en renvoyer les octets — c'est tout le gain de la
 	// requête conditionnelle ci-dessus. raw.retrieval garde quand même une
 	// ligne (avec CE document_id, migration 0178) : ce qui est sauté est le
 	// GET, jamais l'attestation qu'une source a été vue à cette date pour
 	// CE run, même principe que le chemin déjà-préchargé plus haut.
-	if statut == http.StatusNotModified && precedent != nil {
+	if status == http.StatusNotModified && previous != nil {
 		tmp.Close()
-		var dernModif any
-		if !precedent.lastModified.IsZero() {
-			dernModif = precedent.lastModified
+		var lastModified any
+		if !previous.lastModified.IsZero() {
+			lastModified = previous.lastModified
 		}
 		var retID int64
 		if err := a.Pool.QueryRow(ctx, `
 			INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status, document_id, etag, last_modified)
 			VALUES ($1,$2,$3,304,$4,$5,$6) RETURNING id`,
-			sourceID, runID, urlArchivee, precedent.documentID,
-			nullableString(entetes.Get("ETag"), precedent.etag), dernModif).Scan(&retID); err != nil {
+			sourceID, runID, archivedURL, previous.documentID,
+			nullableString(headers.Get("ETag"), previous.etag), lastModified).Scan(&retID); err != nil {
 			return nil, err
 		}
 		logs.Notice(fmt.Sprintf("downloaded %s: %s, sha256 %s (unchanged)",
-			url, tailleLisible(precedent.byteSize), precedent.sha256[:12]))
-		return &Fetched{DocumentID: precedent.documentID, RetrievalID: retID,
-			Path: precedent.path, SHA256: precedent.sha256, Cached: true}, nil
+			url, readableSize(previous.byteSize), previous.sha256[:12]))
+		return &Fetched{DocumentID: previous.documentID, RetrievalID: retID,
+			Path: previous.path, SHA256: previous.sha256, Cached: true}, nil
 	}
 
-	if statut < 200 || statut > 299 {
+	if status < 200 || status > 299 {
 		tmp.Close()
 		_, _ = a.Pool.Exec(ctx, `
 			INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status)
-			VALUES ($1,$2,$3,$4)`, sourceID, runID, urlArchivee, statut)
-		return nil, fmt.Errorf("%s : HTTP %d", url, statut)
+			VALUES ($1,$2,$3,$4)`, sourceID, runID, archivedURL, status)
+		return nil, fmt.Errorf("%s : HTTP %d", url, status)
 	}
 
 	// L'empreinte se calcule en relisant tmp au complet, jamais au fil de
 	// l'écriture (un sha256.New() posé en io.MultiWriter avec la première
-	// tentative, comme avant cette fonction) : telechargerCorps peut avoir
+	// tentative, comme avant cette fonction) : downloadBody peut avoir
 	// tronqué et réécrit tmp depuis le début en cours de route (reprise
 	// refusée par le serveur, 416) — un hash entamé sur la PREMIÈRE tentative
 	// ne vaudrait plus rien après un tel redémarrage. Relire une fois, après
@@ -578,10 +578,10 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	// Un téléchargement tronqué ne doit JAMAIS être scellé : on archiverait
 	// l'empreinte d'un fichier corrompu, et toute vérification ultérieure
 	// porterait sur une donnée fausse en croyant l'avoir authentifiée. Garde
-	// redondante avec la vérification déjà faite dans telechargerCorps —
+	// redondante avec la vérification déjà faite dans downloadBody —
 	// celle-ci porte sur ce qui a vraiment atterri sur le disque.
-	if annonce >= 0 && n != annonce {
-		return nil, fmt.Errorf("%s : %d octets reçus sur %d annoncés", url, n, annonce)
+	if announcedSize >= 0 && n != announcedSize {
+		return nil, fmt.Errorf("%s : %d octets reçus sur %d annoncés", url, n, announcedSize)
 	}
 
 	sum := hex.EncodeToString(h.Sum(nil))
@@ -598,11 +598,11 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 	} else if err := os.Rename(tmp.Name(), dst); err != nil {
 		return nil, err
 	}
-	etat := "archived"
+	state := "archived"
 	if cached {
-		etat = "unchanged"
+		state = "unchanged"
 	}
-	logs.Notice(fmt.Sprintf("downloaded %s: %s, sha256 %s (%s)", url, tailleLisible(n), sum[:12], etat))
+	logs.Notice(fmt.Sprintf("downloaded %s: %s, sha256 %s (%s)", url, readableSize(n), sum[:12], state))
 
 	var docID int64
 	err = a.Pool.QueryRow(ctx, `
@@ -610,20 +610,20 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 		VALUES (decode($1,'hex'), $2, $3, $4)
 		ON CONFLICT (sha256) DO UPDATE SET storage_key = raw.document.storage_key
 		RETURNING id`,
-		sum, key, entetes.Get("Content-Type"), n).Scan(&docID)
+		sum, key, headers.Get("Content-Type"), n).Scan(&docID)
 	if err != nil {
 		return nil, err
 	}
 
-	var dernModif any
-	if t, err := http.ParseTime(entetes.Get("Last-Modified")); err == nil {
-		dernModif = t
+	var lastModified any
+	if t, err := http.ParseTime(headers.Get("Last-Modified")); err == nil {
+		lastModified = t
 	}
 	var retID int64
 	err = a.Pool.QueryRow(ctx, `
 		INSERT INTO raw.retrieval (source_id, fetch_run_id, url, http_status, document_id, etag, last_modified)
 		VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id`,
-		sourceID, runID, urlArchivee, statut, docID, nullableString(entetes.Get("ETag"), ""), dernModif).Scan(&retID)
+		sourceID, runID, archivedURL, status, docID, nullableString(headers.Get("ETag"), ""), lastModified).Scan(&retID)
 	if err != nil {
 		return nil, err
 	}
@@ -636,12 +636,12 @@ func (a *Archive) fetchOnce(ctx context.Context, sourceID int64, runID int64, ur
 // précède le GET, jamais une condition d'échec : un serveur qui refuse HEAD,
 // ne rend pas Content-Length, ou répond hors 2xx laisse simplement -1,
 // silencieusement, le GET qui suit tente sa chance normalement.
-func headContentLength(ctx context.Context, client *http.Client, url string, entetes http.Header) int64 {
+func headContentLength(ctx context.Context, client *http.Client, url string, headers http.Header) int64 {
 	req, err := http.NewRequestWithContext(ctx, http.MethodHead, url, nil)
 	if err != nil {
 		return -1
 	}
-	req.Header = entetes.Clone()
+	req.Header = headers.Clone()
 	resp, err := client.Do(req)
 	if err != nil {
 		return -1
@@ -653,17 +653,17 @@ func headContentLength(ctx context.Context, client *http.Client, url string, ent
 	return resp.ContentLength
 }
 
-// tailleLisible formate un nombre d'octets pour un NOTICE — même échelle
+// readableSize formate un nombre d'octets pour un NOTICE — même échelle
 // (Ko/Mo/Go) que cmd/fpctl/list.go, dupliquée plutôt que partagée : deux
 // lignes, pas la peine d'exporter un paquet utilitaire pour ça.
-func tailleLisible(octets int64) string {
-	const unite = 1024.0
-	v := float64(octets)
-	for _, suffixe := range []string{"B", "KB", "MB", "GB", "TB"} {
-		if v < unite {
-			return fmt.Sprintf("%.1f %s", v, suffixe)
+func readableSize(bytes int64) string {
+	const unit = 1024.0
+	v := float64(bytes)
+	for _, suffix := range []string{"B", "KB", "MB", "GB", "TB"} {
+		if v < unit {
+			return fmt.Sprintf("%.1f %s", v, suffix)
 		}
-		v /= unite
+		v /= unit
 	}
 	return fmt.Sprintf("%.1f PB", v)
 }

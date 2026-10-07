@@ -16,7 +16,7 @@ import (
 var SourcePrisonFacilities = archive.Source{
 	Slug: "justice-etablissements-penitentiaires", Label: "Répartition des personnes détenues par établissement",
 	Publisher: "Ministère de la Justice (GENESIS/DGAP)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de la Justice, statistique mensuelle des établissements pénitentiaires",
 	Cadence:     "mensuelle",
 	Notes: "Ni identifiant officiel ni coordonnées géographiques dans ce fichier — un géocodage par nom et " +

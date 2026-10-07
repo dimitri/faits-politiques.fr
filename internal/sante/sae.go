@@ -37,7 +37,7 @@ var SourceSAE = archive.Source{
 	Slug: "drees-sae-bases-statistiques", Label: "Drees — SAE, bases statistiques (Q24 personnel, URGENCES2 passages)",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees, SAE (Statistique annuelle des établissements de santé)",
 	Cadence:     "annuelle",
 	Notes: "L'archive complète (~50 bordereaux, une par année) couvre lits, activité, " +

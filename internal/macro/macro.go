@@ -30,7 +30,7 @@ const ConnectorVersion = "macro-v1"
 var SourceEurostat = archive.Source{
 	Slug: "eurostat", Label: "Eurostat — comptes nationaux et conditions de vie",
 	Publisher: "Eurostat / Commission européenne", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Réutilisation autorisée avec mention de la source (décision 2011/833/UE)",
+	License:     "Réutilisation autorisée avec mention de la source (décision 2011/833/UE)",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Eurostat, d'après les comptes nationaux transmis par l'INSEE",
 	Cadence:     "annuelle, avec révisions",
@@ -41,7 +41,7 @@ var SourceEurostat = archive.Source{
 var SourceCNAF = archive.Source{
 	Slug: "cnaf", Label: "CNAF — allocataires du RSA",
 	Publisher: "Caisse nationale des allocations familiales", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : CNAF, données nationales du RSA",
 	Cadence:     "mensuelle",

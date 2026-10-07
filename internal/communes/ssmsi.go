@@ -31,7 +31,7 @@ var SourceSSMSI = archive.Source{
 	Slug: "ssmsi", Label: "SSMSI — délinquance enregistrée par commune",
 	Publisher:   "Service statistique ministériel de la sécurité intérieure",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : SSMSI, bases statistiques de la délinquance enregistrée",
 	Cadence:     "annuelle",

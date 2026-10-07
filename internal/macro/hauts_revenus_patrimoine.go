@@ -23,7 +23,7 @@ var SourceTopIncomesWealth = archive.Source{
 	Slug: "insee-hauts-revenus-patrimoine", Label: "INSEE — hauts revenus et hauts patrimoines",
 	Publisher: "INSEE (Insee-DGFiP-Cnaf-Cnav-CCMSA, Filosofi ; enquêtes Patrimoine)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, \"Les revenus et le patrimoine des ménages\", édition 2024",
 	Cadence:     "annuelle (édition), millésimes des données irréguliers selon la fiche",
 	Notes: "Fiche \"Très hauts revenus\" (seuils 2021, série de parts 2004-2021) et fiche " +

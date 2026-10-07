@@ -26,7 +26,7 @@ var SourceExecutionEtat = archive.Source{
 	Label:       "DGFiP — situations mensuelles budgétaires de l'État",
 	Publisher:   "Direction générale des finances publiques",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : ministère de l'Économie et des Finances, situations mensuelles budgétaires de l'État",
 	Cadence:     "mensuelle",

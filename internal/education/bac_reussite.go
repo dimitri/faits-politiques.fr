@@ -23,7 +23,7 @@ var SourceInseeBacPassRate = archive.Source{
 	Slug: "insee-bac-reussite", Label: "INSEE — taux de réussite au baccalauréat, France",
 	Publisher: "INSEE (série Depp republiée en BDM)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : INSEE, taux de réussite au baccalauréat, série 001769473",
 	Cadence:     "annuelle",
 	Notes: "Tous baccalauréats confondus (général, technologique, professionnel) — l'INSEE publie " +

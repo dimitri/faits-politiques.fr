@@ -21,7 +21,7 @@ import (
 var SourceSanteOCDE = archive.Source{
 	Slug: "ocde-esperance-vie", Label: "OCDE — espérance de vie à la naissance",
 	Publisher: "OCDE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : OCDE, Statistiques de la santé",
 	Cadence:     "annuelle",
 	Notes: "Neuf des dix pays de comparaison de ce dossier (core.indicateur_mondial) : l'Arabie " +
@@ -175,7 +175,7 @@ var libellesPays = map[string]string{
 var SourceDepenseSanteOCDE = archive.Source{
 	Slug: "ocde-depense-sante", Label: "OCDE — dépense de santé courante par habitant",
 	Publisher: "OCDE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : OCDE, Comptes de la santé (SHA)",
 	Cadence:     "annuelle",
 	Notes: "Dollars PPA (pouvoir d'achat comparable, pas un simple change), prix courants. La " +

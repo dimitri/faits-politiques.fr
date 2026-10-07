@@ -22,7 +22,7 @@ const ConnectorVersion = "presidentielle-v1"
 var SourceProclamation = archive.Source{
 	Slug: "cc-proclamation-pdr", Label: "Conseil constitutionnel — proclamations de l'élection présidentielle",
 	Publisher: "Conseil constitutionnel", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Texte officiel de nature juridictionnelle — hors champ du droit d'auteur",
+	License:     "Texte officiel de nature juridictionnelle — hors champ du droit d'auteur",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Conseil constitutionnel, décisions de proclamation des résultats de l'élection présidentielle",
 	Cadence:     "par scrutin",

@@ -16,7 +16,7 @@ var SourceSILL = archive.Source{
 	Slug: "sill-code-gouv", Label: "Socle interministériel de logiciels libres (SILL)",
 	Publisher:   "Direction interministérielle du numérique (DINUM), code.gouv.fr",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Données publiques de la DINUM, citées avec lien",
+	License:     "Données publiques de la DINUM, citées avec lien",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : DINUM, socle interministériel de logiciels libres (code.gouv.fr/sill)",
 	Cadence:     "mise à jour continue",

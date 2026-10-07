@@ -27,7 +27,7 @@ const ConnectorVersionCirco = "geo-circonscriptions-v1"
 var SourceCirconscriptions = archive.Source{
 	Slug: "insee-circonscriptions-legislatives", Label: "Insee — portraits des circonscriptions législatives",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, portraits des circonscriptions législatives",
 	Cadence:     "au redécoupage ou à chaque élection législative",
 	Notes: "Fond cartographique du 3 mai 2022 (558 circonscriptions de métropole et des DROM, " +

@@ -19,7 +19,7 @@ var SourcePMSIMCO = archive.Source{
 	Slug: "atih-pmsi-mco", Label: "ATIH — PMSI-MCO, activité hospitalière (data-essentiel)",
 	Publisher: "Agence technique de l'information sur l'hospitalisation (ATIH)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Open Database License (ODbL) 1.0", ReuseClass: "ATTRIBUTION",
+	License:   "Open Database License (ODbL) 1.0", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : ATIH, data-essentiel.atih.sante.fr",
 	Cadence:     "annuelle",
 	Notes: "Trois jeux distincts (national par type d'hospitalisation, par établissement, par " +

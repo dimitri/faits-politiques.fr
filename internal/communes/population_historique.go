@@ -21,7 +21,7 @@ import (
 var SourcePopulationHistorique = archive.Source{
 	Slug: "insee-population-historique-communes", Label: "Séries historiques de population par commune, 1876-2023",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, recensements de la population",
 	Cadence:     "irrégulière (recensements)",
 	Notes: "France hors Mayotte. Millésimes historiques seulement (1876-1999) ; les millésimes " +

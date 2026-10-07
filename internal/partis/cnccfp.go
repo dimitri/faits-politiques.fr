@@ -25,7 +25,7 @@ const ConnectorVersion = "partis/1"
 var SourceCNCCFP = archive.Source{
 	Slug: "cnccfp-comptes", Label: "CNCCFP — Comptes des partis et groupements politiques",
 	Publisher: "Commission nationale des comptes de campagne et des financements politiques",
-	Tier:      "PRIMARY_OFFICIAL", Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+	Tier:      "PRIMARY_OFFICIAL", License: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : CNCCFP, comptes des partis et groupements politiques",
 	Cadence:     "annuelle",
 	Notes: "CSV à séparateur point-virgule, BOM UTF-8, 166 colonnes. " +
@@ -48,7 +48,7 @@ func CNCCFPDownloadTargets() []archive.DownloadTarget {
 	out := make([]archive.DownloadTarget, 0, len(AccountURLs))
 	for exercice, url := range AccountURLs {
 		out = append(out, archive.DownloadTarget{
-			Nom: fmt.Sprintf("cnccfp-comptes-%d", exercice), Source: SourceCNCCFP, URL: url, Ext: ".csv",
+			Name: fmt.Sprintf("cnccfp-comptes-%d", exercice), Source: SourceCNCCFP, URL: url, Ext: ".csv",
 		})
 	}
 	return out

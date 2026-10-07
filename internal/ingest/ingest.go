@@ -124,7 +124,7 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		// serait une course. Root/Pool restent partagés (immuables après
 		// construction), seul Etape diffère par copie.
 		archEtape := *arch
-		archEtape.Etape = source.Nom
+		archEtape.Step = source.Nom
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
@@ -185,7 +185,7 @@ func registreDe(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 			}
 		}
 		archEtape := *arch
-		archEtape.Etape = source.Nom
+		archEtape.Step = source.Nom
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: source.Dependances,
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
@@ -617,7 +617,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 			return fmt.Errorf("registreComplet : source inconnue : %s", nom)
 		}
 		archEtape := *arch
-		archEtape.Etape = source.Nom
+		archEtape.Step = source.Nom
 		deps := append(append([]string{}, source.Dependances...), extraDeps...)
 		reg.Ajouter(pipeline.Etape{
 			Nom: source.Nom, Description: source.Description, Dependances: deps,

@@ -26,7 +26,7 @@ var SourceDECP = archive.Source{
 	Slug: "decp-consolidees", Label: "DECP consolidées — commande publique française",
 	Publisher: "Projet decp-processing (Colin Maudry), via data.gouv.fr",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : DECP consolidées (decp-processing), data.gouv.fr",
 	Cadence:     "quotidienne (à la source) ; ce dépôt la relit ponctuellement",
 	Notes: "Format Parquet (235 Mo) plutôt que CSV (2,5 Go) — même contenu, colonnes lues " +

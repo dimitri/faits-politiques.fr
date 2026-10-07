@@ -21,7 +21,7 @@ var SourcePMSISMRHAD = archive.Source{
 	Slug: "atih-pmsi-smr-had", Label: "ATIH — PMSI-SMR et PMSI-HAD (data-essentiel)",
 	Publisher: "Agence technique de l'information sur l'hospitalisation (ATIH)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Open Database License (ODbL) 1.0", ReuseClass: "ATTRIBUTION",
+	License:   "Open Database License (ODbL) 1.0", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : ATIH, data-essentiel.atih.sante.fr",
 	Cadence:     "annuelle",
 	Notes: "Six jeux (trois par champ). SMR distingue HC/HP (hospitalisation complète/partielle) " +

@@ -27,7 +27,7 @@ import (
 var Source = archive.Source{
 	Slug: "wikimedia-commons", Label: "Wikimedia Commons — portraits et logos libres",
 	Publisher: "Wikimedia Commons", Tier: "DECLARATIVE",
-	Licence:     "variable, par fichier ; seules les licences libres sont retenues",
+	License:     "variable, par fichier ; seules les licences libres sont retenues",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Portraits et logos : Wikimedia Commons, licence et auteur indiqués sur chaque image",
 	Cadence:     "à la demande",

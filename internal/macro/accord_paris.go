@@ -17,7 +17,7 @@ import (
 var SourceParisAgreement = archive.Source{
 	Slug: "onu-accord-paris-ratifications", Label: "ONU — signature et ratification de l'Accord de Paris",
 	Publisher: "Organisation des Nations unies (dépositaire des traités)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Domaine public (document officiel des Nations unies)", ReuseClass: "OPEN",
+	License: "Domaine public (document officiel des Nations unies)", ReuseClass: "OPEN",
 	Attribution: "Source : ONU, Collection des traités, chapitre XXVII.7.d",
 	Cadence:     "ponctuelle",
 	Notes: "La collection dépositaire officielle, pas une source secondaire. Une ratification " +
