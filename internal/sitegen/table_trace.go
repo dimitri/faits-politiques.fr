@@ -110,13 +110,13 @@ func (t *tableTracer) Noeuds() []string {
 }
 
 // transitiveTables : l'union des tables observées pour nom ET pour tout ce
-// dont il dépend, transitivement (reg porte déjà ce graphe — Etape.
-// Dependances — nul besoin d'y revenir par une requête). Stocker cette
+// dont il dépend, transitivement (reg porte déjà ce graphe — Step.
+// Dependencies — nul besoin d'y revenir par une requête). Stocker cette
 // union plutôt que les seules tables lues DIRECTEMENT par nom fait que
 // lire core.sitegen_table_usage répond tout de suite à « de quoi ai-je
 // besoin pour reconstruire CETTE page », sans que l'appelant (fpctl list
 // deps) n'ait à son tour à redérouler le graphe de dépendances.
-func transitiveTables(reg *pipeline.Registre, tracer *tableTracer, nom string) []string {
+func transitiveTables(reg *pipeline.Registry, tracer *tableTracer, nom string) []string {
 	vus := map[string]bool{}
 	set := map[string]bool{}
 	var visiter func(string)
@@ -128,11 +128,11 @@ func transitiveTables(reg *pipeline.Registre, tracer *tableTracer, nom string) [
 		for _, t := range tracer.Tables(n) {
 			set[t] = true
 		}
-		e, ok := reg.Etape(n)
+		s, ok := reg.Step(n)
 		if !ok {
 			return
 		}
-		for _, d := range e.Dependances {
+		for _, d := range s.Dependencies {
 			visiter(d)
 		}
 	}
@@ -153,7 +153,7 @@ func transitiveTables(reg *pipeline.Registre, tracer *tableTracer, nom string) [
 // Pas de transaction longue à retenir : le volume (quelques centaines de
 // lignes au plus, un nœud a rarement plus d'une poignée de tables dans sa
 // fermeture transitive) ne le justifie pas.
-func publierTables(ctx context.Context, pool *pgxpool.Pool, reg *pipeline.Registre, tracer *tableTracer, executes []string) error {
+func publierTables(ctx context.Context, pool *pgxpool.Pool, reg *pipeline.Registry, tracer *tableTracer, executes []string) error {
 	if len(executes) == 0 {
 		return nil
 	}
