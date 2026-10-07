@@ -790,11 +790,11 @@ var catalogue = []Source{
 		}},
 	{Nom: "dossiers-faits", Categorie: CategorieTransparence, Description: "faits des dossiers seuls",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return dossiers.IngestFaits(ctx, pool, arch)
+			return dossiers.IngestFacts(ctx, pool, arch)
 		}},
 	{Nom: "dossiers-acteurs", Categorie: CategorieTransparence, Description: "acteurs nommés des dossiers seuls",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return dossiers.IngestActeurs(ctx, pool, arch)
+			return dossiers.IngestActors(ctx, pool, arch)
 		}},
 
 	// --- international : comparaisons et géopolitique.
