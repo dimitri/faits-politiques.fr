@@ -71,7 +71,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	// rapprochement de noms, borné au département — le seul possible, le RNA ne
 	// publiant pas de code INSEE et son champ SIRET étant vide. Les noms
 	// ambigus dans un même département sont écartés plutôt qu'arbitrés.
-	index, ambigus, err := indexCommunes(ctx, pool)
+	index, ambiguousCount, err := indexCommunes(ctx, pool)
 	if err != nil {
 		return fail(err)
 	}
@@ -97,20 +97,20 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(err)
 	}
 
-	var lot [][]any
-	var total, resolues, vus int
-	dejaVu := map[string]bool{}
+	var batch [][]any
+	var total, resolved, duplicates int
+	seen := map[string]bool{}
 
-	vider := func() error {
-		if len(lot) == 0 {
+	flush := func() error {
+		if len(batch) == 0 {
 			return nil
 		}
 		_, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_association"},
 			[]string{"rna_id", "titre", "objet", "objet_social", "nature", "position",
 				"date_creation", "date_publication", "code_departement", "code_postal",
 				"commune_libelle", "commune_code", "cog_millesime", "source_id"},
-			pgx.CopyFromRows(lot))
-		lot = lot[:0]
+			pgx.CopyFromRows(batch))
+		batch = batch[:0]
 		return err
 	}
 
@@ -152,30 +152,30 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			if id == "" || titre == "" {
 				continue
 			}
-			if dejaVu[id] {
-				vus++
+			if seen[id] {
+				duplicates++
 				continue
 			}
-			dejaVu[id] = true
+			seen[id] = true
 
 			dep := departement(get(rec, "gestion"), id)
 			nom := get(rec, "libcom")
 			var code, mil any
-			if c, ok := index[dep+"|"+normaliser(nomAdministratif(nom))]; ok {
+			if c, ok := index[dep+"|"+normalize(administrativeName(nom))]; ok {
 				code, mil = c, COGMillesime
-				resolues++
+				resolved++
 			}
-			lot = append(lot, []any{
-				id, tronquer(titre, 400), nul(tronquer(get(rec, "objet"), 1000)),
-				nul(get(rec, "objet_social1")), nul(get(rec, "nature")),
-				nul(get(rec, "position")),
-				dateNul(get(rec, "date_creat")), dateNul(get(rec, "date_publi")),
-				nul(dep), nul(get(rec, "adrs_codepostal")), nul(tronquer(nom, 120)),
+			batch = append(batch, []any{
+				id, truncate(titre, 400), nullable(truncate(get(rec, "objet"), 1000)),
+				nullable(get(rec, "objet_social1")), nullable(get(rec, "nature")),
+				nullable(get(rec, "position")),
+				nullableDate(get(rec, "date_creat")), nullableDate(get(rec, "date_publi")),
+				nullable(dep), nullable(get(rec, "adrs_codepostal")), nullable(truncate(nom, 120)),
 				code, mil, srcID,
 			})
 			total++
-			if len(lot) >= 50000 {
-				if err := vider(); err != nil {
+			if len(batch) >= 50000 {
+				if err := flush(); err != nil {
 					rc.Close()
 					return fail(fmt.Errorf("copie : %w", err))
 				}
@@ -183,7 +183,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		}
 		rc.Close()
 	}
-	if err := vider(); err != nil {
+	if err := flush(); err != nil {
 		return fail(fmt.Errorf("copie : %w", err))
 	}
 
@@ -191,7 +191,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	// propriétaire) + COPY : l'ancien DELETE payait le prix des triggers RI
 	// pour l'intégralité du répertoire (1,19M associations) à chaque
 	// republication du RNA, changement ou non.
-	var touchees int64
+	var affected int64
 	err = bulkload.SansContraintesFK(ctx, tx, "core.association", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.association AS tgt
@@ -223,7 +223,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		if err != nil {
 			return err
 		}
-		touchees = ct.RowsAffected()
+		affected = ct.RowsAffected()
 		return nil
 	})
 	if err != nil {
@@ -234,10 +234,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"associations": total, "resolues": resolues, "doublons": vus, "touchees": touchees}, "")
+		"associations": total, "resolved": resolved, "ambiguous": duplicates, "affected": affected}, "")
 	fmt.Printf("  RNA : %d associations, %d rattachées à une commune (%.1f %%)\n",
-		total, resolues, 100*float64(resolues)/float64(total))
-	fmt.Printf("  %d noms de commune ambigus dans leur département : non rattachés\n", ambigus)
+		total, resolved, 100*float64(resolved)/float64(total))
+	fmt.Printf("  %d noms de commune ambigus dans leur département : non rattachés\n", ambiguousCount)
 	return nil
 }
 
@@ -253,23 +253,23 @@ func indexCommunes(ctx context.Context, pool *pgxpool.Pool) (map[string]string, 
 	}
 	defer rows.Close()
 	index := map[string]string{}
-	doublons := map[string]bool{}
+	ambiguous := map[string]bool{}
 	for rows.Next() {
 		var code, dep, nom string
 		if err := rows.Scan(&code, &dep, &nom); err != nil {
 			return nil, 0, err
 		}
-		k := dep + "|" + normaliser(nom)
-		if _, existe := index[k]; existe {
-			doublons[k] = true
+		k := dep + "|" + normalize(nom)
+		if _, exists := index[k]; exists {
+			ambiguous[k] = true
 			continue
 		}
 		index[k] = code
 	}
-	for k := range doublons {
+	for k := range ambiguous {
 		delete(index, k)
 	}
-	return index, len(doublons), rows.Err()
+	return index, len(ambiguous), rows.Err()
 }
 
 // departement lit le code département dans le champ de gestion. Celui-ci vaut
@@ -297,24 +297,24 @@ func departement(gestion, id string) string {
 	return s[:2]
 }
 
-// nomAdministratif remet en tête l'article que les fichiers administratifs
+// administrativeName remet en tête l'article que les fichiers administratifs
 // rejettent en fin de chaîne : « BUISSON DE CADOUIN L » désigne Le
 // Buisson-de-Cadouin. La comparaison se fait ensuite sur le nom sans article,
 // qui est la colonne NCC du Code officiel géographique.
-func nomAdministratif(s string) string {
-	champs := strings.Fields(strings.ToUpper(s))
-	if len(champs) > 1 {
-		switch champs[len(champs)-1] {
+func administrativeName(s string) string {
+	fields := strings.Fields(strings.ToUpper(s))
+	if len(fields) > 1 {
+		switch fields[len(fields)-1] {
 		case "L", "LA", "LE", "LES", "L'":
-			champs = champs[:len(champs)-1]
+			fields = fields[:len(fields)-1]
 		}
 	}
-	return strings.Join(champs, " ")
+	return strings.Join(fields, " ")
 }
 
 var nonAlpha = regexp.MustCompile(`[^a-z0-9]+`)
 
-func normaliser(s string) string {
+func normalize(s string) string {
 	s = strings.ToLower(s)
 	for from, to := range map[string]string{
 		"à": "a", "â": "a", "ä": "a", "ç": "c", "é": "e", "è": "e", "ê": "e",
@@ -326,7 +326,7 @@ func normaliser(s string) string {
 	return strings.Trim(nonAlpha.ReplaceAllString(s, "-"), "-")
 }
 
-func dateNul(s string) any {
+func nullableDate(s string) any {
 	s = strings.TrimSpace(s)
 	if len(s) < 10 || strings.HasPrefix(s, "0001") {
 		return nil
@@ -338,7 +338,7 @@ func dateNul(s string) any {
 	return t
 }
 
-func tronquer(s string, n int) string {
+func truncate(s string, n int) string {
 	s = strings.Join(strings.Fields(strings.ToValidUTF8(s, "")), " ")
 	r := []rune(s)
 	if len(r) > n {
@@ -347,7 +347,7 @@ func tronquer(s string, n int) string {
 	return s
 }
 
-func nul(s string) any {
+func nullable(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
 	}
