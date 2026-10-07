@@ -24,7 +24,7 @@ import (
 var SourceSirene = archive.Source{
 	Slug: "insee-sirene-unites-legales", Label: "INSEE — répertoire SIRENE, stock des unités légales",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : INSEE, base Sirene des entreprises et de leurs établissements",
 	Cadence:     "mensuelle (stock au 1er du mois)",

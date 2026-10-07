@@ -16,7 +16,7 @@ import (
 var SourceListeUE = archive.Source{
 	Slug: "ue-liste-juridictions-non-cooperatives", Label: "Commission européenne — historique de la liste UE des juridictions non coopératives",
 	Publisher: "Commission européenne, DG TAXUD (d'après les conclusions du Conseil)", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Conditions d'utilisation du site Europa : réutilisation avec mention de la source",
+	License:     "Conditions d'utilisation du site Europa : réutilisation avec mention de la source",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Commission européenne, EU list of non-cooperative jurisdictions for tax purposes (mise à jour du 17 février 2026)",
 	Cadence:     "semestrielle (février, octobre)",

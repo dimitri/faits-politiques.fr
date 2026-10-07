@@ -28,7 +28,7 @@ const COGMillesime = 2026
 var SourceCOG = archive.Source{
 	Slug: "insee-cog", Label: "Code officiel géographique",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : INSEE, Code officiel géographique",
 	Cadence:     "annuelle, au 1er janvier",

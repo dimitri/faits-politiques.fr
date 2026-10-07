@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func fichierTemp(t *testing.T) *os.File {
+func tempFile(t *testing.T) *os.File {
 	t.Helper()
 	f, err := os.CreateTemp(t.TempDir(), "dl-*")
 	if err != nil {
@@ -22,7 +22,7 @@ func fichierTemp(t *testing.T) *os.File {
 	return f
 }
 
-func contenu(t *testing.T, f *os.File) []byte {
+func content(t *testing.T, f *os.File) []byte {
 	t.Helper()
 	if _, err := f.Seek(0, io.SeekStart); err != nil {
 		t.Fatal(err)
@@ -34,7 +34,7 @@ func contenu(t *testing.T, f *os.File) []byte {
 	return b
 }
 
-func corpsAttendu(n int) []byte {
+func expectedBody(n int) []byte {
 	b := make([]byte, n)
 	for i := range b {
 		b[i] = byte(i % 251)
@@ -42,45 +42,45 @@ func corpsAttendu(n int) []byte {
 	return b
 }
 
-func TestTelechargerCorpsSucces(t *testing.T) {
-	corps := corpsAttendu(5000)
+func TestDownloadBodySuccess(t *testing.T) {
+	body := expectedBody(5000)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(corps)))
-		w.Write(corps)
+		w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
+		w.Write(body)
 	}))
 	defer srv.Close()
 
-	tmp := fichierTemp(t)
+	tmp := tempFile(t)
 	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
-	statut, _, annonce, err := telechargerCorps(context.Background(), srv.Client(), req, tmp)
+	status, _, announcedSize, err := downloadBody(context.Background(), srv.Client(), req, tmp)
 	if err != nil {
 		t.Fatalf("inattendu : %v", err)
 	}
-	if statut != http.StatusOK {
-		t.Fatalf("statut = %d, attendu 200", statut)
+	if status != http.StatusOK {
+		t.Fatalf("statut = %d, attendu 200", status)
 	}
-	if annonce != int64(len(corps)) {
-		t.Fatalf("annonce = %d, attendu %d", annonce, len(corps))
+	if announcedSize != int64(len(body)) {
+		t.Fatalf("annonce = %d, attendu %d", announcedSize, len(body))
 	}
-	if got := contenu(t, tmp); string(got) != string(corps) {
-		t.Fatalf("contenu reçu différent (%d octets, attendu %d)", len(got), len(corps))
+	if got := content(t, tmp); string(got) != string(body) {
+		t.Fatalf("contenu reçu différent (%d octets, attendu %d)", len(got), len(body))
 	}
 }
 
-func TestTelechargerCorpsCoupureEtReprise(t *testing.T) {
-	corps := corpsAttendu(10000)
-	seuil := 4000 // la première réponse s'arrête net après ce nombre d'octets
-	var tentatives int
-	var rangeRecue string
+func TestDownloadBodyInterruptionAndResume(t *testing.T) {
+	body := expectedBody(10000)
+	threshold := 4000 // la première réponse s'arrête net après ce nombre d'octets
+	var attempts int
+	var receivedRange string
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tentatives++
-		if tentatives == 1 {
+		attempts++
+		if attempts == 1 {
 			// Coupure en cours de corps : Content-Length annoncé pour la
 			// taille complète, mais la connexion ferme après seuil octets —
 			// io.Copy doit voir une erreur, pas une fin de flux propre.
-			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(corps)))
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
 			w.WriteHeader(http.StatusOK)
-			w.Write(corps[:seuil])
+			w.Write(body[:threshold])
 			if f, ok := w.(http.Flusher); ok {
 				f.Flush()
 			}
@@ -92,52 +92,52 @@ func TestTelechargerCorpsCoupureEtReprise(t *testing.T) {
 			}
 			return
 		}
-		rangeRecue = r.Header.Get("Range")
-		rang := r.Header.Get("Range")
-		if rang == "" {
-			w.Write(corps)
+		receivedRange = r.Header.Get("Range")
+		rangeHeader := r.Header.Get("Range")
+		if rangeHeader == "" {
+			w.Write(body)
 			return
 		}
-		var debut int
-		fmt.Sscanf(rang, "bytes=%d-", &debut)
-		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", debut, len(corps)-1, len(corps)))
+		var start int
+		fmt.Sscanf(rangeHeader, "bytes=%d-", &start)
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, len(body)-1, len(body)))
 		w.WriteHeader(http.StatusPartialContent)
-		w.Write(corps[debut:])
+		w.Write(body[start:])
 	}))
 	defer srv.Close()
 
-	tmp := fichierTemp(t)
+	tmp := tempFile(t)
 	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
-	statut, _, annonce, err := telechargerCorps(context.Background(), srv.Client(), req, tmp)
+	status, _, announcedSize, err := downloadBody(context.Background(), srv.Client(), req, tmp)
 	if err != nil {
 		t.Fatalf("inattendu : %v", err)
 	}
-	if statut != http.StatusPartialContent {
-		t.Fatalf("statut final = %d, attendu 206 (reprise)", statut)
+	if status != http.StatusPartialContent {
+		t.Fatalf("statut final = %d, attendu 206 (reprise)", status)
 	}
-	if annonce != int64(len(corps)) {
-		t.Fatalf("annonce = %d, attendu %d", annonce, len(corps))
+	if announcedSize != int64(len(body)) {
+		t.Fatalf("annonce = %d, attendu %d", announcedSize, len(body))
 	}
-	if rangeRecue != fmt.Sprintf("bytes=%d-", seuil) {
-		t.Fatalf("Range reçu = %q, attendu bytes=%d-", rangeRecue, seuil)
+	if receivedRange != fmt.Sprintf("bytes=%d-", threshold) {
+		t.Fatalf("Range reçu = %q, attendu bytes=%d-", receivedRange, threshold)
 	}
-	if got := contenu(t, tmp); string(got) != string(corps) {
-		t.Fatalf("contenu assemblé différent (%d octets, attendu %d) — doublon ou trou possible", len(got), len(corps))
+	if got := content(t, tmp); string(got) != string(body) {
+		t.Fatalf("contenu assemblé différent (%d octets, attendu %d) — doublon ou trou possible", len(got), len(body))
 	}
-	if tentatives != 2 {
-		t.Fatalf("tentatives = %d, attendu 2", tentatives)
+	if attempts != 2 {
+		t.Fatalf("tentatives = %d, attendu 2", attempts)
 	}
 }
 
-func TestTelechargerCorpsRangeIgnoreRedemarre(t *testing.T) {
-	corps := corpsAttendu(3000)
-	var tentatives int
+func TestDownloadBodyRangeIgnoredRestarts(t *testing.T) {
+	body := expectedBody(3000)
+	var attempts int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tentatives++
-		if tentatives == 1 {
-			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(corps)))
+		attempts++
+		if attempts == 1 {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
 			w.WriteHeader(http.StatusOK)
-			w.Write(corps[:1000])
+			w.Write(body[:1000])
 			if hj, ok := w.(http.Hijacker); ok {
 				conn, _, err := hj.Hijack()
 				if err == nil {
@@ -147,136 +147,136 @@ func TestTelechargerCorpsRangeIgnoreRedemarre(t *testing.T) {
 			return
 		}
 		// Un serveur qui ignore Range et renvoie TOUJOURS 200 complet.
-		w.Write(corps)
+		w.Write(body)
 	}))
 	defer srv.Close()
 
-	tmp := fichierTemp(t)
+	tmp := tempFile(t)
 	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
-	statut, _, _, err := telechargerCorps(context.Background(), srv.Client(), req, tmp)
+	status, _, _, err := downloadBody(context.Background(), srv.Client(), req, tmp)
 	if err != nil {
 		t.Fatalf("inattendu : %v", err)
 	}
-	if statut != http.StatusOK {
-		t.Fatalf("statut = %d, attendu 200", statut)
+	if status != http.StatusOK {
+		t.Fatalf("statut = %d, attendu 200", status)
 	}
-	got := contenu(t, tmp)
-	if string(got) != string(corps) {
-		t.Fatalf("contenu = %d octets, attendu %d (pas de doublon après redémarrage)", len(got), len(corps))
+	got := content(t, tmp)
+	if string(got) != string(body) {
+		t.Fatalf("contenu = %d octets, attendu %d (pas de doublon après redémarrage)", len(got), len(body))
 	}
 }
 
-func TestTelechargerCorps502PuisSucces(t *testing.T) {
-	corps := corpsAttendu(500)
-	var tentatives int
+func TestDownloadBody502ThenSuccess(t *testing.T) {
+	body := expectedBody(500)
+	var attempts int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tentatives++
-		if tentatives == 1 {
+		attempts++
+		if attempts == 1 {
 			w.WriteHeader(http.StatusBadGateway)
 			return
 		}
-		w.Write(corps)
+		w.Write(body)
 	}))
 	defer srv.Close()
 
-	tmp := fichierTemp(t)
+	tmp := tempFile(t)
 	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
-	statut, _, _, err := telechargerCorps(context.Background(), srv.Client(), req, tmp)
+	status, _, _, err := downloadBody(context.Background(), srv.Client(), req, tmp)
 	if err != nil {
 		t.Fatalf("inattendu : %v", err)
 	}
-	if statut != http.StatusOK {
-		t.Fatalf("statut = %d, attendu 200 après reprise sur 502", statut)
+	if status != http.StatusOK {
+		t.Fatalf("statut = %d, attendu 200 après reprise sur 502", status)
 	}
-	if got := contenu(t, tmp); string(got) != string(corps) {
+	if got := content(t, tmp); string(got) != string(body) {
 		t.Fatalf("contenu différent après reprise sur 502")
 	}
-	if tentatives != 2 {
-		t.Fatalf("tentatives = %d, attendu 2 (502 puis succès)", tentatives)
+	if attempts != 2 {
+		t.Fatalf("tentatives = %d, attendu 2 (502 puis succès)", attempts)
 	}
 }
 
-func TestTelechargerCorps404PasDeReprise(t *testing.T) {
-	var tentatives int
+func TestDownloadBody404NoRetry(t *testing.T) {
+	var attempts int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tentatives++
+		attempts++
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	defer srv.Close()
 
-	tmp := fichierTemp(t)
+	tmp := tempFile(t)
 	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
-	statut, _, _, err := telechargerCorps(context.Background(), srv.Client(), req, tmp)
+	status, _, _, err := downloadBody(context.Background(), srv.Client(), req, tmp)
 	if err != nil {
 		t.Fatalf("inattendu : %v", err)
 	}
-	if statut != http.StatusNotFound {
-		t.Fatalf("statut = %d, attendu 404", statut)
+	if status != http.StatusNotFound {
+		t.Fatalf("statut = %d, attendu 404", status)
 	}
-	if tentatives != 1 {
-		t.Fatalf("tentatives = %d, attendu 1 (un 404 ne se retente jamais)", tentatives)
+	if attempts != 1 {
+		t.Fatalf("tentatives = %d, attendu 1 (un 404 ne se retente jamais)", attempts)
 	}
 }
 
-func TestTelechargerCorps429RetryAfter(t *testing.T) {
-	corps := corpsAttendu(200)
-	var tentatives int
+func TestDownloadBody429RetryAfter(t *testing.T) {
+	body := expectedBody(200)
+	var attempts int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tentatives++
-		if tentatives == 1 {
+		attempts++
+		if attempts == 1 {
 			w.Header().Set("Retry-After", "0")
 			w.WriteHeader(http.StatusTooManyRequests)
 			return
 		}
-		w.Write(corps)
+		w.Write(body)
 	}))
 	defer srv.Close()
 
-	tmp := fichierTemp(t)
+	tmp := tempFile(t)
 	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
-	statut, _, _, err := telechargerCorps(context.Background(), srv.Client(), req, tmp)
+	status, _, _, err := downloadBody(context.Background(), srv.Client(), req, tmp)
 	if err != nil {
 		t.Fatalf("inattendu : %v", err)
 	}
-	if statut != http.StatusOK {
-		t.Fatalf("statut = %d, attendu 200 après 429", statut)
+	if status != http.StatusOK {
+		t.Fatalf("statut = %d, attendu 200 après 429", status)
 	}
-	if tentatives != 2 {
-		t.Fatalf("tentatives = %d, attendu 2", tentatives)
+	if attempts != 2 {
+		t.Fatalf("tentatives = %d, attendu 2", attempts)
 	}
 }
 
-func TestTotalDepuisContentRange(t *testing.T) {
-	cas := []struct {
-		entete  string
-		attendu int64
+func TestTotalFromContentRange(t *testing.T) {
+	cases := []struct {
+		header   string
+		expected int64
 	}{
 		{"bytes 0-100/310464306", 310464306},
 		{"bytes 500-999/*", -1},
 		{"", -1},
 		{"n'importe quoi", -1},
 	}
-	for _, c := range cas {
-		if got := totalDepuisContentRange(c.entete); got != c.attendu {
-			t.Errorf("totalDepuisContentRange(%q) = %d, attendu %d", c.entete, got, c.attendu)
+	for _, c := range cases {
+		if got := totalFromContentRange(c.header); got != c.expected {
+			t.Errorf("totalDepuisContentRange(%q) = %d, attendu %d", c.header, got, c.expected)
 		}
 	}
 }
 
-func TestEmpreinteApresReprise(t *testing.T) {
+func TestChecksumAfterResume(t *testing.T) {
 	// Vérifie que le SHA256 recalculé après coup (fetchOnce) correspond
 	// bien au contenu assemblé par plusieurs tentatives, pas seulement que
 	// les octets sont corrects : la régression la plus probable d'un
 	// hachage "recollé" entre tentatives serait une empreinte fausse sur un
 	// contenu par ailleurs correct.
-	corps := corpsAttendu(8000)
-	var tentatives int
+	body := expectedBody(8000)
+	var attempts int
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tentatives++
-		if tentatives == 1 {
-			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(corps)))
+		attempts++
+		if attempts == 1 {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
 			w.WriteHeader(http.StatusOK)
-			w.Write(corps[:3000])
+			w.Write(body[:3000])
 			if hj, ok := w.(http.Hijacker); ok {
 				conn, _, err := hj.Hijack()
 				if err == nil {
@@ -285,18 +285,18 @@ func TestEmpreinteApresReprise(t *testing.T) {
 			}
 			return
 		}
-		rang := r.Header.Get("Range")
-		var debut int
-		fmt.Sscanf(rang, "bytes=%d-", &debut)
-		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", debut, len(corps)-1, len(corps)))
+		rangeHeader := r.Header.Get("Range")
+		var start int
+		fmt.Sscanf(rangeHeader, "bytes=%d-", &start)
+		w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, len(body)-1, len(body)))
 		w.WriteHeader(http.StatusPartialContent)
-		w.Write(corps[debut:])
+		w.Write(body[start:])
 	}))
 	defer srv.Close()
 
-	tmp := fichierTemp(t)
+	tmp := tempFile(t)
 	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
-	if _, _, _, err := telechargerCorps(context.Background(), srv.Client(), req, tmp); err != nil {
+	if _, _, _, err := downloadBody(context.Background(), srv.Client(), req, tmp); err != nil {
 		t.Fatalf("inattendu : %v", err)
 	}
 	if _, err := tmp.Seek(0, io.SeekStart); err != nil {
@@ -307,8 +307,8 @@ func TestEmpreinteApresReprise(t *testing.T) {
 		t.Fatal(err)
 	}
 	got := hex.EncodeToString(h.Sum(nil))
-	attendu := sha256.Sum256(corps)
-	if got != hex.EncodeToString(attendu[:]) {
-		t.Fatalf("empreinte = %s, attendue %s", got, hex.EncodeToString(attendu[:]))
+	expected := sha256.Sum256(body)
+	if got != hex.EncodeToString(expected[:]) {
+		t.Fatalf("empreinte = %s, attendue %s", got, hex.EncodeToString(expected[:]))
 	}
 }

@@ -24,7 +24,7 @@ import (
 var SourceCertificationHAS = archive.Source{
 	Slug: "has-certification-etablissements", Label: "HAS — certification des établissements de santé (6e cycle)",
 	Publisher: "Haute Autorité de Santé", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : HAS, data.gouv.fr",
 	Cadence:     "continue (au fil des visites de certification)",
 	Notes: "Seul le 6e cycle (référentiel 2025-) est chargé, pas les cycles antérieurs " +

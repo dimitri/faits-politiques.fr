@@ -32,7 +32,7 @@ const ConnectorVersion = "associations-v1"
 var Source = archive.Source{
 	Slug: "rna", Label: "Répertoire national des associations",
 	Publisher: "Ministère de l'Intérieur", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Répertoire national des associations, ministère de l'Intérieur",
 	Cadence:     "mensuelle",

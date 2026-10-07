@@ -16,7 +16,7 @@ import (
 var SourceMuseesFrance = archive.Source{
 	Slug: "museofile", Label: "Répertoire des Musées de France (Muséofile)",
 	Publisher: "Ministère de la Culture", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de la Culture, data.culture.gouv.fr",
 	Cadence:     "hebdomadaire",
 }

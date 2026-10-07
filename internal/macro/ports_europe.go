@@ -13,7 +13,7 @@ import (
 var SourceTraficPortuaireEurope = archive.Source{
 	Slug: "eurostat-mar-go-aa", Label: "Eurostat, mar_go_aa — trafic portuaire, six ports nommés",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Eurostat (réutilisation libre avec attribution)", ReuseClass: "OPEN",
+	License: "Eurostat (réutilisation libre avec attribution)", ReuseClass: "OPEN",
 	Attribution: "Source : Eurostat, mar_go_aa",
 	Cadence:     "annuelle",
 	Notes: "Six ports nommés (France, rang nord-européen), pas tous les ports du continent — " +

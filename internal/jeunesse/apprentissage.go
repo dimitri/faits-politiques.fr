@@ -24,7 +24,7 @@ var SourceInserJeunes = archive.Source{
 	Slug: "depp-inserjeunes-apprentissage", Label: "DEPP — InserJeunes, insertion des apprentis par CFA",
 	Publisher: "Direction de l'évaluation, de la prospective et de la performance (DEPP)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte", ReuseClass: "OPEN",
+	License:   "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : DEPP, enquête InserJeunes",
 	Cadence:     "annuelle",
 	Notes: "Six promotions cumulées (2018-2019 à 2023-2024), par CFA et niveau de formation. Aucun " +

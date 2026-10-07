@@ -27,7 +27,7 @@ import (
 var SourceCommerceExtraUE = archive.Source{
 	Slug: "eurostat-commerce-extra-ue", Label: "Eurostat — commerce extra-UE (biens), exportations et importations",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat, ext_lt_maineu",
 	Cadence:     "annuelle",
 	Notes: "Commerce de BIENS uniquement (SITC, total), UE27 avec le reste du monde (partenaire " +

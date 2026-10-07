@@ -22,7 +22,7 @@ import (
 var SourceParametresIS = archive.Source{
 	Slug: "parametres-impot-societes", Label: "Impôt sur les sociétés : taux normal, contribution sociale, contribution exceptionnelle 2025",
 	Publisher: "Direction générale des finances publiques (BOFiP)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Contenu public de l'administration fiscale, cité avec lien", ReuseClass: "ATTRIBUTION",
+	License: "Contenu public de l'administration fiscale, cité avec lien", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : BOFiP-Impôts ; code général des impôts, art. 219 et 235 ter ZC ; loi de finances pour 2025, art. 48",
 	Cadence:     "à chaque loi de finances",
 	Notes: "Taux du droit commun, sans régimes particuliers (PME, plus-values à long terme, régime " +
@@ -34,7 +34,7 @@ var SourceParametresIS = archive.Source{
 var SourceCbCRPublics = archive.Source{
 	Slug: "cbcr-publics-groupes", Label: "Déclarations pays par pays publiées par les groupes (directive (UE) 2021/2101)",
 	Publisher: "Les groupes concernés", Tier: "DECLARATIVE",
-	Licence: "Publication légale obligatoire, reprise avec attribution", ReuseClass: "ATTRIBUTION",
+	License: "Publication légale obligatoire, reprise avec attribution", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : rapports publics sur les informations relatives à l'impôt sur les revenus des sociétés, publiés par chaque groupe",
 	Cadence:     "annuelle, dans les 12 mois suivant la clôture",
 	Notes: "Premiers rapports pour les exercices ouverts à compter du 22 juin 2024 : publiés à partir de " +
@@ -47,7 +47,7 @@ var SourceCbCRPublics = archive.Source{
 var SourceSEC = archive.Source{
 	Slug: "sec-xbrl-companyfacts", Label: "SEC EDGAR — données XBRL des rapports annuels (10-K) des groupes cotés aux États-Unis",
 	Publisher: "U.S. Securities and Exchange Commission", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Domaine public (données du gouvernement fédéral américain)", ReuseClass: "OPEN",
+	License: "Domaine public (données du gouvernement fédéral américain)", ReuseClass: "OPEN",
 	Attribution: "Source : SEC EDGAR, API XBRL « companyfacts »",
 	Cadence:     "à chaque dépôt",
 	Notes: "Les rapports annuels américains ne ventilent pas l'impôt par pays : ils séparent le bénéfice " +

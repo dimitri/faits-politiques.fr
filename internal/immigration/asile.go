@@ -18,7 +18,7 @@ import (
 var SourceAsileOFPRA = archive.Source{
 	Slug: "ofpra-demandes-asile", Label: "Ofpra — demandes d'asile et de statut d'apatride",
 	Publisher: "Office français de protection des réfugiés et apatrides", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Ofpra",
 	Cadence:     "annuelle",
 	Notes: "Les demandes comptées par l'Ofpra ne correspondent PAS au total des demandes " +

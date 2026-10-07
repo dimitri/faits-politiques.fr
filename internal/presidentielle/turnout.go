@@ -21,7 +21,7 @@ var SourceTurnout = archive.Source{
 	Slug: "idea-voter-turnout", Label: "International IDEA — Voter Turnout Database",
 	Publisher: "International Institute for Democracy and Electoral Assistance",
 	Tier:      "SECONDARY_PRESS",
-	Licence:   "non publiée",
+	License:   "non publiée",
 	// Les données IDEA ne portant pas de licence, elles restent hors export.
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : International IDEA, Voter Turnout Database",

@@ -32,7 +32,7 @@ import (
 var SourceTAM = archive.Source{
 	Slug: "ue-tam-aides-etat-france", Label: "Commission européenne — registre de transparence des aides d'État (TAM), France",
 	Publisher: "Commission européenne, DG Concurrence (données déclarées par les autorités françaises)", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Avis de réutilisation de la Commission européenne : réutilisation avec mention de la source",
+	License:     "Avis de réutilisation de la Commission européenne : réutilisation avec mention de la source",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Commission européenne, State Aid Transparency Public Search",
 	Cadence:     "continue (publication dans les 6 à 12 mois suivant l'octroi)",

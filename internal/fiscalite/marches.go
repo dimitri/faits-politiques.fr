@@ -16,7 +16,7 @@ var SourceDECP = archive.Source{
 	Slug: "decp-consolidees", Label: "Données essentielles de la commande publique, consolidées (format tabulaire)",
 	Publisher: "Acheteurs publics (arrêtés du 22 mars 2019 et du 22 décembre 2022), consolidation Colibre / decp.info",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : données essentielles de la commande publique, consolidées par decp.info (data.gouv.fr)",
 	Cadence:     "quotidienne",
 	Notes: "Données déclarées par chaque acheteur au moment de l'attribution ; consolidation de plusieurs " +

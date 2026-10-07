@@ -15,7 +15,7 @@ import (
 var SourceEuropeGuerre1940 = archive.Source{
 	Slug: "cshapes-europe-1940", Label: "CShapes 2.0 — frontières de l'Europe au 1ᵉʳ septembre 1940",
 	Publisher: "ETH Zürich (International Conflict Research)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "CC BY-NC-SA 4.0", ReuseClass: "OPEN",
+	License: "CC BY-NC-SA 4.0", ReuseClass: "OPEN",
 	Attribution: "Source : CShapes 2.0, icr.ethz.ch/data/cshapes",
 	Cadence:     "ponctuelle",
 	Notes: "Une seule coupe temporelle du panel CShapes (voir aussi " +

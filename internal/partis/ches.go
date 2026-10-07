@@ -24,7 +24,7 @@ import (
 var SourceCHES = archive.Source{
 	Slug: "ches-2024", Label: "Chapel Hill Expert Survey 2024",
 	Publisher: "Chapel Hill Expert Survey", Tier: "SECONDARY_PRESS",
-	Licence:     "Aucune licence explicite publiée ; citation exigée",
+	License:     "Aucune licence explicite publiée ; citation exigée",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : 2024 Chapel Hill Expert Survey (Jolly, Bakker, Hooghe, Marks, Polk, Rovny, Steenbergen, Vachudova)",
 	Cadence:     "par vague, environ tous les quatre ans",
@@ -38,7 +38,7 @@ const CHESURL = "https://github.com/chesdata/chesdata.github.io/releases/downloa
 // récupérer — voir DownloadTargets, qui les réunit avec celles des deux
 // autres connecteurs du paquet.
 func CHESDownloadTargets() []archive.DownloadTarget {
-	return []archive.DownloadTarget{{Nom: "ches", Source: SourceCHES, URL: CHESURL, Ext: ".csv"}}
+	return []archive.DownloadTarget{{Name: "ches", Source: SourceCHES, URL: CHESURL, Ext: ".csv"}}
 }
 
 // DownloadTargets liste toutes les URL que ingestPartis récupère (comptes de

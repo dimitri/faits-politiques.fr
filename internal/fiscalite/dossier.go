@@ -16,7 +16,7 @@ var SourceFaitsMultinationales = archive.Source{
 	Slug: "faits-multinationales", Label: "Contrats publics, règlements fiscaux et constats d'enquête concernant des multinationales",
 	Publisher:   "Sénat, Assemblée nationale, Conseil d'État, Agence française anticorruption, ministère de l'Économie ; presse et communiqués d'entreprise, signalés comme tels",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Documents publics des institutions, cités avec lien ; articles de presse cités sans reproduction",
+	License:     "Documents publics des institutions, cités avec lien ; articles de presse cités sans reproduction",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Sources citées fait par fait (colonne source_url)",
 	Cadence:     "au fil des faits",

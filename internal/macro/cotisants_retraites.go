@@ -16,7 +16,7 @@ import (
 var SourceCotisantsRetraites = archive.Source{
 	Slug: "insee-cotisants-retraites-ratio", Label: "Insee — cotisants, retraités et rapport démographique",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees (EACR, EIR, modèle ANCETRE) ; Insee, comptes nationaux",
 	Cadence:     "annuelle",
 	Notes: "Rupture de série en 2020 : les effectifs de retraités résidant à l'étranger " +

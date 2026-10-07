@@ -24,7 +24,7 @@ const ConnectorVersionInvestissement = "entreprises-investissement-v1"
 var SourceComptesSNF = archive.Source{
 	Slug: "insee-bdm-comptes-snf", Label: "Insee — comptes des sociétés non financières (BDM)",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Insee, comptes nationaux trimestriels, sociétés non financières",
 	Cadence:     "trimestrielle",
@@ -38,7 +38,7 @@ var SourceComptesSNF = archive.Source{
 var SourceEsaneCategorie = archive.Source{
 	Slug: "insee-esane-categorie-entreprise", Label: "Insee — Ésane, le tissu productif par catégorie d'entreprise",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Insee, Ésane, Insee Focus « Le tissu productif français par catégorie d'entreprises »",
 	Cadence:     "annuelle",

@@ -24,7 +24,7 @@ var SourceAPA = archive.Source{
 	Slug: "drees-apa-domicile", Label: "DREES — APA à domicile, bénéficiaires et dépenses",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques (DREES)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte", ReuseClass: "OPEN",
+	License:   "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : DREES, enquête Aide sociale",
 	Cadence:     "annuelle",
 	Notes: "France métropolitaine et DROM, hors Mayotte. Rupture de périmètre en 2017 (avant : " +

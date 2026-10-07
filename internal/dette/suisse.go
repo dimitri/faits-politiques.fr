@@ -25,7 +25,7 @@ import (
 var SourceAFF = archive.Source{
 	Slug: "aff-statistique-financiere", Label: "AFF — statistique financière de la Suisse (bilans et indicateurs)",
 	Publisher: "Administration fédérale des finances (Suisse)", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Open Government Data Suisse : utilisation libre avec indication de la source",
+	License:     "Open Government Data Suisse : utilisation libre avec indication de la source",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Administration fédérale des finances, statistique financière",
 	Cadence:     "annuelle (fin août)",
@@ -37,7 +37,7 @@ var SourceAFF = archive.Source{
 var SourceBNS = archive.Source{
 	Slug: "bns-rendements-obligataires", Label: "BNS — rendements des obligations de la Confédération",
 	Publisher: "Banque nationale suisse", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Conditions de data.snb.ch : utilisation libre avec indication de la source",
+	License:     "Conditions de data.snb.ch : utilisation libre avec indication de la source",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Banque nationale suisse, cube rendoblim",
 	Cadence:     "mensuelle (en principe)",

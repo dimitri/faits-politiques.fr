@@ -30,7 +30,7 @@ var SourceOFGL = archive.Source{
 	Slug: "ofgl-communes", Label: "OFGL — comptes des communes",
 	Publisher:  "Observatoire des finances et de la gestion publique locales",
 	Tier:       "PRIMARY_OFFICIAL",
-	Licence:    "Licence Ouverte v2.0",
+	License:    "Licence Ouverte v2.0",
 	ReuseClass: "OPEN",
 	Attribution: "Source : OFGL (Observatoire des finances et de la gestion publique locales), " +
 		"d'après les comptes de gestion de la DGFiP",

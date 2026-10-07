@@ -27,7 +27,7 @@ import (
 var SourceSenateurs = archive.Source{
 	Slug: "senat-senateurs", Label: "Sénat — répertoire des sénateurs",
 	Publisher: "Sénat", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Sénat, base Sénateurs (data.senat.fr)",
 	Cadence:     "continue",

@@ -29,40 +29,40 @@ func DownloadTargets() []archive.DownloadTarget {
 
 	for _, m := range MillesimesCOG {
 		out = append(out,
-			archive.DownloadTarget{Nom: fmt.Sprintf("communes-cog-communes-%d", m.Annee), Source: SourceCOG, URL: m.CommunesURL, Ext: ".csv"},
-			archive.DownloadTarget{Nom: fmt.Sprintf("communes-cog-mouvements-%d", m.Annee), Source: SourceCOG, URL: m.MvtURL, Ext: ".csv"},
+			archive.DownloadTarget{Name: fmt.Sprintf("communes-cog-communes-%d", m.Annee), Source: SourceCOG, URL: m.CommunesURL, Ext: ".csv"},
+			archive.DownloadTarget{Name: fmt.Sprintf("communes-cog-mouvements-%d", m.Annee), Source: SourceCOG, URL: m.MvtURL, Ext: ".csv"},
 		)
 	}
 
 	for i, f := range rneFichiers {
 		out = append(out, archive.DownloadTarget{
-			Nom: fmt.Sprintf("communes-rne-%d", i), Source: SourceRNE, URL: f.url, Ext: ".csv",
+			Name: fmt.Sprintf("communes-rne-%d", i), Source: SourceRNE, URL: f.url, Ext: ".csv",
 		})
 	}
 
 	out = append(out,
-		archive.DownloadTarget{Nom: "communes-municipales-t1", Source: SourceMunicipales, URL: municipalesT1URL, Ext: ".csv"},
-		archive.DownloadTarget{Nom: "communes-municipales-t2", Source: SourceMunicipales, URL: municipalesT2URL, Ext: ".csv"},
-		archive.DownloadTarget{Nom: "communes-municipales2020-t1", Source: SourceMunicipales2020, URL: m2020T1URL, Ext: ".txt"},
-		archive.DownloadTarget{Nom: "communes-municipales2020-t2", Source: SourceMunicipales2020, URL: m2020T2URL, Ext: ".txt"},
+		archive.DownloadTarget{Name: "communes-municipales-t1", Source: SourceMunicipales, URL: municipalesT1URL, Ext: ".csv"},
+		archive.DownloadTarget{Name: "communes-municipales-t2", Source: SourceMunicipales, URL: municipalesT2URL, Ext: ".csv"},
+		archive.DownloadTarget{Name: "communes-municipales2020-t1", Source: SourceMunicipales2020, URL: m2020T1URL, Ext: ".txt"},
+		archive.DownloadTarget{Name: "communes-municipales2020-t2", Source: SourceMunicipales2020, URL: m2020T2URL, Ext: ".txt"},
 	)
 
 	for ex := ofglPremierExercice; ex <= ofglDernierExercice; ex++ {
 		out = append(out, archive.DownloadTarget{
-			Nom: fmt.Sprintf("communes-ofgl-%d", ex), Source: SourceOFGL, URL: ofglURL(ex), Ext: ".csv",
+			Name: fmt.Sprintf("communes-ofgl-%d", ex), Source: SourceOFGL, URL: ofglURL(ex), Ext: ".csv",
 		})
 	}
 
 	out = append(out,
-		archive.DownloadTarget{Nom: "communes-banatic-competences", Source: SourceBANATIC, URL: banaticCompetenceURL, Ext: ".json"},
-		archive.DownloadTarget{Nom: "communes-banatic-export", Source: SourceBANATIC, URL: banaticExportURL, Ext: ".xlsx"},
-		archive.DownloadTarget{Nom: "communes-banatic-correspondance-siren", Source: SourceBANATIC, URL: banaticCorrespondanceSirenURL(), Ext: ".csv"},
+		archive.DownloadTarget{Name: "communes-banatic-competences", Source: SourceBANATIC, URL: banaticCompetenceURL, Ext: ".json"},
+		archive.DownloadTarget{Name: "communes-banatic-export", Source: SourceBANATIC, URL: banaticExportURL, Ext: ".xlsx"},
+		archive.DownloadTarget{Name: "communes-banatic-correspondance-siren", Source: SourceBANATIC, URL: banaticCorrespondanceSirenURL(), Ext: ".csv"},
 	)
 
 	for _, n := range niveaux {
 		for ex := ofglPremierExercice; ex <= ofglDernierExercice; ex++ {
 			out = append(out, archive.DownloadTarget{
-				Nom: fmt.Sprintf("communes-collectivites-%s-%d", n.niveau, ex), Source: SourceOFGL, URL: collectivitesURL(n, ex), Ext: ".csv",
+				Name: fmt.Sprintf("communes-collectivites-%s-%d", n.niveau, ex), Source: SourceOFGL, URL: collectivitesURL(n, ex), Ext: ".csv",
 			})
 		}
 	}
@@ -73,7 +73,7 @@ func DownloadTargets() []archive.DownloadTarget {
 	// chaîne (catalogue.go), prêtant à confusion dans les logs (deux lignes
 	// "communes-ssmsi : terminé en" sans rapport l'une avec l'autre, l'une
 	// pour la récupération, l'autre pour le traitement).
-	out = append(out, archive.DownloadTarget{Nom: "communes-ssmsi-fetch", Source: SourceSSMSI, URL: ssmsiURL, Ext: ".csv.gz"})
+	out = append(out, archive.DownloadTarget{Name: "communes-ssmsi-fetch", Source: SourceSSMSI, URL: ssmsiURL, Ext: ".csv.gz"})
 
 	return out
 }

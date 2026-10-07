@@ -16,7 +16,7 @@ var SourceANSSI = archive.Source{
 	Slug: "anssi-catalogue-qualifications", Label: "ANSSI — catalogue des produits et services certifiés, qualifiés et agréés",
 	Publisher:   "Agence nationale de la sécurité des systèmes d'information",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Document public de l'ANSSI, cité avec lien",
+	License:     "Document public de l'ANSSI, cité avec lien",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : ANSSI, catalogue des produits et services qualifiés",
 	Cadence:     "mise à jour continue (date imprimée sur le catalogue)",

@@ -28,7 +28,7 @@ import (
 var SourceFMI = archive.Source{
 	Slug: "fmi-weo-dette", Label: "FMI — World Economic Outlook, dette et solde des administrations publiques",
 	Publisher: "Fonds monétaire international", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Conditions d'utilisation du FMI (imf.org/external/terms.htm) : données réutilisables avec mention de la source ; usage commercial à confirmer",
+	License:     "Conditions d'utilisation du FMI (imf.org/external/terms.htm) : données réutilisables avec mention de la source ; usage commercial à confirmer",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : FMI, World Economic Outlook",
 	Cadence:     "semestrielle (avril, octobre)",

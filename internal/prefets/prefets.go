@@ -31,7 +31,7 @@ const bom = "\ufeff"
 var Source = archive.Source{
 	Slug: "prefets-archives-nationales", Label: "Préfets et préfètes français depuis 1800",
 	Publisher: "Ministère de la Culture / Archives nationales", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Archives nationales, préfets et préfètes français depuis 1800",
 	Cadence:     "irrégulière",

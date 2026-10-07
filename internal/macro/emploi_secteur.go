@@ -15,7 +15,7 @@ import (
 var SourceEmploiSecteurNACE = archive.Source{
 	Slug: "eurostat-emploi-secteur-nace", Label: "Eurostat — emploi intérieur total par branche d'activité (NACE Rév. 2)",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat, nama_10_a10_e",
 	Cadence:     "annuelle",
 	Notes: "Nomenclature A10 : la branche C (industrie manufacturière) est une SOUS-catégorie " +

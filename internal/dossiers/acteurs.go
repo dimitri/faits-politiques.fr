@@ -15,7 +15,7 @@ var SourceActeursNumeriques = archive.Source{
 	Slug: "acteurs-numeriques-francais", Label: "Acteurs français du numérique nommés par le dossier souveraineté",
 	Publisher:   "Répertoire Sirene (Insee), catalogue de l'ANSSI, sites des organismes cités",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Sirene : licence ouverte ; pages d'organismes citées sans reproduction",
+	License:     "Sirene : licence ouverte ; pages d'organismes citées sans reproduction",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Fondement cité acteur par acteur (colonne source_url)",
 	Cadence:     "au fil du dossier",

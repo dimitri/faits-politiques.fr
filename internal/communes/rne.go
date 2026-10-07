@@ -18,7 +18,7 @@ import (
 var SourceRNE = archive.Source{
 	Slug: "rne", Label: "Répertoire national des élus",
 	Publisher: "Ministère de l'Intérieur / DILA", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Répertoire national des élus, ministère de l'Intérieur",
 	Cadence:     "trimestrielle",

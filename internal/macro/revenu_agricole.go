@@ -13,7 +13,7 @@ import (
 var SourceRevenuAgricole = archive.Source{
 	Slug: "eurostat-aact-eaa06", Label: "Eurostat, aact_eaa06 — revenu agricole réel par unité de travail",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Eurostat (réutilisation libre avec attribution)", ReuseClass: "OPEN",
+	License: "Eurostat (réutilisation libre avec attribution)", ReuseClass: "OPEN",
 	Attribution: "Source : Eurostat, aact_eaa06",
 	Cadence:     "annuelle",
 	Notes: "RFI_AWU_CLV, unité CLV15_EUR_AWU : le revenu réel des facteurs de production en agriculture " +

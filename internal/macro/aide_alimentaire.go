@@ -21,7 +21,7 @@ var SourceAideAlimentaire = archive.Source{
 	Slug: "drees-aide-alimentaire", Label: "Drees — dispositif de suivi de l'aide alimentaire en France",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee-Drees, dispositif de suivi de l'aide alimentaire en France",
 	Cadence:     "trimestrielle (au moment de la collecte)",
 	Notes: "Dernière édition publiée par la Drees : juillet 2021, données arrêtées en 2021 " +

@@ -28,7 +28,7 @@ const ConnectorVersionAides = "eau-aides-v1"
 var SourceAidesLoireBretagne = archive.Source{
 	Slug: "aides-agence-eau-loire-bretagne", Label: "Agence de l'eau Loire-Bretagne — décisions d'aide (11e et 12e programmes)",
 	Publisher: "Agence de l'eau Loire-Bretagne", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Agence de l'eau Loire-Bretagne",
 	Cadence:     "mise à jour irrégulière (liste cumulative arrêtée à une date)",
 	Notes: "10e programme (2013-2018) non chargé : chaque année a son propre jeu de colonnes " +
@@ -42,7 +42,7 @@ var SourceAidesLoireBretagne = archive.Source{
 var SourceAidesArtoisPicardie = archive.Source{
 	Slug: "aides-agence-eau-artois-picardie", Label: "Agence de l'eau Artois-Picardie — conventions de subvention",
 	Publisher: "Agence de l'eau Artois-Picardie", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Agence de l'eau Artois-Picardie",
 	Cadence:     "continue (publication réglementaire, décret n° 2017-779)",
 }
@@ -55,7 +55,7 @@ var SourceAidesArtoisPicardie = archive.Source{
 var SourceAidesRhinMeuse = archive.Source{
 	Slug: "aides-agence-eau-rhin-meuse", Label: "Agence de l'eau Rhin-Meuse — bilan des aides accordées",
 	Publisher: "Agence de l'eau Rhin-Meuse", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Agence de l'eau Rhin-Meuse",
 	Cadence:     "mise à jour irrégulière (bilan cumulatif republié à une date)",
 	Notes: "Ni date de décision ni SIRET du bénéficiaire ne sont publiés dans ce fichier " +

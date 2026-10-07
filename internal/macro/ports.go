@@ -15,7 +15,7 @@ import (
 var SourceTraficPortuaire = archive.Source{
 	Slug: "sdes-trafic-portuaire", Label: "Trafic maritime de marchandises par port français",
 	Publisher: "SDES (ministère de la Transition écologique)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte 2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte 2.0", ReuseClass: "OPEN",
 	Attribution: "Source : SDES, data.statistiques.developpement-durable.gouv.fr",
 	Cadence:     "annuelle",
 }

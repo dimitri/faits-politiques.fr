@@ -19,7 +19,7 @@ var SourceSecteurConventionnel = archive.Source{
 	Slug: "ameli-secteurs-conventionnels", Label: "Ameli — professionnels de santé libéraux par secteur conventionnel",
 	Publisher: "Caisse nationale de l'Assurance Maladie (Cnam)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Cnam, data.ameli.fr",
 	Cadence:     "annuelle",
 	Notes: "Toutes les professions de santé libérales sont chargées, pas seulement les " +

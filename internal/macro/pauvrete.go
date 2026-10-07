@@ -17,7 +17,7 @@ import (
 var SourcePauvreteINSEE = archive.Source{
 	Slug: "insee-pauvrete-niveau-de-vie", Label: "Insee — Niveau de vie et pauvreté",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, enquêtes Revenus fiscaux et sociaux",
 	Cadence:     "annuelle",
 	Notes: "Refonte de l'enquête ERFS en 2021 : les niveaux publiés depuis ne sont " +

@@ -50,7 +50,7 @@ var Source = archive.Source{
 	Slug: "jorf", Label: "Journal officiel — édition Lois et décrets",
 	Publisher:   "Direction de l'information légale et administrative",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : DILA, Journal officiel de la République française",
 	Cadence:     "deux livraisons par jour",

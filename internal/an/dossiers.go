@@ -15,7 +15,7 @@ import (
 var SourceDossiers = archive.Source{
 	Slug: "an-dossiers", Label: "AN — Dossiers législatifs (17e législature)",
 	Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+	License: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Assemblée nationale, open data",
 	Cadence:     "continue",
 	Notes: "Contient les dossiers et les documents (textes déposés, rapports). " +

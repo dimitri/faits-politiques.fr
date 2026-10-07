@@ -30,7 +30,7 @@ const ConnectorVersionEPTBEPAGE = "eau-eptb-epage-v1"
 var SourceBanaticEPTBEPAGE = archive.Source{
 	Slug: "banatic-eptb-epage", Label: "BANATIC — établissements publics territoriaux de bassin (EPTB) et d'aménagement et de gestion des eaux (EPAGE)",
 	Publisher: "Direction générale des collectivités locales (DGCL)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : BANATIC (DGCL)",
 	Cadence:     "continue",
 	Notes: "Registre déclaratif : le nombre de structures reconnues ici (colonnes EPAGE/EPTB) peut " +

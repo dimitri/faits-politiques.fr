@@ -19,7 +19,7 @@ var SourcePensionsEIR = archive.Source{
 	Slug: "drees-eir-distribution-pensions", Label: "DREES — distribution des pensions (EIR)",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees, Échantillon interrégimes de retraités 2020",
 	Cadence:     "quadriennale",
 	Notes: "Champ : bénéficiaires d'un avantage principal de droit direct d'un régime " +

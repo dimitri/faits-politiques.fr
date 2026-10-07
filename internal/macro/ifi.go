@@ -21,7 +21,7 @@ import (
 var SourceIFICOM = archive.Source{
 	Slug: "dgfip-ificom", Label: "DGFiP — Impôt sur la fortune immobilière (IFI), répartition par commune",
 	Publisher: "Direction générale des finances publiques (DGFiP)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : DGFiP (IFICOM)",
 	Cadence:     "annuelle",
 	Notes: "Publié pour les seules communes de plus de 20 000 habitants comptant plus de 50 redevables à " +

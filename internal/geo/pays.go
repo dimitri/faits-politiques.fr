@@ -14,7 +14,7 @@ import (
 var SourceContourPays = archive.Source{
 	Slug: "natural-earth-admin0", Label: "Natural Earth — pays du monde (admin-0), 1:50m",
 	Publisher: "Natural Earth", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Domaine public (Natural Earth)", ReuseClass: "OPEN",
+	License: "Domaine public (Natural Earth)", ReuseClass: "OPEN",
 	Attribution: "Source : Natural Earth, naturalearthdata.com",
 	Cadence:     "ponctuelle",
 	Notes: "Échelle 1:50 000 000, un repère mondial, pas un cadastre. Les départements " +

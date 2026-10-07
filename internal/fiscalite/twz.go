@@ -13,7 +13,7 @@ import (
 var SourceMissingProfits = archive.Source{
 	Slug: "missing-profits-twz-wz", Label: "Tørsløv, Wier, Zucman — estimations du transfert de bénéfices vers les paradis fiscaux",
 	Publisher: "T. Tørsløv, L. Wier, G. Zucman (missingprofits.world)", Tier: "SECONDARY_PRESS",
-	Licence:     "Aucune licence déclarée ; données de réplication publiées par les auteurs",
+	License:     "Aucune licence déclarée ; données de réplication publiées par les auteurs",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : Tørsløv, Wier & Zucman (2023), The Missing Profits of Nations, Review of Economic Studies ; Wier & Zucman (2022), Global profit shifting 1975-2019, WIDER",
 	Cadence:     "ponctuelle (mises à jour des auteurs)",

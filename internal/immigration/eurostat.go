@@ -15,7 +15,7 @@ import (
 var SourceEurostatMigration = archive.Source{
 	Slug: "eurostat-migration", Label: "Eurostat — population par citoyenneté et par pays de naissance",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat, migr_pop1ctz et migr_pop3ctb",
 	Cadence:     "annuelle",
 	Notes: "Comparaison harmonisée européenne : la même distinction que core." +

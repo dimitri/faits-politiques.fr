@@ -27,7 +27,7 @@ const ConnectorVersion = "aides-v1"
 var SourceUrssafTaille = archive.Source{
 	Slug: "urssaf-taille-entreprise", Label: "URSSAF — exonérations, emploi et masse salariale par taille d'entreprise",
 	Publisher: "URSSAF", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Open Database License (ODbL)",
+	License:     "Open Database License (ODbL)",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Urssaf, open.urssaf.fr (exonérations et effectifs du secteur privé par tranche de taille d'entreprise)",
 	Cadence:     "annuelle (fin d'année + ~200 jours)",

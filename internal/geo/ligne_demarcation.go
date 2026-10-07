@@ -13,7 +13,7 @@ import (
 var SourceLigneDemarcation = archive.Source{
 	Slug: "ligne-demarcation-ain", Label: "Ligne de démarcation, 1940-1942",
 	Publisher: "Département de l'Ain", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte 2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte 2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Département de l'Ain, data.gouv.fr",
 	Cadence:     "ponctuelle",
 	Notes: "Le seul tracé géographique vérifié de l'Occupation identifié à ce jour : ni " +

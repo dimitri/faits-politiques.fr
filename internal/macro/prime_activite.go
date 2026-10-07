@@ -17,7 +17,7 @@ var SourcePrimeActivite = archive.Source{
 	Slug: "drees-prime-activite-nationale", Label: "Drees — RSA et prime d'activité, données nationales",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees, à partir de la Cnaf et de la MSA",
 	Cadence:     "annuelle",
 	Notes: "Même jeu de données ouvert que core.minima_sociaux_effectif (n° 336), fichier " +

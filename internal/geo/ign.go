@@ -24,7 +24,7 @@ const ConnectorVersion = "geo-ign-v1"
 var SourceIGN = archive.Source{
 	Slug: "ign-admin-express-cog-carto", Label: "IGN — Admin Express COG CARTO, petite échelle",
 	Publisher: "Institut national de l'information géographique et forestière", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : IGN, Admin Express COG CARTO",
 	Cadence:     "annuelle, un millésime par COG",

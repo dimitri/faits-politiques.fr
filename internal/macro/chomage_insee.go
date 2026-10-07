@@ -21,7 +21,7 @@ import (
 var SourceInseeChomageTrimestriel = archive.Source{
 	Slug: "insee-chomage-trimestriel", Label: "INSEE — taux de chômage trimestriel au sens du BIT",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : INSEE, taux de chômage au sens du BIT, série 001688527",
 	Cadence:     "trimestrielle",

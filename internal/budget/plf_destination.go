@@ -19,7 +19,7 @@ var SourcePLFDestination = archive.Source{
 	Slug: "plf-depenses-selon-destination", Label: "PLF — dépenses de l'État par mission, programme et action",
 	Publisher: "Direction du budget (ministère de l'Économie et des Finances)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Direction du budget, data.economie.gouv.fr",
 	Cadence:     "annuelle (dépôt du PLF, généralement en octobre)",
 	Notes: "Deux millésimes chargés (2024, 2025), sous deux schémas de champs différents d'une " +

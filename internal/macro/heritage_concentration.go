@@ -22,7 +22,7 @@ import (
 var SourceHeritageConcentration = archive.Source{
 	Slug: "insee-heritage-concentration", Label: "INSEE — héritage et concentration patrimoine/niveau de vie",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, \"France, portrait social\", édition 2025, Éclairage 3",
 	Cadence:     "irrégulière (au gré des éclairages de l'édition annuelle)",
 	Notes: "Enquête Histoire de vie et Patrimoine 2020-2021 (patrimoine, héritage) et enquête " +

@@ -15,7 +15,7 @@ import (
 var SourceComtradeFrance = archive.Source{
 	Slug: "un-comtrade-france-partenaires", Label: "UN Comtrade — importations françaises par partenaire commercial",
 	Publisher: "Division statistique des Nations unies (UN Comtrade)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "UN Comtrade — réutilisation libre avec attribution", ReuseClass: "ATTRIBUTION",
+	License: "UN Comtrade — réutilisation libre avec attribution", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : UN Comtrade, reporterCode 251 (France)",
 	Cadence:     "ponctuelle",
 	Notes: "Miroir onusien des déclarations douanières nationales, PAS les douanes françaises elles-mêmes " +

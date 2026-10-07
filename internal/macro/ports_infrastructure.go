@@ -24,7 +24,7 @@ var SourceAutoroutesPortuaires = archive.Source{
 	// autres sources géographiques republiées par un portail public, la
 	// note ci-dessous garde l'origine communautaire explicite.
 	Publisher: "OpenStreetMap, republié sur data.gouv.fr", Tier: "PRIMARY_OFFICIAL",
-	Licence: "ODbL", ReuseClass: "OPEN",
+	License: "ODbL", ReuseClass: "OPEN",
 	Attribution: "Source : contributeurs OpenStreetMap, via data.gouv.fr",
 	Cadence:     "quotidienne (extraction figée à l'ingestion)",
 	Notes: "Fichier national (56 938 tronçons) filtré à l'ingestion aux tronçons situés à moins " +
@@ -205,7 +205,7 @@ func IngestAutoroutesPortuaires(ctx context.Context, pool *pgxpool.Pool, arch *a
 var SourceVoiesFerreesPortuaires = archive.Source{
 	Slug: "sncf-lignes-voie-portuaire", Label: "Lignes du réseau ferré national, type « voie portuaire »",
 	Publisher: "SNCF Réseau", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : SNCF Réseau, ressources.data.sncf.com",
 	Cadence:     "irrégulière",
 	Notes: "Un raccordement physique classé « voie portuaire » (type_ligne=Vport) par SNCF " +

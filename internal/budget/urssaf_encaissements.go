@@ -19,7 +19,7 @@ var SourceURSSAFEncaissements = archive.Source{
 	Label:       "URSSAF — encaissements annuels par région et catégorie",
 	Publisher:   "Urssaf Caisse nationale",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Open Database License (ODbL) 1.0",
+	License:     "Open Database License (ODbL) 1.0",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Urssaf Caisse nationale, données ouvertes (ODbL)",
 	Cadence:     "annuelle",

@@ -19,7 +19,7 @@ var SourceDemandeursEmploi = archive.Source{
 	Slug: "dares-defm-categorie", Label: "Dares — demandeurs d'emploi inscrits par catégorie",
 	Publisher: "Direction de l'animation de la recherche, des études et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Dares, France Travail",
 	Cadence:     "mensuelle",
 	Notes: "Données CVS-CJO (corrigées des variations saisonnières et du nombre de jours " +

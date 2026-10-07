@@ -18,7 +18,7 @@ import (
 var SourceMunicipales = archive.Source{
 	Slug: "municipales-2026", Label: "Élections municipales 2026 — résultats",
 	Publisher: "Ministère de l'Intérieur", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : ministère de l'Intérieur, résultats des élections municipales des 15 et 22 mars 2026",
 	Cadence:     "par scrutin",

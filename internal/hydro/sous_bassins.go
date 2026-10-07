@@ -15,7 +15,7 @@ var SourceSousBassins = archive.Source{
 	Slug: "sandre-sous-bassins-versants", Label: "Sandre/IGN — sous-bassins versants topographiques (BD Topage)",
 	Publisher: "Service d'administration nationale des données et référentiels sur l'eau (Sandre)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Sandre, BD Topage (IGN/OFB)",
 	Cadence:     "irrégulière (révision du référentiel hydrographique)",
 	Notes: "Millésime 2025, France métropolitaine uniquement (suffixe FXX). Résolution bien " +

@@ -11,7 +11,7 @@ import (
 var SourceReportModalPort = archive.Source{
 	Slug: "dgitm-observatoire-performance-portuaire-2024", Label: "Observatoire de la performance portuaire et des chaînes logistiques, édition 2024",
 	Publisher: "DGITM (ministère de la Transition écologique)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : DGITM, Observatoire de la performance portuaire, édition 2024 (données 2023)",
 	Cadence:     "irrégulière",
 	Notes: "Un seul millésime (2023), pas une série. « Part massifiée » = fer + fleuve, tous " +
@@ -98,7 +98,7 @@ func IngestReportModalPort(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 var SourceReportModalConteneurs = archive.Source{
 	Slug: "report-modal-conteneurs-europe", Label: "Répartition modale du transport de conteneurs vers l'arrière-pays, ports comparés",
 	Publisher: "GPMM (Distriport), Port of Antwerp-Bruges, Havenbedrijf Rotterdam", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : bilan Distriport du GPMM (2024), Port of Antwerp-Bruges (2024), Havenbedrijf Rotterdam (2023)",
 	Cadence:     "irrégulière",
 	Notes: "Restreint aux CONTENEURS uniquement, jamais à comparer aux chiffres tous-trafics de " +

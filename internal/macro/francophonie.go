@@ -18,7 +18,7 @@ var SourceFrancophonie = archive.Source{
 	Slug: "odsef-francoscope", Label: "ODSEF/OIF — Francoscope, population et francophones par entité",
 	Publisher: "Observatoire démographique et statistique de l'espace francophone (ODSEF, Université Laval) " +
 		"et Observatoire de la langue française de l'OIF",
-	Tier: "PRIMARY_OFFICIAL", Licence: "Réutilisation libre avec attribution (ODSEF)", ReuseClass: "ATTRIBUTION",
+	Tier: "PRIMARY_OFFICIAL", License: "Réutilisation libre avec attribution (ODSEF)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : ODSEF (Université Laval) / Observatoire de la langue française de l'OIF, Francoscope",
 	Cadence:     "ponctuelle",
 	Notes: "Le fichier mélange, dans une même liste à plat, des pays souverains, des territoires " +

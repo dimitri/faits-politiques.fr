@@ -12,7 +12,7 @@ import (
 var SourceFluxMigratoire = archive.Source{
 	Slug: "eurostat-flux-migratoire", Label: "Eurostat — flux annuels d'immigration et de naturalisation",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat, migr_imm1ctz et migr_acq",
 	Cadence:     "annuelle",
 	Notes: "Flux, pas des stocks : combien de personnes immigrent ou acquièrent la " +

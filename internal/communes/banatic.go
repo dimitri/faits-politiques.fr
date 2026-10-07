@@ -27,7 +27,7 @@ import (
 var SourceBANATIC = archive.Source{
 	Slug: "banatic", Label: "BANATIC — intercommunalités et compétences",
 	Publisher: "Direction générale des collectivités locales", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : BANATIC, Direction générale des collectivités locales",
 	Cadence:     "en continu, arrêtés préfectoraux",

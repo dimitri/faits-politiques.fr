@@ -19,7 +19,7 @@ import (
 var SourceFilosofiDeciles = archive.Source{
 	Slug: "insee-filosofi-cc", Label: "Insee — Filosofi, revenus et pauvreté, tous niveaux géographiques",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, Filosofi (Fichier localisé social et fiscal)",
 	Cadence:     "annuelle",
 	Notes: "Le fichier couvre commune, EPCI, département, région et France ; seule la " +

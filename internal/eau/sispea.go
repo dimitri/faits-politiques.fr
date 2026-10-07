@@ -30,7 +30,7 @@ var SourceSISPEA = archive.Source{
 	Slug: "sispea-eau-potable", Label: "SISPEA — services publics d'eau potable",
 	Publisher: "Observatoire des services publics d'eau et d'assainissement (OFB, eaufrance.fr)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : SISPEA, Office français de la biodiversité (eaufrance.fr)",
 	Cadence:     "annuelle",
 	Notes: "Millésime 2023 seulement : l'export 2024 disponible au moment du chargement est un " +

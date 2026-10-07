@@ -21,7 +21,7 @@ var SourceMinimaSociaux = archive.Source{
 	Slug: "drees-minima-sociaux-dispositif", Label: "Drees — minima sociaux par dispositif",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees, à partir de Cnaf, MSA, Cnav, France Travail, FSV, Ofii",
 	Cadence:     "annuelle",
 	Notes: "Champ France métropolitaine pour les effectifs, France pour les dépenses " +
