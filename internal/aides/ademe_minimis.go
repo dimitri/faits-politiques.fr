@@ -18,7 +18,7 @@ import (
 var SourceADEME = archive.Source{
 	Slug: "ademe-aides-financieres", Label: "ADEME — aides financières attribuées (format SCDL)",
 	Publisher: "ADEME", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : ADEME, les aides financières de l'ADEME (data.ademe.fr)",
 	Cadence:     "quotidienne",
@@ -33,7 +33,7 @@ var SourceADEME = archive.Source{
 var SourceMinimis = archive.Source{
 	Slug: "dge-registre-minimis", Label: "DGE — registre public des aides de minimis",
 	Publisher: "Direction générale des entreprises", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence non renseignée dans les métadonnées ; publication prévue par le décret 2025-1361",
+	License:     "Licence non renseignée dans les métadonnées ; publication prévue par le décret 2025-1361",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : DGE, registre public des aides de minimis (data.economie.gouv.fr)",
 	Cadence:     "quotidienne",

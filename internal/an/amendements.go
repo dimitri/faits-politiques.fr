@@ -28,7 +28,7 @@ import (
 var SourceAmendements = archive.Source{
 	Slug: "an-amendements", Label: "Assemblée nationale — amendements",
 	Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Assemblée nationale, amendements de la 17e législature",
 	Cadence:     "en continu",

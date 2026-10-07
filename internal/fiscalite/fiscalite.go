@@ -25,7 +25,7 @@ const ConnectorVersion = "fiscalite-v1"
 var SourceOCDEImpotSocietes = archive.Source{
 	Slug: "ocde-statistiques-impot-societes", Label: "OCDE — statistiques de l'impôt sur les sociétés (taux, taux effectifs, régimes PI, CbCR agrégé)",
 	Publisher: "OCDE, Centre de politique et d'administration fiscales", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Creative Commons Attribution 4.0 (données de l'OCDE)",
+	License:     "Creative Commons Attribution 4.0 (données de l'OCDE)",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : OCDE, Corporate Tax Statistics",
 	Cadence:     "annuelle",
@@ -39,7 +39,7 @@ var SourceOCDEImpotSocietes = archive.Source{
 var SourceOCDEIDE = archive.Source{
 	Slug: "ocde-investissements-directs", Label: "OCDE — revenus des investissements directs par pays de contrepartie (BMD4)",
 	Publisher: "OCDE, Direction des affaires financières et des entreprises", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Creative Commons Attribution 4.0 (données de l'OCDE)",
+	License:     "Creative Commons Attribution 4.0 (données de l'OCDE)",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : OCDE, statistiques d'investissement direct international",
 	Cadence:     "annuelle",
@@ -51,7 +51,7 @@ var SourceOCDEIDE = archive.Source{
 var SourceEurostatFATS = archive.Source{
 	Slug: "eurostat-filiales-etrangeres", Label: "Eurostat — filiales sous contrôle étranger (FATS entrantes)",
 	Publisher: "Eurostat, d'après l'INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat, fats_g1b_08 et fats_ctrl",
 	Cadence:     "annuelle",
 	Notes: "Pays de contrôle = pays de l'unité institutionnelle contrôlante ultime. Rupture de série en 2021 " +
@@ -62,7 +62,7 @@ var SourceEurostatFATS = archive.Source{
 var SourceGLEIF = archive.Source{
 	Slug: "gleif-lei-niveau2", Label: "GLEIF — répertoire mondial des LEI et relations de contrôle (niveau 2)",
 	Publisher: "Global Legal Entity Identifier Foundation", Tier: "PRIMARY_OFFICIAL",
-	Licence: "CC0 1.0", ReuseClass: "OPEN",
+	License: "CC0 1.0", ReuseClass: "OPEN",
 	Attribution: "Source : GLEIF, fichiers Golden Copy LEI et Relationship Records",
 	Cadence:     "trois publications par jour",
 	Notes: "Relations déclarées par les entités elles-mêmes, souvent incomplètes : 1 904 sociétés françaises " +
@@ -74,7 +74,7 @@ var SourceGLEIF = archive.Source{
 var SourceRatiosINPI = archive.Source{
 	Slug: "inpi-bce-ratios-financiers", Label: "INPI / BCE — ratios financiers des comptes annuels déposés",
 	Publisher: "INPI et Banque centrale européenne (data.economie.gouv.fr)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Ratios financiers BCE / INPI, data.economie.gouv.fr",
 	Cadence:     "continue",
 	Notes: "Pas de ligne « impôt sur les bénéfices » : le résultat courant avant impôt est reconstitué " +

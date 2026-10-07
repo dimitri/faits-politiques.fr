@@ -16,7 +16,7 @@ import (
 var SourceEmpireColonial = archive.Source{
 	Slug: "cshapes-empire-colonial", Label: "CShapes 2.0 — contours historiques, entités de l'empire colonial français",
 	Publisher: "ETH Zürich (International Conflict Research)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "CC BY-NC-SA 4.0", ReuseClass: "OPEN",
+	License: "CC BY-NC-SA 4.0", ReuseClass: "OPEN",
 	Attribution: "Source : CShapes 2.0, icr.ethz.ch/data/cshapes",
 	Cadence:     "ponctuelle",
 	Notes: "Le panel démarre au 1er janvier 1886 pour toutes les entités : les changements " +

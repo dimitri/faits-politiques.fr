@@ -21,7 +21,7 @@ import (
 var SourceAFT = archive.Source{
 	Slug: "aft-p117-performance", Label: "Programme 117 (AFT) — indicateurs de performance des adjudications",
 	Publisher: "Direction du budget, d'après l'Agence France Trésor", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : rapport annuel de performance, programme 117, data.economie.gouv.fr",
 	Cadence:     "annuelle (RAP, juin)",

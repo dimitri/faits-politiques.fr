@@ -29,7 +29,7 @@ const ConnectorVersion = "damir-v1"
 var SourceDamir = archive.Source{
 	Slug: "open-damir", Label: "Open Damir — dépenses d'assurance maladie interrégimes (SNDS)",
 	Publisher: "Caisse nationale de l'Assurance Maladie (CNAM)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : CNAM, Open Damir",
 	Cadence:     "mensuelle",
 	Notes: "Chaque fichier mensuel (~970 Mo compressés, 36,6 millions de lignes en janvier " +

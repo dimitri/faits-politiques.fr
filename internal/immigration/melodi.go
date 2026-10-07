@@ -18,7 +18,7 @@ const ConnectorVersion = "immigration-v1"
 var SourceMelodiImmigration = archive.Source{
 	Slug: "insee-rp-immigration-nationalite", Label: "Insee — recensement, immigration et nationalité",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, recensement de la population, diffusion Melodi",
 	Cadence:     "annuelle",
 	Notes: "Immigré (né étranger à l'étranger, quelle que soit la nationalité actuelle) et " +

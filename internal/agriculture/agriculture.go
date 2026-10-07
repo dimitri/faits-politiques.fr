@@ -32,7 +32,7 @@ var Source = archive.Source{
 	Slug: "faostat", Label: "FAOSTAT — bilans alimentaires et usage des terres",
 	Publisher:   "Organisation des Nations unies pour l'alimentation et l'agriculture",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "CC BY 4.0",
+	License:     "CC BY 4.0",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : FAOSTAT, Organisation des Nations unies pour l'alimentation et l'agriculture",
 	Cadence:     "annuelle",

@@ -17,7 +17,7 @@ var SourceHouseholdsDrees = archive.Source{
 	Slug: "drees-composition-revenu-menages", Label: "DREES — composition du revenu des ménages",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee-DGFiP-Cnaf-Cnav-CCMSA, enquête Revenus fiscaux et sociaux, calculs Drees",
 	Cadence:     "annuelle",
 	Notes: "Champ : France métropolitaine, ménages vivant dans un logement ordinaire, " +

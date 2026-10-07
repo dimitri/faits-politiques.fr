@@ -20,7 +20,7 @@ import (
 var SourceBanqueDeFrance = archive.Source{
 	Slug: "bdf-webstat-det2", Label: "Banque de France — détention des titres négociables de l'État (DET2)",
 	Publisher: "Banque de France", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Conditions d'utilisation Webstat : réutilisation libre avec mention de la source",
+	License:     "Conditions d'utilisation Webstat : réutilisation libre avec mention de la source",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Banque de France, Webstat, détention des titres de l'État (DET2)",
 	Cadence:     "trimestrielle",

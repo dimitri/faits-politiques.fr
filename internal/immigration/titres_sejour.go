@@ -15,7 +15,7 @@ import (
 var SourceTitresSejour = archive.Source{
 	Slug: "dgef-titres-sejour-stocks", Label: "DGEF/MIOM — stock de titres de séjour valides",
 	Publisher: "Direction générale des étrangers en France, ministère de l'Intérieur", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de l'Intérieur, DGEF-DSED",
 	Cadence:     "semestrielle, arrêtée",
 	Notes: "Champ : ressortissants de pays tiers, hors Britanniques (suivis à part depuis " +

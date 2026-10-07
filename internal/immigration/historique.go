@@ -15,7 +15,7 @@ import (
 var SourceHistoriqueINSEE = archive.Source{
 	Slug: "insee-population-immigree-etrangere-historique", Label: "Insee — population immigrée et étrangère depuis 1921",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, recensements de la population et estimations",
 	Cadence:     "annuelle (recensements espacés avant 2006)",
 	Notes: "Rupture de série à partir de 2024 (protocole de collecte revu), et changement " +

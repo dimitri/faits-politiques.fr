@@ -33,7 +33,7 @@ import (
 var SourceExposes = archive.Source{
 	Slug: "an-exposes", Label: "Assemblée nationale — exposés des motifs",
 	Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Assemblée nationale, textes déposés",
 	Cadence:     "au fil des dépôts",

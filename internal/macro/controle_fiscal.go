@@ -11,7 +11,7 @@ import (
 var SourceTaxAudit = archive.Source{
 	Slug: "senat-controle-fiscal-resultats", Label: "Résultats du contrôle fiscal, France entière",
 	Publisher: "Sénat, commission des finances", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : Sénat, rapports n° r22-072 (2022-2023), l24-034-215-1 (2024), l25-139-314 (2025)",
 	Cadence:     "annuelle",
 	Notes: "Aucun dataset structuré (CSV/XLSX) n'a été trouvé pour cet indicateur : ni data.gouv.fr " +

@@ -15,7 +15,7 @@ import (
 var SourcePopulation = archive.Source{
 	Slug: "insee-population-age", Label: "INSEE — population au 1er janvier par âge détaillé",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : INSEE, estimations de population, séries longues",
 	Cadence:     "annuelle",

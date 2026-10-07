@@ -17,7 +17,7 @@ import (
 var SourceHouseholdCount = archive.Source{
 	Slug: "insee-rp-menages-familles", Label: "Insee — recensement, ménages et familles détaillés",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, recensement de la population 2023, diffusion Melodi",
 	Cadence:     "annuelle",
 	Notes: "Univers du recensement (tous les ménages), pas celui de l'enquête ERFS " +

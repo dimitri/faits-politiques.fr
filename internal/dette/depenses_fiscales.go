@@ -30,7 +30,7 @@ import (
 var SourceVoiesEtMoyens = archive.Source{
 	Slug: "voies-et-moyens-t2", Label: "PLF 2020 à 2023 — Évaluation des voies et moyens, tome II (dépenses fiscales)",
 	Publisher: "Direction du budget", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : annexes aux PLF 2020 à 2023, Évaluation des voies et moyens, tome II",
 	Cadence:     "annuelle (octobre) ; quatre millésimes en données ouvertes",
@@ -44,7 +44,7 @@ var SourceVoiesEtMoyens = archive.Source{
 var SourceBudgetVert = archive.Source{
 	Slug: "budget-vert-depenses-fiscales", Label: "Budget vert (PLF 2024 à 2026) — chiffrage des dépenses fiscales",
 	Publisher: "Direction du budget", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : rapport sur l'impact environnemental du budget de l'État (budget vert), PLF 2024, 2025 et 2026",
 	Cadence:     "annuelle (octobre)",

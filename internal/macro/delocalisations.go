@@ -16,7 +16,7 @@ import (
 var SourceOffshoringInsee = archive.Source{
 	Slug: "insee-delocalisations-2022", Label: "Insee — délocalisations d'unités légales et d'emplois, 1995-2017",
 	Publisher: "Institut national de la statistique et des études économiques (Insee)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, Ésane et CAM ; DGDDI, Douanes — \"Les entreprises en France\", édition 2022",
 	Cadence:     "ponctuelle",
 	Notes: "Des unités légales et des emplois DÉTECTÉS comme délocalisés par un modèle statistique " +

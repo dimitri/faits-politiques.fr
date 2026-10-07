@@ -21,7 +21,7 @@ import (
 var SourceCLIOInfraPopulation = archive.Source{
 	Slug: "clio-infra-population", Label: "CLIO-INFRA — Total Population",
 	Publisher: "IISH Amsterdam (CLIO-INFRA)", Tier: "SECONDARY_PRESS",
-	Licence: "CC0-1.0", ReuseClass: "OPEN",
+	License: "CC0-1.0", ReuseClass: "OPEN",
 	Attribution: "Source : CLIO-INFRA, Total Population (clio-infra.eu)",
 	Cadence:     "ponctuelle (série historique figée, non révisée)",
 	Notes: "Séries par pays aux frontières ACTUELLES, pas aux frontières coloniales : la " +

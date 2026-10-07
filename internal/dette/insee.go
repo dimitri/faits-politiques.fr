@@ -20,7 +20,7 @@ import (
 var SourceINSEE = archive.Source{
 	Slug: "insee-dette", Label: "INSEE — dette négociable de l'État (AFT) et dette trimestrielle des APU",
 	Publisher: "INSEE, d'après l'Agence France Trésor", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : INSEE, BDM ; Agence France Trésor pour la dette négociable de l'État",
 	Cadence:     "mensuelle (dette négociable), trimestrielle (dette Maastricht)",

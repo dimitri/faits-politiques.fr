@@ -28,7 +28,7 @@ var SourceFactsDossiers = archive.Source{
 	Publisher: "Institutions citées fait par fait (Parlement, juridictions, autorités, ministères, Journal officiel) ; " +
 		"déclarations de personnes et d'organismes signalées comme telles",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Documents publics des institutions, cités avec lien et page",
+	License:     "Documents publics des institutions, cités avec lien et page",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Sources citées fait par fait (colonne source_url)",
 	Cadence:     "au fil des dossiers",

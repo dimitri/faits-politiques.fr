@@ -37,7 +37,7 @@ const ConnectorVersion = "entreprises-v2"
 var Source = archive.Source{
 	Slug: "inpi-ratios", Label: "Ratios financiers des entreprises (INPI / BCE)",
 	Publisher: "INPI, traitement DNUM du ministère du travail", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : INPI (base RNCS), traitement BCE — ministères économiques et financiers",
 	Cadence:     "annuelle",
@@ -48,7 +48,7 @@ var Source = archive.Source{
 var SourceGLEIF = archive.Source{
 	Slug: "gleif", Label: "GLEIF — identifiants d'entités juridiques",
 	Publisher: "Global Legal Entity Identifier Foundation", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "CC0 1.0",
+	License:     "CC0 1.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : GLEIF, Global LEI Index",
 	Cadence:     "quotidienne",

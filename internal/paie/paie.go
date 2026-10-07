@@ -26,7 +26,7 @@ var SourceBaremes = archive.Source{
 	Slug: "bareme-paie-2026", Label: "Barème de paie au 1er janvier 2026 : taux, plafond, réduction générale, destinataires",
 	Publisher:  "DILA (service-public.fr) ; INSEE (comptes de la Nation)",
 	Tier:       "PRIMARY_OFFICIAL",
-	Licence:    "Pages publiques de l'administration, citées avec lien ; les taux sont des éléments de droit",
+	License:    "Pages publiques de l'administration, citées avec lien ; les taux sont des éléments de droit",
 	ReuseClass: "ATTRIBUTION",
 	Attribution: "Sources : service-public.fr (Entreprendre), fiches F24542, A17906, A15386 ; " +
 		"Insee, Administrations publiques en 2025 (périmètre des administrations de sécurité sociale)",

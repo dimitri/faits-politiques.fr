@@ -25,7 +25,7 @@ var Source = archive.Source{
 	Slug: "cedh-hudoc", Label: "CEDH — HUDOC, arrêts concernant la France",
 	Publisher:   "Cour européenne des droits de l'homme / Conseil de l'Europe",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Conditions HUDOC, à vérifier ; aucune licence ouverte explicite",
+	License:     "Conditions HUDOC, à vérifier ; aucune licence ouverte explicite",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : Cour européenne des droits de l'homme, base HUDOC",
 	Cadence:     "continue",

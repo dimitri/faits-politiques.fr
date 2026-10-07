@@ -27,7 +27,7 @@ import (
 var SourceMunicipales2020 = archive.Source{
 	Slug: "municipales-2020", Label: "Élections municipales 2020 — résultats",
 	Publisher: "Ministère de l'Intérieur", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Aucune licence déclarée par le producteur",
+	License:     "Aucune licence déclarée par le producteur",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : ministère de l'Intérieur, résultats des élections municipales des 15 mars et 28 juin 2020",
 	Cadence:     "par scrutin",

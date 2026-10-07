@@ -31,7 +31,7 @@ const Version = "europe/1"
 var Source = archive.Source{
 	Slug: "howtheyvote", Label: "HowTheyVote.eu — scrutins nominatifs du Parlement européen",
 	Publisher: "HowTheyVote.eu", Tier: "SECONDARY_PRESS",
-	Licence: "ODbL", ReuseClass: "ATTRIBUTION",
+	License: "ODbL", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : HowTheyVote.eu, données sous licence ODbL",
 	Cadence:     "hebdomadaire",
 	Notes: "Collecte et republie les scrutins publiés par le Parlement européen. " +
@@ -53,7 +53,7 @@ func DownloadTargets() []archive.DownloadTarget {
 	out := make([]archive.DownloadTarget, len(files))
 	for i, f := range files {
 		out[i] = archive.DownloadTarget{
-			Nom: "europe-" + f, Source: Source, URL: base + f + ".csv.gz", Ext: ".csv.gz",
+			Name: "europe-" + f, Source: Source, URL: base + f + ".csv.gz", Ext: ".csv.gz",
 		}
 	}
 	return out

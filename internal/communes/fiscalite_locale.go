@@ -21,7 +21,7 @@ var SourceFiscaliteLocale = archive.Source{
 	Slug: "ofgl-fiscalite-directe-locale", Label: "OFGL — fiscalité directe locale (REI/DGFiP)",
 	Publisher: "Observatoire des finances et de la gestion publique locales (REI, DGFiP)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : DGFiP (Registre des éléments d'imposition), diffusion OFGL",
 	Cadence:     "annuelle",
 	Notes: "Produit réel du foncier bâti, du foncier non bâti, de la CFE et de la TASCOM, " +

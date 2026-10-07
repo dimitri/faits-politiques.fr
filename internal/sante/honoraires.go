@@ -18,7 +18,7 @@ import (
 var SourceHonoraires = archive.Source{
 	Slug: "ameli-honoraires", Label: "Ameli — montants des honoraires des professionnels de santé libéraux",
 	Publisher: "Caisse nationale de l'Assurance Maladie (Cnam)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : Cnam, data.ameli.fr",
 	Cadence:     "annuelle",
 	Notes: "38 professions, 2010-2024. Les quatre champs de montant (totaux et moyens) portent la " +

@@ -17,7 +17,7 @@ var SourceRERSHeadcountHistory = archive.Source{
 	Slug: "depp-rers-effectifs-historique", Label: "Depp — RERS, effectifs d'élèves 1er et 2nd degrés (tableaux 3.01, 4.01)",
 	Publisher:   "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "ATTRIBUTION", // voir depense_eleve.go : licence présumée, non confirmée sur le site
 	Attribution: "Source : ministère de l'Éducation nationale (Depp), RERS Interactif",
 	Cadence:     "annuelle (à la rentrée scolaire)",

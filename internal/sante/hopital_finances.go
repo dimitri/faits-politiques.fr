@@ -24,7 +24,7 @@ var SourceHopitalFinances = archive.Source{
 	Slug: "drees-hopital-public-finances", Label: "Drees — situation économique et financière des hôpitaux publics",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees, Panorama « Les établissements de santé »",
 	Cadence:     "annuelle",
 	Notes: "Deux des douze feuilles du fichier sont chargées : le compte de résultat " +

@@ -20,7 +20,7 @@ import (
 var SourceEurostatDette = archive.Source{
 	Slug: "eurostat-dette", Label: "Eurostat — dette, déficit, intérêts et taux longs des États européens",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat (gov_10dd_edpt1, gov_10a_main, gov_10dd_ggd, irt_lt_mcby)",
 	Cadence:     "annuelle (notifications d'avril et octobre), mensuelle pour les taux",
 	Notes: "Échéances de gov_10dd_ggd en durée RÉSIDUELLE, à ne pas rapprocher du court/long " +

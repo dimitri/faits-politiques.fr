@@ -37,7 +37,7 @@ var Source = archive.Source{
 	Slug: "hatvp", Label: "HATVP — déclarations d'intérêts et de patrimoine",
 	Publisher:   "Haute Autorité pour la transparence de la vie publique",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Haute Autorité pour la transparence de la vie publique",
 	Cadence:     "en continu",

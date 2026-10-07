@@ -45,7 +45,7 @@ func PrefetchAll(ctx context.Context, arch *archive.Archive,
 	for _, t := range targets {
 		t := t
 		reg.Ajouter(pipeline.Etape{
-			Nom: t.Nom, Description: "prefetching " + filenameOf(t.URL),
+			Nom: t.Name, Description: "prefetching " + filenameOf(t.URL),
 			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				srcID, err := arch.EnsureSource(ctx, t.Source)
 				if err != nil {
@@ -58,7 +58,7 @@ func PrefetchAll(ctx context.Context, arch *archive.Archive,
 				f, err := arch.Fetch(ctx, srcID, runID, t.URL, t.Ext)
 				if err != nil {
 					arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
-					return nil, fmt.Errorf("%s : %w", t.Nom, err)
+					return nil, fmt.Errorf("%s : %w", t.Name, err)
 				}
 				arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"sha256": f.SHA256}, "")
 				return f, nil
@@ -72,7 +72,7 @@ func PrefetchAll(ctx context.Context, arch *archive.Archive,
 
 	byURL := make(map[string]*archive.Fetched, len(targets))
 	for _, t := range targets {
-		f, ok := resultats[t.Nom].(*archive.Fetched)
+		f, ok := resultats[t.Name].(*archive.Fetched)
 		if !ok {
 			continue
 		}

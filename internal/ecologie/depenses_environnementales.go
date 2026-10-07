@@ -22,7 +22,7 @@ const ConnectorVersion = "ecologie-v1"
 var SourceDepenseEnvironnementale = archive.Source{
 	Slug: "eurostat-depense-environnementale", Label: "Eurostat — dépense de protection de l'environnement (CEP)",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat (env_epea_neep)",
 	Cadence:     "annuelle",
 	Notes: "Classification CEP (anciennement CEPA/CReMA jusqu'en 2024, transition Eurostat vers " +

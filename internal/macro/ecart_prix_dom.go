@@ -11,7 +11,7 @@ import (
 var SourceDomPriceGap = archive.Source{
 	Slug: "insee-ecsp-2022", Label: "Enquête de comparaison spatiale des prix (ECSP) 2022",
 	Publisher: "Insee", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : Insee Première n° 1958, juillet 2023",
 	Cadence:     "ponctuelle",
 	Notes: "Enquête ponctuelle (1985, 1992, 2010, 2015, 2022), pas une série annuelle. " +

@@ -21,7 +21,7 @@ var SourceDreesSolidarityBenefits = archive.Source{
 	Slug: "drees-prestations-solidarite", Label: "DREES — suivi mensuel des prestations de solidarité",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : DREES, suivi mensuel des prestations de solidarité",
 	Cadence:     "mensuelle",
 	Notes: "Trois échelles géographiques cohabitent dans le même fichier (France, " +

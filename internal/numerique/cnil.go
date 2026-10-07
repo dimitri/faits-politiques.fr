@@ -18,7 +18,7 @@ var SourceSanctionsCNIL = archive.Source{
 	Slug: "cnil-sanctions", Label: "CNIL — liste des sanctions prononcées",
 	Publisher:   "Commission nationale de l'informatique et des libertés",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Page publique de la CNIL, citée avec lien",
+	License:     "Page publique de la CNIL, citée avec lien",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : CNIL, les sanctions prononcées par la CNIL",
 	Cadence:     "au fil des décisions",

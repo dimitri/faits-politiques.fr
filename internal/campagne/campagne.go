@@ -33,7 +33,7 @@ var Source = archive.Source{
 	Slug: "cnccfp-campagne", Label: "CNCCFP — comptes de campagne",
 	Publisher:   "Commission nationale des comptes de campagne et des financements politiques",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Aucune licence déclarée par le producteur",
+	License:     "Aucune licence déclarée par le producteur",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : Commission nationale des comptes de campagne et des financements politiques",
 	Cadence:     "par scrutin",

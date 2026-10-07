@@ -15,7 +15,7 @@ import (
 var SourceResearchEffort = archive.Source{
 	Slug: "insee-effort-recherche", Label: "L'effort de recherche : DIRD/PIB, France et Union européenne",
 	Publisher: "Insee (sources MESR-SIES, OCDE)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, données MESR-SIES (France) et OCDE (UE27)",
 	Cadence:     "annuelle",
 	Notes:       "UE27 sur toute la période (rétropolée par l'OCDE) ; le dernier point est une estimation.",

@@ -33,7 +33,7 @@ var SourceStaffHeadcount = archive.Source{
 	Slug: "depp-personnels-etablissements", Label: "Depp — personnels des établissements du premier et second degré",
 	Publisher: "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de l'Éducation nationale (Depp)",
 	Cadence:     "annuelle (à la rentrée scolaire)",
 	Notes: "Deux jeux distincts, asymétriques : le premier degré publie 2024 ET 2025, le second " +

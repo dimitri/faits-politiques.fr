@@ -18,7 +18,7 @@ var SourceWatercourses = archive.Source{
 	Slug: "sandre-cours-eau", Label: "Sandre/IGN — cours d'eau (BD Topage)",
 	Publisher: "Service d'administration nationale des données et référentiels sur l'eau (Sandre)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Sandre, BD Topage (IGN/OFB)",
 	Cadence:     "irrégulière (révision du référentiel hydrographique)",
 	Notes: "Millésime 2025, France métropolitaine uniquement (suffixe FXX). Fichier source : " +

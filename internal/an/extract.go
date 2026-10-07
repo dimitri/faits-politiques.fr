@@ -34,7 +34,7 @@ var Sources = map[string]archive.Source{
 	"an-amo": {
 		Slug: "an-amo", Label: "AN — Tous acteurs, mandats et organes (AMO30)",
 		Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-		Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+		License: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
 		Attribution: "Source : Assemblée nationale, open data",
 		Cadence:     "continue, non contractuelle",
 		Notes:       "Un champ peut être un objet ou un tableau selon le nombre d'éléments.",
@@ -42,7 +42,7 @@ var Sources = map[string]archive.Source{
 	"an-amo-16": {
 		Slug: "an-amo-16", Label: "AN — Tous acteurs, mandats et organes (16e législature)",
 		Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-		Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+		License: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
 		Attribution: "Source : Assemblée nationale, open data",
 		Cadence:     "close",
 		Notes:       "Publication propre à la 16e législature (2022-2024).",
@@ -50,7 +50,7 @@ var Sources = map[string]archive.Source{
 	"an-amo-15": {
 		Slug: "an-amo-15", Label: "AN — Tous acteurs, mandats et organes (15e législature)",
 		Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-		Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+		License: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
 		Attribution: "Source : Assemblée nationale, open data",
 		Cadence:     "close",
 		Notes:       "Publication propre à la 15e législature (2017-2022).",
@@ -58,7 +58,7 @@ var Sources = map[string]archive.Source{
 	"an-dossiers": {
 		Slug: "an-dossiers", Label: "AN — Dossiers législatifs (17e législature)",
 		Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-		Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+		License: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
 		Attribution: "Source : Assemblée nationale, open data",
 		Cadence:     "continue",
 		Notes: "Les exposés des motifs ne figurent PAS dans le JSON : seuls titres, " +
@@ -68,7 +68,7 @@ var Sources = map[string]archive.Source{
 	"an-scrutins": {
 		Slug: "an-scrutins", Label: "AN — Scrutins publics (17e législature)",
 		Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-		Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+		License: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
 		Attribution: "Source : Assemblée nationale, open data",
 		Cadence:     "par séance",
 		Notes: "Ne couvre que les scrutins PUBLICS : la majorité des votes ont lieu " +
@@ -90,7 +90,7 @@ func DownloadTargets() []archive.DownloadTarget {
 		// de votes — c'est-à-dire lire une absence de données comme une
 		// absence d'action. Le contrôle de concordance de cmd/verify est
 		// précisément là pour empêcher qu'une telle erreur soit publiée.
-		{Nom: "an-amo", Source: Sources["an-amo"], Ext: ".zip",
+		{Name: "an-amo", Source: Sources["an-amo"], Ext: ".zip",
 			URL: Base + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip"},
 		// Les législatures antérieures ont leur propre publication. Le
 		// fichier de la 17e contient bien 3 121 acteurs, mais l'historique
@@ -100,13 +100,13 @@ func DownloadTargets() []archive.DownloadTarget {
 		// Au-delà, le dépôt de l'Assemblée répond 404 : les législatures 14
 		// et antérieures ne sont pas publiées en open data. C'est une
 		// limite de la source, pas du chargement.
-		{Nom: "an-amo-16", Source: Sources["an-amo-16"], Ext: ".zip",
+		{Name: "an-amo-16", Source: Sources["an-amo-16"], Ext: ".zip",
 			URL: BaseLegislature(16) + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip"},
-		{Nom: "an-amo-15", Source: Sources["an-amo-15"], Ext: ".zip",
+		{Name: "an-amo-15", Source: Sources["an-amo-15"], Ext: ".zip",
 			URL: BaseLegislature(15) + "/amo/tous_acteurs_mandats_organes_xi_legislature/AMO30_tous_acteurs_tous_mandats_tous_organes_historique.json.zip"},
-		{Nom: "an-scrutins", Source: Sources["an-scrutins"], Ext: ".zip",
+		{Name: "an-scrutins", Source: Sources["an-scrutins"], Ext: ".zip",
 			URL: Base + "/loi/scrutins/Scrutins.json.zip"},
-		{Nom: "an-dossiers", Source: Sources["an-dossiers"], Ext: ".zip",
+		{Name: "an-dossiers", Source: Sources["an-dossiers"], Ext: ".zip",
 			URL: Base + "/loi/dossiers_legislatifs/Dossiers_Legislatifs.json.zip"},
 		// Amendements.json.zip : 296 Mo observés en CI, de loin le plus gros
 		// fichier de ce paquet — et jusqu'ici le seul que Download ne
@@ -115,7 +115,7 @@ func DownloadTargets() []archive.DownloadTarget {
 		// cette étape démarrait (derrière normalize et le reste de sa
 		// vague), jamais prérécupéré. Listé ici, il profite du même
 		// mécanisme que le reste de l'Assemblée.
-		{Nom: "an-amendements", Source: SourceAmendements, Ext: ".zip", URL: amendementsURL},
+		{Name: "an-amendements", Source: SourceAmendements, Ext: ".zip", URL: amendementsURL},
 	}
 }
 
@@ -137,7 +137,7 @@ func Download(ctx context.Context, arch *archive.Archive) (map[string]*archive.F
 		f, err := arch.Fetch(ctx, srcID, runID, t.URL, t.Ext)
 		if err != nil {
 			arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
-			return nil, fmt.Errorf("%s : %w", t.Nom, err)
+			return nil, fmt.Errorf("%s : %w", t.Name, err)
 		}
 		arch.EndRun(ctx, runID, "SUCCESS",
 			map[string]any{"sha256": f.SHA256, "deja_archive": f.Cached}, "")
@@ -148,8 +148,8 @@ func Download(ctx context.Context, arch *archive.Archive) (map[string]*archive.F
 		if f.Cached {
 			etat = "unchanged"
 		}
-		logs.Notice(fmt.Sprintf("source %s %s, sha256 %s", t.Nom, etat, f.SHA256[:12]))
-		out[t.Nom] = f
+		logs.Notice(fmt.Sprintf("source %s %s, sha256 %s", t.Name, etat, f.SHA256[:12]))
+		out[t.Name] = f
 	}
 	return out, nil
 }

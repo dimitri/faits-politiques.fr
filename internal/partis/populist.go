@@ -23,7 +23,7 @@ import (
 var SourcePopuList = archive.Source{
 	Slug: "populist-v4", Label: "The PopuList 4.0",
 	Publisher: "The PopuList", Tier: "SECONDARY_PRESS",
-	Licence: "CC BY 4.0", ReuseClass: "ATTRIBUTION",
+	License: "CC BY 4.0", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : The PopuList 4.0 (Rooduijn et al.), CC BY 4.0",
 	Cadence:     "par version",
 	Notes: "Classification qualitative informée par experts. Les catégories sont DATÉES : " +
@@ -36,7 +36,7 @@ const PopuListURL = "https://popu-list.github.io/Data/The%20PopuList%204.0.csv"
 // la récupérer — voir DownloadTargets, qui les réunit avec celles des deux
 // autres connecteurs du paquet.
 func PopuListDownloadTargets() []archive.DownloadTarget {
-	return []archive.DownloadTarget{{Nom: "populist", Source: SourcePopuList, URL: PopuListURL, Ext: ".csv"}}
+	return []archive.DownloadTarget{{Name: "populist", Source: SourcePopuList, URL: PopuListURL, Ext: ".csv"}}
 }
 
 var popuListCategories = []string{"populist", "farright", "farleft", "eurosceptic"}

@@ -27,7 +27,7 @@ var SourceBudgetAnnexeEau = archive.Source{
 	Slug: "ofgl-budget-annexe-eau", Label: "OFGL — budgets annexes M49 (eau et assainissement), communes et EPCI",
 	Publisher: "Observatoire des finances et de la gestion publique locales",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : OFGL (Observatoire des finances et de la gestion publique locales), " +
 		"d'après les comptes de gestion de la DGFiP",
 	Cadence: "annuelle",

@@ -30,7 +30,7 @@ import (
 var SourceInterventions = archive.Source{
 	Slug: "an-comptes-rendus", Label: "Assemblée nationale — comptes rendus de séance",
 	Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Assemblée nationale, comptes rendus de la séance publique",
 	Cadence:     "après chaque séance",

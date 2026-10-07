@@ -30,7 +30,7 @@ var SourceFiness = archive.Source{
 	Slug: "finess-etablissements", Label: "FINESS — référentiel des établissements sanitaires et sociaux",
 	Publisher: "Agence du numérique en santé (ANS), via data.gouv.fr",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : ANS, FINESS (data.gouv.fr)",
 	Cadence:     "annoncée mensuelle ; en pratique irrégulière",
 	Notes: "Le jeu data.gouv.fr historique (etalab_cs1100502) est signalé « remplacé » par de " +
