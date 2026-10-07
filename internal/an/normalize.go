@@ -33,7 +33,7 @@ func (f flexStr) Int() int       { n, _ := strconv.Atoi(string(f)); return n }
 
 // ---------------------------------------------------------------- organes
 
-type organe struct {
+type body struct {
 	UID               flexStr `json:"uid"`
 	CodeType          flexStr `json:"codeType"`
 	Libelle           flexStr `json:"libelle"`
@@ -54,7 +54,7 @@ type organe struct {
 // d'organisation du modèle. Les organes absents de cette table ne deviennent
 // pas des organisations : ASSEMBLEE, SENAT et PRESREP sont des institutions,
 // et les mandats qui s'y rapportent sont des mandats, pas des adhésions.
-var organeKind = map[string]string{
+var bodyKind = map[string]string{
 	"GP":           "PARLIAMENTARY_GROUP",
 	"GROUPESENAT":  "PARLIAMENTARY_GROUP",
 	"PARPOL":       "PARTY",
@@ -90,10 +90,10 @@ var organeKind = map[string]string{
 	"CONFPT":      "PARLIAMENTARY_BODY",
 }
 
-// organeLabels retourne le libellé de chaque organe, quel que soit son type :
+// bodyLabels retourne le libellé de chaque organe, quel que soit son type :
 // un ministère n'est pas une organisation politique au sens du modèle, mais son
 // intitulé est nécessaire pour qualifier un mandat ministériel.
-func organeLabels(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) {
+func bodyLabels(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT DISTINCT ON (natural_key) natural_key, payload->>'libelle'
 		   FROM raw.record WHERE record_type = 'an.organe'
@@ -116,12 +116,12 @@ func organeLabels(ctx context.Context, pool *pgxpool.Pool) (map[string]string, e
 	return out, rows.Err()
 }
 
-// watermarkOrganes identifie, dans core.ingest_watermark, l'état de
+// watermarkBodies identifie, dans core.ingest_watermark, l'état de
 // raw.record que la remise à zéro de core.organization a déjà pris en
 // compte — voir rawWatermark et Normalize.
-const watermarkOrganes = "an-organe"
+const watermarkBodies = "an-organe"
 
-func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
+func normalizeBodies(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT DISTINCT ON (natural_key) payload FROM raw.record
 		  WHERE record_type = 'an.organe'
@@ -132,7 +132,7 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 	defer rows.Close()
 
 	type item struct {
-		o    organe
+		o    body
 		kind string
 	}
 	var items []item
@@ -141,11 +141,11 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		if err := rows.Scan(&raw); err != nil {
 			return nil, err
 		}
-		var o organe
+		var o body
 		if err := json.Unmarshal(raw, &o); err != nil {
 			continue
 		}
-		if k, ok := organeKind[o.CodeType.String()]; ok {
+		if k, ok := bodyKind[o.CodeType.String()]; ok {
 			items = append(items, item{o: o, kind: k})
 		}
 	}
@@ -156,15 +156,15 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 	// table temporaire porte les organisations candidates et un seul
 	// INSERT ... SELECT les écrit — aucune contrainte d'exclusion ici (slug
 	// est une simple clé unique), donc aucune dépendance à l'ordre
-	// contrairement à applyMandat/copierMandats plus bas.
-	type ligne struct {
+	// contrairement à applyMandate/copyMandates plus bas.
+	type bodyRow struct {
 		uid, slug, kind, nom, abrege, debut, fin, organType string
 	}
 	seenSlug := map[string]bool{}
-	if err := seedSlugsOrganisationsExistantes(ctx, pool, seenSlug); err != nil {
+	if err := seedExistingOrganizationSlugs(ctx, pool, seenSlug); err != nil {
 		return nil, err
 	}
-	lignes := make([]ligne, 0, len(items))
+	bodyRows := make([]bodyRow, 0, len(items))
 	for _, it := range items {
 		base := slugify(it.o.Libelle.String())
 		if base == "" {
@@ -174,13 +174,13 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 			base = base + "-" + it.o.Legislature.String()
 		}
 		slug := slugUniqueBase(seenSlug, "", base, it.o.UID.String())
-		lignes = append(lignes, ligne{
+		bodyRows = append(bodyRows, bodyRow{
 			uid: it.o.UID.String(), slug: slug, kind: it.kind, nom: it.o.Libelle.String(),
 			abrege: it.o.LibelleAbrege.String(), debut: it.o.ViMoDe.DateDebut.String(),
 			fin: it.o.ViMoDe.DateFin.String(), organType: it.o.CodeType.String(),
 		})
 	}
-	if len(lignes) == 0 {
+	if len(bodyRows) == 0 {
 		return map[string]int64{}, nil
 	}
 
@@ -197,13 +197,13 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		) ON COMMIT DROP`); err != nil {
 		return nil, err
 	}
-	copieOrganes := make([][]any, len(lignes))
-	for i, l := range lignes {
-		copieOrganes[i] = []any{l.uid, l.slug, l.kind, l.nom, nullable(l.abrege), nullable(l.debut), nullable(l.fin), l.organType}
+	bodyCopy := make([][]any, len(bodyRows))
+	for i, l := range bodyRows {
+		bodyCopy[i] = []any{l.uid, l.slug, l.kind, l.nom, nullable(l.abrege), nullable(l.debut), nullable(l.fin), l.organType}
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_organe"},
 		[]string{"uid", "slug", "kind", "nom", "abrege", "debut", "fin", "organ_type"},
-		pgx.CopyFromRows(copieOrganes)); err != nil {
+		pgx.CopyFromRows(bodyCopy)); err != nil {
 		return nil, err
 	}
 	// MERGE plutôt qu'un upsert simple : core.organization.id doit rester
@@ -296,8 +296,8 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		return nil, err
 	}
 
-	idRows := make([][]any, 0, len(lignes))
-	for _, l := range lignes {
+	idRows := make([][]any, 0, len(bodyRows))
+	for _, l := range bodyRows {
 		if id, ok := byUID[l.uid]; ok {
 			idRows = append(idRows, []any{id, l.uid})
 		}
@@ -322,35 +322,35 @@ func normalizeOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 	return byUID, nil
 }
 
-// ---------------------------------------------------------------- acteurs
+// ---------------------------------------------------------------- actors
 
-type acteur struct {
-	UID       flexStr `json:"uid"`
-	URIHatvp  flexStr `json:"uri_hatvp"`
-	EtatCivil struct {
-		Ident struct {
+type actor struct {
+	UID         flexStr `json:"uid"`
+	URIHatvp    flexStr `json:"uri_hatvp"`
+	CivilStatus struct {
+		Identity struct {
 			Civ    flexStr `json:"civ"`
 			Prenom flexStr `json:"prenom"`
 			Nom    flexStr `json:"nom"`
 		} `json:"ident"`
-		InfoNaissance struct {
-			DateNais flexStr `json:"dateNais"`
+		BirthInfo struct {
+			BirthDate flexStr `json:"dateNais"`
 		} `json:"infoNaissance"`
 	} `json:"etatCivil"`
-	Mandats struct {
-		Mandat json.RawMessage `json:"mandat"`
+	Mandates struct {
+		Mandate json.RawMessage `json:"mandat"`
 	} `json:"mandats"`
 }
 
-type mandat struct {
+type mandate struct {
 	UID         flexStr `json:"uid"`
-	ActeurRef   flexStr `json:"acteurRef"`
+	ActorRef    flexStr `json:"acteurRef"`
 	Legislature flexStr `json:"legislature"`
-	TypeOrgane  flexStr `json:"typeOrgane"`
+	BodyType    flexStr `json:"typeOrgane"`
 	DateDebut   flexStr `json:"dateDebut"`
 	DateFin     flexStr `json:"dateFin"`
-	Organes     struct {
-		OrganeRef json.RawMessage `json:"organeRef"`
+	Bodies      struct {
+		BodyRef json.RawMessage `json:"organeRef"`
 	} `json:"organes"`
 	Election struct {
 		Lieu struct {
@@ -363,16 +363,16 @@ type mandat struct {
 	} `json:"infosQualite"`
 }
 
-// ligneActeur : une ligne prête pour tmp_acteur (normalizeActeurs).
+// actorRow : une ligne prête pour tmp_acteur (normalizeActors).
 // canonicalRn pointe vers elle-même par défaut ; seule la résolution des
 // homonymes en base (voir plus bas) le réécrit, pour les lignes qui doivent
 // fusionner sur une même personne nouvellement créée.
-type ligneActeur struct {
+type actorRow struct {
 	rn, canonicalRn                          int
 	uid, slug, nom, prenom, naissance, hatvp string
 }
 
-func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
+func normalizeActors(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
 	rows, err := pool.Query(ctx,
 		`SELECT DISTINCT ON (natural_key) payload FROM raw.record
 		  WHERE record_type = 'an.acteur'
@@ -380,42 +380,42 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 	if err != nil {
 		return nil, err
 	}
-	var acteurs []acteur
+	var actors []actor
 	for rows.Next() {
 		var raw []byte
 		if err := rows.Scan(&raw); err != nil {
 			return nil, err
 		}
-		var a acteur
+		var a actor
 		if err := json.Unmarshal(raw, &a); err != nil || a.UID == "" {
 			continue
 		}
-		acteurs = append(acteurs, a)
+		actors = append(actors, a)
 	}
 	rows.Close()
 
 	// Resolution des homonymes AVANT insertion : un slug est un permalien
 	// public, il ne doit jamais changer parce qu'un homonyme est arrive apres.
 	count := map[string]int{}
-	for _, a := range acteurs {
-		count[slugify(a.EtatCivil.Ident.Prenom.String(), a.EtatCivil.Ident.Nom.String())]++
+	for _, a := range actors {
+		count[slugify(a.CivilStatus.Identity.Prenom.String(), a.CivilStatus.Identity.Nom.String())]++
 	}
 
-	lignes := make([]ligneActeur, 0, len(acteurs))
-	for i, a := range acteurs {
-		base := slugify(a.EtatCivil.Ident.Prenom.String(), a.EtatCivil.Ident.Nom.String())
+	actorRows := make([]actorRow, 0, len(actors))
+	for i, a := range actors {
+		base := slugify(a.CivilStatus.Identity.Prenom.String(), a.CivilStatus.Identity.Nom.String())
 		slug := base
 		if base == "" || count[base] > 1 {
 			slug = strings.Trim(base+"-"+strings.ToLower(a.UID.String()), "-")
 		}
-		lignes = append(lignes, ligneActeur{
+		actorRows = append(actorRows, actorRow{
 			rn: i, canonicalRn: i, uid: a.UID.String(), slug: slug,
-			nom: a.EtatCivil.Ident.Nom.String(), prenom: a.EtatCivil.Ident.Prenom.String(),
-			naissance: strings.TrimSpace(a.EtatCivil.InfoNaissance.DateNais.String()),
+			nom: a.CivilStatus.Identity.Nom.String(), prenom: a.CivilStatus.Identity.Prenom.String(),
+			naissance: strings.TrimSpace(a.CivilStatus.BirthInfo.BirthDate.String()),
 			hatvp:     hatvpRef(a.URIHatvp.String()),
 		})
 	}
-	if len(lignes) == 0 {
+	if len(actorRows) == 0 {
 		return map[string]int64{}, nil
 	}
 
@@ -432,13 +432,13 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 		) ON COMMIT DROP`); err != nil {
 		return nil, err
 	}
-	copieActeurs := make([][]any, len(lignes))
-	for i, l := range lignes {
-		copieActeurs[i] = []any{l.rn, l.canonicalRn, l.uid, l.slug, l.nom, l.prenom, l.naissance, l.hatvp}
+	actorCopy := make([][]any, len(actorRows))
+	for i, l := range actorRows {
+		actorCopy[i] = []any{l.rn, l.canonicalRn, l.uid, l.slug, l.nom, l.prenom, l.naissance, l.hatvp}
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_acteur"},
 		[]string{"rn", "canonical_rn", "uid", "slug", "nom", "prenom", "naissance", "hatvp"},
-		pgx.CopyFromRows(copieActeurs)); err != nil {
+		pgx.CopyFromRows(actorCopy)); err != nil {
 		return nil, err
 	}
 
@@ -539,7 +539,7 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 	if err != nil {
 		return nil, err
 	}
-	byUID := make(map[string]int64, len(lignes))
+	byUID := make(map[string]int64, len(actorRows))
 	for res.Next() {
 		var uid string
 		var pid int64
@@ -560,7 +560,7 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 	return byUID, nil
 }
 
-// normalizeMandats lit les mandats aux DEUX endroits où l'Assemblée les publie.
+// normalizeMandates lit les mandats aux DEUX endroits où l'Assemblée les publie.
 //
 // AMO50 les publie comme des objets autonomes, porteurs de acteurRef : c'était
 // la seule lecture jusqu'ici, et elle paraissait la plus sûre — pas de
@@ -577,7 +577,7 @@ func normalizeActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64
 //
 // Les deux sources sont lues et réunies sur l'identifiant du mandat (`uid`) :
 // aucun rapprochement approximatif, et aucun doublon.
-func normalizeMandats(ctx context.Context, pool *pgxpool.Pool,
+func normalizeMandates(ctx context.Context, pool *pgxpool.Pool,
 	personByUID, orgByUID map[string]int64, labels map[string]string) (int, error) {
 
 	rows, err := pool.Query(ctx,
@@ -603,63 +603,63 @@ func normalizeMandats(ctx context.Context, pool *pgxpool.Pool,
 	if err != nil {
 		return 0, err
 	}
-	var mandats []mandat
-	vus := map[string]bool{}
+	var mandates []mandate
+	seen := map[string]bool{}
 	for rows.Next() {
 		var raw []byte
 		if err := rows.Scan(&raw); err != nil {
 			return 0, err
 		}
-		var m mandat
+		var m mandate
 		if err := json.Unmarshal(raw, &m); err != nil {
 			continue
 		}
 		if u := m.UID.String(); u != "" {
-			if vus[u] {
+			if seen[u] {
 				continue
 			}
-			vus[u] = true
+			seen[u] = true
 		}
-		mandats = append(mandats, m)
+		mandates = append(mandates, m)
 	}
 	rows.Close()
 
 	// Les plus anciens d'abord : si la contrainte d'exclusion refuse un
 	// chevauchement, c'est le mandat le plus ancien qui est conserve. Un refus
 	// est une anomalie de source, signalee par l'absence, jamais comblee.
-	sort.Slice(mandats, func(i, j int) bool {
-		return mandats[i].DateDebut.String() < mandats[j].DateDebut.String()
+	sort.Slice(mandates, func(i, j int) bool {
+		return mandates[i].DateDebut.String() < mandates[j].DateDebut.String()
 	})
 
-	fins := recoller(mandats, personByUID)
+	ends := patchOverlaps(mandates, personByUID)
 
 	// Deux lots, jamais une INSERT par mandat (jusqu'à plusieurs milliers
 	// d'allers-retours sur une base distante) : chaque mandat est d'abord
-	// classé en Go (même logique de branchement qu'avant, voir classerMandat)
+	// classé en Go (même logique de branchement qu'avant, voir classifyMandate)
 	// dans l'un des deux lots — core.mandate (député/ministre/sénateur) ou
 	// core.affiliation (groupe, commission, parti déclaré) —, copiés chacun
 	// dans une table temporaire, puis un SEUL INSERT ... SELECT par lot.
-	// L'ordre du lot (le plus ancien d'abord, comme mandats est déjà trié)
+	// L'ordre du lot (le plus ancien d'abord, comme mandates est déjà trié)
 	// est préservé par rn : Postgres traite les lignes d'un INSERT ... SELECT
 	// ... ORDER BY dans cet ordre pour la résolution des contraintes
 	// d'exclusion, exactement comme la boucle ligne à ligne qu'il remplace
 	// (vérifié directement contre Postgres avant d'écrire ceci — voir la
 	// session qui a introduit ce commentaire).
-	var lotMandats []ligneMandat
-	var lotAffiliations []ligneAffiliation
-	for _, m := range mandats {
-		pid, ok := personByUID[m.ActeurRef.String()]
+	var mandateBatch []mandateRow
+	var affiliationBatch []affiliationRow
+	for _, m := range mandates {
+		pid, ok := personByUID[m.ActorRef.String()]
 		if !ok {
 			continue
 		}
-		lm, la := classerMandat(pid, m, orgByUID, labels, fins[m.UID.String()])
+		lm, la := classifyMandate(pid, m, orgByUID, labels, ends[m.UID.String()])
 		if lm != nil {
-			lm.rn = len(lotMandats)
-			lotMandats = append(lotMandats, *lm)
+			lm.rn = len(mandateBatch)
+			mandateBatch = append(mandateBatch, *lm)
 		}
 		if la != nil {
-			la.rn = len(lotAffiliations)
-			lotAffiliations = append(lotAffiliations, *la)
+			la.rn = len(affiliationBatch)
+			affiliationBatch = append(affiliationBatch, *la)
 		}
 	}
 
@@ -669,24 +669,24 @@ func normalizeMandats(ctx context.Context, pool *pgxpool.Pool,
 	}
 	defer tx.Rollback(ctx)
 
-	nMandats, err := copierMandats(ctx, tx, lotMandats)
+	nMandates, err := copyMandates(ctx, tx, mandateBatch)
 	if err != nil {
 		return 0, fmt.Errorf("mandats (core.mandate) : %w", err)
 	}
-	nAffiliations, err := copierAffiliations(ctx, tx, lotAffiliations)
+	nAffiliations, err := copyAffiliations(ctx, tx, affiliationBatch)
 	if err != nil {
 		return 0, fmt.Errorf("appartenances (core.affiliation) : %w", err)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, err
 	}
-	return nMandats + nAffiliations, nil
+	return nMandates + nAffiliations, nil
 }
 
-// ligneMandat/ligneAffiliation : une ligne prête pour la table temporaire de
+// mandateRow/affiliationRow : une ligne prête pour la table temporaire de
 // son lot — mêmes colonnes que l'INSERT qu'applyMandat faisait une par une
 // avant ce lot, jamais recalculées.
-type ligneMandat struct {
+type mandateRow struct {
 	rn                                     int
 	personID                               int64
 	mandateType, institution, constituency string
@@ -694,53 +694,53 @@ type ligneMandat struct {
 	debut, fin                             string
 }
 
-type ligneAffiliation struct {
+type affiliationRow struct {
 	rn                          int
 	personID, organizationID    int64
 	organizationKind, role, via string
 	debut, fin                  string
 }
 
-// classerMandat reprend exactement le branchement et les anomalies signalées
+// classifyMandate reprend exactement le branchement et les anomalies signalées
 // par l'absence qu'applyMandat traitait ligne à ligne — seule la sortie
 // change : une ligne pour l'un des deux lots plutôt qu'un INSERT immédiat.
 // PRESREP et les organes/types inconnus renvoient (nil, nil) : ignorés, comme
 // avant.
-func classerMandat(personID int64, m mandat, orgByUID map[string]int64,
-	labels map[string]string, finRecollee string) (*ligneMandat, *ligneAffiliation) {
+func classifyMandate(personID int64, m mandate, orgByUID map[string]int64,
+	labels map[string]string, patchedEnd string) (*mandateRow, *affiliationRow) {
 	debut := m.DateDebut.String()
 	if debut == "" {
 		return nil, nil // un mandat sans date de début n'est pas exploitable
 	}
 	brute := m.DateFin.String()
-	if finRecollee != "" {
-		brute = finRecollee
+	if patchedEnd != "" {
+		brute = patchedEnd
 	}
 	fin := brute
 	if fin != "" && fin < debut {
 		return nil, nil // anomalie de source : signalée par l'absence, jamais devinée
 	}
 
-	switch m.TypeOrgane.String() {
+	switch m.BodyType.String() {
 	case "ASSEMBLEE":
 		circo := strings.TrimSpace(m.Election.Lieu.Departement.String())
 		if n := m.Election.Lieu.NumCirco.String(); n != "" {
 			circo = strings.TrimSpace(circo + ", " + n + "e circonscription")
 		}
-		return &ligneMandat{
+		return &mandateRow{
 			personID: personID, mandateType: "DEPUTE", institution: "ASSEMBLEE_NATIONALE",
 			constituency: circo, role: m.InfosQualite.LibQualite.String(), debut: debut, fin: fin,
 		}, nil
 
 	case "MINISTERE":
-		return &ligneMandat{
+		return &mandateRow{
 			personID: personID, mandateType: "MINISTRE",
-			role: m.InfosQualite.LibQualite.String(), portefeuille: labels[str(m.Organes.OrganeRef)],
+			role: m.InfosQualite.LibQualite.String(), portefeuille: labels[str(m.Bodies.BodyRef)],
 			debut: debut, fin: fin,
 		}, nil
 
 	case "SENAT":
-		return &ligneMandat{
+		return &mandateRow{
 			personID: personID, mandateType: "SENATEUR", institution: "SENAT",
 			role: m.InfosQualite.LibQualite.String(), debut: debut, fin: fin,
 		}, nil
@@ -752,12 +752,12 @@ func classerMandat(personID int64, m mandat, orgByUID map[string]int64,
 		return nil, nil
 
 	default:
-		orgUID := str(m.Organes.OrganeRef)
+		orgUID := str(m.Bodies.BodyRef)
 		orgID, ok := orgByUID[orgUID]
 		if !ok {
 			return nil, nil
 		}
-		kind, ok := organeKind[m.TypeOrgane.String()]
+		kind, ok := bodyKind[m.BodyType.String()]
 		if !ok {
 			return nil, nil
 		}
@@ -770,21 +770,21 @@ func classerMandat(personID int64, m mandat, orgByUID map[string]int64,
 		if kind == "PARTY" {
 			via = "PARTY_DECLARATION"
 		}
-		return nil, &ligneAffiliation{
+		return nil, &affiliationRow{
 			personID: personID, organizationID: orgID, organizationKind: kind,
 			role: m.InfosQualite.LibQualite.String(), via: via, debut: debut, fin: fin,
 		}
 	}
 }
 
-// copierMandats : une table temporaire, une copie, un INSERT ... SELECT —
+// copyMandates : une table temporaire, une copie, un INSERT ... SELECT —
 // les contraintes d'exclusion de core.mandate (un DEPUTE/SENATEUR/MINISTRE
 // ne peut pas chevaucher un autre mandat du même type pour la même
 // personne) refusent un chevauchement exactement comme le ON CONFLICT DO
 // NOTHING ligne à ligne qu'elles remplacent — ORDER BY rn préserve le
-// « plus ancien d'abord » dont recoller/le tri de normalizeMandats dépendent.
-func copierMandats(ctx context.Context, tx pgx.Tx, lignes []ligneMandat) (int, error) {
-	if len(lignes) == 0 {
+// « plus ancien d'abord » dont patchOverlaps/le tri de normalizeMandates dépendent.
+func copyMandates(ctx context.Context, tx pgx.Tx, batch []mandateRow) (int, error) {
+	if len(batch) == 0 {
 		return 0, nil
 	}
 	if _, err := tx.Exec(ctx, `
@@ -794,8 +794,8 @@ func copierMandats(ctx context.Context, tx pgx.Tx, lignes []ligneMandat) (int, e
 		) ON COMMIT DROP`); err != nil {
 		return 0, err
 	}
-	rows := make([][]any, len(lignes))
-	for i, l := range lignes {
+	rows := make([][]any, len(batch))
+	for i, l := range batch {
 		rows[i] = []any{l.rn, l.personID, l.mandateType, nullable(l.institution),
 			nullable(l.constituency), nullable(l.role), nullable(l.portefeuille),
 			l.debut, nullable(l.fin)}
@@ -819,12 +819,12 @@ func copierMandats(ctx context.Context, tx pgx.Tx, lignes []ligneMandat) (int, e
 	return int(res.RowsAffected()), nil
 }
 
-// copierAffiliations : même patron que copierMandats pour core.affiliation —
+// copyAffiliations : même patron que copyMandates pour core.affiliation —
 // la contrainte d'exclusion n'y interdit qu'appartenir à deux groupes
 // parlementaires en même temps (siéger dans plusieurs commissions à la fois
 // est normal), donc ORDER BY rn a la même portée limitée qu'avant.
-func copierAffiliations(ctx context.Context, tx pgx.Tx, lignes []ligneAffiliation) (int, error) {
-	if len(lignes) == 0 {
+func copyAffiliations(ctx context.Context, tx pgx.Tx, batch []affiliationRow) (int, error) {
+	if len(batch) == 0 {
 		return 0, nil
 	}
 	if _, err := tx.Exec(ctx, `
@@ -834,8 +834,8 @@ func copierAffiliations(ctx context.Context, tx pgx.Tx, lignes []ligneAffiliatio
 		) ON COMMIT DROP`); err != nil {
 		return 0, err
 	}
-	rows := make([][]any, len(lignes))
-	for i, l := range lignes {
+	rows := make([][]any, len(batch))
+	for i, l := range batch {
 		rows[i] = []any{l.rn, l.personID, l.organizationID, l.organizationKind,
 			nullable(l.role), l.via, l.debut, nullable(l.fin)}
 	}
@@ -857,8 +857,8 @@ func copierAffiliations(ctx context.Context, tx pgx.Tx, lignes []ligneAffiliatio
 	return int(res.RowsAffected()), nil
 }
 
-// recoller règle le chevauchement de deux jours que la source publie à chaque
-// changement de législature.
+// patchOverlaps règle le chevauchement de deux jours que la source publie à
+// chaque changement de législature.
 //
 // La quatorzième législature s'achève le 20 juin 2017 et la quinzième débute
 // le 18 : les deux dates sont justes — l'Assemblée sortante siège jusqu'à ce
@@ -872,47 +872,47 @@ func copierAffiliations(ctx context.Context, tx pgx.Tx, lignes []ligneAffiliatio
 // détient pas deux fois. Elle ne vaut QUE pour les sièges parlementaires : un
 // ministre peut cumuler deux portefeuilles, et ses chevauchements restent des
 // faits, pas des bavures.
-func recoller(mandats []mandat, personByUID map[string]int64) map[string]string {
-	type cle struct {
+func patchOverlaps(mandates []mandate, personByUID map[string]int64) map[string]string {
+	type key struct {
 		pid   int64
 		type_ string
 	}
-	suites := map[cle][]*mandat{}
-	for i := range mandats {
-		m := &mandats[i]
-		t := m.TypeOrgane.String()
+	chains := map[key][]*mandate{}
+	for i := range mandates {
+		m := &mandates[i]
+		t := m.BodyType.String()
 		if t != "ASSEMBLEE" && t != "SENAT" {
 			continue
 		}
-		pid, ok := personByUID[m.ActeurRef.String()]
+		pid, ok := personByUID[m.ActorRef.String()]
 		if !ok || m.DateDebut.String() == "" {
 			continue
 		}
-		suites[cle{pid, t}] = append(suites[cle{pid, t}], m)
+		chains[key{pid, t}] = append(chains[key{pid, t}], m)
 	}
 
-	fins := map[string]string{}
-	for _, suite := range suites {
-		// mandats est déjà trié par date de début ; suite en hérite.
-		for i := 0; i < len(suite)-1; i++ {
-			fin, debutSuivant := suite[i].DateFin.String(), suite[i+1].DateDebut.String()
-			if fin == "" || fin < debutSuivant {
+	ends := map[string]string{}
+	for _, chain := range chains {
+		// mandates est déjà trié par date de début ; chain en hérite.
+		for i := 0; i < len(chain)-1; i++ {
+			fin, nextStart := chain[i].DateFin.String(), chain[i+1].DateDebut.String()
+			if fin == "" || fin < nextStart {
 				continue
 			}
-			d, err := time.Parse("2006-01-02", debutSuivant)
+			d, err := time.Parse("2006-01-02", nextStart)
 			if err != nil {
 				continue
 			}
-			veille := d.AddDate(0, 0, -1).Format("2006-01-02")
+			dayBefore := d.AddDate(0, 0, -1).Format("2006-01-02")
 			// Un mandat qui commencerait après sa propre fin corrigée est une
 			// vraie anomalie de source : elle reste signalée par l'absence.
-			if veille < suite[i].DateDebut.String() {
+			if dayBefore < chain[i].DateDebut.String() {
 				continue
 			}
-			fins[suite[i].UID.String()] = veille
+			ends[chain[i].UID.String()] = dayBefore
 		}
 	}
-	return fins
+	return ends
 }
 
 // Normalize reconstruit core à partir de raw. L'opération est idempotente :
@@ -948,7 +948,7 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	if err != nil {
 		return fmt.Errorf("empreinte des scrutins : %w", err)
 	}
-	scrutinsUnchanged, scrutinsRaison, err := watermarkDiff(ctx, pool, watermarkScrutins, scrutinsCount, scrutinsHigh)
+	scrutinsUnchanged, scrutinsReason, err := watermarkDiff(ctx, pool, watermarkScrutins, scrutinsCount, scrutinsHigh)
 	if err != nil {
 		return fmt.Errorf("empreinte des scrutins : %w", err)
 	}
@@ -961,11 +961,11 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	// core.ballot vient justement d'être laissée intacte ci-dessus. Les deux
 	// repères doivent donc être vrais ensemble pour que sauter le premier
 	// soit sûr.
-	organeCount, organeHigh, err := rawWatermark(ctx, pool, "an.organe")
+	bodyCount, bodyHigh, err := rawWatermark(ctx, pool, "an.organe")
 	if err != nil {
 		return fmt.Errorf("empreinte des organes : %w", err)
 	}
-	organeUnchanged, organeRaison, err := watermarkDiff(ctx, pool, watermarkOrganes, organeCount, organeHigh)
+	bodyUnchanged, bodyReason, err := watermarkDiff(ctx, pool, watermarkBodies, bodyCount, bodyHigh)
 	if err != nil {
 		return fmt.Errorf("empreinte des organes : %w", err)
 	}
@@ -974,16 +974,16 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	// organisation (id instable, détruite puis recréée). Sauter sa
 	// reconstruction n'est sûr que si NI L'UN NI L'AUTRE n'a de raison de
 	// bouger.
-	skipBallots := scrutinsUnchanged && organeUnchanged
+	skipBallots := scrutinsUnchanged && bodyUnchanged
 	// Ce qui suit prend un moment (le rebuild de core.ballot, plus d'une
 	// minute sur ~1,3 M lignes) : dire POURQUOI il a lieu, avant qu'il ne
 	// commence, plutôt que de laisser deviner si c'était évitable.
-	ballotsRaison := scrutinsRaison
-	if !organeUnchanged {
-		if ballotsRaison != "" {
-			ballotsRaison += "; " + organeRaison
+	ballotsReason := scrutinsReason
+	if !bodyUnchanged {
+		if ballotsReason != "" {
+			ballotsReason += "; " + bodyReason
 		} else {
-			ballotsRaison = organeRaison
+			ballotsReason = bodyReason
 		}
 	}
 
@@ -1070,7 +1070,7 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 		  WHERE t.id = a.texte_id AND t.institution = 'ASSEMBLEE_NATIONALE'`,
 	}...)
 
-	// core.organization n'est plus wipée ici : normalizeOrganes en fait
+	// core.organization n'est plus wipée ici : normalizeBodies en fait
 	// désormais un MERGE (voir plus haut) — un id d'organisation stable est
 	// ce que core.amendement_attribution.organization_id exige maintenant
 	// que core.amendement lui-même ne disparaît plus à chaque passage (même
@@ -1100,41 +1100,41 @@ func Normalize(ctx context.Context, pool *pgxpool.Pool) error {
 	// la session qui a introduit ce commentaire (normalize seule, sur une
 	// base réelle, prend facilement deux minutes).
 	logs.Notice("normalizing organizations")
-	orgByUID, err := normalizeOrganes(ctx, pool)
+	orgByUID, err := normalizeBodies(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("organes : %w", err)
 	}
-	// normalizeOrganes upserte par slug (id stable) plutôt que d'écraser :
+	// normalizeBodies upserte par slug (id stable) plutôt que d'écraser :
 	// enregistrer ce repère seulement APRÈS son succès, jamais avant, sinon
 	// une organisation en cours d'écriture au moment d'un plantage serait
 	// prise pour déjà à jour au prochain essai.
-	if err := recordWatermark(ctx, pool, watermarkOrganes, organeCount, organeHigh); err != nil {
+	if err := recordWatermark(ctx, pool, watermarkBodies, bodyCount, bodyHigh); err != nil {
 		return fmt.Errorf("organes : %w", err)
 	}
 	logs.Notice(logs.Plural(len(orgByUID), "organization") + " normalized")
 
 	logs.Notice("normalizing MPs")
-	personByUID, err := normalizeActeurs(ctx, pool)
+	personByUID, err := normalizeActors(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("acteurs : %w", err)
 	}
 	logs.Notice(logs.Plural(len(personByUID), "MP") + " normalized")
 
-	labels, err := organeLabels(ctx, pool)
+	labels, err := bodyLabels(ctx, pool)
 	if err != nil {
 		return fmt.Errorf("libellés d'organes : %w", err)
 	}
 
 	logs.Notice("normalizing mandates and affiliations")
-	nMandats, err := normalizeMandats(ctx, pool, personByUID, orgByUID, labels)
+	nMandates, err := normalizeMandates(ctx, pool, personByUID, orgByUID, labels)
 	if err != nil {
 		return fmt.Errorf("mandats : %w", err)
 	}
-	logs.Notice(fmt.Sprintf("%d mandates and affiliations normalized", nMandats))
+	logs.Notice(fmt.Sprintf("%d mandates and affiliations normalized", nMandates))
 
 	logs.Notice("normalizing votes")
 	nScr, nBal, err := normalizeScrutins(ctx, pool, personByUID, orgByUID,
-		skipBallots, ballotsRaison, scrutinsCount, scrutinsHigh)
+		skipBallots, ballotsReason, scrutinsCount, scrutinsHigh)
 	if err != nil {
 		return fmt.Errorf("scrutins : %w", err)
 	}

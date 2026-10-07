@@ -67,7 +67,7 @@ func slugUniqueBase(seenSlug map[string]bool, prefix, base, uid string) string {
 	return slug
 }
 
-// seedSlugsExistants précharge seenSlug avec les slugs DÉJÀ en base
+// seedExistingSlugs précharge seenSlug avec les slugs DÉJÀ en base
 // (core.dossier et core.texte, institution ASSEMBLEE_NATIONALE) — la
 // cause réelle de « duplicate key value violates ... texte_slug_key » :
 // un document NOUVEAU dans le batch courant, dont le slug calculé
@@ -79,7 +79,7 @@ func slugUniqueBase(seenSlug map[string]bool, prefix, base, uid string) string {
 // déjà écrit. Coût accepté : un document supprimé depuis la dernière
 // exécution libérerait en théorie son slug ; il reste réservé pour ce
 // run, au prix d'un repli évitable mais jamais d'une incorrection.
-func seedSlugsExistants(ctx context.Context, pool *pgxpool.Pool, seenSlug map[string]bool) error {
+func seedExistingSlugs(ctx context.Context, pool *pgxpool.Pool, seenSlug map[string]bool) error {
 	rows, err := pool.Query(ctx,
 		`SELECT slug FROM core.dossier WHERE institution = 'ASSEMBLEE_NATIONALE'`)
 	if err != nil {
@@ -115,12 +115,12 @@ func seedSlugsExistants(ctx context.Context, pool *pgxpool.Pool, seenSlug map[st
 	return rows.Err()
 }
 
-// seedSlugsOrganisationsExistantes : même précaution que seedSlugsExistants
+// seedExistingOrganizationSlugs : même précaution que seedExistingSlugs
 // ci-dessus, pour core.organization.slug (internal/an/normalize.go,
-// normalizeOrganes) — contrainte unique globale, aucun institution pour la
+// normalizeBodies) — contrainte unique globale, aucun institution pour la
 // borner : toute organisation déjà en base, quelle que soit son origine,
 // compte.
-func seedSlugsOrganisationsExistantes(ctx context.Context, pool *pgxpool.Pool, seenSlug map[string]bool) error {
+func seedExistingOrganizationSlugs(ctx context.Context, pool *pgxpool.Pool, seenSlug map[string]bool) error {
 	rows, err := pool.Query(ctx, `SELECT slug FROM core.organization`)
 	if err != nil {
 		return fmt.Errorf("préchargement des slugs d'organisation : %w", err)
@@ -138,35 +138,35 @@ func seedSlugsOrganisationsExistantes(ctx context.Context, pool *pgxpool.Pool, s
 }
 
 type dossierParlementaire struct {
-	UID          flexStr `json:"uid"`
-	Legislature  flexStr `json:"legislature"`
-	TitreDossier struct {
+	UID         flexStr `json:"uid"`
+	Legislature flexStr `json:"legislature"`
+	BillTitle   struct {
 		Titre       flexStr `json:"titre"`
 		TitreChemin flexStr `json:"titreChemin"`
 		SenatChemin flexStr `json:"senatChemin"`
 	} `json:"titreDossier"`
-	ProcedureParlementaire struct {
+	ParliamentaryProcedure struct {
 		Libelle flexStr `json:"libelle"`
 	} `json:"procedureParlementaire"`
-	Initiateur struct {
-		Acteurs rawBox `json:"acteurs"`
-		Organes rawBox `json:"organes"`
+	Initiator struct {
+		Actors rawBox `json:"acteurs"`
+		Bodies rawBox `json:"organes"`
 	} `json:"initiateur"`
-	ActesLegislatifs struct {
-		ActeLegislatif json.RawMessage `json:"acteLegislatif"`
+	LegislativeActs struct {
+		LegislativeAct json.RawMessage `json:"acteLegislatif"`
 	} `json:"actesLegislatifs"`
 }
 
-type documentAN struct {
+type anDocument struct {
 	UID    flexStr `json:"uid"`
-	Titres struct {
-		TitrePrincipal      flexStr `json:"titrePrincipal"`
-		TitrePrincipalCourt flexStr `json:"titrePrincipalCourt"`
+	Titles struct {
+		MainTitle  flexStr `json:"titrePrincipal"`
+		ShortTitle flexStr `json:"titrePrincipalCourt"`
 	} `json:"titres"`
-	DenominationStructurelle flexStr `json:"denominationStructurelle"`
-	DossierRef               flexStr `json:"dossierRef"`
-	CycleDeVie               struct {
-		Chrono struct {
+	StructuralDenomination flexStr `json:"denominationStructurelle"`
+	DossierRef             flexStr `json:"dossierRef"`
+	Lifecycle              struct {
+		Timeline struct {
 			DateDepot flexStr `json:"dateDepot"`
 		} `json:"chrono"`
 	} `json:"cycleDeVie"`
@@ -176,8 +176,8 @@ type documentAN struct {
 			Libelle flexStr `json:"libelle"`
 		} `json:"type"`
 	} `json:"classification"`
-	Auteurs       json.RawMessage `json:"auteurs"`
-	CoSignataires json.RawMessage `json:"coSignataires"`
+	Authors   json.RawMessage `json:"auteurs"`
+	CoSigners json.RawMessage `json:"coSignataires"`
 }
 
 // Les types de documents retenus comme « textes » au sens du modèle. Les
@@ -192,10 +192,10 @@ var documentKind = map[string]string{
 	"PIONO": "PROPOSITION_DE_LOI",
 }
 
-// ligneAuteur : une ligne d'auteur (dossier ou texte), prête pour une COPY
+// authorRow : une ligne d'auteur (dossier ou texte), prête pour une COPY
 // directe — ni dossier_author ni texte_author ne portent de contrainte de
 // conflit, un aller simple suffit une fois le parent résolu.
-type ligneAuteur struct {
+type authorRow struct {
 	parentUID       string
 	personID, orgID *int64
 	role            string
@@ -239,25 +239,25 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 	}
 	rows.Close()
 
-	type ligneDossier struct{ uid, slug, titre, titreChemin, senatChemin string }
+	type dossierRow struct{ uid, slug, titre, titreChemin, senatChemin string }
 	seenSlug := map[string]bool{}
-	if err := seedSlugsExistants(ctx, pool, seenSlug); err != nil {
+	if err := seedExistingSlugs(ctx, pool, seenSlug); err != nil {
 		return err
 	}
-	var lignesDossier []ligneDossier
-	var lignesInitiateur []ligneAuteur
+	var dossierRows []dossierRow
+	var initiatorRows []authorRow
 	for _, d := range dossiers {
-		titre := strings.TrimSpace(d.TitreDossier.Titre.String())
+		titre := strings.TrimSpace(d.BillTitle.Titre.String())
 		if titre == "" {
 			titre = d.UID.String()
 		}
 		slug := slugUnique(seenSlug, "", titre, d.UID.String())
-		lignesDossier = append(lignesDossier, ligneDossier{
+		dossierRows = append(dossierRows, dossierRow{
 			uid: d.UID.String(), slug: slug, titre: titre,
-			titreChemin: d.TitreDossier.TitreChemin.String(),
-			senatChemin: d.TitreDossier.SenatChemin.String(),
+			titreChemin: d.BillTitle.TitreChemin.String(),
+			senatChemin: d.BillTitle.SenatChemin.String(),
 		})
-		lignesInitiateur = append(lignesInitiateur, initiateurLignes(d, personByUID, orgByUID)...)
+		initiatorRows = append(initiatorRows, initiatorEntries(d, personByUID, orgByUID)...)
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -272,13 +272,13 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 		) ON COMMIT DROP`); err != nil {
 		return err
 	}
-	copieDossiers := make([][]any, len(lignesDossier))
-	for i, l := range lignesDossier {
-		copieDossiers[i] = []any{l.uid, l.slug, l.titre, nullable(l.titreChemin), nullable(l.senatChemin)}
+	dossierCopy := make([][]any, len(dossierRows))
+	for i, l := range dossierRows {
+		dossierCopy[i] = []any{l.uid, l.slug, l.titre, nullable(l.titreChemin), nullable(l.senatChemin)}
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_dossier"},
 		[]string{"uid", "slug", "titre", "titre_chemin", "senat_chemin"},
-		pgx.CopyFromRows(copieDossiers)); err != nil {
+		pgx.CopyFromRows(dossierCopy)); err != nil {
 		return err
 	}
 	// MERGE plutôt qu'un upsert simple : core.dossier.id doit rester stable
@@ -334,7 +334,7 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 		return err
 	}
 
-	nInitiateurs, err := copierAuteurs(ctx, tx, "core.dossier_author", "dossier_id", dossierID, lignesInitiateur)
+	nInitiators, err := copyAuthors(ctx, tx, "core.dossier_author", "dossier_id", dossierID, initiatorRows)
 	if err != nil {
 		return fmt.Errorf("initiateurs : %w", err)
 	}
@@ -342,23 +342,23 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	logs.Notice(fmt.Sprintf("%s (%s)", logs.Plural(len(dossierID), "bill"), logs.Plural(nInitiateurs, "initiator")))
+	logs.Notice(fmt.Sprintf("%s (%s)", logs.Plural(len(dossierID), "bill"), logs.Plural(nInitiators, "initiator")))
 
-	nTextes, nAuteurs, err := normalizeDocuments(ctx, pool, dossierID, personByUID, orgByUID, seenSlug)
+	nTexts, nAuthors, err := normalizeDocuments(ctx, pool, dossierID, personByUID, orgByUID, seenSlug)
 	if err != nil {
 		return err
 	}
-	logs.Notice(fmt.Sprintf("%s (%s and co-signers)", logs.Plural(nTextes, "text"), logs.Plural(nAuteurs, "author")))
+	logs.Notice(fmt.Sprintf("%s (%s and co-signers)", logs.Plural(nTexts, "text"), logs.Plural(nAuthors, "author")))
 
-	nLies, err := lierScrutins(ctx, pool, dossierID)
+	nLinked, err := linkScrutins(ctx, pool, dossierID)
 	if err != nil {
 		return err
 	}
-	logs.Notice(fmt.Sprintf("%s linked to their bill", logs.Plural(nLies, "vote")))
+	logs.Notice(fmt.Sprintf("%s linked to their bill", logs.Plural(nLinked, "vote")))
 	return nil
 }
 
-// initiateurLignes transcrit l'initiateur publié par la source. Un dossier
+// initiatorEntries transcrit l'initiateur publié par la source. Un dossier
 // sans initiateur — environ un sur huit — reste sans auteur : l'absence est
 // affichée, jamais comblée par une déduction à partir du titre.
 //
@@ -366,16 +366,16 @@ func NormalizeDossiers(ctx context.Context, pool *pgxpool.Pool,
 // reprennent le rang où les acteurs l'ont laissé, sans l'incrémenter à leur
 // tour — un trait du format d'origine, préservé tel quel plutôt que
 // « corrigé » au passage à une écriture groupée.
-func initiateurLignes(d dossierParlementaire, personByUID, orgByUID map[string]int64) []ligneAuteur {
-	var out []ligneAuteur
+func initiatorEntries(d dossierParlementaire, personByUID, orgByUID map[string]int64) []authorRow {
+	var out []authorRow
 	uid := d.UID.String()
 	rang := 1
-	var acteurs struct {
+	var actors struct {
 		Acteur json.RawMessage `json:"acteur"`
 	}
-	if len(d.Initiateur.Acteurs.Raw) > 0 {
-		_ = json.Unmarshal(d.Initiateur.Acteurs.Raw, &acteurs)
-		for _, e := range asSlice(acteurs.Acteur) {
+	if len(d.Initiator.Actors.Raw) > 0 {
+		_ = json.Unmarshal(d.Initiator.Actors.Raw, &actors)
+		for _, e := range asSlice(actors.Acteur) {
 			var a struct {
 				ActeurRef json.RawMessage `json:"acteurRef"`
 			}
@@ -386,16 +386,16 @@ func initiateurLignes(d dossierParlementaire, personByUID, orgByUID map[string]i
 			if !ok {
 				continue
 			}
-			out = append(out, ligneAuteur{parentUID: uid, personID: &pid, role: "INITIATEUR", rang: rang})
+			out = append(out, authorRow{parentUID: uid, personID: &pid, role: "INITIATEUR", rang: rang})
 			rang++
 		}
 	}
-	var organes struct {
+	var bodies struct {
 		Organe json.RawMessage `json:"organe"`
 	}
-	if len(d.Initiateur.Organes.Raw) > 0 {
-		_ = json.Unmarshal(d.Initiateur.Organes.Raw, &organes)
-		for _, e := range asSlice(organes.Organe) {
+	if len(d.Initiator.Bodies.Raw) > 0 {
+		_ = json.Unmarshal(d.Initiator.Bodies.Raw, &bodies)
+		for _, e := range asSlice(bodies.Organe) {
 			var o struct {
 				OrganeRef json.RawMessage `json:"organeRef"`
 			}
@@ -403,23 +403,23 @@ func initiateurLignes(d dossierParlementaire, personByUID, orgByUID map[string]i
 				continue
 			}
 			if oid, ok := orgByUID[str(o.OrganeRef)]; ok {
-				out = append(out, ligneAuteur{parentUID: uid, orgID: &oid, role: "GOUVERNEMENT", rang: rang})
+				out = append(out, authorRow{parentUID: uid, orgID: &oid, role: "GOUVERNEMENT", rang: rang})
 			}
 		}
 	}
 	return out
 }
 
-// copierAuteurs résout parentUID -> id via idByUID puis copie directement
+// copyAuthors résout parentUID -> id via idByUID puis copie directement
 // dans table : ni dossier_author ni texte_author ne portent de contrainte de
 // conflit, une COPY simple suffit, sans détour par une table temporaire.
-func copierAuteurs(ctx context.Context, tx pgx.Tx, table, parentCol string,
-	idByUID map[string]int64, lignes []ligneAuteur) (int, error) {
-	if len(lignes) == 0 {
+func copyAuthors(ctx context.Context, tx pgx.Tx, table, parentCol string,
+	idByUID map[string]int64, batch []authorRow) (int, error) {
+	if len(batch) == 0 {
 		return 0, nil
 	}
-	rows := make([][]any, 0, len(lignes))
-	for _, l := range lignes {
+	rows := make([][]any, 0, len(batch))
+	for _, l := range batch {
 		pid, ok := idByUID[l.parentUID]
 		if !ok {
 			continue
@@ -449,13 +449,13 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 	if err != nil {
 		return 0, 0, err
 	}
-	var docs []documentAN
+	var docs []anDocument
 	for rows.Next() {
 		var raw []byte
 		if err := rows.Scan(&raw); err != nil {
 			return 0, 0, err
 		}
-		var d documentAN
+		var d anDocument
 		if err := json.Unmarshal(raw, &d); err != nil || d.UID == "" {
 			continue
 		}
@@ -463,9 +463,9 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 	}
 	rows.Close()
 
-	type ligneTexte struct{ uid, dossierUID, slug, kind, titre, dateDepot string }
-	var lignesTexte []ligneTexte
-	var lignesAuteur []ligneAuteur
+	type texteRow struct{ uid, dossierUID, slug, kind, titre, dateDepot string }
+	var texteRows []texteRow
+	var authorRows []authorRow
 	for _, d := range docs {
 		kind, ok := documentKind[d.Classification.Type.Code.String()]
 		if !ok {
@@ -474,21 +474,21 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 		if _, ok := dossierID[d.DossierRef.String()]; !ok {
 			continue // un texte sans dossier rattaché n'est pas exploitable ici
 		}
-		titre := strings.TrimSpace(d.Titres.TitrePrincipal.String())
+		titre := strings.TrimSpace(d.Titles.MainTitle.String())
 		if titre == "" {
 			titre = d.UID.String()
 		}
 		slug := slugUnique(seenSlug, "t-", titre, d.UID.String())
-		lignesTexte = append(lignesTexte, ligneTexte{
+		texteRows = append(texteRows, texteRow{
 			uid: d.UID.String(), dossierUID: d.DossierRef.String(), slug: slug, kind: kind, titre: titre,
-			dateDepot: dateOnly(d.CycleDeVie.Chrono.DateDepot.String()),
+			dateDepot: dateOnly(d.Lifecycle.Timeline.DateDepot.String()),
 		})
 		// « Qui propose » est une dimension distincte de « qui vote », et c'est
 		// celle qu'aucun outil français n'exploite. Elle est transcrite ici
 		// telle que publiée, sans interprétation.
-		lignesAuteur = append(lignesAuteur, auteurLignes(d, personByUID, orgByUID)...)
+		authorRows = append(authorRows, authorEntries(d, personByUID, orgByUID)...)
 	}
-	if len(lignesTexte) == 0 {
+	if len(texteRows) == 0 {
 		return 0, 0, nil
 	}
 
@@ -504,13 +504,13 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 		) ON COMMIT DROP`); err != nil {
 		return 0, 0, err
 	}
-	copieTextes := make([][]any, len(lignesTexte))
-	for i, l := range lignesTexte {
-		copieTextes[i] = []any{l.uid, dossierID[l.dossierUID], l.slug, l.kind, l.titre, nullable(l.dateDepot)}
+	texteCopy := make([][]any, len(texteRows))
+	for i, l := range texteRows {
+		texteCopy[i] = []any{l.uid, dossierID[l.dossierUID], l.slug, l.kind, l.titre, nullable(l.dateDepot)}
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_texte"},
 		[]string{"uid", "dossier_id", "slug", "kind", "titre", "date_depot"},
-		pgx.CopyFromRows(copieTextes)); err != nil {
+		pgx.CopyFromRows(texteCopy)); err != nil {
 		return 0, 0, err
 	}
 	// MERGE plutôt qu'un upsert simple, même raison que dossier_an plus
@@ -530,7 +530,7 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 	}
 	// PAS de RETURNING pour construire texteID : même raison que dossierID
 	// plus haut — un texte MATCHED dont le titre n'a pas bougé ne déclenche
-	// aucun WHEN, donc ne renvoie rien, alors que copierAuteurs (plus bas)
+	// aucun WHEN, donc ne renvoie rien, alors que copyAuthors (plus bas)
 	// doit résoudre CHAQUE texte du payload courant.
 	if _, err := tx.Exec(ctx, `
 		MERGE INTO texte_an AS tgt
@@ -565,7 +565,7 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 		return 0, 0, err
 	}
 
-	nAuteurs, err := copierAuteurs(ctx, tx, "core.texte_author", "texte_id", texteID, lignesAuteur)
+	nAuthors, err := copyAuthors(ctx, tx, "core.texte_author", "texte_id", texteID, authorRows)
 	if err != nil {
 		return 0, 0, fmt.Errorf("auteurs de textes : %w", err)
 	}
@@ -573,38 +573,38 @@ func normalizeDocuments(ctx context.Context, pool *pgxpool.Pool, dossierID map[s
 	if err := tx.Commit(ctx); err != nil {
 		return 0, 0, err
 	}
-	return len(texteID), nAuteurs, nil
+	return len(texteID), nAuthors, nil
 }
 
-// auteurLignes transcrit auteurs et cosignataires d'un texte, dans cet ordre
-// (rang 1 puis 2) — chaque appel à ajouterLignes reprend son propre rang,
+// authorEntries transcrit auteurs et cosignataires d'un texte, dans cet ordre
+// (rang 1 puis 2) — chaque appel à addRows reprend son propre rang,
 // les deux ne se mélangent jamais.
-func auteurLignes(d documentAN, personByUID, orgByUID map[string]int64) []ligneAuteur {
-	var out []ligneAuteur
+func authorEntries(d anDocument, personByUID, orgByUID map[string]int64) []authorRow {
+	var out []authorRow
 	uid := d.UID.String()
 	var box struct {
 		Auteur json.RawMessage `json:"auteur"`
 	}
-	if len(d.Auteurs) > 0 {
-		_ = json.Unmarshal(d.Auteurs, &box)
-		out = append(out, ajouterLignes(uid, box.Auteur, "AUTEUR", 1, personByUID, orgByUID)...)
+	if len(d.Authors) > 0 {
+		_ = json.Unmarshal(d.Authors, &box)
+		out = append(out, addRows(uid, box.Auteur, "AUTEUR", 1, personByUID, orgByUID)...)
 	}
 	var cbox struct {
 		CoSignataire json.RawMessage `json:"coSignataire"`
 	}
-	if len(d.CoSignataires) > 0 {
-		_ = json.Unmarshal(d.CoSignataires, &cbox)
-		out = append(out, ajouterLignes(uid, cbox.CoSignataire, "COSIGNATAIRE", 2, personByUID, orgByUID)...)
+	if len(d.CoSigners) > 0 {
+		_ = json.Unmarshal(d.CoSigners, &cbox)
+		out = append(out, addRows(uid, cbox.CoSignataire, "COSIGNATAIRE", 2, personByUID, orgByUID)...)
 	}
 	return out
 }
 
-// ajouterLignes : le rang ne progresse que pour les acteurs, jamais pour les
-// organes qui suivent — même trait que initiateurLignes, préservé à
+// addRows : le rang ne progresse que pour les acteurs, jamais pour les
+// organes qui suivent — même trait que initiatorEntries, préservé à
 // l'identique.
-func ajouterLignes(parentUID string, raw json.RawMessage, role string, rang int,
-	personByUID, orgByUID map[string]int64) []ligneAuteur {
-	var out []ligneAuteur
+func addRows(parentUID string, raw json.RawMessage, role string, rang int,
+	personByUID, orgByUID map[string]int64) []authorRow {
+	var out []authorRow
 	for _, e := range asSlice(raw) {
 		var a struct {
 			ActeurRef json.RawMessage `json:"acteurRef"`
@@ -617,23 +617,23 @@ func ajouterLignes(parentUID string, raw json.RawMessage, role string, rang int,
 		}
 		if ref := str(a.ActeurRef); ref != "" {
 			if pid, ok := personByUID[ref]; ok {
-				out = append(out, ligneAuteur{parentUID: parentUID, personID: &pid, role: role, rang: rang})
+				out = append(out, authorRow{parentUID: parentUID, personID: &pid, role: role, rang: rang})
 				rang++
 			}
 		}
 		if ref := str(a.Organe.OrganeRef); ref != "" {
 			if oid, ok := orgByUID[ref]; ok {
-				out = append(out, ligneAuteur{parentUID: parentUID, orgID: &oid, role: "GOUVERNEMENT", rang: rang})
+				out = append(out, authorRow{parentUID: parentUID, orgID: &oid, role: "GOUVERNEMENT", rang: rang})
 			}
 		}
 	}
 	return out
 }
 
-// lierScrutins rattache chaque scrutin à son dossier quand la source le publie.
+// linkScrutins rattache chaque scrutin à son dossier quand la source le publie.
 // Environ deux scrutins sur trois portent cette référence ; pour les autres,
 // l'absence est affichée comme telle plutôt que devinée à partir du libellé.
-func lierScrutins(ctx context.Context, pool *pgxpool.Pool, dossierID map[string]int64) (int, error) {
+func linkScrutins(ctx context.Context, pool *pgxpool.Pool, dossierID map[string]int64) (int, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT DISTINCT ON (natural_key) natural_key,
 		       payload->'objet'->>'dossierLegislatif'
@@ -643,11 +643,11 @@ func lierScrutins(ctx context.Context, pool *pgxpool.Pool, dossierID map[string]
 	if err != nil {
 		return 0, err
 	}
-	type ligneLien struct {
+	type linkRow struct {
 		uid string
 		did int64
 	}
-	var liens []ligneLien
+	var links []linkRow
 	for rows.Next() {
 		var uid, obj string
 		if err := rows.Scan(&uid, &obj); err != nil {
@@ -658,12 +658,12 @@ func lierScrutins(ctx context.Context, pool *pgxpool.Pool, dossierID map[string]
 		}
 		if json.Unmarshal([]byte(obj), &o) == nil && o.DossierRef != "" {
 			if did, ok := dossierID[o.DossierRef]; ok {
-				liens = append(liens, ligneLien{uid, did})
+				links = append(links, linkRow{uid, did})
 			}
 		}
 	}
 	rows.Close()
-	if len(liens) == 0 {
+	if len(links) == 0 {
 		return 0, nil
 	}
 
@@ -676,8 +676,8 @@ func lierScrutins(ctx context.Context, pool *pgxpool.Pool, dossierID map[string]
 		`CREATE TEMP TABLE tmp_lien_scrutin (uid text, dossier_id bigint) ON COMMIT DROP`); err != nil {
 		return 0, err
 	}
-	rowsCopy := make([][]any, len(liens))
-	for i, l := range liens {
+	rowsCopy := make([][]any, len(links))
+	for i, l := range links {
 		rowsCopy[i] = []any{l.uid, l.did}
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_lien_scrutin"},
