@@ -5,10 +5,10 @@ package verify
 // ont été calculés indépendamment à la main, et vérifient que chaque euro du
 // coût employeur trouve un destinataire.
 func init() {
-	checks = append(checks, checksPaie...)
+	checks = append(checks, checksPayroll...)
 }
 
-var checksPaie = []check{
+var checksPayroll = []check{
 	{
 		name:    "barème de paie 2026 chargé : taux, paramètres, destinataires",
 		query:   `SELECT count(*) FROM ref.taux_cotisation WHERE millesime = '2026-01-01'`,

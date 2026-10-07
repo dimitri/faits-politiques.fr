@@ -23,7 +23,7 @@ import (
 )
 
 // Config : les quatre informations nécessaires pour joindre un object
-// storage compatible S3. Lue depuis l'environnement (Config.DepuisEnv) —
+// storage compatible S3. Lue depuis l'environnement (FromEnv) —
 // jamais un flag de plus à mémoriser par commande, les mêmes variables
 // servent à fpctl provision store, sync archive, sync site et list sources.
 type Config struct {
@@ -33,11 +33,11 @@ type Config struct {
 	UseSSL    bool
 }
 
-// DepuisEnv lit FP_S3_ENDPOINT / FP_S3_ACCESS_KEY / FP_S3_SECRET_KEY /
+// FromEnv lit FP_S3_ENDPOINT / FP_S3_ACCESS_KEY / FP_S3_SECRET_KEY /
 // FP_S3_USE_SSL, avec les valeurs par défaut du MinIO local de
 // docker-compose.yml (identifiants « fpminio » / « fp12345678 », qui ne
 // protègent qu'un service qui n'écoute que sur localhost).
-func DepuisEnv() Config {
+func FromEnv() Config {
 	cfg := Config{
 		Endpoint:  "localhost:9090",
 		AccessKey: "fpminio",
@@ -64,107 +64,107 @@ func Client(cfg Config) (*minio.Client, error) {
 	})
 }
 
-// AssurerBucket crée le bucket s'il n'existe pas déjà — idempotent, pour que
+// EnsureBucket crée le bucket s'il n'existe pas déjà — idempotent, pour que
 // « sync » puisse toujours être relancé sans provisionnement préalable
 // distinct.
-func AssurerBucket(ctx context.Context, c *minio.Client, bucket string) error {
-	existe, err := c.BucketExists(ctx, bucket)
+func EnsureBucket(ctx context.Context, c *minio.Client, bucket string) error {
+	exists, err := c.BucketExists(ctx, bucket)
 	if err != nil {
 		return err
 	}
-	if !existe {
+	if !exists {
 		return c.MakeBucket(ctx, bucket, minio.MakeBucketOptions{})
 	}
 	return nil
 }
 
-// SyncDir envoie tous les fichiers de racineLocale vers bucket, sous une clé
+// SyncDir envoie tous les fichiers de localRoot vers bucket, sous une clé
 // égale à leur chemin relatif (les séparateurs Windows n'existent pas ici,
 // ce projet ne tourne que sous Linux). Ignore un objet déjà présent à la
 // même taille : l'archive est immuable et adressée par empreinte
 // (internal/archive), un fichier qui n'a pas changé de taille n'a pas
 // changé — cette hypothèse serait fausse pour un contenu muable, mais rien
 // de ce que ce paquet synchronise ne l'est.
-func SyncDir(ctx context.Context, c *minio.Client, bucket, racineLocale string) (envoyes int, octets int64, err error) {
-	if err := AssurerBucket(ctx, c, bucket); err != nil {
+func SyncDir(ctx context.Context, c *minio.Client, bucket, localRoot string) (sent int, bytes int64, err error) {
+	if err := EnsureBucket(ctx, c, bucket); err != nil {
 		return 0, 0, err
 	}
-	err = filepath.WalkDir(racineLocale, func(chemin string, d os.DirEntry, err error) error {
+	err = filepath.WalkDir(localRoot, func(path string, d os.DirEntry, err error) error {
 		if err != nil {
 			return err
 		}
 		if d.IsDir() {
 			return nil
 		}
-		rel, err := filepath.Rel(racineLocale, chemin)
+		rel, err := filepath.Rel(localRoot, path)
 		if err != nil {
 			return err
 		}
-		cle := filepath.ToSlash(rel)
+		key := filepath.ToSlash(rel)
 		info, err := d.Info()
 		if err != nil {
 			return err
 		}
-		if existant, err := c.StatObject(ctx, bucket, cle, minio.StatObjectOptions{}); err == nil && existant.Size == info.Size() {
+		if existing, err := c.StatObject(ctx, bucket, key, minio.StatObjectOptions{}); err == nil && existing.Size == info.Size() {
 			return nil // déjà présent, même taille : rien à renvoyer
 		}
-		f, err := os.Open(chemin)
+		f, err := os.Open(path)
 		if err != nil {
 			return err
 		}
 		defer f.Close()
-		_, err = c.PutObject(ctx, bucket, cle, f, info.Size(), minio.PutObjectOptions{
-			ContentType: contentType(chemin),
+		_, err = c.PutObject(ctx, bucket, key, f, info.Size(), minio.PutObjectOptions{
+			ContentType: contentType(path),
 		})
 		if err != nil {
-			return fmt.Errorf("%s : %w", cle, err)
+			return fmt.Errorf("%s : %w", key, err)
 		}
-		envoyes++
-		octets += info.Size()
+		sent++
+		bytes += info.Size()
 		return nil
 	})
-	return envoyes, octets, err
+	return sent, bytes, err
 }
 
-// Objet : ce qu'il faut à internal/sources pour décrire un document
+// Object : ce qu'il faut à internal/sources pour décrire un document
 // archivé, que la source réelle soit un répertoire local ou un bucket — les
 // deux mêmes trois champs, jamais plus.
-type Objet struct {
-	Cle    string
-	Taille int64
+type Object struct {
+	Key  string
+	Size int64
 }
 
-// ListerPrefixe énumère les objets d'un bucket sous un préfixe — utilisé par
+// ListPrefix énumère les objets d'un bucket sous un préfixe — utilisé par
 // fpctl list sources quand l'archive vit dans l'object storage plutôt que
 // sur disque (voir internal/sources, DocumentsDeSource).
-func ListerPrefixe(ctx context.Context, c *minio.Client, bucket, prefixe string) ([]Objet, error) {
-	var out []Objet
-	for o := range c.ListObjects(ctx, bucket, minio.ListObjectsOptions{Prefix: prefixe, Recursive: true}) {
+func ListPrefix(ctx context.Context, c *minio.Client, bucket, prefix string) ([]Object, error) {
+	var out []Object
+	for o := range c.ListObjects(ctx, bucket, minio.ListObjectsOptions{Prefix: prefix, Recursive: true}) {
 		if o.Err != nil {
 			return nil, o.Err
 		}
-		out = append(out, Objet{Cle: o.Key, Taille: o.Size})
+		out = append(out, Object{Key: o.Key, Size: o.Size})
 	}
 	return out, nil
 }
 
-func contentType(chemin string) string {
+func contentType(path string) string {
 	switch {
-	case strings.HasSuffix(chemin, ".html"):
+	case strings.HasSuffix(path, ".html"):
 		return "text/html; charset=utf-8"
-	case strings.HasSuffix(chemin, ".css"):
+	case strings.HasSuffix(path, ".css"):
 		return "text/css; charset=utf-8"
-	case strings.HasSuffix(chemin, ".js"):
+	case strings.HasSuffix(path, ".js"):
 		return "application/javascript; charset=utf-8"
-	case strings.HasSuffix(chemin, ".json"):
+	case strings.HasSuffix(path, ".json"):
 		return "application/json; charset=utf-8"
-	case strings.HasSuffix(chemin, ".xml"):
+	case strings.HasSuffix(path, ".xml"):
 		return "application/xml; charset=utf-8"
-	case strings.HasSuffix(chemin, ".svg"):
+	case strings.HasSuffix(path, ".svg"):
 		return "image/svg+xml"
-	case strings.HasSuffix(chemin, ".png"):
+	case strings.HasSuffix(path, ".png"):
 		return "image/png"
-	case strings.HasSuffix(chemin, ".pdf"):
+	case strings.HasSuffix(path, ".pdf"):
 		return "application/pdf"
 	default:
 		return "application/octet-stream"
