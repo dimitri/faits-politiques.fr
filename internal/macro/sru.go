@@ -121,7 +121,7 @@ func boolFrom01(s string) bool { return strings.TrimSpace(s) == "1" }
 func parseEuroAmount(s string) (float64, bool) {
 	s = strings.ReplaceAll(s, "€", "")
 	s = strings.Map(func(r rune) rune {
-		if r == ' ' || r == ' ' || r == ' ' {
+		if r == ' ' || r == ' ' || r == ' ' {
 			return -1
 		}
 		return r

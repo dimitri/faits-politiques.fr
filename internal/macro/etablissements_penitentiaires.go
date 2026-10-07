@@ -71,7 +71,7 @@ func parseReferenceDate(s string) (time.Time, error) {
 // "2 455" -> 2455.
 func parseFrenchInt(s string) (int, error) {
 	s = strings.Map(func(r rune) rune {
-		if r == ' ' || r == ' ' || r == ' ' {
+		if r == ' ' || r == ' ' || r == ' ' {
 			return -1
 		}
 		return r
