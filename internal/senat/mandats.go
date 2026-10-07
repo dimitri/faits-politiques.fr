@@ -18,7 +18,7 @@ import (
 //
 // 2 496 lignes sur 5 873 portent une date de début. Les autres n'en reçoivent
 // aucune : un mandat sans date n'est pas un mandat.
-func NormalizeMandats(ctx context.Context, pool *pgxpool.Pool) error {
+func NormalizeMandates(ctx context.Context, pool *pgxpool.Pool) error {
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -78,14 +78,14 @@ func NormalizeMandats(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("mandats sénatoriaux : %w", err)
 	}
 
-	var depuis, jusqua string
+	var since, until string
 	_ = tx.QueryRow(ctx, `
 		SELECT coalesce(min(lower(validity))::text,''), coalesce(max(coalesce(upper(validity),CURRENT_DATE))::text,'')
-		  FROM core.mandate WHERE mandate_type='SENATEUR' AND institution='SENAT'`).Scan(&depuis, &jusqua)
+		  FROM core.mandate WHERE mandate_type='SENATEUR' AND institution='SENAT'`).Scan(&since, &until)
 
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	logs.Notice(fmt.Sprintf("%s, from %s to %s", logs.Plural(int(res.RowsAffected()), "senator mandate"), depuis, jusqua))
+	logs.Notice(fmt.Sprintf("%s, from %s to %s", logs.Plural(int(res.RowsAffected()), "senator mandate"), since, until))
 	return nil
 }

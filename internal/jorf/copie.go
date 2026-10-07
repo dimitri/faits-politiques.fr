@@ -56,24 +56,24 @@ import (
 // Le tampon entre le lecteur de l'archive et les écrivains. Il absorbe les
 // à-coups : un fichier de sommaire est minuscule, un texte de loi de finances
 // pèse plusieurs mégaoctets, et les deux arrivent dans le même flux.
-const tampon = 4096
+const bufferSize = 4096
 
-// flux relie une table cible à son canal d'alimentation. pgx.CopyFrom bloque
+// stream relie une table cible à son canal d'alimentation. pgx.CopyFrom bloque
 // jusqu'à épuisement de la source, d'où une goroutine et une connexion par
 // table.
-type flux struct {
-	table    pgx.Identifier
-	colonnes []string
-	lignes   chan []any
-	n        int64
-	err      error
+type stream struct {
+	table   pgx.Identifier
+	columns []string
+	rows    chan []any
+	n       int64
+	err     error
 }
 
-func nouveauFlux(schema, table string, colonnes ...string) *flux {
-	return &flux{
-		table:    pgx.Identifier{schema, table},
-		colonnes: colonnes,
-		lignes:   make(chan []any, tampon),
+func newStream(schema, table string, columns ...string) *stream {
+	return &stream{
+		table:   pgx.Identifier{schema, table},
+		columns: columns,
+		rows:    make(chan []any, bufferSize),
 	}
 }
 
@@ -81,7 +81,7 @@ func nouveauFlux(schema, table string, colonnes ...string) *flux {
 // en mémoire : pgx tire une ligne à la fois, au rythme du réseau.
 type source struct {
 	c       chan []any
-	courant []any
+	current []any
 	n       *int64
 }
 
@@ -90,16 +90,16 @@ func (s *source) Next() bool {
 	if !ok {
 		return false
 	}
-	s.courant = v
+	s.current = v
 	atomic.AddInt64(s.n, 1)
 	return true
 }
-func (s *source) Values() ([]any, error) { return s.courant, nil }
+func (s *source) Values() ([]any, error) { return s.current, nil }
 func (s *source) Err() error             { return nil }
 
-// demarrer ouvre une connexion dédiée et y lance un COPY qui durera toute la
+// start ouvre une connexion dédiée et y lance un COPY qui durera toute la
 // traversée de l'archive.
-func (f *flux) demarrer(ctx context.Context, pool *pgxpool.Pool, wg *sync.WaitGroup) {
+func (f *stream) start(ctx context.Context, pool *pgxpool.Pool, wg *sync.WaitGroup) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
@@ -108,14 +108,14 @@ func (f *flux) demarrer(ctx context.Context, pool *pgxpool.Pool, wg *sync.WaitGr
 			f.err = err
 			// Le canal doit être vidé malgré tout, sinon le lecteur de
 			// l'archive se bloque sur un canal plein et le programme fige.
-			for range f.lignes {
+			for range f.rows {
 			}
 			return
 		}
 		defer conn.Release()
-		_, f.err = conn.CopyFrom(ctx, f.table, f.colonnes, &source{c: f.lignes, n: &f.n})
+		_, f.err = conn.CopyFrom(ctx, f.table, f.columns, &source{c: f.rows, n: &f.n})
 		if f.err != nil {
-			for range f.lignes {
+			for range f.rows {
 			}
 		}
 	}()
@@ -123,15 +123,15 @@ func (f *flux) demarrer(ctx context.Context, pool *pgxpool.Pool, wg *sync.WaitGr
 
 // Les deux natures de fichier, décodées séparément : elles n'ont en commun que
 // l'identifiant et la date de publication.
-type sommaireJO struct {
-	ID        string `xml:"ID"`
-	Nature    string `xml:"NATURE"`
-	Titre     string `xml:"TITRE"`
-	Num       string `xml:"NUM"`
-	DatePubli string `xml:"DATE_PUBLI"`
-	Liens     []struct {
-		IDTxt    string `xml:"idtxt,attr"`
-		TitreTxt string `xml:"titretxt,attr"`
+type summaryJO struct {
+	ID              string `xml:"ID"`
+	Nature          string `xml:"NATURE"`
+	Title           string `xml:"TITRE"`
+	Num             string `xml:"NUM"`
+	PublicationDate string `xml:"DATE_PUBLI"`
+	Links           []struct {
+		TextID    string `xml:"idtxt,attr"`
+		TextTitle string `xml:"titretxt,attr"`
 	} `xml:"STRUCTURE_TXT>LIEN_TXT"`
 }
 
@@ -154,7 +154,7 @@ func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, baseGlobale, ".tar.gz")
+	f, err := arch.Fetch(ctx, srcID, runID, fullArchiveURL, ".tar.gz")
 	if err != nil {
 		return fail(err)
 	}
@@ -199,31 +199,31 @@ func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	// vecteur calculé avec une configuration puis interrogé avec une autre ne
 	// rend rien, sans erreur.
 	//
-	debutVues := time.Now()
+	viewsStart := time.Now()
 	for _, v := range []string{"jo.recherche_texte", "jo.recherche_bloc"} {
 		if _, err := pool.Exec(ctx, "REFRESH MATERIALIZED VIEW "+v); err != nil {
 			return fail(fmt.Errorf("rafraîchissement de %s : %w", v, err))
 		}
 	}
-	vues := int64(time.Since(debutVues).Seconds())
+	viewsSeconds := int64(time.Since(viewsStart).Seconds())
 
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"fichiers": stats["fichiers"], "sommaires": stats["sommaire"],
 		"liens": stats["lien"], "actes": stats["texte"], "blocs": stats["bloc"],
-		"secondes": stats["secondes"], "recherche_s": vues}, "")
+		"secondes": stats["secondes"], "recherche_s": viewsSeconds}, "")
 	logs.Notice(fmt.Sprintf("official gazette: %s read in %ds",
 		logs.Plural(int(stats["fichiers"]), "file"), stats["secondes"]))
 	logs.Notice(fmt.Sprintf("%s, %s, %s, %s", logs.Plural(int(stats["sommaire"]), "summary"),
 		logs.Plural(int(stats["lien"]), "link"), logs.Plural(int(stats["texte"]), "act"),
 		logs.Plural(int(stats["bloc"]), "block")))
-	logs.Notice(fmt.Sprintf("search views refreshed in %ds", vues))
+	logs.Notice(fmt.Sprintf("search views refreshed in %ds", viewsSeconds))
 	return nil
 }
 
 // CopierArchive traverse l'archive une fois et alimente quatre tables en
 // parallèle. Elle rend le nombre de lignes écrites par table.
-func CopierArchive(ctx context.Context, pool *pgxpool.Pool, chemin, schema string) (map[string]int64, error) {
-	fh, err := os.Open(chemin)
+func CopierArchive(ctx context.Context, pool *pgxpool.Pool, path, schema string) (map[string]int64, error) {
+	fh, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -234,23 +234,23 @@ func CopierArchive(ctx context.Context, pool *pgxpool.Pool, chemin, schema strin
 	}
 	defer gz.Close()
 
-	fSommaire := nouveauFlux(schema, "sommaire", "id", "nature", "titre", "num", "date_publi")
-	fLien := nouveauFlux(schema, "lien", "sommaire_id", "texte_id", "titre", "ordre")
-	fTexte := nouveauFlux(schema, "texte", "id", "nature", "num", "nor", "date_publi",
+	sSummary := newStream(schema, "sommaire", "id", "nature", "titre", "num", "date_publi")
+	sLink := newStream(schema, "lien", "sommaire_id", "texte_id", "titre", "ordre")
+	sText := newStream(schema, "texte", "id", "nature", "num", "nor", "date_publi",
 		"date_texte", "titre", "titre_complet", "ministere", "origine_publi")
-	fBloc := nouveauFlux(schema, "bloc", "texte_id", "ordre", "section", "article_id",
+	sBlock := newStream(schema, "bloc", "texte_id", "ordre", "section", "article_id",
 		"article_num", "contenu")
-	flux := []*flux{fSommaire, fLien, fTexte, fBloc}
+	streams := []*stream{sSummary, sLink, sText, sBlock}
 
 	var wg sync.WaitGroup
-	for _, f := range flux {
-		f.demarrer(ctx, pool, &wg)
+	for _, s := range streams {
+		s.start(ctx, pool, &wg)
 	}
 
 	// Instrumentation : JORF_ETAPE borne le travail pour mesurer où passe le
 	// temps. walk = décompression et parcours seuls ; meta = plus le décodage
 	// des métadonnées ; texte = plus l'écriture des actes ; vide = tout.
-	etape := os.Getenv("JORF_ETAPE")
+	stage := os.Getenv("JORF_ETAPE")
 
 	// L'ANALYSE EST RÉPARTIE SUR UN POOL. La mesure a montré où passe le temps :
 	// la décompression et le parcours de l'archive coûtent 117 s sur 1 497, et
@@ -266,30 +266,30 @@ func CopierArchive(ctx context.Context, pool *pgxpool.Pool, chemin, schema strin
 	// tables d'atterrissage n'ont ni clé étrangère ni index, et une ligne de
 	// lien qui précède le texte qu'elle désigne n'est pas une violation. C'est
 	// la même propriété qui dispensait déjà d'ordonner les COMMIT.
-	nOuvriers := runtime.NumCPU()
+	workerCount := runtime.NumCPU()
 	if v := os.Getenv("JORF_OUVRIERS"); v != "" {
 		if n, err := strconv.Atoi(v); err == nil && n > 0 {
-			nOuvriers = n
+			workerCount = n
 		}
 	}
-	type tache struct {
+	type task struct {
 		base string
 		raw  []byte
 	}
-	taches := make(chan tache, nOuvriers*8)
-	var wgO sync.WaitGroup
-	for i := 0; i < nOuvriers; i++ {
-		wgO.Add(1)
+	tasks := make(chan task, workerCount*8)
+	var wgWorkers sync.WaitGroup
+	for i := 0; i < workerCount; i++ {
+		wgWorkers.Add(1)
 		go func() {
-			defer wgO.Done()
-			for t := range taches {
-				analyser(t.base, t.raw, etape, fSommaire, fLien, fTexte, fBloc)
+			defer wgWorkers.Done()
+			for t := range tasks {
+				analyze(t.base, t.raw, stage, sSummary, sLink, sText, sBlock)
 			}
 		}()
 	}
 
-	debut := time.Now()
-	var nFichiers int64
+	start := time.Now()
+	var fileCount int64
 	tr := tar.NewReader(gz)
 	for {
 		h, err := tr.Next()
@@ -306,7 +306,7 @@ func CopierArchive(ctx context.Context, pool *pgxpool.Pool, chemin, schema strin
 		if err != nil {
 			return nil, fmt.Errorf("lecture de %s : %w", h.Name, err)
 		}
-		nFichiers++
+		fileCount++
 
 		// Le routage se fait sur le NOM DE BASE, pas sur le chemin. Un texte est
 		// rangé DANS le répertoire de son sommaire :
@@ -321,67 +321,67 @@ func CopierArchive(ctx context.Context, pool *pgxpool.Pool, chemin, schema strin
 		if i := strings.LastIndexByte(base, '/'); i >= 0 {
 			base = base[i+1:]
 		}
-		if etape == "walk" {
+		if stage == "walk" {
 			continue
 		}
-		taches <- tache{base: base, raw: raw}
+		tasks <- task{base: base, raw: raw}
 	}
-	close(taches)
-	wgO.Wait()
-	for _, f := range flux {
-		close(f.lignes)
+	close(tasks)
+	wgWorkers.Wait()
+	for _, s := range streams {
+		close(s.rows)
 	}
 	wg.Wait()
 
-	out := map[string]int64{"fichiers": nFichiers, "secondes": int64(time.Since(debut).Seconds())}
-	for _, f := range flux {
-		if f.err != nil {
-			return out, fmt.Errorf("%s : %w", f.table.Sanitize(), f.err)
+	out := map[string]int64{"fichiers": fileCount, "secondes": int64(time.Since(start).Seconds())}
+	for _, s := range streams {
+		if s.err != nil {
+			return out, fmt.Errorf("%s : %w", s.table.Sanitize(), s.err)
 		}
-		out[f.table[len(f.table)-1]] = f.n
+		out[s.table[len(s.table)-1]] = s.n
 	}
 	return out, nil
 }
 
-// analyser décode un fichier et pousse ses lignes vers les flux. Elle est
+// analyze décode un fichier et pousse ses lignes vers les flux. Elle est
 // appelée depuis plusieurs goroutines : elle ne partage rien, les canaux
 // faisant la synchronisation.
-func analyser(base string, raw []byte, etape string, fSommaire, fLien, fTexte, fBloc *flux) {
+func analyze(base string, raw []byte, stage string, sSummary, sLink, sText, sBlock *stream) {
 	switch {
 	case strings.HasPrefix(base, "JORFCONT"):
-		var s sommaireJO
-		if err := decoderDans(raw, &s); err != nil || s.ID == "" {
+		var s summaryJO
+		if err := decodeInto(raw, &s); err != nil || s.ID == "" {
 			return
 		}
-		fSommaire.lignes <- []any{s.ID, nul(s.Nature), nul(s.Titre), nul(s.Num), dateJO(s.DatePubli)}
-		for i, l := range s.Liens {
-			if l.IDTxt == "" {
+		sSummary.rows <- []any{s.ID, nullIfEmpty(s.Nature), nullIfEmpty(s.Title), nullIfEmpty(s.Num), dateJO(s.PublicationDate)}
+		for i, l := range s.Links {
+			if l.TextID == "" {
 				continue
 			}
-			fLien.lignes <- []any{s.ID, l.IDTxt, nul(l.TitreTxt), i + 1}
+			sLink.rows <- []any{s.ID, l.TextID, nullIfEmpty(l.TextTitle), i + 1}
 		}
 
 	case strings.HasPrefix(base, "JORFTEXT"):
-		t, err := decoder(raw)
+		t, err := decode(raw)
 		if err != nil || t.ID == "" {
 			return
 		}
-		if etape == "meta" {
+		if stage == "meta" {
 			return
 		}
-		fTexte.lignes <- []any{t.ID, nul(t.Nature), nul(t.Num), nul(t.NOR),
-			dateJO(t.DatePubli), dateJO(t.DateTexte), nul(t.Titre), nul(t.TitreFull),
-			nul(t.Ministere), nul(t.OriginePubli)}
-		if etape == "texte" {
+		sText.rows <- []any{t.ID, nullIfEmpty(t.Nature), nullIfEmpty(t.Num), nullIfEmpty(t.NOR),
+			dateJO(t.PublicationDate), dateJO(t.TextDate), nullIfEmpty(t.Title), nullIfEmpty(t.FullTitle),
+			nullIfEmpty(t.Ministry), nullIfEmpty(t.PublicationOrigin)}
+		if stage == "texte" {
 			return
 		}
-		for i, b := range blocs(raw) {
-			fBloc.lignes <- []any{t.ID, i + 1, b.section, nul(b.articleID), nul(b.articleNum), b.contenu}
+		for i, b := range textBlocks(raw) {
+			sBlock.rows <- []any{t.ID, i + 1, b.section, nullIfEmpty(b.articleID), nullIfEmpty(b.articleNum), b.content}
 		}
 	}
 }
 
-func decoderDans(raw []byte, v any) error {
+func decodeInto(raw []byte, v any) error {
 	d := xml.NewDecoder(bytes.NewReader(raw))
 	d.Strict = false
 	d.AutoClose = xml.HTMLAutoClose
@@ -389,38 +389,38 @@ func decoderDans(raw []byte, v any) error {
 	return d.Decode(v)
 }
 
-// bloc est un morceau de texte de l'acte, avec l'endroit d'où il vient.
+// textBlock est un morceau de texte de l'acte, avec l'endroit d'où il vient.
 //
 // La SECTION importe autant que le contenu. Le Journal officiel range son texte
 // en <NOTICE> (à qui s'adresse le texte), <VISAS> (les fondements juridiques),
 // <STRUCT><ARTICLE> (le dispositif, seul à édicter quelque chose), <ABRO> (les
 // abrogations) et <SM> (les signataires). Les confondre ferait entrer dans le
-// dispositif des phrases que l'acte n'édicte pas — l'extraction de corps() les
-// écarte justement, mais pour archiver il vaut mieux tout garder ET dire d'où
-// ça vient : c'est `raw`, on n'y jette rien.
-type blocTexte struct {
+// dispositif des phrases que l'acte n'édicte pas — l'extraction de readBody()
+// les écarte justement, mais pour archiver il vaut mieux tout garder ET dire
+// d'où ça vient : c'est `raw`, on n'y jette rien.
+type textBlock struct {
 	section    string
 	articleID  string
 	articleNum string
-	contenu    string
+	content    string
 }
 
-// blocs parcourt l'acte et rend tous ses <CONTENU>, en notant la section qui
-// les porte et, dans le dispositif, l'article auquel ils appartiennent.
+// textBlocks parcourt l'acte et rend tous ses <CONTENU>, en notant la section
+// qui les porte et, dans le dispositif, l'article auquel ils appartiennent.
 //
 // Le parcours est à PROFONDEUR LIBRE : la DILA place <BLOC_TEXTUEL> directement
 // sous <TEXTE> dans ses livraisons quotidiennes et sous <STRUCT><ARTICLE> dans
 // sa base complète. Présumer de l'un a déjà vidé deux cents décrets en silence.
-func blocs(raw []byte) []blocTexte {
+func textBlocks(raw []byte) []textBlock {
 	d := xml.NewDecoder(bytes.NewReader(raw))
 	d.Strict = false
 	d.AutoClose = xml.HTMLAutoClose
 	d.Entity = xml.HTMLEntity
 
-	var out []blocTexte
-	var pile []string
+	var out []textBlock
+	var stack []string
 	var artID, artNum string
-	champArticle := ""
+	articleField := ""
 
 	for {
 		tok, err := d.Token()
@@ -429,15 +429,15 @@ func blocs(raw []byte) []blocTexte {
 		}
 		switch v := tok.(type) {
 		case xml.StartElement:
-			nom := v.Name.Local
-			switch nom {
+			name := v.Name.Local
+			switch name {
 			case "ARTICLE":
 				artID, artNum = "", ""
 			case "ID", "NUM":
 				// Ces deux balises existent aussi au niveau du texte ; on ne
 				// les lit comme identifiants d'article que DANS un article.
-				if dansArticle(pile) {
-					champArticle = nom
+				if inArticle(stack) {
+					articleField = name
 				}
 			case "CONTENU":
 				var inner struct {
@@ -450,32 +450,32 @@ func blocs(raw []byte) []blocTexte {
 				if txt == "" {
 					continue
 				}
-				out = append(out, blocTexte{
-					section:    section(pile),
+				out = append(out, textBlock{
+					section:    section(stack),
 					articleID:  artID,
 					articleNum: artNum,
-					contenu:    txt,
+					content:    txt,
 				})
 				continue // DecodeElement a déjà consommé la balise fermante
 			}
-			pile = append(pile, nom)
+			stack = append(stack, name)
 		case xml.CharData:
-			if champArticle == "" {
+			if articleField == "" {
 				continue
 			}
 			s := strings.TrimSpace(string(v))
 			if s == "" {
 				continue
 			}
-			if champArticle == "ID" {
+			if articleField == "ID" {
 				artID = s
 			} else {
 				artNum = s
 			}
 		case xml.EndElement:
-			champArticle = ""
-			if n := len(pile); n > 0 {
-				pile = pile[:n-1]
+			articleField = ""
+			if n := len(stack); n > 0 {
+				stack = stack[:n-1]
 			}
 		}
 	}
@@ -484,22 +484,22 @@ func blocs(raw []byte) []blocTexte {
 
 // section rend la balise significative la plus proche : celle qui dit à quoi
 // sert le texte qu'elle contient.
-func section(pile []string) string {
-	for i := len(pile) - 1; i >= 0; i-- {
-		switch pile[i] {
+func section(stack []string) string {
+	for i := len(stack) - 1; i >= 0; i-- {
+		switch stack[i] {
 		case "NOTICE", "VISAS", "ABRO", "RECT", "SM", "TP", "BLOC_TEXTUEL", "SIGNATAIRES", "NOTA":
-			if pile[i] == "BLOC_TEXTUEL" {
+			if stack[i] == "BLOC_TEXTUEL" {
 				return "DISPOSITIF"
 			}
-			return pile[i]
+			return stack[i]
 		}
 	}
 	return "AUTRE"
 }
 
-func dansArticle(pile []string) bool {
-	for i := len(pile) - 1; i >= 0; i-- {
-		if pile[i] == "ARTICLE" {
+func inArticle(stack []string) bool {
+	for i := len(stack) - 1; i >= 0; i-- {
+		if stack[i] == "ARTICLE" {
 			return true
 		}
 	}

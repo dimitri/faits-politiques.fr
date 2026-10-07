@@ -41,7 +41,7 @@ const amendementsURL = Base + "/loi/amendements_div_legis/Amendements.json.zip"
 // Le sort publié par l'Assemblée, traduit vers l'énumération du schéma. Les
 // libellés inconnus laissent le sort NULL plutôt que d'être rangés au hasard
 // dans une catégorie voisine.
-var sortAmendement = map[string]string{
+var amendmentOutcome = map[string]string{
 	"adopté": "ADOPTE", "rejeté": "REJETE", "retiré": "RETIRE",
 	"non soutenu": "NON_SOUTENU", "tombé": "TOMBE",
 	"irrecevable": "IRRECEVABLE", "irrecevable 40": "IRRECEVABLE",
@@ -49,33 +49,33 @@ var sortAmendement = map[string]string{
 	"retiré avant séance": "RETIRE", "retiré en commission": "RETIRE",
 }
 
-type amendement struct {
+type amendment struct {
 	UID            string  `json:"uid"`
 	Legislature    flexStr `json:"legislature"`
 	Identification struct {
-		NumeroLong flexStr `json:"numeroLong"`
+		LongNumber flexStr `json:"numeroLong"`
 	} `json:"identification"`
-	TexteLegislatifRef json.RawMessage `json:"texteLegislatifRef"`
-	Signataires        struct {
-		Auteur struct {
-			TypeAuteur         flexStr         `json:"typeAuteur"`
-			ActeurRef          json.RawMessage `json:"acteurRef"`
-			GroupePolitiqueRef json.RawMessage `json:"groupePolitiqueRef"`
+	LegislativeTextRef json.RawMessage `json:"texteLegislatifRef"`
+	Signatories        struct {
+		Author struct {
+			AuthorType        flexStr         `json:"typeAuteur"`
+			ActorRef          json.RawMessage `json:"acteurRef"`
+			PoliticalGroupRef json.RawMessage `json:"groupePolitiqueRef"`
 		} `json:"auteur"`
-		Libelle flexStr `json:"libelle"`
+		Label flexStr `json:"libelle"`
 	} `json:"signataires"`
-	PointeurFragmentTexte struct {
+	TextFragmentPointer struct {
 		Division struct {
-			Titre flexStr `json:"titre"`
+			Title flexStr `json:"titre"`
 		} `json:"division"`
 	} `json:"pointeurFragmentTexte"`
-	Corps struct {
-		ContenuAuteur struct {
+	Body struct {
+		AuthorContent struct {
 			Dispositif     flexStr `json:"dispositif"`
 			ExposeSommaire flexStr `json:"exposeSommaire"`
 		} `json:"contenuAuteur"`
 	} `json:"corps"`
-	CycleDeVie struct {
+	Lifecycle struct {
 		DateDepot flexStr `json:"dateDepot"`
 		Sort      flexStr `json:"sort"`
 	} `json:"cycleDeVie"`
@@ -107,11 +107,11 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	if err != nil {
 		return fail(err)
 	}
-	acteurs, err := indexActeurs(ctx, pool)
+	actors, err := indexActors(ctx, pool)
 	if err != nil {
 		return fail(err)
 	}
-	groupes, err := indexOrganes(ctx, pool)
+	bodies, err := indexBodies(ctx, pool)
 	if err != nil {
 		return fail(err)
 	}
@@ -141,16 +141,16 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return fail(err)
 	}
 
-	type auteur struct {
+	type author struct {
 		uid    string
 		person *int64
 		org    *int64
 		role   string
 	}
-	var lignes [][]any
-	var auteurs []auteur
-	var n, sansTexte int
-	vus := map[string]bool{}
+	var batch [][]any
+	var authors []author
+	var n, missingText int
+	seen := map[string]bool{}
 
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_amendement (
@@ -160,15 +160,15 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	vider := func() error {
-		if len(lignes) == 0 {
+	flushBatch := func() error {
+		if len(batch) == 0 {
 			return nil
 		}
 		_, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_amendement"},
 			[]string{"slug", "texte_id", "institution", "source_uid", "numero",
 				"article_designation", "sort", "expose_sommaire", "dispositif", "date_depot"},
-			pgx.CopyFromRows(lignes))
-		lignes = lignes[:0]
+			pgx.CopyFromRows(batch))
+		batch = batch[:0]
 		return err
 	}
 
@@ -186,64 +186,64 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 			continue
 		}
 		var doc struct {
-			Amendement amendement `json:"amendement"`
+			Amendement amendment `json:"amendement"`
 		}
 		if err := json.Unmarshal(b, &doc); err != nil {
 			continue
 		}
 		a := doc.Amendement
-		if a.UID == "" || vus[a.UID] {
+		if a.UID == "" || seen[a.UID] {
 			continue
 		}
-		vus[a.UID] = true
+		seen[a.UID] = true
 
 		var texteID any
-		if id, ok := textes[str(a.TexteLegislatifRef)]; ok {
+		if id, ok := textes[str(a.LegislativeTextRef)]; ok {
 			texteID = id
 		} else {
-			sansTexte++
+			missingText++
 		}
 
 		var sort any
-		if s, ok := sortAmendement[strings.ToLower(strings.TrimSpace(a.CycleDeVie.Sort.String()))]; ok {
+		if s, ok := amendmentOutcome[strings.ToLower(strings.TrimSpace(a.Lifecycle.Sort.String()))]; ok {
 			sort = s
 		}
 
-		lignes = append(lignes, []any{
+		batch = append(batch, []any{
 			strings.ToLower(a.UID), texteID, "ASSEMBLEE_NATIONALE", a.UID,
-			nulA(a.Identification.NumeroLong.String()),
-			nulA(a.PointeurFragmentTexte.Division.Titre.String()),
+			nulA(a.Identification.LongNumber.String()),
+			nulA(a.TextFragmentPointer.Division.Title.String()),
 			sort,
-			nulA(texteBrut(a.Corps.ContenuAuteur.ExposeSommaire.String())),
-			nulA(texteBrut(a.Corps.ContenuAuteur.Dispositif.String())),
-			nulA(a.CycleDeVie.DateDepot.String()),
+			nulA(plainText(a.Body.AuthorContent.ExposeSommaire.String())),
+			nulA(plainText(a.Body.AuthorContent.Dispositif.String())),
+			nulA(a.Lifecycle.DateDepot.String()),
 		})
 
 		// Le rôle doit appartenir à l'énumération du schéma. Le libellé de
 		// l'Assemblée — « Député », « Gouvernement », « Commission » — est
 		// traduit ; ce qui n'est pas reconnu devient AUTEUR, qui est le fait
 		// minimal et vrai : cette personne a déposé cet amendement.
-		au := auteur{uid: a.UID, role: roleAuteur(a.Signataires.Auteur.TypeAuteur.String())}
-		if p, ok := acteurs[str(a.Signataires.Auteur.ActeurRef)]; ok {
+		rec := author{uid: a.UID, role: authorRole(a.Signatories.Author.AuthorType.String())}
+		if p, ok := actors[str(a.Signatories.Author.ActorRef)]; ok {
 			v := p
-			au.person = &v
+			rec.person = &v
 		}
-		if g, ok := groupes[str(a.Signataires.Auteur.GroupePolitiqueRef)]; ok {
+		if g, ok := bodies[str(a.Signatories.Author.PoliticalGroupRef)]; ok {
 			v := g
-			au.org = &v
+			rec.org = &v
 		}
-		if au.person != nil || au.org != nil {
-			auteurs = append(auteurs, au)
+		if rec.person != nil || rec.org != nil {
+			authors = append(authors, rec)
 		}
 
 		n++
-		if len(lignes) >= 20000 {
-			if err := vider(); err != nil {
+		if len(batch) >= 20000 {
+			if err := flushBatch(); err != nil {
 				return fail(fmt.Errorf("copie des amendements : %w", err))
 			}
 		}
 	}
-	if err := vider(); err != nil {
+	if err := flushBatch(); err != nil {
 		return fail(fmt.Errorf("copie des amendements : %w", err))
 	}
 
@@ -255,7 +255,7 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	// un SELECT séparé, sans dépendre d'un WHEN, reconstruit la carte en
 	// entier.
 	var nMerge int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.amendement", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.amendement", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO amendement_an AS tgt
 			USING tmp_amendement AS src
@@ -294,8 +294,8 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	rows := make([][]any, 0, len(auteurs))
-	for _, a := range auteurs {
+	rows := make([][]any, 0, len(authors))
+	for _, a := range authors {
 		rows = append(rows, []any{a.uid, a.person, a.org, a.role})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"amdt_auteur"},
@@ -381,9 +381,9 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"amendements": n, "amendements_touches": nMerge, "auteurs": res.RowsAffected(),
-		"sans_texte": sansTexte}, "")
+		"sans_texte": missingText}, "")
 	logs.Notice(fmt.Sprintf("%s (%d touched by the merge), %s linked (%d without a known text)",
-		logs.Plural(n, "amendment"), nMerge, logs.Plural(int(res.RowsAffected()), "author"), sansTexte))
+		logs.Plural(n, "amendment"), nMerge, logs.Plural(int(res.RowsAffected()), "author"), missingText))
 	return nil
 }
 
@@ -391,11 +391,11 @@ func indexTextes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, err
 	return indexUID(ctx, pool, `SELECT source_uid, id FROM core.texte WHERE institution='ASSEMBLEE_NATIONALE'`)
 }
 
-func indexActeurs(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
+func indexActors(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
 	return indexUID(ctx, pool, `SELECT value, person_id FROM core.person_identifier WHERE scheme='AN_ACTEUR'`)
 }
 
-func indexOrganes(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
+func indexBodies(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
 	return indexUID(ctx, pool, `SELECT value, organization_id FROM core.organization_identifier WHERE scheme='AN_ORGANE'`)
 }
 
@@ -424,9 +424,9 @@ func nulA(s string) any {
 	return s
 }
 
-// roleAuteur traduit le type d'auteur publié par l'Assemblée vers les valeurs
+// authorRole traduit le type d'auteur publié par l'Assemblée vers les valeurs
 // admises par le schéma.
-func roleAuteur(s string) string {
+func authorRole(s string) string {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "gouvernement":
 		return "GOUVERNEMENT"

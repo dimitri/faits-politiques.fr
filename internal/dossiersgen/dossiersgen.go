@@ -29,7 +29,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var sections = []struct{ code, vide string }{
+var sections = []struct{ code, empty string }{
 	{"CONTEXTE", ""},
 	{"ENJEUX", ""},
 	{"CADRE", "Aucun texte n'est encore chargé pour ce dossier."},
@@ -38,25 +38,25 @@ var sections = []struct{ code, vide string }{
 	{"BUDGET", ""},
 }
 
-var mois = []string{"janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"}
+var months = []string{"janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre", "novembre", "décembre"}
 
 func dateFr(t time.Time) string {
 	j := fmt.Sprint(t.Day())
 	if t.Day() == 1 {
 		j = "1er"
 	}
-	return fmt.Sprintf("%s %s %d", j, mois[t.Month()-1], t.Year())
+	return fmt.Sprintf("%s %s %d", j, months[t.Month()-1], t.Year())
 }
 
-type fait struct {
-	id, section, theme, typ, auteur, intitule, constat, url, page, qualite, libelleQualite string
-	date                                                                                   *time.Time
-	personne, slug                                                                         *string
-	aFiche                                                                                 bool
-	seance                                                                                 bool
+type fact struct {
+	id, section, theme, typ, author, title, finding, url, page, quality, qualityLabel string
+	date                                                                              *time.Time
+	person, slug                                                                      *string
+	hasProfile                                                                        bool
+	isSession                                                                         bool
 }
 
-func marqueurs(section string) (string, string) {
+func markers(section string) (string, string) {
 	return "<!-- faits:" + section + ":debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->",
 		"<!-- faits:" + section + ":fin -->"
 }
@@ -85,20 +85,20 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	parDossier := map[string][]fait{}
+	byDossier := map[string][]fact{}
 	for rows.Next() {
 		var d string
-		var f fait
-		if err := rows.Scan(&d, &f.id, &f.section, &f.theme, &f.typ, &f.auteur, &f.intitule, &f.constat, &f.url, &f.page,
-			&f.qualite, &f.libelleQualite, &f.date, &f.personne, &f.slug, &f.aFiche, &f.seance); err != nil {
+		var f fact
+		if err := rows.Scan(&d, &f.id, &f.section, &f.theme, &f.typ, &f.author, &f.title, &f.finding, &f.url, &f.page,
+			&f.quality, &f.qualityLabel, &f.date, &f.person, &f.slug, &f.hasProfile, &f.isSession); err != nil {
 			return err
 		}
-		parDossier[d] = append(parDossier[d], f)
+		byDossier[d] = append(byDossier[d], f)
 	}
 	rows.Close()
 
 	type mention struct {
-		libelle             string
+		label               string
 		interventions, orat int
 		premiere, derniere  time.Time
 	}
@@ -111,13 +111,13 @@ func Run(ctx context.Context, args []string) error {
 	for mrows.Next() {
 		var d string
 		var m mention
-		if err := mrows.Scan(&d, &m.libelle, &m.interventions, &m.orat, &m.premiere, &m.derniere); err != nil {
+		if err := mrows.Scan(&d, &m.label, &m.interventions, &m.orat, &m.premiere, &m.derniere); err != nil {
 			return err
 		}
 		mentions[d] = append(mentions[d], m)
 	}
 	mrows.Close()
-	budgets, err := lireBudgets(ctx, pool)
+	budgets, err := readBudgets(ctx, pool)
 	if err != nil {
 		return err
 	}
@@ -128,7 +128,7 @@ func Run(ctx context.Context, args []string) error {
 	}
 
 	dossiers := map[string]bool{}
-	for d := range parDossier {
+	for d := range byDossier {
 		dossiers[d] = true
 	}
 	for d := range mentions {
@@ -140,20 +140,20 @@ func Run(ctx context.Context, args []string) error {
 	// Un dossier rangé dans le plan commun sans aucun fait chargé reçoit quand
 	// même ses sections, pour qu'il dise « aucun texte n'est encore chargé ».
 	docs, _ := filepath.Glob("docs/*.md")
-	for _, chemin := range docs {
-		if b, err := os.ReadFile(chemin); err == nil && bytes.Contains(b, []byte("<!-- faits:CADRE:debut")) {
-			dossiers[strings.TrimSuffix(filepath.Base(chemin), ".md")] = true
+	for _, path := range docs {
+		if b, err := os.ReadFile(path); err == nil && bytes.Contains(b, []byte("<!-- faits:CADRE:debut")) {
+			dossiers[strings.TrimSuffix(filepath.Base(path), ".md")] = true
 		}
 	}
-	var noms []string
+	var names []string
 	for d := range dossiers {
-		noms = append(noms, d)
+		names = append(names, d)
 	}
-	sort.Strings(noms)
+	sort.Strings(names)
 
-	for _, d := range noms {
-		chemin := filepath.Join("docs", d+".md")
-		src, err := os.ReadFile(chemin)
+	for _, d := range names {
+		path := filepath.Join("docs", d+".md")
+		src, err := os.ReadFile(path)
 		if err != nil {
 			return fmt.Errorf("%s : %w", d, err)
 		}
@@ -164,7 +164,7 @@ func Run(ctx context.Context, args []string) error {
 					dateFr(couverture[0]), dateFr(couverture[1]))
 				b.WriteString("| expression | interventions | orateurs distincts | première | dernière |\n|---|---:|---:|---|---|\n")
 				for _, m := range mentions[d] {
-					fmt.Fprintf(&b, "| %s | %d | %d | %s | %s |\n", m.libelle, m.interventions, m.orat, dateFr(m.premiere), dateFr(m.derniere))
+					fmt.Fprintf(&b, "| %s | %d | %d | %s | %s |\n", m.label, m.interventions, m.orat, dateFr(m.premiere), dateFr(m.derniere))
 				}
 				b.WriteString("\nUne mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).\n\n")
 			}
@@ -173,25 +173,25 @@ func Run(ctx context.Context, args []string) error {
 			}
 			n := 0
 			theme := "\x00"
-			for _, f := range parDossier[d] {
+			for _, f := range byDossier[d] {
 				if f.section != s.code {
 					continue
 				}
 				if f.theme != theme && f.theme != "" && s.code == "SITUATION" {
-					fmt.Fprintf(&b, "\n**%s**\n\n", capitaliser(f.theme))
+					fmt.Fprintf(&b, "\n**%s**\n\n", capitalize(f.theme))
 				}
 				theme = f.theme
-				b.WriteString(ligne(f))
+				b.WriteString(factLine(f))
 				n++
 			}
-			if n == 0 && b.Len() == 0 && s.vide != "" {
-				b.WriteString(s.vide + "\n")
+			if n == 0 && b.Len() == 0 && s.empty != "" {
+				b.WriteString(s.empty + "\n")
 			}
-			debut, fin := marqueurs(s.code)
+			debut, fin := markers(s.code)
 			i, j := bytes.Index(src, []byte(debut)), bytes.Index(src, []byte(fin))
 			if i < 0 || j < i {
-				if b.Len() > 0 && !(n == 0 && s.vide != "" && strings.TrimSpace(b.String()) == s.vide) {
-					return fmt.Errorf("%s : marqueurs %s absents alors que la base a du contenu pour cette section", chemin, s.code)
+				if b.Len() > 0 && !(n == 0 && s.empty != "" && strings.TrimSpace(b.String()) == s.empty) {
+					return fmt.Errorf("%s : marqueurs %s absents alors que la base a du contenu pour cette section", path, s.code)
 				}
 				continue
 			}
@@ -201,15 +201,15 @@ func Run(ctx context.Context, args []string) error {
 			out.Write(src[j:])
 			src = out.Bytes()
 		}
-		if err := os.WriteFile(chemin, src, 0o644); err != nil {
+		if err := os.WriteFile(path, src, 0o644); err != nil {
 			return err
 		}
-		logs.Notice(fmt.Sprintf("%s: regenerated (%s)", chemin, logs.Plural(len(parDossier[d]), "fact")))
+		logs.Notice(fmt.Sprintf("%s: regenerated (%s)", path, logs.Plural(len(byDossier[d]), "fact")))
 	}
 	return nil
 }
 
-func capitaliser(s string) string {
+func capitalize(s string) string {
 	if s == "" {
 		return s
 	}
@@ -217,26 +217,26 @@ func capitaliser(s string) string {
 	return strings.ToUpper(string(r[0])) + string(r[1:])
 }
 
-// ligne : un fait en une puce. Le lien vers la fiche de la personne n'est écrit
+// factLine : un fait en une puce. Le lien vers la fiche de la personne n'est écrit
 // que si la fiche existe (mandat national ou vote chargé), sinon le nom seul.
-func ligne(f fait) string {
+func factLine(f fact) string {
 	var b strings.Builder
-	b.WriteString("- **" + f.intitule + "**")
+	b.WriteString("- **" + f.title + "**")
 	if f.date != nil {
 		b.WriteString(" (" + dateFr(*f.date) + ")")
 	}
-	b.WriteString(". " + strings.TrimSuffix(f.constat, ".") + ". — ")
-	if f.personne != nil {
-		if f.aFiche {
-			fmt.Fprintf(&b, "[%s](/depute/%s/), ", *f.personne, *f.slug)
+	b.WriteString(". " + strings.TrimSuffix(f.finding, ".") + ". — ")
+	if f.person != nil {
+		if f.hasProfile {
+			fmt.Fprintf(&b, "[%s](/depute/%s/), ", *f.person, *f.slug)
 		} else {
-			b.WriteString(*f.personne + ", ")
+			b.WriteString(*f.person + ", ")
 		}
-		b.WriteString(minuscule(f.auteur))
+		b.WriteString(lowerFirst(f.author))
 	} else {
-		b.WriteString(f.auteur)
+		b.WriteString(f.author)
 	}
-	if f.seance {
+	if f.isSession {
 		b.WriteString(", Assemblée nationale, compte rendu de la séance")
 		if f.page != "" {
 			b.WriteString(" (" + f.page + ")")
@@ -251,11 +251,11 @@ func ligne(f fait) string {
 			}
 		}
 	}
-	b.WriteString(" · *" + f.libelleQualite + "*\n")
+	b.WriteString(" · *" + f.qualityLabel + "*\n")
 	return b.String()
 }
 
-func minuscule(s string) string {
+func lowerFirst(s string) string {
 	r := []rune(s)
 	if len(r) > 1 && r[1] >= 'a' && r[1] <= 'z' {
 		return strings.ToLower(string(r[0])) + string(r[1:])
@@ -263,17 +263,17 @@ func minuscule(s string) string {
 	return s
 }
 
-type ligneBudget struct {
-	mission, code, libelle string
-	exercice               int
-	ae, cp                 float64
+type budgetLine struct {
+	mission, code, label string
+	year                 int
+	ae, cp               float64
 }
 
-// lireBudgets : pour chaque dossier, un tableau par mission suivie, crédits de
+// readBudgets : pour chaque dossier, un tableau par mission suivie, crédits de
 // paiement par programme sur les exercices chargés. Les montants sont ceux du
 // projet de loi de finances : le texte le redit sous chaque tableau, pour qu'un
 // tableau recopié seul ne perde pas cette précision.
-func lireBudgets(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) {
+func readBudgets(ctx context.Context, pool *pgxpool.Pool) (map[string]string, error) {
 	rows, err := pool.Query(ctx, `SELECT dossier, mission, programme_code, programme_libelle, exercice,
 		       coalesce(autorisation_engagement, 0), coalesce(credit_paiement, 0)
 		FROM derived.dossier_budget_programme ORDER BY dossier, mission, programme_code, exercice`)
@@ -281,28 +281,28 @@ func lireBudgets(ctx context.Context, pool *pgxpool.Pool) (map[string]string, er
 		return nil, err
 	}
 	defer rows.Close()
-	parDossier := map[string][]ligneBudget{}
+	byDossier := map[string][]budgetLine{}
 	for rows.Next() {
 		var d string
-		var l ligneBudget
-		if err := rows.Scan(&d, &l.mission, &l.code, &l.libelle, &l.exercice, &l.ae, &l.cp); err != nil {
+		var l budgetLine
+		if err := rows.Scan(&d, &l.mission, &l.code, &l.label, &l.year, &l.ae, &l.cp); err != nil {
 			return nil, err
 		}
-		parDossier[d] = append(parDossier[d], l)
+		byDossier[d] = append(byDossier[d], l)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	out := map[string]string{}
-	for d, lignes := range parDossier {
+	for d, lines := range byDossier {
 		exSet := map[int]bool{}
-		var missionsOrdre []string
-		vues := map[string]bool{}
-		for _, l := range lignes {
-			exSet[l.exercice] = true
-			if !vues[l.mission] {
-				vues[l.mission] = true
-				missionsOrdre = append(missionsOrdre, l.mission)
+		var missionOrder []string
+		seen := map[string]bool{}
+		for _, l := range lines {
+			exSet[l.year] = true
+			if !seen[l.mission] {
+				seen[l.mission] = true
+				missionOrder = append(missionOrder, l.mission)
 			}
 		}
 		var ex []int
@@ -311,15 +311,15 @@ func lireBudgets(ctx context.Context, pool *pgxpool.Pool) (map[string]string, er
 		}
 		sort.Ints(ex)
 		var b strings.Builder
-		for _, m := range missionsOrdre {
+		for _, m := range missionOrder {
 			type prog struct {
-				libelle string
-				cp      map[int]float64
+				label string
+				cp    map[int]float64
 			}
 			progs := map[string]*prog{}
 			var codes []string
 			totCP, totAE := map[int]float64{}, map[int]float64{}
-			for _, l := range lignes {
+			for _, l := range lines {
 				if l.mission != m {
 					continue
 				}
@@ -329,10 +329,10 @@ func lireBudgets(ctx context.Context, pool *pgxpool.Pool) (map[string]string, er
 					progs[l.code] = p
 					codes = append(codes, l.code)
 				}
-				p.libelle = l.libelle
-				p.cp[l.exercice] += l.cp
-				totCP[l.exercice] += l.cp
-				totAE[l.exercice] += l.ae
+				p.label = l.label
+				p.cp[l.year] += l.cp
+				totCP[l.year] += l.cp
+				totAE[l.year] += l.ae
 			}
 			fmt.Fprintf(&b, "**Mission « %s »** — crédits de paiement demandés, en millions d'euros\n\n| programme |", m)
 			for _, e := range ex {
@@ -345,7 +345,7 @@ func lireBudgets(ctx context.Context, pool *pgxpool.Pool) (map[string]string, er
 			b.WriteString("---:|\n")
 			for _, c := range codes {
 				p := progs[c]
-				fmt.Fprintf(&b, "| %s — %s |", c, p.libelle)
+				fmt.Fprintf(&b, "| %s — %s |", c, p.label)
 				for _, e := range ex {
 					if v, ok := p.cp[e]; ok {
 						b.WriteString(" " + millions(v) + " |")
@@ -375,15 +375,15 @@ func lireBudgets(ctx context.Context, pool *pgxpool.Pool) (map[string]string, er
 // millions : 4567123456.7 → « 4 567,1 ».
 func millions(v float64) string {
 	s := fmt.Sprintf("%.1f", v/1e6)
-	entier, dec, _ := strings.Cut(s, ".")
-	neg := strings.HasPrefix(entier, "-")
-	entier = strings.TrimPrefix(entier, "-")
+	intPart, dec, _ := strings.Cut(s, ".")
+	neg := strings.HasPrefix(intPart, "-")
+	intPart = strings.TrimPrefix(intPart, "-")
 	var g []string
-	for len(entier) > 3 {
-		g = append([]string{entier[len(entier)-3:]}, g...)
-		entier = entier[:len(entier)-3]
+	for len(intPart) > 3 {
+		g = append([]string{intPart[len(intPart)-3:]}, g...)
+		intPart = intPart[:len(intPart)-3]
 	}
-	g = append([]string{entier}, g...)
+	g = append([]string{intPart}, g...)
 	r := strings.Join(g, "\u202f") + "," + dec
 	if neg {
 		r = "−" + r

@@ -28,11 +28,11 @@ var SourceTitresSejour = archive.Source{
 const titresSejourURL = "https://static.data.gouv.fr/resources/titres-de-sejour-publication-du-27-juin-2024/" +
 	"20240730-112233/les-titres-de-sejour-au-27-juin-2024-stocks.csv"
 
-// latin1VersUTF8 décode un fichier ISO-8859-1 (l'encodage par défaut de la
+// latin1ToUTF8 décode un fichier ISO-8859-1 (l'encodage par défaut de la
 // plupart des exports de l'administration française) sans dépendance externe :
 // chaque octet 0-255 de Latin-1 désigne EXACTEMENT le point de code Unicode de
 // même valeur, la conversion est donc une simple relecture octet par octet.
-func latin1VersUTF8(path string) (string, error) {
+func latin1ToUTF8(path string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -65,7 +65,7 @@ func IngestTitresSejour(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	// Fichier en Latin-1 (ISO-8859-1), comme la plupart des exports de
 	// l'administration française : décodé au vol, pas dans un fichier
 	// intermédiaire, pour ne pas dupliquer l'archive scellée.
-	raw, err := latin1VersUTF8(f.Path)
+	raw, err := latin1ToUTF8(f.Path)
 	if err != nil {
 		return fail(err)
 	}
@@ -75,8 +75,8 @@ func IngestTitresSejour(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	// nombre de tabulations qui précèdent la première valeur varie d'une ligne
 	// à l'autre (0, 1 ou 2 selon la longueur du libellé) : on ne se fie donc
 	// PAS à la position des champs, seulement à l'ORDRE des champs non vides.
-	lignes := strings.Split(raw, "\n")
-	champsUtiles := func(l string) []string {
+	lines := strings.Split(raw, "\n")
+	usableFields := func(l string) []string {
 		var out []string
 		for _, c := range strings.Split(strings.TrimRight(l, "\r"), "\t") {
 			if c = strings.TrimSpace(c); c != "" {
@@ -86,48 +86,48 @@ func IngestTitresSejour(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		return out
 	}
 
-	var annees []int
-	for _, l := range lignes {
-		champs := champsUtiles(l)
-		if len(champs) < 5 {
+	var years []int
+	for _, l := range lines {
+		fields := usableFields(l)
+		if len(fields) < 5 {
 			continue
 		}
-		var candidats []int
+		var candidates []int
 		ok := true
-		for _, c := range champs {
+		for _, c := range fields {
 			a, err := strconv.Atoi(c)
 			if err != nil || a < 2000 || a > 2100 {
 				ok = false
 				break
 			}
-			candidats = append(candidats, a)
+			candidates = append(candidates, a)
 		}
 		if ok {
-			annees = candidats
+			years = candidates
 			break
 		}
 	}
-	if len(annees) == 0 {
+	if len(years) == 0 {
 		return fail(fmt.Errorf("ligne d'années introuvable"))
 	}
 
 	zoneCode := map[string]string{"France métropolitaine": "METROPOLE", "DOM": "DOM", "COM": "COM"}
 	var rows [][]any
-	for _, l := range lignes {
-		champs := champsUtiles(l)
-		if len(champs) < 2 {
+	for _, l := range lines {
+		fields := usableFields(l)
+		if len(fields) < 2 {
 			continue
 		}
-		code, ok := zoneCode[champs[0]]
+		code, ok := zoneCode[fields[0]]
 		if !ok {
 			continue
 		}
-		valeurs := champs[1:]
-		for i, a := range annees {
-			if i >= len(valeurs) {
+		values := fields[1:]
+		for i, a := range years {
+			if i >= len(values) {
 				break
 			}
-			v, err := strconv.Atoi(valeurs[i])
+			v, err := strconv.Atoi(values[i])
 			if err != nil {
 				continue
 			}
@@ -171,13 +171,13 @@ func IngestTitresSejour(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	if err != nil {
 		return fail(fmt.Errorf("fusion titre_sejour_stock : %w", err))
 	}
-	touchees := ct.RowsAffected()
+	affected := ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": touchees, "annees": len(annees)}, "")
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": affected, "annees": len(years)}, "")
 	fmt.Printf("  stock de titres de séjour : %d lignes touchées, %d à %d\n",
-		touchees, annees[0], annees[len(annees)-1])
+		affected, years[0], years[len(years)-1])
 	return nil
 }

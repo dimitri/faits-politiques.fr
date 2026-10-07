@@ -75,7 +75,7 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			DureeMoySej *float64 `json:"duree_moy_sej"`
 			DureeMoyPec float64  `json:"duree_moy_pec"`
 		}
-		if err := lireJSONFichier(f.Path, &lignes); err != nil {
+		if err := readJSONFile(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("smr-chiffres-cles : %w", err))
 		}
 		// Vérifié à l'écriture, pour la même raison que MCO : nb_jours doit
@@ -85,37 +85,37 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		// Clé (année, région) — une région peut apparaître pour plusieurs
 		// années dans cet export ; l'oublier ferait comparer le nb_jours
 		// 'Tous' d'une année aux lignes HC/HP d'une autre.
-		type cleAnneeRegion struct {
-			annee  int
+		type yearRegionKey struct {
+			year   int
 			region string
 		}
-		parAnneeRegion := map[cleAnneeRegion]map[string]int{}
+		byYearRegion := map[yearRegionKey]map[string]int{}
 		var rows [][]any
 		for _, l := range lignes {
-			annee, err := strconv.Atoi(l.Annee)
+			year, err := strconv.Atoi(l.Annee)
 			if err != nil {
 				return fail(fmt.Errorf("smr-chiffres-cles : année %q : %w", l.Annee, err))
 			}
-			c := cleAnneeRegion{annee, l.Region}
-			if parAnneeRegion[c] == nil {
-				parAnneeRegion[c] = map[string]int{}
+			c := yearRegionKey{year, l.Region}
+			if byYearRegion[c] == nil {
+				byYearRegion[c] = map[string]int{}
 			}
-			parAnneeRegion[c][l.TypeHosp] = l.NbJours
-			rows = append(rows, []any{annee, l.Region, l.TypeHosp, l.NbEtab, l.NbPat, l.NbSej, l.NbJours, l.DureeMoySej, l.DureeMoyPec, srcID})
+			byYearRegion[c][l.TypeHosp] = l.NbJours
+			rows = append(rows, []any{year, l.Region, l.TypeHosp, l.NbEtab, l.NbPat, l.NbSej, l.NbJours, l.DureeMoySej, l.DureeMoyPec, srcID})
 		}
-		for c, m := range parAnneeRegion {
-			_, aHC := m["HC"]
-			_, aHP := m["HP"]
-			if !aHC && !aHP {
+		for c, m := range byYearRegion {
+			_, hasHC := m["HC"]
+			_, hasHP := m["HP"]
+			if !hasHC && !hasHP {
 				// Certaines années/régions ne publient que la ligne 'Tous',
 				// sans détail HC/HP (vérifié : 2021/Normandie, entre autres) —
 				// une lacune de la source à cette maille, pas une anomalie de
 				// lecture. Rien à vérifier sans les deux termes.
 				continue
 			}
-			tous, hc, hp := m["Tous"], m["HC"], m["HP"]
-			if tous != hc+hp {
-				return fail(fmt.Errorf("smr-chiffres-cles %d/%s : nb_jours Tous (%d) ≠ HC (%d) + HP (%d)", c.annee, c.region, tous, hc, hp))
+			total, hc, hp := m["Tous"], m["HC"], m["HP"]
+			if total != hc+hp {
+				return fail(fmt.Errorf("smr-chiffres-cles %d/%s : nb_jours Tous (%d) ≠ HC (%d) + HP (%d)", c.year, c.region, total, hc, hp))
 			}
 		}
 		if _, err := tx.Exec(ctx, `
@@ -169,16 +169,16 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			NbEtab    int    `json:"nb_etab"`
 			NbJours   int    `json:"nb_jours"`
 		}
-		if err := lireJSONFichier(f.Path, &lignes); err != nil {
+		if err := readJSONFile(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("smr-etab : %w", err))
 		}
 		var rows [][]any
 		for _, l := range lignes {
-			annee, err := strconv.Atoi(l.Annee)
+			year, err := strconv.Atoi(l.Annee)
 			if err != nil {
 				return fail(fmt.Errorf("smr-etab : année %q : %w", l.Annee, err))
 			}
-			rows = append(rows, []any{annee, l.Region, l.CategEtab, l.NbEtab, l.NbJours, srcID})
+			rows = append(rows, []any{year, l.Region, l.CategEtab, l.NbEtab, l.NbJours, srcID})
 		}
 		if _, err := tx.Exec(ctx, `
 			CREATE TEMP TABLE tmp_pmsi_smr_par_etablissement (
@@ -229,12 +229,12 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			NbJours     int      `json:"nb_jours"`
 			DureeMoySej *float64 `json:"duree_moy_sej"`
 		}
-		if err := lireJSONFichier(f.Path, &lignes); err != nil {
+		if err := readJSONFile(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("smr-age-patients : %w", err))
 		}
 		var rows [][]any
 		for _, l := range lignes {
-			annee, err := strconv.Atoi(l.Annee)
+			year, err := strconv.Atoi(l.Annee)
 			if err != nil {
 				return fail(fmt.Errorf("smr-age-patients : année %q : %w", l.Annee, err))
 			}
@@ -250,7 +250,7 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 				}
 				nbSej = &v
 			}
-			rows = append(rows, []any{annee, l.Age, l.Sexe, l.TypeHosp, l.NbPat, nbSej, l.NbJours, l.DureeMoySej, srcID})
+			rows = append(rows, []any{year, l.Age, l.Sexe, l.TypeHosp, l.NbPat, nbSej, l.NbJours, l.DureeMoySej, srcID})
 		}
 		if _, err := tx.Exec(ctx, `
 			CREATE TEMP TABLE tmp_pmsi_smr_par_patient (
@@ -299,16 +299,16 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			NbJours         int     `json:"nb_jours"`
 			DureeMoyenneSej float64 `json:"duree_moyenne_sej"`
 		}
-		if err := lireJSONFichier(f.Path, &lignes); err != nil {
+		if err := readJSONFile(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("had-chiffres-cles : %w", err))
 		}
 		var rows [][]any
 		for _, l := range lignes {
-			annee, err := strconv.Atoi(l.Annee)
+			year, err := strconv.Atoi(l.Annee)
 			if err != nil {
 				return fail(fmt.Errorf("had-chiffres-cles : année %q : %w", l.Annee, err))
 			}
-			rows = append(rows, []any{annee, l.Region, l.NbPat, l.NbSej, l.NbJours, l.DureeMoyenneSej, srcID})
+			rows = append(rows, []any{year, l.Region, l.NbPat, l.NbSej, l.NbJours, l.DureeMoyenneSej, srcID})
 		}
 		if _, err := tx.Exec(ctx, `
 			CREATE TEMP TABLE tmp_pmsi_had_regional (
@@ -358,16 +358,16 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			NbJours   int     `json:"nb_jours"`
 			DMS       float64 `json:"dms"`
 		}
-		if err := lireJSONFichier(f.Path, &lignes); err != nil {
+		if err := readJSONFile(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("had-type-etab : %w", err))
 		}
 		var rows [][]any
 		for _, l := range lignes {
-			annee, err := strconv.Atoi(l.Annee)
+			year, err := strconv.Atoi(l.Annee)
 			if err != nil {
 				return fail(fmt.Errorf("had-type-etab : année %q : %w", l.Annee, err))
 			}
-			rows = append(rows, []any{annee, l.Region, l.CategEtab, l.NbEtab, l.NbSej, l.NbJours, l.DMS, srcID})
+			rows = append(rows, []any{year, l.Region, l.CategEtab, l.NbEtab, l.NbSej, l.NbJours, l.DMS, srcID})
 		}
 		if _, err := tx.Exec(ctx, `
 			CREATE TEMP TABLE tmp_pmsi_had_par_etablissement (
@@ -419,16 +419,16 @@ func IngestPMSISMRHAD(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			NbSej     int    `json:"nb_sej"`
 			NbJours   int    `json:"nb_jours"`
 		}
-		if err := lireJSONFichier(f.Path, &lignes); err != nil {
+		if err := readJSONFile(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("had-age-patients : %w", err))
 		}
 		var rows [][]any
 		for _, l := range lignes {
-			annee, err := strconv.Atoi(l.Annee)
+			year, err := strconv.Atoi(l.Annee)
 			if err != nil {
 				return fail(fmt.Errorf("had-age-patients : année %q : %w", l.Annee, err))
 			}
-			rows = append(rows, []any{annee, l.Age, l.SexeLabel, l.NbPat, l.NbSej, l.NbJours, srcID})
+			rows = append(rows, []any{year, l.Age, l.SexeLabel, l.NbPat, l.NbSej, l.NbJours, srcID})
 		}
 		if _, err := tx.Exec(ctx, `
 			CREATE TEMP TABLE tmp_pmsi_had_par_patient (

@@ -25,7 +25,7 @@ var SourceHistoriqueINSEE = archive.Source{
 
 const historiqueURL = "https://www.insee.fr/fr/statistiques/fichier/2381757/demo-etran-part-pop-etran-immig.xlsx"
 
-var reAnneeHisto = regexp.MustCompile(`^(\d{4})`)
+var reYearHisto = regexp.MustCompile(`^(\d{4})`)
 
 func IngestHistorique(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceHistoriqueINSEE)
@@ -63,10 +63,10 @@ func IngestHistorique(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	// Figure 1 : A=année, B=immigrés (milliers), C=part (%), D=population totale.
 	// Figure 2 : A=année, B=Français de naissance, D=Français par acquisition,
 	// F=étrangers (milliers), G=part (%), H=population totale.
-	type ligne1 struct{ immigres, immigresPct, popTotale float64 }
-	m1 := map[int]ligne1{}
+	type row1 struct{ immigres, immigresPct, popTotale float64 }
+	m1 := map[int]row1{}
 	for _, l := range fig1 {
-		annee, champ, ok := anneeChampHisto(l["A"])
+		year, champ, ok := yearFieldHisto(l["A"])
 		if !ok {
 			continue
 		}
@@ -76,17 +76,17 @@ func IngestHistorique(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		if e1 != nil || e2 != nil || e3 != nil {
 			continue
 		}
-		m1[annee] = ligne1{imm, pct, pop}
+		m1[year] = row1{imm, pct, pop}
 		_ = champ
 	}
 
 	var rows [][]any
 	for _, l := range fig2 {
-		annee, champ, ok := anneeChampHisto(l["A"])
+		year, champ, ok := yearFieldHisto(l["A"])
 		if !ok {
 			continue
 		}
-		v1, ok1 := m1[annee]
+		v1, ok1 := m1[year]
 		if !ok1 {
 			continue
 		}
@@ -97,7 +97,7 @@ func IngestHistorique(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		if e1 != nil || e2 != nil || e3 != nil || e4 != nil {
 			continue
 		}
-		rows = append(rows, []any{annee, v1.popTotale, v1.immigres, v1.immigresPct, fn, fa, etr, etrPct, champ, srcID})
+		rows = append(rows, []any{year, v1.popTotale, v1.immigres, v1.immigresPct, fn, fa, etr, etrPct, champ, srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("aucune année reconnue (figure 1 : %d lignes, figure 2 : %d lignes)", len(fig1), len(fig2)))
@@ -157,31 +157,31 @@ func IngestHistorique(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	if err != nil {
 		return fail(fmt.Errorf("fusion population_historique_nationalite : %w", err))
 	}
-	touchees := ct.RowsAffected()
+	affected := ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"annees_chargees": touchees}, "")
-	fmt.Printf("  population immigrée et étrangère, 1921-2025 : %d millésimes touchés\n", touchees)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"annees_chargees": affected}, "")
+	fmt.Printf("  population immigrée et étrangère, 1921-2025 : %d millésimes touchés\n", affected)
 	return nil
 }
 
-// anneeChampHisto lit un libellé d'année tel que "2024 (p) (*)" ou "1921", et
+// yearFieldHisto lit un libellé d'année tel que "2024 (p) (*)" ou "1921", et
 // déduit le champ géographique de la même règle que la source documente en
 // note : métropole jusqu'en 1982, France (hors puis avec Mayotte) ensuite.
-func anneeChampHisto(lib string) (int, string, bool) {
-	m := reAnneeHisto.FindStringSubmatch(strings.TrimSpace(lib))
+func yearFieldHisto(label string) (int, string, bool) {
+	m := reYearHisto.FindStringSubmatch(strings.TrimSpace(label))
 	if m == nil {
 		return 0, "", false
 	}
-	annee, _ := strconv.Atoi(m[1])
-	if annee < 1900 || annee > 2100 {
+	year, _ := strconv.Atoi(m[1])
+	if year < 1900 || year > 2100 {
 		return 0, "", false
 	}
 	champ := "FRANCE"
-	if annee <= 1982 {
+	if year <= 1982 {
 		champ = "METROPOLE"
 	}
-	return annee, champ, true
+	return year, champ, true
 }

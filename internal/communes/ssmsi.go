@@ -17,7 +17,7 @@ import (
 
 // Le service statistique ministériel de la sécurité intérieure publie le nombre
 // de faits enregistrés par la police et la gendarmerie, commune par commune,
-// pour dix-huit indicateurs, de 2016 à 2025.
+// pour dix-huit indicators, de 2016 à 2025.
 //
 // Ces chiffres comptent les faits ENREGISTRÉS, pas les faits commis : une
 // hausse peut venir d'une hausse de la délinquance, d'une hausse des plaintes,
@@ -60,7 +60,7 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 		return fail(err)
 	}
 
-	connues, err := communesConnues(ctx, pool)
+	connues, err := knownCommunes(ctx, pool)
 	if err != nil {
 		return fail(err)
 	}
@@ -95,10 +95,10 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 	}
 
 	// Cinq millions de lignes : lecture en flux, écriture par COPY, et jamais
-	// plus d'un lot en mémoire.
-	indicateurs := map[string]string{}
-	var lot [][]any
-	var nTot, horsCOG int
+	// plus d'un batch en mémoire.
+	indicators := map[string]string{}
+	var batch [][]any
+	var readTotal, outsideCOG int
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -115,15 +115,15 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 		return fail(err)
 	}
 
-	vider := func() error {
-		if len(lot) == 0 {
+	flush := func() error {
+		if len(batch) == 0 {
 			return nil
 		}
 		_, err := tx.CopyFrom(ctx, pgx.Identifier{"delinq_in"},
 			[]string{"commune_code", "cog_millesime", "annee", "indicateur_code",
 				"nombre", "taux_pour_mille", "diffuse", "population", "source_id"},
-			pgx.CopyFromRows(lot))
-		lot = lot[:0]
+			pgx.CopyFromRows(batch))
+		batch = batch[:0]
 		return err
 	}
 
@@ -142,7 +142,7 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 		code := get("CODGEO_2026")
 		if code == "" || !connues[code] {
 			if code != "" {
-				horsCOG++
+				outsideCOG++
 			}
 			continue
 		}
@@ -154,29 +154,29 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 		if lib == "" {
 			continue
 		}
-		code_ind := codeIndicateur(lib)
-		indicateurs[code_ind] = lib + "\x00" + get("unite_de_compte")
+		indCode := buildIndicatorCode(lib)
+		indicators[indCode] = lib + "\x00" + get("unite_de_compte")
 
 		// « ndiff » : le secret statistique s'applique. Le nombre reste NULL —
 		// il n'est pas mis à zéro, ce qui inventerait une absence de faits.
 		diffuse := get("est_diffuse") == "diff"
-		lot = append(lot, []any{
-			code, COGMillesime, annee, code_ind,
-			entierNul(get("nombre")), decimalNul(get("taux_pour_mille")),
-			diffuse, entierNul(get("insee_pop")), srcID,
+		batch = append(batch, []any{
+			code, COGVintage, annee, indCode,
+			parseIntOrNull(get("nombre")), parseFloatOrNull(get("taux_pour_mille")),
+			diffuse, parseIntOrNull(get("insee_pop")), srcID,
 		})
-		nTot++
-		if len(lot) >= 100000 {
-			if err := vider(); err != nil {
+		readTotal++
+		if len(batch) >= 100000 {
+			if err := flush(); err != nil {
 				return fail(fmt.Errorf("copie : %w", err))
 			}
 		}
 	}
-	if err := vider(); err != nil {
+	if err := flush(); err != nil {
 		return fail(fmt.Errorf("copie : %w", err))
 	}
 
-	for code, v := range indicateurs {
+	for code, v := range indicators {
 		p := strings.SplitN(v, "\x00", 2)
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO ref.indicateur_delinquance (code, libelle, unite_de_compte)
@@ -197,7 +197,7 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 	// RI pour l'intégralité des 5,2 millions de lignes à chaque
 	// republication annuelle du SSMSI, changement ou non.
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.commune_delinquance", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.commune_delinquance", func() error {
 		ct, err := tx.Exec(ctx, `
 			WITH dedup AS (
 				SELECT DISTINCT ON (commune_code, annee, indicateur_code)
@@ -242,20 +242,20 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"lignes": total, "touchees": n, "indicateurs": len(indicateurs),
-		"hors_cog": horsCOG}, "")
-	fmt.Printf("  SSMSI : %d séries communales (%d touchées par la fusion), %d indicateurs (%d lignes lues)\n",
-		total, n, len(indicateurs), nTot)
-	if horsCOG > 0 {
-		fmt.Printf("  %d lignes de communes absentes du COG %d (ignorées)\n", horsCOG, COGMillesime)
+		"lignes": total, "touchees": n, "indicators": len(indicators),
+		"hors_cog": outsideCOG}, "")
+	fmt.Printf("  SSMSI : %d séries communales (%d touchées par la fusion), %d indicators (%d lignes lues)\n",
+		total, n, len(indicators), readTotal)
+	if outsideCOG > 0 {
+		fmt.Printf("  %d lignes de communes absentes du COG %d (ignorées)\n", outsideCOG, COGVintage)
 	}
 	return nil
 }
 
-// codeIndicateur fabrique un code stable à partir du libellé publié. Le SSMSI
+// buildIndicatorCode fabrique un code stable à partir du libellé publié. Le SSMSI
 // ne publie pas de code : le libellé est la seule clé, et il est conservé tel
 // quel dans ref.indicateur_delinquance à côté du code.
-func codeIndicateur(libelle string) string {
+func buildIndicatorCode(libelle string) string {
 	s := strings.ToLower(libelle)
 	for from, to := range map[string]string{
 		"à": "a", "â": "a", "ç": "c", "é": "e", "è": "e", "ê": "e", "ë": "e",
@@ -275,7 +275,7 @@ func codeIndicateur(libelle string) string {
 	return strings.Trim(b.String(), "_")
 }
 
-func entierNul(s string) any {
+func parseIntOrNull(s string) any {
 	s = strings.TrimSpace(s)
 	if s == "" || s == "NA" {
 		return nil
@@ -290,7 +290,7 @@ func entierNul(s string) any {
 	return n
 }
 
-func decimalNul(s string) any {
+func parseFloatOrNull(s string) any {
 	s = strings.ReplaceAll(strings.TrimSpace(s), ",", ".")
 	if s == "" || s == "NA" {
 		return nil

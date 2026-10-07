@@ -67,7 +67,7 @@ func Themes(ctx context.Context, pool *pgxpool.Pool) error {
 	// DISTINCT ON : une même loi peut être citée par plusieurs dossiers de
 	// l'Assemblée. On retient le dossier de plus petit identifiant pour que le
 	// résultat soit reproductible à l'identique d'un calcul à l'autre.
-	navette, err := tx.Exec(ctx, `
+	shuttle, err := tx.Exec(ctx, `
 		INSERT INTO derived.scrutin_topic
 		  (scrutin_id, topic_code, origine, via_dossier_id, method_version)
 		SELECT DISTINCT ON (sc.id, ta.topic_code)
@@ -119,6 +119,6 @@ func Themes(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 	logs.Notice(fmt.Sprintf("%s direct, %s inherited via the shuttle",
-		logs.Plural(int(direct.RowsAffected()), "topic"), logs.Plural(int(navette.RowsAffected()), "topic")))
+		logs.Plural(int(direct.RowsAffected()), "topic"), logs.Plural(int(shuttle.RowsAffected()), "topic")))
 	return nil
 }

@@ -48,7 +48,7 @@ func exportJSON(portail, dataset string) string {
 	return "https://" + portail + "/api/explore/v2.1/catalog/datasets/" + dataset + "/exports/json"
 }
 
-// lireJSON lit un export et le décode, que les octets scellés soient compressés
+// readJSON lit un export et le décode, que les octets scellés soient compressés
 // ou non.
 //
 // Go décompresse de lui-même quand c'est lui qui a demandé gzip, si bien que
@@ -56,7 +56,7 @@ func exportJSON(portail, dataset string) string {
 // être relue dans dix ans, par un programme qui n'aura pas forcément le même
 // transport : renifler les deux octets magiques coûte trois lignes et évite un
 // « invalid character » incompréhensible sur un fichier pourtant intact.
-func lireJSON(path string, v any) error {
+func readJSON(path string, v any) error {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -96,10 +96,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	return IngestPLFDestination(ctx, pool, arch)
 }
 
-// nulF rend NULL plutôt que zéro pour une valeur absente. Un poste que la source
+// nilFloat rend NULL plutôt que zéro pour une valeur absente. Un poste que la source
 // ne renseigne pas et un poste à zéro euro sont deux faits différents, et les
 // confondre fabriquerait des séries qui plongent là où la donnée manque.
-func nulF(v *float64) any {
+func nilFloat(v *float64) any {
 	if v == nil {
 		return nil
 	}

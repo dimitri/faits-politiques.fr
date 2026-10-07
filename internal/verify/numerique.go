@@ -3,10 +3,10 @@ package verify
 // Contrôles du dossier sur la souveraineté numérique
 // (docs/souverainete-numerique.md).
 func init() {
-	checks = append(checks, checksNumerique...)
+	checks = append(checks, checksDigital...)
 }
 
-var checksNumerique = []check{
+var checksDigital = []check{
 	{
 		name: "SecNumCloud : le dernier catalogue de l'ANSSI compte au moins 15 services qualifiés",
 		query: `SELECT count(*) FROM core.qualification_secnumcloud

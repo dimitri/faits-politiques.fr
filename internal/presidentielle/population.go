@@ -37,11 +37,11 @@ const (
 )
 
 // Une feuille est nommée par son millésime, rien d'autre.
-var reAnnee = regexp.MustCompile(`^\d{4}$`)
+var reYear = regexp.MustCompile(`^\d{4}$`)
 
 // « 100 ou plus », « 105 ou plus » : tranche ouverte, à charger avec son âge
 // plancher et le drapeau qui dit qu'elle agrège la suite.
-var reAgeOuvert = regexp.MustCompile(`^(\d+)\s*(?:ou|et)\s+plus$`)
+var reOpenAge = regexp.MustCompile(`^(\d+)\s*(?:ou|et)\s+plus$`)
 
 func IngestPopulation(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourcePopulation)
@@ -68,24 +68,24 @@ func IngestPopulation(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	defer x.Close()
 
 	var rows [][]any
-	annees := 0
+	years := 0
 	for _, sheet := range x.sheetNames() {
-		if !reAnnee.MatchString(sheet) {
+		if !reYear.MatchString(sheet) {
 			continue
 		}
-		annee, _ := strconv.Atoi(sheet)
-		lignes, err := x.rows(sheet)
+		year, _ := strconv.Atoi(sheet)
+		records, err := x.rows(sheet)
 		if err != nil {
 			return fail(err)
 		}
-		vu := map[string]bool{}
-		for _, l := range lignes {
-			age, ouvert, ok := lireAge(l[colAge])
+		seen := map[string]bool{}
+		for _, l := range records {
+			age, open, ok := readAge(l[colAge])
 			if !ok {
 				continue
 			}
-			for _, c := range []struct{ champ, col string }{{"METRO", colMetro}, {"FRANCE", colFrance}} {
-				v, ok := l[c.col]
+			for _, c := range []struct{ field, column string }{{"METRO", colMetro}, {"FRANCE", colFrance}} {
+				v, ok := l[c.column]
 				if !ok {
 					continue
 				}
@@ -95,17 +95,17 @@ func IngestPopulation(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 				}
 				// Un âge présent deux fois dans une feuille fausserait toute somme
 				// sans que rien ne le signale. On refuse plutôt que de dédupliquer.
-				k := c.champ + ":" + strconv.Itoa(age)
-				if vu[k] {
-					return fail(fmt.Errorf("feuille %s : âge %d présent deux fois pour le champ %s", sheet, age, c.champ))
+				k := c.field + ":" + strconv.Itoa(age)
+				if seen[k] {
+					return fail(fmt.Errorf("feuille %s : âge %d présent deux fois pour le champ %s", sheet, age, c.field))
 				}
-				vu[k] = true
-				rows = append(rows, []any{c.champ, annee, age, ouvert, n, srcID})
+				seen[k] = true
+				rows = append(rows, []any{c.field, year, age, open, n, srcID})
 			}
 		}
-		annees++
+		years++
 	}
-	if annees == 0 {
+	if years == 0 {
 		return fail(fmt.Errorf("aucune feuille annuelle dans %s", PopulationURL))
 	}
 
@@ -130,12 +130,12 @@ func IngestPopulation(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"annees": annees, "lignes": len(rows)}, "")
-	fmt.Printf("  population par âge : %d années, %d lignes\n", annees, len(rows))
+		map[string]any{"annees": years, "lignes": len(rows)}, "")
+	fmt.Printf("  population par âge : %d années, %d lignes\n", years, len(rows))
 	return nil
 }
 
-func lireAge(s string) (age int, ouvert bool, ok bool) {
+func readAge(s string) (age int, open bool, ok bool) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0, false, false
@@ -143,7 +143,7 @@ func lireAge(s string) (age int, ouvert bool, ok bool) {
 	if n, err := strconv.Atoi(s); err == nil {
 		return n, false, true
 	}
-	if m := reAgeOuvert.FindStringSubmatch(s); m != nil {
+	if m := reOpenAge.FindStringSubmatch(s); m != nil {
 		n, _ := strconv.Atoi(m[1])
 		return n, true, true
 	}

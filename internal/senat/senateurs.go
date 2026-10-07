@@ -31,7 +31,7 @@ var SourceSenateurs = archive.Source{
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Sénat, base Sénateurs (data.senat.fr)",
 	Cadence:     "continue",
-	Notes: "Fichier en ISO-8859-1, précédé de dix-huit lignes de commentaire " +
+	Notes: "Fichier en ISO-8859-1, précédé de dix-huit rows de commentaire " +
 		"reproduisant la requête SQL qui l'a produit.",
 }
 
@@ -60,7 +60,7 @@ func IngestSenateurs(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	if err != nil {
 		return fail(err)
 	}
-	recs, err := lireCSVSenat(f.Path)
+	recs, err := readSenateCSV(f.Path)
 	if err != nil {
 		return fail(err)
 	}
@@ -80,13 +80,13 @@ func IngestSenateurs(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		return fail(err)
 	}
 
-	var lignes [][]any
+	var rows [][]any
 	for _, r := range recs {
 		mat := strings.TrimSpace(r["Matricule"])
 		if mat == "" {
 			continue
 		}
-		lignes = append(lignes, []any{
+		rows = append(rows, []any{
 			mat, nulS(r["Nom usuel"]), nulS(r["Prénom usuel"]),
 			dateSenat(r["Date naissance"]), dateSenat(r["Date de décès"]),
 			nulS(r["État"]), nulS(r["Groupe politique"]),
@@ -95,7 +95,7 @@ func IngestSenateurs(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"sen_in"},
 		[]string{"matricule", "nom", "prenom", "naissance", "deces", "etat", "groupe",
-			"circonscription", "profession"}, pgx.CopyFromRows(lignes)); err != nil {
+			"circonscription", "profession"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("copie des sénateurs : %w", err))
 	}
 
@@ -147,11 +147,11 @@ func IngestSenateurs(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		return fail(err)
 	}
 
-	var restants int
+	var remaining int
 	if err := tx.QueryRow(ctx, `
 		SELECT count(*) FROM core.person p
 		  JOIN core.person_identifier i ON i.person_id = p.id AND i.scheme = 'SENAT_MATRICULE'
-		 WHERE p.birth_date IS NULL`).Scan(&restants); err != nil {
+		 WHERE p.birth_date IS NULL`).Scan(&remaining); err != nil {
 		return fail(err)
 	}
 
@@ -159,32 +159,32 @@ func IngestSenateurs(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"senateurs": len(lignes), "complets": res.RowsAffected()}, "")
+		map[string]any{"senateurs": len(rows), "complets": res.RowsAffected()}, "")
 	logs.Notice(fmt.Sprintf("senators: %s in the register, %s completed, %s still without a birth date",
-		logs.Plural(len(lignes), "senator"), logs.Plural(int(res.RowsAffected()), "person"), logs.Plural(restants, "person")))
+		logs.Plural(len(rows), "senator"), logs.Plural(int(res.RowsAffected()), "person"), logs.Plural(remaining, "person")))
 	return nil
 }
 
-// lireCSVSenat lit un fichier du Sénat : ISO-8859-1, séparé par des virgules,
+// readSenateCSV lit un fichier du Sénat : ISO-8859-1, séparé par des virgules,
 // précédé de lignes de commentaire commençant par « % » qui reproduisent la
 // requête SQL ayant produit l'export.
-func lireCSVSenat(path string) ([]map[string]string, error) {
-	brut, err := os.ReadFile(path)
+func readSenateCSV(path string) ([]map[string]string, error) {
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	texte := latin1(brut)
+	text := latin1(raw)
 
-	lignes := strings.Split(texte, "\n")
-	var utiles []string
-	for _, l := range lignes {
+	lines := strings.Split(text, "\n")
+	var kept []string
+	for _, l := range lines {
 		if strings.HasPrefix(l, "%") {
 			continue
 		}
-		utiles = append(utiles, strings.TrimRight(l, "\r"))
+		kept = append(kept, strings.TrimRight(l, "\r"))
 	}
 
-	r := csv.NewReader(strings.NewReader(strings.Join(utiles, "\n")))
+	r := csv.NewReader(strings.NewReader(strings.Join(kept, "\n")))
 	r.FieldsPerRecord = -1
 	r.LazyQuotes = true
 	recs, err := r.ReadAll()
@@ -209,7 +209,7 @@ func lireCSVSenat(path string) ([]map[string]string, error) {
 }
 
 // latin1 convertit de l'ISO-8859-1 vers UTF-8. Écrit à la main plutôt que par
-// golang.org/x/text : la conversion tient en trois lignes, et le projet n'a
+// golang.org/x/text : la conversion tient en trois lines, et le projet n'a
 // qu'une dépendance.
 func latin1(b []byte) string {
 	if utf8.Valid(b) {

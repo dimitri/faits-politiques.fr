@@ -106,12 +106,12 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	var selection struct {
 		Total   int `json:"total_count"`
 		Results []struct {
-			Siren string   `json:"siren"`
-			CA    *float64 `json:"chiffre_d_affaires"`
-			Date  string   `json:"date_cloture_exercice"`
+			Siren   string   `json:"siren"`
+			Revenue *float64 `json:"chiffre_d_affaires"`
+			Date    string   `json:"date_cloture_exercice"`
 		} `json:"results"`
 	}
-	if err := lireJSON(f.Path, &selection); err != nil {
+	if err := readJSON(f.Path, &selection); err != nil {
 		return fail(err)
 	}
 	if len(selection.Results) == 0 {
@@ -132,32 +132,32 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		}
 	}
 
-	critere := fmt.Sprintf("compte consolidé (type_bilan=K) de l'exercice %d, chiffre d'affaires supérieur à %d Md€",
+	criterion := fmt.Sprintf("compte consolidé (type_bilan=K) de l'exercice %d, chiffre d'affaires supérieur à %d Md€",
 		ExerciceSelection, SeuilCA/1_000_000_000)
 
-	var nSoc, nEx, nLEI int
+	var nCompanies, nStatements, nLEI int
 	for _, s := range selection.Results {
-		nom, err := raisonSociale(ctx, arch, srcID, runID, s.Siren)
+		name, err := legalName(ctx, arch, srcID, runID, s.Siren)
 		if err != nil {
 			return fail(err)
 		}
-		lei := leiDe(ctx, arch, srcID, runID, s.Siren)
+		lei := leiFor(ctx, arch, srcID, runID, s.Siren)
 
-		var ca float64
-		if s.CA != nil {
-			ca = *s.CA
+		var revenue float64
+		if s.Revenue != nil {
+			revenue = *s.Revenue
 		}
-		verif := fmt.Sprintf("retenue sur son compte consolidé clos le %s : %.1f Md€ de chiffre d'affaires",
-			s.Date, ca/1e9)
+		verification := fmt.Sprintf("retenue sur son compte consolidé clos le %s : %.1f Md€ de chiffre d'affaires",
+			s.Date, revenue/1e9)
 
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO core.entreprise (siren, nom, portee, verification, critere, lei)
 			VALUES ($1,$2,'GROUPE',$3,$4,$5)
 			ON CONFLICT (siren) DO NOTHING`,
-			s.Siren, nom, verif, critere, nul(lei)); err != nil {
+			s.Siren, name, verification, criterion, nilIfEmpty(lei)); err != nil {
 			return fail(fmt.Errorf("%s : %w", s.Siren, err))
 		}
-		nSoc++
+		nCompanies++
 		if lei != "" {
 			nLEI++
 		}
@@ -174,16 +174,16 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		var doc struct {
 			Results []struct {
 				Date            string   `json:"date_cloture_exercice"`
-				TypeBilan       string   `json:"type_bilan"`
+				BalanceType     string   `json:"type_bilan"`
 				Confidentiality string   `json:"confidentiality"`
-				CA              *float64 `json:"chiffre_d_affaires"`
-				Marge           *float64 `json:"marge_brute"`
+				Revenue         *float64 `json:"chiffre_d_affaires"`
+				GrossMargin     *float64 `json:"marge_brute"`
 				EBE             *float64 `json:"ebe"`
 				EBIT            *float64 `json:"ebit"`
-				RN              *float64 `json:"resultat_net"`
+				NetIncome       *float64 `json:"resultat_net"`
 			} `json:"results"`
 		}
-		if err := lireJSON(fx.Path, &doc); err != nil {
+		if err := readJSON(fx.Path, &doc); err != nil {
 			return fail(err)
 		}
 		for _, r := range doc.Results {
@@ -196,11 +196,11 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 				   ebe, ebit, resultat_net, confidentialite, source_id)
 				VALUES ($1,$2::date,$3,$4,$5,$6,$7,$8,$9,$10)
 				ON CONFLICT (siren, date_cloture) DO NOTHING`,
-				s.Siren, r.Date[:10], nul(r.TypeBilan), r.CA, r.Marge, r.EBE, r.EBIT,
-				r.RN, nul(r.Confidentiality), srcID); err != nil {
+				s.Siren, r.Date[:10], nilIfEmpty(r.BalanceType), r.Revenue, r.GrossMargin, r.EBE, r.EBIT,
+				r.NetIncome, nilIfEmpty(r.Confidentiality), srcID); err != nil {
 				return fail(fmt.Errorf("%s %s : %w", s.Siren, r.Date, err))
 			}
-			nEx++
+			nStatements++
 		}
 	}
 
@@ -208,17 +208,17 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"societes": nSoc, "exercices": nEx, "lei": nLEI}, "")
+		map[string]any{"societes": nCompanies, "exercices": nStatements, "lei": nLEI}, "")
 	fmt.Printf("  Entreprises : %d sociétés retenues par la règle, %d exercices, %d LEI appariés\n",
-		nSoc, nEx, nLEI)
-	fmt.Printf("  Règle : %s\n", critere)
+		nCompanies, nStatements, nLEI)
+	fmt.Printf("  Règle : %s\n", criterion)
 	return nil
 }
 
-// raisonSociale interroge le répertoire public des entreprises PAR SIREN. Le
+// legalName interroge le répertoire public des entreprises PAR SIREN. Le
 // sens de la requête compte : du SIREN vers le nom, jamais du nom vers le
 // SIREN — c'est la recherche par nom qui produisait de mauvaises entités.
-func raisonSociale(ctx context.Context, arch *archive.Archive, srcID, runID int64, siren string) (string, error) {
+func legalName(ctx context.Context, arch *archive.Archive, srcID, runID int64, siren string) (string, error) {
 	f, err := arch.Fetch(ctx, srcID, runID,
 		"https://recherche-entreprises.api.gouv.fr/search?per_page=1&q="+siren, ".json")
 	if err != nil {
@@ -231,7 +231,7 @@ func raisonSociale(ctx context.Context, arch *archive.Archive, srcID, runID int6
 			Complet string `json:"nom_complet"`
 		} `json:"results"`
 	}
-	if err := lireJSON(f.Path, &doc); err != nil {
+	if err := readJSON(f.Path, &doc); err != nil {
 		return "", err
 	}
 	for _, r := range doc.Results {
@@ -245,15 +245,15 @@ func raisonSociale(ctx context.Context, arch *archive.Archive, srcID, runID int6
 	return "SIREN " + siren, nil
 }
 
-// leiDe cherche le LEI dont GLEIF déclare qu'il est enregistré sous ce SIREN.
+// leiFor cherche le LEI dont GLEIF déclare qu'il est enregistré sous ce SIREN.
 // Appariement par identifiant : le champ registeredAs est renseigné par
 // l'entité elle-même et validé par l'émetteur du LEI. Un LEI absent n'est pas
 // une erreur — toutes les sociétés n'en ont pas.
-func leiDe(ctx context.Context, arch *archive.Archive, srcID, runID int64, siren string) string {
+func leiFor(ctx context.Context, arch *archive.Archive, srcID, runID int64, siren string) string {
 	// GLEIF écrit le SIREN tantôt compact, tantôt par groupes de trois.
-	for _, forme := range []string{siren, siren[:3] + " " + siren[3:6] + " " + siren[6:]} {
+	for _, form := range []string{siren, siren[:3] + " " + siren[3:6] + " " + siren[6:]} {
 		f, err := arch.Fetch(ctx, srcID, runID,
-			gleif+"?page%5Bsize%5D=5&filter%5Bentity.registeredAs%5D="+url.QueryEscape(forme), ".json")
+			gleif+"?page%5Bsize%5D=5&filter%5Bentity.registeredAs%5D="+url.QueryEscape(form), ".json")
 		if err != nil {
 			continue
 		}
@@ -270,7 +270,7 @@ func leiDe(ctx context.Context, arch *archive.Archive, srcID, runID int64, siren
 				} `json:"attributes"`
 			} `json:"data"`
 		}
-		if err := lireJSON(f.Path, &doc); err != nil {
+		if err := readJSON(f.Path, &doc); err != nil {
 			continue
 		}
 		for _, d := range doc.Data {
@@ -282,7 +282,7 @@ func leiDe(ctx context.Context, arch *archive.Archive, srcID, runID int64, siren
 	return ""
 }
 
-func lireJSON(path string, v any) error {
+func readJSON(path string, v any) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -295,7 +295,7 @@ func lireJSON(path string, v any) error {
 	return json.Unmarshal(b, v)
 }
 
-func nul(s string) any {
+func nilIfEmpty(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
 	}

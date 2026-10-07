@@ -71,7 +71,7 @@ func config(maxConns int32) (*pgxpool.Config, error) {
 	// disque plusieurs tris/jointures de ce projet une fois la volumétrie
 	// dépassée (mesuré : ssmsi.go, ~5,2M lignes ; le MERGE de core.ballot
 	// pour l'Europe, ~1,97M ; RE-ADD CONSTRAINT après bulkload.
-	// SansContraintesFK, qui puise dans maintenance_work_mem). Plutôt que
+	// WithoutFKConstraints, qui puise dans maintenance_work_mem). Plutôt que
 	// d'ajouter un SET LOCAL à chaque nouvel appelant qui découvre le
 	// problème à son tour — déjà fait six fois séparément dans ce
 	// projet — un réglage à la connexion couvre tout le monde une bonne

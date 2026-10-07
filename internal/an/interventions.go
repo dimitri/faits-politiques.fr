@@ -40,34 +40,34 @@ var SourceInterventions = archive.Source{
 
 const interventionsURL = Base + "/vp/syceronbrut/syseron.xml.zip"
 
-type compteRendu struct {
-	Metadonnees struct {
-		DateSeance     string `xml:"dateSeance"`
-		DateSeanceJour string `xml:"dateSeanceJour"`
-		NumSeance      string `xml:"numSeance"`
+type sessionReport struct {
+	Metadata struct {
+		SessionDate    string `xml:"dateSeance"`
+		SessionDateDay string `xml:"dateSeanceJour"`
+		SittingNumber  string `xml:"numSeance"`
 		Legislature    string `xml:"legislature"`
 		Session        string `xml:"session"`
 	} `xml:"metadonnees"`
-	Contenu struct {
-		Points []point `xml:"point"`
+	Content struct {
+		Items []agendaItem `xml:"point"`
 	} `xml:"contenu"`
 }
 
 // Les paragraphes sont imbriqués dans des points de l'ordre du jour, eux-mêmes
 // imbriqués. Le décodeur les collecte à toute profondeur.
-type point struct {
-	Points      []point      `xml:"point"`
-	Paragraphes []paragraphe `xml:"paragraphe"`
+type agendaItem struct {
+	Items      []agendaItem `xml:"point"`
+	Paragraphs []paragraph  `xml:"paragraphe"`
 }
 
-type paragraphe struct {
-	IDSyceron string `xml:"id_syceron,attr"`
-	IDActeur  string `xml:"id_acteur,attr"`
-	Ordre     string `xml:"ordre_absolu_seance,attr"`
-	RoleDebat string `xml:"roledebat,attr"`
-	Texte     struct {
+type paragraph struct {
+	IDSyceron  string `xml:"id_syceron,attr"`
+	ActorID    string `xml:"id_acteur,attr"`
+	Order      string `xml:"ordre_absolu_seance,attr"`
+	DebateRole string `xml:"roledebat,attr"`
+	Text       struct {
 		Stime   string `xml:"stime,attr"`
-		Contenu string `xml:",innerxml"`
+		Content string `xml:",innerxml"`
 	} `xml:"texte"`
 }
 
@@ -89,7 +89,7 @@ func IngestInterventions(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	if err != nil {
 		return fail(err)
 	}
-	acteurs, err := indexActeurs(ctx, pool)
+	actors, err := indexActors(ctx, pool)
 	if err != nil {
 		return fail(err)
 	}
@@ -116,20 +116,20 @@ func IngestInterventions(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(err)
 	}
 
-	var lot [][]any
-	var n, sansActeur, seances int
-	vus := map[string]bool{}
+	var batch [][]any
+	var n, missingActor, sittings int
+	seen := map[string]bool{}
 
-	vider := func() error {
-		if len(lot) == 0 {
+	flushBatch := func() error {
+		if len(batch) == 0 {
 			return nil
 		}
 		_, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_intervention"},
 			[]string{"slug", "institution", "source_uid", "person_id", "date_seance",
 				"contenu", "legislature", "session", "numero_seance", "ordre",
 				"role_debat", "instant_s", "source_id"},
-			pgx.CopyFromRows(lot))
-		lot = lot[:0]
+			pgx.CopyFromRows(batch))
+		batch = batch[:0]
 		return err
 	}
 
@@ -141,50 +141,50 @@ func IngestInterventions(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		if err != nil {
 			continue
 		}
-		var cr compteRendu
+		var cr sessionReport
 		errDec := xml.NewDecoder(rc).Decode(&cr)
 		rc.Close()
 		if errDec != nil {
 			continue
 		}
-		date := dateSeance(cr.Metadonnees.DateSeance)
+		date := sessionDate(cr.Metadata.SessionDate)
 		if date == "" {
 			continue
 		}
-		seances++
+		sittings++
 
-		for _, p := range aplatir(cr.Contenu.Points) {
-			texte := texteBrut(p.Texte.Contenu)
-			if p.IDSyceron == "" || texte == "" || vus[p.IDSyceron] {
+		for _, p := range flatten(cr.Content.Items) {
+			text := plainText(p.Text.Content)
+			if p.IDSyceron == "" || text == "" || seen[p.IDSyceron] {
 				continue
 			}
-			vus[p.IDSyceron] = true
+			seen[p.IDSyceron] = true
 
 			var pid any
-			if id, ok := acteurs[p.IDActeur]; ok {
+			if id, ok := actors[p.ActorID]; ok {
 				pid = id
-			} else if p.IDActeur != "" {
+			} else if p.ActorID != "" {
 				// Un orateur extérieur — ministre non député, invité — n'est
 				// pas rattaché de force : il est compté.
-				sansActeur++
+				missingActor++
 			}
 
-			lot = append(lot, []any{
+			batch = append(batch, []any{
 				"cr-" + strings.ToLower(p.IDSyceron), "ASSEMBLEE_NATIONALE", p.IDSyceron,
-				pid, date, texte,
-				nulA(cr.Metadonnees.Legislature), nulA(session(cr.Metadonnees.Session)),
-				nulA(cr.Metadonnees.NumSeance), entierNulA(p.Ordre),
-				nulA(p.RoleDebat), decimalNulA(p.Texte.Stime), srcID,
+				pid, date, text,
+				nulA(cr.Metadata.Legislature), nulA(session(cr.Metadata.Session)),
+				nulA(cr.Metadata.SittingNumber), nulInt(p.Order),
+				nulA(p.DebateRole), nulFloat(p.Text.Stime), srcID,
 			})
 			n++
-			if len(lot) >= 20000 {
-				if err := vider(); err != nil {
+			if len(batch) >= 20000 {
+				if err := flushBatch(); err != nil {
 					return fail(fmt.Errorf("copie des interventions : %w", err))
 				}
 			}
 		}
 	}
-	if err := vider(); err != nil {
+	if err := flushBatch(); err != nil {
 		return fail(fmt.Errorf("copie des interventions : %w", err))
 	}
 
@@ -226,25 +226,25 @@ func IngestInterventions(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"interventions": n, "seances": seances, "sans_acteur": sansActeur}, "")
+		"interventions": n, "seances": sittings, "sans_acteur": missingActor}, "")
 	logs.Notice(fmt.Sprintf("%s across %s (%d speakers outside the Assembly)",
-		logs.Plural(n, "floor speech"), logs.Plural(seances, "sitting"), sansActeur))
+		logs.Plural(n, "floor speech"), logs.Plural(sittings, "sitting"), missingActor))
 	return nil
 }
 
-// aplatir descend dans les points de l'ordre du jour, qui s'imbriquent sans
+// flatten descend dans les points de l'ordre du jour, qui s'imbriquent sans
 // profondeur fixe.
-func aplatir(points []point) []paragraphe {
-	var out []paragraphe
-	for _, p := range points {
-		out = append(out, p.Paragraphes...)
-		out = append(out, aplatir(p.Points)...)
+func flatten(items []agendaItem) []paragraph {
+	var out []paragraph
+	for _, p := range items {
+		out = append(out, p.Paragraphs...)
+		out = append(out, flatten(p.Items)...)
 	}
 	return out
 }
 
-// dateSeance lit « 20241106140000000 ».
-func dateSeance(s string) string {
+// sessionDate lit « 20241106140000000 ».
+func sessionDate(s string) string {
 	if len(s) < 8 {
 		return ""
 	}
@@ -258,13 +258,13 @@ func dateSeance(s string) string {
 // tiret d'un intervalle d'années, et une majuscule initiale — « deuxième
 // session extraordinaire 2025 » se rangeait ailleurs que ses sœurs.
 var (
-	reBlancsSeance = regexp.MustCompile(`\s+`)
-	reAnneeTiret   = regexp.MustCompile(`(\d)\s*-\s*(\d)`)
+	reSessionBlanks = regexp.MustCompile(`\s+`)
+	reYearDash      = regexp.MustCompile(`(\d)\s*-\s*(\d)`)
 )
 
 func session(s string) string {
-	s = strings.TrimSpace(reBlancsSeance.ReplaceAllString(s, " "))
-	s = reAnneeTiret.ReplaceAllString(s, "$1-$2")
+	s = strings.TrimSpace(reSessionBlanks.ReplaceAllString(s, " "))
+	s = reYearDash.ReplaceAllString(s, "$1-$2")
 	if s == "" {
 		return s
 	}
@@ -272,7 +272,7 @@ func session(s string) string {
 	return strings.ToUpper(string(r[:1])) + string(r[1:])
 }
 
-func entierNulA(s string) any {
+func nulInt(s string) any {
 	n, err := strconv.Atoi(strings.TrimSpace(s))
 	if err != nil {
 		return nil
@@ -280,7 +280,7 @@ func entierNulA(s string) any {
 	return n
 }
 
-func decimalNulA(s string) any {
+func nulFloat(s string) any {
 	v, err := strconv.ParseFloat(strings.TrimSpace(s), 64)
 	if err != nil {
 		return nil

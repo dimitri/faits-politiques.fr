@@ -6,16 +6,16 @@ package verify
 // signale presque toujours une série mal qualifiée au chargement — un
 // multiplicateur oublié, une échéance rangée du mauvais côté.
 func init() {
-	checks = append(checks, checksDette...)
+	checks = append(checks, checksDebt...)
 }
 
 // Vue commode sur les observations, reprise dans chaque requête.
-const detteObs = `(SELECT s.code, s.pays, s.concept, s.mesure, s.unite, s.zone_detenteur,
+const debtObs = `(SELECT s.code, s.pays, s.concept, s.mesure, s.unite, s.zone_detenteur,
                           s.secteur_detenteur, s.echeance, s.instrument, s.source_id,
                           o.periode, o.debut, o.valeur
                    FROM core.dette_observation o JOIN ref.dette_serie s ON s.code = o.serie)`
 
-var checksDette = []check{
+var checksDebt = []check{
 	{
 		name: "les séries de dette sont chargées pour chaque source",
 		query: `SELECT count(*) FROM raw.source r
@@ -35,10 +35,10 @@ var checksDette = []check{
 		// L'AFT publie un total et ses ventilations ; l'INSEE les republie en
 		// millions d'euros. Écart toléré : un million, l'arrondi de publication.
 		name: "dette négociable de l'État : court terme + long terme = total",
-		query: `SELECT count(*) FROM ` + detteObs + ` t
-		         JOIN ` + detteObs + ` ct ON ct.periode = t.periode AND ct.code = 'insee:001711532'
-		         JOIN ` + detteObs + ` lt ON lt.periode = t.periode AND lt.code = 'insee:001711533'
-		         JOIN ` + detteObs + ` dv ON dv.periode = t.periode AND dv.code = 'insee:001719708'
+		query: `SELECT count(*) FROM ` + debtObs + ` t
+		         JOIN ` + debtObs + ` ct ON ct.periode = t.periode AND ct.code = 'insee:001711532'
+		         JOIN ` + debtObs + ` lt ON lt.periode = t.periode AND lt.code = 'insee:001711533'
+		         JOIN ` + debtObs + ` dv ON dv.periode = t.periode AND dv.code = 'insee:001719708'
 		        WHERE t.code = 'insee:001739081'
 		          AND abs(ct.valeur + lt.valeur + dv.valeur - t.valeur) > 1e6`,
 	},
@@ -50,9 +50,9 @@ var checksDette = []check{
 		// reporté dans la ventilation ; le total, lui, est cohérent avec la
 		// série CT + LT. Voir docs/dette-donnees.md.
 		name: "dette négociable de l'État : taux fixe + indexée = total",
-		query: `SELECT count(*) FROM ` + detteObs + ` t
-		         JOIN ` + detteObs + ` f ON f.periode = t.periode AND f.code = 'insee:001738853'
-		         JOIN ` + detteObs + ` i ON i.periode = t.periode AND i.code = 'insee:001738854'
+		query: `SELECT count(*) FROM ` + debtObs + ` t
+		         JOIN ` + debtObs + ` f ON f.periode = t.periode AND f.code = 'insee:001738853'
+		         JOIN ` + debtObs + ` i ON i.periode = t.periode AND i.code = 'insee:001738854'
 		        WHERE t.code = 'insee:001739081' AND abs(f.valeur + i.valeur - t.valeur) > 1e6
 		          AND t.periode <> '2017-10'`,
 	},
@@ -60,18 +60,18 @@ var checksDette = []check{
 		// Publiée en milliards à une décimale : trois arrondis cumulés peuvent
 		// atteindre 0,15 Md€.
 		name: "dette Maastricht trimestrielle : dépôts + titres + crédits = total",
-		query: `SELECT count(*) FROM ` + detteObs + ` t
-		         JOIN ` + detteObs + ` a ON a.periode = t.periode AND a.code = 'insee:010777606'
-		         JOIN ` + detteObs + ` b ON b.periode = t.periode AND b.code = 'insee:010777624'
-		         JOIN ` + detteObs + ` c ON c.periode = t.periode AND c.code = 'insee:010777607'
+		query: `SELECT count(*) FROM ` + debtObs + ` t
+		         JOIN ` + debtObs + ` a ON a.periode = t.periode AND a.code = 'insee:010777606'
+		         JOIN ` + debtObs + ` b ON b.periode = t.periode AND b.code = 'insee:010777624'
+		         JOIN ` + debtObs + ` c ON c.periode = t.periode AND c.code = 'insee:010777607'
 		        WHERE t.code = 'insee:010777616' AND abs(a.valeur + b.valeur + c.valeur - t.valeur) > 0.2e9`,
 	},
 	{
 		// Contributions CONSOLIDÉES : elles se somment au total. Si ce contrôle
 		// échoue, c'est qu'une série non consolidée s'est glissée à la place.
 		name: "dette Maastricht trimestrielle : les quatre sous-secteurs se somment au total",
-		query: `SELECT count(*) FROM ` + detteObs + ` t
-		         JOIN (SELECT periode, sum(valeur) v, count(*) n FROM ` + detteObs + ` x
+		query: `SELECT count(*) FROM ` + debtObs + ` t
+		         JOIN (SELECT periode, sum(valeur) v, count(*) n FROM ` + debtObs + ` x
 		                WHERE code IN ('insee:010777610','insee:010777613','insee:010777626','insee:010777625')
 		                GROUP BY periode) s ON s.periode = t.periode
 		        WHERE t.code = 'insee:010777616' AND (s.n <> 4 OR abs(s.v - t.valeur) > 0.2e9)`,
@@ -85,19 +85,19 @@ var checksDette = []check{
 		// les mêmes sources que la série annuelle transmise à Eurostat pour ces
 		// années-là. Comparaison limitée à 1998 et après.
 		name: "dette Maastricht de la France : INSEE (T4) et Eurostat (annuel) concordent",
-		query: `SELECT count(*) FROM ` + detteObs + ` i
-		         JOIN ` + detteObs + ` e ON e.code = 'eurostat:gov_10dd_edpt1:FR:MIO_EUR:S13:GD'
+		query: `SELECT count(*) FROM ` + debtObs + ` i
+		         JOIN ` + debtObs + ` e ON e.code = 'eurostat:gov_10dd_edpt1:FR:MIO_EUR:S13:GD'
 		                                AND e.periode = left(i.periode, 4)
 		        WHERE i.code = 'insee:010777616' AND i.periode LIKE '%-Q4' AND i.periode >= '1998'
 		          AND abs(i.valeur - e.valeur) > 1e9`,
 	},
 	{
 		name: "Eurostat : détention résidente + non résidente = dette totale",
-		query: `SELECT count(*) FROM ` + detteObs + ` t
-		         JOIN ` + detteObs + ` r ON r.pays = t.pays AND r.periode = t.periode AND r.unite = t.unite
+		query: `SELECT count(*) FROM ` + debtObs + ` t
+		         JOIN ` + debtObs + ` r ON r.pays = t.pays AND r.periode = t.periode AND r.unite = t.unite
 		              AND r.code LIKE 'eurostat:gov_10dd_ggd:%' AND r.zone_detenteur = 'W2'
 		              AND r.secteur_detenteur = '_T' AND r.echeance = '_T'
-		         JOIN ` + detteObs + ` n ON n.pays = t.pays AND n.periode = t.periode AND n.unite = t.unite
+		         JOIN ` + debtObs + ` n ON n.pays = t.pays AND n.periode = t.periode AND n.unite = t.unite
 		              AND n.code LIKE 'eurostat:gov_10dd_ggd:%' AND n.zone_detenteur = 'W1' AND n.echeance = '_T'
 		        WHERE t.code LIKE 'eurostat:gov_10dd_ggd:%' AND t.zone_detenteur = 'W0' AND t.echeance = '_T'
 		          AND abs(r.valeur + n.valeur - t.valeur) > CASE WHEN t.unite = 'EUR' THEN 2e6 ELSE 0.15 END`,
@@ -107,8 +107,8 @@ var checksDette = []check{
 		// total résident à long terme. Un agrégat compté comme une feuille
 		// ferait doubler une part.
 		name: "détention des titres de l'État : les secteurs résidents se somment au total",
-		query: `SELECT count(*) FROM ` + detteObs + ` t
-		         JOIN (SELECT periode, sum(valeur) v FROM ` + detteObs + ` x
+		query: `SELECT count(*) FROM ` + debtObs + ` t
+		         JOIN (SELECT periode, sum(valeur) v FROM ` + debtObs + ` x
 		                WHERE concept = 'DETENTION_TITRES_ETAT' AND mesure = 'ENCOURS' AND zone_detenteur = 'W2'
 		                  AND echeance = 'LT' AND instrument = '_T'
 		                  AND secteur_detenteur IN ('S11','S121','S122','S123','S124','S125','S126','S127',
@@ -128,7 +128,7 @@ var checksDette = []check{
 		// la recalculer depuis les encours doit redonner le même chiffre.
 		name: "détention des titres de l'État : la part non résidente recalculée égale la part publiée",
 		query: `SELECT count(*) FROM derived.dette_detention_etat d
-		         JOIN ` + detteObs + ` p ON p.periode = d.periode
+		         JOIN ` + debtObs + ` p ON p.periode = d.periode
 		              AND p.code = 'bdf:Q.N.FR.W1.S13111.S1.N.L.LE.F3.T._Z.PT._T.M.V.N._T'
 		        WHERE d.categorie = 'NON_RESIDENTS' AND abs(d.part_pct - p.valeur) > 0.1`,
 	},

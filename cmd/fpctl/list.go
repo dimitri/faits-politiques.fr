@@ -659,26 +659,26 @@ func imprimerArbre(pool *pgxpool.Pool, noeuds map[string]noeud, nom, prefixe str
 }
 
 func listerConnecteurs() error {
-	cs, err := sources.ListerConnecteurs(".")
+	cs, err := sources.ListConnectors(".")
 	if err != nil {
 		return err
 	}
 	paquet := ""
 	for _, c := range cs {
-		if c.Paquet != paquet {
-			paquet = c.Paquet
+		if c.Package != paquet {
+			paquet = c.Package
 			fmt.Printf("%s\n", paquet)
 		}
-		fmt.Printf("  %s\n", c.Fonction)
+		fmt.Printf("  %s\n", c.Function)
 	}
 	fmt.Printf("\n%d connecteurs, %d paquets\n", len(cs), nombrePaquets(cs))
 	return nil
 }
 
-func nombrePaquets(cs []sources.Connecteur) int {
+func nombrePaquets(cs []sources.Connector) int {
 	vus := map[string]bool{}
 	for _, c := range cs {
-		vus[c.Paquet] = true
+		vus[c.Package] = true
 	}
 	return len(vus)
 }
@@ -690,26 +690,26 @@ func afficherStats(ctx context.Context) error {
 	}
 	defer pool.Close()
 
-	schemas, err := stats.Resume(ctx, pool)
+	schemas, err := stats.Summary(ctx, pool)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("%-12s %8s %14s %10s\n", "schéma", "tables", "lignes (est.)", "taille")
 	var totalOctets, totalLignes int64
 	for _, s := range schemas {
-		fmt.Printf("%-12s %8d %14d %10s\n", s.Nom, s.Tables, s.LignesEstimee, tailleLisible(s.Octets))
-		totalOctets += s.Octets
-		totalLignes += s.LignesEstimee
+		fmt.Printf("%-12s %8d %14d %10s\n", s.Name, s.Tables, s.EstimatedRows, tailleLisible(s.Bytes))
+		totalOctets += s.Bytes
+		totalLignes += s.EstimatedRows
 	}
 	fmt.Printf("%-12s %8s %14d %10s\n", "total", "", totalLignes, tailleLisible(totalOctets))
 
-	grosses, err := stats.PlusGrossesTables(ctx, pool, 10)
+	grosses, err := stats.LargestTables(ctx, pool, 10)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("\nplus grosses tables :\n")
 	for _, t := range grosses {
-		fmt.Printf("  %-10s %-40s %12d lignes  %10s\n", t.Schema, t.Nom, t.LignesEstimee, tailleLisible(t.Octets))
+		fmt.Printf("  %-10s %-40s %12d lignes  %10s\n", t.Schema, t.Name, t.EstimatedRows, tailleLisible(t.Bytes))
 	}
 	return nil
 }

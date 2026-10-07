@@ -31,7 +31,7 @@ func urlRERS(theme, sousTheme, figure string) string {
 		editionRERS, theme, sousTheme, figure)
 }
 
-var SourceRERSDepenseEleve = archive.Source{
+var SourceRERSStudentSpending = archive.Source{
 	Slug: "depp-rers-depense-eleve", Label: "Depp — RERS, la dépense par élève et par étudiant (tableau 10.05)",
 	Publisher:  "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:       "PRIMARY_OFFICIAL",
@@ -48,12 +48,12 @@ var SourceRERSDepenseEleve = archive.Source{
 		"source : chargée telle quelle, avec provisoire=true.",
 }
 
-// IngestDepenseEleve charge RERS 10.05 figure 1 (série annuelle 1980-2024,
+// IngestStudentSpending charge RERS 10.05 figure 1 (série annuelle 1980-2024,
 // par degré) — pas la figure 2 du même tableau (mêmes données, seulement
 // neuf années repères 1980/1990/2000/2005/2010/2015/2020/2022/2023,
 // redondante avec la série annuelle ici chargée en entier).
-func IngestDepenseEleve(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceRERSDepenseEleve)
+func IngestStudentSpending(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceRERSStudentSpending)
 	if err != nil {
 		return err
 	}
@@ -83,12 +83,12 @@ func IngestDepenseEleve(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		return fail(fmt.Errorf("en-tête illisible : %w", err))
 	}
 	// header: "";"Premier degré";"Second degré";"Supérieur";"Ensemble"
-	niveaux := map[int]string{1: "premier_degre", 2: "second_degre", 3: "superieur", 4: "ensemble"}
+	levels := map[int]string{1: "premier_degre", 2: "second_degre", 3: "superieur", 4: "ensemble"}
 	if len(header) != 5 {
 		return fail(fmt.Errorf("colonnes inattendues : %q", header))
 	}
 
-	nombre := func(s string) (float64, error) {
+	parseNumber := func(s string) (float64, error) {
 		s = strings.ReplaceAll(s, " ", "")
 		s = strings.ReplaceAll(s, " ", "") // espace insécable, séparateur de milliers
 		s = strings.ReplaceAll(s, ",", ".")
@@ -101,18 +101,18 @@ func IngestDepenseEleve(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		if err != nil {
 			break
 		}
-		anneeStr := strings.TrimSuffix(rec[0], "p")
-		provisoire := strings.HasSuffix(rec[0], "p")
-		annee, err := strconv.Atoi(anneeStr)
+		yearStr := strings.TrimSuffix(rec[0], "p")
+		provisional := strings.HasSuffix(rec[0], "p")
+		year, err := strconv.Atoi(yearStr)
 		if err != nil {
 			return fail(fmt.Errorf("année %q illisible : %w", rec[0], err))
 		}
-		for col, niveau := range niveaux {
-			v, err := nombre(rec[col])
+		for col, level := range levels {
+			v, err := parseNumber(rec[col])
 			if err != nil {
-				return fail(fmt.Errorf("%d %s : valeur %q illisible : %w", annee, niveau, rec[col], err))
+				return fail(fmt.Errorf("%d %s : valeur %q illisible : %w", year, level, rec[col], err))
 			}
-			rows = append(rows, []any{annee, niveau, provisoire, v, 2024, editionRERS, srcID})
+			rows = append(rows, []any{year, level, provisional, v, 2024, editionRERS, srcID})
 		}
 	}
 	if len(rows) == 0 {

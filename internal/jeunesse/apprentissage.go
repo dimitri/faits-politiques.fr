@@ -57,24 +57,24 @@ func IngestInserJeunes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	if err != nil {
 		return fail(err)
 	}
-	var lignes []struct {
-		Annee                     string   `json:"annee"`
-		UAI                       string   `json:"uai"`
-		Libelle                   string   `json:"libelle"`
-		Region                    string   `json:"region"`
-		NiveauFormation           string   `json:"niveau_formation"`
-		TauxPoursuiteEtudes       *float64 `json:"taux_poursuite_etudes"`
-		TauxEmploi6Mois           *float64 `json:"taux_emploi_6_mois"`
-		TauxInterruptionFormation *float64 `json:"taux_interruption_formation"`
-		TauxContratsInterrompus   *float64 `json:"taux_contrats_interrompus"`
-		TauxEmploi12Mois          *float64 `json:"taux_emploi_12_mois"`
-		TauxEmploi18Mois          *float64 `json:"taux_emploi_18_mois"`
-		TauxEmploi24Mois          *float64 `json:"taux_emploi_24_mois"`
+	var records []struct {
+		Year                     string   `json:"annee"`
+		UAI                      string   `json:"uai"`
+		Label                    string   `json:"libelle"`
+		Region                   string   `json:"region"`
+		TrainingLevel            string   `json:"niveau_formation"`
+		ContinuingStudiesRate    *float64 `json:"taux_poursuite_etudes"`
+		EmploymentRate6Months    *float64 `json:"taux_emploi_6_mois"`
+		TrainingInterruptionRate *float64 `json:"taux_interruption_formation"`
+		InterruptedContractsRate *float64 `json:"taux_contrats_interrompus"`
+		EmploymentRate12Months   *float64 `json:"taux_emploi_12_mois"`
+		EmploymentRate18Months   *float64 `json:"taux_emploi_18_mois"`
+		EmploymentRate24Months   *float64 `json:"taux_emploi_24_mois"`
 	}
-	if err := json.Unmarshal(b, &lignes); err != nil {
+	if err := json.Unmarshal(b, &records); err != nil {
 		return fail(fmt.Errorf("inserjeunes : %w", err))
 	}
-	if len(lignes) == 0 {
+	if len(records) == 0 {
 		return fail(fmt.Errorf("inserjeunes : aucune ligne"))
 	}
 
@@ -92,20 +92,20 @@ func IngestInserJeunes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	// remontés sous le même niveau) — la première rencontrée est conservée,
 	// les suivantes ignorées plutôt que de faire échouer tout le chargement
 	// sur une contrainte d'unicité.
-	vus := map[[3]string]bool{}
+	seen := map[[3]string]bool{}
 	var rows [][]any
-	for _, l := range lignes {
-		if l.UAI == "" || l.NiveauFormation == "" {
+	for _, l := range records {
+		if l.UAI == "" || l.TrainingLevel == "" {
 			continue
 		}
-		cle := [3]string{l.Annee, l.UAI, l.NiveauFormation}
-		if vus[cle] {
+		key := [3]string{l.Year, l.UAI, l.TrainingLevel}
+		if seen[key] {
 			continue
 		}
-		vus[cle] = true
-		rows = append(rows, []any{l.Annee, l.UAI, l.Libelle, l.Region, l.NiveauFormation,
-			l.TauxPoursuiteEtudes, l.TauxEmploi6Mois, l.TauxInterruptionFormation,
-			l.TauxContratsInterrompus, l.TauxEmploi12Mois, l.TauxEmploi18Mois, l.TauxEmploi24Mois, srcID})
+		seen[key] = true
+		rows = append(rows, []any{l.Year, l.UAI, l.Label, l.Region, l.TrainingLevel,
+			l.ContinuingStudiesRate, l.EmploymentRate6Months, l.TrainingInterruptionRate,
+			l.InterruptedContractsRate, l.EmploymentRate12Months, l.EmploymentRate18Months, l.EmploymentRate24Months, srcID})
 	}
 
 	n, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "insertion_apprentissage"},

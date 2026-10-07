@@ -41,8 +41,8 @@ var niveaux = []collectiviteNiveau{
 // source de vérité pour IngestCollectivites et pour DownloadTargets (voir ce
 // dernier), pour que les deux ne puissent pas diverger.
 func collectivitesURL(n collectiviteNiveau, ex int) string {
-	noms := make([]string, 0, len(ofglAgregats))
-	for a := range ofglAgregats {
+	noms := make([]string, 0, len(ofglAggregates))
+	for a := range ofglAggregates {
 		noms = append(noms, `"`+a+`"`)
 	}
 	where := fmt.Sprintf(`exer=date'%d' AND agregat IN (%s)`, ex, joindre(noms))
@@ -88,12 +88,12 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	var total int
 	for _, n := range niveaux {
 		var lignes [][]any
-		for ex := ofglPremierExercice; ex <= ofglDernierExercice; ex++ {
+		for ex := ofglFirstFiscalYear; ex <= ofglLastFiscalYear; ex++ {
 			f, err := arch.Fetch(ctx, srcID, runID, collectivitesURL(n, ex), ".csv")
 			if err != nil {
 				return fail(fmt.Errorf("%s %d : %w", n.niveau, ex, err))
 			}
-			recs, err := lireCSV(f.Path, ';')
+			recs, err := readCSV(f.Path, ';')
 			if err != nil {
 				return fail(err)
 			}
@@ -104,7 +104,7 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 			vus := map[string]bool{}
 			for _, r := range recs {
 				code := r[n.colCode]
-				ind, ok := ofglAgregats[r["agregat"]]
+				ind, ok := ofglAggregates[r["agregat"]]
 				if code == "" || !ok {
 					continue
 				}
@@ -115,8 +115,8 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 				vus[k] = true
 				lignes = append(lignes, []any{
 					n.niveau, code, r[n.colNom], ex, ind,
-					decimalNul(r["montant"]), decimalNul(r["euros_par_habitant"]),
-					entierNul(r["ptot"]), srcID,
+					parseFloatOrNull(r["montant"]), parseFloatOrNull(r["euros_par_habitant"]),
+					parseIntOrNull(r["ptot"]), srcID,
 				})
 			}
 		}
@@ -136,7 +136,7 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	// RI pour l'intégralité des trois niveaux et huit exercices à chaque
 	// republication de l'OFGL, changement ou non.
 	var touchees int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.collectivite_budget", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.collectivite_budget", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.collectivite_budget AS tgt
 			USING tmp_collectivite_budget AS src
@@ -168,7 +168,7 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"valeurs": total, "touchees": touchees}, "")
 	fmt.Printf("  Collectivités : %d valeurs sur %d-%d (%d touchées par la fusion)\n",
-		total, ofglPremierExercice, ofglDernierExercice, touchees)
+		total, ofglFirstFiscalYear, ofglLastFiscalYear, touchees)
 	return nil
 }
 

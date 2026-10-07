@@ -67,12 +67,12 @@ func IngestPresidents(ctx context.Context, pool *pgxpool.Pool, csvPath string) e
 
 	var n int
 	for _, rec := range recs[1:] {
-		nom := get(rec, "nom")
+		name := get(rec, "nom")
 		debut := get(rec, "debut")
-		if nom == "" || debut == "" {
+		if name == "" || debut == "" {
 			continue
 		}
-		famille, prenom := decouperNom(nom)
+		family, first := splitName(name)
 
 		// Un président est très souvent déjà en base comme député ou ministre.
 		// Le rapprochement se fait sur le nom complet exact, insensible aux
@@ -87,7 +87,7 @@ func IngestPresidents(ctx context.Context, pool *pgxpool.Pool, csvPath string) e
 			   AND EXISTS (SELECT 1 FROM core.mandate m
 			               WHERE m.person_id = p.id
 			                 AND m.mandate_type IN ('DEPUTE','SENATEUR','MINISTRE','DEPUTE_EUROPEEN'))
-			 ORDER BY p.id LIMIT 1`, famille, prenom).Scan(&personID)
+			 ORDER BY p.id LIMIT 1`, family, first).Scan(&personID)
 		if err == pgx.ErrNoRows {
 			// ON CONFLICT plutôt qu'un simple INSERT : un même nom peut revenir
 			// plusieurs fois dans le fichier. Alain Poher a assuré deux intérims,
@@ -97,8 +97,8 @@ func IngestPresidents(ctx context.Context, pool *pgxpool.Pool, csvPath string) e
 				VALUES ($1, $2, $3)
 				ON CONFLICT (slug) DO UPDATE SET slug = EXCLUDED.slug
 				RETURNING id`,
-				"president-"+slugFR(nom), famille, prenom).Scan(&personID); err != nil {
-				return fmt.Errorf("%s : %w", nom, err)
+				"president-"+slugFR(name), family, first).Scan(&personID); err != nil {
+				return fmt.Errorf("%s : %w", name, err)
 			}
 		} else if err != nil {
 			return err
@@ -112,7 +112,7 @@ func IngestPresidents(ctx context.Context, pool *pgxpool.Pool, csvPath string) e
 			VALUES ($1, 'PRESIDENT_REPUBLIQUE',
 			        daterange($2::date, nullif($3,'')::date, '[)'), $4)`,
 			personID, debut, get(rec, "fin"), get(rec, "qualite")); err != nil {
-			return fmt.Errorf("%s : %w", nom, err)
+			return fmt.Errorf("%s : %w", name, err)
 		}
 		n++
 	}
@@ -124,11 +124,11 @@ func IngestPresidents(ctx context.Context, pool *pgxpool.Pool, csvPath string) e
 	return nil
 }
 
-// decouperNom sépare « Valéry Giscard d'Estaing » en prénom et nom de famille.
+// splitName sépare « Valéry Giscard d'Estaing » en prénom et nom de famille.
 // Le premier mot est le prénom : c'est la convention du fichier, qui est écrit
 // à la main et vérifié.
-func decouperNom(nom string) (famille, prenom string) {
-	parts := strings.SplitN(nom, " ", 2)
+func splitName(name string) (family, first string) {
+	parts := strings.SplitN(name, " ", 2)
 	if len(parts) == 1 {
 		return parts[0], ""
 	}

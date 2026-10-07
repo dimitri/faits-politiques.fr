@@ -75,13 +75,13 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, work
 		return err
 	}
 
-	// Un seul watermark (le sha256 du dump) gouverne DEUX étapes : restaurer
-	// (l'unzip+psql, coûteux) ET extraire (la dérivation SQL vers core.*,
-	// coûteuse elle aussi — voir extraire, le MERGE sur core.ballot). Calculé
+	// Un seul watermark (le sha256 du dump) gouverne DEUX étapes : restore
+	// (l'unzip+psql, coûteux) ET extract (la dérivation SQL vers core.*,
+	// coûteuse elle aussi — voir extract, le MERGE sur core.ballot). Calculé
 	// une fois ici plutôt que deux fois séparément, pour ne journaliser
 	// « cache invalidated » qu'une seule fois.
 	const scope = "senat-dosleg"
-	unchanged, raison, err := watermark.FileDiff(ctx, pool, scope, f.SHA256)
+	unchanged, reason, err := watermark.FileDiff(ctx, pool, scope, f.SHA256)
 	if err != nil {
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 		return err
@@ -96,19 +96,19 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, work
 		}
 		if nBal == 0 {
 			unchanged = false
-			raison = "watermark says unchanged but core.ballot looks empty for SENAT"
+			reason = "watermark says unchanged but core.ballot looks empty for SENAT"
 		}
 	}
 	if !unchanged {
-		logs.Notice("cache invalidated: " + raison)
+		logs.Notice("cache invalidated: " + reason)
 	}
 
-	if err := restaurer(ctx, pool, f.Path, workDir, unchanged); err != nil {
+	if err := restore(ctx, pool, f.Path, workDir, unchanged); err != nil {
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 		return fmt.Errorf("restauration : %w", err)
 	}
 
-	nSen, nScr, nVot, nThemes, err := extraire(ctx, pool, unchanged)
+	nSen, nScr, nVot, nThemes, err := extract(ctx, pool, unchanged)
 	if err != nil {
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 		return err
@@ -127,22 +127,22 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, work
 	return nil
 }
 
-// restaurer déplie le dump et le charge dans le schéma senat_raw. Le dump vise
+// restore déplie le dump et le charge dans le schéma senat_raw. Le dump vise
 // « public » : on le redirige, pour ne jamais écrire à côté du modèle.
 //
 // unchanged vient de l'appelant (Ingest), qui a déjà comparé le sha256 du zip
-// téléchargé au watermark — la même décision gouverne aussi extraire, donc
+// téléchargé au watermark — la même décision gouverne aussi extract, donc
 // elle se prend UNE FOIS, pas deux. Avant ce watermark, la garde ci-dessous
 // testait seulement « senat_raw.votsen existe-t-elle déjà » — vrai pour
 // toujours après le premier passage, donc une nouvelle publication du dump
 // Dosleg n'aurait jamais été reprise tant que le schéma restait en place.
-func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, workDir string, unchanged bool) error {
+func restore(ctx context.Context, pool *pgxpool.Pool, zipPath, workDir string, unchanged bool) error {
 	if unchanged {
-		var dejaLa int
+		var alreadyThere int
 		_ = pool.QueryRow(ctx, `
 			SELECT count(*) FROM information_schema.tables
-			WHERE table_schema = 'senat_raw' AND table_name = 'votsen'`).Scan(&dejaLa)
-		if dejaLa > 0 {
+			WHERE table_schema = 'senat_raw' AND table_name = 'votsen'`).Scan(&alreadyThere)
+		if alreadyThere > 0 {
 			return nil // dump inchangé et déjà restauré : la restauration est coûteuse
 		}
 		// Le watermark dit « inchangé » mais senat_raw a disparu — état
@@ -158,11 +158,11 @@ func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, workDir string,
 	if out, err := exec.CommandContext(ctx, "unzip", "-qo", zipPath, "-d", workDir).CombinedOutput(); err != nil {
 		return fmt.Errorf("unzip : %v (%s)", err, out)
 	}
-	brut, err := os.ReadFile(workDir + "/dosleg.sql")
+	raw, err := os.ReadFile(workDir + "/dosleg.sql")
 	if err != nil {
 		return err
 	}
-	sql := strings.ReplaceAll(string(brut), "public.", "senat_raw.")
+	sql := strings.ReplaceAll(string(raw), "public.", "senat_raw.")
 	sql = strings.ReplaceAll(sql, "SET search_path = public", "SET search_path = senat_raw")
 
 	if _, err := pool.Exec(ctx, `DROP SCHEMA IF EXISTS senat_raw CASCADE; CREATE SCHEMA senat_raw`); err != nil {
@@ -174,7 +174,7 @@ func restaurer(ctx context.Context, pool *pgxpool.Pool, zipPath, workDir string,
 	// -d $DATABASE_URL, explicite : sans elle, psql se rabat sur ses valeurs
 	// par défaut (socket Unix local), qui n'existent pas quand Postgres tourne
 	// dans un conteneur — invisible en local, où senat_raw existe déjà depuis
-	// longtemps et court-circuite cette fonction (dejaLa > 0 ci-dessus), mais
+	// longtemps et court-circuite cette fonction (alreadyThere > 0 ci-dessus), mais
 	// immédiat sur une base neuve (CI, ou tout premier chargement).
 	cmd := exec.CommandContext(ctx, "psql", "-q", "-v", "ON_ERROR_STOP=0", "-d", os.Getenv("DATABASE_URL"))
 	cmd.Env = append(os.Environ(), "PGOPTIONS=--search_path=senat_raw")
@@ -193,14 +193,14 @@ func lastLines(s string, n int) string {
 	return strings.Join(l, " | ")
 }
 
-var positionDe = map[string]string{
+var positionFor = map[string]string{
 	"1": "FOR", "2": "AGAINST", "3": "ABSTAIN", "4": "ABSENT",
 }
 
-// comptesExistants relit les quatre totaux qu'extraire rapporte d'ordinaire,
+// existingCounts relit les quatre totaux qu'extract rapporte d'ordinaire,
 // sans rien recalculer — utilisé quand le watermark permet de sauter la
-// reconstruction (voir extraire).
-func comptesExistants(ctx context.Context, pool *pgxpool.Pool) (nSen, nScr, nVot, nThemes int, err error) {
+// reconstruction (voir extract).
+func existingCounts(ctx context.Context, pool *pgxpool.Pool) (nSen, nScr, nVot, nThemes int, err error) {
 	if err = pool.QueryRow(ctx,
 		`SELECT count(*) FROM core.person_identifier WHERE scheme = 'SENAT_MATRICULE'`).Scan(&nSen); err != nil {
 		return
@@ -219,9 +219,9 @@ func comptesExistants(ctx context.Context, pool *pgxpool.Pool) (nSen, nScr, nVot
 	return
 }
 
-func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int, int, int, error) {
+func extract(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int, int, int, error) {
 	if unchanged {
-		nSen, nScr, nVot, nThemes, err := comptesExistants(ctx, pool)
+		nSen, nScr, nVot, nThemes, err := existingCounts(ctx, pool)
 		if err != nil {
 			return 0, 0, 0, 0, err
 		}
@@ -369,7 +369,7 @@ func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int
 	// source du MERGE ne peut de toute façon produire que des scrutin_id du
 	// Sénat (via senat_raw.map_scrutin).
 	//
-	// bulkload.SansContraintesFK reste utile malgré tout : sur un tout
+	// bulkload.WithoutFKConstraints reste utile malgré tout : sur un tout
 	// premier chargement (ou une refonte massive de senat_raw), le MERGE
 	// écrirait alors la totalité des lignes, et paierait plein tarif de
 	// triggers RI sans lui.
@@ -378,7 +378,7 @@ func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int
 		return 0, 0, 0, 0, err
 	}
 	defer tx.Rollback(ctx)
-	if err := bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
+	if err := bulkload.WithoutFKConstraints(ctx, tx, "core.ballot", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO senat_raw.ballot_senat AS tgt
 			USING (
@@ -456,7 +456,7 @@ func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int
 
 	// Rattachement des dossiers à leur thème. C'est une TRANSCRIPTION : la
 	// classification est faite par les services du Sénat, pas par ce site.
-	var nAff int64
+	var nAssigned int64
 	if ct, err := pool.Exec(ctx, `
 		INSERT INTO core.topic_assignment (topic_code, dossier_id, provenance, verification)
 		SELECT 'senat-' || lt.thecle, d.id, 'OFFICIAL', 'AUTO_VERIFIED'
@@ -465,16 +465,16 @@ func extraire(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int
 		 WHERE EXISTS (SELECT 1 FROM ref.topic t WHERE t.code = 'senat-' || lt.thecle)`); err != nil {
 		return 0, 0, 0, 0, fmt.Errorf("affectations thématiques : %w", err)
 	} else {
-		nAff = ct.RowsAffected()
+		nAssigned = ct.RowsAffected()
 	}
 	logs.Notice(fmt.Sprintf("%s, %s",
-		logs.Plural(int(compter(ctx, pool, `SELECT count(*) FROM core.dossier WHERE institution='SENAT'`)), "Senate bill"),
-		logs.Plural(int(nAff), "official topic assignment")))
+		logs.Plural(int(countRows(ctx, pool, `SELECT count(*) FROM core.dossier WHERE institution='SENAT'`)), "Senate bill"),
+		logs.Plural(int(nAssigned), "official topic assignment")))
 
 	return nSen, nScr, int(nVot), nThemes, nil
 }
 
-func compter(ctx context.Context, pool *pgxpool.Pool, q string) int64 {
+func countRows(ctx context.Context, pool *pgxpool.Pool, q string) int64 {
 	var n int64
 	_ = pool.QueryRow(ctx, q).Scan(&n)
 	return n

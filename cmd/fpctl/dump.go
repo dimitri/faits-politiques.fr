@@ -225,7 +225,7 @@ func uploadDumpFile(ctx context.Context, path, bucket, key string) error {
 		return err
 	}
 
-	c, err := objectstore.Client(objectstore.DepuisEnv())
+	c, err := objectstore.Client(objectstore.FromEnv())
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ func runRestoreCI(ctx context.Context, args []string) error {
 	}
 
 	if *download {
-		c, err := objectstore.Client(objectstore.DepuisEnv())
+		c, err := objectstore.Client(objectstore.FromEnv())
 		if err != nil {
 			return err
 		}

@@ -78,26 +78,26 @@ const (
 	urlAidesRM = "https://www.eau-rhin-meuse.fr/upload/Bilan_Aides_AERM.xlsx"
 )
 
-type ligneAideEau struct {
+type aideRow struct {
 	Programme         string
-	Annee             int
-	DateDecision      *string
-	ReferenceDecision *string
-	NomBeneficiaire   string
-	SiretBeneficiaire *string
-	CodeDepartement   *string
+	Year              int
+	DecisionDate      *string
+	DecisionReference *string
+	BeneficiaryName   string
+	BeneficiarySiret  *string
+	DepartmentCode    *string
 	CodeInseeCommune  *string
-	Objet             *string
-	MontantEUR        float64
+	Purpose           *string
+	AmountEUR         float64
 	Nature            *string
-	TypeBeneficiaire  *string
+	BeneficiaryType   *string
 }
 
-func normaliserEntete(s string) string {
+func normalizeHeader(s string) string {
 	return strings.Join(strings.Fields(s), " ")
 }
 
-func parseMontantAide(s string) (float64, error) {
+func parseAidAmount(s string) (float64, error) {
 	s = strings.TrimSpace(strings.ReplaceAll(s, ",", ""))
 	if s == "" {
 		return 0, fmt.Errorf("montant vide")
@@ -105,20 +105,20 @@ func parseMontantAide(s string) (float64, error) {
 	return strconv.ParseFloat(s, 64)
 }
 
-// parseMontantEUR lit un montant suivi du symbole € (format Rhin-Meuse,
+// parseAmountEUR lit un montant suivi du symbole € (format Rhin-Meuse,
 // « 74,700.00 € » — séparateur de milliers virgule, décimales point, comme
-// parseMontantAide, mais avec le symbole monétaire en plus à retirer).
-func parseMontantEUR(s string) (float64, error) {
+// parseAidAmount, mais avec le symbole monétaire en plus à retirer).
+func parseAmountEUR(s string) (float64, error) {
 	s = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(s), "€"))
-	return parseMontantAide(s)
+	return parseAidAmount(s)
 }
 
-// chargerFeuilleLB lit un fichier de décisions d'aide Loire-Bretagne dont la
+// loadLBSheet lit un fichier de décisions d'aide Loire-Bretagne dont la
 // ligne 0 est un titre fusionné et la ligne 1 porte les en-têtes réels — un
 // format vérifié identique entre le 11e et le 12e programme, malgré des
 // colonnes différentes d'un programme à l'autre.
-func chargerFeuilleLB(chemin, programme string, colAnnee, colDept, colSiret, colBeneficiaire, colObjet, colMontant, colNature, colDecision, colDate string) ([]ligneAideEau, error) {
-	wb, err := excelize.OpenFile(chemin)
+func loadLBSheet(path, programme string, colYear, colDept, colSiret, colBeneficiary, colPurpose, colAmount, colNature, colDecision, colDate string) ([]aideRow, error) {
+	wb, err := excelize.OpenFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("classeur illisible : %w", err)
 	}
@@ -137,10 +137,10 @@ func chargerFeuilleLB(chemin, programme string, colAnnee, colDept, colSiret, col
 	header := rows[1]
 	idx := map[string]int{}
 	for i, h := range header {
-		idx[normaliserEntete(h)] = i
+		idx[normalizeHeader(h)] = i
 	}
-	requis := []string{colAnnee, colBeneficiaire, colObjet, colMontant, colNature, colDecision, colDate}
-	for _, c := range requis {
+	required := []string{colYear, colBeneficiary, colPurpose, colAmount, colNature, colDecision, colDate}
+	for _, c := range required {
 		if _, ok := idx[c]; !ok {
 			return nil, fmt.Errorf("colonne %q absente — le format a peut-être changé", c)
 		}
@@ -152,57 +152,57 @@ func chargerFeuilleLB(chemin, programme string, colAnnee, colDept, colSiret, col
 		}
 		return strings.TrimSpace(r[i])
 	}
-	nettoyerPtr := func(s string) *string {
+	orNil := func(s string) *string {
 		if s == "" {
 			return nil
 		}
 		return &s
 	}
 
-	var lignes []ligneAideEau
+	var entries []aideRow
 	for n, r := range rows[2:] {
-		anneeStr := get(r, colAnnee)
-		annee, err := strconv.Atoi(anneeStr)
+		yearStr := get(r, colYear)
+		year, err := strconv.Atoi(yearStr)
 		if err != nil {
-			return nil, fmt.Errorf("ligne %d, année illisible %q : %w", n+3, anneeStr, err)
+			return nil, fmt.Errorf("ligne %d, année illisible %q : %w", n+3, yearStr, err)
 		}
-		montant, err := parseMontantAide(get(r, colMontant))
+		amount, err := parseAidAmount(get(r, colAmount))
 		if err != nil {
 			return nil, fmt.Errorf("ligne %d, montant illisible : %w", n+3, err)
 		}
-		beneficiaire := get(r, colBeneficiaire)
-		if beneficiaire == "" {
+		beneficiary := get(r, colBeneficiary)
+		if beneficiary == "" {
 			return nil, fmt.Errorf("ligne %d : bénéficiaire vide", n+3)
 		}
 		var dept, siret *string
 		if colDept != "" {
-			dept = nettoyerPtr(get(r, colDept))
+			dept = orNil(get(r, colDept))
 		}
 		if colSiret != "" {
-			siret = nettoyerPtr(get(r, colSiret))
+			siret = orNil(get(r, colSiret))
 		}
-		lignes = append(lignes, ligneAideEau{
+		entries = append(entries, aideRow{
 			Programme:         programme,
-			Annee:             annee,
-			DateDecision:      nettoyerPtr(get(r, colDate)),
-			ReferenceDecision: nettoyerPtr(get(r, colDecision)),
-			NomBeneficiaire:   beneficiaire,
-			SiretBeneficiaire: siret,
-			CodeDepartement:   dept,
-			Objet:             nettoyerPtr(get(r, colObjet)),
-			MontantEUR:        montant,
-			Nature:            nettoyerPtr(get(r, colNature)),
+			Year:              year,
+			DecisionDate:      orNil(get(r, colDate)),
+			DecisionReference: orNil(get(r, colDecision)),
+			BeneficiaryName:   beneficiary,
+			BeneficiarySiret:  siret,
+			DepartmentCode:    dept,
+			Purpose:           orNil(get(r, colPurpose)),
+			AmountEUR:         amount,
+			Nature:            orNil(get(r, colNature)),
 		})
 	}
-	return lignes, nil
+	return entries, nil
 }
 
-// chargerCSVArtoisPicardie lit un fichier « données essentielles des
+// loadArtoisPicardieCSV lit un fichier « données essentielles des
 // conventions de subvention » (décret n° 2017-779) : colonnes fixées par
 // arrêté, séparateur point-virgule, jamais de code département ou commune
 // (seul le SIRET du bénéficiaire situe l'entité).
-func chargerCSVArtoisPicardie(chemin, programme string) ([]ligneAideEau, error) {
-	f, err := os.Open(chemin)
+func loadArtoisPicardieCSV(path, programme string) ([]aideRow, error) {
+	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
 	}
@@ -210,16 +210,16 @@ func chargerCSVArtoisPicardie(chemin, programme string) ([]ligneAideEau, error) 
 	cr := csv.NewReader(f)
 	cr.Comma = ';'
 	cr.LazyQuotes = true
-	entete, err := cr.Read()
+	header, err := cr.Read()
 	if err != nil {
 		return nil, fmt.Errorf("en-tête illisible : %w", err)
 	}
 	idx := map[string]int{}
-	for i, c := range entete {
+	for i, c := range header {
 		idx[strings.TrimPrefix(strings.TrimSpace(c), string(rune(0xFEFF)))] = i
 	}
-	requis := []string{"dateConvention", "referenceDecision", "nomBeneficiaire", "idBeneficiaire", "objet", "montant", "nature"}
-	for _, c := range requis {
+	required := []string{"dateConvention", "referenceDecision", "nomBeneficiaire", "idBeneficiaire", "objet", "montant", "nature"}
+	for _, c := range required {
 		if _, ok := idx[c]; !ok {
 			return nil, fmt.Errorf("colonne %q absente — le format a peut-être changé", c)
 		}
@@ -231,14 +231,14 @@ func chargerCSVArtoisPicardie(chemin, programme string) ([]ligneAideEau, error) 
 		}
 		return strings.TrimSpace(r[i])
 	}
-	nettoyerPtr := func(s string) *string {
+	orNil := func(s string) *string {
 		if s == "" {
 			return nil
 		}
 		return &s
 	}
 
-	var lignes []ligneAideEau
+	var entries []aideRow
 	n := 1
 	for {
 		r, err := cr.Read()
@@ -253,66 +253,66 @@ func chargerCSVArtoisPicardie(chemin, programme string) ([]ligneAideEau, error) 
 		if len(date) < 4 {
 			return nil, fmt.Errorf("ligne %d : date de convention illisible %q", n, date)
 		}
-		annee, err := strconv.Atoi(date[:4])
+		year, err := strconv.Atoi(date[:4])
 		if err != nil {
 			return nil, fmt.Errorf("ligne %d, année illisible depuis %q : %w", n, date, err)
 		}
-		montant, err := parseMontantAide(get(r, "montant"))
+		amount, err := parseAidAmount(get(r, "montant"))
 		if err != nil {
 			return nil, fmt.Errorf("ligne %d, montant illisible : %w", n, err)
 		}
-		beneficiaire := get(r, "nomBeneficiaire")
-		if beneficiaire == "" {
+		beneficiary := get(r, "nomBeneficiaire")
+		if beneficiary == "" {
 			return nil, fmt.Errorf("ligne %d : bénéficiaire vide", n)
 		}
-		lignes = append(lignes, ligneAideEau{
+		entries = append(entries, aideRow{
 			Programme:         programme,
-			Annee:             annee,
-			DateDecision:      nettoyerPtr(date),
-			ReferenceDecision: nettoyerPtr(get(r, "referenceDecision")),
-			NomBeneficiaire:   beneficiaire,
-			SiretBeneficiaire: nettoyerPtr(get(r, "idBeneficiaire")),
-			Objet:             nettoyerPtr(get(r, "objet")),
-			MontantEUR:        montant,
-			Nature:            nettoyerPtr(get(r, "nature")),
+			Year:              year,
+			DecisionDate:      orNil(date),
+			DecisionReference: orNil(get(r, "referenceDecision")),
+			BeneficiaryName:   beneficiary,
+			BeneficiarySiret:  orNil(get(r, "idBeneficiaire")),
+			Purpose:           orNil(get(r, "objet")),
+			AmountEUR:         amount,
+			Nature:            orNil(get(r, "nature")),
 		})
 	}
-	if lignes == nil {
+	if entries == nil {
 		return nil, fmt.Errorf("aucune ligne lue")
 	}
-	return lignes, nil
+	return entries, nil
 }
 
-// codeInseeDepuisLocalisation extrait le code commune d'un champ « NNNNN -
+// inseeCodeFromLocation extrait le code commune d'un champ « NNNNN -
 // NOM DE COMMUNE » (format Rhin-Meuse) — seulement si les 5 premiers
 // caractères sont bien numériques, jamais une supposition sur le reste du
 // format.
-func codeInseeDepuisLocalisation(s string) *string {
-	avant, _, trouve := strings.Cut(s, " - ")
-	if !trouve {
+func inseeCodeFromLocation(s string) *string {
+	before, _, found := strings.Cut(s, " - ")
+	if !found {
 		return nil
 	}
-	avant = strings.TrimSpace(avant)
-	if len(avant) != 5 {
+	before = strings.TrimSpace(before)
+	if len(before) != 5 {
 		return nil
 	}
-	for _, r := range avant {
+	for _, r := range before {
 		if r < '0' || r > '9' {
-			if avant[:2] != "2A" && avant[:2] != "2B" { // Corse
+			if before[:2] != "2A" && before[:2] != "2B" { // Corse
 				return nil
 			}
 			break
 		}
 	}
-	return &avant
+	return &before
 }
 
-// chargerAidesRhinMeuse lit le bilan consolidé de l'agence — une feuille
+// loadAidesRhinMeuse lit le bilan consolidé de l'agence — une feuille
 // unique, ligne 0 titre, ligne 1 en-têtes, colonnes vérifiées à
 // l'inspection (voir SourceAidesRhinMeuse.Notes pour ce qui manque par
 // rapport aux deux autres sources).
-func chargerAidesRhinMeuse(chemin string) ([]ligneAideEau, error) {
-	wb, err := excelize.OpenFile(chemin)
+func loadAidesRhinMeuse(path string) ([]aideRow, error) {
+	wb, err := excelize.OpenFile(path)
 	if err != nil {
 		return nil, fmt.Errorf("classeur illisible : %w", err)
 	}
@@ -331,12 +331,12 @@ func chargerAidesRhinMeuse(chemin string) ([]ligneAideEau, error) {
 	header := rows[1]
 	idx := map[string]int{}
 	for i, h := range header {
-		idx[normaliserEntete(h)] = i
+		idx[normalizeHeader(h)] = i
 	}
-	requis := []string{"Référence du projet", "Référence au programme", "Année d'attribution de l'aide",
+	required := []string{"Référence du projet", "Référence au programme", "Année d'attribution de l'aide",
 		"Département de l'opération", "Nom du maître d'ouvrage", "Type de maitre d'ouvrage",
 		"Localisation du maître d'ouvrage", "Description du projet", "Montant de l'aide accordée"}
-	for _, c := range requis {
+	for _, c := range required {
 		if _, ok := idx[c]; !ok {
 			return nil, fmt.Errorf("colonne %q absente — le format a peut-être changé", c)
 		}
@@ -348,47 +348,47 @@ func chargerAidesRhinMeuse(chemin string) ([]ligneAideEau, error) {
 		}
 		return strings.TrimSpace(r[i])
 	}
-	nettoyerPtr := func(s string) *string {
+	orNil := func(s string) *string {
 		if s == "" {
 			return nil
 		}
 		return &s
 	}
 
-	var lignes []ligneAideEau
+	var entries []aideRow
 	for n, r := range rows[2:] {
-		anneeStr := get(r, "Année d'attribution de l'aide")
-		annee, err := strconv.Atoi(anneeStr)
+		yearStr := get(r, "Année d'attribution de l'aide")
+		year, err := strconv.Atoi(yearStr)
 		if err != nil {
-			return nil, fmt.Errorf("ligne %d, année illisible %q : %w", n+3, anneeStr, err)
+			return nil, fmt.Errorf("ligne %d, année illisible %q : %w", n+3, yearStr, err)
 		}
-		montant, err := parseMontantEUR(get(r, "Montant de l'aide accordée"))
+		amount, err := parseAmountEUR(get(r, "Montant de l'aide accordée"))
 		if err != nil {
 			return nil, fmt.Errorf("ligne %d, montant illisible : %w", n+3, err)
 		}
-		beneficiaire := get(r, "Nom du maître d'ouvrage")
-		if beneficiaire == "" {
+		beneficiary := get(r, "Nom du maître d'ouvrage")
+		if beneficiary == "" {
 			return nil, fmt.Errorf("ligne %d : bénéficiaire vide", n+3)
 		}
-		lignes = append(lignes, ligneAideEau{
+		entries = append(entries, aideRow{
 			Programme:         get(r, "Référence au programme"),
-			Annee:             annee,
-			ReferenceDecision: nettoyerPtr(get(r, "Référence du projet")),
-			NomBeneficiaire:   beneficiaire,
-			CodeDepartement:   nettoyerPtr(get(r, "Département de l'opération")),
-			CodeInseeCommune:  codeInseeDepuisLocalisation(get(r, "Localisation du maître d'ouvrage")),
-			Objet:             nettoyerPtr(get(r, "Description du projet")),
-			MontantEUR:        montant,
-			TypeBeneficiaire:  nettoyerPtr(get(r, "Type de maitre d'ouvrage")),
+			Year:              year,
+			DecisionReference: orNil(get(r, "Référence du projet")),
+			BeneficiaryName:   beneficiary,
+			DepartmentCode:    orNil(get(r, "Département de l'opération")),
+			CodeInseeCommune:  inseeCodeFromLocation(get(r, "Localisation du maître d'ouvrage")),
+			Purpose:           orNil(get(r, "Description du projet")),
+			AmountEUR:         amount,
+			BeneficiaryType:   orNil(get(r, "Type de maitre d'ouvrage")),
 		})
 	}
-	if lignes == nil {
+	if entries == nil {
 		return nil, fmt.Errorf("aucune ligne lue")
 	}
-	return lignes, nil
+	return entries, nil
 }
 
-// quoteLiteral échappe un littéral SQL. N'est appelé que sur agence, une
+// quoteLiteral échappe un littéral SQL. N'est appelé que sur agency, une
 // constante Go du connecteur (jamais une donnée venue du fichier source) —
 // mais la vue temporaire scopée ci-dessous ne peut pas se paramétrer
 // autrement qu'en construisant son texte.
@@ -396,7 +396,7 @@ func quoteLiteral(s string) string {
 	return "'" + strings.ReplaceAll(s, "'", "''") + "'"
 }
 
-// chargerEtInserer fusionne les décisions d'une agence. MERGE plutôt que
+// loadAndInsert fusionne les décisions d'une agence. MERGE plutôt que
 // DELETE(scopé par agence+programme)+COPY : l'ancien DELETE payait le prix
 // des triggers RI pour l'intégralité des programmes d'une agence à chaque
 // republication, changement ou non. Pas de clé naturelle publiée par les
@@ -405,19 +405,19 @@ func quoteLiteral(s string) string {
 // 20-I-035/2020) — donc rang fixe la position d'apparition dans le fichier
 // pour chaque (agence, programme) (migration 0183), la même logique que
 // core.declaration_item (HATVP).
-func chargerEtInserer(ctx context.Context, pool *pgxpool.Pool, agence string, lignes []ligneAideEau, srcID int64) error {
-	if len(lignes) == 0 {
-		return fmt.Errorf("%s : aucune ligne à charger", agence)
+func loadAndInsert(ctx context.Context, pool *pgxpool.Pool, agency string, entries []aideRow, srcID int64) error {
+	if len(entries) == 0 {
+		return fmt.Errorf("%s : aucune ligne à charger", agency)
 	}
-	rangParProgramme := map[string]int{}
-	rows := make([][]any, 0, len(lignes))
-	for _, l := range lignes {
-		rang := rangParProgramme[l.Programme]
-		rangParProgramme[l.Programme] = rang + 1
+	rankByProgram := map[string]int{}
+	rows := make([][]any, 0, len(entries))
+	for _, l := range entries {
+		rank := rankByProgram[l.Programme]
+		rankByProgram[l.Programme] = rank + 1
 		rows = append(rows, []any{
-			agence, l.Programme, rang, l.Annee, l.DateDecision, l.ReferenceDecision,
-			l.NomBeneficiaire, l.SiretBeneficiaire, l.CodeDepartement, l.CodeInseeCommune,
-			l.Objet, l.MontantEUR, l.Nature, l.TypeBeneficiaire, srcID,
+			agency, l.Programme, rank, l.Year, l.DecisionDate, l.DecisionReference,
+			l.BeneficiaryName, l.BeneficiarySiret, l.DepartmentCode, l.CodeInseeCommune,
+			l.Purpose, l.AmountEUR, l.Nature, l.BeneficiaryType, srcID,
 		})
 	}
 	tx, err := pool.Begin(ctx)
@@ -434,7 +434,7 @@ func chargerEtInserer(ctx context.Context, pool *pgxpool.Pool, agence string, li
 		) ON COMMIT DROP;
 		CREATE OR REPLACE TEMPORARY VIEW aide_agence_eau_scope AS
 		  SELECT * FROM core.aide_agence_eau WHERE agence = %s
-		  WITH LOCAL CHECK OPTION`, quoteLiteral(agence))); err != nil {
+		  WITH LOCAL CHECK OPTION`, quoteLiteral(agency))); err != nil {
 		return err
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_aide_agence_eau"},
@@ -442,9 +442,9 @@ func chargerEtInserer(ctx context.Context, pool *pgxpool.Pool, agence string, li
 			"nom_beneficiaire", "siret_beneficiaire", "code_departement", "code_insee_commune",
 			"objet", "montant_eur", "nature", "type_beneficiaire", "source_id"},
 		pgx.CopyFromRows(rows)); err != nil {
-		return fmt.Errorf("%s : %w", agence, err)
+		return fmt.Errorf("%s : %w", agency, err)
 	}
-	err = bulkload.SansContraintesFK(ctx, tx, "core.aide_agence_eau", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.aide_agence_eau", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO aide_agence_eau_scope AS tgt
 			USING tmp_aide_agence_eau AS src
@@ -473,7 +473,7 @@ func chargerEtInserer(ctx context.Context, pool *pgxpool.Pool, agence string, li
 		return err
 	})
 	if err != nil {
-		return fmt.Errorf("%s : fusion : %w", agence, err)
+		return fmt.Errorf("%s : fusion : %w", agency, err)
 	}
 	return tx.Commit(ctx)
 }
@@ -498,7 +498,7 @@ func IngestAidesLoireBretagne(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	if err != nil {
 		return fail(err)
 	}
-	lignes11, err := chargerFeuilleLB(f11.Path, "11e",
+	entries11, err := loadLBSheet(f11.Path, "11e",
 		"Année d'engagement", "Dépt", "N° SIRET du bénéficiaire", "Raison sociale bénéficiaire",
 		"Descriptif du dossier", "Aide en €", "Type de financement", "N° de décision", "Date de décision")
 	if err != nil {
@@ -509,18 +509,18 @@ func IngestAidesLoireBretagne(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	if err != nil {
 		return fail(err)
 	}
-	lignes12, err := chargerFeuilleLB(f12.Path, "12e",
+	entries12, err := loadLBSheet(f12.Path, "12e",
 		"Année", "Dépt", "SIRET", "Maître d'ouvrage",
 		"Libellé Aide", "Montant aide (€)", "Nature aide", "N° décision", "Date de la décision")
 	if err != nil {
 		return fail(fmt.Errorf("12e programme : %w", err))
 	}
 
-	if err := chargerEtInserer(ctx, pool, "LOIRE_BRETAGNE", append(lignes11, lignes12...), srcID); err != nil {
+	if err := loadAndInsert(ctx, pool, "LOIRE_BRETAGNE", append(entries11, entries12...), srcID); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"aides_11e": len(lignes11), "aides_12e": len(lignes12)}, "")
-	fmt.Printf("  Aides Loire-Bretagne : %d (11e programme) + %d (12e programme)\n", len(lignes11), len(lignes12))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"aides_11e": len(entries11), "aides_12e": len(entries12)}, "")
+	fmt.Printf("  Aides Loire-Bretagne : %d (11e programme) + %d (12e programme)\n", len(entries11), len(entries12))
 	return nil
 }
 
@@ -544,7 +544,7 @@ func IngestAidesArtoisPicardie(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	if err != nil {
 		return fail(err)
 	}
-	lignes1011, err := chargerCSVArtoisPicardie(f1011.Path, "10e-11e")
+	entries1011, err := loadArtoisPicardieCSV(f1011.Path, "10e-11e")
 	if err != nil {
 		return fail(fmt.Errorf("10e-11e programme : %w", err))
 	}
@@ -553,16 +553,16 @@ func IngestAidesArtoisPicardie(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	if err != nil {
 		return fail(err)
 	}
-	lignes12, err := chargerCSVArtoisPicardie(f12.Path, "12e")
+	entries12, err := loadArtoisPicardieCSV(f12.Path, "12e")
 	if err != nil {
 		return fail(fmt.Errorf("12e programme : %w", err))
 	}
 
-	if err := chargerEtInserer(ctx, pool, "ARTOIS_PICARDIE", append(lignes1011, lignes12...), srcID); err != nil {
+	if err := loadAndInsert(ctx, pool, "ARTOIS_PICARDIE", append(entries1011, entries12...), srcID); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"aides_10e_11e": len(lignes1011), "aides_12e": len(lignes12)}, "")
-	fmt.Printf("  Aides Artois-Picardie : %d (10e-11e programme) + %d (12e programme)\n", len(lignes1011), len(lignes12))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"aides_10e_11e": len(entries1011), "aides_12e": len(entries12)}, "")
+	fmt.Printf("  Aides Artois-Picardie : %d (10e-11e programme) + %d (12e programme)\n", len(entries1011), len(entries12))
 	return nil
 }
 
@@ -586,15 +586,15 @@ func IngestAidesRhinMeuse(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	if err != nil {
 		return fail(err)
 	}
-	lignes, err := chargerAidesRhinMeuse(f.Path)
+	entries, err := loadAidesRhinMeuse(f.Path)
 	if err != nil {
 		return fail(err)
 	}
 
-	if err := chargerEtInserer(ctx, pool, "RHIN_MEUSE", lignes, srcID); err != nil {
+	if err := loadAndInsert(ctx, pool, "RHIN_MEUSE", entries, srcID); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"aides": len(lignes)}, "")
-	fmt.Printf("  Aides Rhin-Meuse : %d\n", len(lignes))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"aides": len(entries)}, "")
+	fmt.Printf("  Aides Rhin-Meuse : %d\n", len(entries))
 	return nil
 }

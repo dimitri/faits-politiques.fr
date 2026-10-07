@@ -14,11 +14,11 @@ import (
 	"github.com/xuri/excelize/v2"
 )
 
-// normaliserCleColonne : les en-têtes SISPEA changent de casse d'un export
+// normalizeColumnKey : les en-têtes SISPEA changent de casse d'un export
 // à l'autre (« mode_gestion » côté collectif, « Mode_gestion » côté non
 // collectif, vérifié à l'inspection) — comparaison insensible à la casse
 // plutôt qu'une liste de colonnes dupliquée par variante.
-func normaliserCleColonne(s string) string {
+func normalizeColumnKey(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))
 }
 
@@ -52,19 +52,19 @@ const (
 	urlAssainissementNonCollectif = "https://data.ofb.fr/catalogue/srv/api/records/96f91c3e-cc33-4f7a-a0fa-6620ff79d168/attachments/SISPEA_extraction_2023_ANC.7z"
 )
 
-type ligneAssainissement struct {
-	CodeInsee                       string
-	IDCollectivite, NomCollectivite *string
-	IDService, NomService           *string
-	ModeGestion, NomOperateur       *string
-	PopulationDesservie             *int
-	AgenceDeLEau                    *string
+type sanitationRow struct {
+	CodeInsee                        string
+	CollectivityID, CollectivityName *string
+	ServiceID, ServiceName           *string
+	ManagementMode, OperatorName     *string
+	PopulationServed                 *int
+	WaterAgency                      *string
 }
 
-// extraireXLSXDe7z : les deux exports (AC et ANC) sont, comme l'eau potable,
+// extractXLSXFrom7z : les deux exports (AC et ANC) sont, comme l'eau potable,
 // livrés en .7z contenant un .xlsx unique — même contournement que
 // sispea.go (le 7z lui-même n'est pas un format qu'excelize sait ouvrir).
-func extraireXLSXDe7z(ctx context.Context, cheminArchive string) (string, func(), error) {
+func extractXLSXFrom7z(ctx context.Context, archivePath string) (string, func(), error) {
 	if _, err := exec.LookPath("7z"); err != nil {
 		return "", nil, fmt.Errorf("binaire 7z introuvable sur le PATH : %w", err)
 	}
@@ -72,31 +72,31 @@ func extraireXLSXDe7z(ctx context.Context, cheminArchive string) (string, func()
 	if err != nil {
 		return "", nil, err
 	}
-	nettoyer := func() { os.RemoveAll(tmp) }
-	cmd := exec.CommandContext(ctx, "7z", "e", cheminArchive, "-o"+tmp, "-y", "-r", "*.xlsx")
+	cleanup := func() { os.RemoveAll(tmp) }
+	cmd := exec.CommandContext(ctx, "7z", "e", archivePath, "-o"+tmp, "-y", "-r", "*.xlsx")
 	out, err := cmd.CombinedOutput()
 	if err != nil {
-		nettoyer()
+		cleanup()
 		return "", nil, fmt.Errorf("extraction 7z : %w : %s", err, out)
 	}
 	matches, err := filepath.Glob(filepath.Join(tmp, "*.xlsx"))
 	if err != nil {
-		nettoyer()
+		cleanup()
 		return "", nil, err
 	}
 	if len(matches) != 1 {
-		nettoyer()
+		cleanup()
 		return "", nil, fmt.Errorf("attendu un seul .xlsx extrait, trouvé %d — le format a peut-être changé", len(matches))
 	}
-	return matches[0], nettoyer, nil
+	return matches[0], cleanup, nil
 }
 
-// chargerAssainissement lit un des deux exports (colonnes vérifiées
+// loadSanitationRows lit un des deux exports (colonnes vérifiées
 // identiques entre collectif et non collectif à ceci près que la casse de
 // « Mode_gestion » diffère — la recherche de colonne est insensible à ce
 // détail).
-func chargerAssainissement(cheminXLSX string) ([]ligneAssainissement, error) {
-	wb, err := excelize.OpenFile(cheminXLSX)
+func loadSanitationRows(xlsxPath string) ([]sanitationRow, error) {
+	wb, err := excelize.OpenFile(xlsxPath)
 	if err != nil {
 		return nil, fmt.Errorf("classeur illisible : %w", err)
 	}
@@ -110,21 +110,21 @@ func chargerAssainissement(cheminXLSX string) ([]ligneAssainissement, error) {
 	}
 	idx := map[string]int{}
 	for i, h := range rows[0] {
-		idx[normaliserCleColonne(h)] = i
+		idx[normalizeColumnKey(h)] = i
 	}
-	col := func(nom string) (int, bool) { i, ok := idx[normaliserCleColonne(nom)]; return i, ok }
+	col := func(name string) (int, bool) { i, ok := idx[normalizeColumnKey(name)]; return i, ok }
 	iCommune, ok := col("n_insee_si_commune")
 	if !ok {
 		return nil, fmt.Errorf("colonne commune absente — le format a peut-être changé")
 	}
 	iIDColl, _ := col("id_sispea_coll")
-	iNomColl, _ := col("nom_coll")
+	iNameColl, _ := col("nom_coll")
 	iIDServ, _ := col("id_sispea_serv")
-	iNomServ, _ := col("nom_serv")
+	iNameServ, _ := col("nom_serv")
 	iMode, _ := col("mode_gestion")
-	iOperateur, _ := col("nom_operateur")
+	iOperator, _ := col("nom_operateur")
 	iPop, _ := col("pop_comm_adh")
-	iAgence, _ := col("agence_de_leau")
+	iAgency, _ := col("agence_de_leau")
 
 	get := func(r []string, i int) *string {
 		if i < 0 || i >= len(r) || r[i] == "" || r[i] == "." {
@@ -134,32 +134,32 @@ func chargerAssainissement(cheminXLSX string) ([]ligneAssainissement, error) {
 		return &v
 	}
 
-	var lignes []ligneAssainissement
+	var entries []sanitationRow
 	for _, r := range rows[1:] {
 		commune := get(r, iCommune)
 		if commune == nil {
 			continue // ligne d'agrégat régional/collectivité sans commune propre
 		}
-		mode, err := modeGestionCode(strVal(get(r, iMode)))
+		mode, err := managementModeCode(strVal(get(r, iMode)))
 		if err != nil {
 			return nil, err
 		}
 		var pop *int
 		if p := get(r, iPop); p != nil {
-			v, err := entierNullable(*p)
+			v, err := parseNullableInt(*p)
 			if err != nil {
 				return nil, fmt.Errorf("commune %s, population : %w", *commune, err)
 			}
 			pop = v
 		}
-		lignes = append(lignes, ligneAssainissement{
-			CodeInsee: *commune, IDCollectivite: get(r, iIDColl), NomCollectivite: get(r, iNomColl),
-			IDService: get(r, iIDServ), NomService: get(r, iNomServ),
-			ModeGestion: mode, NomOperateur: get(r, iOperateur),
-			PopulationDesservie: pop, AgenceDeLEau: get(r, iAgence),
+		entries = append(entries, sanitationRow{
+			CodeInsee: *commune, CollectivityID: get(r, iIDColl), CollectivityName: get(r, iNameColl),
+			ServiceID: get(r, iIDServ), ServiceName: get(r, iNameServ),
+			ManagementMode: mode, OperatorName: get(r, iOperator),
+			PopulationServed: pop, WaterAgency: get(r, iAgency),
 		})
 	}
-	return lignes, nil
+	return entries, nil
 }
 
 func strVal(s *string) string {
@@ -186,28 +186,28 @@ func IngestAssainissement(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return err
 	}
 
-	charger := func(url, competence string) ([]ligneAssainissement, error) {
+	load := func(url, competence string) ([]sanitationRow, error) {
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".7z")
 		if err != nil {
 			return nil, err
 		}
-		xlsxPath, nettoyer, err := extraireXLSXDe7z(ctx, f.Path)
+		xlsxPath, cleanup, err := extractXLSXFrom7z(ctx, f.Path)
 		if err != nil {
 			return nil, fmt.Errorf("%s : %w", competence, err)
 		}
-		defer nettoyer()
-		lignes, err := chargerAssainissement(xlsxPath)
+		defer cleanup()
+		entries, err := loadSanitationRows(xlsxPath)
 		if err != nil {
 			return nil, fmt.Errorf("%s : %w", competence, err)
 		}
-		return lignes, nil
+		return entries, nil
 	}
 
-	lignesAC, err := charger(urlAssainissementCollectif, "assainissement collectif")
+	entriesAC, err := load(urlAssainissementCollectif, "assainissement collectif")
 	if err != nil {
 		return fail(err)
 	}
-	lignesANC, err := charger(urlAssainissementNonCollectif, "assainissement non collectif")
+	entriesANC, err := load(urlAssainissementNonCollectif, "assainissement non collectif")
 	if err != nil {
 		return fail(err)
 	}
@@ -227,18 +227,18 @@ func IngestAssainissement(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		WITH LOCAL CHECK OPTION`); err != nil {
 		return fail(err)
 	}
-	rows := make([][]any, 0, len(lignesAC)+len(lignesANC))
-	ajouter := func(competence string, lignes []ligneAssainissement) {
-		for _, l := range lignes {
+	rows := make([][]any, 0, len(entriesAC)+len(entriesANC))
+	add := func(competence string, entries []sanitationRow) {
+		for _, l := range entries {
 			rows = append(rows, []any{
-				competence, 2023, l.CodeInsee, l.IDCollectivite, l.NomCollectivite,
-				l.IDService, l.NomService, l.ModeGestion, l.NomOperateur,
-				l.PopulationDesservie, l.AgenceDeLEau, srcID,
+				competence, 2023, l.CodeInsee, l.CollectivityID, l.CollectivityName,
+				l.ServiceID, l.ServiceName, l.ManagementMode, l.OperatorName,
+				l.PopulationServed, l.WaterAgency, srcID,
 			})
 		}
 	}
-	ajouter("COLLECTIF", lignesAC)
-	ajouter("NON_COLLECTIF", lignesANC)
+	add("COLLECTIF", entriesAC)
+	add("NON_COLLECTIF", entriesANC)
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("assainissement : aucune ligne à charger"))
 	}
@@ -296,8 +296,8 @@ func IngestAssainissement(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"collectif": len(lignesAC), "non_collectif": len(lignesANC)}, "")
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"collectif": len(entriesAC), "non_collectif": len(entriesANC)}, "")
 	fmt.Printf("  assainissement (SISPEA 2023) : %d communes (collectif), %d (non collectif)\n",
-		len(lignesAC), len(lignesANC))
+		len(entriesAC), len(entriesANC))
 	return nil
 }

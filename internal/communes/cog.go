@@ -23,7 +23,7 @@ const ConnectorVersion = "communes-v1"
 
 // Millésime du COG chargé. Toute donnée communale y est rattachée : changer ce
 // millésime impose de recharger ce qui en dépend, pas de le mélanger.
-const COGMillesime = 2026
+const COGVintage = 2026
 
 var SourceCOG = archive.Source{
 	Slug: "insee-cog", Label: "Code officiel géographique",
@@ -43,7 +43,7 @@ const (
 
 // Les millésimes chargés dans ref.commune.
 //
-// COGMillesime reste LA référence courante : c'est à elle que se rattachent les
+// COGVintage reste LA référence courante : c'est à elle que se rattachent les
 // élus, les comptes, les résultats électoraux. Mais certaines sources publient
 // dans une géographie plus ancienne — le recensement agricole 2020 est diffusé
 // en communes 2025 — et une jointure entre deux millésimes différents perd en
@@ -52,21 +52,21 @@ const (
 //
 // L'INSEE change l'identifiant de page à chaque millésime : les URL ne se
 // déduisent pas l'une de l'autre et sont écrites en clair.
-type millesimeCOG struct {
-	Annee               int
+type cogVintage struct {
+	Year                int
 	CommunesURL, MvtURL string
 }
 
-var MillesimesCOG = []millesimeCOG{
+var COGVintages = []cogVintage{
 	{2025, "https://www.insee.fr/fr/statistiques/fichier/8377162/v_commune_2025.csv",
 		"https://www.insee.fr/fr/statistiques/fichier/8377162/v_mvt_commune_2025.csv"},
-	{COGMillesime, COGCommunesURL, COGMouvURL},
+	{COGVintage, COGCommunesURL, COGMouvURL},
 }
 
 // Codes MOD du fichier des mouvements, traduits vers les quatre types que le
 // schéma admet. Les codes non listés sont ignorés : ils concernent des objets
 // que nous ne suivons pas (communes déléguées, associées, arrondissements).
-var modVersType = map[string]string{
+var modToType = map[string]string{
 	"10": "RENOMMAGE",
 	"20": "CHANGEMENT_CODE", // création
 	"21": "SCISSION",        // rétablissement d'une commune
@@ -80,15 +80,15 @@ var modVersType = map[string]string{
 }
 
 func IngestCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	for _, m := range MillesimesCOG {
-		if err := chargerCOG(ctx, pool, arch, m); err != nil {
-			return fmt.Errorf("COG %d : %w", m.Annee, err)
+	for _, m := range COGVintages {
+		if err := loadCOG(ctx, pool, arch, m); err != nil {
+			return fmt.Errorf("COG %d : %w", m.Year, err)
 		}
 	}
 	return nil
 }
 
-func chargerCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, mil millesimeCOG) error {
+func loadCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, vintage cogVintage) error {
 	srcID, err := arch.EnsureSource(ctx, SourceCOG)
 	if err != nil {
 		return err
@@ -102,16 +102,16 @@ func chargerCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 		return err
 	}
 
-	fCom, err := arch.Fetch(ctx, srcID, runID, mil.CommunesURL, ".csv")
+	fCom, err := arch.Fetch(ctx, srcID, runID, vintage.CommunesURL, ".csv")
 	if err != nil {
 		return fail(err)
 	}
-	fMvt, err := arch.Fetch(ctx, srcID, runID, mil.MvtURL, ".csv")
+	fMvt, err := arch.Fetch(ctx, srcID, runID, vintage.MvtURL, ".csv")
 	if err != nil {
 		return fail(err)
 	}
 
-	recs, err := lireCSV(fCom.Path, ',')
+	recs, err := readCSV(fCom.Path, ',')
 	if err != nil {
 		return fail(err)
 	}
@@ -125,7 +125,7 @@ func chargerCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 	// Reconstruction plutôt que complétion : une commune disparue du millésime
 	// doit disparaître de la table, sinon le référentiel accumule des fantômes.
 	if _, err := tx.Exec(ctx,
-		`DELETE FROM ref.commune_change WHERE cog_millesime = $1`, mil.Annee); err != nil {
+		`DELETE FROM ref.commune_change WHERE cog_millesime = $1`, vintage.Year); err != nil {
 		return fail(err)
 	}
 
@@ -143,24 +143,24 @@ func chargerCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 			continue
 		}
 		seen[code] = true
-		rows = append(rows, []any{code, mil.Annee, r["LIBELLE"], r["DEP"], r["REG"], r["NCC"]})
+		rows = append(rows, []any{code, vintage.Year, r["LIBELLE"], r["DEP"], r["REG"], r["NCC"]})
 	}
 
 	// INSERT ... SELECT depuis une table temporaire alimentée par COPY : c'est
 	// le chemin le plus court pour 35 000 lignes, et il évite 35 000 allers-
 	// retours.
 	if _, err := tx.Exec(ctx, `
-		CREATE TEMP TABLE cog_in (code text, mil int, nom text, dep text, reg text, ncc text)
+		CREATE TEMP TABLE cog_in (code text, vintage int, nom text, dep text, reg text, ncc text)
 		ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"cog_in"},
-		[]string{"code", "mil", "nom", "dep", "reg", "ncc"}, pgx.CopyFromRows(rows)); err != nil {
+		[]string{"code", "vintage", "nom", "dep", "reg", "ncc"}, pgx.CopyFromRows(rows)); err != nil {
 		return fail(err)
 	}
 	if _, err := tx.Exec(ctx, `
 		INSERT INTO ref.commune (code_insee, cog_millesime, nom, code_departement, code_region, nom_clair)
-		SELECT code, mil, nom, dep, reg, ncc FROM cog_in
+		SELECT code, vintage, nom, dep, reg, ncc FROM cog_in
 		ON CONFLICT (code_insee, cog_millesime) DO UPDATE
 		  SET nom = EXCLUDED.nom,
 		      code_departement = EXCLUDED.code_departement,
@@ -170,13 +170,13 @@ func chargerCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 	}
 
 	// Mouvements.
-	mvts, err := lireCSV(fMvt.Path, ',')
+	mvts, err := readCSV(fMvt.Path, ',')
 	if err != nil {
 		return fail(err)
 	}
 	var nMvt int
 	for _, m := range mvts {
-		t, ok := modVersType[m["MOD"]]
+		t, ok := modToType[m["MOD"]]
 		if !ok || m["COM_AV"] == "" || m["COM_AP"] == "" {
 			continue
 		}
@@ -184,7 +184,7 @@ func chargerCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 			INSERT INTO ref.commune_change
 			  (effective_date, change_type, code_avant, code_apres, cog_millesime)
 			VALUES ($1::date, $2, $3, $4, $5)`,
-			m["DATE_EFF"], t, m["COM_AV"], m["COM_AP"], mil.Annee); err != nil {
+			m["DATE_EFF"], t, m["COM_AV"], m["COM_AP"], vintage.Year); err != nil {
 			return fail(fmt.Errorf("mouvement %s %s->%s : %w", m["MOD"], m["COM_AV"], m["COM_AP"], err))
 		}
 		nMvt++
@@ -195,14 +195,14 @@ func chargerCOG(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"communes": len(rows), "mouvements": nMvt}, "")
-	fmt.Printf("  COG %d : %d communes, %d mouvements\n", mil.Annee, len(rows), nMvt)
+	fmt.Printf("  COG %d : %d communes, %d mouvements\n", vintage.Year, len(rows), nMvt)
 	return nil
 }
 
-// lireCSV renvoie les lignes sous forme de maps colonne -> valeur. Les fichiers
+// readCSV renvoie les lignes sous forme de maps colonne -> valeur. Les fichiers
 // de l'administration mêlent les séparateurs et les encodages ; le séparateur
 // est donc explicite à chaque appel.
-func lireCSV(path string, sep rune) ([]map[string]string, error) {
+func readCSV(path string, sep rune) ([]map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err

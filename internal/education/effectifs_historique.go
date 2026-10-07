@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var SourceRERSEffectifsHistorique = archive.Source{
+var SourceRERSHeadcountHistory = archive.Source{
 	Slug: "depp-rers-effectifs-historique", Label: "Depp — RERS, effectifs d'élèves 1er et 2nd degrés (tableaux 3.01, 4.01)",
 	Publisher:   "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:        "PRIMARY_OFFICIAL",
@@ -30,24 +30,24 @@ var SourceRERSEffectifsHistorique = archive.Source{
 		"récente (celle qui prolonge la série vers l'année suivante) est retenue, l'autre écartée.",
 }
 
-type effectifColonne struct {
-	degre, niveau string
+type headcountColumn struct {
+	stage, level string
 }
 
-// lireEvolutionEffectifs télécharge et lit un seul tableau RERS (3.01 ou
+// readHeadcountTrend télécharge et lit un seul tableau RERS (3.01 ou
 // 4.01, figure 1) — pas d'accès base ici, seulement le fichier : les deux
 // appels (premier et second degré) sont combinés dans UNE seule transaction
 // par l'appelant, pour une fusion (MERGE) unique plutôt que deux.
 //
-// diviseur ramène à la même unité (milliers d'élèves) deux tableaux RERS
+// divisor ramène à la même unité (milliers d'élèves) deux tableaux RERS
 // qui ne publient pas dans la même échelle : 3.01 (premier degré) est déjà
 // en milliers ("3937,2"), 4.01 (second degré) en effectifs bruts
 // ("3386832") — vérifié contre le texte du tableau 4.01 lui-même ("3 360 000
 // élèves étudient au collège" pour une valeur brute de 3 359 928). Sans
 // cette conversion, toute comparaison entre degrés serait fausse d'un
 // facteur 1000.
-func lireEvolutionEffectifs(ctx context.Context, arch *archive.Archive, srcID, runID int64,
-	theme, sousTheme string, diviseur float64, colonnes []effectifColonne) ([][]any, error) {
+func readHeadcountTrend(ctx context.Context, arch *archive.Archive, srcID, runID int64,
+	theme, sousTheme string, divisor float64, columns []headcountColumn) ([][]any, error) {
 
 	f, err := arch.Fetch(ctx, srcID, runID, urlRERS(theme, sousTheme, "01"), ".csv")
 	if err != nil {
@@ -65,40 +65,40 @@ func lireEvolutionEffectifs(ctx context.Context, arch *archive.Archive, srcID, r
 	if err != nil {
 		return nil, fmt.Errorf("%s/%s : en-tête illisible : %w", theme, sousTheme, err)
 	}
-	if len(header) != len(colonnes)+1 {
+	if len(header) != len(columns)+1 {
 		return nil, fmt.Errorf("%s/%s : %d colonnes attendues, %d trouvées (%q)",
-			theme, sousTheme, len(colonnes)+1, len(header), header)
+			theme, sousTheme, len(columns)+1, len(header), header)
 	}
 
-	nombre := func(s string) (float64, error) {
+	parseNumber := func(s string) (float64, error) {
 		s = strings.ReplaceAll(s, " ", "")
 		s = strings.ReplaceAll(s, " ", "")
 		s = strings.ReplaceAll(s, ",", ".")
 		return strconv.ParseFloat(s, 64)
 	}
 
-	vu := map[int]bool{}
+	seen := map[int]bool{}
 	var rows [][]any
 	for {
 		rec, err := r.Read()
 		if err != nil {
 			break
 		}
-		annee, err := strconv.Atoi(rec[0])
+		year, err := strconv.Atoi(rec[0])
 		if err != nil {
 			return nil, fmt.Errorf("%s/%s : année %q illisible : %w", theme, sousTheme, rec[0], err)
 		}
-		if vu[annee] {
+		if seen[year] {
 			continue // rupture de série (voir Notes) : seule la première occurrence est gardée
 		}
-		vu[annee] = true
-		for i, c := range colonnes {
-			v, err := nombre(rec[i+1])
+		seen[year] = true
+		for i, c := range columns {
+			v, err := parseNumber(rec[i+1])
 			if err != nil {
 				return nil, fmt.Errorf("%s/%s %d %s : valeur %q illisible : %w",
-					theme, sousTheme, annee, c.niveau, rec[i+1], err)
+					theme, sousTheme, year, c.level, rec[i+1], err)
 			}
-			rows = append(rows, []any{annee, c.degre, c.niveau, v / diviseur, editionRERS, srcID})
+			rows = append(rows, []any{year, c.stage, c.level, v / divisor, editionRERS, srcID})
 		}
 	}
 	if len(rows) == 0 {
@@ -107,13 +107,13 @@ func lireEvolutionEffectifs(ctx context.Context, arch *archive.Archive, srcID, r
 	return rows, nil
 }
 
-// IngestEffectifsHistorique charge les tableaux RERS 3.01 (premier degré,
+// IngestHeadcountHistory charge les tableaux RERS 3.01 (premier degré,
 // 1960-2025) et 4.01 (second degré, 1994-2025), figure 1 de chacun — la
 // série annuelle par niveau, pas les figures suivantes du même tableau
 // (répartitions public/privé ou par génération de naissance, hors du
 // périmètre d'une série longue par niveau).
-func IngestEffectifsHistorique(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceRERSEffectifsHistorique)
+func IngestHeadcountHistory(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceRERSHeadcountHistory)
 	if err != nil {
 		return err
 	}
@@ -126,13 +126,13 @@ func IngestEffectifsHistorique(ctx context.Context, pool *pgxpool.Pool, arch *ar
 		return err
 	}
 
-	rows1, err := lireEvolutionEffectifs(ctx, arch, srcID, runID, "03_EL1D", "01_EVO", 1,
-		[]effectifColonne{{"premier", "preelementaire"}, {"premier", "elementaire"}})
+	rows1, err := readHeadcountTrend(ctx, arch, srcID, runID, "03_EL1D", "01_EVO", 1,
+		[]headcountColumn{{"premier", "preelementaire"}, {"premier", "elementaire"}})
 	if err != nil {
 		return fail(err)
 	}
-	rows2, err := lireEvolutionEffectifs(ctx, arch, srcID, runID, "04_EL2D", "01_EVO", 1000,
-		[]effectifColonne{
+	rows2, err := readHeadcountTrend(ctx, arch, srcID, runID, "04_EL2D", "01_EVO", 1000,
+		[]headcountColumn{
 			{"second", "college"},
 			{"second", "lycee_general_technologique"},
 			{"second", "lycee_professionnel"},

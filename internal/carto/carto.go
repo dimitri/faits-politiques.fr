@@ -32,12 +32,12 @@ const MethodVersion = "carto-v1"
 // cartographies alternatives des lecteurs sont des forks de celle-ci.
 const LineageSlug = "reference"
 
-type ligne struct {
-	Slug, Libelle string
+type csvRow struct {
+	Slug, Label   string
 	CodeCNCCFP    string
-	CHESNom       string
-	PopuListNom   string
-	GroupeANUID   string
+	CHESName      string
+	PopuListName  string
+	GroupANUID    string
 	Justification string
 }
 
@@ -46,7 +46,7 @@ type ligne struct {
 // du CSV doit disparaître de la base, sinon la base garderait une décision que
 // personne n'assume plus.
 func Ingest(ctx context.Context, pool *pgxpool.Pool, csvPath string) error {
-	lignes, err := lire(csvPath)
+	rows, err := read(csvPath)
 	if err != nil {
 		return err
 	}
@@ -57,7 +57,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, csvPath string) error {
 	}
 	defer tx.Rollback(ctx)
 
-	revID, err := revisionCourante(ctx, tx)
+	revID, err := currentRevision(ctx, tx)
 	if err != nil {
 		return err
 	}
@@ -71,27 +71,27 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, csvPath string) error {
 		return err
 	}
 
-	var nGroupes, nRef int
-	var ignores []string
+	var nGroups, nRef int
+	var skipped []string
 
-	for _, l := range lignes {
+	for _, l := range rows {
 		if l.CodeCNCCFP == "" {
 			// Sans entrée au registre, pas de parti canonique : on ne fabrique
 			// pas une identité que l'État ne reconnaît pas.
-			if l.CHESNom != "" || l.GroupeANUID != "" {
-				ignores = append(ignores, l.Slug+" (aucun code CNCCFP)")
+			if l.CHESName != "" || l.GroupANUID != "" {
+				skipped = append(skipped, l.Slug+" (aucun code CNCCFP)")
 			}
 			continue
 		}
-		partyID, err := parIdentifiant(ctx, tx, "CNCCFP", l.CodeCNCCFP)
+		partyID, err := byIdentifier(ctx, tx, "CNCCFP", l.CodeCNCCFP)
 		if err != nil {
 			return fmt.Errorf("%s : parti CNCCFP %s : %w", l.Slug, l.CodeCNCCFP, err)
 		}
 
-		if l.GroupeANUID != "" {
-			groupID, err := parIdentifiant(ctx, tx, "AN_ORGANE", l.GroupeANUID)
+		if l.GroupANUID != "" {
+			groupID, err := byIdentifier(ctx, tx, "AN_ORGANE", l.GroupANUID)
 			if err != nil {
-				return fmt.Errorf("%s : groupe %s : %w", l.Slug, l.GroupeANUID, err)
+				return fmt.Errorf("%s : groupe %s : %w", l.Slug, l.GroupANUID, err)
 			}
 			// La validité du lien est celle du groupe lui-même : un groupe de
 			// la 17e législature n'existe pas avant sa constitution.
@@ -101,28 +101,28 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, csvPath string) error {
 				   relation, validity, rationale_code)
 				SELECT $1, $2, o.id, o.kind, 'COMPOSANTE', o.validity, $4
 				  FROM core.organization o WHERE o.id = $3`,
-				revID, partyID, groupID, motif(l)); err != nil {
+				revID, partyID, groupID, reasonCode(l)); err != nil {
 				return fmt.Errorf("%s : lien groupe : %w", l.Slug, err)
 			}
-			nGroupes++
+			nGroups++
 		}
 
 		// Le schéma nomme le référentiel dans core.party_referential_link ;
 		// le fournisseur est celui déclaré par ref.classification_set.
-		for _, ref := range []struct{ scheme, fournisseur, nom string }{
-			{"CHES", "CHES", l.CHESNom},
-			{"POPULIST", "PopuList", l.PopuListNom},
+		for _, ref := range []struct{ scheme, provider, name string }{
+			{"CHES", "CHES", l.CHESName},
+			{"POPULIST", "PopuList", l.PopuListName},
 		} {
-			if ref.nom == "" {
+			if ref.name == "" {
 				continue
 			}
 			// Résolution par le NOM, parce que c'est exactement ce que le CSV
 			// affirme : « dans ce référentiel, ce parti s'appelle ainsi ». Le
 			// nom n'est pas deviné, il est transcrit ; toute ambiguïté est une
 			// erreur du CSV et doit faire échouer le chargement.
-			refID, err := parNomDeReferentiel(ctx, tx, ref.fournisseur, ref.nom)
+			refID, err := byReferentialName(ctx, tx, ref.provider, ref.name)
 			if err != nil {
-				return fmt.Errorf("%s : %s %q : %w", l.Slug, ref.scheme, ref.nom, err)
+				return fmt.Errorf("%s : %s %q : %w", l.Slug, ref.scheme, ref.name, err)
 			}
 			if refID == partyID {
 				continue
@@ -131,7 +131,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, csvPath string) error {
 				INSERT INTO core.party_referential_link
 				  (mapping_revision_id, party_id, referential_id, scheme, rationale_code)
 				VALUES ($1, $2, $3, $4, $5)`,
-				revID, partyID, refID, ref.scheme, motif(l)); err != nil {
+				revID, partyID, refID, ref.scheme, reasonCode(l)); err != nil {
 				return fmt.Errorf("%s : lien %s : %w", l.Slug, ref.scheme, err)
 			}
 			nRef++
@@ -143,16 +143,16 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, csvPath string) error {
 	}
 
 	logs.Notice(fmt.Sprintf("revision %d: %s party->group, %s party->referential",
-		revID, logs.Plural(nGroupes, "link"), logs.Plural(nRef, "link")))
-	for _, s := range ignores {
+		revID, logs.Plural(nGroups, "link"), logs.Plural(nRef, "link")))
+	for _, s := range skipped {
 		logs.Notice("skipped: " + s)
 	}
 	return nil
 }
 
-// motif traduit la justification éditoriale en code de motif. Le texte libre du
-// CSV reste la justification lisible ; le code sert aux requêtes.
-func motif(l ligne) string {
+// reasonCode traduit la justification éditoriale en code de motif. Le texte
+// libre du CSV reste la justification lisible ; le code sert aux requêtes.
+func reasonCode(l csvRow) string {
 	j := strings.ToLower(l.Justification)
 	switch {
 	case strings.Contains(j, "identique"):
@@ -168,10 +168,10 @@ func motif(l ligne) string {
 	}
 }
 
-// revisionCourante renvoie la tête non gelée de la cartographie de référence,
+// currentRevision renvoie la tête non gelée de la cartographie de référence,
 // en la créant au besoin. Une seule tête peut exister à la fois — c'est un
 // index unique partiel qui le garantit, pas cette fonction.
-func revisionCourante(ctx context.Context, tx pgx.Tx) (int64, error) {
+func currentRevision(ctx context.Context, tx pgx.Tx) (int64, error) {
 	var lineageID int64
 	if err := tx.QueryRow(ctx, `
 		INSERT INTO core.mapping_lineage (slug, label, kind, listed)
@@ -202,7 +202,7 @@ func revisionCourante(ctx context.Context, tx pgx.Tx) (int64, error) {
 	return revID, nil
 }
 
-func parIdentifiant(ctx context.Context, tx pgx.Tx, scheme, value string) (int64, error) {
+func byIdentifier(ctx context.Context, tx pgx.Tx, scheme, value string) (int64, error) {
 	var id int64
 	err := tx.QueryRow(ctx, `
 		SELECT organization_id FROM core.organization_identifier
@@ -213,19 +213,19 @@ func parIdentifiant(ctx context.Context, tx pgx.Tx, scheme, value string) (int64
 	return id, err
 }
 
-// parNomDeReferentiel retrouve l'organisation créée par le connecteur d'un
+// byReferentialName retrouve l'organisation créée par le connecteur d'un
 // référentiel tiers. Elle se reconnaît à son nom ET au fait qu'elle porte une
 // classification issue de ce référentiel — pas à un identifiant, car tous les
 // référentiels n'en publient pas : PopuList désigne ses partis par le code
 // Party Facts, parfois par rien du tout. Sans cette seconde condition, un
 // parti français homonyme pourrait être retenu à la place de l'entrée du
 // référentiel.
-func parNomDeReferentiel(ctx context.Context, tx pgx.Tx, fournisseur, nom string) (int64, error) {
+func byReferentialName(ctx context.Context, tx pgx.Tx, provider, name string) (int64, error) {
 	rows, err := tx.Query(ctx, `
 		SELECT DISTINCT o.id FROM core.organization o
 		  JOIN core.party_classification c ON c.party_id = o.id
 		  JOIN ref.classification_set s ON s.id = c.classification_set_id
-		 WHERE s.provider = $1 AND o.name = $2`, fournisseur, nom)
+		 WHERE s.provider = $1 AND o.name = $2`, provider, name)
 	if err != nil {
 		return 0, err
 	}
@@ -251,7 +251,7 @@ func parNomDeReferentiel(ctx context.Context, tx pgx.Tx, fournisseur, nom string
 	}
 }
 
-func lire(path string) ([]ligne, error) {
+func read(path string) ([]csvRow, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -277,12 +277,12 @@ func lire(path string) ([]ligne, error) {
 		}
 		return ""
 	}
-	var out []ligne
+	var out []csvRow
 	for _, rec := range recs[1:] {
-		l := ligne{
-			Slug: get(rec, "slug"), Libelle: get(rec, "libelle"),
-			CodeCNCCFP: get(rec, "code_cnccfp"), CHESNom: get(rec, "ches_nom"),
-			PopuListNom: get(rec, "populist_nom"), GroupeANUID: get(rec, "groupe_an_uid"),
+		l := csvRow{
+			Slug: get(rec, "slug"), Label: get(rec, "libelle"),
+			CodeCNCCFP: get(rec, "code_cnccfp"), CHESName: get(rec, "ches_nom"),
+			PopuListName: get(rec, "populist_nom"), GroupANUID: get(rec, "groupe_an_uid"),
 			Justification: get(rec, "justification"),
 		}
 		if l.Slug == "" {

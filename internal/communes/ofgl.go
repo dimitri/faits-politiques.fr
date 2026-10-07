@@ -41,14 +41,14 @@ var SourceOFGL = archive.Source{
 }
 
 const (
-	ofglPremierExercice = 2018
-	ofglDernierExercice = 2025
+	ofglFirstFiscalYear = 2018
+	ofglLastFiscalYear  = 2025
 	ofglDataset         = "ofgl-base-communes"
 )
 
 // Agrégat publié par l'OFGL -> code d'indicateur de ref.indicator. La valeur
 // retenue est le montant PAR HABITANT, qui est ce que les libellés annoncent.
-var ofglAgregats = map[string]string{
+var ofglAggregates = map[string]string{
 	"Encours de dette":                   "ofgl.dette_par_hab",
 	"Dépenses d'investissement":          "ofgl.investissement_par_hab",
 	"Dépenses de fonctionnement":         "ofgl.fonctionnement_par_hab",
@@ -59,15 +59,15 @@ var ofglAgregats = map[string]string{
 	"Impôts et taxes":                    "ofgl.impots_taxes_par_hab",
 }
 
-func ofglURL(exercice int) string {
-	noms := make([]string, 0, len(ofglAgregats))
-	for a := range ofglAgregats {
-		noms = append(noms, `"`+a+`"`)
+func ofglURL(fiscalYear int) string {
+	names := make([]string, 0, len(ofglAggregates))
+	for a := range ofglAggregates {
+		names = append(names, `"`+a+`"`)
 	}
 	// ODSQL : les littéraux de chaîne se citent avec des guillemets doubles ;
 	// l'apostrophe de « Dépenses d'investissement » casse la forme simple.
 	where := fmt.Sprintf(`exer=date'%d' AND type_de_budget="Budget principal" AND agregat IN (%s)`,
-		exercice, strings.Join(noms, ","))
+		fiscalYear, strings.Join(names, ","))
 	return "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/" + ofglDataset +
 		"/exports/csv?delimiter=%3B&select=exer,com_code,agregat,euros_par_habitant,ptot&where=" +
 		url.QueryEscape(where)
@@ -87,24 +87,24 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return err
 	}
 
-	connues, err := communesConnues(ctx, pool)
+	connues, err := knownCommunes(ctx, pool)
 	if err != nil {
 		return fail(err)
 	}
 
-	type cle struct {
-		commune, indicateur string
-		annee               int
+	type key struct {
+		commune, indicator string
+		year               int
 	}
-	valeurs := map[cle]float64{}
-	horsCOG := map[string]bool{}
+	values := map[key]float64{}
+	outsideCOG := map[string]bool{}
 
-	for ex := ofglPremierExercice; ex <= ofglDernierExercice; ex++ {
-		f, err := arch.Fetch(ctx, srcID, runID, ofglURL(ex), ".csv")
+	for year := ofglFirstFiscalYear; year <= ofglLastFiscalYear; year++ {
+		f, err := arch.Fetch(ctx, srcID, runID, ofglURL(year), ".csv")
 		if err != nil {
-			return fail(fmt.Errorf("exercice %d : %w", ex, err))
+			return fail(fmt.Errorf("exercice %d : %w", year, err))
 		}
-		recs, err := lireCSV(f.Path, ';')
+		recs, err := readCSV(f.Path, ';')
 		if err != nil {
 			return fail(err)
 		}
@@ -112,28 +112,28 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 			com := r["com_code"]
 			if !connues[com] {
 				if com != "" {
-					horsCOG[com] = true
+					outsideCOG[com] = true
 				}
 				continue
 			}
-			code, ok := ofglAgregats[r["agregat"]]
+			code, ok := ofglAggregates[r["agregat"]]
 			if !ok {
 				continue
 			}
 			if v, err := strconv.ParseFloat(r["euros_par_habitant"], 64); err == nil {
-				valeurs[cle{com, code, ex}] = v
+				values[key{com, code, year}] = v
 			}
 			// La population est publiée sur chaque ligne ; une seule suffit.
 			if p, err := strconv.ParseFloat(r["ptot"], 64); err == nil {
-				valeurs[cle{com, "ofgl.population_totale", ex}] = p
+				values[key{com, "ofgl.population_totale", year}] = p
 			}
 		}
-		fmt.Printf("    exercice %d : %d lignes\n", ex, len(recs))
+		fmt.Printf("    exercice %d : %d lignes\n", year, len(recs))
 	}
 
-	rows := make([][]any, 0, len(valeurs))
-	for k, v := range valeurs {
-		rows = append(rows, []any{k.commune, COGMillesime, k.indicateur, k.annee, v, srcID, "COMMUNE"})
+	rows := make([][]any, 0, len(values))
+	for k, v := range values {
+		rows = append(rows, []any{k.commune, COGVintage, k.indicator, k.year, v, srcID, "COMMUNE"})
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -167,7 +167,7 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return fail(fmt.Errorf("copie des indicateurs : %w", err))
 	}
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.commune_indicator", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.commune_indicator", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO commune_indicator_ofgl AS tgt
 			USING tmp_commune_indicator_ofgl AS src
@@ -195,18 +195,18 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"indicateurs": n, "communes_hors_cog": len(horsCOG)}, "")
-	fmt.Printf("  OFGL : %d valeurs touchées sur %d-%d\n", n, ofglPremierExercice, ofglDernierExercice)
-	if len(horsCOG) > 0 {
+		map[string]any{"indicateurs": n, "communes_hors_cog": len(outsideCOG)}, "")
+	fmt.Printf("  OFGL : %d valeurs touchées sur %d-%d\n", n, ofglFirstFiscalYear, ofglLastFiscalYear)
+	if len(outsideCOG) > 0 {
 		fmt.Printf("  %d communes de l'OFGL absentes du COG %d (communes disparues : ignorées)\n",
-			len(horsCOG), COGMillesime)
+			len(outsideCOG), COGVintage)
 	}
 	return nil
 }
 
-func communesConnues(ctx context.Context, pool *pgxpool.Pool) (map[string]bool, error) {
+func knownCommunes(ctx context.Context, pool *pgxpool.Pool) (map[string]bool, error) {
 	rows, err := pool.Query(ctx,
-		`SELECT code_insee FROM ref.commune WHERE cog_millesime = $1`, COGMillesime)
+		`SELECT code_insee FROM ref.commune WHERE cog_millesime = $1`, COGVintage)
 	if err != nil {
 		return nil, err
 	}

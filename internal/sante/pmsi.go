@@ -75,33 +75,33 @@ func IngestPMSIMCO(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			NbJours     int     `json:"nb_jours"`
 			DureeMoySej float64 `json:"duree_moy_sej"`
 		}
-		if err := lireJSONFichier(f.Path, &lignes); err != nil {
+		if err := readJSONFile(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("mco-chiffres-cles : %w", err))
 		}
 		// Vérifié à l'écriture : 'Tous' doit être la somme exacte des deux
 		// autres types, pour chaque année — sinon le jeu source a changé de
 		// forme et le commentaire de la table ne serait plus vrai.
-		parAnnee := map[string]map[string]int{}
+		byYear := map[string]map[string]int{}
 		var rows [][]any
 		for _, l := range lignes {
-			annee, err := strconv.Atoi(l.Annee)
+			year, err := strconv.Atoi(l.Annee)
 			if err != nil {
 				return fail(fmt.Errorf("mco-chiffres-cles : année %q : %w", l.Annee, err))
 			}
-			if parAnnee[l.Annee] == nil {
-				parAnnee[l.Annee] = map[string]int{}
+			if byYear[l.Annee] == nil {
+				byYear[l.Annee] = map[string]int{}
 			}
-			parAnnee[l.Annee][l.TypHospit] = l.NbSej
-			rows = append(rows, []any{annee, l.TypHospit, l.NbPat, l.NbSej, l.NbJours, l.DureeMoySej, srcID})
+			byYear[l.Annee][l.TypHospit] = l.NbSej
+			rows = append(rows, []any{year, l.TypHospit, l.NbPat, l.NbSej, l.NbJours, l.DureeMoySej, srcID})
 		}
-		for annee, m := range parAnnee {
-			tous, complet, ambu := m["Tous"], m["Hospitalisation complète"], m["Hospitalisation ambulatoire"]
-			if tous == 0 || complet == 0 || ambu == 0 {
-				return fail(fmt.Errorf("mco-chiffres-cles %s : un des trois types d'hospitalisation manque", annee))
+		for year, m := range byYear {
+			totalAll, complete, ambulatory := m["Tous"], m["Hospitalisation complète"], m["Hospitalisation ambulatoire"]
+			if totalAll == 0 || complete == 0 || ambulatory == 0 {
+				return fail(fmt.Errorf("mco-chiffres-cles %s : un des trois types d'hospitalisation manque", year))
 			}
-			if tous != complet+ambu {
+			if totalAll != complete+ambulatory {
 				return fail(fmt.Errorf("mco-chiffres-cles %s : Tous (%d) ≠ complète (%d) + ambulatoire (%d)",
-					annee, tous, complet, ambu))
+					year, totalAll, complete, ambulatory))
 			}
 		}
 		if _, err := tx.Exec(ctx, `
@@ -152,7 +152,7 @@ func IngestPMSIMCO(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			NbJours     int     `json:"nb_jours"`
 			DureeMoySej float64 `json:"duree_moy_sej"`
 		}
-		if err := lireJSONFichier(f.Path, &lignes); err != nil {
+		if err := readJSONFile(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("mco-type-etab : %w", err))
 		}
 		var rows [][]any
@@ -160,11 +160,11 @@ func IngestPMSIMCO(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			if l.Region == "Tous" || l.CategEtab == "Tous" {
 				return fail(fmt.Errorf("mco-type-etab : ligne 'Tous' inattendue (%s/%s) — la table suppose une partition plate", l.Region, l.CategEtab))
 			}
-			annee, err := strconv.Atoi(l.Annee)
+			year, err := strconv.Atoi(l.Annee)
 			if err != nil {
 				return fail(fmt.Errorf("mco-type-etab : année %q : %w", l.Annee, err))
 			}
-			rows = append(rows, []any{annee, l.Region, l.CategEtab, l.NbEtab, l.NbSej, l.NbJours, l.DureeMoySej, srcID})
+			rows = append(rows, []any{year, l.Region, l.CategEtab, l.NbEtab, l.NbSej, l.NbJours, l.DureeMoySej, srcID})
 		}
 		if _, err := tx.Exec(ctx, `
 			CREATE TEMP TABLE tmp_pmsi_mco_par_etablissement (
@@ -215,16 +215,16 @@ func IngestPMSIMCO(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			NbJours     int     `json:"nb_jours"`
 			DureeMoySej float64 `json:"duree_moy_sej"`
 		}
-		if err := lireJSONFichier(f.Path, &lignes); err != nil {
+		if err := readJSONFile(f.Path, &lignes); err != nil {
 			return fail(fmt.Errorf("mco-age-patients : %w", err))
 		}
 		var rows [][]any
 		for _, l := range lignes {
-			annee, err := strconv.Atoi(l.Annee)
+			year, err := strconv.Atoi(l.Annee)
 			if err != nil {
 				return fail(fmt.Errorf("mco-age-patients : année %q : %w", l.Annee, err))
 			}
-			rows = append(rows, []any{annee, l.Region, l.Age, l.Sexe, l.NbPat, l.NbSej, l.NbJours, l.DureeMoySej, srcID})
+			rows = append(rows, []any{year, l.Region, l.Age, l.Sexe, l.NbPat, l.NbSej, l.NbJours, l.DureeMoySej, srcID})
 		}
 		if _, err := tx.Exec(ctx, `
 			CREATE TEMP TABLE tmp_pmsi_mco_par_patient (
@@ -268,7 +268,7 @@ func IngestPMSIMCO(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	return nil
 }
 
-func lireJSONFichier(path string, v any) error {
+func readJSONFile(path string, v any) error {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err

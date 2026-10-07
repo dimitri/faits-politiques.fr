@@ -45,8 +45,8 @@ var Source = archive.Source{
 // Un scrutin par fichier. Les URL sont fixées : c'est cette version-là qui est
 // scellée dans l'archive.
 var scrutins = []struct {
-	typeElection string
-	annee        int
+	electionType string
+	year         int
 	url          string
 }{
 	{"LEGISLATIVE", 2022,
@@ -83,13 +83,13 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(err)
 	}
 
-	var nComptes, nPostes int
+	var nAccounts, nLineItems int
 	for _, s := range scrutins {
 		f, err := arch.Fetch(ctx, srcID, runID, s.url, ".csv")
 		if err != nil {
-			return fail(fmt.Errorf("%s %d : %w", s.typeElection, s.annee, err))
+			return fail(fmt.Errorf("%s %d : %w", s.electionType, s.year, err))
 		}
-		recs, entetes, err := lireCSV(f.Path)
+		recs, headers, err := readCSV(f.Path)
 		if err != nil {
 			return fail(err)
 		}
@@ -110,12 +110,12 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			CREATE OR REPLACE TEMPORARY VIEW compte_campagne_scope AS
 			  SELECT * FROM core.compte_campagne
 			   WHERE type_election = %s AND annee = %d
-			  WITH LOCAL CHECK OPTION`, quoteLiteral(s.typeElection), s.annee)); err != nil {
+			  WITH LOCAL CHECK OPTION`, quoteLiteral(s.electionType), s.year)); err != nil {
 			return fail(err)
 		}
 
-		var comptes []map[string]string
-		var compteRows [][]any
+		var accounts []map[string]string
+		var accountRows [][]any
 		// Un doublon (nom, circonscription) dans le fichier source garde la
 		// PREMIÈRE occurrence, comme le faisait l'ON CONFLICT DO NOTHING
 		// ligne à ligne de l'ancien code : jamais visible en pratique contre
@@ -124,31 +124,31 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		// le batch source contient deux lignes NOT MATCHED BY TARGET pour la
 		// même clé cible tente deux INSERT et viole la contrainte d'unicité —
 		// découvert sur la base vide de la CI, au tout premier chargement.
-		vuCompte := map[[2]string]bool{}
+		seenAccounts := map[[2]string]bool{}
 		for _, r := range recs {
 			nom := strings.TrimSpace(r["nom"])
 			if nom == "" {
 				continue
 			}
-			comptes = append(comptes, r)
-			cle := [2]string{nom, strings.TrimSpace(r["circonscription"])}
-			if vuCompte[cle] {
+			accounts = append(accounts, r)
+			key := [2]string{nom, strings.TrimSpace(r["circonscription"])}
+			if seenAccounts[key] {
 				continue
 			}
-			vuCompte[cle] = true
-			compteRows = append(compteRows, []any{
-				s.typeElection, s.annee, nul(r["candidat"]), nom,
-				nul(r["circonscription"]), nul(r["département"]), nul(r["code département"]),
-				nul(r["nuance"]), nul(r["monnaie"]),
-				montant(r["dépenses totales déclarées"]), montant(r["depenses totales retenues"]),
-				montant(r["recettes totales déclarées"]), montant(r["recettes totales retenues"]),
+			seenAccounts[key] = true
+			accountRows = append(accountRows, []any{
+				s.electionType, s.year, nullable(r["candidat"]), nom,
+				nullable(r["circonscription"]), nullable(r["département"]), nullable(r["code département"]),
+				nullable(r["nuance"]), nullable(r["monnaie"]),
+				amount(r["dépenses totales déclarées"]), amount(r["depenses totales retenues"]),
+				amount(r["recettes totales déclarées"]), amount(r["recettes totales retenues"]),
 			})
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_compte"},
 			[]string{"type_election", "annee", "candidat_ref", "candidat_nom", "circonscription",
 				"departement", "code_departement", "nuance", "monnaie", "depenses_declarees",
 				"depenses_retenues", "recettes_declarees", "recettes_retenues"},
-			pgx.CopyFromRows(compteRows)); err != nil {
+			pgx.CopyFromRows(accountRows)); err != nil {
 			return fail(err)
 		}
 		// Pas de RETURNING : il n'émettrait une ligne que pour un compte dont
@@ -193,7 +193,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		if err != nil {
 			return fail(err)
 		}
-		idParCandidat := map[[2]string]int64{}
+		idByCandidate := map[[2]string]int64{}
 		for res.Next() {
 			var nom, circo string
 			var id int64
@@ -201,53 +201,53 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 				res.Close()
 				return fail(err)
 			}
-			idParCandidat[[2]string{nom, circo}] = id
+			idByCandidate[[2]string{nom, circo}] = id
 		}
 		res.Close()
 		if err := res.Err(); err != nil {
 			return fail(err)
 		}
-		nComptes += len(idParCandidat)
+		nAccounts += len(idByCandidate)
 
 		// Les postes : toute colonne suffixée « (déclaré) » ou « (retenu) ».
 		// Le libellé est conservé tel quel, sans regroupement. Un compte en
 		// doublon (nom+circonscription déjà pris) n'a pas d'id : ses postes
 		// sont ignorés, comme avant.
-		type clePoste struct {
-			id          int64
-			poste, etat string
+		type lineItemKey struct {
+			id            int64
+			label, status string
 		}
-		vusPostes := map[clePoste]bool{}
-		var posteRows [][]any
-		for _, r := range comptes {
-			id, ok := idParCandidat[[2]string{strings.TrimSpace(r["nom"]), strings.TrimSpace(r["circonscription"])}]
+		seenLineItems := map[lineItemKey]bool{}
+		var lineItemRows [][]any
+		for _, r := range accounts {
+			id, ok := idByCandidate[[2]string{strings.TrimSpace(r["nom"]), strings.TrimSpace(r["circonscription"])}]
 			if !ok {
 				continue
 			}
-			for _, h := range entetes {
-				var etat string
-				var poste string
+			for _, h := range headers {
+				var status string
+				var label string
 				switch {
 				case strings.HasSuffix(h, "(déclaré)"):
-					etat, poste = "DECLARE", strings.TrimSpace(strings.TrimSuffix(h, "(déclaré)"))
+					status, label = "DECLARE", strings.TrimSpace(strings.TrimSuffix(h, "(déclaré)"))
 				case strings.HasSuffix(h, "(retenu)"):
-					etat, poste = "RETENU", strings.TrimSpace(strings.TrimSuffix(h, "(retenu)"))
+					status, label = "RETENU", strings.TrimSpace(strings.TrimSuffix(h, "(retenu)"))
 				default:
 					continue
 				}
-				m := montant(r[h])
+				m := amount(r[h])
 				if m == nil {
 					continue
 				}
 				// Un en-tête dupliqué dans le CSV source produirait la même
 				// clé (compte_id, poste, etat) : la première valeur gagne,
 				// comme le faisait l'ON CONFLICT DO NOTHING ligne à ligne.
-				cle := clePoste{id, poste, etat}
-				if vusPostes[cle] {
+				key := lineItemKey{id, label, status}
+				if seenLineItems[key] {
 					continue
 				}
-				vusPostes[cle] = true
-				posteRows = append(posteRows, []any{id, poste, etat, m})
+				seenLineItems[key] = true
+				lineItemRows = append(lineItemRows, []any{id, label, status, m})
 			}
 		}
 		// MERGE plutôt que COPY directe : cette table n'était jamais wipée
@@ -262,7 +262,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			return fail(err)
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_compte_poste"},
-			[]string{"compte_id", "poste", "etat", "montant"}, pgx.CopyFromRows(posteRows)); err != nil {
+			[]string{"compte_id", "poste", "etat", "montant"}, pgx.CopyFromRows(lineItemRows)); err != nil {
 			return fail(fmt.Errorf("copie des postes : %w", err))
 		}
 		if _, err := tx.Exec(ctx, `
@@ -272,8 +272,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			  WITH LOCAL CHECK OPTION`); err != nil {
 			return fail(err)
 		}
-		var nTouchees int64
-		err = bulkload.SansContraintesFK(ctx, tx, "core.compte_campagne_poste", func() error {
+		var nAffected int64
+		err = bulkload.WithoutFKConstraints(ctx, tx, "core.compte_campagne_poste", func() error {
 			ct, err := tx.Exec(ctx, `
 				MERGE INTO compte_campagne_poste_scope AS tgt
 				USING tmp_compte_poste AS src
@@ -287,41 +287,41 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			if err != nil {
 				return err
 			}
-			nTouchees = ct.RowsAffected()
+			nAffected = ct.RowsAffected()
 			return nil
 		})
 		if err != nil {
 			return fail(fmt.Errorf("fusion des postes : %w", err))
 		}
-		nPostes += len(posteRows)
+		nLineItems += len(lineItemRows)
 		logs.Notice(fmt.Sprintf("campaign accounts %s %d: %s, %d line items touched by the merge",
-			s.typeElection, s.annee, logs.Plural(len(idParCandidat), "account"), nTouchees))
+			s.electionType, s.year, logs.Plural(len(idByCandidate), "account"), nAffected))
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"comptes": nComptes, "postes": nPostes}, "")
+		map[string]any{"comptes": nAccounts, "postes": nLineItems}, "")
 	logs.Notice(fmt.Sprintf("campaign accounts done: %s, %s",
-		logs.Plural(nComptes, "account"), logs.Plural(nPostes, "line item")))
+		logs.Plural(nAccounts, "account"), logs.Plural(nLineItems, "line item")))
 	return nil
 }
 
-func lireCSV(path string) ([]map[string]string, []string, error) {
+func readCSV(path string) ([]map[string]string, []string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, nil, err
 	}
-	texte := string(b)
+	text := string(b)
 	if !utf8.Valid(b) {
 		r := make([]rune, len(b))
 		for i, c := range b {
 			r[i] = rune(c)
 		}
-		texte = string(r)
+		text = string(r)
 	}
-	rd := csv.NewReader(strings.NewReader(texte))
+	rd := csv.NewReader(strings.NewReader(text))
 	rd.Comma = ';'
 	rd.FieldsPerRecord = -1
 	rd.LazyQuotes = true
@@ -349,7 +349,7 @@ func lireCSV(path string) ([]map[string]string, []string, error) {
 	return out, head, nil
 }
 
-func montant(s string) any {
+func amount(s string) any {
 	s = strings.NewReplacer(" ", "", " ", "", "€", "", ",", ".").Replace(strings.TrimSpace(s))
 	if s == "" {
 		return nil
@@ -361,14 +361,14 @@ func montant(s string) any {
 	return v
 }
 
-func nul(s string) any {
+func nullable(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
 	}
 	return s
 }
 
-// quoteLiteral échappe un littéral SQL. N'est appelé que sur s.typeElection,
+// quoteLiteral échappe un littéral SQL. N'est appelé que sur s.electionType,
 // une constante Go du tableau scrutins ci-dessus — jamais sur une donnée
 // venue du fichier source — mais une vue temporaire ne peut pas se
 // paramétrer autrement qu'en construisant son texte.

@@ -14,17 +14,17 @@ func TestSlugUniqueRepetitions(t *testing.T) {
 		"PRJLANR5L17TAP0154", "PRJLANR5L17TAP0164", "PRJLSNR5S459B0544",
 		"PRJLSNR5S459B0810", "PRJLSNR5S459BTA0128", "PRJLSNR5S459BTA0172",
 	}
-	titre := "projet de loi de programmation pour la refondation de Mayotte"
-	vus := map[string]bool{}
+	title := "projet de loi de programmation pour la refondation de Mayotte"
+	seen := map[string]bool{}
 	for _, uid := range uids {
-		slug := slugUnique(seenSlug, "t-", titre, uid)
-		if vus[slug] {
+		slug := slugUnique(seenSlug, "t-", title, uid)
+		if seen[slug] {
 			t.Fatalf("slug %q réattribué pour uid=%s", slug, uid)
 		}
-		vus[slug] = true
+		seen[slug] = true
 	}
-	if len(vus) != len(uids) {
-		t.Fatalf("attendu %d slugs distincts, obtenu %d", len(uids), len(vus))
+	if len(seen) != len(uids) {
+		t.Fatalf("attendu %d slugs distincts, obtenu %d", len(uids), len(seen))
 	}
 }
 
@@ -53,7 +53,7 @@ func TestSlugUniqueFallbackCollision(t *testing.T) {
 	}
 }
 
-func TestSlugUniqueTitreVide(t *testing.T) {
+func TestSlugUniqueEmptyTitle(t *testing.T) {
 	seenSlug := map[string]bool{}
 	slug := slugUnique(seenSlug, "", "", "ABC123")
 	if slug != "abc123" {

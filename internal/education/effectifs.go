@@ -21,7 +21,7 @@ func exportJSON(dataset string) string {
 	return "https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/" + dataset + "/exports/json"
 }
 
-func lireJSON(path string, v any) error {
+func readJSON(path string, v any) error {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err
@@ -29,7 +29,7 @@ func lireJSON(path string, v any) error {
 	return json.Unmarshal(b, v)
 }
 
-var SourceEffectifsPersonnel = archive.Source{
+var SourceStaffHeadcount = archive.Source{
 	Slug: "depp-personnels-etablissements", Label: "Depp — personnels des établissements du premier et second degré",
 	Publisher: "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:      "PRIMARY_OFFICIAL",
@@ -51,19 +51,19 @@ var SourceEffectifsPersonnel = archive.Source{
 // même fichier. D'où un décodage en map[string]any plutôt qu'une struct typée,
 // et des conversions tolérantes (asStr/asFloatPtr) plutôt qu'un json.Unmarshal
 // qui échouerait sur la première incohérence de type.
-type degreJeu struct {
-	Degre           string
-	Dataset         string
-	ChampEnseignant string
+type stageDataset struct {
+	Stage        string
+	Dataset      string
+	TeacherField string
 }
 
-var jeuxDegre = []degreJeu{
+var stageDatasets = []stageDataset{
 	{"PREMIER", "fr-en-indicateurs_personnels_etablissements1d", "etp_d_enseignants_hommes_et_femmes"},
 	{"SECOND", "fr-en-indicateurs_personnels_etablissements2d", "etp_enseignants_hommes_et_femmes"},
 }
 
-func IngestEffectifsPersonnel(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceEffectifsPersonnel)
+func IngestStaffHeadcount(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceStaffHeadcount)
 	if err != nil {
 		return err
 	}
@@ -93,36 +93,36 @@ func IngestEffectifsPersonnel(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	}
 
 	var total int64
-	for _, jeu := range jeuxDegre {
-		f, err := arch.Fetch(ctx, srcID, runID, exportJSON(jeu.Dataset), ".json")
+	for _, dataset := range stageDatasets {
+		f, err := arch.Fetch(ctx, srcID, runID, exportJSON(dataset.Dataset), ".json")
 		if err != nil {
-			return fail(fmt.Errorf("%s : %w", jeu.Degre, err))
+			return fail(fmt.Errorf("%s : %w", dataset.Stage, err))
 		}
-		var lignes []map[string]any
-		if err := lireJSON(f.Path, &lignes); err != nil {
-			return fail(fmt.Errorf("%s : %w", jeu.Degre, err))
+		var records []map[string]any
+		if err := readJSON(f.Path, &records); err != nil {
+			return fail(fmt.Errorf("%s : %w", dataset.Stage, err))
 		}
-		if len(lignes) == 0 {
-			return fail(fmt.Errorf("%s : export vide", jeu.Degre))
+		if len(records) == 0 {
+			return fail(fmt.Errorf("%s : export vide", dataset.Stage))
 		}
 
 		var rows [][]any
-		for _, l := range lignes {
-			identifiant := asStr(l["identifiant_de_l_etablissement"])
-			secteur, err := normaliserSecteur(asStr(l["secteur"]))
+		for _, l := range records {
+			id := asStr(l["identifiant_de_l_etablissement"])
+			sector, err := normalizeSector(asStr(l["secteur"]))
 			if err != nil {
-				return fail(fmt.Errorf("%s, établissement %s : %w", jeu.Degre, identifiant, err))
+				return fail(fmt.Errorf("%s, établissement %s : %w", dataset.Stage, id, err))
 			}
-			anneeStr := asStr(l["annee_de_la_rentree_scolaire"])
-			annee, err := strconv.Atoi(anneeStr)
+			yearStr := asStr(l["annee_de_la_rentree_scolaire"])
+			year, err := strconv.Atoi(yearStr)
 			if err != nil {
-				return fail(fmt.Errorf("%s : année illisible %q", jeu.Degre, anneeStr))
+				return fail(fmt.Errorf("%s : année illisible %q", dataset.Stage, yearStr))
 			}
 			rows = append(rows, []any{
-				annee, jeu.Degre, identifiant, asStr(l["nom_de_l_etablissement"]),
+				year, dataset.Stage, id, asStr(l["nom_de_l_etablissement"]),
 				asStrPtr(l["nature_de_l_etablissement"]),
-				asStrPtr(l["code_departement"]), asStrPtr(l["code_academie"]), secteur,
-				asFloatPtr(l["etp_total"]), asFloatPtr(l[jeu.ChampEnseignant]),
+				asStrPtr(l["code_departement"]), asStrPtr(l["code_academie"]), sector,
+				asFloatPtr(l["etp_total"]), asFloatPtr(l[dataset.TeacherField]),
 				asFloatPtr(l["etp_de_personnels_de_vie_scolaire"]),
 				asFloatPtr(l["proportion_non_titulaires"]), asFloatPtr(l["proportion_agreges"]),
 				asFloatPtr(l["proportion_certifies"]),
@@ -137,7 +137,7 @@ func IngestEffectifsPersonnel(ctx context.Context, pool *pgxpool.Pool, arch *arc
 				"source_id"},
 			pgx.CopyFromRows(rows))
 		if err != nil {
-			return fail(fmt.Errorf("%s : %w", jeu.Degre, err))
+			return fail(fmt.Errorf("%s : %w", dataset.Stage, err))
 		}
 		total += n
 	}
@@ -184,7 +184,7 @@ func IngestEffectifsPersonnel(ctx context.Context, pool *pgxpool.Pool, arch *arc
 
 // asStr/asStrPtr/asFloatPtr : conversions tolérantes à l'hétérogénéité de
 // type observée dans les exports Opendatasoft de l'Éducation nationale (même
-// champ, tantôt nombre, tantôt chaîne — voir le commentaire sur jeuxDegre).
+// champ, tantôt nombre, tantôt chaîne — voir le commentaire sur stageDatasets).
 func asStr(v any) string {
 	switch x := v.(type) {
 	case nil:
@@ -228,7 +228,7 @@ func asFloatPtr(v any) *float64 {
 	}
 }
 
-func normaliserSecteur(s string) (string, error) {
+func normalizeSector(s string) (string, error) {
 	switch s {
 	case "Public":
 		return "PUBLIC", nil
@@ -240,8 +240,8 @@ func normaliserSecteur(s string) (string, error) {
 }
 
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := IngestEffectifsPersonnel(ctx, pool, arch); err != nil {
+	if err := IngestStaffHeadcount(ctx, pool, arch); err != nil {
 		return err
 	}
-	return IngestEffectifsEleves(ctx, pool, arch)
+	return IngestStudentHeadcount(ctx, pool, arch)
 }

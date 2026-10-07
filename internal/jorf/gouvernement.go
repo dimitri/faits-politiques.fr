@@ -43,7 +43,7 @@ import (
 // qu'une trentaine d'actes : charger la totalité du Journal officiel pour
 // répondre à cette question serait disproportionné, et c'est une décision
 // séparée.
-const baseGlobale = "https://echanges.dila.gouv.fr/OPENDATA/JORFSIMPLE/" +
+const fullArchiveURL = "https://echanges.dila.gouv.fr/OPENDATA/JORFSIMPLE/" +
 	"Freemium_jorf_simple_20250713-140000.tar.gz"
 
 // Les titres qui portent la composition du Gouvernement.
@@ -58,7 +58,7 @@ const baseGlobale = "https://echanges.dila.gouv.fr/OPENDATA/JORFSIMPLE/" +
 // partiel s'intitule aussi « relatif à la composition », et la nomination du
 // Premier ministre fait l'objet d'un décret distinct, publié le même jour ou la
 // veille.
-var reTitreGouvernement = regexp.MustCompile(
+var reGovernmentTitle = regexp.MustCompile(
 	`(?i)(composition du gouvernement|nomination du premier ministre|` +
 		`cessation des fonctions du gouvernement|cessation de fonctions du gouvernement|` +
 		`fin des fonctions du gouvernement)`)
@@ -83,33 +83,33 @@ func IngestGouvernement(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	}
 
 	fmt.Println("  téléchargement de la base complète du Journal officiel (1,1 Go)…")
-	f, err := arch.Fetch(ctx, srcID, runID, baseGlobale, ".tar.gz")
+	f, err := arch.Fetch(ctx, srcID, runID, fullArchiveURL, ".tar.gz")
 	if err != nil {
 		return fail(err)
 	}
 
-	var b bilan
-	if err := parcourirGlobale(ctx, pool, f.Path, srcID, &b); err != nil {
+	var b summary
+	if err := walkFullArchive(ctx, pool, f.Path, srcID, &b); err != nil {
 		return fail(err)
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"fichiers": b.fichiers, "decodes": b.decodes, "echecs": b.echecs,
-		"retenus": b.actes}, "")
+		"fichiers": b.files, "decodes": b.decoded, "echecs": b.failed,
+		"retenus": b.acts}, "")
 	logs.Notice(fmt.Sprintf("full JORF: %s, %d decoded (%d failed), %d government decrees kept",
-		logs.Plural(b.fichiers, "file"), b.decodes, b.echecs, b.actes))
+		logs.Plural(b.files, "file"), b.decoded, b.failed, b.acts))
 	return nil
 }
 
-// parcourirGlobale lit l'archive EN FLUX. Elle contient plusieurs centaines de
+// walkFullArchive lit l'archive EN FLUX. Elle contient plusieurs centaines de
 // milliers de fichiers ; les déplier sur disque coûterait une dizaine de
 // gigaoctets pour n'en garder qu'une trentaine.
 //
 // Le filtre porte sur le TITRE, décodé pour chaque fichier, et non sur le chemin :
 // rien dans l'arborescence ne distingue un décret de composition d'un arrêté de
 // nomination dans un corps d'État.
-func parcourirGlobale(ctx context.Context, pool *pgxpool.Pool, chemin string, srcID int64, b *bilan) error {
-	fh, err := os.Open(chemin)
+func walkFullArchive(ctx context.Context, pool *pgxpool.Pool, path string, srcID int64, b *summary) error {
+	fh, err := os.Open(path)
 	if err != nil {
 		return err
 	}
@@ -143,22 +143,22 @@ func parcourirGlobale(ctx context.Context, pool *pgxpool.Pool, chemin string, sr
 		if err != nil {
 			return fmt.Errorf("lecture de %s : %w", h.Name, err)
 		}
-		b.fichiers++
-		t, err := decoder(raw)
+		b.files++
+		t, err := decode(raw)
 		if err != nil {
-			b.echecs++
+			b.failed++
 			continue
 		}
 		if t.ID == "" {
-			b.sansID++
+			b.withoutID++
 			continue
 		}
-		b.decodes++
+		b.decoded++
 
-		if !reTitreGouvernement.MatchString(t.TitreFull) && !reTitreGouvernement.MatchString(t.Titre) {
+		if !reGovernmentTitle.MatchString(t.FullTitle) && !reGovernmentTitle.MatchString(t.Title) {
 			continue
 		}
-		contenu := corps(raw)
+		content := readBody(raw)
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO core.acte_jo
 			  (id, nature, numero, nor, date_publi, date_texte, titre, titre_complet,
@@ -170,13 +170,13 @@ func parcourirGlobale(ctx context.Context, pool *pgxpool.Pool, chemin string, sr
 			  -- déjà chargée doit pouvoir être corrigée par un rechargement.
 			  date_publi = EXCLUDED.date_publi, date_texte = EXCLUDED.date_texte,
 			  nominatif = true, charge_le = now()`,
-			t.ID, nul(t.Nature), nul(t.Num), nul(t.NOR), dateJO(t.DatePubli), dateJO(t.DateTexte),
-			nul(t.Titre), nul(t.TitreFull), nul(t.Ministere), nul(contenu), srcID); err != nil {
+			t.ID, nullIfEmpty(t.Nature), nullIfEmpty(t.Num), nullIfEmpty(t.NOR), dateJO(t.PublicationDate), dateJO(t.TextDate),
+			nullIfEmpty(t.Title), nullIfEmpty(t.FullTitle), nullIfEmpty(t.Ministry), nullIfEmpty(content), srcID); err != nil {
 			return fmt.Errorf("acte %s : %w", t.ID, err)
 		}
-		b.actes++
-		if b.actes%10 == 0 {
-			logs.Notice(fmt.Sprintf("%d decrees kept out of %d files read", b.actes, b.fichiers))
+		b.acts++
+		if b.acts%10 == 0 {
+			logs.Notice(fmt.Sprintf("%d decrees kept out of %d files read", b.acts, b.files))
 		}
 	}
 	return tx.Commit(ctx)

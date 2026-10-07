@@ -48,13 +48,13 @@ var Source = archive.Source{
 
 const (
 	DeclarationsURL = "https://www.hatvp.fr/livraison/merge/declarations.xml"
-	nonPublie       = "[Données non publiées]"
+	notPublished    = "[Données non publiées]"
 )
 
 // Les blocs retenus, avec ce qu'on en extrait. Tout le reste du format est
 // ignoré : ce sont des champs d'adresse, de pièce d'identité et de contact,
 // c'est-à-dire précisément ce que la Haute Autorité ne publie pas.
-var blocsRetenus = map[string]bool{
+var retainedBlocks = map[string]bool{
 	// Intérêts
 	"activProfCinqDerniereDto":   true,
 	"activProfConjointDto":       true,
@@ -81,25 +81,25 @@ var blocsRetenus = map[string]bool{
 }
 
 type item struct {
-	Bloc        string
-	Rang        int
-	Description string
-	Employeur   string
-	Commentaire string
-	Annee       *int
-	Montant     *float64
-	NonPublie   bool
+	Block        string
+	Rank         int
+	Description  string
+	Employer     string
+	Comment      string
+	Year         *int
+	Amount       *float64
+	NotPublished bool
 }
 
 type declaration struct {
-	UUID, Nom, Prenom       string
-	Naissance               string
-	TypeDeclaration         string
-	DateDepot               string
-	TypeMandat, LabelOrgane string
-	Qualite                 string
-	DebutMandat, FinMandat  string
-	Items                   []item
+	UUID, LastName, FirstName string
+	BirthDate                 string
+	TypeDeclaration           string
+	FilingDate                string
+	MandateType, BodyLabel    string
+	Role                      string
+	MandateStart, MandateEnd  string
+	Items                     []item
 }
 
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
@@ -121,7 +121,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(err)
 	}
 
-	// Lu en flux (parcourir ne garde jamais plus d'une <declaration> en
+	// Lu en flux (walkDeclarations ne garde jamais plus d'une <declaration> en
 	// mémoire à la fois — le XML fait 87 Mo, profondément imbriqué), mais
 	// ACCUMULÉ ici plutôt qu'écrit ligne à ligne : les déclarations et
 	// leurs items décodés sont de petites structures (quelques champs
@@ -131,13 +131,13 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	// Un doublon d'uuid dans le flux garde la PREMIÈRE occurrence, comme
 	// avant (ON CONFLICT DO NOTHING y suffisait ligne à ligne) : dédupliqué
 	// ici en Go, exactement la même règle.
-	vus := map[string]bool{}
+	seen := map[string]bool{}
 	var decls []declaration
-	if err := parcourir(f.Path, func(d declaration) error {
-		if vus[d.UUID] {
+	if err := walkDeclarations(f.Path, func(d declaration) error {
+		if seen[d.UUID] {
 			return nil
 		}
-		vus[d.UUID] = true
+		seen[d.UUID] = true
 		decls = append(decls, d)
 		return nil
 	}); err != nil {
@@ -173,9 +173,9 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	declRows := make([][]any, len(decls))
 	for i, d := range decls {
-		declRows[i] = []any{d.UUID, d.Nom, d.Prenom, dateFR(d.Naissance), d.TypeDeclaration,
-			horodatageFR(d.DateDepot), nul(d.TypeMandat), nul(d.LabelOrgane),
-			nul(d.Qualite), dateFR(d.DebutMandat), dateFR(d.FinMandat)}
+		declRows[i] = []any{d.UUID, d.LastName, d.FirstName, dateFR(d.BirthDate), d.TypeDeclaration,
+			timestampFR(d.FilingDate), nilIfEmpty(d.MandateType), nilIfEmpty(d.BodyLabel),
+			nilIfEmpty(d.Role), dateFR(d.MandateStart), dateFR(d.MandateEnd)}
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_declaration"},
 		[]string{"uuid", "nom", "prenom", "date_naissance", "type_declaration", "date_depot",
@@ -243,8 +243,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			continue // doublon d'uuid déjà écarté au flux, ou conflit DB
 		}
 		for _, it := range d.Items {
-			itemRows = append(itemRows, []any{declID, it.Bloc, it.Rang, nul(it.Description),
-				nul(it.Employeur), nul(it.Commentaire), it.Annee, it.Montant, it.NonPublie})
+			itemRows = append(itemRows, []any{declID, it.Block, it.Rank, nilIfEmpty(it.Description),
+				nilIfEmpty(it.Employer), nilIfEmpty(it.Comment), it.Year, it.Amount, it.NotPublished})
 		}
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_declaration_item"},
@@ -254,7 +254,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(fmt.Errorf("copie des items : %w", err))
 	}
 	var nItems int
-	err = bulkload.SansContraintesFK(ctx, tx, "core.declaration_item", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.declaration_item", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.declaration_item AS tgt
 			USING tmp_declaration_item AS src
@@ -309,9 +309,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	return nil
 }
 
-// parcourir lit le flux de déclarations sans jamais en garder plus d'une en
-// mémoire : le fichier fait 87 Mo et la structure est profondément imbriquée.
-func parcourir(path string, fn func(declaration) error) error {
+// walkDeclarations lit le flux de déclarations sans jamais en garder plus
+// d'une en mémoire : le fichier fait 87 Mo et la structure est profondément
+// imbriquée.
+func walkDeclarations(path string, fn func(declaration) error) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -332,7 +333,7 @@ func parcourir(path string, fn func(declaration) error) error {
 			continue
 		}
 		var d declaration
-		if err := lireDeclaration(dec, &d); err != nil {
+		if err := readDeclaration(dec, &d); err != nil {
 			return err
 		}
 		if d.UUID == "" {
@@ -344,10 +345,10 @@ func parcourir(path string, fn func(declaration) error) error {
 	}
 }
 
-// lireDeclaration consomme une <declaration> jusqu'à sa fermeture.
-func lireDeclaration(dec *xml.Decoder, d *declaration) error {
-	profondeur := 1
-	var chemin []string
+// readDeclaration consomme une <declaration> jusqu'à sa fermeture.
+func readDeclaration(dec *xml.Decoder, d *declaration) error {
+	depth := 1
+	var path []string
 	for {
 		tok, err := dec.Token()
 		if err != nil {
@@ -355,60 +356,60 @@ func lireDeclaration(dec *xml.Decoder, d *declaration) error {
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
-			profondeur++
-			chemin = append(chemin, t.Name.Local)
-			if blocsRetenus[t.Name.Local] {
-				items, err := lireBloc(dec, t.Name.Local)
+			depth++
+			path = append(path, t.Name.Local)
+			if retainedBlocks[t.Name.Local] {
+				items, err := readBlock(dec, t.Name.Local)
 				if err != nil {
 					return err
 				}
 				d.Items = append(d.Items, items...)
-				profondeur--
-				chemin = chemin[:len(chemin)-1]
+				depth--
+				path = path[:len(path)-1]
 				continue
 			}
 			if t.Name.Local == "general" {
-				if err := lireGeneral(dec, d); err != nil {
+				if err := readGeneral(dec, d); err != nil {
 					return err
 				}
-				profondeur--
-				chemin = chemin[:len(chemin)-1]
+				depth--
+				path = path[:len(path)-1]
 				continue
 			}
 		case xml.CharData:
 			v := strings.TrimSpace(string(t))
-			if v == "" || len(chemin) == 0 {
+			if v == "" || len(path) == 0 {
 				break
 			}
-			switch chemin[len(chemin)-1] {
+			switch path[len(path)-1] {
 			case "uuid":
-				if len(chemin) == 1 {
+				if len(path) == 1 {
 					d.UUID = v
 				}
 			case "dateDepot":
-				if len(chemin) == 1 {
-					d.DateDepot = v
+				if len(path) == 1 {
+					d.FilingDate = v
 				}
 			}
 		case xml.EndElement:
-			profondeur--
-			if len(chemin) > 0 {
-				chemin = chemin[:len(chemin)-1]
+			depth--
+			if len(path) > 0 {
+				path = path[:len(path)-1]
 			}
-			if profondeur == 0 {
+			if depth == 0 {
 				return nil
 			}
 		}
 	}
 }
 
-// lireGeneral extrait l'identité du déclarant et la qualité au titre de
+// readGeneral extrait l'identité du déclarant et la qualité au titre de
 // laquelle il déclare. Les champs d'adresse et de contact sont traversés sans
 // être lus : la Haute Autorité ne les publie pas, et il n'y a aucune raison
 // d'en garder la trace.
-func lireGeneral(dec *xml.Decoder, d *declaration) error {
-	profondeur := 1
-	var chemin []string
+func readGeneral(dec *xml.Decoder, d *declaration) error {
+	depth := 1
+	var path []string
 	for {
 		tok, err := dec.Token()
 		if err != nil {
@@ -416,77 +417,78 @@ func lireGeneral(dec *xml.Decoder, d *declaration) error {
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
-			profondeur++
-			chemin = append(chemin, t.Name.Local)
+			depth++
+			path = append(path, t.Name.Local)
 		case xml.CharData:
 			v := strings.TrimSpace(string(t))
-			if v == "" || v == nonPublie || len(chemin) == 0 {
+			if v == "" || v == notPublished || len(path) == 0 {
 				break
 			}
 			parent := ""
-			if len(chemin) >= 2 {
-				parent = chemin[len(chemin)-2]
+			if len(path) >= 2 {
+				parent = path[len(path)-2]
 			}
-			switch chemin[len(chemin)-1] {
+			switch path[len(path)-1] {
 			case "id":
 				if parent == "typeDeclaration" {
 					d.TypeDeclaration = v
 				}
 			case "nom":
 				if parent == "declarant" {
-					d.Nom = v
+					d.LastName = v
 				}
 			case "prenom":
 				if parent == "declarant" {
-					d.Prenom = v
+					d.FirstName = v
 				}
 			case "dateNaissance":
 				if parent == "declarant" {
-					d.Naissance = v
+					d.BirthDate = v
 				}
 			case "codTypeMandatFichier":
-				d.TypeMandat = v
+				d.MandateType = v
 			case "labelOrgane":
-				if parent == "organe" && d.LabelOrgane == "" {
-					d.LabelOrgane = v
+				if parent == "organe" && d.BodyLabel == "" {
+					d.BodyLabel = v
 				}
 			case "qualiteDeclarant":
-				d.Qualite = v
+				d.Role = v
 			case "dateDebutMandat":
-				d.DebutMandat = v
+				d.MandateStart = v
 			case "dateFinMandat":
-				d.FinMandat = v
+				d.MandateEnd = v
 			}
 		case xml.EndElement:
-			profondeur--
-			if len(chemin) > 0 {
-				chemin = chemin[:len(chemin)-1]
+			depth--
+			if len(path) > 0 {
+				path = path[:len(path)-1]
 			}
-			if profondeur == 0 {
+			if depth == 0 {
 				return nil
 			}
 		}
 	}
 }
 
-// lireBloc aplatit un bloc de déclaration. Chaque <items> imbriqué devient une
-// ligne ; les montants publiés par année en produisent une par année, ce qui
-// permet de suivre une rémunération dans le temps sans avoir à ouvrir le XML.
-func lireBloc(dec *xml.Decoder, bloc string) ([]item, error) {
-	profondeur := 1
-	var chemin []string
+// readBlock aplatit un bloc de déclaration. Chaque <items> imbriqué devient
+// une ligne ; les montants publiés par année en produisent une par année, ce
+// qui permet de suivre une rémunération dans le temps sans avoir à ouvrir le
+// XML.
+func readBlock(dec *xml.Decoder, block string) ([]item, error) {
+	depth := 1
+	var path []string
 	var out []item
-	cur := item{Bloc: bloc}
-	var annee *int
-	ouvert := false
+	cur := item{Block: block}
+	var year *int
+	opened := false
 
-	pousser := func() {
-		if cur.Description != "" || cur.Employeur != "" || cur.Montant != nil ||
-			cur.Commentaire != "" || cur.NonPublie {
-			cur.Rang = len(out)
+	push := func() {
+		if cur.Description != "" || cur.Employer != "" || cur.Amount != nil ||
+			cur.Comment != "" || cur.NotPublished {
+			cur.Rank = len(out)
 			out = append(out, cur)
 		}
-		cur = item{Bloc: bloc}
+		cur = item{Block: block}
 	}
 
 	for {
@@ -496,13 +498,13 @@ func lireBloc(dec *xml.Decoder, bloc string) ([]item, error) {
 		}
 		switch t := tok.(type) {
 		case xml.StartElement:
-			profondeur++
-			chemin = append(chemin, t.Name.Local)
+			depth++
+			path = append(path, t.Name.Local)
 			if t.Name.Local == "items" {
-				if ouvert {
-					pousser()
+				if opened {
+					push()
 				}
-				ouvert = true
+				opened = true
 			}
 			// Surtout PAS de remise à zéro de l'année ici. Le format imbrique
 			// <montant><montant><annee>…</annee><montant>…</montant></montant>,
@@ -511,57 +513,57 @@ func lireBloc(dec *xml.Decoder, bloc string) ([]item, error) {
 			// les séries de rémunération sortaient vides.
 		case xml.CharData:
 			v := strings.TrimSpace(string(t))
-			if v == "" || len(chemin) == 0 {
+			if v == "" || len(path) == 0 {
 				break
 			}
-			if v == nonPublie {
-				cur.NonPublie = true
+			if v == notPublished {
+				cur.NotPublished = true
 				break
 			}
-			switch chemin[len(chemin)-1] {
+			switch path[len(path)-1] {
 			case "description", "descriptionMandat", "nomStructure", "denomination",
 				"libelle", "nature", "natureBien", "typeCompte", "regimeJuridique",
 				"origine", "titulaire", "souscripteur":
 				if cur.Description == "" {
-					cur.Description = tronquer(v)
+					cur.Description = truncate(v)
 				}
 			case "employeur", "nomEmployeur", "societe", "etablissement":
-				if cur.Employeur == "" {
-					cur.Employeur = tronquer(v)
+				if cur.Employer == "" {
+					cur.Employer = truncate(v)
 				}
 			case "commentaire", "observation":
-				if cur.Commentaire == "" {
-					cur.Commentaire = tronquer(v)
+				if cur.Comment == "" {
+					cur.Comment = truncate(v)
 				}
 			case "annee":
 				if n, err := strconv.Atoi(v); err == nil {
-					a := n
-					annee = &a
+					yr := n
+					year = &yr
 				}
 			case "montant", "valeur", "montantTotal", "valeurVenale",
 				"prixAcquisition", "valeurRachat", "montantRemuneration":
-				if m, ok := montant(v); ok {
+				if m, ok := parseAmount(v); ok {
 					// Un montant par année produit sa propre ligne, pour que la
 					// série soit lisible sans réouvrir le fichier.
-					if annee != nil {
+					if year != nil {
 						l := cur
-						l.Annee, l.Montant = annee, &m
-						l.Rang = len(out)
+						l.Year, l.Amount = year, &m
+						l.Rank = len(out)
 						out = append(out, l)
-						annee = nil
-					} else if cur.Montant == nil {
-						cur.Montant = &m
+						year = nil
+					} else if cur.Amount == nil {
+						cur.Amount = &m
 					}
 				}
 			}
 		case xml.EndElement:
-			profondeur--
-			if len(chemin) > 0 {
-				chemin = chemin[:len(chemin)-1]
+			depth--
+			if len(path) > 0 {
+				path = path[:len(path)-1]
 			}
-			if profondeur == 0 {
-				if ouvert {
-					pousser()
+			if depth == 0 {
+				if opened {
+					push()
 				}
 				return out, nil
 			}
@@ -569,10 +571,10 @@ func lireBloc(dec *xml.Decoder, bloc string) ([]item, error) {
 	}
 }
 
-// montant lit « 71 105 », « 71 105,50 » ou « 71105.50 ». Les espaces sont des
-// séparateurs de milliers, y compris les espaces insécables.
-func montant(s string) (float64, bool) {
-	s = strings.NewReplacer(" ", "", " ", "", " ", "", "€", "").Replace(s)
+// parseAmount lit « 71 105 », « 71 105,50 » ou « 71105.50 ». Les espaces sont
+// des séparateurs de milliers, y compris les espaces insécables.
+func parseAmount(s string) (float64, bool) {
+	s = strings.NewReplacer(" ", "", " ", "", " ", "", "€", "").Replace(s)
 	s = strings.Replace(s, ",", ".", 1)
 	if s == "" {
 		return 0, false
@@ -592,7 +594,7 @@ func dateFR(s string) any {
 	return t
 }
 
-func horodatageFR(s string) any {
+func timestampFR(s string) any {
 	s = strings.TrimSpace(s)
 	for _, f := range []string{"02/01/2006 15:04:05", "02/01/2006"} {
 		if t, err := time.Parse(f, s); err == nil {
@@ -602,14 +604,14 @@ func horodatageFR(s string) any {
 	return nil
 }
 
-func nul(s string) any {
+func nilIfEmpty(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
 	}
-	return tronquer(s)
+	return truncate(s)
 }
 
-// tronquer borne les textes libres : certains commentaires font plusieurs
+// truncate borne les textes libres : certains commentaires font plusieurs
 // milliers de caractères et n'apportent rien au-delà.
 //
 // La coupe se fait en RUNES et non en octets. Couper à 500 octets tranchait au
@@ -618,7 +620,7 @@ func nul(s string) any {
 // sequence for encoding UTF8 » sans qu'on voie le rapport avec une troncature.
 // ToValidUTF8 traite le cas symétrique : des octets déjà invalides dans le
 // fichier source.
-func tronquer(s string) string {
+func truncate(s string) string {
 	s = strings.ToValidUTF8(strings.Join(strings.Fields(s), " "), "")
 	r := []rune(s)
 	if len(r) > 500 {

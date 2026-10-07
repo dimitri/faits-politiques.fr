@@ -31,14 +31,14 @@ var SourceSanctionsCNIL = archive.Source{
 const urlSanctionsCNIL = "https://www.cnil.fr/fr/les-sanctions-prononcees-par-la-cnil"
 
 var (
-	reTable     = regexp.MustCompile(`(?s)<table.*?</table>`)
-	reLigne     = regexp.MustCompile(`(?s)<tr.*?</tr>`)
-	reCellule   = regexp.MustCompile(`(?s)<t[dh][^>]*>(.*?)</t[dh]>`)
-	reLien      = regexp.MustCompile(`href="([^"]+)"`)
-	reDateCNIL  = regexp.MustCompile(`^(\d{2})/(\d{2})/(\d{4})`)
-	reNombre    = regexp.MustCompile(`(\d[\d .]*(?:,\d+)?)(?:\s*(millions?|milliards?))?`) // espaces insécables déjà normalisées
-	reMontant   = regexp.MustCompile(`(?i)(amende|sanctions? p[ée]cuniaires?)[^.]*?\beuros\b`)
-	reSimplifie = regexp.MustCompile(`(?i)\(?proc[ée]dure simplifi[ée]e\)?`)
+	reTable      = regexp.MustCompile(`(?s)<table.*?</table>`)
+	reRow        = regexp.MustCompile(`(?s)<tr.*?</tr>`)
+	reCell       = regexp.MustCompile(`(?s)<t[dh][^>]*>(.*?)</t[dh]>`)
+	reLink       = regexp.MustCompile(`href="([^"]+)"`)
+	reDateCNIL   = regexp.MustCompile(`^(\d{2})/(\d{2})/(\d{4})`)
+	reNumber     = regexp.MustCompile(`(\d[\d .]*(?:,\d+)?)(?:\s*(millions?|milliards?))?`) // espaces insécables déjà normalisées
+	reAmount     = regexp.MustCompile(`(?i)(amende|sanctions? p[ée]cuniaires?)[^.]*?\beuros\b`)
+	reSimplified = regexp.MustCompile(`(?i)\(?proc[ée]dure simplifi[ée]e\)?`)
 	// Catégories publiées qui désignent une personne publique. Écrites sans
 	// accents : la CNIL écrit tantôt MINISTÈRE, tantôt MINISTERE.
 	rePublic = regexp.MustCompile(`^(MINISTERE|COMMUNE|COLLECTIVITE TERRITORIALE|ETABLISSEMENT PUBLIC|ETABLISSEMENT ADMINISTRATIF|` +
@@ -47,7 +47,7 @@ var (
 )
 
 func IngestSanctionsCNIL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, arch, SourceSanctionsCNIL, func(srcID, runID int64) (map[string]any, error) {
+	return run(ctx, arch, SourceSanctionsCNIL, func(srcID, runID int64) (map[string]any, error) {
 		f, err := arch.Fetch(ctx, srcID, runID, urlSanctionsCNIL, ".html")
 		if err != nil {
 			return nil, err
@@ -56,71 +56,71 @@ func IngestSanctionsCNIL(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		if err != nil {
 			return nil, err
 		}
-		var lignes [][]any
-		annees := map[int]bool{}
-		montants := 0
+		var rows [][]any
+		years := map[int]bool{}
+		amounts := 0
 		for _, table := range reTable.FindAllString(string(b), -1) {
-			col := map[string]int{}
-			for _, tr := range reLigne.FindAllString(table, -1) {
-				cs := reCellule.FindAllStringSubmatch(tr, -1)
-				textes := make([]string, len(cs))
+			columns := map[string]int{}
+			for _, tr := range reRow.FindAllString(table, -1) {
+				cs := reCell.FindAllStringSubmatch(tr, -1)
+				texts := make([]string, len(cs))
 				for i, c := range cs {
-					textes[i] = texteHTML(c[1])
+					texts[i] = htmlText(c[1])
 				}
 				// La ligne d'en-tête nomme les colonnes ; les tableaux anciens
 				// ont une colonne « thème » en plus.
-				if len(col) == 0 {
-					for i, t := range textes {
-						u := sansAccents(strings.ToUpper(t))
+				if len(columns) == 0 {
+					for i, t := range texts {
+						u := withoutAccents(strings.ToUpper(t))
 						switch {
 						case u == "DATE":
-							col["date"] = i
+							columns["date"] = i
 						case strings.Contains(u, "ORGANISME"):
-							col["organisme"] = i
+							columns["organisme"] = i
 						case strings.Contains(u, "MANQUEMENT"):
-							col["manquements"] = i
+							columns["manquements"] = i
 						case strings.Contains(u, "DECISION"):
-							col["decision"] = i
+							columns["decision"] = i
 						}
 					}
-					if len(col) > 0 && len(col) != 4 {
-						return nil, fmt.Errorf("en-tête de tableau inattendu : %q", textes)
+					if len(columns) > 0 && len(columns) != 4 {
+						return nil, fmt.Errorf("en-tête de tableau inattendu : %q", texts)
 					}
 					continue
 				}
-				if len(cs) <= col["decision"] {
+				if len(cs) <= columns["decision"] {
 					continue
 				}
-				m := reDateCNIL.FindStringSubmatch(textes[col["date"]])
+				m := reDateCNIL.FindStringSubmatch(texts[columns["date"]])
 				if m == nil {
 					continue // ligne sans date (intertitre)
 				}
-				j, _ := strconv.Atoi(m[1])
-				mo, _ := strconv.Atoi(m[2])
-				a, _ := strconv.Atoi(m[3])
-				date := time.Date(a, time.Month(mo), j, 0, 0, 0, 0, time.UTC)
-				annees[a] = true
-				organisme := textes[col["organisme"]]
-				simplifiee := reSimplifie.MatchString(organisme)
-				organisme = strings.TrimSpace(reSimplifie.ReplaceAllString(organisme, ""))
-				decision := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(textes[col["decision"]]), "Voir la délibération"))
-				var lien any
-				if l := reLien.FindStringSubmatch(cs[col["decision"]][1]); l != nil {
-					lien = l[1]
+				day, _ := strconv.Atoi(m[1])
+				month, _ := strconv.Atoi(m[2])
+				year, _ := strconv.Atoi(m[3])
+				date := time.Date(year, time.Month(month), day, 0, 0, 0, 0, time.UTC)
+				years[year] = true
+				entity := texts[columns["organisme"]]
+				simplified := reSimplified.MatchString(entity)
+				entity = strings.TrimSpace(reSimplified.ReplaceAllString(entity, ""))
+				decision := strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(texts[columns["decision"]]), "Voir la délibération"))
+				var link any
+				if l := reLink.FindStringSubmatch(cs[columns["decision"]][1]); l != nil {
+					link = l[1]
 				}
-				montant := montantSanction(decision)
-				if montant != nil {
-					montants++
+				amount := sanctionAmount(decision)
+				if amount != nil {
+					amounts++
 				}
-				public := rePublic.MatchString(sansAccents(strings.ToUpper(organisme)))
-				lignes = append(lignes, []any{len(lignes) + 1, date, organisme, nul(textes[col["manquements"]]), decision,
-					montant, lien, public, simplifiee, f.DocumentID})
+				public := rePublic.MatchString(withoutAccents(strings.ToUpper(entity)))
+				rows = append(rows, []any{len(rows) + 1, date, entity, nilIfEmpty(texts[columns["manquements"]]), decision,
+					amount, link, public, simplified, f.DocumentID})
 			}
 		}
 		// La liste couvre 2011 à l'année en cours : moins de 300 lignes ou une
 		// année manquante signalerait un changement de mise en page.
-		if len(lignes) < 300 || !annees[2011] || !annees[2020] {
-			return nil, fmt.Errorf("%d sanctions lues, années %v", len(lignes), annees)
+		if len(rows) < 300 || !years[2011] || !years[2020] {
+			return nil, fmt.Errorf("%d sanctions lues, années %v", len(rows), years)
 		}
 		tx, err := pool.Begin(ctx)
 		if err != nil {
@@ -137,7 +137,7 @@ func IngestSanctionsCNIL(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_sanction_cnil"},
 			[]string{"rang", "date_decision", "organisme", "manquements", "sanction", "montant_eur", "deliberation_url",
-				"public", "procedure_simplifiee", "document_id"}, pgx.CopyFromRows(lignes)); err != nil {
+				"public", "procedure_simplifiee", "document_id"}, pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 		// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
@@ -166,25 +166,25 @@ func IngestSanctionsCNIL(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"sanctions": len(lignes), "avec_montant": montants,
+		return map[string]any{"sanctions": len(rows), "avec_montant": amounts,
 			"touchees": ct.RowsAffected()}, tx.Commit(ctx)
 	})
 }
 
-// montantSanction lit « amende de 27 millions d'euros », « sanction pécuniaire
+// sanctionAmount lit « amende de 27 millions d'euros », « sanction pécuniaire
 // de 150 000 000 euros » ou « sanctions pécuniaires de 60 et 40 millions
 // d'euros » (100 M€). NULL quand le libellé ne publie pas de montant.
-func montantSanction(s string) any {
-	m := reMontant.FindString(s)
+func sanctionAmount(s string) any {
+	m := reAmount.FindString(s)
 	if m == "" {
 		return nil
 	}
 	// Le multiplicateur écrit après le dernier nombre vaut pour tous
 	// (« 60 et 40 millions »).
-	nombres := reNombre.FindAllStringSubmatch(m, -1)
+	numbers := reNumber.FindAllStringSubmatch(m, -1)
 	mult := 1.0
-	if len(nombres) > 0 {
-		switch u := nombres[len(nombres)-1][2]; {
+	if len(numbers) > 0 {
+		switch u := numbers[len(numbers)-1][2]; {
 		case strings.HasPrefix(u, "million"):
 			mult = 1e6
 		case strings.HasPrefix(u, "milliard"):
@@ -192,7 +192,7 @@ func montantSanction(s string) any {
 		}
 	}
 	total := 0.0
-	for _, n := range nombres {
+	for _, n := range numbers {
 		v := strings.NewReplacer(" ", "", "\u00a0", "", "\u202f", "", ".", "").Replace(n[1])
 		v = strings.Replace(v, ",", ".", 1)
 		x, err := strconv.ParseFloat(v, 64)
@@ -210,7 +210,7 @@ func montantSanction(s string) any {
 	return strconv.FormatFloat(total*mult, 'f', 0, 64)
 }
 
-// sansAccents suffit pour les catégories en capitales de la CNIL.
-var sansAccentsR = strings.NewReplacer("É", "E", "È", "E", "Ê", "E", "À", "A", "Â", "A", "Î", "I", "Ô", "O", "Û", "U", "Ç", "C", "Œ", "OE")
+// withoutAccents suffit pour les catégories en capitales de la CNIL.
+var withoutAccentsR = strings.NewReplacer("É", "E", "È", "E", "Ê", "E", "À", "A", "Â", "A", "Î", "I", "Ô", "O", "Û", "U", "Ç", "C", "Œ", "OE")
 
-func sansAccents(s string) string { return sansAccentsR.Replace(s) }
+func withoutAccents(s string) string { return withoutAccentsR.Replace(s) }

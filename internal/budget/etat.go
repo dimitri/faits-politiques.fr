@@ -43,10 +43,10 @@ var SourceExecutionEtat = archive.Source{
 // Les colonnes de date ont la forme JJ_MM_AAAA — « 31_01_2024 ». Le motif sert à
 // les RECONNAÎTRE ; c'est time.Parse qui décide si la date existe, de sorte
 // qu'un « 31_02_2024 » serait refusé plutôt que silencieusement accepté.
-var reColonneDate = regexp.MustCompile(`^(\d{2})_(\d{2})_(\d{4})$`)
+var reDateColumn = regexp.MustCompile(`^(\d{2})_(\d{2})_(\d{4})$`)
 
 // Les cinq colonnes qui décrivent le poste, et non un arrêté.
-var colonnesPoste = map[string]bool{
+var postColumns = map[string]bool{
 	"niveau_hierarchique":             true,
 	"niveau_hierarchique_de_la_ligne": true,
 	"categorie":                       true,
@@ -75,18 +75,18 @@ func IngestExecutionEtat(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	}
 	// Décodé en map : le schéma gagne une colonne chaque mois, une structure Go
 	// serait périmée à la publication suivante.
-	var lignes []map[string]json.RawMessage
-	if err := lireJSON(f.Path, &lignes); err != nil {
+	var records []map[string]json.RawMessage
+	if err := readJSON(f.Path, &records); err != nil {
 		return fail(err)
 	}
-	if len(lignes) == 0 {
+	if len(records) == 0 {
 		return fail(fmt.Errorf("situations mensuelles : export vide"))
 	}
 
 	// Les dates d'arrêté sont établies UNE FOIS, sur la première ligne, puis
 	// exigées identiques partout : une ligne à qui il manquerait une colonne
 	// passerait autrement inaperçue.
-	dates, err := colonnesDate(lignes[0])
+	dates, err := dateColumns(records[0])
 	if err != nil {
 		return fail(err)
 	}
@@ -101,46 +101,46 @@ func IngestExecutionEtat(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	defer tx.Rollback(ctx)
 
 	var rows [][]any
-	var renseignes int
-	for i, l := range lignes {
+	var filled int
+	for i, l := range records {
 		// Toute colonne inconnue est une anomalie : soit une nouvelle dimension
 		// que le chargement ignorerait, soit une date mal formée.
-		for nom := range l {
-			if colonnesPoste[nom] {
+		for name := range l {
+			if postColumns[name] {
 				continue
 			}
-			if !reColonneDate.MatchString(nom) {
+			if !reDateColumn.MatchString(name) {
 				return fail(fmt.Errorf(
-					"situations mensuelles, ligne %d : colonne %q ni poste connu ni date JJ_MM_AAAA", i+1, nom))
+					"situations mensuelles, ligne %d : colonne %q ni poste connu ni date JJ_MM_AAAA", i+1, name))
 			}
 		}
-		niveau, err := entier(l["niveau_hierarchique"])
+		niveau, err := integer(l["niveau_hierarchique"])
 		if err != nil {
 			return fail(fmt.Errorf("situations mensuelles, ligne %d : niveau illisible : %w", i+1, err))
 		}
-		categorie := texte(l["categorie"])
-		sousCat := texte(l["sous_categorie"])
-		ligne := texte(l["ligne_d_information"])
+		categorie := text(l["categorie"])
+		sousCat := text(l["sous_categorie"])
+		ligne := text(l["ligne_d_information"])
 		if ligne == "" {
 			return fail(fmt.Errorf("situations mensuelles, ligne %d : intitulé vide", i+1))
 		}
 		for _, d := range dates {
-			brut, present := l[d.colonne]
+			raw, present := l[d.column]
 			if !present {
 				return fail(fmt.Errorf(
 					"situations mensuelles, ligne %d (%s) : colonne %q absente alors qu'elle existe ailleurs",
-					i+1, ligne, d.colonne))
+					i+1, ligne, d.column))
 			}
-			v, err := reel(brut)
+			v, err := realValue(raw)
 			if err != nil {
 				return fail(fmt.Errorf("situations mensuelles, ligne %d (%s), %s : %w",
-					i+1, ligne, d.colonne, err))
+					i+1, ligne, d.column, err))
 			}
 			if v != nil {
-				renseignes++
+				filled++
 			}
 			rows = append(rows, []any{
-				d.date, int16(d.date.Year()), niveau, categorie, sousCat, ligne, nulF(v),
+				d.date, int16(d.date.Year()), niveau, categorie, sousCat, ligne, nilFloat(v),
 				"ETAT_BUDGET_GENERAL", "BUDGETAIRE", "EXECUTION", srcID, f.DocumentID,
 			})
 		}
@@ -197,47 +197,47 @@ func IngestExecutionEtat(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"postes": len(lignes), "arretes": len(dates), "lignes": n, "renseignes": renseignes}, "")
+		"postes": len(records), "arretes": len(dates), "lignes": n, "renseignes": filled}, "")
 	fmt.Printf("  État : %d postes × %d arrêtés = %d lignes touchées par la fusion (%d renseignées), du %s au %s\n",
-		len(lignes), len(dates), n, renseignes,
+		len(records), len(dates), n, filled,
 		dates[0].date.Format("2006-01-02"), dates[len(dates)-1].date.Format("2006-01-02"))
 	return nil
 }
 
 type arrete struct {
-	colonne string
-	date    time.Time
+	column string
+	date   time.Time
 }
 
-// colonnesDate reconnaît les colonnes d'arrêté et REFUSE tout ce qui n'est ni
+// dateColumns reconnaît les colonnes d'arrêté et REFUSE tout ce qui n'est ni
 // une colonne de poste connue ni une date valide. C'est le contrôle qui empêche
 // qu'un mois disparaisse en silence parce que la source a changé de convention.
-func colonnesDate(l map[string]json.RawMessage) ([]arrete, error) {
+func dateColumns(l map[string]json.RawMessage) ([]arrete, error) {
 	var out []arrete
-	for nom := range l {
-		if colonnesPoste[nom] {
+	for name := range l {
+		if postColumns[name] {
 			continue
 		}
-		m := reColonneDate.FindStringSubmatch(nom)
+		m := reDateColumn.FindStringSubmatch(name)
 		if m == nil {
-			return nil, fmt.Errorf("colonne %q : ni poste connu ni date JJ_MM_AAAA", nom)
+			return nil, fmt.Errorf("colonne %q : ni poste connu ni date JJ_MM_AAAA", name)
 		}
 		// time.Parse en mode strict : « 31_02_2024 » ressort comme le 2 mars, on
 		// le rejette en comparant la date reconstruite au texte d'origine.
-		d, err := time.Parse("02_01_2006", nom)
+		d, err := time.Parse("02_01_2006", name)
 		if err != nil {
-			return nil, fmt.Errorf("colonne %q : %w", nom, err)
+			return nil, fmt.Errorf("colonne %q : %w", name, err)
 		}
-		if d.Format("02_01_2006") != nom {
-			return nil, fmt.Errorf("colonne %q : date inexistante au calendrier", nom)
+		if d.Format("02_01_2006") != name {
+			return nil, fmt.Errorf("colonne %q : date inexistante au calendrier", name)
 		}
-		out = append(out, arrete{colonne: nom, date: d})
+		out = append(out, arrete{column: name, date: d})
 	}
 	sort.Slice(out, func(i, j int) bool { return out[i].date.Before(out[j].date) })
 	return out, nil
 }
 
-func texte(r json.RawMessage) string {
+func text(r json.RawMessage) string {
 	var s string
 	if err := json.Unmarshal(r, &s); err == nil {
 		return s
@@ -245,7 +245,7 @@ func texte(r json.RawMessage) string {
 	return ""
 }
 
-func entier(r json.RawMessage) (int, error) {
+func integer(r json.RawMessage) (int, error) {
 	if len(r) == 0 {
 		return 0, fmt.Errorf("valeur absente")
 	}
@@ -256,10 +256,10 @@ func entier(r json.RawMessage) (int, error) {
 	return n, nil
 }
 
-// reel accepte un nombre, un nombre écrit comme une chaîne, et l'absence de
+// realValue accepte un nombre, un nombre écrit comme une chaîne, et l'absence de
 // valeur. Il refuse tout le reste : un texte inattendu dans une colonne de
 // montant est une anomalie de source, pas un zéro.
-func reel(r json.RawMessage) (*float64, error) {
+func realValue(r json.RawMessage) (*float64, error) {
 	if len(r) == 0 || string(r) == "null" || string(r) == `""` {
 		return nil, nil
 	}

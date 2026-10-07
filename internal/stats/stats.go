@@ -13,17 +13,17 @@ import (
 // Schema : un schéma applicatif du projet (jamais pg_catalog ni les
 // schémas d'extension) et ce qu'il pèse.
 type Schema struct {
-	Nom           string
+	Name          string
 	Tables        int64
-	LignesEstimee int64
-	Octets        int64
+	EstimatedRows int64
+	Bytes         int64
 }
 
-// Résumé lit pg_stat_user_tables, groupé par schéma — n_live_tup est une
+// Summary lit pg_stat_user_tables, groupé par schéma — n_live_tup est une
 // estimée (mise à jour par autovacuum/analyze, pas un COUNT(*) exact), assez
 // bonne pour une vue d'ensemble et infiniment moins coûteuse qu'un comptage
 // réel sur des tables de plusieurs millions de lignes.
-func Resume(ctx context.Context, pool *pgxpool.Pool) ([]Schema, error) {
+func Summary(ctx context.Context, pool *pgxpool.Pool) ([]Schema, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT schemaname,
 		       count(*),
@@ -40,7 +40,7 @@ func Resume(ctx context.Context, pool *pgxpool.Pool) ([]Schema, error) {
 	var out []Schema
 	for rows.Next() {
 		var s Schema
-		if err := rows.Scan(&s.Nom, &s.Tables, &s.LignesEstimee, &s.Octets); err != nil {
+		if err := rows.Scan(&s.Name, &s.Tables, &s.EstimatedRows, &s.Bytes); err != nil {
 			return nil, err
 		}
 		out = append(out, s)
@@ -48,16 +48,16 @@ func Resume(ctx context.Context, pool *pgxpool.Pool) ([]Schema, error) {
 	return out, rows.Err()
 }
 
-// PlusGrossesTables : les n tables les plus lourdes, tous schémas confondus
+// LargestTables : les n tables les plus lourdes, tous schémas confondus
 // — utile pour repérer d'un coup d'œil ce qui domine le volume total.
 type Table struct {
 	Schema        string
-	Nom           string
-	LignesEstimee int64
-	Octets        int64
+	Name          string
+	EstimatedRows int64
+	Bytes         int64
 }
 
-func PlusGrossesTables(ctx context.Context, pool *pgxpool.Pool, n int) ([]Table, error) {
+func LargestTables(ctx context.Context, pool *pgxpool.Pool, n int) ([]Table, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT schemaname, relname, n_live_tup, pg_total_relation_size(relid)
 		FROM pg_stat_user_tables
@@ -71,7 +71,7 @@ func PlusGrossesTables(ctx context.Context, pool *pgxpool.Pool, n int) ([]Table,
 	var out []Table
 	for rows.Next() {
 		var t Table
-		if err := rows.Scan(&t.Schema, &t.Nom, &t.LignesEstimee, &t.Octets); err != nil {
+		if err := rows.Scan(&t.Schema, &t.Name, &t.EstimatedRows, &t.Bytes); err != nil {
 			return nil, err
 		}
 		out = append(out, t)
