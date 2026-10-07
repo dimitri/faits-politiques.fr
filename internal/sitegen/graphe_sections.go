@@ -1145,12 +1145,12 @@ func Topics() []string {
 	return out
 }
 
-// resolveTargets translates the requested section names into Registre.Executer
+// ResolveTargets translates the requested section names into Registre.Executer
 // targets: nil/empty means everything (every node in sectionNodes, once each),
 // a name not in sectionNodes is assumed to be an individual sujet ID (fpctl
 // build topic <id>) and falls back to "comprendre", the node that dispatches
 // all of them.
-func resolveTargets(sections []string) []string {
+func ResolveTargets(sections []string) []string {
 	if len(sections) == 0 {
 		var targets []string
 		for _, nodes := range sectionNodes {

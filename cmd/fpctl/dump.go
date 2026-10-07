@@ -6,11 +6,15 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
+	"strings"
 
 	"github.com/faits-politiques/faits-politiques/internal/matview"
 	"github.com/faits-politiques/faits-politiques/internal/objectstore"
+	"github.com/faits-politiques/faits-politiques/internal/sitegen"
 	"github.com/faits-politiques/faits-politiques/internal/store"
 	"github.com/faits-politiques/faits-politiques/internal/toolrun"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/minio/minio-go/v7"
 	"github.com/spf13/cobra"
 )
@@ -35,6 +39,12 @@ func commandeDump() *cobra.Command {
 				"pg_restore recalculerait son contenu par REFRESH, ce qui exigerait\n" +
 				"exactement les grandes tables core/ref que ce périmètre existe pour\n" +
 				"éviter. pg_dump -n de ce seul schéma, puis nettoyage.\n\n" +
+				"Avant d'exporter : compare ce que le dernier « fpctl build site » a\n" +
+				"RÉELLEMENT lu (core.sitegen_table_usage, mesuré à l'exécution) à ce\n" +
+				"que ce périmètre couvre, et refuse l'export si une page a besoin\n" +
+				"d'une table absente de TablesDirectes — jamais découvert plus tard,\n" +
+				"à la restauration en CI, sur un « relation ... does not exist » qui\n" +
+				"ne dit pas quelle page en a besoin.\n\n" +
 				"-upload envoie le fichier obtenu vers un object storage compatible\n" +
 				"S3 (mêmes variables d'environnement que fpctl sync, voir\n" +
 				"internal/objectstore) sous -bucket/-key, en plus de le garder en local.",
@@ -104,6 +114,18 @@ func runDumpCI(ctx context.Context, args []string) error {
 		return fmt.Errorf("actualisation des matvues avant export : %w", err)
 	}
 
+	// Avant d'exporter : le dernier « fpctl build site » a-t-il lu une table
+	// que ce périmètre ne couvre pas ? Sans ce contrôle, l'export réussit
+	// quand même (ExportCI ne connaît que Perimetre(), jamais ce que
+	// sitegen a réellement lu) et l'absence ne se découvre qu'à la
+	// restauration, en CI, sur un « relation ... does not exist » qui ne
+	// dit pas quelle page en a besoin (voir l'incident
+	// core.medecin_secteur_effectif, PR « Prochaines étapes », 6 octobre
+	// 2026, corrigé à la main faute de ce contrôle).
+	if err := verifierPerimetreCI(ctx, pool); err != nil {
+		return err
+	}
+
 	if err := matview.ExportCI(ctx, pool); err != nil {
 		return err
 	}
@@ -124,6 +146,60 @@ func runDumpCI(ctx context.Context, args []string) error {
 		return nil
 	}
 	return uploadDumpFile(ctx, *outFile, *bucket, *key)
+}
+
+// verifierPerimetreCI compare ce qu'internal/sitegen a RÉELLEMENT lu au
+// dernier « fpctl build site » (core.sitegen_table_usage, mesuré par un
+// pgx.QueryTracer — jamais deviné par relecture du code) à ce que
+// matview.Perimetre() exporterait. nil si core.sitegen_table_usage n'existe
+// pas encore (migration pas encore passée) ou si elle est vide (aucune
+// construction n'a encore tourné) : rien à comparer, pas une raison de
+// faire échouer l'export.
+func verifierPerimetreCI(ctx context.Context, pool *pgxpool.Pool) error {
+	parNoeud, err := sitegen.TablesPubliees(ctx, pool)
+	if err != nil {
+		if strings.Contains(err.Error(), "does not exist") {
+			return nil
+		}
+		return fmt.Errorf("lecture du reflet des tables lues par page (core.sitegen_table_usage) : %w", err)
+	}
+	if len(parNoeud) == 0 {
+		return nil
+	}
+	perimetre := map[string]bool{}
+	for _, t := range matview.Perimetre() {
+		perimetre[t] = true
+	}
+	manquantes := map[string][]string{}
+	for nom, tables := range parNoeud {
+		for _, t := range tables {
+			if strings.HasPrefix(t, "mv.") {
+				continue // le schéma mv entier fait déjà partie du périmètre.
+			}
+			if !perimetre[t] {
+				manquantes[t] = append(manquantes[t], nom)
+			}
+		}
+	}
+	if len(manquantes) == 0 {
+		return nil
+	}
+	tables := make([]string, 0, len(manquantes))
+	for t := range manquantes {
+		tables = append(tables, t)
+	}
+	sort.Strings(tables)
+	var lignes []string
+	for _, t := range tables {
+		noeuds := manquantes[t]
+		sort.Strings(noeuds)
+		lignes = append(lignes, fmt.Sprintf("  %s (lue par %s)", t, strings.Join(noeuds, ", ")))
+	}
+	return fmt.Errorf(
+		"périmètre CI incomplet — %d table(s) lue(s) par internal/sitegen mais absente(s) "+
+			"d'internal/matview.TablesDirectes (ajoutez-les, ou une matvue si la table est "+
+			"trop grosse pour le périmètre CI — voir le commentaire de TablesDirectes) :\n%s",
+		len(manquantes), strings.Join(lignes, "\n"))
 }
 
 // uploadDumpFile envoie chemin sous bucket/cle — internal/objectstore ne
