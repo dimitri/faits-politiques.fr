@@ -195,7 +195,7 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		return fail(fmt.Errorf("sae_personnel_fonction : %w", err))
 	}
 	var nQ24 int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.sae_personnel_fonction", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.sae_personnel_fonction", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.sae_personnel_fonction AS tgt
 			USING tmp_sae_personnel_fonction AS src
@@ -266,7 +266,7 @@ func IngestSAE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		return fail(fmt.Errorf("sae_urgences_passages : %w", err))
 	}
 	var nUrg int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.sae_urgences_passages", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.sae_urgences_passages", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.sae_urgences_passages AS tgt
 			USING tmp_sae_urgences_passages AS src

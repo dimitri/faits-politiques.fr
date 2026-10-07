@@ -273,7 +273,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			return fail(err)
 		}
 		var nTouchees int64
-		err = bulkload.SansContraintesFK(ctx, tx, "core.compte_campagne_poste", func() error {
+		err = bulkload.WithoutFKConstraints(ctx, tx, "core.compte_campagne_poste", func() error {
 			ct, err := tx.Exec(ctx, `
 				MERGE INTO compte_campagne_poste_scope AS tgt
 				USING tmp_compte_poste AS src

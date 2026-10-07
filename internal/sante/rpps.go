@@ -204,7 +204,7 @@ func IngestRPPS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	}
 
 	var total int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.rpps_professionnel_activite", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.rpps_professionnel_activite", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.rpps_professionnel_activite AS tgt
 			USING tmp_rpps_professionnel_activite AS src

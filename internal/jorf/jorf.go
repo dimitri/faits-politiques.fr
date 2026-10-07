@@ -629,7 +629,7 @@ func corps(raw []byte) string {
 				if err := d.DecodeElement(&inner, &v); err != nil {
 					continue
 				}
-				s := balisage.Texte(inner.XML)
+				s := balisage.Text(inner.XML)
 				if s == "" {
 					continue
 				}

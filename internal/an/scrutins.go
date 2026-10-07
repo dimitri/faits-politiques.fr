@@ -302,7 +302,7 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	// un NOTICE avant le DELETE+COPY, gratuit, plutôt qu'une commande qui
 	// semble bloquée pendant que Postgres réécrit plus d'un million de lignes.
 	logs.Notice(fmt.Sprintf("rebuilding %s (this takes a while)", logs.Plural(len(ballots), "ballot")))
-	// Une transaction explicite, ici, pour que bulkload.SansContraintesFK
+	// Une transaction explicite, ici, pour que bulkload.WithoutFKConstraints
 	// puisse retirer/réinstaller les FK de core.ballot autour du MERGE :
 	// sûr vis-à-vis de senat/europe (qui écrivent aussi dans core.ballot) car
 	// normalize précède les deux dans le graphe de dépendance de l'ingestion
@@ -355,7 +355,7 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 		return 0, 0, err
 	}
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.ballot", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO ballot_an AS tgt
 			USING tmp_ballot_an AS src

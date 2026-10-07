@@ -2,8 +2,8 @@ package balisage
 
 import "testing"
 
-func TestTexte(t *testing.T) {
-	cas := []struct{ nom, entree, attendu string }{
+func TestText(t *testing.T) {
+	cases := []struct{ name, input, want string }{
 		{
 			// Le bug publié : toutes les balises remplacées par un espace.
 			"balise en ligne soudée",
@@ -27,15 +27,15 @@ func TestTexte(t *testing.T) {
 		{"sans balise", "Texte nu", "Texte nu"},
 		{"vide", "", ""},
 	}
-	for _, c := range cas {
-		if got := Texte(c.entree); got != c.attendu {
-			t.Errorf("%s : Texte(%q) = %q, attendu %q", c.nom, c.entree, got, c.attendu)
+	for _, c := range cases {
+		if got := Text(c.input); got != c.want {
+			t.Errorf("%s : Text(%q) = %q, attendu %q", c.name, c.input, got, c.want)
 		}
 	}
 }
 
-func TestLigne(t *testing.T) {
-	if got := Ligne("<p>Un</p><p>Deux</p>"); got != "Un Deux" {
-		t.Errorf("Ligne = %q, attendu %q", got, "Un Deux")
+func TestLine(t *testing.T) {
+	if got := Line("<p>Un</p><p>Deux</p>"); got != "Un Deux" {
+		t.Errorf("Line = %q, attendu %q", got, "Un Deux")
 	}
 }

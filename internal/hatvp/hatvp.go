@@ -254,7 +254,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return fail(fmt.Errorf("copie des items : %w", err))
 	}
 	var nItems int
-	err = bulkload.SansContraintesFK(ctx, tx, "core.declaration_item", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.declaration_item", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.declaration_item AS tgt
 			USING tmp_declaration_item AS src

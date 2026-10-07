@@ -861,5 +861,5 @@ func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 // le reste du catalogue — internal/pipeline les chronomètre individuellement
 // (afficherDurees) sans qu'il soit besoin d'un helper dédié ici. Voir le
 // commentaire au-dessus de ces entrées dans catalogue.go pour le pourquoi de
-// la chaîne stricte (verrou ACCESS EXCLUSIVE de bulkload.SansContraintesFK)
+// la chaîne stricte (verrou ACCESS EXCLUSIVE de bulkload.WithoutFKConstraints)
 // et pour l'alias "communes" qui les regroupe.

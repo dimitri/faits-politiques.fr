@@ -19,10 +19,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Executeur : ce que *pgxpool.Pool et pgx.Tx offrent tous deux — Record peut
+// Executor : ce que *pgxpool.Pool et pgx.Tx offrent tous deux — Record peut
 // donc s'appeler seul ou dans la transaction du rebuild qu'il atteste,
 // exactement comme internal/an/watermark.go l'utilise pour la même raison.
-type Executeur interface {
+type Executor interface {
 	Exec(ctx context.Context, sql string, args ...any) (pgconn.CommandTag, error)
 }
 
@@ -53,7 +53,7 @@ func Forced(ctx context.Context) bool {
 // suit celui d'internal/an/watermark.go (watermarkDiff) à dessein : les deux
 // mécanismes répondent à la même question, un lecteur de logs ne doit pas
 // avoir à apprendre deux vocabulaires.
-func FileDiff(ctx context.Context, pool *pgxpool.Pool, scope, hash string) (unchanged bool, raison string, err error) {
+func FileDiff(ctx context.Context, pool *pgxpool.Pool, scope, hash string) (unchanged bool, reason string, err error) {
 	if Forced(ctx) {
 		return false, fmt.Sprintf("%s: rebuild forced (--force)", scope), nil
 	}
@@ -69,17 +69,17 @@ func FileDiff(ctx context.Context, pool *pgxpool.Pool, scope, hash string) (unch
 	if seen != nil && *seen == hash {
 		return true, "", nil
 	}
-	ancien := "—"
+	previous := "—"
 	if seen != nil {
-		ancien = court(*seen)
+		previous = truncate(*seen)
 	}
 	return false, fmt.Sprintf("%s: source file changed since last run (sha256 %s -> %s)",
-		scope, ancien, court(hash)), nil
+		scope, previous, truncate(hash)), nil
 }
 
 // Record note le sha256 que scope vient de traiter avec succès, pour que le
 // prochain appel puisse s'y comparer.
-func Record(ctx context.Context, exec Executeur, scope, hash string) error {
+func Record(ctx context.Context, exec Executor, scope, hash string) error {
 	_, err := exec.Exec(ctx, `
 		INSERT INTO core.ingest_watermark (scope, content_hash, updated_at)
 		VALUES ($1, $2, now())
@@ -89,7 +89,7 @@ func Record(ctx context.Context, exec Executeur, scope, hash string) error {
 	return err
 }
 
-func court(h string) string {
+func truncate(h string) string {
 	if len(h) > 12 {
 		return h[:12]
 	}

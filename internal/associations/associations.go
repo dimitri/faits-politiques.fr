@@ -192,7 +192,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	// pour l'intégralité du répertoire (1,19M associations) à chaque
 	// republication du RNA, changement ou non.
 	var touchees int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.association", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.association", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.association AS tgt
 			USING tmp_association AS src

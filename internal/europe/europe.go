@@ -622,7 +622,7 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 		return 0, err
 	}
 	var nLignes int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.ballot", func() error {
 		_, err := tx.Exec(ctx, `
 			WITH resolues AS (
 				SELECT t.rn, s.scrutin_id, m.person_id, g.organization_id,

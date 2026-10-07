@@ -317,7 +317,7 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		pgx.CopyFromRows(lignesM)); err != nil {
 		return fail(fmt.Errorf("copie des membres : %w", err))
 	}
-	err = bulkload.SansContraintesFK(ctx, tx, "core.epci_membre", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.epci_membre", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO core.epci_membre AS tgt
 			USING tmp_epci_membre AS src
@@ -344,7 +344,7 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		[]string{"epci_siren", "competence_code"}, pgx.CopyFromRows(lignesC)); err != nil {
 		return fail(fmt.Errorf("copie des compétences : %w", err))
 	}
-	err = bulkload.SansContraintesFK(ctx, tx, "core.epci_competence", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.epci_competence", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO core.epci_competence AS tgt
 			USING tmp_epci_competence AS src

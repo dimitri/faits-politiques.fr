@@ -136,7 +136,7 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	// RI pour l'intégralité des trois niveaux et huit exercices à chaque
 	// republication de l'OFGL, changement ou non.
 	var touchees int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.collectivite_budget", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.collectivite_budget", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.collectivite_budget AS tgt
 			USING tmp_collectivite_budget AS src

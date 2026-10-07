@@ -138,7 +138,7 @@ func IngestPopulationHistorique(ctx context.Context, pool *pgxpool.Pool, arch *a
 		return fail(fmt.Errorf("population_historique_commune : %w", err))
 	}
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.population_historique_commune", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.population_historique_commune", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO core.population_historique_commune AS tgt
 			USING tmp_population_historique_commune AS src

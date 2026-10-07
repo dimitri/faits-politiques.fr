@@ -168,7 +168,7 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return fail(fmt.Errorf("copie des listes : %w", err))
 	}
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.municipal_list", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.municipal_list", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO municipal_list_2026 AS tgt
 			USING tmp_municipal_list AS src

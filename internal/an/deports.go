@@ -113,7 +113,7 @@ func NormalizeDeports(ctx context.Context, pool *pgxpool.Pool) error {
 // `<[^>]+>`, qui ne survit pas à un chevron dans un attribut. Le texte reste
 // celui du député, mot pour mot.
 func texteBrut(s string) string {
-	return balisage.Ligne(s)
+	return balisage.Line(s)
 }
 
 func nul(s string) any {
