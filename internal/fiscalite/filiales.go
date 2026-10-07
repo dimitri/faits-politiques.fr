@@ -24,10 +24,10 @@ import (
 // relie : GLEIF n'en connaît qu'une partie. Chaque entrée écrit son fondement.
 // pays : celui de la société mère ultime, pas celui de la holding
 // intermédiaire (une filiale d'Amazon détenue via le Luxembourg est « US »).
-var selectionFiliales = []struct {
-	groupe, pays string
-	sirens       []string
-	fondement    string
+var selectedSubsidiaries = []struct {
+	group, country string
+	sirens         []string
+	basis          string
 }{
 	{"Alphabet Inc.", "US", []string{"443061841", "881721583", "799769161"}, "Google France et Google Cloud France, filiales du groupe Alphabet ; Google Ireland Limited, société irlandaise immatriculée en France, cocontractante des annonceurs français (convention judiciaire de 2019)"},
 	{"Apple Inc.", "US", []string{"322120916", "483209383"}, "Apple France et Apple Retail France, filiales du groupe Apple"},
@@ -69,9 +69,9 @@ var selectionFiliales = []struct {
 	{"Koninklijke Philips N.V.", "NL", []string{"811847243"}, "Philips France, filiale du groupe Philips"},
 }
 
-// lireZipCSV ouvre le seul fichier CSV d'une archive et appelle f ligne à
+// readZipCSV ouvre le seul fichier CSV d'une archive et appelle f ligne à
 // ligne avec l'index des colonnes.
-func lireZipCSV(path string, f func(col map[string]int, rec []string) error) error {
+func readZipCSV(path string, f func(col map[string]int, rec []string) error) error {
 	zr, err := zip.OpenReader(path)
 	if err != nil {
 		return err
@@ -85,33 +85,33 @@ func lireZipCSV(path string, f func(col map[string]int, rec []string) error) err
 		return err
 	}
 	defer rc.Close()
-	return parcourirCSV(rc, f)
+	return scanCSV(rc, f)
 }
 
-// lireCSVFlux lit un CSV trop gros pour être chargé en mémoire.
-func lireCSVFlux(path string, f func(col map[string]int, rec []string) error) error {
+// readCSVStream lit un CSV trop gros pour être chargé en mémoire.
+func readCSVStream(path string, f func(col map[string]int, rec []string) error) error {
 	fh, err := os.Open(path)
 	if err != nil {
 		return err
 	}
 	defer fh.Close()
-	return parcourirCSV(bufio.NewReaderSize(fh, 1<<20), f)
+	return scanCSV(bufio.NewReaderSize(fh, 1<<20), f)
 }
 
-func parcourirCSV(r io.Reader, f func(col map[string]int, rec []string) error) error {
+func scanCSV(r io.Reader, f func(col map[string]int, rec []string) error) error {
 	cr := csv.NewReader(r)
 	cr.ReuseRecord = true
 	cr.FieldsPerRecord = -1
 	cr.LazyQuotes = true
-	entete, err := cr.Read()
+	header, err := cr.Read()
 	if err != nil {
 		return err
 	}
 	col := map[string]int{}
-	for i, c := range entete {
+	for i, c := range header {
 		col[strings.TrimPrefix(c, "\uFEFF")] = i
 	}
-	n := len(entete)
+	n := len(header)
 	for {
 		rec, err := cr.Read()
 		if err == io.EOF {
@@ -129,9 +129,9 @@ func parcourirCSV(r io.Reader, f func(col map[string]int, rec []string) error) e
 	}
 }
 
-// ressourceDataGouv lit, dans la fiche d'un jeu de données data.gouv.fr, l'URL
+// dataGouvResource lit, dans la fiche d'un jeu de données data.gouv.fr, l'URL
 // de la ressource qui porte ce titre.
-func ressourceDataGouv(path, titre string) (string, error) {
+func dataGouvResource(path, titre string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -153,7 +153,7 @@ func ressourceDataGouv(path, titre string) (string, error) {
 	return "", fmt.Errorf("ressource %q absente du jeu de données", titre)
 }
 
-func exigerColonnes(col map[string]int, noms ...string) error {
+func requireColumns(col map[string]int, noms ...string) error {
 	for _, n := range noms {
 		if _, ok := col[n]; !ok {
 			return fmt.Errorf("colonne %q absente", n)
@@ -172,7 +172,7 @@ func goldenCopy(ctx context.Context, arch *archive.Archive, srcID, runID int64) 
 	if err != nil {
 		return "", "", err
 	}
-	type fichier struct {
+	type file struct {
 		FullFile struct {
 			CSV struct {
 				URL string `json:"url"`
@@ -181,8 +181,8 @@ func goldenCopy(ctx context.Context, arch *archive.Archive, srcID, runID int64) 
 	}
 	var d struct {
 		Data struct {
-			LEI2 fichier `json:"lei2"`
-			RR   fichier `json:"rr"`
+			LEI2 file `json:"lei2"`
+			RR   file `json:"rr"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(b, &d); err != nil {
@@ -195,16 +195,16 @@ func goldenCopy(ctx context.Context, arch *archive.Archive, srcID, runID int64) 
 	return lei2, rr, nil
 }
 
-type entiteLEI struct{ nom, pays string }
+type leiEntity struct{ name, country string }
 
 // Autorités d'enregistrement françaises dont l'identifiant est le SIREN :
 // RA000189 (répertoire SIRENE de l'INSEE) et RA000192 (registre du commerce
 // et des sociétés). RA000190 (fonds agréés par l'AMF) est écarté.
 var raSIREN = map[string]bool{"RA000189": true, "RA000192": true}
 
-// filialesGLEIF : sociétés françaises actives, identifiées par leur SIREN,
+// subsidiariesGLEIF : sociétés françaises actives, identifiées par leur SIREN,
 // dont la société mère ULTIME déclarée est immatriculée hors de France.
-func filialesGLEIF(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([][]any, map[string]any, error) {
+func subsidiariesGLEIF(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([][]any, map[string]any, error) {
 	urlLEI2, urlRR, err := goldenCopy(ctx, arch, srcID, runID)
 	if err != nil {
 		return nil, nil, err
@@ -213,10 +213,10 @@ func filialesGLEIF(ctx context.Context, arch *archive.Archive, srcID, runID int6
 	if err != nil {
 		return nil, nil, err
 	}
-	mere := map[string]string{} // LEI enfant -> LEI mère ultime
-	err = lireZipCSV(frr.Path, func(col map[string]int, rec []string) error {
-		if len(mere) == 0 {
-			if err := exigerColonnes(col, "Relationship.StartNode.NodeID", "Relationship.EndNode.NodeID",
+	parent := map[string]string{} // LEI child -> LEI mère ultime
+	err = readZipCSV(frr.Path, func(col map[string]int, rec []string) error {
+		if len(parent) == 0 {
+			if err := requireColumns(col, "Relationship.StartNode.NodeID", "Relationship.EndNode.NodeID",
 				"Relationship.EndNode.NodeIDType", "Relationship.RelationshipType", "Relationship.RelationshipStatus"); err != nil {
 				return err
 			}
@@ -226,46 +226,46 @@ func filialesGLEIF(ctx context.Context, arch *archive.Archive, srcID, runID int6
 			rec[col["Relationship.EndNode.NodeIDType"]] != "LEI" {
 			return nil
 		}
-		mere[rec[col["Relationship.StartNode.NodeID"]]] = rec[col["Relationship.EndNode.NodeID"]]
+		parent[rec[col["Relationship.StartNode.NodeID"]]] = rec[col["Relationship.EndNode.NodeID"]]
 		return nil
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("relations GLEIF : %w", err)
 	}
-	estMere := map[string]bool{}
-	for _, m := range mere {
-		estMere[m] = true
+	isParent := map[string]bool{}
+	for _, m := range parent {
+		isParent[m] = true
 	}
 
 	flei, err := arch.Fetch(ctx, srcID, runID, urlLEI2, ".zip")
 	if err != nil {
 		return nil, nil, err
 	}
-	meres := map[string]entiteLEI{}
-	type enfant struct{ lei, siren string }
-	var enfants []enfant
-	lus := 0
-	err = lireZipCSV(flei.Path, func(col map[string]int, rec []string) error {
-		if lus == 0 {
-			if err := exigerColonnes(col, "LEI", "Entity.LegalName", "Entity.LegalAddress.Country",
+	parents := map[string]leiEntity{}
+	type child struct{ lei, siren string }
+	var children []child
+	read := 0
+	err = readZipCSV(flei.Path, func(col map[string]int, rec []string) error {
+		if read == 0 {
+			if err := requireColumns(col, "LEI", "Entity.LegalName", "Entity.LegalAddress.Country",
 				"Entity.RegistrationAuthority.RegistrationAuthorityID",
 				"Entity.RegistrationAuthority.RegistrationAuthorityEntityID", "Entity.EntityStatus"); err != nil {
 				return err
 			}
 		}
-		lus++
+		read++
 		lei := rec[col["LEI"]]
-		if estMere[lei] {
-			meres[lei] = entiteLEI{rec[col["Entity.LegalName"]], rec[col["Entity.LegalAddress.Country"]]}
+		if isParent[lei] {
+			parents[lei] = leiEntity{rec[col["Entity.LegalName"]], rec[col["Entity.LegalAddress.Country"]]}
 		}
 		if rec[col["Entity.LegalAddress.Country"]] != "FR" || rec[col["Entity.EntityStatus"]] != "ACTIVE" ||
 			!raSIREN[rec[col["Entity.RegistrationAuthority.RegistrationAuthorityID"]]] {
 			return nil
 		}
-		if _, ok := mere[lei]; !ok {
+		if _, ok := parent[lei]; !ok {
 			return nil
 		}
-		chiffres := strings.Map(func(r rune) rune {
+		digits := strings.Map(func(r rune) rune {
 			if r >= '0' && r <= '9' {
 				return r
 			}
@@ -274,47 +274,47 @@ func filialesGLEIF(ctx context.Context, arch *archive.Archive, srcID, runID int6
 			}
 			return 'x'
 		}, rec[col["Entity.RegistrationAuthority.RegistrationAuthorityEntityID"]])
-		if strings.Contains(chiffres, "x") || (len(chiffres) != 9 && len(chiffres) != 14) {
+		if strings.Contains(digits, "x") || (len(digits) != 9 && len(digits) != 14) {
 			return nil
 		}
-		enfants = append(enfants, enfant{lei, chiffres[:9]})
+		children = append(children, child{lei, digits[:9]})
 		return nil
 	})
 	if err != nil {
 		return nil, nil, fmt.Errorf("répertoire LEI : %w", err)
 	}
-	var lignes [][]any
-	vus := map[string]bool{}
-	for _, e := range enfants {
-		m, ok := meres[mere[e.lei]]
-		if !ok || m.pays == "FR" || m.pays == "" || vus[e.siren] {
+	var rows [][]any
+	seen := map[string]bool{}
+	for _, e := range children {
+		m, ok := parents[parent[e.lei]]
+		if !ok || m.country == "FR" || m.country == "" || seen[e.siren] {
 			continue
 		}
-		vus[e.siren] = true
-		lignes = append(lignes, []any{e.siren, "GLEIF", m.nom, m.pays, e.lei, mere[e.lei], nil, srcID, flei.DocumentID})
+		seen[e.siren] = true
+		rows = append(rows, []any{e.siren, "GLEIF", m.name, m.country, e.lei, parent[e.lei], nil, srcID, flei.DocumentID})
 	}
-	return lignes, map[string]any{"lei_lus": lus, "relations_ultimes": len(mere), "filiales_fr_mere_etrangere": len(lignes)}, nil
+	return rows, map[string]any{"lei_lus": read, "relations_ultimes": len(parent), "filiales_fr_mere_etrangere": len(rows)}, nil
 }
 
 func IngestFiliales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	var sirenes int
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM ref.unite_legale`).Scan(&sirenes); err != nil || sirenes < 1_000_000 {
+	var sireneCount int
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM ref.unite_legale`).Scan(&sireneCount); err != nil || sireneCount < 1_000_000 {
 		return fmt.Errorf("ref.unite_legale vide ou absent (charger -only=sirene) : %v", err)
 	}
-	var lignes [][]any
+	var rows [][]any
 	stats := map[string]any{}
-	err := executer(ctx, arch, SourceGLEIF, func(srcID, runID int64) (map[string]any, error) {
-		g, st, err := filialesGLEIF(ctx, arch, srcID, runID)
+	err := run(ctx, arch, SourceGLEIF, func(srcID, runID int64) (map[string]any, error) {
+		g, st, err := subsidiariesGLEIF(ctx, arch, srcID, runID)
 		if err != nil {
 			return nil, err
 		}
-		lignes = append(lignes, g...)
-		for _, s := range selectionFiliales {
+		rows = append(rows, g...)
+		for _, s := range selectedSubsidiaries {
 			for _, siren := range s.sirens {
-				lignes = append(lignes, []any{siren, "SELECTION", s.groupe, s.pays, nil, nil, s.fondement, srcID, nil})
+				rows = append(rows, []any{siren, "SELECTION", s.group, s.country, nil, nil, s.basis, srcID, nil})
 			}
 		}
-		st["selection"] = len(lignes) - len(g)
+		st["selection"] = len(rows) - len(g)
 		return st, nil
 	})
 	if err != nil {
@@ -333,23 +333,23 @@ func IngestFiliales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"filiale_tmp"},
 		[]string{"siren", "origine", "groupe", "pays_groupe", "lei", "lei_groupe", "justification", "source_id", "document_id"},
-		pgx.CopyFromRows(lignes)); err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return err
 	}
-	var absentsSelection []string
-	rows, err := tx.Query(ctx, `SELECT t.siren FROM filiale_tmp t LEFT JOIN ref.unite_legale u USING (siren)
+	var missingFromSelection []string
+	qrows, err := tx.Query(ctx, `SELECT t.siren FROM filiale_tmp t LEFT JOIN ref.unite_legale u USING (siren)
 		WHERE t.origine = 'SELECTION' AND u.siren IS NULL`)
 	if err != nil {
 		return err
 	}
-	for rows.Next() {
+	for qrows.Next() {
 		var s string
-		rows.Scan(&s)
-		absentsSelection = append(absentsSelection, s)
+		qrows.Scan(&s)
+		missingFromSelection = append(missingFromSelection, s)
 	}
-	rows.Close()
-	if len(absentsSelection) > 0 {
-		return fmt.Errorf("sélection : SIREN absents de SIRENE %v", absentsSelection)
+	qrows.Close()
+	if len(missingFromSelection) > 0 {
+		return fmt.Errorf("sélection : SIREN absents de SIRENE %v", missingFromSelection)
 	}
 	if _, err := tx.Exec(ctx, `DELETE FROM core.filiale_groupe_etranger`); err != nil {
 		return err
@@ -384,17 +384,17 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	}
 	rows.Close()
 	sort.Strings(sirens)
-	return executer(ctx, arch, SourceRatiosINPI, func(srcID, runID int64) (map[string]any, error) {
-		const lot = 150
-		type cle struct{ siren, date, bilan string }
-		vus := map[cle]bool{}
-		var lignes [][]any
-		for i := 0; i < len(sirens); i += lot {
-			fin := min(i+lot, len(sirens))
-			liste := `"` + strings.Join(sirens[i:fin], `","`) + `"`
+	return run(ctx, arch, SourceRatiosINPI, func(srcID, runID int64) (map[string]any, error) {
+		const batchSize = 150
+		type key struct{ siren, date, bilan string }
+		seen := map[key]bool{}
+		var rows [][]any
+		for i := 0; i < len(sirens); i += batchSize {
+			end := min(i+batchSize, len(sirens))
+			list := `"` + strings.Join(sirens[i:end], `","`) + `"`
 			q := url.Values{}
 			q.Set("select", "siren,date_cloture_exercice,type_bilan,chiffre_d_affaires,ebe,resultat_net,resultat_courant_avant_impots_sur_ca,confidentiality")
-			q.Set("where", "siren in ("+liste+")")
+			q.Set("where", "siren in ("+list+")")
 			u := "https://data.economie.gouv.fr/api/explore/v2.1/catalog/datasets/ratios_inpi_bce/exports/json?" + q.Encode()
 			f, err := arch.Fetch(ctx, srcID, runID, u, ".json")
 			if err != nil {
@@ -415,25 +415,25 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 				Confidence string   `json:"confidentiality"`
 			}
 			if err := json.Unmarshal(b, &recs); err != nil {
-				return nil, fmt.Errorf("lot %d : %w", i/lot, err)
+				return nil, fmt.Errorf("batchSize %d : %w", i/batchSize, err)
 			}
 			for _, r := range recs {
 				d, err := time.Parse("2006-01-02", r.Date)
 				if err != nil {
 					return nil, fmt.Errorf("%s : date %q", r.Siren, r.Date)
 				}
-				k := cle{r.Siren, r.Date, r.TypeBilan}
-				if vus[k] {
+				k := key{r.Siren, r.Date, r.TypeBilan}
+				if seen[k] {
 					continue // dépôt en double dans le jeu : même clé, on garde le premier
 				}
-				vus[k] = true
+				seen[k] = true
 				// Le résultat courant avant impôt est publié en % du CA : on le
 				// reconstitue, NULL si l'un des deux manque.
 				var rcai any
 				if r.CA != nil && r.RCAISurCA != nil {
 					rcai = *r.CA * *r.RCAISurCA / 100
 				}
-				lignes = append(lignes, []any{r.Siren, d, r.TypeBilan, r.CA, r.EBE, rcai, r.RN, nul(r.Confidence), f.DocumentID})
+				rows = append(rows, []any{r.Siren, d, r.TypeBilan, r.CA, r.EBE, rcai, r.RN, nullable(r.Confidence), f.DocumentID})
 			}
 			time.Sleep(500 * time.Millisecond)
 		}
@@ -452,7 +452,7 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_entreprise_comptes"},
 			[]string{"siren", "date_cloture", "type_bilan", "chiffre_affaires", "ebe", "resultat_courant_ai", "resultat_net", "confidentialite", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(ctx, `
@@ -474,6 +474,6 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
 			return nil, fmt.Errorf("fusion entreprise_comptes : %w", err)
 		}
-		return map[string]any{"sirens": len(sirens), "comptes": len(lignes)}, tx.Commit(ctx)
+		return map[string]any{"sirens": len(sirens), "comptes": len(rows)}, tx.Commit(ctx)
 	})
 }

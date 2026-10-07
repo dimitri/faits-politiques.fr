@@ -28,15 +28,15 @@ var SourceListeUE = archive.Source{
 
 const listeUEURL = "https://taxation-customs.ec.europa.eu/document/download/3ceac073-5184-46a0-864a-b3038e4d9a6b_en?filename=eu_list_update_17-02-2026.pdf"
 
-// annexeIUE : l'annexe I (liste noire) de chaque version, avec le nombre de
+// euAnnexI : l'annexe I (liste noire) de chaque version, avec le nombre de
 // juridictions que le document annonce. Transcrite à la main : le PDF est une
 // frise graphique dont l'extraction de texte mêle les annexes I et II et les
 // mouvements entre versions ; la vérification du nombre annoncé attrape une
 // ligne oubliée.
-var annexeIUE = []struct {
-	date      string
-	annonce   int
-	juridicts []string
+var euAnnexI = []struct {
+	date          string
+	announced     int
+	jurisdictions []string
 }{
 	{"2017-12-05", 17, []string{"American Samoa", "Bahrain", "Barbados", "Republic of Korea", "United Arab Emirates", "Grenada", "Guam", "Macao SAR", "Marshall Islands", "Mongolia", "Namibia", "Palau", "Panama", "Saint Lucia", "Samoa", "Trinidad and Tobago", "Tunisia"}},
 	{"2018-01-23", 9, []string{"American Samoa", "Bahrain", "Guam", "Marshall Islands", "Namibia", "Palau", "Saint Lucia", "Samoa", "Trinidad and Tobago"}},
@@ -64,24 +64,24 @@ var annexeIUE = []struct {
 }
 
 var (
-	reLigneTableau = regexp.MustCompile(`(?s)<tr>(.*?)</tr>`)
-	reCellule      = regexp.MustCompile(`(?s)<td([^>]*)>(.*?)</td>`)
-	reRowspan      = regexp.MustCompile(`rowspan="(\d+)"`)
-	reBalise       = regexp.MustCompile(`<[^>]+>`)
+	reTableRow = regexp.MustCompile(`(?s)<tr>(.*?)</tr>`)
+	reCell     = regexp.MustCompile(`(?s)<td([^>]*)>(.*?)</td>`)
+	reRowspan  = regexp.MustCompile(`rowspan="(\d+)"`)
+	reTag      = regexp.MustCompile(`<[^>]+>`)
 )
 
-func texteCellule(s string) string {
-	return strings.Join(strings.Fields(html.UnescapeString(reBalise.ReplaceAllString(s, " "))), " ")
+func cellText(s string) string {
+	return strings.Join(strings.Fields(html.UnescapeString(reTag.ReplaceAllString(s, " "))), " ")
 }
 
-// etncDepuisJO lit, dans le corpus du Journal officiel déjà chargé, chaque
+// etncFromJO lit, dans le corpus du Journal officiel déjà chargé, chaque
 // arrêté qui fixe la liste COMPLÈTE des ETNC sous forme de tableau. Deux
 // rédactions : depuis 2020, un tableau à deux colonnes (juridiction, motif),
 // les motifs couvrant plusieurs lignes par rowspan ; en 2010 et 2016, une
 // grille de noms sans en-tête ni motif. Les arrêtés de 2011 à 2015 ne font
 // qu'ajouter ou retirer des noms dans le texte : ces versions ne sont pas
 // reconstituées, pour ne pas publier une liste que le JO n'écrit pas.
-func etncDepuisJO(ctx context.Context, pool *pgxpool.Pool) ([][]any, int, error) {
+func etncFromJO(ctx context.Context, pool *pgxpool.Pool) ([][]any, int, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT t.id, t.date_texte, string_agg(b.contenu, E'\n' ORDER BY b.ordre)
 		FROM jo.texte t JOIN jo.bloc b ON b.texte_id = t.id
@@ -93,64 +93,64 @@ func etncDepuisJO(ctx context.Context, pool *pgxpool.Pool) ([][]any, int, error)
 	}
 	defer rows.Close()
 	var out [][]any
-	arretes := 0
+	rulings := 0
 	for rows.Next() {
 		var id string
 		var date time.Time
-		var contenu string
-		if err := rows.Scan(&id, &date, &contenu); err != nil {
+		var content string
+		if err := rows.Scan(&id, &date, &content); err != nil {
 			return nil, 0, err
 		}
-		i := strings.Index(contenu, "<table")
+		i := strings.Index(content, "<table")
 		if i < 0 {
 			continue
 		}
-		j := strings.Index(contenu[i:], "</table>")
+		j := strings.Index(content[i:], "</table>")
 		if j < 0 {
 			return nil, 0, fmt.Errorf("%s : tableau non fermé", id)
 		}
-		table := contenu[i : i+j]
-		avecMotif := strings.Contains(table, "<th")
-		motif, restant := "", 0
-		vus := map[string]bool{}
-		ajoute := func(nom, motif string) {
-			if nom == "" || vus[nom] {
+		table := content[i : i+j]
+		withReason := strings.Contains(table, "<th")
+		reason, remaining := "", 0
+		seen := map[string]bool{}
+		add := func(name, reason string) {
+			if name == "" || seen[name] {
 				return
 			}
-			vus[nom] = true
-			out = append(out, []any{"ETNC_FR", date, nom, nul(motif), id})
+			seen[name] = true
+			out = append(out, []any{"ETNC_FR", date, name, nullable(reason), id})
 		}
-		for _, tr := range reLigneTableau.FindAllStringSubmatch(table, -1) {
-			cells := reCellule.FindAllStringSubmatch(tr[1], -1)
+		for _, tr := range reTableRow.FindAllStringSubmatch(table, -1) {
+			cells := reCell.FindAllStringSubmatch(tr[1], -1)
 			if len(cells) == 0 {
 				continue // ligne d'en-tête (th)
 			}
-			if !avecMotif {
+			if !withReason {
 				for _, c := range cells {
-					ajoute(texteCellule(c[2]), "")
+					add(cellText(c[2]), "")
 				}
 				continue
 			}
 			if len(cells) >= 2 {
-				motif = texteCellule(cells[1][2])
-				restant = 1
+				reason = cellText(cells[1][2])
+				remaining = 1
 				if m := reRowspan.FindStringSubmatch(cells[1][1]); m != nil {
-					fmt.Sscan(m[1], &restant)
+					fmt.Sscan(m[1], &remaining)
 				}
-			} else if restant <= 0 {
+			} else if remaining <= 0 {
 				return nil, 0, fmt.Errorf("%s : ligne sans motif hors d'un rowspan", id)
 			}
-			restant--
-			ajoute(texteCellule(cells[0][2]), motif)
+			remaining--
+			add(cellText(cells[0][2]), reason)
 		}
-		if len(vus) > 0 {
-			arretes++
+		if len(seen) > 0 {
+			rulings++
 		}
 	}
-	return out, arretes, rows.Err()
+	return out, rulings, rows.Err()
 }
 
-func nul(s string) any {
+func nullable(s string) any {
 	if s == "" {
 		return nil
 	}
@@ -162,30 +162,30 @@ func IngestListes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 	if err := pool.QueryRow(ctx, `SELECT id FROM raw.source WHERE slug = 'jorf'`).Scan(&jorfID); err != nil {
 		return fmt.Errorf("source du corpus JORF introuvable (charger -only=jorf-complet) : %w", err)
 	}
-	return executer(ctx, arch, SourceListeUE, func(srcID, runID int64) (map[string]any, error) {
+	return run(ctx, arch, SourceListeUE, func(srcID, runID int64) (map[string]any, error) {
 		f, err := arch.Fetch(ctx, srcID, runID, listeUEURL, ".pdf")
 		if err != nil {
 			return nil, err
 		}
-		var lignes [][]any
-		for _, v := range annexeIUE {
-			if len(v.juridicts) != v.annonce {
-				return nil, fmt.Errorf("version %s : %d juridictions transcrites pour %d annoncées", v.date, len(v.juridicts), v.annonce)
+		var rows [][]any
+		for _, v := range euAnnexI {
+			if len(v.jurisdictions) != v.announced {
+				return nil, fmt.Errorf("version %s : %d juridictions transcrites pour %d annoncées", v.date, len(v.jurisdictions), v.announced)
 			}
 			d, _ := time.Parse("2006-01-02", v.date)
-			for _, j := range v.juridicts {
-				lignes = append(lignes, []any{"UE_ANNEXE_I", d, j, nil, nil, srcID, f.DocumentID})
+			for _, j := range v.jurisdictions {
+				rows = append(rows, []any{"UE_ANNEXE_I", d, j, nil, nil, srcID, f.DocumentID})
 			}
 		}
-		etnc, arretes, err := etncDepuisJO(ctx, pool)
+		etnc, rulings, err := etncFromJO(ctx, pool)
 		if err != nil {
 			return nil, err
 		}
-		if arretes < 8 {
-			return nil, fmt.Errorf("seulement %d arrêtés ETNC lus dans le corpus du JO", arretes)
+		if rulings < 8 {
+			return nil, fmt.Errorf("seulement %d arrêtés ETNC lus dans le corpus du JO", rulings)
 		}
 		for _, e := range etnc {
-			lignes = append(lignes, append(e, jorfID, nil))
+			rows = append(rows, append(e, jorfID, nil))
 		}
 		tx, err := pool.Begin(ctx)
 		if err != nil {
@@ -201,7 +201,7 @@ func IngestListes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_juridiction_non_cooperative"},
 			[]string{"liste", "version", "juridiction", "motif", "jo_texte_id", "source_id", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(ctx, `
@@ -219,6 +219,6 @@ func IngestListes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
 			return nil, fmt.Errorf("fusion juridiction_non_cooperative : %w", err)
 		}
-		return map[string]any{"versions_ue": len(annexeIUE), "arretes_etnc": arretes, "lignes": len(lignes)}, tx.Commit(ctx)
+		return map[string]any{"versions_ue": len(euAnnexI), "arretes_etnc": rulings, "lignes": len(rows)}, tx.Commit(ctx)
 	})
 }
