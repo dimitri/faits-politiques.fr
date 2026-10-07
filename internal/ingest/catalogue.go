@@ -833,7 +833,7 @@ var catalogue = []Source{
 			if err := communes.IngestCOG(ctx, pool, arch); err != nil {
 				return err
 			}
-			return geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime)
+			return geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGVintage)
 		}},
 	{Nom: "circonscriptions", Categorie: CategorieSysteme, Description: "circonscriptions législatives : contours, communes, indicateurs",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
