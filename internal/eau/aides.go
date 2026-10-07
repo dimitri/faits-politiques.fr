@@ -444,7 +444,7 @@ func loadAndInsert(ctx context.Context, pool *pgxpool.Pool, agency string, entri
 		pgx.CopyFromRows(rows)); err != nil {
 		return fmt.Errorf("%s : %w", agency, err)
 	}
-	err = bulkload.SansContraintesFK(ctx, tx, "core.aide_agence_eau", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.aide_agence_eau", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO aide_agence_eau_scope AS tgt
 			USING tmp_aide_agence_eau AS src

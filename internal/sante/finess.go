@@ -166,7 +166,7 @@ func IngestFiness(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 	// pour l'intégralité des 100 000+ établissements à chaque republication,
 	// changement ou non.
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "ref.finess_etablissement", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "ref.finess_etablissement", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO ref.finess_etablissement AS tgt
 			USING tmp_finess_etablissement AS src

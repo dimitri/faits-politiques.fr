@@ -197,7 +197,7 @@ func IngestSSMSI(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 	// RI pour l'intégralité des 5,2 millions de lignes à chaque
 	// republication annuelle du SSMSI, changement ou non.
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.commune_delinquance", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.commune_delinquance", func() error {
 		ct, err := tx.Exec(ctx, `
 			WITH dedup AS (
 				SELECT DISTINCT ON (commune_code, annee, indicateur_code)

@@ -369,7 +369,7 @@ func extract(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int,
 	// source du MERGE ne peut de toute façon produire que des scrutin_id du
 	// Sénat (via senat_raw.map_scrutin).
 	//
-	// bulkload.SansContraintesFK reste utile malgré tout : sur un tout
+	// bulkload.WithoutFKConstraints reste utile malgré tout : sur un tout
 	// premier chargement (ou une refonte massive de senat_raw), le MERGE
 	// écrirait alors la totalité des lignes, et paierait plein tarif de
 	// triggers RI sans lui.
@@ -378,7 +378,7 @@ func extract(ctx context.Context, pool *pgxpool.Pool, unchanged bool) (int, int,
 		return 0, 0, 0, 0, err
 	}
 	defer tx.Rollback(ctx)
-	if err := bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
+	if err := bulkload.WithoutFKConstraints(ctx, tx, "core.ballot", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO senat_raw.ballot_senat AS tgt
 			USING (

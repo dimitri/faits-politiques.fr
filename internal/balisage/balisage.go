@@ -32,7 +32,7 @@ import (
 // Les balises qui séparent deux idées. Tout le reste — <em>, <span>, <a> —
 // disparaît sans laisser d'espace : `<span>M</span>esdames` doit rendre
 // « Mesdames » et non « M esdames ». Cette erreur-là a été commise, et publiée.
-var blocs = map[string]bool{
+var blockElements = map[string]bool{
 	"p": true, "div": true, "br": true, "li": true, "tr": true, "table": true,
 	"blockquote": true, "h1": true, "h2": true, "h3": true, "h4": true,
 	"h5": true, "h6": true, "ul": true, "ol": true, "section": true,
@@ -40,20 +40,20 @@ var blocs = map[string]bool{
 }
 
 // Les éléments dont le CONTENU n'est pas du texte à lire.
-var muets = map[string]bool{"script": true, "style": true, "head": true}
+var silent = map[string]bool{"script": true, "style": true, "head": true}
 
-var espaces = regexp.MustCompile(`[ \t\x{00a0}]+`)
+var spaces = regexp.MustCompile(`[ \t\x{00a0}]+`)
 
-// Texte rend le contenu textuel d'un fragment balisé, les blocs séparés par
+// Text rend le contenu textuel d'un fragment balisé, les blocs séparés par
 // des retours à la ligne.
-func Texte(fragment string) string {
+func Text(fragment string) string {
 	var b strings.Builder
 	d := xml.NewDecoder(strings.NewReader("<fp-racine>" + fragment + "</fp-racine>"))
 	d.Strict = false
 	d.AutoClose = xml.HTMLAutoClose
 	d.Entity = xml.HTMLEntity
 
-	profondeurMuette := 0
+	silentDepth := 0
 	for {
 		t, err := d.Token()
 		if err != nil {
@@ -61,38 +61,38 @@ func Texte(fragment string) string {
 		}
 		switch v := t.(type) {
 		case xml.StartElement:
-			nom := strings.ToLower(v.Name.Local)
-			if muets[nom] {
-				profondeurMuette++
+			name := strings.ToLower(v.Name.Local)
+			if silent[name] {
+				silentDepth++
 			}
-			if blocs[nom] {
+			if blockElements[name] {
 				b.WriteString("\n")
 			}
 		case xml.EndElement:
-			nom := strings.ToLower(v.Name.Local)
-			if muets[nom] && profondeurMuette > 0 {
-				profondeurMuette--
+			name := strings.ToLower(v.Name.Local)
+			if silent[name] && silentDepth > 0 {
+				silentDepth--
 			}
-			if blocs[nom] {
+			if blockElements[name] {
 				b.WriteString("\n")
 			}
 		case xml.CharData:
-			if profondeurMuette == 0 {
+			if silentDepth == 0 {
 				b.Write(v)
 			}
 		}
 	}
-	return nettoyer(b.String())
+	return clean(b.String())
 }
 
-// nettoyer normalise les blancs sans souder les lignes : les espaces d'une
+// clean normalise les blancs sans souder les lignes : les espaces d'une
 // même ligne sont réduits à un, les lignes vides disparaissent.
-func nettoyer(s string) string {
+func clean(s string) string {
 	s = html.UnescapeString(s)
-	lignes := strings.Split(s, "\n")
-	out := lignes[:0]
-	for _, l := range lignes {
-		l = strings.TrimSpace(espaces.ReplaceAllString(l, " "))
+	lines := strings.Split(s, "\n")
+	out := lines[:0]
+	for _, l := range lines {
+		l = strings.TrimSpace(spaces.ReplaceAllString(l, " "))
 		if l != "" {
 			out = append(out, l)
 		}
@@ -100,8 +100,8 @@ func nettoyer(s string) string {
 	return strings.Join(out, "\n")
 }
 
-// Ligne rend le même texte sur une seule ligne. Pour les champs courts — un
+// Line rend le même texte sur une seule ligne. Pour les champs courts — un
 // intitulé, un motif de déport — où le découpage en blocs n'apporte rien.
-func Ligne(fragment string) string {
-	return strings.Join(strings.Fields(Texte(fragment)), " ")
+func Line(fragment string) string {
+	return strings.Join(strings.Fields(Text(fragment)), " ")
 }

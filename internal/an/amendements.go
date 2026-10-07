@@ -255,7 +255,7 @@ func IngestAmendements(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	// un SELECT séparé, sans dépendre d'un WHEN, reconstruit la carte en
 	// entier.
 	var nMerge int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.amendement", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.amendement", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO amendement_an AS tgt
 			USING tmp_amendement AS src

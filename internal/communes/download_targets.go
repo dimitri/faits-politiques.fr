@@ -15,7 +15,7 @@ import (
 //
 // Ce paquet charge ses 8 sources dans un ordre strictement séquentiel,
 // jamais en parallèle (ref.commune est référencé par tout le reste, et
-// bulkload.SansContraintesFK prend un verrou ACCESS EXCLUSIVE sur les tables
+// bulkload.WithoutFKConstraints prend un verrou ACCESS EXCLUSIVE sur les tables
 // RÉFÉRENCÉES — voir dimensionLocale, internal/ingest/ingest.go) : paralléliser
 // le CHARGEMENT interbloquerait. Mais rien n'empêche de paralléliser la
 // RÉCUPÉRATION, qui ne touche pas la base — seule la mesure le disait : sur un

@@ -151,7 +151,7 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		// RI sur plusieurs centaines de milliers de lignes à chaque
 		// republication des DECP, changement ou non.
 		var affected int64
-		err = bulkload.SansContraintesFK(ctx, tx, "core.marche_numerique", func() error {
+		err = bulkload.WithoutFKConstraints(ctx, tx, "core.marche_numerique", func() error {
 			ct, err := tx.Exec(ctx, `
 				MERGE INTO core.marche_numerique AS tgt
 				USING tmp_marche_numerique AS src

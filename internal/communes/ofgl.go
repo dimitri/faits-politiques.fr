@@ -167,7 +167,7 @@ func IngestOFGL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return fail(fmt.Errorf("copie des indicateurs : %w", err))
 	}
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.commune_indicator", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.commune_indicator", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO commune_indicator_ofgl AS tgt
 			USING tmp_commune_indicator_ofgl AS src

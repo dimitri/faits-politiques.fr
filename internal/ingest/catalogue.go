@@ -260,7 +260,7 @@ var catalogue = []Source{
 	// que le reste du catalogue : ref.commune (communes-cog) est référencé
 	// par tout le reste, donc la chaîne doit rester strictement linéaire
 	// (communes-cog -> communes-rne -> ... -> communes-ssmsi) — Paralléliser
-	// le CHARGEMENT interbloquerait (bulkload.SansContraintesFK prend un
+	// le CHARGEMENT interbloquerait (bulkload.WithoutFKConstraints prend un
 	// verrou ACCESS EXCLUSIVE sur les tables référencées, audit détaillé
 	// conservé en mémoire d'équipe) — mais déclarer la chaîne ICI, dans
 	// Source.Dependances plutôt que dans le corps d'une seule fonction, fait
@@ -580,7 +580,7 @@ var catalogue = []Source{
 	{Nom: "education-personnel-categorie", Categorie: CategorieSocial,
 		Description: "éducation nationale : personnels non enseignants par catégorie précise (direction, CPE, AESH...)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return education.IngestPersonnelCategorie(ctx, pool, arch)
+			return education.IngestStaffCategory(ctx, pool, arch)
 		}},
 	{Nom: "sante", Categorie: CategorieSocial, Description: "FINESS et secteurs conventionnels",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
@@ -867,17 +867,17 @@ var catalogue = []Source{
 	{Nom: "education-depense-eleve", Categorie: CategorieSocial,
 		Description: "dépense par élève et par étudiant, 1980-2024 (RERS 10.05)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return education.IngestDepenseEleve(ctx, pool, arch)
+			return education.IngestStudentSpending(ctx, pool, arch)
 		}},
 	{Nom: "education-effectifs-historique", Categorie: CategorieSocial,
 		Description: "effectifs d'élèves, série longue (RERS 3.01/4.01, 1960-2025)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return education.IngestEffectifsHistorique(ctx, pool, arch)
+			return education.IngestHeadcountHistory(ctx, pool, arch)
 		}},
 	{Nom: "education-bac-reussite", Categorie: CategorieSocial,
 		Description: "taux de réussite au baccalauréat (INSEE, série BDM 001769473)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return education.IngestBacReussite(ctx, pool, arch)
+			return education.IngestBacPassRate(ctx, pool, arch)
 		}},
 	{Nom: "prefets", Categorie: CategorieSysteme, Description: "représentation de l'État dans les départements",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {

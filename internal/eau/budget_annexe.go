@@ -223,7 +223,7 @@ func IngestBudgetAnnexeEau(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("budget_annexe_eau : %w", err))
 	}
-	err = bulkload.SansContraintesFK(ctx, tx, "core.budget_annexe_eau", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.budget_annexe_eau", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO core.budget_annexe_eau AS tgt
 			USING tmp_budget_annexe_eau AS src

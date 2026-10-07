@@ -187,7 +187,7 @@ func extractExpose(path string) (string, bool) {
 	// les remplacer toutes par un séparateur coupait les mots au milieu :
 	// « <span>M</span>esdames » donnait « M esdames », et l'artefact s'est lu
 	// dans le texte publié.
-	t := balisage.Texte(string(b))
+	t := balisage.Text(string(b))
 	// L'espace insécable avant une ponctuation double est correct en français ;
 	// l'espace ordinaire avant une virgule ou un point ne l'est pas.
 	t = reSpaceBefore.ReplaceAllString(t, "$1")

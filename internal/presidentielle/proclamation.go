@@ -190,7 +190,7 @@ func extract(page string) (figures, error) {
 	// Le texte de la page passe par l'analyseur lexical de internal/balisage,
 	// pas par un motif : une décision du Conseil constitutionnel se lit
 	// entièrement ou pas du tout.
-	t := balisage.Ligne(page)
+	t := balisage.Line(page)
 	t = html.UnescapeString(t)
 	t = reSpaces.ReplaceAllString(t, " ")
 
