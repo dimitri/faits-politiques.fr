@@ -28,7 +28,7 @@ var SourceSILL = archive.Source{
 const urlSILL = "https://code.gouv.fr/sill/api/sill.json"
 
 func IngestSILL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, arch, SourceSILL, func(srcID, runID int64) (map[string]any, error) {
+	return run(ctx, arch, SourceSILL, func(srcID, runID int64) (map[string]any, error) {
 		f, err := arch.Fetch(ctx, srcID, runID, urlSILL, ".json")
 		if err != nil {
 			return nil, err
@@ -37,7 +37,7 @@ func IngestSILL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		if err != nil {
 			return nil, err
 		}
-		var logiciels []struct {
+		var software []struct {
 			ID                   int      `json:"id"`
 			Name                 string   `json:"name"`
 			License              string   `json:"license"`
@@ -49,40 +49,40 @@ func IngestSILL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 				IsPresentInSupportContract bool `json:"isPresentInSupportContract"`
 			} `json:"customAttributes"`
 			ServiceProviders []json.RawMessage `json:"serviceProviders"`
-			ParOrganisation  map[string]struct {
+			ByOrganization   map[string]struct {
 				ReferentCount int `json:"referentCount"`
 				UserCount     int `json:"userCount"`
 			} `json:"userAndReferentCountByOrganization"`
 		}
-		if err := json.Unmarshal(b, &logiciels); err != nil {
+		if err := json.Unmarshal(b, &software); err != nil {
 			return nil, err
 		}
 		// Plus de 600 logiciels en 2026 : moins de 300 signalerait un format
 		// changé ou une réponse tronquée.
-		if len(logiciels) < 300 {
-			return nil, fmt.Errorf("%d logiciels seulement", len(logiciels))
+		if len(software) < 300 {
+			return nil, fmt.Errorf("%d logiciels seulement", len(software))
 		}
-		var lignes [][]any
-		publics, support := 0, 0
-		for _, l := range logiciels {
-			util, ref := 0, 0
-			for _, o := range l.ParOrganisation {
-				util += o.UserCount
-				ref += o.ReferentCount
+		var rows [][]any
+		public, support := 0, 0
+		for _, l := range software {
+			users, referents := 0, 0
+			for _, o := range l.ByOrganization {
+				users += o.UserCount
+				referents += o.ReferentCount
 			}
-			var depuis any
+			var since any
 			if l.ReferencedSinceTime > 0 {
-				depuis = time.UnixMilli(l.ReferencedSinceTime).UTC()
+				since = time.UnixMilli(l.ReferencedSinceTime).UTC()
 			}
 			if l.CustomAttributes.IsFromFrenchPublicService {
-				publics++
+				public++
 			}
 			if l.CustomAttributes.IsPresentInSupportContract {
 				support++
 			}
-			lignes = append(lignes, []any{l.ID, l.Name, nul(l.License), depuis, l.IsStillInObservation,
+			rows = append(rows, []any{l.ID, l.Name, nilIfEmpty(l.License), since, l.IsStillInObservation,
 				l.CustomAttributes.IsFromFrenchPublicService, l.CustomAttributes.IsPresentInSupportContract,
-				len(l.ParOrganisation), util, ref, len(l.ServiceProviders), l.Categories, f.DocumentID})
+				len(l.ByOrganization), users, referents, len(l.ServiceProviders), l.Categories, f.DocumentID})
 		}
 		tx, err := pool.Begin(ctx)
 		if err != nil {
@@ -100,7 +100,7 @@ func IngestSILL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_sill_logiciel"},
 			[]string{"id", "nom", "licence", "reference_depuis", "en_observation", "issu_service_public", "contrat_support",
 				"organisations", "utilisateurs", "referents", "prestataires", "categories", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 		// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
@@ -134,7 +134,7 @@ func IngestSILL(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"logiciels": len(lignes), "issus_service_public": publics, "contrat_support": support,
+		return map[string]any{"logiciels": len(rows), "issus_service_public": public, "contrat_support": support,
 			"touchees": ct.RowsAffected()}, tx.Commit(ctx)
 	})
 }

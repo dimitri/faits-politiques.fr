@@ -21,9 +21,9 @@ const urlDECP = "https://www.data.gouv.fr/api/1/datasets/donnees-essentielles-de
 // n'est retenu qu'avec un mot du Cloud : le sigle désigne aussi Avenue Web
 // Systèmes, éditeur de plateformes de marchés publics. Les offres françaises
 // d'hébergement sont reconnues aussi, pour comparer.
-var produits = []struct {
-	nom   string
-	motif *regexp.Regexp
+var products = []struct {
+	name    string
+	pattern *regexp.Regexp
 }{
 	{"Microsoft", regexp.MustCompile(`(?i)\bmicrosoft\b|\bazure\b|office ?365|\bm365\b|\bwindows\b`)},
 	{"Amazon Web Services", regexp.MustCompile(`(?i)amazon web services|\baws\b.*\b(cloud|h[ée]bergement)|\b(cloud|h[ée]bergement)\b.*\baws\b`)},
@@ -44,15 +44,15 @@ var produits = []struct {
 	{"Logiciel libre", regexp.MustCompile(`(?i)logiciels? libres?|\bopen ?source\b|\blinux\b|libre ?office`)},
 }
 
-var reHebergement = regexp.MustCompile(`(?i)\b(cloud|nuage|iaas|paas|saas|h[ée]bergement|datacenter|data ?center|centre de donn[ée]es)\b`)
+var reHosting = regexp.MustCompile(`(?i)\b(cloud|nuage|iaas|paas|saas|h[ée]bergement|datacenter|data ?center|centre de donn[ée]es)\b`)
 
 func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, arch, fiscalite.SourceDECP, func(srcID, runID int64) (map[string]any, error) {
+	return run(ctx, arch, fiscalite.SourceDECP, func(srcID, runID int64) (map[string]any, error) {
 		fiche, err := arch.Fetch(ctx, srcID, runID, urlDECP, ".json")
 		if err != nil {
 			return nil, err
 		}
-		urlCSV, err := ressourceDataGouv(fiche.Path, "decp.csv")
+		urlCSV, err := dataGouvResource(fiche.Path, "decp.csv")
 		if err != nil {
 			return nil, err
 		}
@@ -60,25 +60,25 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		if err != nil {
 			return nil, err
 		}
-		var lignes [][]any
-		vus := map[string]bool{}
-		lus, actuels, nommes := 0, 0, 0
-		err = lireCSVFlux(f.Path, func(col map[string]int, rec []string) error {
-			if lus == 0 {
+		var rows [][]any
+		seen := map[string]bool{}
+		read, current, matched := 0, 0, 0
+		err = readCSVStream(f.Path, func(columns map[string]int, rec []string) error {
+			if read == 0 {
 				for _, c := range []string{"uid", "titulaire_id", "titulaire_typeIdentifiant", "titulaire_nom", "acheteur_id",
 					"acheteur_nom", "acheteur_categorie", "objet", "codeCPV", "nature", "techniques", "dateNotification",
 					"montant", "montant_rationalise", "montant_anomalie", "donneesActuelles"} {
-					if _, ok := col[c]; !ok {
+					if _, ok := columns[c]; !ok {
 						return fmt.Errorf("colonne %q absente", c)
 					}
 				}
 			}
-			lus++
-			v := func(k string) string { return rec[col[k]] }
+			read++
+			v := func(k string) string { return rec[columns[k]] }
 			if v("donneesActuelles") != "true" {
 				return nil
 			}
-			actuels++
+			current++
 			// Logiciels (48), services informatiques (72), matériel informatique
 			// (302 : ordinateurs, périphériques, pièces).
 			cpv := v("codeCPV")
@@ -87,42 +87,42 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			}
 			tid := v("titulaire_id")
 			k := v("uid") + "|" + tid
-			if vus[k] {
+			if seen[k] {
 				return nil
 			}
-			vus[k] = true
+			seen[k] = true
 			ttype := v("titulaire_typeIdentifiant")
 			siren := ""
-			if strings.EqualFold(ttype, "SIRET") && len(tid) >= 9 && estChiffres(tid[:9]) {
+			if strings.EqualFold(ttype, "SIRET") && len(tid) >= 9 && isDigits(tid[:9]) {
 				siren = tid[:9]
 			}
-			objet := v("objet")
-			var produit any
-			for _, p := range produits {
-				if p.motif.MatchString(objet) {
-					produit = p.nom
-					nommes++
+			subject := v("objet")
+			var product any
+			for _, p := range products {
+				if p.pattern.MatchString(subject) {
+					product = p.name
+					matched++
 					break
 				}
 			}
 			// Stockage (72317), hébergement de sites (724, 72415) ou mot du
 			// Cloud dans l'objet.
-			heberge := strings.HasPrefix(cpv, "72317") || strings.HasPrefix(cpv, "724") || reHebergement.MatchString(objet)
+			hosted := strings.HasPrefix(cpv, "72317") || strings.HasPrefix(cpv, "724") || reHosting.MatchString(subject)
 			var date any
 			if d, err := time.Parse("2006-01-02", v("dateNotification")); err == nil {
 				date = d
 			}
-			lignes = append(lignes, []any{v("uid"), tid, nul(ttype), nul(v("titulaire_nom")), nul(siren),
-				nul(v("acheteur_id")), nul(v("acheteur_nom")), nul(v("acheteur_categorie")), nul(objet), cpv,
-				nul(v("nature")), nul(v("techniques")), date, nombre(v("montant")), nombre(v("montant_rationalise")),
-				nul(v("montant_anomalie")), produit, heberge, f.DocumentID})
+			rows = append(rows, []any{v("uid"), tid, nilIfEmpty(ttype), nilIfEmpty(v("titulaire_nom")), nilIfEmpty(siren),
+				nilIfEmpty(v("acheteur_id")), nilIfEmpty(v("acheteur_nom")), nilIfEmpty(v("acheteur_categorie")), nilIfEmpty(subject), cpv,
+				nilIfEmpty(v("nature")), nilIfEmpty(v("techniques")), date, numberOrNil(v("montant")), numberOrNil(v("montant_rationalise")),
+				nilIfEmpty(v("montant_anomalie")), product, hosted, f.DocumentID})
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		if len(lignes) < 50000 {
-			return nil, fmt.Errorf("%d marchés informatiques seulement sur %d marchés actuels", len(lignes), actuels)
+		if len(rows) < 50000 {
+			return nil, fmt.Errorf("%d marchés informatiques seulement sur %d marchés actuels", len(rows), current)
 		}
 		tx, err := pool.Begin(ctx)
 		if err != nil {
@@ -143,14 +143,14 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			[]string{"uid", "titulaire_id", "titulaire_type_id", "titulaire_nom", "siren", "acheteur_id", "acheteur_nom",
 				"acheteur_categorie", "objet", "code_cpv", "nature", "techniques", "date_notification", "montant_eur",
 				"montant_rationalise", "montant_anomalie", "produit_nomme", "hebergement", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 		// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
 		// connecteur en est l'unique propriétaire) payait le prix des triggers
 		// RI sur plusieurs centaines de milliers de lignes à chaque
 		// republication des DECP, changement ou non.
-		var touchees int64
+		var affected int64
 		err = bulkload.SansContraintesFK(ctx, tx, "core.marche_numerique", func() error {
 			ct, err := tx.Exec(ctx, `
 				MERGE INTO core.marche_numerique AS tgt
@@ -189,18 +189,18 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			if err != nil {
 				return err
 			}
-			touchees = ct.RowsAffected()
+			affected = ct.RowsAffected()
 			return nil
 		})
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"lignes_lues": lus, "marches_actuels": actuels, "informatiques": len(lignes),
-			"produit_nomme": nommes, "touchees": touchees}, tx.Commit(ctx)
+		return map[string]any{"lignes_lues": read, "marches_actuels": current, "informatiques": len(rows),
+			"produit_nomme": matched, "touchees": affected}, tx.Commit(ctx)
 	})
 }
 
-func estChiffres(s string) bool {
+func isDigits(s string) bool {
 	for _, r := range s {
 		if r < '0' || r > '9' {
 			return false
@@ -209,7 +209,7 @@ func estChiffres(s string) bool {
 	return true
 }
 
-func nombre(s string) any {
+func numberOrNil(s string) any {
 	s = strings.TrimSpace(s)
 	if s == "" || strings.EqualFold(s, "nan") {
 		return nil
