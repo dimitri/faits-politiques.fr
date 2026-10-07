@@ -6,11 +6,11 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// commandeGenerate : fpctl generate dossiers, fpctl generate bulletin. Les
+// commandGenerate : fpctl generate dossiers, fpctl generate bulletin. Les
 // deux régénèrent, entre des marqueurs, une section précise d'un document
 // docs/*.md à partir de la base — jamais le document en entier, jamais une
 // valeur recopiée à la main.
-func commandeGenerate() *cobra.Command {
+func commandGenerate() *cobra.Command {
 	cmd := &cobra.Command{Use: "generate", Short: "Régénère une section chiffrée d'un document"}
 	cmd.AddCommand(
 		&cobra.Command{
@@ -21,10 +21,10 @@ func commandeGenerate() *cobra.Command {
 				"chaque exécution, le reste du document n'est jamais touché.",
 			DisableFlagParsing: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				if estDemandeAide(args) {
-					return afficherManuel("fpctl-generate")
+				if isHelpRequested(args) {
+					return showManual("fpctl-generate")
 				}
-				return executerInterne(cmd.Context(), dossiersgen.Run(cmd.Context(), args))
+				return runInternal(cmd.Context(), dossiersgen.Run(cmd.Context(), args))
 			},
 		},
 		&cobra.Command{
@@ -34,10 +34,10 @@ func commandeGenerate() *cobra.Command {
 				"vues derived.bulletin_* — même convention de marqueurs.",
 			DisableFlagParsing: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				if estDemandeAide(args) {
-					return afficherManuel("fpctl-generate")
+				if isHelpRequested(args) {
+					return showManual("fpctl-generate")
 				}
-				return executerInterne(cmd.Context(), bulletin.Run(cmd.Context(), args))
+				return runInternal(cmd.Context(), bulletin.Run(cmd.Context(), args))
 			},
 		},
 	)

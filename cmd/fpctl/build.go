@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// commandeBuild : fpctl build site | scrutin | communes | <groupe> | section
+// commandBuild : fpctl build site | scrutin | communes | <groupe> | section
 // <nom> | topic <id>. internal/sitegen (l'ancien binaire séparé fpbuild) est
 // importé directement — un seul binaire, plus de recompilation à la volée
 // ni de second exécutable dans bin/.
@@ -36,10 +36,10 @@ import (
 // groupes ci-dessous en couvrent les plus utiles pour l'itération locale,
 // « section <nom> » atteint n'importe laquelle des autres, « topic <id> »
 // un sujet de campagne en particulier (voir internal/sitegen/sujets.go).
-func commandeBuild() *cobra.Command {
-	var concurrence int
+func commandBuild() *cobra.Command {
+	var concurrency int
 	cmd := &cobra.Command{Use: "build", Short: "Construit le site, ou une section limitée pour itérer localement"}
-	cmd.PersistentFlags().IntVarP(&concurrence, "concurrence", "j", 4,
+	cmd.PersistentFlags().IntVarP(&concurrency, "concurrency", "j", 4,
 		"préalables d'ingestion indépendants exécutés de front")
 	cmd.AddCommand(&cobra.Command{
 		Use:   "site [options]",
@@ -50,10 +50,10 @@ func commandeBuild() *cobra.Command {
 			"n'ont changé — voir « fpctl help build » pour le détail des options.",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if estDemandeAide(args) {
-				return afficherManuel("fpctl-build")
+			if isHelpRequested(args) {
+				return showManual("fpctl-build")
 			}
-			return executerInterne(cmd.Context(), sitegen.Run(cmd.Context(), args))
+			return runInternal(cmd.Context(), sitegen.Run(cmd.Context(), args))
 		},
 	})
 	for _, group := range buildGroups {
@@ -65,7 +65,7 @@ func commandeBuild() *cobra.Command {
 				"nécessiter (idempotent — relancer ne refait pas ce qui est déjà à\n" +
 				"jour), sans reconstruire le reste du site — voir « fpctl help\n" +
 				"build » pour le détail des options (-out, -max-scrutins...).\n" +
-				"-dry-run affiche le plan d'ingestion (vagues, concurrence) sans\n" +
+				"-dry-run affiche le plan d'ingestion (vagues, concurrency) sans\n" +
 				"rien ingérer ni construire. -force ignore les watermarks : ingère\n" +
 				"comme si rien n'avait jamais tourné. -cache saute l'ingestion des\n" +
 				"préalables ENTIÈREMENT et construit directement depuis le schéma mv\n" +
@@ -73,10 +73,10 @@ func commandeBuild() *cobra.Command {
 				"restore », sans repasser par l'ingestion complète.",
 			DisableFlagParsing: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				if estDemandeAide(args) {
-					return afficherManuel("fpctl-build")
+				if isHelpRequested(args) {
+					return showManual("fpctl-build")
 				}
-				return executerInterne(cmd.Context(), buildSection(cmd, group.name, group.sections, args, concurrence))
+				return runInternal(cmd.Context(), buildSection(cmd, group.name, group.sections, args, concurrency))
 			},
 		})
 	}
@@ -93,18 +93,18 @@ func commandeBuild() *cobra.Command {
 		Args:               cobra.ArbitraryArgs,
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if estDemandeAide(args) {
-				return afficherManuel("fpctl-build")
+			if isHelpRequested(args) {
+				return showManual("fpctl-build")
 			}
 			if len(args) == 0 {
 				fmt.Println("sections connues :", strings.Join(sitegen.Sections(), ", "))
 				return nil
 			}
-			nom := args[0]
-			if !slices.Contains(sitegen.Sections(), nom) {
-				return fmt.Errorf("section inconnue : %s (connues : %s)", nom, strings.Join(sitegen.Sections(), ", "))
+			name := args[0]
+			if !slices.Contains(sitegen.Sections(), name) {
+				return fmt.Errorf("section inconnue : %s (connues : %s)", name, strings.Join(sitegen.Sections(), ", "))
 			}
-			return executerInterne(cmd.Context(), buildSection(cmd, nom, []string{nom}, args[1:], concurrence))
+			return runInternal(cmd.Context(), buildSection(cmd, name, []string{name}, args[1:], concurrency))
 		},
 	})
 	cmd.AddCommand(&cobra.Command{
@@ -118,8 +118,8 @@ func commandeBuild() *cobra.Command {
 		Args:               cobra.ArbitraryArgs,
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if estDemandeAide(args) {
-				return afficherManuel("fpctl-build")
+			if isHelpRequested(args) {
+				return showManual("fpctl-build")
 			}
 			if len(args) == 0 {
 				fmt.Println("sujets connus :", strings.Join(sitegen.Topics(), ", "))
@@ -129,7 +129,7 @@ func commandeBuild() *cobra.Command {
 			if !slices.Contains(sitegen.Topics(), id) {
 				return fmt.Errorf("sujet inconnu : %s (connus : %s)", id, strings.Join(sitegen.Topics(), ", "))
 			}
-			return executerInterne(cmd.Context(), buildSection(cmd, id, []string{id}, args[1:], concurrence))
+			return runInternal(cmd.Context(), buildSection(cmd, id, []string{id}, args[1:], concurrency))
 		},
 	})
 	return cmd
@@ -184,7 +184,7 @@ var ingestPrerequisites = map[string][]string{
 // pour ingestPrerequisites ; sections est ce qu'internal/sitegen.RunSections
 // reçoit vraiment (un nom seul, ou la liste que couvre un groupe de
 // buildGroups).
-func buildSection(cmd *cobra.Command, name string, sections []string, args []string, concurrence int) error {
+func buildSection(cmd *cobra.Command, name string, sections []string, args []string, concurrency int) error {
 	prerequisites, ok := ingestPrerequisites[name]
 	if !ok {
 		// Défaut pour une section/un sujet isolé sans préalable déclaré : le
@@ -211,7 +211,7 @@ func buildSection(cmd *cobra.Command, name string, sections []string, args []str
 	// autre drapeau le précédait).
 	dryRun, force, cache := false, false, false
 	{
-		reste := remaining[:0]
+		rest := remaining[:0]
 		for _, a := range remaining {
 			switch a {
 			case "-dry-run", "--dry-run":
@@ -221,10 +221,10 @@ func buildSection(cmd *cobra.Command, name string, sections []string, args []str
 			case "-cache", "--cache":
 				cache = true
 			default:
-				reste = append(reste, a)
+				rest = append(rest, a)
 			}
 		}
-		remaining = reste
+		remaining = rest
 	}
 	ctx := cmd.Context()
 	if force {
@@ -242,7 +242,7 @@ func buildSection(cmd *cobra.Command, name string, sections []string, args []str
 	// c'est ce que la CI utilise pour construire depuis un dump déjà
 	// restauré (fpctl dump restore) sans repasser par l'ingestion complète.
 	if !cache {
-		opts := pipeline.Options{DryRun: dryRun, Concurrency: concurrence}
+		opts := pipeline.Options{DryRun: dryRun, Concurrency: concurrency}
 		if err := ingest.RunSources(ctx, "raw", "db/migrations", prerequisites, opts); err != nil {
 			return fmt.Errorf("préalables (%s) : %w", strings.Join(prerequisites, ", "), err)
 		}

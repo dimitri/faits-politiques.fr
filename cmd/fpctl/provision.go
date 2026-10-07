@@ -7,12 +7,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// commandeProvision : fpctl provision db, fpctl provision store. Les deux
+// commandProvision : fpctl provision db, fpctl provision store. Les deux
 // services locaux dont le développement et la CI ont besoin, démarrés par
 // docker compose (docker-compose.yml) — jamais une réimplémentation de ce
 // que compose fait déjà bien (attendre le healthcheck, réutiliser le
 // conteneur existant, etc.).
-func commandeProvision() *cobra.Command {
+func commandProvision() *cobra.Command {
 	cmd := &cobra.Command{Use: "provision", Short: "Démarre un service local nécessaire au développement ou à la CI"}
 	cmd.AddCommand(
 		&cobra.Command{

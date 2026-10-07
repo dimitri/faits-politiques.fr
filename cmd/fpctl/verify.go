@@ -5,9 +5,9 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// commandeVerify : fpctl verify data. Les contrôles de cohérence des
+// commandVerify : fpctl verify data. Les contrôles de cohérence des
 // données chargées, à rejouer avant toute publication.
-func commandeVerify() *cobra.Command {
+func commandVerify() *cobra.Command {
 	cmd := &cobra.Command{Use: "verify", Short: "Contrôle la cohérence d'une ressource"}
 	cmd.AddCommand(&cobra.Command{
 		Use:   "data",
@@ -23,10 +23,10 @@ func commandeVerify() *cobra.Command {
 			"(fpctl ingest <catégorie> all, catégorie par catégorie).",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			if estDemandeAide(args) {
-				return afficherManuel("fpctl-verify")
+			if isHelpRequested(args) {
+				return showManual("fpctl-verify")
 			}
-			return executerInterne(cmd.Context(), verify.Run(cmd.Context(), args))
+			return runInternal(cmd.Context(), verify.Run(cmd.Context(), args))
 		},
 	})
 	return cmd

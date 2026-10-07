@@ -10,12 +10,12 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// commandeSync : fpctl sync archive, fpctl sync site. Pousse un répertoire
+// commandSync : fpctl sync archive, fpctl sync site. Pousse un répertoire
 // local vers un bucket compatible S3 (voir internal/objectstore) — jamais
 // le chemin de service normal aujourd'hui (le site est servi depuis le
 // disque, l'archive lue depuis raw/), mais ce qu'il faut pour évaluer
 // l'alternative sans improviser un script à chaque fois.
-func commandeSync() *cobra.Command {
+func commandSync() *cobra.Command {
 	cmd := &cobra.Command{Use: "sync", Short: "Envoie un répertoire local vers l'object store"}
 	cmd.AddCommand(
 		&cobra.Command{
@@ -27,10 +27,10 @@ func commandeSync() *cobra.Command {
 				"taille n'est pas renvoyé.",
 			DisableFlagParsing: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				if estDemandeAide(args) {
-					return afficherManuel("fpctl-sync")
+				if isHelpRequested(args) {
+					return showManual("fpctl-sync")
 				}
-				return executerInterne(cmd.Context(), syncVers(cmd.Context(), "archive", "raw", args))
+				return runInternal(cmd.Context(), syncTo(cmd.Context(), "archive", "raw", args))
 			},
 		},
 		&cobra.Command{
@@ -42,20 +42,20 @@ func commandeSync() *cobra.Command {
 				"Storage » à ce que sert aujourd'hui le disque local.",
 			DisableFlagParsing: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				if estDemandeAide(args) {
-					return afficherManuel("fpctl-sync")
+				if isHelpRequested(args) {
+					return showManual("fpctl-sync")
 				}
-				return executerInterne(cmd.Context(), syncVers(cmd.Context(), "site", "site", args))
+				return runInternal(cmd.Context(), syncTo(cmd.Context(), "site", "site", args))
 			},
 		},
 	)
 	return cmd
 }
 
-func syncVers(ctx context.Context, bucketDefaut, racineDefaut string, args []string) error {
+func syncTo(ctx context.Context, defaultBucket, defaultRoot string, args []string) error {
 	fs := flag.NewFlagSet("sync", flag.ContinueOnError)
-	bucket := fs.String("bucket", "fp-"+bucketDefaut, "bucket de destination")
-	racine := fs.String("dir", racineDefaut, "répertoire local à envoyer")
+	bucket := fs.String("bucket", "fp-"+defaultBucket, "bucket de destination")
+	root := fs.String("dir", defaultRoot, "répertoire local à envoyer")
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
@@ -68,11 +68,11 @@ func syncVers(ctx context.Context, bucketDefaut, racineDefaut string, args []str
 	// -j, aucune étape à distinguer) : un seul repère avant, un seul
 	// résultat après — sans lui, une synchronisation de plusieurs milliers
 	// de fichiers reste muette jusqu'à la fin.
-	logs.Notice(fmt.Sprintf("syncing %s to object store bucket %s", *racine, *bucket))
-	n, octets, err := objectstore.SyncDir(ctx, c, *bucket, *racine)
+	logs.Notice(fmt.Sprintf("syncing %s to object store bucket %s", *root, *bucket))
+	n, bytes, err := objectstore.SyncDir(ctx, c, *bucket, *root)
 	if err != nil {
 		return err
 	}
-	logs.Notice(fmt.Sprintf("%s -> %s: %s sent (%.1f MB)", *racine, *bucket, logs.Plural(n, "object"), float64(octets)/1e6))
+	logs.Notice(fmt.Sprintf("%s -> %s: %s sent (%.1f MB)", *root, *bucket, logs.Plural(n, "object"), float64(bytes)/1e6))
 	return nil
 }
