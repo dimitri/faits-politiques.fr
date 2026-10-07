@@ -27,14 +27,14 @@ import (
 func DownloadTargets() []archive.DownloadTarget {
 	var out []archive.DownloadTarget
 
-	for _, m := range MillesimesCOG {
+	for _, m := range COGVintages {
 		out = append(out,
-			archive.DownloadTarget{Nom: fmt.Sprintf("communes-cog-communes-%d", m.Annee), Source: SourceCOG, URL: m.CommunesURL, Ext: ".csv"},
-			archive.DownloadTarget{Nom: fmt.Sprintf("communes-cog-mouvements-%d", m.Annee), Source: SourceCOG, URL: m.MvtURL, Ext: ".csv"},
+			archive.DownloadTarget{Nom: fmt.Sprintf("communes-cog-communes-%d", m.Year), Source: SourceCOG, URL: m.CommunesURL, Ext: ".csv"},
+			archive.DownloadTarget{Nom: fmt.Sprintf("communes-cog-mouvements-%d", m.Year), Source: SourceCOG, URL: m.MvtURL, Ext: ".csv"},
 		)
 	}
 
-	for i, f := range rneFichiers {
+	for i, f := range rneFiles {
 		out = append(out, archive.DownloadTarget{
 			Nom: fmt.Sprintf("communes-rne-%d", i), Source: SourceRNE, URL: f.url, Ext: ".csv",
 		})
@@ -47,7 +47,7 @@ func DownloadTargets() []archive.DownloadTarget {
 		archive.DownloadTarget{Nom: "communes-municipales2020-t2", Source: SourceMunicipales2020, URL: m2020T2URL, Ext: ".txt"},
 	)
 
-	for ex := ofglPremierExercice; ex <= ofglDernierExercice; ex++ {
+	for ex := ofglFirstFiscalYear; ex <= ofglLastFiscalYear; ex++ {
 		out = append(out, archive.DownloadTarget{
 			Nom: fmt.Sprintf("communes-ofgl-%d", ex), Source: SourceOFGL, URL: ofglURL(ex), Ext: ".csv",
 		})
@@ -56,11 +56,11 @@ func DownloadTargets() []archive.DownloadTarget {
 	out = append(out,
 		archive.DownloadTarget{Nom: "communes-banatic-competences", Source: SourceBANATIC, URL: banaticCompetenceURL, Ext: ".json"},
 		archive.DownloadTarget{Nom: "communes-banatic-export", Source: SourceBANATIC, URL: banaticExportURL, Ext: ".xlsx"},
-		archive.DownloadTarget{Nom: "communes-banatic-correspondance-siren", Source: SourceBANATIC, URL: banaticCorrespondanceSirenURL(), Ext: ".csv"},
+		archive.DownloadTarget{Nom: "communes-banatic-correspondance-siren", Source: SourceBANATIC, URL: banaticSirenMappingURL(), Ext: ".csv"},
 	)
 
 	for _, n := range niveaux {
-		for ex := ofglPremierExercice; ex <= ofglDernierExercice; ex++ {
+		for ex := ofglFirstFiscalYear; ex <= ofglLastFiscalYear; ex++ {
 			out = append(out, archive.DownloadTarget{
 				Nom: fmt.Sprintf("communes-collectivites-%s-%d", n.niveau, ex), Source: SourceOFGL, URL: collectivitesURL(n, ex), Ext: ".csv",
 			})

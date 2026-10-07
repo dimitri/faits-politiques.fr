@@ -31,15 +31,15 @@ var SourceEuropeGuerre1940 = archive.Source{
 		"données source, pas de ce chargement.",
 }
 
-// dateReferenceEurope1940 : voir SourceEuropeGuerre1940.Notes pour le choix
+// referenceDateEurope1940 : voir SourceEuropeGuerre1940.Notes pour le choix
 // de cette date précise.
-const dateReferenceEurope1940 = "1940-09-01"
+const referenceDateEurope1940 = "1940-09-01"
 
-// paysEurope1940 : nom d'affichage (français, vérifié un par un) associé au
+// countriesEurope1940 : nom d'affichage (français, vérifié un par un) associé au
 // nom CShapes (cntry_name, anglais) — la clé de recherche dans le CSV.
 // L'ex-Tchécoslovaquie et l'ex-Yougoslavie sont incluses telles quelles
 // (CShapes ne les subdivise pas pour cette période, voir Notes ci-dessus).
-var paysEurope1940 = map[string]string{
+var countriesEurope1940 = map[string]string{
 	"Germany (Prussia)":     "Allemagne",
 	"Poland":                "Pologne",
 	"Italy/Sardinia":        "Italie",
@@ -68,7 +68,7 @@ var paysEurope1940 = map[string]string{
 
 // IngestEuropeGuerre1940 charge, depuis le même CSV CShapes 2.0 que l'empire
 // colonial (urlCShapes, empire_colonial.go), la géométrie de chaque pays de
-// paysEurope1940 valide à dateReferenceEurope1940 — une ligne par pays dont
+// countriesEurope1940 valide à referenceDateEurope1940 — une ligne par pays dont
 // la période [gwsdate, gwedate] couvre cette date. Voir
 // docs/seconde-guerre-mondiale-donnees.md.
 func IngestEuropeGuerre1940(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
@@ -95,7 +95,7 @@ func IngestEuropeGuerre1940(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	}
 	defer file.Close()
 
-	ref, err := time.Parse("2006-01-02", dateReferenceEurope1940)
+	ref, err := time.Parse("2006-01-02", referenceDateEurope1940)
 	if err != nil {
 		return fail(err)
 	}
@@ -119,7 +119,7 @@ func IngestEuropeGuerre1940(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return time.Parse("2006-1-2", fmt.Sprintf("%s-%s-%s", rec[col[yCol]], rec[col[mCol]], rec[col[dCol]]))
 	}
 
-	geomParPays := map[string]string{}
+	geometryByCountry := map[string]string{}
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {
@@ -128,31 +128,31 @@ func IngestEuropeGuerre1940(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		if err != nil {
 			return fail(fmt.Errorf("ligne CShapes illisible : %w", err))
 		}
-		nom := rec[col["cntry_name"]]
-		if _, voulu := paysEurope1940[nom]; !voulu {
+		name := rec[col["cntry_name"]]
+		if _, wanted := countriesEurope1940[name]; !wanted {
 			continue
 		}
-		debut, err := date(rec, "gwsyear", "gwsmonth", "gwsday")
+		start, err := date(rec, "gwsyear", "gwsmonth", "gwsday")
 		if err != nil {
 			continue
 		}
-		fin, err := date(rec, "gweyear", "gwemonth", "gweday")
+		end, err := date(rec, "gweyear", "gwemonth", "gweday")
 		if err != nil {
 			continue
 		}
-		if (debut.Before(ref) || debut.Equal(ref)) && (fin.After(ref) || fin.Equal(ref)) {
-			geomParPays[nom] = rec[col["the_geom"]]
+		if (start.Before(ref) || start.Equal(ref)) && (end.After(ref) || end.Equal(ref)) {
+			geometryByCountry[name] = rec[col["the_geom"]]
 		}
 	}
 
-	var manquants []string
-	for nomEn := range paysEurope1940 {
-		if _, ok := geomParPays[nomEn]; !ok {
-			manquants = append(manquants, nomEn)
+	var missing []string
+	for nameEn := range countriesEurope1940 {
+		if _, ok := geometryByCountry[nameEn]; !ok {
+			missing = append(missing, nameEn)
 		}
 	}
-	if len(manquants) > 0 {
-		return fail(fmt.Errorf("aucune géométrie CShapes au %s pour : %v", dateReferenceEurope1940, manquants))
+	if len(missing) > 0 {
+		return fail(fmt.Errorf("aucune géométrie CShapes au %s pour : %v", referenceDateEurope1940, missing))
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -163,19 +163,19 @@ func IngestEuropeGuerre1940(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	if _, err := tx.Exec(ctx, `DELETE FROM geo.contour_europe_1940`); err != nil {
 		return fail(err)
 	}
-	for nomEn, nomFr := range paysEurope1940 {
+	for nameEn, nameFr := range countriesEurope1940 {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO geo.contour_europe_1940 (nom, nom_en, geom, source_id)
 			VALUES ($1, $2, st_multi(st_geomfromewkt($3)), $4)`,
-			nomFr, nomEn, geomParPays[nomEn], srcID); err != nil {
-			return fail(fmt.Errorf("%s : %w", nomFr, err))
+			nameFr, nameEn, geometryByCountry[nameEn], srcID); err != nil {
+			return fail(fmt.Errorf("%s : %w", nameFr, err))
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	fmt.Printf("  Europe au %s (CShapes 2.0) : %d pays\n", dateReferenceEurope1940, len(paysEurope1940))
-	arch.EndRun(ctx, runID, "OK", map[string]any{"pays": len(paysEurope1940)}, "")
+	fmt.Printf("  Europe au %s (CShapes 2.0) : %d pays\n", referenceDateEurope1940, len(countriesEurope1940))
+	arch.EndRun(ctx, runID, "OK", map[string]any{"pays": len(countriesEurope1940)}, "")
 	return nil
 }

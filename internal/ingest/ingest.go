@@ -654,7 +654,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		Nom: "geo-courant", Description: "IGN boundaries by vintage",
 		Dependances: []string{"communes-cog"},
 		Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
-			return nil, geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime)
+			return nil, geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGVintage)
 		},
 	})
 	if err := ajouter("checksums", reg.Noms()); err != nil {

@@ -21,36 +21,36 @@ import (
 // Une cible absente du cache, ou dont le fichier local a disparu de mediaDir,
 // est toujours résolue en direct : le cache ne fait QUE sauter un appel
 // réseau déjà fait avec succès, il ne invente jamais un résultat.
-type entreeCache struct {
+type cacheEntry struct {
 	// Positif : un fichier a été retenu.
-	Nom, SourceURL, Licence, LicenceCode, Auteur string
-	URL                                          string
-	Largeur, Hauteur                             int
-	Local                                        string
+	Name, SourceURL, Licence, LicenceCode, Author string
+	URL                                           string
+	Width, Height                                 int
+	Local                                         string
 	// Négatif : écarté faute de licence libre (ou aucune image). Mis en
 	// cache aussi — reposer la même question à Wikimédia à chaque run pour
 	// une réponse qui ne change pour ainsi dire jamais coûterait le même
 	// aller-retour rate-limité qu'un cas positif, pour rien.
-	Rejete bool
-	Raison string
+	Rejected bool
+	Reason   string
 }
 
 type cache struct {
 	// Entries, exporté : encoding/json a besoin d'un champ exporté pour
 	// sérialiser ; le reste du paquet continue de passer par cache, jamais
 	// directement par ce champ.
-	Entries map[string]entreeCache
+	Entries map[string]cacheEntry
 }
 
-func cleCache(pageFR, kind string) string { return kind + "|" + pageFR }
+func cacheKey(pageFR, kind string) string { return kind + "|" + pageFR }
 
-// chargerCache : un cache absent (premier run, ou fichier jamais créé) n'est
+// loadCache : un cache absent (premier run, ou fichier jamais créé) n'est
 // pas une erreur — juste un cache vide, qui résout tout en direct une
 // première fois.
-func chargerCache(path string) (cache, error) {
+func loadCache(path string) (cache, error) {
 	b, err := os.ReadFile(path)
 	if os.IsNotExist(err) {
-		return cache{Entries: map[string]entreeCache{}}, nil
+		return cache{Entries: map[string]cacheEntry{}}, nil
 	}
 	if err != nil {
 		return cache{}, err
@@ -60,16 +60,16 @@ func chargerCache(path string) (cache, error) {
 		return cache{}, err
 	}
 	if c.Entries == nil {
-		c.Entries = map[string]entreeCache{}
+		c.Entries = map[string]cacheEntry{}
 	}
 	return c, nil
 }
 
-// sauvegarder : encoding/json trie déjà les clés d'une map par ordre
+// save : encoding/json trie déjà les clés d'une map par ordre
 // alphabétique — un diff git lisible quand une seule cible change, plutôt
 // qu'un fichier réécrit dans un ordre non déterministe à chaque run, sans
 // qu'il soit besoin de le refaire à la main ici.
-func (c cache) sauvegarder(path string) error {
+func (c cache) save(path string) error {
 	b, err := json.MarshalIndent(c, "", "  ")
 	if err != nil {
 		return err

@@ -23,7 +23,7 @@ var SourceCoursEauMonde = archive.Source{
 
 const urlCoursEauMonde = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_rivers_lake_centerlines.geojson"
 
-type coursEauFeature struct {
+type riverFeature struct {
 	Properties struct {
 		Name   string `json:"name"`
 		NameEn string `json:"name_en"`
@@ -58,7 +58,7 @@ func IngestCoursEauMonde(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(err)
 	}
 	var doc struct {
-		Features []coursEauFeature `json:"features"`
+		Features []riverFeature `json:"features"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return fail(fmt.Errorf("GeoJSON illisible : %w", err))
@@ -73,14 +73,14 @@ func IngestCoursEauMonde(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		if len(ft.Geometry) == 0 || string(ft.Geometry) == "null" {
 			continue // quelques lacs sans tracé (centerline non calculée) : ignorés, pas une erreur
 		}
-		var nom, nomEn any
+		var name, nameEn any
 		if p.Name != "" {
-			nom = p.Name
+			name = p.Name
 		}
 		if p.NameEn != "" {
-			nomEn = p.NameEn
+			nameEn = p.NameEn
 		}
-		rows = append(rows, []any{nom, nomEn, string(ft.Geometry), srcID})
+		rows = append(rows, []any{name, nameEn, string(ft.Geometry), srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("aucune géométrie exploitable"))

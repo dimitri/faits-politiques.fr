@@ -102,15 +102,15 @@ func NormalizeElus(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 
-	var actes, elus, ambigus int
+	var acts, officials, ambiguous int
 	if err := pool.QueryRow(ctx, `
 		SELECT count(DISTINCT texte_id), count(DISTINCT person_id),
 		       count(*) FILTER (WHERE homonymes > 1)
-		  FROM jo.acte_elu`).Scan(&actes, &elus, &ambigus); err != nil {
+		  FROM jo.acte_elu`).Scan(&acts, &officials, &ambiguous); err != nil {
 		return err
 	}
 	logs.Notice(fmt.Sprintf("recognition: %s, %s, %s, %s",
-		logs.Plural(int(r2.RowsAffected()), "mention"), logs.Plural(actes, "act"),
-		logs.Plural(elus, "official mentioned"), logs.Plural(ambigus, "ambiguous mention")))
+		logs.Plural(int(r2.RowsAffected()), "mention"), logs.Plural(acts, "act"),
+		logs.Plural(officials, "official mentioned"), logs.Plural(ambiguous, "ambiguous mention")))
 	return nil
 }

@@ -75,19 +75,19 @@ var (
 	reBlancs = regexp.MustCompile(`\s+`)
 )
 
-type texteJO struct {
-	ID        string `xml:"ID"`
-	Nature    string `xml:"NATURE"`
-	Num       string `xml:"NUM"`
-	NOR       string `xml:"NOR"`
-	DatePubli string `xml:"DATE_PUBLI"`
-	DateTexte string `xml:"DATE_TEXTE"`
-	Titre     string `xml:"TITRE"`
-	TitreFull string `xml:"TITREFULL"`
-	Ministere string `xml:"MINISTERE"`
+type joText struct {
+	ID              string `xml:"ID"`
+	Nature          string `xml:"NATURE"`
+	Num             string `xml:"NUM"`
+	NOR             string `xml:"NOR"`
+	PublicationDate string `xml:"DATE_PUBLI"`
+	TextDate        string `xml:"DATE_TEXTE"`
+	Title           string `xml:"TITRE"`
+	FullTitle       string `xml:"TITREFULL"`
+	Ministry        string `xml:"MINISTERE"`
 	// Le numéro du Journal officiel où l'acte a paru : « JORF n°0117 du 18 mai
 	// 2017 ». C'est le lien vers le sommaire, et la référence qui fait foi.
-	OriginePubli string `xml:"ORIGINE_PUBLI"`
+	PublicationOrigin string `xml:"ORIGINE_PUBLI"`
 	// Le corps n'est PAS décodé par un champ de cette structure, et ce n'est pas
 	// un oubli : <BLOC_TEXTUEL> ne se trouve pas à la même profondeur selon la
 	// publication. Les livraisons quotidiennes le placent directement sous
@@ -95,14 +95,14 @@ type texteJO struct {
 	// marchait donc sur les quatre décrets récents et rendait vide les deux cents
 	// autres — sans erreur, puisqu'un texte sans corps est un cas possible.
 	//
-	// Le corps est collecté par corps(), qui PARCOURT le document et prend tous
-	// les <BLOC_TEXTUEL><CONTENU> où qu'ils soient.
+	// Le corps est collecté par readBody(), qui PARCOURT le document et prend
+	// tous les <BLOC_TEXTUEL><CONTENU> où qu'ils soient.
 }
 
 // Ingest charge les N archives les plus récentes. Le dump complet fait un
 // gigaoctet et couvre 1970-2025 ; il se charge à part, par le même chemin, une
 // fois qu'on aura décidé jusqu'où remonter.
-func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, nbArchives int) error {
+func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, archiveCount int) error {
 	srcID, err := arch.EnsureSource(ctx, Source)
 	if err != nil {
 		return err
@@ -120,66 +120,66 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, nbAr
 	if err != nil {
 		return fail(err)
 	}
-	noms, err := listerArchives(fIndex.Path)
+	names, err := listArchives(fIndex.Path)
 	if err != nil {
 		return fail(err)
 	}
-	if len(noms) == 0 {
+	if len(names) == 0 {
 		return fail(fmt.Errorf("aucune archive listée : le format de l'index a changé"))
 	}
 	// Les plus récentes d'abord.
-	sort.Sort(sort.Reverse(sort.StringSlice(noms)))
-	if nbArchives > 0 && nbArchives < len(noms) {
-		noms = noms[:nbArchives]
+	sort.Sort(sort.Reverse(sort.StringSlice(names)))
+	if archiveCount > 0 && archiveCount < len(names) {
+		names = names[:archiveCount]
 	}
 
-	var b bilan
-	for _, nom := range noms {
-		f, err := arch.Fetch(ctx, srcID, runID, indexURL+nom, ".tar.gz")
+	var b summary
+	for _, name := range names {
+		f, err := arch.Fetch(ctx, srcID, runID, indexURL+name, ".tar.gz")
 		if err != nil {
-			return fail(fmt.Errorf("%s : %w", nom, err))
+			return fail(fmt.Errorf("%s : %w", name, err))
 		}
-		if err := chargerArchive(ctx, pool, f.Path, srcID, &b); err != nil {
-			return fail(fmt.Errorf("%s : %w", nom, err))
+		if err := loadArchive(ctx, pool, f.Path, srcID, &b); err != nil {
+			return fail(fmt.Errorf("%s : %w", name, err))
 		}
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"archives": len(noms), "fichiers": b.fichiers, "decodes": b.decodes,
-		"echecs": b.echecs, "sans_id": b.sansID, "actes": b.actes,
-		"nominatifs": b.nominatifs, "mentions": b.mentions}, "")
+		"archives": len(names), "fichiers": b.files, "decodes": b.decoded,
+		"echecs": b.failed, "sans_id": b.withoutID, "actes": b.acts,
+		"nominatifs": b.nominative, "mentions": b.mentions}, "")
 	logs.Notice(fmt.Sprintf("JORF: %s, %s, %s decoded (%d failed, %d without an ID)",
-		logs.Plural(len(noms), "archive"), logs.Plural(b.fichiers, "file"), logs.Plural(b.decodes, "file"),
-		b.echecs, b.sansID))
+		logs.Plural(len(names), "archive"), logs.Plural(b.files, "file"), logs.Plural(b.decoded, "file"),
+		b.failed, b.withoutID))
 	logs.Notice(fmt.Sprintf("JORF: %s, of which %d nominative, %s",
-		logs.Plural(b.actes, "act"), b.nominatifs, logs.Plural(b.mentions, "person mentioned")))
+		logs.Plural(b.acts, "act"), b.nominative, logs.Plural(b.mentions, "person mentioned")))
 	return nil
 }
 
-// bilan compte ce qui entre et ce qui est écarté. Un fichier ignoré en
+// summary compte ce qui entre et ce qui est écarté. Un fichier ignoré en
 // silence est la pire des pannes : la première version de ce connecteur a
 // rendu « 1 349 actes » sur 60 archives qui en contenaient huit fois plus,
 // sans le moindre message.
-type bilan struct {
-	fichiers, decodes, echecs, sansID, actes, nominatifs, mentions int
+type summary struct {
+	files, decoded, failed, withoutID, acts, nominative, mentions int
 }
 
-// ligneActe et ligneMention portent une ligne le temps de la COPY groupée :
+// actRow et mentionRow portent une ligne le temps de la COPY groupée :
 // tout un tar.gz est décodé en mémoire (quelques milliers de textes, jamais
 // le gigaoctet du dump complet à la fois — un seul .tar.gz à la fois) avant
 // une poignée d'allers-retours à la base plutôt qu'un par fichier.
-type ligneActe struct {
-	id, nature, numero, nor, titre, titreComplet, ministere, contenu string
-	datePubli, dateTexte                                             any
-	nominatif                                                        bool
+type actRow struct {
+	id, nature, number, nor, title, fullTitle, ministry, content string
+	publicationDate, textDate                                    any
+	nominative                                                   bool
 }
 
-type ligneMention struct {
-	acteID, nom, prenom, contexte, origine string
+type mentionRow struct {
+	actID, name, firstName, context, origin string
 }
 
-func chargerArchive(ctx context.Context, pool *pgxpool.Pool, chemin string, srcID int64, b *bilan) error {
-	fh, err := os.Open(chemin)
+func loadArchive(ctx context.Context, pool *pgxpool.Pool, path string, srcID int64, b *summary) error {
+	fh, err := os.Open(path)
 	if err != nil {
 		return err
 	}
@@ -190,9 +190,9 @@ func chargerArchive(ctx context.Context, pool *pgxpool.Pool, chemin string, srcI
 	}
 	defer gz.Close()
 
-	var actes []ligneActe
-	var nominatifs []string
-	var mentions []ligneMention
+	var acts []actRow
+	var nominativeIDs []string
+	var mentions []mentionRow
 
 	tr := tar.NewReader(gz)
 	for {
@@ -213,58 +213,58 @@ func chargerArchive(ctx context.Context, pool *pgxpool.Pool, chemin string, srcI
 		if err != nil {
 			return fmt.Errorf("lecture de %s : %w", h.Name, err)
 		}
-		b.fichiers++
-		t, err := decoder(raw)
+		b.files++
+		t, err := decode(raw)
 		if err != nil {
-			b.echecs++
+			b.failed++
 			continue
 		}
 		if t.ID == "" {
-			b.sansID++
+			b.withoutID++
 			continue
 		}
-		b.decodes++
+		b.decoded++
 
-		contenu := corps(raw)
-		nominatif := reNominatif.MatchString(t.TitreFull) || reNominatif.MatchString(t.Titre)
+		content := readBody(raw)
+		nominative := reNominatif.MatchString(t.FullTitle) || reNominatif.MatchString(t.Title)
 
-		la := ligneActe{
-			id: t.ID, nominatif: nominatif,
-			datePubli: dateJO(t.DatePubli), dateTexte: dateJO(t.DateTexte),
+		row := actRow{
+			id: t.ID, nominative: nominative,
+			publicationDate: dateJO(t.PublicationDate), textDate: dateJO(t.TextDate),
 		}
-		if v := nul(t.Nature); v != nil {
-			la.nature = v.(string)
+		if v := nullIfEmpty(t.Nature); v != nil {
+			row.nature = v.(string)
 		}
-		if v := nul(t.Num); v != nil {
-			la.numero = v.(string)
+		if v := nullIfEmpty(t.Num); v != nil {
+			row.number = v.(string)
 		}
-		if v := nul(t.NOR); v != nil {
-			la.nor = v.(string)
+		if v := nullIfEmpty(t.NOR); v != nil {
+			row.nor = v.(string)
 		}
-		if v := nul(t.Titre); v != nil {
-			la.titre = v.(string)
+		if v := nullIfEmpty(t.Title); v != nil {
+			row.title = v.(string)
 		}
-		if v := nul(t.TitreFull); v != nil {
-			la.titreComplet = v.(string)
+		if v := nullIfEmpty(t.FullTitle); v != nil {
+			row.fullTitle = v.(string)
 		}
-		if v := nul(t.Ministere); v != nil {
-			la.ministere = v.(string)
+		if v := nullIfEmpty(t.Ministry); v != nil {
+			row.ministry = v.(string)
 		}
-		if v := nul(contenu); v != nil {
-			la.contenu = v.(string)
+		if v := nullIfEmpty(content); v != nil {
+			row.content = v.(string)
 		}
-		actes = append(actes, la)
-		b.actes++
-		if !nominatif {
+		acts = append(acts, row)
+		b.acts++
+		if !nominative {
 			continue
 		}
-		b.nominatifs++
-		nominatifs = append(nominatifs, t.ID)
-		for _, m := range extraireMentions(t.TitreFull, contenu) {
-			if m.nom == "" {
+		b.nominative++
+		nominativeIDs = append(nominativeIDs, t.ID)
+		for _, m := range extractMentions(t.FullTitle, content) {
+			if m.name == "" {
 				continue
 			}
-			mentions = append(mentions, ligneMention{t.ID, m.nom, m.prenom, m.contexte, m.origine})
+			mentions = append(mentions, mentionRow{t.ID, m.name, m.firstName, m.context, m.origin})
 		}
 	}
 
@@ -274,10 +274,10 @@ func chargerArchive(ctx context.Context, pool *pgxpool.Pool, chemin string, srcI
 	}
 	defer tx.Rollback(ctx)
 
-	if err := copierActes(ctx, tx, actes, srcID); err != nil {
+	if err := copyActs(ctx, tx, acts, srcID); err != nil {
 		return err
 	}
-	n, err := copierMentions(ctx, tx, mentions, nominatifs)
+	n, err := copyMentions(ctx, tx, mentions, nominativeIDs)
 	if err != nil {
 		return err
 	}
@@ -286,9 +286,9 @@ func chargerArchive(ctx context.Context, pool *pgxpool.Pool, chemin string, srcI
 	return tx.Commit(ctx)
 }
 
-// copierActes charge les textes du JO. Upsert : les archives incrémentales
+// copyActs charge les textes du JO. Upsert : les archives incrémentales
 // rééditent des fiches anciennes.
-func copierActes(ctx context.Context, tx pgx.Tx, actes []ligneActe, srcID int64) error {
+func copyActs(ctx context.Context, tx pgx.Tx, acts []actRow, srcID int64) error {
 	// date_publi/date_texte restent du texte dans la table temporaire, casté en
 	// ::date au SELECT : le protocole binaire de CopyFrom exige un type Go
 	// concordant pour une colonne "date" (time.Time), pas une chaîne — la même
@@ -300,10 +300,10 @@ func copierActes(ctx context.Context, tx pgx.Tx, actes []ligneActe, srcID int64)
 		) ON COMMIT DROP`); err != nil {
 		return err
 	}
-	rows := make([][]any, len(actes))
-	for i, a := range actes {
-		rows[i] = []any{a.id, ntext(a.nature), ntext(a.numero), ntext(a.nor), a.datePubli, a.dateTexte,
-			ntext(a.titre), ntext(a.titreComplet), ntext(a.ministere), ntext(a.contenu), a.nominatif}
+	rows := make([][]any, len(acts))
+	for i, a := range acts {
+		rows[i] = []any{a.id, ntext(a.nature), ntext(a.number), ntext(a.nor), a.publicationDate, a.textDate,
+			ntext(a.title), ntext(a.fullTitle), ntext(a.ministry), ntext(a.content), a.nominative}
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_acte_jo"},
 		[]string{"id", "nature", "numero", "nor", "date_publi", "date_texte", "titre",
@@ -334,7 +334,7 @@ func ntext(s string) any {
 	return s
 }
 
-// copierMentions qualifie chaque personne citée sans jamais décider seule du
+// copyMentions qualifie chaque personne citée sans jamais décider seule du
 // rattachement, exactement comme l'ancienne version ligne à ligne — mais le
 // rapprochement (nom, prénom) -> core.person se fait en UNE requête pour
 // tout l'archive plutôt qu'une par mention : les mentions partagent
@@ -349,19 +349,19 @@ func ntext(s string) any {
 // existent (acte_id/nom/prenom/origine/contexte identiques) — rang fixe la
 // position d'apparition dans l'acte (migration 0187), la même logique que
 // core.declaration_item (HATVP).
-func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention, nominatifs []string) (int, error) {
+func copyMentions(ctx context.Context, tx pgx.Tx, mentions []mentionRow, nominativeIDs []string) (int, error) {
 	if len(mentions) == 0 {
 		return 0, nil
 	}
 
-	type cleNom struct{ nom, prenom string }
-	noms := map[cleNom]bool{}
+	type nameKey struct{ name, firstName string }
+	keys := map[nameKey]bool{}
 	for _, m := range mentions {
-		noms[cleNom{m.nom, m.prenom}] = true
+		keys[nameKey{m.name, m.firstName}] = true
 	}
-	nomRows := make([][]any, 0, len(noms))
-	for c := range noms {
-		nomRows = append(nomRows, []any{c.nom, c.prenom})
+	nameRows := make([][]any, 0, len(keys))
+	for c := range keys {
+		nameRows = append(nameRows, []any{c.name, c.firstName})
 	}
 
 	if _, err := tx.Exec(ctx,
@@ -369,7 +369,7 @@ func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention, nom
 		return 0, err
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_nom_mention"}, []string{"nom", "prenom"},
-		pgx.CopyFromRows(nomRows)); err != nil {
+		pgx.CopyFromRows(nameRows)); err != nil {
 		return 0, err
 	}
 	// LATERAL + LIMIT 50 reproduit exactement le comportement ligne à ligne :
@@ -388,40 +388,40 @@ func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention, nom
 	if err != nil {
 		return 0, err
 	}
-	resolu := map[cleNom][]int64{}
+	resolved := map[nameKey][]int64{}
 	for rows.Next() {
-		var nom, prenom string
+		var name, firstName string
 		var ids []int64
-		if err := rows.Scan(&nom, &prenom, &ids); err != nil {
+		if err := rows.Scan(&name, &firstName, &ids); err != nil {
 			rows.Close()
 			return 0, err
 		}
-		resolu[cleNom{nom, prenom}] = ids
+		resolved[nameKey{name, firstName}] = ids
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
 		return 0, err
 	}
 
-	rangParActe := map[string]int{}
+	rankByAct := map[string]int{}
 	mentionRows := make([][]any, len(mentions))
 	for i, m := range mentions {
-		ids := resolu[cleNom{m.nom, m.prenom}]
-		statut := "ABSENT"
+		ids := resolved[nameKey{m.name, m.firstName}]
+		status := "ABSENT"
 		var personID any
 		switch {
 		case len(ids) == 1:
 			// Un seul porteur du nom : CANDIDAT, pas CONFIRMÉ. Sans date de
 			// naissance dans l'acte, rien ne prouve que c'est la bonne personne.
-			statut = "CANDIDAT"
+			status = "CANDIDAT"
 			personID = ids[0]
 		case len(ids) > 1:
-			statut = "AMBIGU"
+			status = "AMBIGU"
 		}
-		rang := rangParActe[m.acteID]
-		rangParActe[m.acteID] = rang + 1
-		mentionRows[i] = []any{m.acteID, rang, m.nom, ntext(m.prenom), ntext(m.contexte), m.origine,
-			personID, statut, len(ids), MethodVersion}
+		rank := rankByAct[m.actID]
+		rankByAct[m.actID] = rank + 1
+		mentionRows[i] = []any{m.actID, rank, m.name, ntext(m.firstName), ntext(m.context), m.origin,
+			personID, status, len(ids), MethodVersion}
 	}
 
 	if _, err := tx.Exec(ctx, `
@@ -441,12 +441,12 @@ func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention, nom
 		`CREATE TEMP TABLE tmp_acte_jo_mention_scope (acte_id text) ON COMMIT DROP`); err != nil {
 		return 0, err
 	}
-	acteIDRows := make([][]any, len(nominatifs))
-	for i, id := range nominatifs {
-		acteIDRows[i] = []any{id}
+	actIDRows := make([][]any, len(nominativeIDs))
+	for i, id := range nominativeIDs {
+		actIDRows[i] = []any{id}
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_acte_jo_mention_scope"}, []string{"acte_id"},
-		pgx.CopyFromRows(acteIDRows)); err != nil {
+		pgx.CopyFromRows(actIDRows)); err != nil {
 		return 0, err
 	}
 	if _, err := tx.Exec(ctx, `
@@ -478,12 +478,12 @@ func copierMentions(ctx context.Context, tx pgx.Tx, mentions []ligneMention, nom
 	return len(mentionRows), nil
 }
 
-// decoder tolère les écarts au XML strict. Les actes du JO enferment du HTML
+// decode tolère les écarts au XML strict. Les actes du JO enferment du HTML
 // dans <CONTENU> : balises non fermées, entités de traitement de texte. Le
 // décodeur strict les rejette en bloc, et rejette avec elles les métadonnées
 // parfaitement valides qui les précèdent.
-func decoder(raw []byte) (texteJO, error) {
-	var t texteJO
+func decode(raw []byte) (joText, error) {
+	var t joText
 	d := xml.NewDecoder(bytes.NewReader(raw))
 	d.Strict = false
 	d.AutoClose = xml.HTMLAutoClose
@@ -493,65 +493,65 @@ func decoder(raw []byte) (texteJO, error) {
 }
 
 type mention struct {
-	nom, prenom, contexte, origine string
+	name, firstName, context, origin string
 }
 
-// extraireMentions repère les personnes citées, sous les deux graphies. Les
+// extractMentions repère les personnes citées, sous les deux graphies. Les
 // doublons entre titre et corps sont conservés : ils portent des contextes
 // différents, et c'est le contexte qui permettra de lever un doute.
-func extraireMentions(titre, corps string) []mention {
+func extractMentions(title, body string) []mention {
 	var out []mention
-	for _, m := range reTitreNom.FindAllStringSubmatch(titre, -1) {
+	for _, m := range reTitreNom.FindAllStringSubmatch(title, -1) {
 		out = append(out, mention{
-			nom: propre(m[1]), prenom: propre(m[2]),
-			contexte: extrait(titre, m[0]), origine: "TITRE",
+			name: clean(m[1]), firstName: clean(m[2]),
+			context: extract(title, m[0]), origin: "TITRE",
 		})
 	}
-	for _, m := range reCorpsNom.FindAllStringSubmatch(corps, -1) {
+	for _, m := range reCorpsNom.FindAllStringSubmatch(body, -1) {
 		out = append(out, mention{
-			nom: propre(m[2]), prenom: propre(m[1]),
-			contexte: extrait(corps, m[0]), origine: "CORPS",
+			name: clean(m[2]), firstName: clean(m[1]),
+			context: extract(body, m[0]), origin: "CORPS",
 		})
 	}
 	return out
 }
 
-// extrait renvoie ce qui suit le nom : c'est là que se trouve la qualité, seul
+// extract renvoie ce qui suit le nom : c'est là que se trouve la qualité, seul
 // substitut à la date de naissance pour lever une homonymie.
-// extrait rend les 120 caractères qui suivent le motif. La découpe se fait sur
+// extract rend les 120 caractères qui suivent le motif. La découpe se fait sur
 // des CARACTÈRES et non sur des octets : couper « é » en son milieu produisait
 // un 0xc3 orphelin, que PostgreSQL refuse — le chargement s'arrêtait net sur
 // « invalid byte sequence for encoding UTF8 ».
-func extrait(texte, motif string) string {
-	i := strings.Index(texte, motif)
+func extract(text, pattern string) string {
+	i := strings.Index(text, pattern)
 	if i < 0 {
 		return ""
 	}
-	suite := []rune(texte[i+len(motif):])
-	if len(suite) > 120 {
-		suite = suite[:120]
+	rest := []rune(text[i+len(pattern):])
+	if len(rest) > 120 {
+		rest = rest[:120]
 	}
-	return strings.TrimSpace(strings.ToValidUTF8(string(suite), ""))
+	return strings.TrimSpace(strings.ToValidUTF8(string(rest), ""))
 }
 
-func listerArchives(chemin string) ([]string, error) {
-	b, err := os.ReadFile(chemin)
+func listArchives(path string) ([]string, error) {
+	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
 	re := regexp.MustCompile(`href="(JORFSIMPLE_[0-9-]+\.tar\.gz)"`)
 	var out []string
-	vus := map[string]bool{}
+	seen := map[string]bool{}
 	for _, m := range re.FindAllStringSubmatch(string(b), -1) {
-		if !vus[m[1]] {
-			vus[m[1]] = true
+		if !seen[m[1]] {
+			seen[m[1]] = true
 			out = append(out, m[1])
 		}
 	}
 	return out, nil
 }
 
-func propre(s string) string {
+func clean(s string) string {
 	return strings.TrimSpace(reBlancs.ReplaceAllString(s, " "))
 }
 
@@ -577,18 +577,18 @@ func dateJO(s string) any {
 	return s
 }
 
-func nul(s string) any {
+func nullIfEmpty(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
 	}
 	return s
 }
 
-// extraireCorps récupère le texte des blocs <BLOC_TEXTUEL><CONTENU>. Les
+// readBody récupère le texte des blocs <BLOC_TEXTUEL><CONTENU>. Les
 // <SM><CONTENU/> voisins sont ignorés : ils portent la structure du texte, pas
 // son contenu.
-// corps assemble les blocs textuels de l'acte, convertis en texte lisible par
-// un analyseur lexical — pas par une expression régulière (voir le paquet
+// readBody assemble les blocs textuels de l'acte, convertis en texte lisible
+// par un analyseur lexical — pas par une expression régulière (voir le paquet
 // balisage pour ce que la seconde ne sait pas faire).
 //
 // Le parcours est fait en PROFONDEUR LIBRE : on prend tout <CONTENU> dont le
@@ -601,14 +601,14 @@ func nul(s string) any {
 // de côté : ce sont la notice explicative, les visas et les mentions
 // d'abrogation, pas le dispositif. Les prendre ferait entrer dans le corps des
 // phrases que l'acte n'édicte pas.
-func corps(raw []byte) string {
+func readBody(raw []byte) string {
 	d := xml.NewDecoder(bytes.NewReader(raw))
 	d.Strict = false
 	d.AutoClose = xml.HTMLAutoClose
 	d.Entity = xml.HTMLEntity
 
 	var b strings.Builder
-	dansBloc := 0
+	inBlock := 0
 	for {
 		t, err := d.Token()
 		if err != nil {
@@ -618,9 +618,9 @@ func corps(raw []byte) string {
 		case xml.StartElement:
 			switch v.Name.Local {
 			case "BLOC_TEXTUEL":
-				dansBloc++
+				inBlock++
 			case "CONTENU":
-				if dansBloc == 0 {
+				if inBlock == 0 {
 					continue
 				}
 				var inner struct {
@@ -639,8 +639,8 @@ func corps(raw []byte) string {
 				b.WriteString(s)
 			}
 		case xml.EndElement:
-			if v.Name.Local == "BLOC_TEXTUEL" && dansBloc > 0 {
-				dansBloc--
+			if v.Name.Local == "BLOC_TEXTUEL" && inBlock > 0 {
+				inBlock--
 			}
 		}
 	}

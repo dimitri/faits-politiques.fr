@@ -32,21 +32,21 @@ var SourcePopulationHistorique = archive.Source{
 
 const urlPopulationHistorique = "https://www.insee.fr/fr/statistiques/fichier/3698339/base-pop-historiques-1876-2023.xlsx"
 
-// colonneAnneeHistorique : nom de colonne -> année, dans l'ordre où elles
+// historicalColumns : nom de colonne -> année, dans l'ordre où elles
 // apparaissent dans le fichier (colonnes 22 à 40 de la feuille). Le
 // préfixe (PSDC = population sans doubles comptes, PTOT = population
 // totale) change selon la nomenclature Insee de l'époque, l'année en fin
 // de nom suffit pour l'extraire.
-var colonnesHistoriques = []struct {
-	col   int
-	annee int
+var historicalColumns = []struct {
+	col  int
+	year int
 }{
 	{22, 1999}, {23, 1990}, {24, 1982}, {25, 1975}, {26, 1968}, {27, 1962},
 	{28, 1954}, {29, 1936}, {30, 1931}, {31, 1926}, {32, 1921}, {33, 1911},
 	{34, 1906}, {35, 1901}, {36, 1896}, {37, 1891}, {38, 1886}, {39, 1881}, {40, 1876},
 }
 
-func parserPopulation(s string) (int64, bool) {
+func parsePopulation(s string) (int64, bool) {
 	s = strings.ReplaceAll(strings.TrimSpace(s), ",", "")
 	if s == "" {
 		return 0, false
@@ -93,7 +93,7 @@ func IngestPopulationHistorique(ctx context.Context, pool *pgxpool.Pool, arch *a
 		return fail(fmt.Errorf("seulement %d lignes lues, en-tête attendu avant la ligne 7", len(rows)))
 	}
 
-	var lignes [][]any
+	var entries [][]any
 	for _, r := range rows[6:] {
 		if len(r) < 5 {
 			continue
@@ -102,19 +102,19 @@ func IngestPopulationHistorique(ctx context.Context, pool *pgxpool.Pool, arch *a
 		if codeInsee == "" {
 			continue
 		}
-		for _, c := range colonnesHistoriques {
+		for _, c := range historicalColumns {
 			if c.col >= len(r) {
 				continue
 			}
-			v, ok := parserPopulation(r[c.col])
+			v, ok := parsePopulation(r[c.col])
 			if !ok {
 				continue
 			}
-			lignes = append(lignes, []any{codeInsee, c.annee, v, srcID})
+			entries = append(entries, []any{codeInsee, c.year, v, srcID})
 		}
 	}
-	if len(lignes) < 100_000 {
-		return fail(fmt.Errorf("seulement %d lignes à insérer, attendu plusieurs centaines de milliers", len(lignes)))
+	if len(entries) < 100_000 {
+		return fail(fmt.Errorf("seulement %d lignes à insérer, attendu plusieurs centaines de milliers", len(entries)))
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -134,7 +134,7 @@ func IngestPopulationHistorique(ctx context.Context, pool *pgxpool.Pool, arch *a
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_population_historique_commune"},
 		[]string{"code_insee", "annee", "population", "source_id"},
-		pgx.CopyFromRows(lignes)); err != nil {
+		pgx.CopyFromRows(entries)); err != nil {
 		return fail(fmt.Errorf("population_historique_commune : %w", err))
 	}
 	var n int64

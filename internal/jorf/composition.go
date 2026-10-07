@@ -29,28 +29,28 @@ import (
 //     retombe sur « le dernier mot est le patronyme » quand il n'y en a pas.
 
 const (
-	FonctionPremierMinistre = "PREMIER_MINISTRE"
-	FonctionMinistreEtat    = "MINISTRE_ETAT"
-	FonctionMinistre        = "MINISTRE"
-	FonctionMinistreDelegue = "MINISTRE_DELEGUE"
-	FonctionSecretaireEtat  = "SECRETAIRE_ETAT"
-	FonctionHautCommissaire = "HAUT_COMMISSAIRE"
+	RolePrimeMinister    = "PREMIER_MINISTRE"
+	RoleMinisterOfState  = "MINISTRE_ETAT"
+	RoleMinister         = "MINISTRE"
+	RoleDeputyMinister   = "MINISTRE_DELEGUE"
+	RoleSecretaryOfState = "SECRETAIRE_ETAT"
+	RoleHighCommissioner = "HAUT_COMMISSAIRE"
 )
 
 const (
-	SensNomination = "NOMINATION"
-	SensCessation  = "CESSATION"
+	DirectionNomination = "NOMINATION"
+	DirectionCessation  = "CESSATION"
 )
 
-type Membre struct {
-	Rang         int
-	Sens         string
-	Fonction     string
-	Civilite     string
-	Prenom       string
-	Nom          string
-	Rattachement string // « ministre de l'intérieur », pour un délégué
-	Portefeuille string // « ministre de la culture », « chargée de l'autonomie »
+type Member struct {
+	Rank       int
+	Direction  string
+	Role       string
+	Title      string
+	FirstName  string
+	LastName   string
+	Attachment string // « ministre de l'intérieur », pour un délégué
+	Portfolio  string // « ministre de la culture », « chargée de l'autonomie »
 }
 
 var (
@@ -89,12 +89,12 @@ var (
 	}
 )
 
-// LireComposition rend les membres cités par un décret, dans l'ordre du texte —
+// ReadComposition rend les membres cités par un décret, dans l'ordre du texte —
 // qui est l'ordre protocolaire.
-func LireComposition(contenu string) []Membre {
-	var out []Membre
-	rang := 0
-	fonction, sens, rattachement := "", SensNomination, ""
+func ReadComposition(contenu string) []Member {
+	var out []Member
+	rank := 0
+	role, direction, attachment := "", DirectionNomination, ""
 
 	for _, ligne := range strings.Split(contenu, "\n") {
 		ligne = strings.TrimSpace(ligne)
@@ -104,8 +104,8 @@ func LireComposition(contenu string) []Membre {
 
 		// Un en-tête de section change la fonction en cours, et remet le
 		// rattachement à zéro : un nouveau bloc ne rattache plus au précédent.
-		if f, s, reste, ok := entete(ligne); ok {
-			fonction, sens, rattachement = f, s, ""
+		if r, d, reste, ok := sectionHeader(ligne); ok {
+			role, direction, attachment = r, d, ""
 			ligne = reste
 			if strings.TrimSpace(ligne) == "" {
 				continue
@@ -115,14 +115,14 @@ func LireComposition(contenu string) []Membre {
 		// La ligne est découpée aux rattachements : chaque segment hérite du
 		// rattachement qui l'ouvre, et le premier garde celui de la ligne
 		// précédente.
-		for _, seg := range segmenter(ligne, &rattachement) {
-			for _, bloc := range strings.Split(seg.texte, ";") {
+		for _, seg := range split(ligne, &attachment) {
+			for _, bloc := range strings.Split(seg.text, ";") {
 				m := reCivilite.FindStringSubmatchIndex(bloc)
 				if m == nil {
 					continue
 				}
-				prenom, nom := decouperNom(bloc[m[4]:m[5]])
-				if nom == "" {
+				firstName, lastName := splitName(bloc[m[4]:m[5]])
+				if lastName == "" {
 					continue
 				}
 				reste := strings.TrimLeft(strings.TrimSpace(bloc[m[5]:]), " ,;:.")
@@ -132,21 +132,21 @@ func LireComposition(contenu string) []Membre {
 				// La fonction vient de la section en cours ; à défaut, du
 				// libellé qui suit le nom — c'est le cas des formes
 				// individuelles.
-				f := fonction
-				if g := fonctionDePortefeuille(reste); g != "" && (f == "" || g == FonctionPremierMinistre) {
+				f := role
+				if g := roleFromPortfolio(reste); g != "" && (f == "" || g == RolePrimeMinister) {
 					f = g
 				}
 				if f == "" {
 					continue // ni section ni portefeuille : pas une nomination
 				}
-				rang++
-				out = append(out, Membre{
-					Rang: rang, Sens: sens, Fonction: f,
-					Civilite:     bloc[m[2]:m[3]],
-					Prenom:       prenom,
-					Nom:          nom,
-					Rattachement: seg.rattachement,
-					Portefeuille: normaliser(strings.TrimRight(reste, " .;,")),
+				rank++
+				out = append(out, Member{
+					Rank: rank, Direction: direction, Role: f,
+					Title:      bloc[m[2]:m[3]],
+					FirstName:  firstName,
+					LastName:   lastName,
+					Attachment: seg.attachment,
+					Portfolio:  normalize(strings.TrimRight(reste, " .;,")),
 				})
 			}
 		}
@@ -154,35 +154,35 @@ func LireComposition(contenu string) []Membre {
 	return out
 }
 
-type segment struct{ rattachement, texte string }
+type segment struct{ attachment, text string }
 
-// segmenter découpe une ligne aux rattachements qu'elle contient. Le pointeur
+// split découpe une ligne aux rattachements qu'elle contient. Le pointeur
 // porte le rattachement courant d'une ligne à l'autre : la base complète ouvre
 // un rattachement sur une ligne et donne les noms sur les suivantes.
-func segmenter(ligne string, courant *string) []segment {
+func split(ligne string, current *string) []segment {
 	ms := reRattachement.FindAllStringSubmatchIndex(ligne, -1)
 	if len(ms) == 0 {
-		return []segment{{rattachement: *courant, texte: ligne}}
+		return []segment{{attachment: *current, text: ligne}}
 	}
 	var out []segment
 	if tete := strings.TrimSpace(ligne[:ms[0][0]]); tete != "" {
-		out = append(out, segment{rattachement: *courant, texte: tete})
+		out = append(out, segment{attachment: *current, text: tete})
 	}
 	for i, m := range ms {
-		*courant = normaliser(ligne[m[2]:m[3]])
+		*current = normalize(ligne[m[2]:m[3]])
 		fin := len(ligne)
 		if i+1 < len(ms) {
 			fin = ms[i+1][0]
 		}
-		out = append(out, segment{rattachement: *courant, texte: ligne[m[1]:fin]})
+		out = append(out, segment{attachment: *current, text: ligne[m[1]:fin]})
 	}
 	return out
 }
 
-// entete reconnaît une formule d'ouverture et rend ce qui la suit. Le second
-// retour dit si la ligne en était une : une ligne qui n'est pas un en-tête est
-// traitée avec la fonction héritée de l'en-tête précédent.
-func entete(ligne string) (fonction, sens, reste string, ok bool) {
+// sectionHeader reconnaît une formule d'ouverture et rend ce qui la suit. Le
+// second retour dit si la ligne en était une : une ligne qui n'est pas un
+// en-tête est traitée avec la fonction héritée de l'en-tête précédent.
+func sectionHeader(ligne string) (role, direction, reste string, ok bool) {
 	i := strings.Index(ligne, ":")
 	tete := ligne
 	if i > 0 && i < 300 {
@@ -190,17 +190,17 @@ func entete(ligne string) (fonction, sens, reste string, ok bool) {
 	}
 	switch {
 	case reCessation.MatchString(tete):
-		fonction, sens = "", SensCessation
+		role, direction = "", DirectionCessation
 	case reSectionMinistresDelegues.MatchString(tete):
-		fonction, sens = FonctionMinistreDelegue, SensNomination
+		role, direction = RoleDeputyMinister, DirectionNomination
 	case reSectionSecretaires.MatchString(tete):
-		fonction, sens = FonctionSecretaireEtat, SensNomination
+		role, direction = RoleSecretaryOfState, DirectionNomination
 	case reSectionMinistresEtat.MatchString(tete):
-		fonction, sens = FonctionMinistreEtat, SensNomination
+		role, direction = RoleMinisterOfState, DirectionNomination
 	case reSectionHautCommissaire.MatchString(tete):
-		fonction, sens = FonctionHautCommissaire, SensNomination
+		role, direction = RoleHighCommissioner, DirectionNomination
 	case reSectionMinistres.MatchString(tete):
-		fonction, sens = FonctionMinistre, SensNomination
+		role, direction = RoleMinister, DirectionNomination
 	default:
 		return "", "", ligne, false
 	}
@@ -212,12 +212,12 @@ func entete(ligne string) (fonction, sens, reste string, ok bool) {
 	// d'Etat ». Rendre une suite vide dans ce cas faisait disparaître la ligne
 	// entière — trois décrets de cessation ressortaient muets.
 	if i > 0 && i < 300 {
-		return fonction, sens, ligne[i+1:], true
+		return role, direction, ligne[i+1:], true
 	}
-	return fonction, sens, ligne, true
+	return role, direction, ligne, true
 }
 
-// decouperNom sépare le prénom du patronyme.
+// splitName sépare le prénom du patronyme.
 //
 // Deux conventions coexistent dans la même source, selon l'année :
 //
@@ -228,8 +228,8 @@ func entete(ligne string) (fonction, sens, reste string, ok bool) {
 // premier mot entièrement en capitales, particule éventuelle comprise — ce qui
 // donne « de MONTCHALIN », « Le HÉNANFF », « LE DRIAN ». Faute de capitales, la
 // règle de repli est que le dernier mot est le patronyme, particules incluses.
-func decouperNom(s string) (prenom, nom string) {
-	mots := strings.Fields(normaliser(s))
+func splitName(s string) (firstName, lastName string) {
+	mots := strings.Fields(normalize(s))
 	if len(mots) == 0 {
 		return "", ""
 	}
@@ -237,32 +237,32 @@ func decouperNom(s string) (prenom, nom string) {
 		return "", mots[0]
 	}
 
-	debut := -1
+	start := -1
 	for i, m := range mots {
-		if estCapitales(m) {
-			debut = i
+		if isUppercase(m) {
+			start = i
 			break
 		}
 	}
-	if debut < 0 {
+	if start < 0 {
 		// Pas de capitales : le patronyme est le dernier mot.
-		debut = len(mots) - 1
+		start = len(mots) - 1
 	}
 	// Les particules qui précèdent immédiatement appartiennent au patronyme.
-	for debut > 0 && particules[strings.ToLower(strings.Trim(mots[debut-1], "'’"))] {
-		debut--
+	for start > 0 && particules[strings.ToLower(strings.Trim(mots[start-1], "'’"))] {
+		start--
 	}
-	if debut == 0 {
+	if start == 0 {
 		// Tout est patronyme : le décret n'a pas donné de prénom.
 		return "", strings.Join(mots, " ")
 	}
-	return strings.Join(mots[:debut], " "), strings.Join(mots[debut:], " ")
+	return strings.Join(mots[:start], " "), strings.Join(mots[start:], " ")
 }
 
-// estCapitales dit si un mot est écrit entièrement en majuscules. Il faut au
+// isUppercase dit si un mot est écrit entièrement en majuscules. Il faut au
 // moins deux lettres : « M » ou une initiale isolée ne sont pas un patronyme.
-func estCapitales(m string) bool {
-	lettres := 0
+func isUppercase(m string) bool {
+	letters := 0
 	for _, r := range m {
 		switch {
 		case r >= 'a' && r <= 'z':
@@ -270,36 +270,36 @@ func estCapitales(m string) bool {
 		case r >= 'à' && r <= 'ÿ':
 			return false
 		case r >= 'A' && r <= 'Z', r >= 'À' && r <= 'Þ':
-			lettres++
+			letters++
 		}
 	}
-	return lettres >= 2
+	return letters >= 2
 }
 
-// fonctionDePortefeuille déduit la fonction du libellé qui suit le nom, pour les
+// roleFromPortfolio déduit la fonction du libellé qui suit le nom, pour les
 // formes qui n'ont pas d'en-tête de section.
-func fonctionDePortefeuille(s string) string {
-	b := strings.ToLower(normaliser(s))
+func roleFromPortfolio(s string) string {
+	b := strings.ToLower(normalize(s))
 	// « Etat » sans accent existe dans les décrets d'avant 2020 ; les deux
 	// graphies sont donc acceptées partout.
 	b = strings.NewReplacer("d'etat", "d'état", "d’etat", "d'état", "d’état", "d'état").Replace(b)
 	switch {
 	case strings.HasPrefix(b, "premier ministre"), strings.HasPrefix(b, "première ministre"):
-		return FonctionPremierMinistre
+		return RolePrimeMinister
 	case strings.Contains(b, "ministre délégué"), strings.Contains(b, "ministre déléguée"):
-		return FonctionMinistreDelegue
+		return RoleDeputyMinister
 	case strings.Contains(b, "secrétaire d'état"):
-		return FonctionSecretaireEtat
+		return RoleSecretaryOfState
 	case strings.Contains(b, "haut-commissaire"), strings.Contains(b, "haute-commissaire"):
-		return FonctionHautCommissaire
+		return RoleHighCommissioner
 	case strings.HasPrefix(b, "ministre d'état"):
-		return FonctionMinistreEtat
+		return RoleMinisterOfState
 	case strings.Contains(b, "ministre"), strings.Contains(b, "garde des sceaux"):
-		return FonctionMinistre
+		return RoleMinister
 	}
 	return ""
 }
 
-func normaliser(s string) string {
+func normalize(s string) string {
 	return strings.TrimSpace(reBlancsComp.ReplaceAllString(s, " "))
 }
