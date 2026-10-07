@@ -17,7 +17,7 @@ import (
 // personnes dépendent du RSA, de l'AAH, de la prime d'activité ou de l'ASS, et
 // dans quel département. C'est le pendant territorial et mensuel des comptes de
 // la protection sociale, qui sont nationaux et annuels.
-var SourceDREESPrestations = archive.Source{
+var SourceDreesSolidarityBenefits = archive.Source{
 	Slug: "drees-prestations-solidarite", Label: "DREES — suivi mensuel des prestations de solidarité",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
@@ -34,24 +34,24 @@ var SourceDREESPrestations = archive.Source{
 // Ce jeu en compte plus de 120 000 : la pagination échouerait à mi-parcours,
 // silencieusement si l'on ne vérifiait pas le code de retour. L'export en un
 // seul appel est le seul chemin correct.
-const dreesPrestationsURL = "https://data.drees.solidarites-sante.gouv.fr/api/explore/v2.1/catalog/datasets/donnees-mensuelles-sur-les-prestations-de-solidarite/exports/json"
+const dreesBenefitsURL = "https://data.drees.solidarites-sante.gouv.fr/api/explore/v2.1/catalog/datasets/donnees-mensuelles-sur-les-prestations-de-solidarite/exports/json"
 
-type dreesLigne struct {
-	Mois           string   `json:"mois"`
-	Serie          string   `json:"serie"`
-	NomSerie       string   `json:"nom_serie"`
-	NomRegion      string   `json:"nom_region"`
+type dreesBenefitRow struct {
+	Month          string   `json:"mois"`
+	Series         string   `json:"serie"`
+	SeriesName     string   `json:"nom_serie"`
+	RegionName     string   `json:"nom_region"`
 	Region         string   `json:"region"`
-	NomDepartement string   `json:"nom_departement"`
-	Departement    string   `json:"departement"`
-	Valeur         *float64 `json:"valeur"`
-	Maturite       string   `json:"maturite"`
-	Unite          string   `json:"unite"`
-	Commentaire    string   `json:"commentaire"`
+	DepartmentName string   `json:"nom_departement"`
+	Department     string   `json:"departement"`
+	Value          *float64 `json:"valeur"`
+	Maturity       string   `json:"maturite"`
+	Unit           string   `json:"unite"`
+	Comment        string   `json:"commentaire"`
 }
 
-func IngestPrestationsSolidarite(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceDREESPrestations)
+func IngestSolidarityBenefits(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceDreesSolidarityBenefits)
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func IngestPrestationsSolidarite(ctx context.Context, pool *pgxpool.Pool, arch *
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, dreesPrestationsURL, ".json")
+	f, err := arch.Fetch(ctx, srcID, runID, dreesBenefitsURL, ".json")
 	if err != nil {
 		return fail(err)
 	}
@@ -72,31 +72,31 @@ func IngestPrestationsSolidarite(ctx context.Context, pool *pgxpool.Pool, arch *
 	if err != nil {
 		return fail(err)
 	}
-	var lignes []dreesLigne
-	if err := json.Unmarshal(raw, &lignes); err != nil {
+	var records []dreesBenefitRow
+	if err := json.Unmarshal(raw, &records); err != nil {
 		return fail(fmt.Errorf("export DREES illisible : %w", err))
 	}
-	if len(lignes) == 0 {
+	if len(records) == 0 {
 		return fail(fmt.Errorf("export DREES vide"))
 	}
 
 	var rows [][]any
-	vu := map[string]bool{}
-	var sansValeur, sansDate, doublons int
-	for _, l := range lignes {
+	seen := map[string]bool{}
+	var noValue, noDate, duplicates int
+	for _, rec := range records {
 		// Une valeur absente n'est pas un zéro : la DREES ne publie pas toujours
 		// le détail départemental d'une série. On l'écarte plutôt que de la
 		// transformer en « aucun allocataire ».
-		if l.Valeur == nil {
-			sansValeur++
+		if rec.Value == nil {
+			noValue++
 			continue
 		}
 		// La source date au mois, pas au jour : « 2026-06 ». On ancre au
 		// premier du mois plutôt que d'inventer une date de publication.
-		mois, err := time.Parse("2006-01", l.Mois)
+		month, err := time.Parse("2006-01", rec.Month)
 		if err != nil {
-			if mois, err = time.Parse("2006-01-02", l.Mois); err != nil {
-				sansDate++
+			if month, err = time.Parse("2006-01-02", rec.Month); err != nil {
+				noDate++
 				continue
 			}
 		}
@@ -109,26 +109,26 @@ func IngestPrestationsSolidarite(ctx context.Context, pool *pgxpool.Pool, arch *
 		// seule clé : 6 604 lignes disparaissaient silencieusement avant
 		// qu'on le voie. Une valeur manquante déguisée en valeur est le
 		// piège le plus coûteux d'un fichier statistique.
-		dep, reg := absent(l.Departement), absent(l.Region)
-		niveau, code, nom := "NATIONAL", "FR", "France"
+		dept, region := absent(rec.Department), absent(rec.Region)
+		level, code, name := "NATIONAL", "FR", "France"
 		switch {
-		case dep != "":
-			niveau, code, nom = "DEPARTEMENT", dep, l.NomDepartement
-		case reg != "":
-			niveau, code, nom = "REGION", reg, l.NomRegion
+		case dept != "":
+			level, code, name = "DEPARTEMENT", dept, rec.DepartmentName
+		case region != "":
+			level, code, name = "REGION", region, rec.RegionName
 		}
-		if nom == "" {
-			nom = code
+		if name == "" {
+			name = code
 		}
-		k := l.Serie + "|" + l.Mois + "|" + niveau + "|" + code
-		if vu[k] {
-			doublons++
+		key := rec.Series + "|" + rec.Month + "|" + level + "|" + code
+		if seen[key] {
+			duplicates++
 			continue
 		}
-		vu[k] = true
+		seen[key] = true
 		rows = append(rows, []any{
-			l.Serie, l.NomSerie, mois, niveau, code, nom, *l.Valeur,
-			nilSiVide(l.Unite), nilSiVide(l.Maturite), nilSiVide(l.Commentaire), srcID,
+			rec.Series, rec.SeriesName, month, level, code, name, *rec.Value,
+			nilIfEmpty(rec.Unit), nilIfEmpty(rec.Maturity), nilIfEmpty(rec.Comment), srcID,
 		})
 	}
 
@@ -159,14 +159,14 @@ func IngestPrestationsSolidarite(ctx context.Context, pool *pgxpool.Pool, arch *
 	// chargement, les 6 604 lignes que le marqueur « NA » faisait disparaître :
 	// elles n'étaient ni chargées ni rejetées, elles s'évaporaient.
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"lignes_recues":     len(lignes),
+		"lignes_recues":     len(records),
 		"lignes_chargees":   len(rows),
-		"rejet_sans_valeur": sansValeur,
-		"rejet_sans_date":   sansDate,
-		"rejet_doublon_cle": doublons,
+		"rejet_sans_valeur": noValue,
+		"rejet_sans_date":   noDate,
+		"rejet_doublon_cle": duplicates,
 	}, "")
 	fmt.Printf("  prestations de solidarité : %d lignes (%d sans valeur, %d sans date)\n",
-		len(rows), sansValeur, sansDate)
+		len(rows), noValue, noDate)
 	return nil
 }
 
@@ -180,7 +180,7 @@ func absent(s string) string {
 	return s
 }
 
-func nilSiVide(s string) any {
+func nilIfEmpty(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
 	}

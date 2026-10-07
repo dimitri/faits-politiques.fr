@@ -12,7 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var SourceTraficPortuaire = archive.Source{
+var SourcePortTraffic = archive.Source{
 	Slug: "sdes-trafic-portuaire", Label: "Trafic maritime de marchandises par port français",
 	Publisher: "SDES (ministère de la Transition écologique)", Tier: "PRIMARY_OFFICIAL",
 	Licence: "Licence Ouverte 2.0", ReuseClass: "OPEN",
@@ -20,9 +20,9 @@ var SourceTraficPortuaire = archive.Source{
 	Cadence:     "annuelle",
 }
 
-const urlTraficPortuaire = "https://data.statistiques.developpement-durable.gouv.fr/dido/api/v1/datafiles/89c4e831-27ae-4fe7-8ff7-d6c82fa4a841/csv"
+const portTrafficURL = "https://data.statistiques.developpement-durable.gouv.fr/dido/api/v1/datafiles/89c4e831-27ae-4fe7-8ff7-d6c82fa4a841/csv"
 
-func aInt(s string) any {
+func intOrNil(s string) any {
 	if s == "" {
 		return nil
 	}
@@ -33,10 +33,10 @@ func aInt(s string) any {
 	return n
 }
 
-// IngestTraficPortuaire charge le trafic des ports français, par port,
+// IngestPortTraffic charge le trafic des ports français, par port,
 // année et sens de circulation (SDES). Voir docs/ports-donnees.md.
-func IngestTraficPortuaire(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceTraficPortuaire)
+func IngestPortTraffic(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourcePortTraffic)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func IngestTraficPortuaire(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, urlTraficPortuaire, ".csv")
+	f, err := arch.Fetch(ctx, srcID, runID, portTrafficURL, ".csv")
 	if err != nil {
 		return fail(err)
 	}
@@ -85,20 +85,20 @@ func IngestTraficPortuaire(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		if err != nil {
 			return fail(fmt.Errorf("ligne illisible : %w", err))
 		}
-		annee, err := strconv.Atoi(rec[col["ANNEE"]])
+		year, err := strconv.Atoi(rec[col["ANNEE"]])
 		if err != nil {
 			return fail(fmt.Errorf("année illisible : %q", rec[col["ANNEE"]]))
 		}
-		mouv := rec[col["MOUV"]]
-		if mouv != "Entree" && mouv != "Sortie" {
-			return fail(fmt.Errorf("mouvement inconnu : %q", mouv))
+		movement := rec[col["MOUV"]]
+		if movement != "Entree" && movement != "Sortie" {
+			return fail(fmt.Errorf("mouvement inconnu : %q", movement))
 		}
 		rows = append(rows, []any{
 			rec[col["LOCODE_PORT"]], rec[col["PORT"]],
 			nullifEmpty(rec[col["FACADE"]]), nullifEmpty(rec[col["REGION"]]),
-			mouv, annee,
-			aInt(rec[col["TONNAGE_TOT"]]), aInt(rec[col["VRACS_LIQUIDES"]]), aInt(rec[col["VRACS_SOLIDES"]]),
-			aInt(rec[col["CONT_TOT"]]), aInt(rec[col["EVP_TOT"]]), aInt(rec[col["RORO_TOT"]]),
+			movement, year,
+			intOrNil(rec[col["TONNAGE_TOT"]]), intOrNil(rec[col["VRACS_LIQUIDES"]]), intOrNil(rec[col["VRACS_SOLIDES"]]),
+			intOrNil(rec[col["CONT_TOT"]]), intOrNil(rec[col["EVP_TOT"]]), intOrNil(rec[col["RORO_TOT"]]),
 			srcID,
 		})
 	}
