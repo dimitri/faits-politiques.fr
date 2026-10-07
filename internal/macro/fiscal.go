@@ -22,11 +22,11 @@ import (
 // vingt-treize postes ne sont pas quatre-vingt-treize décisions éditoriales,
 // c'est une NOMENCLATURE. Elle se charge telle que la source la publie, avec
 // ses libellés, et le travail éditorial porte sur la façon de la lire.
-const fiscalRequete = "gov_10a_taxag?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR"
+const fiscalQuery = "gov_10a_taxag?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR"
 
-const fiscalSecteur = "S13"
+const fiscalSector = "S13"
 
-func IngestRecettesFiscales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+func IngestTaxRevenue(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceEurostat)
 	if err != nil {
 		return err
@@ -40,7 +40,7 @@ func IngestRecettesFiscales(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, eurostatBase+fiscalRequete, ".json")
+	f, err := arch.Fetch(ctx, srcID, runID, eurostatBase+fiscalQuery, ".json")
 	if err != nil {
 		return fail(err)
 	}
@@ -61,52 +61,52 @@ func IngestRecettesFiscales(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return fail(fmt.Errorf("réponse Eurostat illisible : %w", err))
 	}
-	postes := doc.Dimension["na_item"].Category
-	temps := doc.Dimension["time"].Category
-	if len(postes.Index) == 0 || len(temps.Index) == 0 {
+	items := doc.Dimension["na_item"].Category
+	timeDim := doc.Dimension["time"].Category
+	if len(items.Index) == 0 || len(timeDim.Index) == 0 {
 		return fail(fmt.Errorf("dimensions na_item ou time absentes"))
 	}
 
 	// La réponse est un tableau aplati : l'indice d'une valeur encode la
 	// position dans le produit cartésien des dimensions. Ici deux dimensions
 	// varient seulement, poste et année, dans cet ordre.
-	inversePoste := make([]string, len(postes.Index))
-	for code, i := range postes.Index {
-		inversePoste[i] = code
+	itemByIndex := make([]string, len(items.Index))
+	for code, i := range items.Index {
+		itemByIndex[i] = code
 	}
-	inverseTemps := make([]string, len(temps.Index))
-	for an, i := range temps.Index {
-		inverseTemps[i] = an
+	yearByIndex := make([]string, len(timeDim.Index))
+	for y, i := range timeDim.Index {
+		yearByIndex[i] = y
 	}
-	nT := len(inverseTemps)
+	yearCount := len(yearByIndex)
 
-	refRows := make([][]any, 0, len(postes.Index))
-	for code := range postes.Index {
-		lib := postes.Label[code]
-		if lib == "" {
-			lib = code
+	refRows := make([][]any, 0, len(items.Index))
+	for code := range items.Index {
+		label := items.Label[code]
+		if label == "" {
+			label = code
 		}
 		// Un underscore signale un code composite : D2_D5_D91 n'est pas un
 		// impôt mais une addition déjà faite. Le drapeau évite qu'on l'ajoute
 		// une seconde fois à ses propres composantes.
-		refRows = append(refRows, []any{code, lib, strings.Contains(code, "_"), profondeurPoste(code)})
+		refRows = append(refRows, []any{code, label, strings.Contains(code, "_"), itemDepth(code)})
 	}
 
 	var valRows [][]any
-	var rejetCle, rejetPoste int
+	var rejectedKey, rejectedItem int
 	for k, v := range doc.Value {
 		i, err := strconv.Atoi(k)
-		if err != nil || i < 0 || i >= len(inversePoste)*nT {
-			rejetCle++
+		if err != nil || i < 0 || i >= len(itemByIndex)*yearCount {
+			rejectedKey++
 			continue
 		}
-		code := inversePoste[i/nT]
-		annee, err := strconv.Atoi(inverseTemps[i%nT])
+		code := itemByIndex[i/yearCount]
+		year, err := strconv.Atoi(yearByIndex[i%yearCount])
 		if code == "" || err != nil {
-			rejetPoste++
+			rejectedItem++
 			continue
 		}
-		valRows = append(valRows, []any{code, fiscalSecteur, annee, v, srcID})
+		valRows = append(valRows, []any{code, fiscalSector, year, v, srcID})
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -167,19 +167,19 @@ func IngestRecettesFiscales(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
 		"lignes_recues":       len(doc.Value),
 		"lignes_chargees":     len(valRows),
-		"rejet_cle_illisible": rejetCle,
-		"rejet_poste_inconnu": rejetPoste,
+		"rejet_cle_illisible": rejectedKey,
+		"rejet_poste_inconnu": rejectedItem,
 		"postes":              len(refRows),
 	}, "")
 	fmt.Printf("  recettes fiscales : %d postes, %d valeurs\n", len(refRows), len(valRows))
 	return nil
 }
 
-// profondeurPoste : combien de niveaux le code descend dans la nomenclature.
+// itemDepth : combien de niveaux le code descend dans la nomenclature.
 // D2 vaut 1, D21 vaut 2, D211 vaut 3. Heuristique assumée — la nomenclature SEC
 // a des exceptions — qui sert à choisir un niveau de lecture cohérent, jamais à
 // reconstituer l'arbre.
-func profondeurPoste(code string) int16 {
+func itemDepth(code string) int16 {
 	if i := strings.IndexByte(code, '_'); i >= 0 {
 		code = code[:i]
 	}

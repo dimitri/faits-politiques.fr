@@ -51,9 +51,9 @@ var SourceCNAF = archive.Source{
 
 const eurostatBase = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/"
 
-type serie struct {
-	Code, Label, Unite, Famille, Cofog, Definition string
-	Requete                                        string
+type series struct {
+	Code, Label, Unit, Family, Cofog, Definition string
+	Query                                        string
 }
 
 // Les dix fonctions de la nomenclature COFOG, telle qu'Eurostat la publie.
@@ -90,43 +90,43 @@ var cofogProtectionSociale = []struct{ code, label string }{
 	{"GF1009", "Protection sociale — n.c.a."},
 }
 
-func series() []serie {
-	out := []serie{
+func buildSeries() []series {
+	out := []series{
 		{
-			Code: "dette.publique.meur", Label: "Dette publique", Unite: "MEUR", Famille: "DETTE",
+			Code: "dette.publique.meur", Label: "Dette publique", Unit: "MEUR", Family: "DETTE",
 			Definition: "Dette brute consolidée des administrations publiques au sens de Maastricht, " +
 				"en millions d'euros courants. Couvre l'État, les collectivités et la sécurité sociale.",
-			Requete: "gov_10dd_edpt1?format=JSON&lang=FR&geo=FR&na_item=GD&sector=S13&unit=MIO_EUR",
+			Query: "gov_10dd_edpt1?format=JSON&lang=FR&geo=FR&na_item=GD&sector=S13&unit=MIO_EUR",
 		},
 		{
-			Code: "dette.publique.pib", Label: "Dette publique en part du PIB", Unite: "PCT_PIB", Famille: "DETTE",
+			Code: "dette.publique.pib", Label: "Dette publique en part du PIB", Unit: "PCT_PIB", Family: "DETTE",
 			Definition: "Même dette, rapportée au produit intérieur brut. C'est le ratio qui sert " +
 				"aux comparaisons, la valeur en euros n'étant pas comparable d'une décennie à l'autre.",
-			Requete: "gov_10dd_edpt1?format=JSON&lang=FR&geo=FR&na_item=GD&sector=S13&unit=PC_GDP",
+			Query: "gov_10dd_edpt1?format=JSON&lang=FR&geo=FR&na_item=GD&sector=S13&unit=PC_GDP",
 		},
 		{
-			Code: "solde.public.pib", Label: "Solde public en part du PIB", Unite: "PCT_PIB", Famille: "DETTE",
+			Code: "solde.public.pib", Label: "Solde public en part du PIB", Unit: "PCT_PIB", Family: "DETTE",
 			Definition: "Capacité (+) ou besoin (−) de financement des administrations publiques, " +
 				"rapporté au PIB. C'est le « déficit » au sens des critères européens.",
-			Requete: "gov_10dd_edpt1?format=JSON&lang=FR&geo=FR&na_item=B9&sector=S13&unit=PC_GDP",
+			Query: "gov_10dd_edpt1?format=JSON&lang=FR&geo=FR&na_item=B9&sector=S13&unit=PC_GDP",
 		},
 		{
-			Code: "recettes.fiscales.meur", Label: "Recettes fiscales et cotisations", Unite: "MEUR", Famille: "RECETTE",
+			Code: "recettes.fiscales.meur", Label: "Recettes fiscales et cotisations", Unit: "MEUR", Family: "RECETTE",
 			Definition: "Impôts et cotisations sociales effectives perçus par les administrations " +
 				"publiques, nets des montants non recouvrables, en millions d'euros courants.",
-			Requete: "gov_10a_taxag?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=D2_D5_D91_D61_M_D995",
+			Query: "gov_10a_taxag?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=D2_D5_D91_D61_M_D995",
 		},
 		{
-			Code: "chomeurs.nombre", Label: "Chômeurs", Unite: "MILLIERS", Famille: "EMPLOI",
+			Code: "chomeurs.nombre", Label: "Chômeurs", Unit: "MILLIERS", Family: "EMPLOI",
 			Definition: "Personnes de 15 à 74 ans sans emploi, disponibles et en recherche active, " +
 				"au sens du Bureau international du travail. Ce n'est PAS le nombre d'inscrits " +
 				"à France Travail, qui obéit à des règles administratives différentes.",
-			Requete: "lfsa_ugan?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&citizen=TOTAL",
+			Query: "lfsa_ugan?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&citizen=TOTAL",
 		},
 		{
-			Code: "chomage.taux", Label: "Taux de chômage", Unite: "PCT", Famille: "EMPLOI",
+			Code: "chomage.taux", Label: "Taux de chômage", Unit: "PCT", Family: "EMPLOI",
 			Definition: "Part des chômeurs au sens du BIT dans la population active.",
-			Requete:    "une_rt_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=PC_ACT",
+			Query:      "une_rt_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=PC_ACT",
 		},
 		// « Capacités excédentaires sur le marché du travail » (labour market
 		// slack) : la mesure qu'Eurostat construit précisément parce que le
@@ -135,38 +135,38 @@ func series() []serie {
 		// composantes qui se somment exactement au total SLACK ci-dessous.
 		{
 			Code: "chomage.sous_emploi_temps_partiel", Label: "Personnes sous-employées à temps partiel",
-			Unite: "MILLIERS", Famille: "EMPLOI",
+			Unit: "MILLIERS", Family: "EMPLOI",
 			Definition: "Personnes en emploi à temps partiel qui voudraient travailler davantage " +
 				"et sont disponibles pour le faire. Elles ont un emploi : le chômage au sens du " +
 				"BIT ne les compte pas.",
-			Requete: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=UEMP_PT",
+			Query: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=UEMP_PT",
 		},
 		{
 			Code: "chomage.cherchent_indisponibles", Label: "Cherchent un emploi mais indisponibles",
-			Unite: "MILLIERS", Famille: "EMPLOI",
+			Unit: "MILLIERS", Family: "EMPLOI",
 			Definition: "Personnes qui cherchent activement un emploi mais ne peuvent pas commencer " +
 				"dans les deux semaines — une garde d'enfant à trouver, une formation en cours. Le " +
 				"critère de disponibilité immédiate du BIT les exclut du chômage.",
-			Requete: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=SEEK_NAVL",
+			Query: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=SEEK_NAVL",
 		},
 		{
 			Code: "chomage.disponibles_sans_recherche", Label: "Disponibles mais ne cherchant pas — le halo",
-			Unite: "MILLIERS", Famille: "EMPLOI",
+			Unit: "MILLIERS", Family: "EMPLOI",
 			Definition: "Personnes disponibles pour travailler mais qui n'ont pas cherché activement " +
 				"dans le mois — parce qu'elles pensent ne rien trouver, ou pour toute autre raison. " +
 				"L'INSEE et Eurostat nomment ce groupe le « halo autour du chômage ». Ni au chômage " +
 				"BIT, ni comptées comme actives.",
-			Requete: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=NSEEK_AVL",
+			Query: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=NSEEK_AVL",
 		},
 		{
 			Code: "chomage.halo_total", Label: "Capacités excédentaires sur le marché du travail",
-			Unite: "MILLIERS", Famille: "EMPLOI",
+			Unit: "MILLIERS", Family: "EMPLOI",
 			Definition: "Somme du chômage au sens du BIT et des trois catégories ci-dessus " +
 				"(sous-emploi à temps partiel, recherche sans disponibilité immédiate, disponibilité " +
 				"sans recherche active). C'est la mesure la plus large qu'Eurostat publie du " +
 				"« manque de travail » — largement supérieure au seul chômage BIT, et c'est " +
 				"précisément pourquoi elle existe comme indicateur à part.",
-			Requete: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=SLACK",
+			Query: "lfsi_sla_a?format=JSON&lang=FR&geo=FR&sex=T&age=Y15-74&unit=THS_PER&wstatus=SLACK",
 		},
 		// L'emploi total et l'emploi salarié, comptabilité nationale — le
 		// dénominateur qui manquait pour mettre en regard une politique de
@@ -176,31 +176,31 @@ func series() []serie {
 		// employeur ne peut atteindre puisqu'ils n'ont pas de salariés
 		// employeur au sens de ces dispositifs.
 		{
-			Code: "emploi.total", Label: "Emploi total (concept intérieur)", Unite: "MILLIERS", Famille: "EMPLOI",
+			Code: "emploi.total", Label: "Emploi total (concept intérieur)", Unit: "MILLIERS", Family: "EMPLOI",
 			Definition: "Nombre de personnes en emploi, salariées et non salariées, résidentes ou " +
 				"non, produisant sur le territoire français — comptabilité nationale, pas l'enquête " +
 				"Emploi (BIT). Inclut les non-salariés (indépendants, artisans, exploitants agricoles).",
-			Requete: "nama_10_pe?format=JSON&lang=FR&geo=FR&na_item=EMP_DC&unit=THS_PER",
+			Query: "nama_10_pe?format=JSON&lang=FR&geo=FR&na_item=EMP_DC&unit=THS_PER",
 		},
 		{
-			Code: "emploi.salarie", Label: "Emploi salarié (concept intérieur)", Unite: "MILLIERS", Famille: "EMPLOI",
+			Code: "emploi.salarie", Label: "Emploi salarié (concept intérieur)", Unit: "MILLIERS", Family: "EMPLOI",
 			Definition: "Nombre de salariés produisant sur le territoire français, comptabilité " +
 				"nationale. La différence avec l'emploi total (emploi.total) est le nombre de " +
 				"non-salariés, hors du champ des exonérations de cotisations employeur.",
-			Requete: "nama_10_pe?format=JSON&lang=FR&geo=FR&na_item=SAL_DC&unit=THS_PER",
+			Query: "nama_10_pe?format=JSON&lang=FR&geo=FR&na_item=SAL_DC&unit=THS_PER",
 		},
 		{
-			Code: "pauvrete.nombre", Label: "Personnes sous le seuil de pauvreté", Unite: "MILLIERS", Famille: "PAUVRETE",
+			Code: "pauvrete.nombre", Label: "Personnes sous le seuil de pauvreté", Unit: "MILLIERS", Family: "PAUVRETE",
 			Definition: "Personnes vivant dans un ménage dont le revenu disponible par unité de " +
 				"consommation est inférieur à 60 % de la médiane nationale. Le seuil est relatif : " +
 				"il bouge avec le niveau de vie médian, et une baisse du médian peut faire reculer " +
 				"le nombre de pauvres sans que personne se soit enrichi.",
-			Requete: "ilc_li02?format=JSON&lang=FR&geo=FR&unit=THS_PER&rskpovth=B_60&sex=T&age=TOTAL&statinfo=MED_EI",
+			Query: "ilc_li02?format=JSON&lang=FR&geo=FR&unit=THS_PER&rskpovth=B_60&sex=T&age=TOTAL&statinfo=MED_EI",
 		},
 		{
-			Code: "pauvrete.taux", Label: "Taux de pauvreté", Unite: "PCT", Famille: "PAUVRETE",
+			Code: "pauvrete.taux", Label: "Taux de pauvreté", Unit: "PCT", Family: "PAUVRETE",
 			Definition: "Même définition, exprimée en part de la population.",
-			Requete:    "ilc_li02?format=JSON&lang=FR&geo=FR&unit=PC&rskpovth=B_60&sex=T&age=TOTAL&statinfo=MED_EI",
+			Query:      "ilc_li02?format=JSON&lang=FR&geo=FR&unit=PC&rskpovth=B_60&sex=T&age=TOTAL&statinfo=MED_EI",
 		},
 	}
 
@@ -215,7 +215,7 @@ func series() []serie {
 	// non les seules grandes entreprises : c'est un agrégat, il ne se rapporte à
 	// aucune société identifiable et ne remplace pas ce qu'un rapport annuel
 	// publie sur une société donnée.
-	entreprise := []struct{ code, label, naItem, secteur, sens, definition string }{
+	companies := []struct{ code, label, naItem, sector, direction, definition string }{
 		{"dividendes.verses.snf", "Dividendes versés par les sociétés non financières",
 			"D42", "S11", "PAID",
 			"Revenus distribués des sociétés (D.42) versés par les sociétés non financières " +
@@ -248,12 +248,12 @@ func series() []serie {
 			"Production moins consommations intermédiaires. Le partage de cette valeur entre " +
 				"salaires, impôts et profits est la question que ces séries permettent de poser."},
 	}
-	for _, e := range entreprise {
-		out = append(out, serie{
-			Code: e.code, Label: e.label, Unite: "MEUR", Famille: "ENTREPRISES",
-			Definition: e.definition,
-			Requete: "nasa_10_nf_tr?format=JSON&lang=FR&geo=FR&unit=CP_MEUR&na_item=" +
-				e.naItem + "&sector=" + e.secteur + "&direct=" + e.sens,
+	for _, co := range companies {
+		out = append(out, series{
+			Code: co.code, Label: co.label, Unit: "MEUR", Family: "ENTREPRISES",
+			Definition: co.definition,
+			Query: "nasa_10_nf_tr?format=JSON&lang=FR&geo=FR&unit=CP_MEUR&na_item=" +
+				co.naItem + "&sector=" + co.sector + "&direct=" + co.direction,
 		})
 	}
 
@@ -262,13 +262,13 @@ func series() []serie {
 	// non financières ci-dessus, qui exclut les sociétés financières et suit une
 	// autre convention de rattachement. Les deux sont publiés, les deux sont
 	// justes, et l'écart entre eux est un fait à montrer plutôt qu'à masquer.
-	out = append(out, serie{
+	out = append(out, series{
 		Code: "impot.societes.encaisse", Label: "Impôt sur les bénéfices des sociétés encaissé",
-		Unite: "MEUR", Famille: "ENTREPRISES",
+		Unit: "MEUR", Family: "ENTREPRISES",
 		Definition: "Recettes des administrations publiques au titre de l'impôt sur le revenu " +
 			"ou les bénéfices des sociétés (D.51B). Point de vue de l'État, à ne pas confondre " +
 			"avec le D.51 payé par les seules sociétés non financières.",
-		Requete: "gov_10a_taxag?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=D51B",
+		Query: "gov_10a_taxag?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=D51B",
 	})
 
 	// Les sous-secteurs des administrations publiques.
@@ -285,7 +285,7 @@ func series() []serie {
 	//
 	// S1312 (États fédérés) n'existe pas en France : les quatre secteurs
 	// ci-dessous épuisent le champ.
-	secteurs := []struct{ code, label, definition string }{
+	sectors := []struct{ code, label, definition string }{
 		{"S13", "toutes administrations publiques",
 			"État, organismes divers, collectivités et sécurité sociale réunis, APRÈS " +
 				"consolidation des flux entre eux. C'est le périmètre du déficit au sens " +
@@ -301,7 +301,7 @@ func series() []serie {
 				"complémentaires, que la loi de financement de la sécurité sociale ne " +
 				"couvre pas. Le périmètre est donc plus large que celui de la LFSS."},
 	}
-	agregats := []struct{ code, naItem, label, definition string }{
+	aggregates := []struct{ code, naItem, label, definition string }{
 		{"depense", "TE", "Dépenses totales",
 			"Dépense totale au sens du SEC 2010 : prestations, rémunérations, " +
 				"consommations, investissement et intérêts."},
@@ -312,20 +312,20 @@ func series() []serie {
 			"Recettes moins dépenses. Un nombre négatif est un besoin de financement, " +
 				"c'est-à-dire un déficit."},
 	}
-	for _, sec := range secteurs {
-		for _, a := range agregats {
-			out = append(out, serie{
-				Code:  a.code + "." + sec.code,
-				Label: a.label + " — " + sec.label,
-				Unite: "MEUR", Famille: "FINANCES_PUBLIQUES",
-				Definition: a.definition + " Sous-secteur " + sec.code + " : " + sec.definition +
+	for _, sec := range sectors {
+		for _, agg := range aggregates {
+			out = append(out, series{
+				Code:  agg.code + "." + sec.code,
+				Label: agg.label + " — " + sec.label,
+				Unit:  "MEUR", Family: "FINANCES_PUBLIQUES",
+				Definition: agg.definition + " Sous-secteur " + sec.code + " : " + sec.definition +
 					" Comptabilité NATIONALE (SEC 2010), droits constatés, sous-secteur " +
 					"consolidé : ces montants NE SONT PAS COMPARABLES à un solde de loi de " +
 					"finances ou de loi de financement, qui relèvent de la comptabilité " +
 					"budgétaire. La comptabilité nationale ne connaît que l'exécuté, " +
 					"retraité, et à dix-huit mois de délai pour les comptes définitifs.",
-				Requete: "gov_10a_main?format=JSON&lang=FR&geo=FR&unit=MIO_EUR&na_item=" +
-					a.naItem + "&sector=" + sec.code,
+				Query: "gov_10a_main?format=JSON&lang=FR&geo=FR&unit=MIO_EUR&na_item=" +
+					agg.naItem + "&sector=" + sec.code,
 			})
 		}
 	}
@@ -343,7 +343,7 @@ func series() []serie {
 	//
 	// spr_exp_sum, que la documentation ancienne cite partout, est RETIRÉ et
 	// renvoie 404 ; les dépenses sont sous spr_exp_func et ses déclinaisons.
-	financement := []struct{ code, sptype, label, definition string }{
+	financing := []struct{ code, sptype, label, definition string }{
 		{"protection.financement.total", "TOTAL", "Financement total de la protection sociale",
 			"Toutes ressources du système de protection sociale."},
 		{"protection.financement.cotisations.employeurs", "SCO_EMPL",
@@ -361,13 +361,13 @@ func series() []serie {
 			"Contributions publiques — recettes fiscales générales",
 			"Financement par le budget général, sans affectation."},
 	}
-	for _, f := range financement {
-		out = append(out, serie{
-			Code: f.code, Label: f.label, Unite: "MEUR", Famille: "PROTECTION_SOCIALE",
-			Definition: f.definition + " Source ESSPROS (Eurostat), champ PROTECTION SOCIALE : " +
+	for _, fin := range financing {
+		out = append(out, series{
+			Code: fin.code, Label: fin.label, Unit: "MEUR", Family: "PROTECTION_SOCIALE",
+			Definition: fin.definition + " Source ESSPROS (Eurostat), champ PROTECTION SOCIALE : " +
 				"assurance chômage et retraites complémentaires comprises, donc plus large " +
 				"que la loi de financement de la sécurité sociale.",
-			Requete: "spr_rec_sumt?format=JSON&lang=FR&geo=FR&unit=MIO_EUR&sptype=" + f.sptype,
+			Query: "spr_rec_sumt?format=JSON&lang=FR&geo=FR&unit=MIO_EUR&sptype=" + fin.sptype,
 		})
 	}
 
@@ -380,7 +380,7 @@ func series() []serie {
 	// moyens-testées réunies) évitent d'avoir à sommer des sous-catégories
 	// dont l'emboîtement n'est pas garanti la même façon pour toutes les
 	// fonctions.
-	depenseFonction := []struct{ code, spr, label, definition string }{
+	functionExpense := []struct{ code, spr, label, definition string }{
 		{"protection.depense.chomage", "spr_exp_fun", "Dépense de la fonction chômage",
 			"Prestations de protection sociale versées au titre du risque chômage : " +
 				"indemnisation, insertion, retraite anticipée pour raison de marché du " +
@@ -390,35 +390,35 @@ func series() []serie {
 				"pensions de retraite, y compris anticipées et partielles, allocations " +
 				"dépendance liées à l'âge."},
 	}
-	for _, d := range depenseFonction {
-		out = append(out, serie{
-			Code: d.code, Label: d.label, Unite: "MEUR", Famille: "PROTECTION_SOCIALE",
-			Definition: d.definition + " Source ESSPROS (Eurostat), champ PROTECTION SOCIALE — " +
+	for _, fn := range functionExpense {
+		out = append(out, series{
+			Code: fn.code, Label: fn.label, Unit: "MEUR", Family: "PROTECTION_SOCIALE",
+			Definition: fn.definition + " Source ESSPROS (Eurostat), champ PROTECTION SOCIALE — " +
 				"plus large que la loi de financement de la sécurité sociale (assurance " +
 				"chômage et retraites complémentaires comprises).",
-			Requete: d.spr + "?format=JSON&lang=FR&geo=FR&spdep=SPR&spdepm=TOTAL&unit=MIO_EUR",
+			Query: fn.spr + "?format=JSON&lang=FR&geo=FR&spdep=SPR&spdepm=TOTAL&unit=MIO_EUR",
 		})
 	}
 
 	for _, c := range cofog {
-		out = append(out, serie{
+		out = append(out, series{
 			Code: "depense." + c.code, Label: "Dépense publique — " + c.label,
-			Unite: "MEUR", Famille: "DEPENSE", Cofog: c.code,
+			Unit: "MEUR", Family: "DEPENSE", Cofog: c.code,
 			Definition: "Dépense totale des administrations publiques pour la fonction « " +
 				c.label + " » (classification COFOG), en millions d'euros courants. " +
 				"Toutes administrations confondues, pas seulement l'État.",
-			Requete: "gov_10a_exp?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=TE&cofog99=" + c.code,
+			Query: "gov_10a_exp?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=TE&cofog99=" + c.code,
 		})
 	}
 	for _, c := range cofogProtectionSociale {
-		out = append(out, serie{
+		out = append(out, series{
 			Code: "depense." + c.code, Label: c.label,
-			Unite: "MEUR", Famille: "DEPENSE", Cofog: c.code,
+			Unit: "MEUR", Family: "DEPENSE", Cofog: c.code,
 			Definition: "Sous-fonction de GF10 (Protection sociale) — « " + c.label +
 				" », en millions d'euros courants, toutes administrations confondues. " +
 				"Somme les huit sous-fonctions pour retrouver GF10, jamais l'inverse : " +
 				"ne pas déduire une sous-fonction d'un pourcentage estimé du total.",
-			Requete: "gov_10a_exp?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=TE&cofog99=" + c.code,
+			Query: "gov_10a_exp?format=JSON&lang=FR&geo=FR&sector=S13&unit=MIO_EUR&na_item=TE&cofog99=" + c.code,
 		})
 	}
 	return out
@@ -444,17 +444,17 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	defer tx.Rollback(ctx)
 
-	var nSeries, nValeurs int
-	for _, s := range series() {
-		f, err := arch.Fetch(ctx, srcID, runID, eurostatBase+s.Requete, ".json")
+	var nSeries, nValues int
+	for _, s := range buildSeries() {
+		f, err := arch.Fetch(ctx, srcID, runID, eurostatBase+s.Query, ".json")
 		if err != nil {
 			return fail(fmt.Errorf("%s : %w", s.Code, err))
 		}
-		valeurs, err := lireEurostat(f.Path)
+		values, err := readEurostat(f.Path)
 		if err != nil {
 			return fail(fmt.Errorf("%s : %w", s.Code, err))
 		}
-		if len(valeurs) == 0 {
+		if len(values) == 0 {
 			// Une série vide est un signal, pas un détail : la requête est
 			// fausse ou la dimension a changé de nom chez Eurostat.
 			return fail(fmt.Errorf("%s : aucune valeur — requête ou dimension à revoir", s.Code))
@@ -464,45 +464,45 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
 			ON CONFLICT (code) DO UPDATE SET label=EXCLUDED.label, unite=EXCLUDED.unite,
 			  definition=EXCLUDED.definition, famille=EXCLUDED.famille, url=EXCLUDED.url`,
-			s.Code, s.Label, s.Unite, "Eurostat / INSEE", s.Definition, s.Famille,
-			nulStr(s.Cofog), eurostatBase+s.Requete); err != nil {
+			s.Code, s.Label, s.Unit, "Eurostat / INSEE", s.Definition, s.Family,
+			emptyToNull(s.Cofog), eurostatBase+s.Query); err != nil {
 			return fail(err)
 		}
 		if _, err := tx.Exec(ctx,
 			`DELETE FROM core.macro_value WHERE serie_code = $1`, s.Code); err != nil {
 			return fail(err)
 		}
-		for _, v := range valeurs {
+		for _, v := range values {
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO core.macro_value (serie_code, annee, valeur, source_id)
-				VALUES ($1,$2,$3,$4)`, s.Code, v.annee, v.valeur, srcID); err != nil {
+				VALUES ($1,$2,$3,$4)`, s.Code, v.year, v.value, srcID); err != nil {
 				return fail(err)
 			}
-			nValeurs++
+			nValues++
 		}
 		nSeries++
-		fmt.Printf("    %-26s %3d valeurs  %d-%d\n", s.Code, len(valeurs),
-			valeurs[0].annee, valeurs[len(valeurs)-1].annee)
+		fmt.Printf("    %-26s %3d valeurs  %d-%d\n", s.Code, len(values),
+			values[0].year, values[len(values)-1].year)
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"series": nSeries, "valeurs": nValeurs}, "")
-	fmt.Printf("  Eurostat : %d séries, %d valeurs\n", nSeries, nValeurs)
+		map[string]any{"series": nSeries, "valeurs": nValues}, "")
+	fmt.Printf("  Eurostat : %d séries, %d valeurs\n", nSeries, nValues)
 	return nil
 }
 
 type point struct {
-	annee  int
-	valeur float64
+	year  int
+	value float64
 }
 
-// lireEurostat décode le format JSON-stat : les valeurs sont indexées par la
+// readEurostat décode le format JSON-stat : les valeurs sont indexées par la
 // position de l'année dans la dimension temps, pas par l'année elle-même.
-func lireEurostat(path string) ([]point, error) {
-	b, err := lireFichier(path)
+func readEurostat(path string) ([]point, error) {
+	b, err := readFile(path)
 	if err != nil {
 		return nil, err
 	}
@@ -524,23 +524,23 @@ func lireEurostat(path string) ([]point, error) {
 		return nil, fmt.Errorf("Eurostat : %s", doc.Error[0].Label)
 	}
 	var out []point
-	for annee, idx := range doc.Dimension.Time.Category.Index {
+	for yearStr, idx := range doc.Dimension.Time.Category.Index {
 		v, ok := doc.Value[strconv.Itoa(idx)]
 		if !ok {
 			// Année sans valeur : elle reste absente. Rien n'est interpolé.
 			continue
 		}
-		n, err := strconv.Atoi(annee)
+		n, err := strconv.Atoi(yearStr)
 		if err != nil {
 			continue
 		}
 		out = append(out, point{n, v})
 	}
-	sort.Slice(out, func(i, j int) bool { return out[i].annee < out[j].annee })
+	sort.Slice(out, func(i, j int) bool { return out[i].year < out[j].year })
 	return out, nil
 }
 
-func lireFichier(path string) ([]byte, error) {
+func readFile(path string) ([]byte, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -549,7 +549,7 @@ func lireFichier(path string) ([]byte, error) {
 	return io.ReadAll(f)
 }
 
-func nulStr(s string) any {
+func emptyToNull(s string) any {
 	if s == "" {
 		return nil
 	}
@@ -611,31 +611,31 @@ func IngestRSA(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	}
 
 	var n int
-	for annee := 2016; annee <= 2025; annee++ {
+	for year := 2016; year <= 2025; year++ {
 		url := fmt.Sprintf("%s?select=sum(indfoy_rsa)%%20as%%20foyers&where=dtreffre%%3Ddate%%27%d-12-01%%27&limit=1",
-			base, annee)
+			base, year)
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".json")
 		if err != nil {
-			return fail(fmt.Errorf("RSA %d : %w", annee, err))
+			return fail(fmt.Errorf("RSA %d : %w", year, err))
 		}
-		b, err := lireFichier(f.Path)
+		b, err := readFile(f.Path)
 		if err != nil {
 			return fail(err)
 		}
 		var doc struct {
 			Results []struct {
-				Foyers *float64 `json:"foyers"`
+				Households *float64 `json:"foyers"`
 			} `json:"results"`
 		}
 		if err := json.Unmarshal(b, &doc); err != nil {
 			return fail(err)
 		}
-		if len(doc.Results) == 0 || doc.Results[0].Foyers == nil {
+		if len(doc.Results) == 0 || doc.Results[0].Households == nil {
 			continue // décembre non encore publié : l'année reste absente
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO core.macro_value (serie_code, annee, valeur, source_id)
-			VALUES ('rsa.foyers', $1, $2, $3)`, annee, *doc.Results[0].Foyers, srcID); err != nil {
+			VALUES ('rsa.foyers', $1, $2, $3)`, year, *doc.Results[0].Households, srcID); err != nil {
 			return fail(err)
 		}
 		n++

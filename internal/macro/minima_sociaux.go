@@ -17,7 +17,7 @@ import (
 // continuité RMI (jusqu'en 2009) → RSA. Voir docs/chomage-donnees.md et
 // docs/retraite-donnees.md (pour la ligne ASV/ASPA), et le commentaire de
 // db/migrations/0072_minima_sociaux.sql.
-var SourceMinimaSociaux = archive.Source{
+var SourceSocialMinima = archive.Source{
 	Slug: "drees-minima-sociaux-dispositif", Label: "Drees — minima sociaux par dispositif",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
@@ -37,11 +37,11 @@ const (
 		"336_minima-sociaux-rsa-et-prime-d-activite/attachments/minima_sociaux_donnees_de_depenses_par_dispositif_xlsx"
 )
 
-// dispositifPrefixe : l'ordre compte — il conditionne le premier préfixe
+// schemePrefix : l'ordre compte — il conditionne le premier préfixe
 // reconnu, et le classeur des dépenses accole le numéro de sa note de bas de
 // page directement au libellé ("RSA1,2", "ASS1") sans espace, d'où des
 // correspondances par PRÉFIXE plutôt que par égalité stricte.
-var dispositifPrefixe = []struct{ prefixe, code, libelle string }{
+var schemePrefix = []struct{ prefix, code, label string }{
 	{"Revenu de solidarité active (RSA)", "RSA", "Revenu de solidarité active"},
 	{"RSA", "RSA", "Revenu de solidarité active"},
 	{"Revenu minimum d'insertion (RMI)", "RMI", "Revenu minimum d'insertion"},
@@ -71,21 +71,21 @@ var dispositifPrefixe = []struct{ prefixe, code, libelle string }{
 	{"Ensemble", "ENSEMBLE", "Ensemble des minima sociaux"},
 }
 
-var reAnnee = regexp.MustCompile(`^(\d{4})`)
+var reYear = regexp.MustCompile(`^(\d{4})`)
 
-func codeDispositif(libelle string) (code, propre string, ok bool) {
-	for _, d := range dispositifPrefixe {
-		if strings.HasPrefix(libelle, d.prefixe) {
-			return d.code, d.libelle, true
+func schemeCode(label string) (code, properLabel string, ok bool) {
+	for _, d := range schemePrefix {
+		if strings.HasPrefix(label, d.prefix) {
+			return d.code, d.label, true
 		}
 	}
 	return "", "", false
 }
 
-// IngestMinimaSociaux charge les effectifs (1990-2024, France métropolitaine)
+// IngestSocialMinima charge les effectifs (1990-2024, France métropolitaine)
 // et les dépenses (2009-2024, France, euros constants 2024) par dispositif.
-func IngestMinimaSociaux(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceMinimaSociaux)
+func IngestSocialMinima(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceSocialMinima)
 	if err != nil {
 		return err
 	}
@@ -98,21 +98,21 @@ func IngestMinimaSociaux(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return err
 	}
 
-	nEff, err := chargerMinimaEffectif(ctx, pool, arch, srcID, runID)
+	nHeadcount, err := loadMinimaHeadcount(ctx, pool, arch, srcID, runID)
 	if err != nil {
 		return fail(fmt.Errorf("effectifs : %w", err))
 	}
-	nDep, err := chargerMinimaDepense(ctx, pool, arch, srcID, runID)
+	nSpending, err := loadMinimaSpending(ctx, pool, arch, srcID, runID)
 	if err != nil {
 		return fail(fmt.Errorf("dépenses : %w", err))
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"touchees_effectif": nEff, "touchees_depense": nDep}, "")
-	fmt.Printf("  minima sociaux : %d lignes d'effectifs touchées, %d lignes de dépenses touchées\n", nEff, nDep)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"touchees_effectif": nHeadcount, "touchees_depense": nSpending}, "")
+	fmt.Printf("  minima sociaux : %d lignes d'effectifs touchées, %d lignes de dépenses touchées\n", nHeadcount, nSpending)
 	return nil
 }
 
-func chargerMinimaEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, srcID, runID int64) (int, error) {
+func loadMinimaHeadcount(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, srcID, runID int64) (int, error) {
 	f, err := arch.Fetch(ctx, srcID, runID, minimaEffectifURL, ".xlsx")
 	if err != nil {
 		return 0, err
@@ -122,7 +122,7 @@ func chargerMinimaEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return 0, err
 	}
 	defer x.Close()
-	lignes, err := x.rows("Tableau 1")
+	sheetRows, err := x.rows("Tableau 1")
 	if err != nil {
 		return 0, err
 	}
@@ -133,29 +133,29 @@ func chargerMinimaEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	// année). On garde la DERNIÈRE colonne rencontrée pour une année donnée :
 	// c'est celle qui suit la colonne d'origine dans la feuille, donc la
 	// version révisée par convention Drees.
-	annees, err := colonneAnnees(lignes)
+	yearCols, err := yearColumns(sheetRows)
 	if err != nil {
 		return 0, err
 	}
 
 	// clé (code, année) -> effectif : une map, pas une slice, pour que la
-	// colonne la plus à droite (donc la dernière traitée, `annees` étant
+	// colonne la plus à droite (donc la dernière traitée, `yearCols` étant
 	// trié dans l'ordre du tableur) écrase silencieusement une colonne
 	// dupliquée plus ancienne pour la même année.
-	valeurs := map[[2]any]int{}
-	var propreDe = map[string]string{}
-	for _, l := range lignes {
-		lib, ok := l["B"]
+	values := map[[2]any]int{}
+	var labelOf = map[string]string{}
+	for _, row := range sheetRows {
+		label, ok := row["B"]
 		if !ok {
 			continue
 		}
-		code, propre, ok := codeDispositif(lib)
+		code, properLabel, ok := schemeCode(label)
 		if !ok {
 			continue
 		}
-		propreDe[code] = propre
-		for _, ca := range annees {
-			v, ok := l[ca.col]
+		labelOf[code] = properLabel
+		for _, yc := range yearCols {
+			v, ok := row[yc.col]
 			if !ok {
 				continue
 			}
@@ -171,23 +171,23 @@ func chargerMinimaEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 			if v == "" {
 				continue
 			}
-			eff, err := strconv.Atoi(v)
+			count, err := strconv.Atoi(v)
 			if err != nil {
 				continue
 			}
-			valeurs[[2]any{code, ca.annee}] = eff
+			values[[2]any{code, yc.year}] = count
 		}
 		if code == "ENSEMBLE" {
 			break // tout ce qui suit est note de bas de page, pas donnée.
 		}
 	}
-	if len(valeurs) == 0 {
+	if len(values) == 0 {
 		return 0, fmt.Errorf("aucune ligne reconnue")
 	}
 	var rows [][]any
-	for k, v := range valeurs {
+	for k, v := range values {
 		code := k[0].(string)
-		rows = append(rows, []any{code, propreDe[code], k[1], v, srcID})
+		rows = append(rows, []any{code, labelOf[code], k[1], v, srcID})
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -227,7 +227,7 @@ func chargerMinimaEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	return int(ct.RowsAffected()), tx.Commit(ctx)
 }
 
-func chargerMinimaDepense(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, srcID, runID int64) (int, error) {
+func loadMinimaSpending(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, srcID, runID int64) (int, error) {
 	f, err := arch.Fetch(ctx, srcID, runID, minimaDepenseURL, ".xlsx")
 	if err != nil {
 		return 0, err
@@ -237,49 +237,49 @@ func chargerMinimaDepense(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return 0, err
 	}
 	defer x.Close()
-	lignes, err := x.rows("Tableau 1")
+	sheetRows, err := x.rows("Tableau 1")
 	if err != nil {
 		return 0, err
 	}
-	annees, err := colonneAnnees(lignes)
+	yearCols, err := yearColumns(sheetRows)
 	if err != nil {
 		return 0, err
 	}
 
-	valeurs := map[[2]any]float64{}
-	var propreDe = map[string]string{}
-	for _, l := range lignes {
-		lib, ok := l["B"]
+	values := map[[2]any]float64{}
+	var labelOf = map[string]string{}
+	for _, row := range sheetRows {
+		label, ok := row["B"]
 		if !ok {
 			continue
 		}
-		code, propre, ok := codeDispositif(lib)
+		code, properLabel, ok := schemeCode(label)
 		if !ok {
 			continue
 		}
-		propreDe[code] = propre
-		for _, ca := range annees {
-			v, ok := l[ca.col]
+		labelOf[code] = properLabel
+		for _, yc := range yearCols {
+			v, ok := row[yc.col]
 			if !ok {
 				continue
 			}
-			montant, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
+			amount, err := strconv.ParseFloat(strings.TrimSpace(v), 64)
 			if err != nil {
 				continue
 			}
-			valeurs[[2]any{code, ca.annee}] = montant
+			values[[2]any{code, yc.year}] = amount
 		}
 		if code == "ENSEMBLE" {
 			break
 		}
 	}
-	if len(valeurs) == 0 {
+	if len(values) == 0 {
 		return 0, fmt.Errorf("aucune ligne reconnue")
 	}
 	var rows [][]any
-	for k, v := range valeurs {
+	for k, v := range values {
 		code := k[0].(string)
-		rows = append(rows, []any{code, propreDe[code], k[1], v, srcID})
+		rows = append(rows, []any{code, labelOf[code], k[1], v, srcID})
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -320,42 +320,42 @@ func chargerMinimaDepense(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	return int(ct.RowsAffected()), tx.Commit(ctx)
 }
 
-// colAnnee : une colonne de tableur et l'année que porte son en-tête.
-type colAnnee struct {
-	col   string
-	annee int
+// yearCol : une colonne de tableur et l'année que porte son en-tête.
+type yearCol struct {
+	col  string
+	year int
 }
 
-// colonneAnnees repère la ligne d'en-tête (celle où au moins dix cellules
+// yearColumns repère la ligne d'en-tête (celle où au moins dix cellules
 // commencent par quatre chiffres) et renvoie les colonnes triées dans l'ORDRE
 // RÉEL DU TABLEUR (A, B, ... Z, AA, AB, ...) — indispensable ici : quand une
 // année est dupliquée (bascule méthodologique, ex. « 2009 (7) » après
 // « 2009 »), la colonne qui doit l'emporter est celle de DROITE, la plus
 // récente selon la convention Drees. Un simple parcours de map Go ne le
 // garantirait pas, l'ordre d'itération n'étant pas spécifié par le langage.
-func colonneAnnees(lignes []map[string]string) ([]colAnnee, error) {
-	for _, l := range lignes {
-		var cand []colAnnee
-		for col, v := range l {
-			m := reAnnee.FindStringSubmatch(strings.TrimSpace(v))
+func yearColumns(rows []map[string]string) ([]yearCol, error) {
+	for _, row := range rows {
+		var candidates []yearCol
+		for col, v := range row {
+			m := reYear.FindStringSubmatch(strings.TrimSpace(v))
 			if m == nil {
 				continue
 			}
-			an, _ := strconv.Atoi(m[1])
-			if an < 1980 || an > 2100 {
+			year, _ := strconv.Atoi(m[1])
+			if year < 1980 || year > 2100 {
 				continue
 			}
-			cand = append(cand, colAnnee{col, an})
+			candidates = append(candidates, yearCol{col, year})
 		}
-		if len(cand) >= 10 {
-			sort.Slice(cand, func(i, j int) bool {
-				ci, cj := cand[i].col, cand[j].col
+		if len(candidates) >= 10 {
+			sort.Slice(candidates, func(i, j int) bool {
+				ci, cj := candidates[i].col, candidates[j].col
 				if len(ci) != len(cj) {
 					return len(ci) < len(cj)
 				}
 				return ci < cj
 			})
-			return cand, nil
+			return candidates, nil
 		}
 	}
 	return nil, fmt.Errorf("ligne d'en-tête des années introuvable")

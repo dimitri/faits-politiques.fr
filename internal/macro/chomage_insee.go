@@ -18,7 +18,7 @@ import (
 // d'Eurostat (chomage.taux dans core.macro_value), plus lente et moins
 // fine. C'est la mesure de référence du débat public français : celle que
 // citent les gouvernements et les médias à chaque publication trimestrielle.
-var SourceInseeChomageTrimestriel = archive.Source{
+var SourceInseeUnemploymentQuarterly = archive.Source{
 	Slug: "insee-chomage-trimestriel", Label: "INSEE — taux de chômage trimestriel au sens du BIT",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
 	Licence:     "Licence Ouverte v2.0",
@@ -29,7 +29,7 @@ var SourceInseeChomageTrimestriel = archive.Source{
 		"macro-économiques (BDM), pas de fichier téléchargé : la réponse EST la donnée.",
 }
 
-const inseeChomageURL = "https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/001688527"
+const inseeUnemploymentURL = "https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/001688527"
 
 type sdmxDataSet struct {
 	Series struct {
@@ -40,12 +40,12 @@ type sdmxDataSet struct {
 }
 
 type sdmxObs struct {
-	Periode string `xml:"TIME_PERIOD,attr"`
-	Valeur  string `xml:"OBS_VALUE,attr"`
+	Period string `xml:"TIME_PERIOD,attr"`
+	Value  string `xml:"OBS_VALUE,attr"`
 }
 
-func IngestChomageINSEE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceInseeChomageTrimestriel)
+func IngestUnemploymentINSEE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceInseeUnemploymentQuarterly)
 	if err != nil {
 		return err
 	}
@@ -58,7 +58,7 @@ func IngestChomageINSEE(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, inseeChomageURL, ".xml")
+	f, err := arch.Fetch(ctx, srcID, runID, inseeUnemploymentURL, ".xml")
 	if err != nil {
 		return fail(err)
 	}
@@ -76,15 +76,15 @@ func IngestChomageINSEE(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 
 	var rows [][]any
 	for _, o := range ds.Series.Obs {
-		annee, trim, err := trimestreDe(o.Periode)
+		year, quarter, err := parseQuarter(o.Period)
 		if err != nil {
 			continue // une ligne mal formée n'invalide pas les 200 autres
 		}
-		v, err := strconv.ParseFloat(o.Valeur, 64)
+		v, err := strconv.ParseFloat(o.Value, 64)
 		if err != nil {
 			continue
 		}
-		rows = append(rows, []any{o.Periode, annee, trim, v, srcID})
+		rows = append(rows, []any{o.Period, year, quarter, v, srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("%d observations lues, aucune exploitable", len(ds.Series.Obs)))
@@ -136,12 +136,12 @@ func IngestChomageINSEE(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	return nil
 }
 
-// trimestreDe lit "2026-Q2" en (2026, 2). Le format SDMX de l'INSEE ne varie
+// parseQuarter lit "2026-Q2" en (2026, 2). Le format SDMX de l'INSEE ne varie
 // pas d'une observation à l'autre — pas besoin d'un regexp pour ça.
-func trimestreDe(periode string) (annee, trimestre int, err error) {
-	parts := strings.SplitN(periode, "-Q", 2)
+func parseQuarter(period string) (year, quarter int, err error) {
+	parts := strings.SplitN(period, "-Q", 2)
 	if len(parts) != 2 {
-		return 0, 0, fmt.Errorf("période inattendue : %q", periode)
+		return 0, 0, fmt.Errorf("période inattendue : %q", period)
 	}
 	a, err := strconv.Atoi(parts[0])
 	if err != nil {

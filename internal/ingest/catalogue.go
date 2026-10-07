@@ -397,27 +397,27 @@ var catalogue = []Source{
 		}},
 	{Nom: "macro-prestations-solidarite", Categorie: CategorieBudget, Description: "prestations de solidarité",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestPrestationsSolidarite(ctx, pool, arch)
+			return macro.IngestSolidarityBenefits(ctx, pool, arch)
 		}},
 	{Nom: "macro-recettes-fiscales", Categorie: CategorieBudget, Description: "recettes fiscales",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestRecettesFiscales(ctx, pool, arch)
+			return macro.IngestTaxRevenue(ctx, pool, arch)
 		}},
 	{Nom: "macro-chomage-insee", Categorie: CategorieBudget, Description: "chômage (INSEE)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestChomageINSEE(ctx, pool, arch)
+			return macro.IngestUnemploymentINSEE(ctx, pool, arch)
 		}},
 	{Nom: "macro-minima-sociaux", Categorie: CategorieBudget, Description: "minima sociaux",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestMinimaSociaux(ctx, pool, arch)
+			return macro.IngestSocialMinima(ctx, pool, arch)
 		}},
 	{Nom: "macro-age-retraite", Categorie: CategorieBudget, Description: "âge de départ à la retraite",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestAgeDepartRetraite(ctx, pool, arch)
+			return macro.IngestRetirementAge(ctx, pool, arch)
 		}},
 	{Nom: "macro-demandeurs-emploi", Categorie: CategorieBudget, Description: "demandeurs d'emploi",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestDemandeursEmploi(ctx, pool, arch)
+			return macro.IngestJobSeekers(ctx, pool, arch)
 		}},
 	{Nom: "macro-prime-activite", Categorie: CategorieBudget, Description: "prime d'activité",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
@@ -425,11 +425,11 @@ var catalogue = []Source{
 		}},
 	{Nom: "macro-taux-remplacement", Categorie: CategorieBudget, Description: "taux de remplacement à la retraite",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestTauxRemplacement(ctx, pool, arch)
+			return macro.IngestReplacementRate(ctx, pool, arch)
 		}},
 	{Nom: "macro-cotisants-retraites", Categorie: CategorieBudget, Description: "cotisants aux régimes de retraite",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestCotisantsRetraites(ctx, pool, arch)
+			return macro.IngestPensionContributorsRatio(ctx, pool, arch)
 		}},
 	{Nom: "macro", Categorie: CategorieBudget,
 		Description: "grandes séries nationales (RSA, prestations, fiscalité, chômage, retraite...) et comptes des grandes sociétés — alias regroupant macro-* ci-dessus",
@@ -517,11 +517,11 @@ var catalogue = []Source{
 		}},
 	{Nom: "richesse", Categorie: CategorieSocial, Description: "hauts revenus et hauts patrimoines (dernier décile)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestHautsRevenusPatrimoine(ctx, pool, arch)
+			return macro.IngestTopIncomesWealth(ctx, pool, arch)
 		}},
 	{Nom: "heritage", Categorie: CategorieSocial, Description: "héritage et concentration patrimoine/niveau de vie (Gini)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestHeritageConcentration(ctx, pool, arch)
+			return macro.IngestInheritanceConcentration(ctx, pool, arch)
 		}},
 	{Nom: "ifi", Categorie: CategorieSocial, Description: "IFI par commune (IFICOM)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
@@ -532,23 +532,23 @@ var catalogue = []Source{
 	// croisée) — aucune Dependances entre eux, de front jusqu'à Concurrence.
 	{Nom: "socle-pauvrete", Categorie: CategorieSocial, Description: "seuils de pauvreté annuels",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestPauvrete(ctx, pool, arch)
+			return macro.IngestPoverty(ctx, pool, arch)
 		}},
 	{Nom: "socle-aide-alimentaire", Categorie: CategorieSocial, Description: "aide alimentaire",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestAideAlimentaire(ctx, pool, arch)
+			return macro.IngestFoodAid(ctx, pool, arch)
 		}},
 	{Nom: "socle-pauvrete-taux-eu", Categorie: CategorieSocial, Description: "taux de pauvreté, comparaison européenne",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestPauvreteTauxEU(ctx, pool, arch)
+			return macro.IngestPovertyRateEU(ctx, pool, arch)
 		}},
 	{Nom: "socle-menages-drees", Categorie: CategorieSocial, Description: "types de ménages (DREES)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestMenagesDREES(ctx, pool, arch)
+			return macro.IngestHouseholdsDrees(ctx, pool, arch)
 		}},
 	{Nom: "socle-menages-effectif", Categorie: CategorieSocial, Description: "effectifs par type de ménage",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestMenagesEffectif(ctx, pool, arch)
+			return macro.IngestHouseholdCount(ctx, pool, arch)
 		}},
 	{Nom: "socle-pensions-eir", Categorie: CategorieSocial, Description: "pensions de retraite par tranche (EIR)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
@@ -556,7 +556,7 @@ var catalogue = []Source{
 		}},
 	{Nom: "socle-chomage-unedic", Categorie: CategorieSocial, Description: "chômage par tranche (Unedic)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestChomageUnedic(ctx, pool, arch)
+			return macro.IngestUnemploymentUnedic(ctx, pool, arch)
 		}},
 	{Nom: "socle-filosofi-deciles", Categorie: CategorieSocial, Description: "déciles de revenu national (Filosofi)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
@@ -604,7 +604,7 @@ var catalogue = []Source{
 		}},
 	{Nom: "etablissements-penitentiaires", Categorie: CategorieSocial, Description: "population détenue par établissement pénitentiaire",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestEtablissementsPenitentiaires(ctx, pool, arch)
+			return macro.IngestPrisonFacilities(ctx, pool, arch)
 		}},
 	{Nom: "sru", Categorie: CategorieSocial, Description: "inventaire SRU par commune (logement social)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
@@ -612,15 +612,15 @@ var catalogue = []Source{
 		}},
 	{Nom: "effectifs-etudiants", Categorie: CategorieSocial, Description: "effectifs étudiants par commune (SIES)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestEffectifsEtudiants(ctx, pool, arch)
+			return macro.IngestStudentHeadcount(ctx, pool, arch)
 		}},
 	{Nom: "effort-recherche", Categorie: CategorieSocial, Description: "effort de recherche, DIRD/PIB (Insee)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestEffortRecherche(ctx, pool, arch)
+			return macro.IngestResearchEffort(ctx, pool, arch)
 		}},
 	{Nom: "museofile", Categorie: CategorieSocial, Description: "musées labellisés Musée de France (Muséofile)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestMuseesFrance(ctx, pool, arch)
+			return macro.IngestMuseums(ctx, pool, arch)
 		}},
 
 	// --- environnement : eau, écologie, agriculture, géographie hydrologique.
@@ -674,40 +674,40 @@ var catalogue = []Source{
 		}},
 	{Nom: "revenu-agricole", Categorie: CategorieEnvironnement, Description: "revenu agricole réel par unité de travail (France, UE)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestRevenuAgricole(ctx, pool, arch)
+			return macro.IngestFarmIncome(ctx, pool, arch)
 		}},
 
 	// --- economie : appareil productif, commerce, entreprises, numérique.
 	{Nom: "appareil-productif", Categorie: CategorieEconomie, Description: "emploi par secteur (NACE A10) et délocalisations",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			if err := macro.IngestEmploiSecteurNACE(ctx, pool, arch); err != nil {
+			if err := macro.IngestSectorEmploymentNACE(ctx, pool, arch); err != nil {
 				return err
 			}
-			return macro.IngestDelocalisationsInsee(ctx, pool, arch)
+			return macro.IngestOffshoringInsee(ctx, pool, arch)
 		}},
 	{Nom: "commerce-partenaires", Categorie: CategorieEconomie, Description: "commerce extérieur par partenaire, secteur par secteur (UN Comtrade)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestCommercePartenaires(ctx, pool, arch)
+			return macro.IngestTradePartners(ctx, pool, arch)
 		}},
 	{Nom: "ports", Categorie: CategorieEconomie, Description: "trafic portuaire français et comparaison européenne",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			if err := macro.IngestTraficPortuaire(ctx, pool, arch); err != nil {
+			if err := macro.IngestPortTraffic(ctx, pool, arch); err != nil {
 				return err
 			}
-			return macro.IngestTraficPortuaireEurope(ctx, pool, arch)
+			return macro.IngestPortTrafficEurope(ctx, pool, arch)
 		}},
 	{Nom: "ports-infra", Categorie: CategorieEconomie, Description: "accès terrestre aux grands ports et report modal",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			if err := macro.IngestAutoroutesPortuaires(ctx, pool, arch); err != nil {
+			if err := macro.IngestPortHighways(ctx, pool, arch); err != nil {
 				return err
 			}
-			if err := macro.IngestVoiesFerreesPortuaires(ctx, pool, arch); err != nil {
+			if err := macro.IngestPortRailLines(ctx, pool, arch); err != nil {
 				return err
 			}
 			if err := macro.IngestReportModalPort(ctx, pool, arch); err != nil {
 				return err
 			}
-			return macro.IngestReportModalConteneurs(ctx, pool, arch)
+			return macro.IngestReportModalContainers(ctx, pool, arch)
 		}},
 	{Nom: "decp", Categorie: CategorieEconomie, Description: "DECP : commande publique consolidée (fichier Parquet ~235 Mo)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
@@ -718,7 +718,7 @@ var catalogue = []Source{
 	// numérique, moteur « dossiers/faits ».
 	{Nom: "controle-fiscal", Categorie: CategorieTransparence, Description: "contrôle fiscal, résultats notifiés/encaissés (2015-2024)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestControleFiscal(ctx, pool, arch)
+			return macro.IngestTaxAudit(ctx, pool, arch)
 		}},
 	{Nom: "fiscalite", Categorie: CategorieTransparence, Description: "fiscalité comparée et filiales de groupes étrangers (SIRENE requis, GLEIF ~500 Mo)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
@@ -808,11 +808,11 @@ var catalogue = []Source{
 		}},
 	{Nom: "accord-paris", Categorie: CategorieInternational, Description: "Accord de Paris, ratifications pays par pays (ONU)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestAccordParis(ctx, pool, arch)
+			return macro.IngestParisAgreement(ctx, pool, arch)
 		}},
 	{Nom: "ecart-prix-dom", Categorie: CategorieInternational, Description: "écart de prix DOM/métropole (Insee ECSP 2022)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return macro.IngestEcartPrixDOM(ctx, pool, arch)
+			return macro.IngestDomPriceGap(ctx, pool, arch)
 		}},
 
 	// --- systeme : infrastructure partagée, pas propre à un dossier.

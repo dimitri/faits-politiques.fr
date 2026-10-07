@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var SourceRevenuAgricole = archive.Source{
+var SourceFarmIncome = archive.Source{
 	Slug: "eurostat-aact-eaa06", Label: "Eurostat, aact_eaa06 — revenu agricole réel par unité de travail",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
 	Licence: "Eurostat (réutilisation libre avec attribution)", ReuseClass: "OPEN",
@@ -21,14 +21,14 @@ var SourceRevenuAgricole = archive.Source{
 		"pas un revenu personnel observé par enquête.",
 }
 
-const urlRevenuAgricole = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/aact_eaa06?format=JSON&lang=EN&geo=FR&geo=EU27_2020&indic_agr=RFI_AWU_CLV&unit=CLV15_EUR_AWU"
+const farmIncomeURL = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/aact_eaa06?format=JSON&lang=EN&geo=FR&geo=EU27_2020&indic_agr=RFI_AWU_CLV&unit=CLV15_EUR_AWU"
 
-var geoLabelsAgricole = map[string]string{"FR": "France", "EU27_2020": "Union européenne (27)"}
+var farmIncomeGeoLabels = map[string]string{"FR": "France", "EU27_2020": "Union européenne (27)"}
 
-// IngestRevenuAgricole charge le revenu agricole réel par UTA, France et
+// IngestFarmIncome charge le revenu agricole réel par UTA, France et
 // Union européenne. Voir docs/agriculture-donnees.md.
-func IngestRevenuAgricole(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceRevenuAgricole)
+func IngestFarmIncome(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceFarmIncome)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func IngestRevenuAgricole(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, urlRevenuAgricole, ".json")
+	f, err := arch.Fetch(ctx, srcID, runID, farmIncomeURL, ".json")
 	if err != nil {
 		return fail(err)
 	}
@@ -88,24 +88,24 @@ func IngestRevenuAgricole(ctx context.Context, pool *pgxpool.Pool, arch *archive
 
 	var n int
 	for geoCode, iGeo := range geoDim.Category.Index {
-		label, ok := geoLabelsAgricole[geoCode]
+		label, ok := farmIncomeGeoLabels[geoCode]
 		if !ok {
 			return fail(fmt.Errorf("%s : libellé géographique inconnu", geoCode))
 		}
-		for anneeStr, iTime := range full.Dimension.Time.Category.Index {
+		for yearStr, iTime := range full.Dimension.Time.Category.Index {
 			idx := iGeo*nTime + iTime
 			v, ok := full.Value[fmt.Sprint(idx)]
 			if !ok {
 				continue
 			}
-			var annee int
-			if _, err := fmt.Sscanf(anneeStr, "%d", &annee); err != nil {
-				return fail(fmt.Errorf("année illisible : %q", anneeStr))
+			var year int
+			if _, err := fmt.Sscanf(yearStr, "%d", &year); err != nil {
+				return fail(fmt.Errorf("année illisible : %q", yearStr))
 			}
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO core.revenu_agricole_reel (geo_code, geo_label, annee, euro_par_uta, source_id)
-				VALUES ($1,$2,$3,$4,$5)`, geoCode, label, annee, v, srcID); err != nil {
-				return fail(fmt.Errorf("%s %d : insertion : %w", geoCode, annee, err))
+				VALUES ($1,$2,$3,$4,$5)`, geoCode, label, year, v, srcID); err != nil {
+				return fail(fmt.Errorf("%s %d : insertion : %w", geoCode, year, err))
 			}
 			n++
 		}

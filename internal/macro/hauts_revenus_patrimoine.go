@@ -19,7 +19,7 @@ import (
 // fiches Insee, une pour le revenu, une pour le patrimoine — deux notions
 // distinctes, jamais additionnées ici. Voir docs/repartition-richesse-donnees.md
 // et le commentaire de la migration 0117.
-var SourceHautsRevenusPatrimoine = archive.Source{
+var SourceTopIncomesWealth = archive.Source{
 	Slug: "insee-hauts-revenus-patrimoine", Label: "INSEE — hauts revenus et hauts patrimoines",
 	Publisher: "INSEE (Insee-DGFiP-Cnaf-Cnav-CCMSA, Filosofi ; enquêtes Patrimoine)",
 	Tier:      "PRIMARY_OFFICIAL",
@@ -32,37 +32,37 @@ var SourceHautsRevenusPatrimoine = archive.Source{
 }
 
 const (
-	urlHautsRevenus     = "https://www.insee.fr/fr/statistiques/fichier/7941389/RPM2024-F10.xlsx"
-	urlHautsPatrimoines = "https://www.insee.fr/fr/statistiques/fichier/8272285/RPM2024-F28.xlsx"
+	topIncomesURL = "https://www.insee.fr/fr/statistiques/fichier/7941389/RPM2024-F10.xlsx"
+	topWealthURL  = "https://www.insee.fr/fr/statistiques/fichier/8272285/RPM2024-F28.xlsx"
 )
 
-// nettoyerEuros : les montants sont écrits avec la virgule comme séparateur
+// parseEuros : les montants sont écrits avec la virgule comme séparateur
 // de milliers dans ce classeur (ex. "1,160,070"), jamais comme décimale —
 // vérifié sur les totaux (chaque revenu avant redistribution est cohérent
 // avec les niveaux de vie voisins une fois la virgule retirée).
-func nettoyerEuros(s string) (int, error) {
+func parseEuros(s string) (int, error) {
 	s = strings.ReplaceAll(strings.TrimSpace(s), ",", "")
 	return strconv.Atoi(s)
 }
 
-// reSeuil : "(D5)", "(D9)", "(Q99)", "(Q99,9)", "(Q99,99)" -> D5, D9, Q99,
+// reThreshold : "(D5)", "(D9)", "(Q99)", "(Q99,9)", "(Q99,99)" -> D5, D9, Q99,
 // Q99_9, Q99_99 (la virgule décimale du taux devient un underscore, seul
 // séparateur admis par le CHECK de la migration 0117).
-var reSeuil = regexp.MustCompile(`^\(([A-Z0-9,]+)\)$`)
+var reThreshold = regexp.MustCompile(`^\(([A-Z0-9,]+)\)$`)
 
-func codeSeuil(brut string) (string, error) {
-	m := reSeuil.FindStringSubmatch(strings.TrimSpace(brut))
+func thresholdCode(raw string) (string, error) {
+	m := reThreshold.FindStringSubmatch(strings.TrimSpace(raw))
 	if m == nil {
-		return "", fmt.Errorf("seuil illisible : %q", brut)
+		return "", fmt.Errorf("seuil illisible : %q", raw)
 	}
 	return strings.ReplaceAll(m[1], ",", "_"), nil
 }
 
-// codeGroupe : le libellé en toutes lettres d'une ligne du tableau
+// groupCode : le libellé en toutes lettres d'une ligne du tableau
 // complémentaire vers son code — comparaison sur des fragments stables
 // (les espaces insécables et la ponctuation varient selon le rendu Excel).
-func codeGroupe(libelle string) (string, error) {
-	l := strings.ToLower(libelle)
+func groupCode(label string) (string, error) {
+	l := strings.ToLower(label)
 	switch {
 	case strings.Contains(l, "90") && strings.Contains(l, "modestes"):
 		return "90_MODESTES", nil
@@ -75,11 +75,11 @@ func codeGroupe(libelle string) (string, error) {
 	case strings.Contains(l, "les 1") && strings.Contains(l, "plus aisés"):
 		return "1_PLUS_AISES", nil
 	}
-	return "", fmt.Errorf("groupe illisible : %q", libelle)
+	return "", fmt.Errorf("groupe illisible : %q", label)
 }
 
-func IngestHautsRevenusPatrimoine(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceHautsRevenusPatrimoine)
+func IngestTopIncomesWealth(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceTopIncomesWealth)
 	if err != nil {
 		return err
 	}
@@ -92,35 +92,35 @@ func IngestHautsRevenusPatrimoine(ctx context.Context, pool *pgxpool.Pool, arch 
 		return err
 	}
 
-	fRevenus, err := arch.Fetch(ctx, srcID, runID, urlHautsRevenus, ".xlsx")
+	fIncomes, err := arch.Fetch(ctx, srcID, runID, topIncomesURL, ".xlsx")
 	if err != nil {
 		return fail(err)
 	}
-	wbRevenus, err := excelize.OpenFile(fRevenus.Path)
+	wbIncomes, err := excelize.OpenFile(fIncomes.Path)
 	if err != nil {
 		return fail(fmt.Errorf("classeur hauts revenus illisible : %w", err))
 	}
-	defer wbRevenus.Close()
+	defer wbIncomes.Close()
 
-	fPatrimoines, err := arch.Fetch(ctx, srcID, runID, urlHautsPatrimoines, ".xlsx")
+	fWealth, err := arch.Fetch(ctx, srcID, runID, topWealthURL, ".xlsx")
 	if err != nil {
 		return fail(err)
 	}
-	wbPatrimoines, err := excelize.OpenFile(fPatrimoines.Path)
+	wbWealth, err := excelize.OpenFile(fWealth.Path)
 	if err != nil {
 		return fail(fmt.Errorf("classeur hauts patrimoines illisible : %w", err))
 	}
-	defer wbPatrimoines.Close()
+	defer wbWealth.Close()
 
-	seuils, err := lireSeuilsHautRevenu(wbRevenus)
+	thresholds, err := readTopIncomeThresholds(wbIncomes)
 	if err != nil {
 		return fail(err)
 	}
-	parts, err := lireRevenuPartGroupe(wbRevenus)
+	shares, err := readIncomeShareByGroup(wbIncomes)
 	if err != nil {
 		return fail(err)
 	}
-	patrimoines, err := lirePatrimoineHaut(wbPatrimoines)
+	wealth, err := readTopWealth(wbWealth)
 	if err != nil {
 		return fail(err)
 	}
@@ -135,37 +135,37 @@ func IngestHautsRevenusPatrimoine(ctx context.Context, pool *pgxpool.Pool, arch 
 		return fail(err)
 	}
 
-	var rowsSeuils [][]any
-	for _, s := range seuils {
-		rowsSeuils = append(rowsSeuils, []any{s.annee, s.seuil, s.revenuAvant, s.niveauDeVie, srcID})
+	var thresholdRows [][]any
+	for _, t := range thresholds {
+		thresholdRows = append(thresholdRows, []any{t.year, t.threshold, t.incomeBefore, t.livingStandard, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "filosofi_haut_revenu"},
 		[]string{"annee", "seuil", "revenu_avant_redistribution_eur", "niveau_de_vie_eur", "source_id"},
-		pgx.CopyFromRows(rowsSeuils)); err != nil {
+		pgx.CopyFromRows(thresholdRows)); err != nil {
 		return fail(fmt.Errorf("filosofi_haut_revenu : %w", err))
 	}
 
-	var rowsParts [][]any
-	for _, p := range parts {
-		rowsParts = append(rowsParts, []any{p.annee, p.groupe, p.partPct, srcID})
+	var shareRows [][]any
+	for _, sh := range shares {
+		shareRows = append(shareRows, []any{sh.year, sh.group, sh.sharePct, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "revenu_part_groupe"},
 		[]string{"annee", "groupe", "part_pct", "source_id"},
-		pgx.CopyFromRows(rowsParts)); err != nil {
+		pgx.CopyFromRows(shareRows)); err != nil {
 		return fail(fmt.Errorf("revenu_part_groupe : %w", err))
 	}
 
-	var rowsPatrimoine [][]any
-	for _, p := range patrimoines {
-		var part *float64
-		if p.partMasseOK {
-			part = &p.partMasse
+	var wealthRows [][]any
+	for _, w := range wealth {
+		var massShare *float64
+		if w.massShareOK {
+			massShare = &w.massShare
 		}
-		rowsPatrimoine = append(rowsPatrimoine, []any{p.annee, p.tranche, p.seuilBas, p.moyen, part, srcID})
+		wealthRows = append(wealthRows, []any{w.year, w.bracket, w.lowerThreshold, w.average, massShare, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "patrimoine_haut"},
 		[]string{"annee", "tranche", "seuil_bas_eur", "patrimoine_moyen_eur", "part_masse_pct", "source_id"},
-		pgx.CopyFromRows(rowsPatrimoine)); err != nil {
+		pgx.CopyFromRows(wealthRows)); err != nil {
 		return fail(fmt.Errorf("patrimoine_haut : %w", err))
 	}
 
@@ -173,21 +173,21 @@ func IngestHautsRevenusPatrimoine(ctx context.Context, pool *pgxpool.Pool, arch 
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"seuils": len(seuils), "parts": len(parts), "patrimoines": len(patrimoines)}, "")
+		map[string]any{"seuils": len(thresholds), "parts": len(shares), "patrimoines": len(wealth)}, "")
 	fmt.Printf("  hauts revenus et patrimoines (Insee) : %d seuils, %d parts, %d tranches de patrimoine\n",
-		len(seuils), len(parts), len(patrimoines))
+		len(thresholds), len(shares), len(wealth))
 	return nil
 }
 
-type ligneSeuilRevenu struct {
-	annee                    int
-	seuil                    string
-	revenuAvant, niveauDeVie int
+type topIncomeThresholdRow struct {
+	year                         int
+	threshold                    string
+	incomeBefore, livingStandard int
 }
 
-// lireSeuilsHautRevenu : feuille "Figure 1", un seul millésime (2021, dans
+// readTopIncomeThresholds : feuille "Figure 1", un seul millésime (2021, dans
 // le titre de la feuille — pas une colonne, à extraire du titre).
-func lireSeuilsHautRevenu(wb *excelize.File) ([]ligneSeuilRevenu, error) {
+func readTopIncomeThresholds(wb *excelize.File) ([]topIncomeThresholdRow, error) {
 	rows, err := wb.GetRows("Figure 1")
 	if err != nil {
 		return nil, fmt.Errorf("feuille 'Figure 1' (hauts revenus) : %w", err)
@@ -195,43 +195,43 @@ func lireSeuilsHautRevenu(wb *excelize.File) ([]ligneSeuilRevenu, error) {
 	if len(rows) < 9 {
 		return nil, fmt.Errorf("feuille 'Figure 1' (hauts revenus) trop courte (%d lignes) — format changé", len(rows))
 	}
-	annee, err := anneeDuTitre(rows[0][0])
+	year, err := titleYear(rows[0][0])
 	if err != nil {
 		return nil, err
 	}
-	var out []ligneSeuilRevenu
-	for _, l := range rows[4:9] {
-		if len(l) < 4 {
-			return nil, fmt.Errorf("ligne de seuil trop courte : %q", l)
+	var out []topIncomeThresholdRow
+	for _, row := range rows[4:9] {
+		if len(row) < 4 {
+			return nil, fmt.Errorf("ligne de seuil trop courte : %q", row)
 		}
-		code, err := codeSeuil(l[1])
+		code, err := thresholdCode(row[1])
 		if err != nil {
 			return nil, err
 		}
-		avant, err := nettoyerEuros(l[2])
+		before, err := parseEuros(row[2])
 		if err != nil {
-			return nil, fmt.Errorf("%s : revenu avant redistribution %q illisible : %w", code, l[2], err)
+			return nil, fmt.Errorf("%s : revenu avant redistribution %q illisible : %w", code, row[2], err)
 		}
-		niveau, err := nettoyerEuros(l[3])
+		livingStandard, err := parseEuros(row[3])
 		if err != nil {
-			return nil, fmt.Errorf("%s : niveau de vie %q illisible : %w", code, l[3], err)
+			return nil, fmt.Errorf("%s : niveau de vie %q illisible : %w", code, row[3], err)
 		}
-		out = append(out, ligneSeuilRevenu{annee, code, avant, niveau})
+		out = append(out, topIncomeThresholdRow{year, code, before, livingStandard})
 	}
 	return out, nil
 }
 
-type lignePartGroupe struct {
-	annee   int
-	groupe  string
-	partPct float64
+type incomeShareRow struct {
+	year     int
+	group    string
+	sharePct float64
 }
 
-// lireRevenuPartGroupe : feuille "Tableau complémentaire", une ligne par
+// readIncomeShareByGroup : feuille "Tableau complémentaire", une ligne par
 // groupe, une colonne par année (2004 à 2021). Les en-têtes 2012 et 2013
 // portent un renvoi de note ("20121", "20132") : seuls les quatre premiers
 // caractères sont l'année.
-func lireRevenuPartGroupe(wb *excelize.File) ([]lignePartGroupe, error) {
+func readIncomeShareByGroup(wb *excelize.File) ([]incomeShareRow, error) {
 	rows, err := wb.GetRows("Tableau complémentaire")
 	if err != nil {
 		return nil, fmt.Errorf("feuille 'Tableau complémentaire' : %w", err)
@@ -239,60 +239,60 @@ func lireRevenuPartGroupe(wb *excelize.File) ([]lignePartGroupe, error) {
 	if len(rows) < 8 {
 		return nil, fmt.Errorf("feuille 'Tableau complémentaire' trop courte (%d lignes) — format changé", len(rows))
 	}
-	entete := rows[2]
-	if len(entete) < 2 {
+	header := rows[2]
+	if len(header) < 2 {
 		return nil, fmt.Errorf("en-tête 'Tableau complémentaire' illisible")
 	}
-	var annees []int
-	for _, h := range entete[1:] {
+	var years []int
+	for _, h := range header[1:] {
 		h = strings.TrimSpace(h)
 		if len(h) < 4 {
 			return nil, fmt.Errorf("en-tête année illisible : %q", h)
 		}
-		a, err := strconv.Atoi(h[:4])
+		y, err := strconv.Atoi(h[:4])
 		if err != nil {
 			return nil, fmt.Errorf("en-tête année illisible : %q : %w", h, err)
 		}
-		annees = append(annees, a)
+		years = append(years, y)
 	}
-	var out []lignePartGroupe
-	for _, l := range rows[3:8] {
-		if len(l) < len(annees)+1 {
-			return nil, fmt.Errorf("ligne de groupe trop courte : %q", l)
+	var out []incomeShareRow
+	for _, row := range rows[3:8] {
+		if len(row) < len(years)+1 {
+			return nil, fmt.Errorf("ligne de groupe trop courte : %q", row)
 		}
-		groupe, err := codeGroupe(l[0])
+		group, err := groupCode(row[0])
 		if err != nil {
 			return nil, err
 		}
-		for i, annee := range annees {
-			v, err := strconv.ParseFloat(strings.TrimSpace(l[i+1]), 64)
+		for i, year := range years {
+			v, err := strconv.ParseFloat(strings.TrimSpace(row[i+1]), 64)
 			if err != nil {
-				return nil, fmt.Errorf("%s %d : part %q illisible : %w", groupe, annee, l[i+1], err)
+				return nil, fmt.Errorf("%s %d : part %q illisible : %w", group, year, row[i+1], err)
 			}
-			out = append(out, lignePartGroupe{annee, groupe, v})
+			out = append(out, incomeShareRow{year, group, v})
 		}
 	}
 	return out, nil
 }
 
-type lignePatrimoineHaut struct {
-	annee           int
-	tranche         string
-	seuilBas, moyen int
-	partMasse       float64
-	partMasseOK     bool
+type topWealthRow struct {
+	year                    int
+	bracket                 string
+	lowerThreshold, average int
+	massShare               float64
+	massShareOK             bool
 }
 
-var tranchesPatrimoine = []struct{ libelle, code string }{
+var wealthBrackets = []struct{ label, code string }{
 	{"90e au 95e", "P90_P95"},
 	{"95e au 99e", "P95_P99"},
 	{"supérieur au 99e", "SUP_P99"},
 }
 
-// lirePatrimoineHaut : feuille "Figure 1" du classeur hauts patrimoines,
+// readTopWealth : feuille "Figure 1" du classeur hauts patrimoines,
 // deux millésimes CÔTE À CÔTE (2015 et 2021), une seule fois la part de
 // masse (2021 seulement — la source ne la publie pas pour 2015).
-func lirePatrimoineHaut(wb *excelize.File) ([]lignePatrimoineHaut, error) {
+func readTopWealth(wb *excelize.File) ([]topWealthRow, error) {
 	rows, err := wb.GetRows("Figure 1")
 	if err != nil {
 		return nil, fmt.Errorf("feuille 'Figure 1' (hauts patrimoines) : %w", err)
@@ -300,54 +300,54 @@ func lirePatrimoineHaut(wb *excelize.File) ([]lignePatrimoineHaut, error) {
 	if len(rows) < 7 {
 		return nil, fmt.Errorf("feuille 'Figure 1' (hauts patrimoines) trop courte (%d lignes) — format changé", len(rows))
 	}
-	var out []lignePatrimoineHaut
-	for _, l := range rows[4:7] {
-		if len(l) < 8 {
-			return nil, fmt.Errorf("ligne de patrimoine trop courte : %q", l)
+	var out []topWealthRow
+	for _, row := range rows[4:7] {
+		if len(row) < 8 {
+			return nil, fmt.Errorf("ligne de patrimoine trop courte : %q", row)
 		}
 		var code string
-		for _, t := range tranchesPatrimoine {
-			if strings.Contains(strings.ToLower(l[0]), t.libelle) {
-				code = t.code
+		for _, b := range wealthBrackets {
+			if strings.Contains(strings.ToLower(row[0]), b.label) {
+				code = b.code
 				break
 			}
 		}
 		if code == "" {
-			return nil, fmt.Errorf("tranche de patrimoine illisible : %q", l[0])
+			return nil, fmt.Errorf("tranche de patrimoine illisible : %q", row[0])
 		}
-		seuil2015, err := nettoyerEuros(l[1])
+		threshold2015, err := parseEuros(row[1])
 		if err != nil {
-			return nil, fmt.Errorf("%s 2015 : seuil %q illisible : %w", code, l[1], err)
+			return nil, fmt.Errorf("%s 2015 : seuil %q illisible : %w", code, row[1], err)
 		}
-		seuil2021, err := nettoyerEuros(l[2])
+		threshold2021, err := parseEuros(row[2])
 		if err != nil {
-			return nil, fmt.Errorf("%s 2021 : seuil %q illisible : %w", code, l[2], err)
+			return nil, fmt.Errorf("%s 2021 : seuil %q illisible : %w", code, row[2], err)
 		}
-		moyen2015, err := nettoyerEuros(l[4])
+		average2015, err := parseEuros(row[4])
 		if err != nil {
-			return nil, fmt.Errorf("%s 2015 : moyenne %q illisible : %w", code, l[4], err)
+			return nil, fmt.Errorf("%s 2015 : moyenne %q illisible : %w", code, row[4], err)
 		}
-		moyen2021, err := nettoyerEuros(l[5])
+		average2021, err := parseEuros(row[5])
 		if err != nil {
-			return nil, fmt.Errorf("%s 2021 : moyenne %q illisible : %w", code, l[5], err)
+			return nil, fmt.Errorf("%s 2021 : moyenne %q illisible : %w", code, row[5], err)
 		}
-		part2021, err := strconv.ParseFloat(strings.TrimSpace(l[7]), 64)
+		massShare2021, err := strconv.ParseFloat(strings.TrimSpace(row[7]), 64)
 		if err != nil {
-			return nil, fmt.Errorf("%s 2021 : part de masse %q illisible : %w", code, l[7], err)
+			return nil, fmt.Errorf("%s 2021 : part de masse %q illisible : %w", code, row[7], err)
 		}
 		out = append(out,
-			lignePatrimoineHaut{2015, code, seuil2015, moyen2015, 0, false},
-			lignePatrimoineHaut{2021, code, seuil2021, moyen2021, part2021, true})
+			topWealthRow{2015, code, threshold2015, average2015, 0, false},
+			topWealthRow{2021, code, threshold2021, average2021, massShare2021, true})
 	}
 	return out, nil
 }
 
-var reAnneeTitre = regexp.MustCompile(`\b(20\d\d)\b`)
+var reTitleYear = regexp.MustCompile(`\b(20\d\d)\b`)
 
-func anneeDuTitre(titre string) (int, error) {
-	m := reAnneeTitre.FindStringSubmatch(titre)
+func titleYear(title string) (int, error) {
+	m := reTitleYear.FindStringSubmatch(title)
 	if m == nil {
-		return 0, fmt.Errorf("aucun millésime trouvé dans le titre %q", titre)
+		return 0, fmt.Errorf("aucun millésime trouvé dans le titre %q", title)
 	}
 	return strconv.Atoi(m[1])
 }
