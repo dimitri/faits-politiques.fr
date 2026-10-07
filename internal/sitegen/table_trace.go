@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// tableTracer observe, pendant une construction, les tables (core./ref./
+// tableDraw observe, pendant une construction, les tables (core./ref./
 // geo./derived./jo./mv.) que chaque nœud du graphe (voir graphe.go,
 // addNode/addPageNode) lit réellement — MESURÉES à l'exécution via
 // pgx.QueryTracer, jamais devinées par relecture du code. Le nœud en cours
@@ -30,13 +30,13 @@ import (
 // mesure prise à chaque construction ne peut pas dériver : elle REFLÈTE le
 // code qui vient de tourner, jamais un instantané figé au moment où
 // quelqu'un a pensé à la mettre à jour.
-type tableTracer struct {
-	mu       sync.Mutex
-	parNoeud map[string]map[string]bool
+type tableDraw struct {
+	mu      sync.Mutex
+	perNode map[string]map[string]bool
 }
 
-func newTableTracer() *tableTracer {
-	return &tableTracer{parNoeud: map[string]map[string]bool{}}
+func newTableDraw() *tableDraw {
+	return &tableDraw{perNode: map[string]map[string]bool{}}
 }
 
 // tableRe : FROM/JOIN suivi d'un identifiant qualifié schema.table — les
@@ -51,8 +51,8 @@ var tableRe = regexp.MustCompile(`(?i)\b(?:FROM|JOIN)\s+([a-zA-Z_][a-zA-Z0-9_]*\
 // d'un nœud du graphe (aucun pipeline.StepName dans ctx — par exemple
 // l'ouverture du pool elle-même, ou un appel direct hors construction) ne
 // sont pas comptées : ce traceur ne répond qu'à « que lit CETTE page ».
-func (t *tableTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
-	nom, ok := pipeline.StepName(ctx)
+func (t *tableDraw) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx.TraceQueryStartData) context.Context {
+	name, ok := pipeline.StepName(ctx)
 	if !ok {
 		return ctx
 	}
@@ -62,10 +62,10 @@ func (t *tableTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx
 	}
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	set := t.parNoeud[nom]
+	set := t.perNode[name]
 	if set == nil {
 		set = map[string]bool{}
-		t.parNoeud[nom] = set
+		t.perNode[name] = set
 	}
 	for _, m := range matches {
 		set[strings.ToLower(m[1])] = true
@@ -75,16 +75,16 @@ func (t *tableTracer) TraceQueryStart(ctx context.Context, _ *pgx.Conn, data pgx
 
 // TraceQueryEnd : rien à faire, tout se joue au départ de la requête (le
 // SQL lui-même, pas son résultat).
-func (t *tableTracer) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
+func (t *tableDraw) TraceQueryEnd(context.Context, *pgx.Conn, pgx.TraceQueryEndData) {}
 
 // Tables : les tables observées pour un nœud donné, triées — nil si ce
 // nœud n'a tourné aucune requête directement identifiable (un nœud qui ne
 // fait que lire les Results d'une dépendance et écrire un gabarit, par
 // exemple).
-func (t *tableTracer) Tables(nom string) []string {
+func (t *tableDraw) Tables(name string) []string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	set := t.parNoeud[nom]
+	set := t.perNode[name]
 	if len(set) == 0 {
 		return nil
 	}
@@ -96,14 +96,14 @@ func (t *tableTracer) Tables(nom string) []string {
 	return out
 }
 
-// Noeuds : tous les nœuds pour lesquels au moins une table a été observée,
+// Nodes : tous les nœuds pour lesquels au moins une table a été observée,
 // triés — pour PublierTables, qui réécrit le reflet en base nœud par nœud.
-func (t *tableTracer) Noeuds() []string {
+func (t *tableDraw) Nodes() []string {
 	t.mu.Lock()
 	defer t.mu.Unlock()
-	out := make([]string, 0, len(t.parNoeud))
-	for nom := range t.parNoeud {
-		out = append(out, nom)
+	out := make([]string, 0, len(t.perNode))
+	for name := range t.perNode {
+		out = append(out, name)
 	}
 	sort.Strings(out)
 	return out
@@ -116,27 +116,27 @@ func (t *tableTracer) Noeuds() []string {
 // lire core.sitegen_table_usage répond tout de suite à « de quoi ai-je
 // besoin pour reconstruire CETTE page », sans que l'appelant (fpctl list
 // deps) n'ait à son tour à redérouler le graphe de dépendances.
-func transitiveTables(reg *pipeline.Registre, tracer *tableTracer, nom string) []string {
-	vus := map[string]bool{}
+func transitiveTables(region *pipeline.Registre, draw *tableDraw, name string) []string {
+	seen := map[string]bool{}
 	set := map[string]bool{}
-	var visiter func(string)
-	visiter = func(n string) {
-		if vus[n] {
+	var visit func(string)
+	visit = func(n string) {
+		if seen[n] {
 			return
 		}
-		vus[n] = true
-		for _, t := range tracer.Tables(n) {
+		seen[n] = true
+		for _, t := range draw.Tables(n) {
 			set[t] = true
 		}
-		e, ok := reg.Etape(n)
+		e, ok := region.Etape(n)
 		if !ok {
 			return
 		}
 		for _, d := range e.Dependances {
-			visiter(d)
+			visit(d)
 		}
 	}
-	visiter(nom)
+	visit(name)
 	out := make([]string, 0, len(set))
 	for t := range set {
 		out = append(out, t)
@@ -145,7 +145,7 @@ func transitiveTables(reg *pipeline.Registre, tracer *tableTracer, nom string) [
 	return out
 }
 
-// publierTables réécrit core.sitegen_table_usage pour les nœuds qui
+// publishTables réécrit core.sitegen_table_usage pour les nœuds qui
 // viennent de tourner (executes, les clés de ce que reg.Executer a
 // renvoyé) — DELETE puis INSERT bornés à CES nœuds, jamais à la totalité
 // de la table : une construction partielle (-only, -max-scrutins) ne doit
@@ -153,7 +153,7 @@ func transitiveTables(reg *pipeline.Registre, tracer *tableTracer, nom string) [
 // Pas de transaction longue à retenir : le volume (quelques centaines de
 // lignes au plus, un nœud a rarement plus d'une poignée de tables dans sa
 // fermeture transitive) ne le justifie pas.
-func publierTables(ctx context.Context, pool *pgxpool.Pool, reg *pipeline.Registre, tracer *tableTracer, executes []string) error {
+func publishTables(ctx context.Context, pool *pgxpool.Pool, region *pipeline.Registre, draw *tableDraw, executes []string) error {
 	if len(executes) == 0 {
 		return nil
 	}
@@ -175,25 +175,25 @@ func publierTables(ctx context.Context, pool *pgxpool.Pool, reg *pipeline.Regist
 		}
 		return fmt.Errorf("nettoyage du reflet des tables lues : %w", err)
 	}
-	for _, nom := range executes {
-		for _, table := range transitiveTables(reg, tracer, nom) {
+	for _, name := range executes {
+		for _, table := range transitiveTables(region, draw, name) {
 			if _, err := tx.Exec(ctx,
 				`INSERT INTO core.sitegen_table_usage (etape, table_qualifiee) VALUES ($1, $2)`,
-				nom, table); err != nil {
-				return fmt.Errorf("%s -> %s : %w", nom, table, err)
+				name, table); err != nil {
+				return fmt.Errorf("%s -> %s : %w", name, table, err)
 			}
 		}
 	}
 	return tx.Commit(ctx)
 }
 
-// TablesPubliees lit le dernier reflet connu de core.sitegen_table_usage,
+// TablesPublished lit le dernier reflet connu de core.sitegen_table_usage,
 // groupé par nœud — nil, sans erreur, si la table n'existe pas encore
 // (une base migrée mais jamais passée par un « fpctl build site » depuis
 // cette migration) ou si elle est vide : un appelant comme fpctl list deps
 // doit pouvoir dire « inconnu, lancez fpctl build site » plutôt que
 // planter.
-func TablesPubliees(ctx context.Context, pool *pgxpool.Pool) (map[string][]string, error) {
+func TablesPublished(ctx context.Context, pool *pgxpool.Pool) (map[string][]string, error) {
 	rows, err := pool.Query(ctx, `SELECT etape, table_qualifiee FROM core.sitegen_table_usage ORDER BY etape, table_qualifiee`)
 	if err != nil {
 		return nil, err
@@ -201,11 +201,11 @@ func TablesPubliees(ctx context.Context, pool *pgxpool.Pool) (map[string][]strin
 	defer rows.Close()
 	out := map[string][]string{}
 	for rows.Next() {
-		var etape, table string
-		if err := rows.Scan(&etape, &table); err != nil {
+		var step, table string
+		if err := rows.Scan(&step, &table); err != nil {
 			return nil, err
 		}
-		out[etape] = append(out[etape], table)
+		out[step] = append(out[step], table)
 	}
 	return out, rows.Err()
 }

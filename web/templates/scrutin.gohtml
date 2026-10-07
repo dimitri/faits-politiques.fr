@@ -1,17 +1,17 @@
 {{define "content"}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
-  <a href="{{.Root}}/{{.S.Chambre}}/">{{.S.InstitutionNom}}</a> ›
-  <span>{{if .S.Numero}}n° {{.S.Numero}}{{else}}scrutin{{end}}</span></p>
+  <a href="{{.Root}}/{{.S.Chamber}}/">{{.S.InstitutionName}}</a> ›
+  <span>{{if .S.Number}}n° {{.S.Number}}{{else}}scrutin{{end}}</span></p>
 
-<span class="sur">{{if .S.EstEuropeen}}Scrutin nominatif
-  {{else}}Scrutin public{{if .S.Numero}} n° {{.S.Numero}}{{end}}{{end}} ·
-  {{.S.InstitutionNom}}{{if not (or .S.EstEuropeen .S.EstSenat)}} ·
+<span class="sur">{{if .S.EstEuropean}}Scrutin nominatif
+  {{else}}Scrutin public{{if .S.Number}} n° {{.S.Number}}{{end}}{{end}} ·
+  {{.S.InstitutionName}}{{if not (or .S.EstEuropean .S.EstSenate)}} ·
   17<sup>e</sup> législature{{end}} · {{.S.Date}}</span>
-<h1>{{.S.TitreCourt}}</h1>
+<h1>{{.S.TitleShort}}</h1>
 
-{{if .S.Tronque}}
+{{if .S.Truncated}}
 <p class="note"><strong>Libellé officiel</strong>, publié tel quel par la source&nbsp;:
-«&nbsp;{{.S.Objet}}&nbsp;» Le titre ci-dessus est obtenu par deux opérations mécaniques et
+«&nbsp;{{.S.Object}}&nbsp;» Le titre ci-dessus est obtenu par deux opérations mécaniques et
 réversibles&nbsp;: <em>couper avant la liste des signataires</em>, et <em>mettre la première
 lettre en capitale</em>. Aucun mot n'y a été ajouté, aucun n'a été remplacé.</p>
 {{end}}
@@ -22,64 +22,64 @@ lettre en capitale</em>. Aucun mot n'y a été ajouté, aucun n'a été remplac�
 <div class="verdict">
   <div class="haut">
     <div>
-      <div class="etat">{{.S.ResultatLong}}</div>
+      <div class="etat">{{.S.ResultLong}}</div>
       <div class="chiffre">
-        {{- if .S.Seuil}}<b>{{nb .S.Pour}}</b> voix pour · seuil requis <b>{{nb .S.Seuil}}</b>
-        {{- else}}<b>{{nb .S.Pour}}</b> pour · <b>{{nb .S.Contre}}</b> contre ·
+        {{- if .S.Threshold}}<b>{{nb .S.For}}</b> voix pour · seuil requis <b>{{nb .S.Threshold}}</b>
+        {{- else}}<b>{{nb .S.For}}</b> pour · <b>{{nb .S.Against}}</b> contre ·
           <b>{{nb .S.Abstentions}}</b> abstentions{{end}}</div>
     </div>
     <div style="text-align:right">
-      <div class="chiffre">{{if .S.Resultat}}résultat officiel publié par la source
+      <div class="chiffre">{{if .S.Result}}résultat officiel publié par la source
         {{else}}résultat non publié par la source{{end}}</div>
       <div class="chiffre">identifiant <b>{{.S.SourceUID}}</b></div>
     </div>
   </div>
 
-  {{if .S.Seuil}}
+  {{if .S.Threshold}}
   <div class="seuil-bar" role="img"
-       aria-label="{{nb .S.Pour}} voix pour sur {{nb .S.Base}} sièges ; seuil requis {{nb .S.Seuil}}">
-    <div class="fill" style="width:{{pct .S.Pour .S.Base}}%">
+       aria-label="{{nb .S.For}} voix pour sur {{nb .S.Base}} sièges ; seuil requis {{nb .S.Threshold}}">
+    <div class="fill" style="width:{{pct .S.For .S.Base}}%">
       <i style="width:100%;background:var(--pour)"></i></div>
-    <div class="tick" data-l="{{nb .S.Seuil}} — {{.S.SeuilRegle}}"
-         style="left:{{pct .S.Seuil .S.Base}}%"></div>
+    <div class="tick" data-l="{{nb .S.Threshold}} — {{.S.ThresholdRule}}"
+         style="left:{{pct .S.Threshold .S.Base}}%"></div>
   </div>
   <div class="seuil-lg">
-    <span><i style="background:var(--pour)"></i>{{nb .S.Pour}} voix pour</span>
-    {{if .S.NonVotants}}<span><i style="background:transparent;border:1.5px solid var(--absent)"></i>
-      {{nb .S.NonVotants}} non-votants recensés</span>{{end}}
-    {{if gt .S.SansPosition 0}}<span><i style="background:var(--filet)"></i>
-      {{nb .S.SansPosition}} sans position enregistrée</span>{{end}}
+    <span><i style="background:var(--pour)"></i>{{nb .S.For}} voix pour</span>
+    {{if .S.NonVoters}}<span><i style="background:transparent;border:1.5px solid var(--absent)"></i>
+      {{nb .S.NonVoters}} non-votants recensés</span>{{end}}
+    {{if gt .S.WithoutPosition 0}}<span><i style="background:var(--filet)"></i>
+      {{nb .S.WithoutPosition}} sans position enregistrée</span>{{end}}
   </div>
-  <p class="note proc"><strong>Pourquoi ce décompte&nbsp;?</strong> {{.S.SeuilNote}}
-  {{if gt .S.SansPosition 0}} Les {{nb .S.SansPosition}} députés absents du relevé ne se sont
+  <p class="note proc"><strong>Pourquoi ce décompte&nbsp;?</strong> {{.S.ThresholdNote}}
+  {{if gt .S.WithoutPosition 0}} Les {{nb .S.WithoutPosition}} députés absents du relevé ne se sont
   pas opposés et ne se sont pas abstenus&nbsp;: <strong>ils n'ont aucune position
   enregistrée</strong>. Additionner les positions recensées ne redonne donc pas
   {{nb .S.Base}}, et c'est normal.{{end}}
-  <br>Règle&nbsp;: {{.S.SeuilSource}}</p>
-  {{else if .S.Exprimes}}
+  <br>Règle&nbsp;: {{.S.ThresholdSource}}</p>
+  {{else if .S.Expressed}}
   <div class="bar" style="height:26px;margin:1.4rem 0 0" role="img"
-       aria-label="{{nb .S.Pour}} pour, {{nb .S.Contre}} contre, {{nb .S.Abstentions}} abstentions">
-    <i style="width:{{pct .S.Pour .S.Exprimes}}%;background:var(--pour)"></i>
-    <i style="width:{{pct .S.Contre .S.Exprimes}}%;background:var(--contre)"></i>
-    <i style="width:{{pct .S.Abstentions .S.Exprimes}}%;background:var(--abst)"></i></div>
+       aria-label="{{nb .S.For}} pour, {{nb .S.Against}} contre, {{nb .S.Abstentions}} abstentions">
+    <i style="width:{{pct .S.For .S.Expressed}}%;background:var(--pour)"></i>
+    <i style="width:{{pct .S.Against .S.Expressed}}%;background:var(--contre)"></i>
+    <i style="width:{{pct .S.Abstentions .S.Expressed}}%;background:var(--abst)"></i></div>
   <div class="seuil-lg">
-    <span><i style="background:var(--pour)"></i>{{nb .S.Pour}} pour</span>
-    <span><i style="background:var(--contre)"></i>{{nb .S.Contre}} contre</span>
+    <span><i style="background:var(--pour)"></i>{{nb .S.For}} pour</span>
+    <span><i style="background:var(--contre)"></i>{{nb .S.Against}} contre</span>
     <span><i style="background:var(--abst)"></i>{{nb .S.Abstentions}} abstentions</span>
-    {{if .S.NonVotants}}<span><i style="background:transparent;border:1.5px solid var(--absent)"></i>
-      {{nb .S.NonVotants}} non-votants</span>{{end}}
+    {{if .S.NonVoters}}<span><i style="background:transparent;border:1.5px solid var(--absent)"></i>
+      {{nb .S.NonVoters}} non-votants</span>{{end}}
   </div>
   {{end}}
 
   <p class="note"><strong>Les couleurs de la barre sont celles des positions, pas du résultat.</strong>
   Le vert compte les votes <em>pour</em>, le rouge les votes <em>contre</em>, l'ocre les
-  abstentions&nbsp;; la barre montre comment les voix se sont réparties.{{if .S.Resultat}} Le
-  résultat, «&nbsp;{{.S.Resultat}}&nbsp;», reste en noir&nbsp;: un texte adopté n'est pas
+  abstentions&nbsp;; la barre montre comment les voix se sont réparties.{{if .S.Result}} Le
+  résultat, «&nbsp;{{.S.Result}}&nbsp;», reste en noir&nbsp;: un texte adopté n'est pas
   «&nbsp;vert&nbsp;» ni un texte rejeté «&nbsp;rouge&nbsp;», et le colorer reviendrait à dire
   qu'adopter est bien et rejeter est mal.{{end}}</p>
 </div>
 
-{{if .S.EstEuropeen}}
+{{if .S.EstEuropean}}
 <p class="note proc"><strong>Deux périmètres différents sur cette page.</strong> Le décompte
 ci-dessus est celui publié pour <strong>l'ensemble du Parlement européen</strong>, 720 sièges.
 Les votes nominatifs listés plus bas ne portent que sur les <strong>eurodéputés
@@ -95,14 +95,14 @@ ceux de l'Assemblée&nbsp;: objets différents, majorités différentes, groupes
     target="_blank" rel="noopener">Dossier officiel ↗</a>{{end}}{{end}}
   <a class="btn" href="{{.Root}}/sources/">Sources et empreintes</a>
 </div>
-<p class="cite" id="citation">faits-politiques.fr — <b>{{if .S.EstEuropeen}}Scrutin nominatif
-  {{else}}Scrutin public{{if .S.Numero}} n° {{.S.Numero}}{{end}}{{end}},
-  {{.S.InstitutionNom}}{{if not (or .S.EstEuropeen .S.EstSenat)}}, 17<sup>e</sup> législature{{end}},
+<p class="cite" id="citation">faits-politiques.fr — <b>{{if .S.EstEuropean}}Scrutin nominatif
+  {{else}}Scrutin public{{if .S.Number}} n° {{.S.Number}}{{end}}{{end}},
+  {{.S.InstitutionName}}{{if not (or .S.EstEuropean .S.EstSenate)}}, 17<sup>e</sup> législature{{end}},
   {{.S.Date}}</b>, identifiant <b>{{.S.SourceUID}}</b>.
   {{.Src.Attribution}}, consultée le {{.Src.Fetched}}, empreinte SHA-256
   <b>{{.Src.SHA}}</b>.</p>
 
-{{if .S.EstSenat}}
+{{if .S.EstSenate}}
 <p class="note proc"><strong>Ce que le Sénat publie, et ce qu'il ne publie pas.</strong>
 Le dump Dosleg donne la date, l'objet, les décomptes et le <strong>relevé nominatif</strong> de
 chaque scrutin — mais ni le résultat officiel, ni le type de vote, ni le groupe des votants, ni
@@ -113,48 +113,48 @@ Codes de non-couverture&nbsp;: <code>SENAT_SANS_RESULTAT</code>, <code>SENAT_SAN
 
 <h2>Le texte soumis au vote</h2>
 {{if .S.Dossier}}
-<p><strong>Dossier législatif&nbsp;:</strong> {{.S.Dossier.Titre}}</p>
+<p><strong>Dossier législatif&nbsp;:</strong> {{.S.Dossier.Title}}</p>
 <p><strong>À l'initiative de&nbsp;:</strong>
-{{if .S.Dossier.Gouvernement}}le Gouvernement{{else if .S.Dossier.Initiateurs}}{{range $i,$a := .S.Dossier.Initiateurs}}{{if $i}}, {{end}}{{if $a.Slug}}<a href="{{$.Root}}/depute/{{$a.Slug}}/">{{$a.Nom}}</a>{{else}}{{$a.Nom}}{{end}}{{end}}{{else}}<span class="muted">non publiée par la source</span>{{end}}</p>
-{{if or .S.Dossier.URLAN .S.Dossier.URLSenat}}
+{{if .S.Dossier.Government}}le Gouvernement{{else if .S.Dossier.Initiators}}{{range $i,$a := .S.Dossier.Initiators}}{{if $i}}, {{end}}{{if $a.Slug}}<a href="{{$.Root}}/depute/{{$a.Slug}}/">{{$a.Name}}</a>{{else}}{{$a.Name}}{{end}}{{end}}{{else}}<span class="muted">non publiée par la source</span>{{end}}</p>
+{{if or .S.Dossier.URLAN .S.Dossier.URLSenate}}
 <p class="small"><strong>Dossier officiel&nbsp;:</strong>
-{{if .S.Dossier.URLAN}}<a href="{{.S.Dossier.URLAN}}" target="_blank" rel="noopener">Assemblée nationale</a>{{end}}{{if and .S.Dossier.URLAN .S.Dossier.URLSenat}} · {{end}}{{if .S.Dossier.URLSenat}}<a href="{{.S.Dossier.URLSenat}}" target="_blank" rel="noopener">Sénat</a>{{end}}
+{{if .S.Dossier.URLAN}}<a href="{{.S.Dossier.URLAN}}" target="_blank" rel="noopener">Assemblée nationale</a>{{end}}{{if and .S.Dossier.URLAN .S.Dossier.URLSenate}} · {{end}}{{if .S.Dossier.URLSenate}}<a href="{{.S.Dossier.URLSenate}}" target="_blank" rel="noopener">Sénat</a>{{end}}
 <span class="muted">— texte intégral, exposé des motifs, rapports et comptes rendus</span></p>
 {{end}}
 {{if .S.Dossier.Promulgation}}
-<p class="small"><strong>Promulguée&nbsp;:</strong> loi n°&nbsp;{{.S.Dossier.Promulgation.CodeLoi}}
+<p class="small"><strong>Promulguée&nbsp;:</strong> loi n°&nbsp;{{.S.Dossier.Promulgation.CodeLaw}}
 {{if .S.Dossier.Promulgation.DatePromulgation}}du {{.S.Dossier.Promulgation.DatePromulgation}}{{end}}
-{{if .S.Dossier.Promulgation.TexteURL}}— <a href="{{.S.Dossier.Promulgation.TexteURL}}" target="_blank" rel="noopener">texte intégral au Journal officiel ↗</a>{{else}}<span class="muted">— identifiée par sa référence NOR, texte non retrouvé dans le corpus JORF chargé par ce site</span>{{end}}</p>
+{{if .S.Dossier.Promulgation.TextURL}}— <a href="{{.S.Dossier.Promulgation.TextURL}}" target="_blank" rel="noopener">texte intégral au Journal officiel ↗</a>{{else}}<span class="muted">— identifiée par sa référence NOR, texte non retrouvé dans le corpus JORF chargé par ce site</span>{{end}}</p>
 {{end}}
-{{if .S.Dossier.Textes}}
+{{if .S.Dossier.Texts}}
 <div class="scroll"><table class="pile">
 <thead><tr><th>Nature</th><th>Intitulé</th><th>Déposé le</th><th>Origine</th></tr></thead>
-<tbody>{{range .S.Dossier.Textes}}<tr>
+<tbody>{{range .S.Dossier.Texts}}<tr>
 <td class="small">{{.Kind}}</td>
-<td class="small" data-l="Intitulé">{{.Titre}}</td>
-<td class="small z" data-l="Déposé le">{{if .DateDepot}}{{.DateDepot}}{{else}}—{{end}}</td>
-<td class="small z" data-l="Origine">{{if .Gouvernement}}Gouvernement{{else if .Auteurs}}{{range $i,$a := .Auteurs}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}voir l'initiative du dossier{{end}}</td>
+<td class="small" data-l="Intitulé">{{.Title}}</td>
+<td class="small z" data-l="Déposé le">{{if .DateDeposit}}{{.DateDeposit}}{{else}}—{{end}}</td>
+<td class="small z" data-l="Origine">{{if .Government}}Gouvernement{{else if .Authors}}{{range $i,$a := .Authors}}{{if $i}}, {{end}}{{$a}}{{end}}{{else}}voir l'initiative du dossier{{end}}</td>
 </tr>{{end}}</tbody></table></div>
 {{end}}
-{{if .S.Expose}}
+{{if .S.Exposed}}
 <h3>L'exposé des motifs</h3>
 <p class="q">Ce que l'auteur du texte a écrit pour le défendre — cité verbatim, jamais résumé par
 ce site.</p>
-<blockquote class="expose">{{.S.Expose.Chapeau}}</blockquote>
-{{if gt .S.Expose.NCaracteres (len .S.Expose.Chapeau)}}
+<blockquote class="expose">{{.S.Exposed.Lead}}</blockquote>
+{{if gt .S.Exposed.NCharacters (len .S.Exposed.Lead)}}
 <details class="plus">
-  <summary>Lire l'exposé des motifs en entier ({{nb .S.Expose.NCaracteres}} caractères)</summary>
-  <div class="dedans"><blockquote class="expose">{{.S.Expose.Integral}}</blockquote></div>
+  <summary>Lire l'exposé des motifs en entier ({{nb .S.Exposed.NCharacters}} caractères)</summary>
+  <div class="dedans"><blockquote class="expose">{{.S.Exposed.Integral}}</blockquote></div>
 </details>
 {{end}}
-<p class="src">Source&nbsp;: <a href="{{.S.Expose.URL}}" target="_blank" rel="noopener">Assemblée
+<p class="src">Source&nbsp;: <a href="{{.S.Exposed.URL}}" target="_blank" rel="noopener">Assemblée
 nationale, textes déposés</a>.</p>
 {{end}}
 <details class="plus">
   <summary>Ce que ce bloc n'est pas</summary>
   <div class="dedans">
     <p class="note"><strong>Ce n'est pas un résumé du texte.</strong> L'open data de l'Assemblée
-    publie les intitulés, les auteurs, les dates et les étapes. {{if .S.Expose}}Il publie aussi,
+    publie les intitulés, les auteurs, les dates et les étapes. {{if .S.Exposed}}Il publie aussi,
     pour les textes déposés depuis le début de la législature en cours, l'exposé des
     motifs&nbsp;: c'est lui qui est cité ci-dessus, verbatim — l'auteur y défend son texte, ce
     n'est pas une description neutre.{{else}}Pour ce texte, aucun exposé n'est publié en open
@@ -173,7 +173,7 @@ nationale, textes déposés</a>.</p>
   </div>
 </details>
 {{else}}
-<p class="nodata">{{if .S.EstSenat}}Le dump Dosleg ne porte <strong>aucune</strong> référence de
+<p class="nodata">{{if .S.EstSenate}}Le dump Dosleg ne porte <strong>aucune</strong> référence de
 texte sur les scrutins du Sénat&nbsp;: le libellé de l'objet est la seule information publiée, et
 il n'est rapproché d'aucun dossier par déduction.{{else}}La source ne rattache pas ce scrutin à un
 dossier législatif. Environ un tiers des scrutins sont dans ce cas&nbsp;; le libellé de l'objet
@@ -181,20 +181,20 @@ reste la seule information publiée, et il n'est pas rapproché d'un dossier par
 {{end}}
 
 <h2>Positions par groupe</h2>
-{{if .Groupes}}
+{{if .Groups}}
 <div class="scroll"><table class="pile">
 <thead><tr><th>Groupe</th><th class="n">Pour</th><th class="n">Contre</th><th class="n">Abst.</th>
   <th class="n">Non-votants</th><th style="width:38%">Effectif recensé sur ce scrutin</th></tr></thead>
-<tbody>{{range .Groupes}}<tr>
-<td><a href="{{$.Root}}/groupe/{{.Slug}}/">{{.Nom}}</a></td>
-<td class="n pos FOR" data-l="Pour">{{if .Pour}}{{.Pour}}{{else}}<span class="z">0</span>{{end}}</td>
-<td class="n pos AGAINST" data-l="Contre">{{if .Contre}}{{.Contre}}{{else}}<span class="z">0</span>{{end}}</td>
+<tbody>{{range .Groups}}<tr>
+<td><a href="{{$.Root}}/groupe/{{.Slug}}/">{{.Name}}</a></td>
+<td class="n pos FOR" data-l="Pour">{{if .For}}{{.For}}{{else}}<span class="z">0</span>{{end}}</td>
+<td class="n pos AGAINST" data-l="Contre">{{if .Against}}{{.Against}}{{else}}<span class="z">0</span>{{end}}</td>
 <td class="n pos ABSTAIN" data-l="Abst.">{{if .Abstention}}{{.Abstention}}{{else}}<span class="z">0</span>{{end}}</td>
 <td class="n pos ABSENT" data-l="Non-votants">{{if .Absent}}{{.Absent}}{{else}}<span class="z">0</span>{{end}}</td>
 <td data-l="Effectif"><div style="display:flex;align-items:center;gap:.7rem">
-  <div class="ech" style="flex:1"><div class="g" style="width:{{pct .Total $.MaxGroupe}}%">
-    {{if .Pour}}<i style="width:{{pct .Pour .Total}}%;background:var(--pour)"></i>{{end}}
-    {{if .Contre}}<i style="width:{{pct .Contre .Total}}%;background:var(--contre)"></i>{{end}}
+  <div class="ech" style="flex:1"><div class="g" style="width:{{pct .Total $.MaxGroup}}%">
+    {{if .For}}<i style="width:{{pct .For .Total}}%;background:var(--pour)"></i>{{end}}
+    {{if .Against}}<i style="width:{{pct .Against .Total}}%;background:var(--contre)"></i>{{end}}
     {{if .Abstention}}<i style="width:{{pct .Abstention .Total}}%;background:var(--abst)"></i>{{end}}
     {{if .Absent}}<i style="width:{{pct .Absent .Total}}%;background:var(--absent-f)"></i>{{end}}
   </div></div>
@@ -215,18 +215,18 @@ scrutin</strong>, à cette date. Les totaux sont la somme des votes individuels,
 aucune signification&nbsp;; il n'y a <strong>pas d'hémicycle</strong>, dont la forme suggérerait un
 axe gauche-droite que ce site ne produit pas.</p>
 <div class="bloc-gr">
-{{range .Groupes}}<div class="g">
-  <div class="nom"><b>{{.Nom}}</b><span>{{.Total}} recensés</span></div>
-  <div class="grille">{{grille .Pour .Contre .Abstention .Absent 0}}</div>
+{{range .Groups}}<div class="g">
+  <div class="nom"><b>{{.Name}}</b><span>{{.Total}} recensés</span></div>
+  <div class="grille">{{grille .For .Against .Abstention .Absent 0}}</div>
 </div>{{end}}
 </div>
-{{if gt .S.SansPosition 0}}
+{{if gt .S.WithoutPosition 0}}
 <div style="margin-top:1.6rem;border-top:1px solid var(--filet);padding-top:1.2rem">
   <div class="nom" style="display:flex;align-items:baseline;justify-content:space-between;
     gap:.6rem;font-size:.83rem;margin-bottom:.5rem">
     <b style="font-weight:600">Sans position enregistrée</b>
-    <span style="color:var(--attenue);font:400 .76rem/1 var(--mono)">{{nb .S.SansPosition}} sièges</span></div>
-  <div class="grille">{{grille 0 0 0 0 .S.SansPosition}}</div>
+    <span style="color:var(--attenue);font:400 .76rem/1 var(--mono)">{{nb .S.WithoutPosition}} sièges</span></div>
+  <div class="grille">{{grille 0 0 0 0 .S.WithoutPosition}}</div>
 </div>
 {{end}}
 <div class="seuil-lg">
@@ -234,9 +234,9 @@ axe gauche-droite que ce site ne produit pas.</p>
   <span><i style="background:var(--contre)"></i>Contre</span>
   <span><i style="background:var(--abst)"></i>Abstention</span>
   <span><i style="background:transparent;border:1.5px solid var(--absent)"></i>Non-votant recensé</span>
-  {{if gt .S.SansPosition 0}}<span><i style="background:var(--filet)"></i>Sans position enregistrée</span>{{end}}
+  {{if gt .S.WithoutPosition 0}}<span><i style="background:var(--filet)"></i>Sans position enregistrée</span>{{end}}
 </div>
-{{else}}<p class="nodata">{{if .S.EstSenat}}<strong>Aucune ventilation par groupe.</strong>
+{{else}}<p class="nodata">{{if .S.EstSenate}}<strong>Aucune ventilation par groupe.</strong>
 Le dump Dosleg du Sénat ne rattache aucun bulletin à un groupe politique&nbsp;: les votes sont
 publiés nominativement, sans appartenance. Le groupe d'un sénateur n'est donc pas déductible du
 relevé, et ce site ne le devine pas.
@@ -244,15 +244,15 @@ Code de non-couverture&nbsp;: <code>SENAT_BALLOT_SANS_GROUPE</code>.
 {{else}}Aucune ventilation par groupe&nbsp;: la source ne publie pas le groupe des votants pour
 ce scrutin.{{end}}</p>{{end}}
 
-<h2>Votes nominatifs{{if .S.EstSenat}} des sénateurs{{end}}</h2>
+<h2>Votes nominatifs{{if .S.EstSenate}} des sénateurs{{end}}</h2>
 {{if .Votes}}
 <div class="filtre" data-filtre="nominatifs">
   <input type="search" placeholder="Filtrer par nom…" aria-label="Filtrer par nom">
   <button type="button" class="puce" aria-pressed="true">Tous</button>
-  {{range .Groupes}}<button type="button" class="puce" data-g="{{.Nom}}">{{.Nom}}</button>{{end}}
+  {{range .Groups}}<button type="button" class="puce" data-g="{{.Name}}">{{.Name}}</button>{{end}}
 </div>
 <p class="small muted"><span data-compte>{{len .Votes}}</span> lignes affichées sur
-  {{len .Votes}} positions enregistrées{{if gt .S.SansPosition 0}}, et {{nb .S.SansPosition}} sièges
+  {{len .Votes}} positions enregistrées{{if gt .S.WithoutPosition 0}}, et {{nb .S.WithoutPosition}} sièges
   sans position{{end}}.</p>
 {{/* Le sigle du groupe n'est plus un lien ligne à ligne : le tableau
      « Positions par groupe », juste au-dessus, porte déjà le lien vers chacun.
@@ -262,10 +262,10 @@ ce scrutin.{{end}}</p>{{end}}
      de style : elles sont fixes, colonne par colonne. */}}
 <div class="scroll"><table class="pile nomin" id="nominatifs">
 <thead><tr><th>Député</th><th>Groupe</th><th>Position</th></tr></thead><tbody>
-{{range .Votes}}<tr data-g="{{.Groupe}}">
-<td><a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a></td>
-<td class="small z">{{.Groupe}}</td>
-<td><span class="pastille {{.Position}}">{{.PositionFr}}</span>{{if .Rectifiee}}
+{{range .Votes}}<tr data-g="{{.Group}}">
+<td><a href="{{$.Root}}/depute/{{.Slug}}/">{{.Name}}</a></td>
+<td class="small z">{{.Group}}</td>
+<td><span class="pastille {{.Position}}">{{.PositionFr}}</span>{{if .Adjusted}}
   <span class="small muted">(mise au point)</span>{{end}}</td>
 </tr>{{end}}</tbody></table></div>
 {{else}}<p class="nodata">Ce scrutin ne fait pas l'objet d'une publication nominative.</p>{{end}}
@@ -284,10 +284,10 @@ ce scrutin.{{end}}</p>{{end}}
   </div>
 </details>
 
-{{if or .Prec .Suiv}}
+{{if or .Previous .Suiv}}
 <nav class="voisins">
-  {{if .Prec}}<a href="{{.Root}}/scrutin/{{.Prec.Slug}}/"><span class="lb">← Scrutin précédent</span>{{.Prec.Objet}}</a>{{else}}<span></span>{{end}}
-  {{if .Suiv}}<a href="{{.Root}}/scrutin/{{.Suiv.Slug}}/" style="text-align:right"><span class="lb">Scrutin suivant →</span>{{.Suiv.Objet}}</a>{{end}}
+  {{if .Previous}}<a href="{{.Root}}/scrutin/{{.Previous.Slug}}/"><span class="lb">← Scrutin précédent</span>{{.Previous.Object}}</a>{{else}}<span></span>{{end}}
+  {{if .Suiv}}<a href="{{.Root}}/scrutin/{{.Suiv.Slug}}/" style="text-align:right"><span class="lb">Scrutin suivant →</span>{{.Suiv.Object}}</a>{{end}}
 </nav>
 {{end}}
 {{end}}

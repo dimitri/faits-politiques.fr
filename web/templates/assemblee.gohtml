@@ -1,7 +1,7 @@
 {{define "content"}}
 <h1>Assemblée nationale</h1>
-<p class="lede">17<sup>e</sup> législature. {{nb .Cov.Scrutins}} scrutins publics,
-{{nb .Cov.Ballots}} votes nominatifs, {{nb .Cov.Deputes}} députés.</p>
+<p class="lede">17<sup>e</sup> législature. {{nb .Cov.Elections}} scrutins publics,
+{{nb .Cov.Ballots}} votes nominatifs, {{nb .Cov.Deputies}} députés.</p>
 
 <p class="note proc">
 <strong>Seuls les scrutins publics sont couverts.</strong> La majorité des votes de
@@ -15,14 +15,14 @@ n'est pas un échantillon neutre de l'activité législative.
 <div class="scroll"><table class="pile">
 <thead><tr><th>Groupe</th><th>Députés</th><th colspan="3">Position majoritaire du groupe, scrutin par scrutin</th>
 <th>Scrutins couverts</th><th>Régularité</th></tr></thead>
-<tbody>{{range .Groupes}}<tr>
-<td><a href="{{$.Root}}/groupe/{{.Slug}}/">{{.Nom}}</a>
-    {{if .NomCourt}}<span class="small muted"> {{.NomCourt}}</span>{{end}}</td>
-<td data-l="Députés">{{.Effectif}}</td>
-<td class="pos FOR" data-l="Majorité pour">{{nb .MajPour}} pour</td>
-<td class="pos AGAINST" data-l="Majorité contre">{{nb .MajContre}} contre</td>
-<td class="pos ABSTAIN" data-l="Majorité abst.">{{nb .MajAbst}} abst.</td>
-<td data-l="Scrutins couverts">{{nb .ScrutinsCouverts}}</td>
+<tbody>{{range .Groups}}<tr>
+<td><a href="{{$.Root}}/groupe/{{.Slug}}/">{{.Name}}</a>
+    {{if .NameShort}}<span class="small muted"> {{.NameShort}}</span>{{end}}</td>
+<td data-l="Députés">{{.Headcount}}</td>
+<td class="pos FOR" data-l="Majorité pour">{{nb .MajorityFor}} pour</td>
+<td class="pos AGAINST" data-l="Majorité contre">{{nb .MajorityAgainst}} contre</td>
+<td class="pos ABSTAIN" data-l="Majorité abst.">{{nb .MajorityAbst}} abst.</td>
+<td data-l="Scrutins couverts">{{nb .ElectionsCovered}}</td>
 <td data-l="Régularité">{{.Cohesion}} %</td>
 </tr>{{end}}</tbody></table></div>
 <p class="small muted">Les colonnes «&nbsp;position majoritaire&nbsp;» comptent les
@@ -35,12 +35,12 @@ supposée. Ordre alphabétique&nbsp;: ce site ne classe pas les groupes.</p>
 <h2>Derniers scrutins</h2>
 <div class="scroll"><table class="pile">
 <thead><tr><th>Date</th><th>Objet</th><th>Résultat</th></tr></thead>
-<tbody>{{range .Scrutins}}<tr>
+<tbody>{{range .Elections}}<tr>
 <td class="small z" style="white-space:nowrap">{{.Date}}</td>
-<td data-l="Objet"><a href="{{$.Root}}/scrutin/{{.Slug}}/">{{.Objet}}</a></td>
-<td class="small" data-l="Résultat" style="font-weight:600">{{.Resultat}}</td>
+<td data-l="Objet"><a href="{{$.Root}}/scrutin/{{.Slug}}/">{{.Object}}</a></td>
+<td class="small" data-l="Résultat" style="font-weight:600">{{.Result}}</td>
 </tr>{{end}}</tbody></table></div>
-<p class="small muted">{{len .Scrutins}} scrutins affichés sur {{nb .Cov.Scrutins}}&nbsp;: la
+<p class="small muted">{{len .Elections}} scrutins affichés sur {{nb .Cov.Elections}}&nbsp;: la
 liste est bornée, et la troncature est visible plutôt que silencieuse.</p>
 <p class="note abs"><strong>Les scrutins ne sont pas encore indexés par la recherche.</strong>
 Elle couvre les personnes, les partis, les groupes et les référentiels. Indexer 38 000 libellés
@@ -49,7 +49,7 @@ Code de non-couverture&nbsp;: <code>SEARCH_INDEX_PARTIEL</code>.</p>
 
 <h2>Députés</h2>
 <div class="grid">
-{{range .Deputes}}<div class="small"><a href="{{$.Root}}/depute/{{.Slug}}/">{{.Prenom}} {{.Nom}}</a>
-<span class="muted">{{if .Groupe}} — {{.Groupe}}{{end}}</span></div>{{end}}
+{{range .Deputies}}<div class="small"><a href="{{$.Root}}/depute/{{.Slug}}/">{{.FirstName}} {{.Name}}</a>
+<span class="muted">{{if .Group}} — {{.Group}}{{end}}</span></div>{{end}}
 </div>
 {{end}}

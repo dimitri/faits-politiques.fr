@@ -22,43 +22,43 @@ import (
 // emprunt n'est pas fléché vers une dépense. Ce que la comptabilité publie, et
 // que cette page montre à la place, c'est la DÉPENSE par domaine — la
 // nomenclature COFOG, dix fonctions, publiée par Eurostat.
-type PointDette struct {
-	Annee          int
-	Meur, Pib      float64
-	Barre, Hauteur float64
-	X, Largeur     float64
+type PointDebt struct {
+	Year        int
+	Meur, Gdp   float64
+	Bar, Height float64
+	X, Width    float64
 }
 
-type FonctionDepense struct {
-	Code, Libelle string
-	Montant       float64
-	Part          float64
-	PartDebut     float64
+type FunctionExpense struct {
+	Code, Label string
+	Amount      float64
+	Share       float64
+	ShareStart  float64
 }
 
-type StatsDette struct {
-	Debut, Fin       int
-	DerniereMeur     float64
-	DernierePib      float64
-	PremiereMeur     float64
-	PremierePib      float64
-	Points           []PointDette
-	Grille           template.HTML
-	LignePib         template.HTML
-	Fonctions        []FonctionDepense
-	AnneeFonctions   int
-	DebutFonctions   int
-	BarresFonctions  template.HTML
-	Secteurs         []SousSecteur
-	AnneeSecteurs    int
-	SoldeS13         float64
-	ChargeDette      float64
-	AnneeChargeDette int
+type StatsDebt struct {
+	Start, End      int
+	LastMeur        float64
+	LastGdp         float64
+	FirstMeur       float64
+	FirstGdp        float64
+	Points          []PointDebt
+	Grid            template.HTML
+	LineGdp         template.HTML
+	Functions       []FunctionExpense
+	YearFunctions   int
+	StartFunctions  int
+	BarsFunctions   template.HTML
+	Sectors         []SubSector
+	YearSectors     int
+	BalanceS13      float64
+	DebtService     float64
+	YearDebtService int
 }
 
 // cofog : la nomenclature internationale des fonctions des administrations
 // publiques. Les libellés sont ceux d'Eurostat, sans reformulation.
-var cofog = []struct{ code, court string }{
+var cofog = []struct{ code, short string }{
 	{"depense.GF10", "Protection sociale"},
 	{"depense.GF07", "Santé"},
 	{"depense.GF09", "Enseignement"},
@@ -71,8 +71,8 @@ var cofog = []struct{ code, court string }{
 	{"depense.GF05", "Protection de l'environnement"},
 }
 
-func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
-	st := &StatsDette{}
+func loadDebt(ctx context.Context, pool *pgxpool.Pool) (*StatsDebt, error) {
+	st := &StatsDebt{}
 	rows, err := pool.Query(ctx, `
 		SELECT m.annee, m.valeur::float8, p.valeur::float8
 		FROM core.macro_value m
@@ -83,14 +83,14 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 	}
 	var max float64
 	for rows.Next() {
-		var pt PointDette
-		var pib *float64
-		if err := rows.Scan(&pt.Annee, &pt.Meur, &pib); err != nil {
+		var pt PointDebt
+		var gdp *float64
+		if err := rows.Scan(&pt.Year, &pt.Meur, &gdp); err != nil {
 			break
 		}
 		pt.Meur *= 1e6
-		if pib != nil {
-			pt.Pib = *pib
+		if gdp != nil {
+			pt.Gdp = *gdp
 		}
 		if pt.Meur > max {
 			max = pt.Meur
@@ -101,17 +101,17 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 	if len(st.Points) == 0 {
 		return st, nil
 	}
-	st.Debut, st.Fin = st.Points[0].Annee, st.Points[len(st.Points)-1].Annee
-	st.PremiereMeur, st.PremierePib = st.Points[0].Meur, st.Points[0].Pib
-	st.DerniereMeur = st.Points[len(st.Points)-1].Meur
-	st.DernierePib = st.Points[len(st.Points)-1].Pib
+	st.Start, st.End = st.Points[0].Year, st.Points[len(st.Points)-1].Year
+	st.FirstMeur, st.FirstGdp = st.Points[0].Meur, st.Points[0].Gdp
+	st.LastMeur = st.Points[len(st.Points)-1].Meur
+	st.LastGdp = st.Points[len(st.Points)-1].Gdp
 
 	// Barres : un stock annuel est une mesure au 31 décembre, pas un continuum.
 	// gl : la place des étiquettes de l'axe. « 3 460,5 Md€ » fait onze signes ;
 	// à 66 px elle sortait du viewBox et se lisait « 460,5 Md€ ».
 	const gw, gh, gl, gt, gb = 720.0, 250.0, 100.0, 16.0, 30.0
 	n := float64(len(st.Points))
-	pas := (gw - gl - 8) / n
+	step := (gw - gl - 8) / n
 	var g strings.Builder
 	for _, frac := range []float64{0, 0.5, 1} {
 		v := max * frac
@@ -123,76 +123,76 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 	}
 	for i := range st.Points {
 		pt := &st.Points[i]
-		pt.X = gl + pas*float64(i) + 1
-		pt.Largeur = pas - 2
+		pt.X = gl + step*float64(i) + 1
+		pt.Width = step - 2
 		h := (gh - gt - gb) * pt.Meur / max
-		pt.Hauteur = h
-		pt.Barre = gt + (gh - gt - gb) - h
-		if pt.Annee%5 == 0 {
+		pt.Height = h
+		pt.Bar = gt + (gh - gt - gb) - h
+		if pt.Year%5 == 0 {
 			fmt.Fprintf(&g, `<text class="an" x="%.1f" y="%.1f" text-anchor="middle">%d</text>`,
-				pt.X+pt.Largeur/2, gh-10, pt.Annee)
+				pt.X+pt.Width/2, gh-10, pt.Year)
 		}
 	}
-	st.Grille = template.HTML(g.String())
+	st.Grid = template.HTML(g.String())
 
 	// Le ratio au PIB, en ligne : jusqu'ici cité seulement dans l'infobulle de
 	// chaque barre, alors que la note qui suit affirme que c'est LUI la lecture
 	// insensible à l'inflation. Échelle propre, non zéro-basée, comme la
 	// population sur la page protection sociale — ce n'est pas la même unité
 	// que les barres, donc pas le même repère.
-	minP, maxP := st.Points[0].Pib, st.Points[0].Pib
+	minP, maxP := st.Points[0].Gdp, st.Points[0].Gdp
 	for _, pt := range st.Points {
-		if pt.Pib < minP {
-			minP = pt.Pib
+		if pt.Gdp < minP {
+			minP = pt.Gdp
 		}
-		if pt.Pib > maxP {
-			maxP = pt.Pib
+		if pt.Gdp > maxP {
+			maxP = pt.Gdp
 		}
 	}
 	if maxP == minP {
 		maxP = minP + 1
 	}
-	basP := minP - (maxP-minP)*0.15
-	hautP := maxP + (maxP-minP)*0.15
-	yP := func(v float64) float64 { return gt + (gh-gt-gb)*(1-(v-basP)/(hautP-basP)) }
+	bottomP := minP - (maxP-minP)*0.15
+	topP := maxP + (maxP-minP)*0.15
+	yP := func(v float64) float64 { return gt + (gh-gt-gb)*(1-(v-bottomP)/(topP-bottomP)) }
 	var trace strings.Builder
 	for i, pt := range st.Points {
 		op := "L"
 		if i == 0 {
 			op = "M"
 		}
-		fmt.Fprintf(&trace, "%s%.1f,%.1f", op, pt.X+pt.Largeur/2, yP(pt.Pib))
+		fmt.Fprintf(&trace, "%s%.1f,%.1f", op, pt.X+pt.Width/2, yP(pt.Gdp))
 	}
 	var lp strings.Builder
 	fmt.Fprintf(&lp, `<path class="ligne-pib" d="%s" fill="none"/>`, trace.String())
-	premier, dernier := st.Points[0], st.Points[len(st.Points)-1]
+	first, last := st.Points[0], st.Points[len(st.Points)-1]
 	fmt.Fprintf(&lp, `<circle class="pt-pib" cx="%.1f" cy="%.1f" r="2.6"/>`,
-		premier.X+premier.Largeur/2, yP(premier.Pib))
+		first.X+first.Width/2, yP(first.Gdp))
 	fmt.Fprintf(&lp, `<circle class="pt-pib" cx="%.1f" cy="%.1f" r="2.6"/>`,
-		dernier.X+dernier.Largeur/2, yP(dernier.Pib))
+		last.X+last.Width/2, yP(last.Gdp))
 	fmt.Fprintf(&lp, `<text class="et pib" x="%.1f" y="%.1f">%s %% du PIB</text>`,
-		premier.X+premier.Largeur/2, yP(premier.Pib)-8, Decimal(premier.Pib, 1))
+		first.X+first.Width/2, yP(first.Gdp)-8, Decimal(first.Gdp, 1))
 	fmt.Fprintf(&lp, `<text class="et pib pib-fin" x="%.1f" y="%.1f" text-anchor="end">%s %% du PIB</text>`,
-		dernier.X+dernier.Largeur/2, yP(dernier.Pib)-8, Decimal(dernier.Pib, 1))
-	st.LignePib = template.HTML(lp.String())
+		last.X+last.Width/2, yP(last.Gdp)-8, Decimal(last.Gdp, 1))
+	st.LineGdp = template.HTML(lp.String())
 
 	// La dépense par fonction : ce qui remplace la « dette par domaine ».
 	_ = pool.QueryRow(ctx, `
 		SELECT max(annee), min(annee) FROM core.macro_value WHERE serie_code='depense.GF10'`).
-		Scan(&st.AnneeFonctions, &st.DebutFonctions)
-	var totFin, totDeb float64
+		Scan(&st.YearFunctions, &st.StartFunctions)
+	var totalEnd, totalDeb float64
 	for _, f := range cofog {
 		var a, b *float64
 		_ = pool.QueryRow(ctx, `
 			SELECT max(valeur) FILTER (WHERE annee=$2)::float8,
 			       max(valeur) FILTER (WHERE annee=$3)::float8
 			FROM core.macro_value WHERE serie_code=$1`,
-			f.code, st.AnneeFonctions, st.DebutFonctions).Scan(&a, &b)
+			f.code, st.YearFunctions, st.StartFunctions).Scan(&a, &b)
 		if a != nil {
-			totFin += *a
+			totalEnd += *a
 		}
 		if b != nil {
-			totDeb += *b
+			totalDeb += *b
 		}
 	}
 	for _, f := range cofog {
@@ -203,39 +203,39 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 			SELECT max(valeur) FILTER (WHERE annee=$2)::float8,
 			       max(valeur) FILTER (WHERE annee=$3)::float8
 			FROM core.macro_value WHERE serie_code=$1`,
-			f.code, st.AnneeFonctions, st.DebutFonctions).Scan(&a, &b)
-		fd := FonctionDepense{Code: f.code, Libelle: f.court}
+			f.code, st.YearFunctions, st.StartFunctions).Scan(&a, &b)
+		fd := FunctionExpense{Code: f.code, Label: f.short}
 		if a != nil {
-			fd.Montant = *a * 1e6
-			if totFin > 0 {
-				fd.Part = 100 * *a / totFin
+			fd.Amount = *a * 1e6
+			if totalEnd > 0 {
+				fd.Share = 100 * *a / totalEnd
 			}
 		}
-		if b != nil && totDeb > 0 {
-			fd.PartDebut = 100 * *b / totDeb
+		if b != nil && totalDeb > 0 {
+			fd.ShareStart = 100 * *b / totalDeb
 		}
-		st.Fonctions = append(st.Fonctions, fd)
+		st.Functions = append(st.Functions, fd)
 	}
-	sort.Slice(st.Fonctions, func(i, j int) bool {
-		return st.Fonctions[i].Montant > st.Fonctions[j].Montant
+	sort.Slice(st.Functions, func(i, j int) bool {
+		return st.Functions[i].Amount > st.Functions[j].Amount
 	})
 	var maxF float64
-	for _, f := range st.Fonctions {
-		if f.Montant > maxF {
-			maxF = f.Montant
+	for _, f := range st.Functions {
+		if f.Amount > maxF {
+			maxF = f.Amount
 		}
 	}
 	var bf strings.Builder
 	bf.WriteString(`<div class="barres">`)
-	for _, f := range st.Fonctions {
+	for _, f := range st.Functions {
 		fmt.Fprintf(&bf, `<div class="ligne"><span class="n">%s</span>`+
 			`<span class="piste"><i style="width:%.1f%%"></i></span>`+
 			`<span class="v">%s</span><span class="c">%s</span></div>`,
-			template.HTMLEscapeString(f.Libelle), 100*f.Montant/maxF,
-			mdEur(f.Montant), Decimal(f.Part, 1)+" %")
+			template.HTMLEscapeString(f.Label), 100*f.Amount/maxF,
+			mdEur(f.Amount), Decimal(f.Share, 1)+" %")
 	}
 	bf.WriteString(`</div>`)
-	st.BarresFonctions = template.HTML(bf.String())
+	st.BarsFunctions = template.HTML(bf.String())
 
 	// Qui emprunte : le solde des trois sous-secteurs.
 	srows, err := pool.Query(ctx, `
@@ -248,16 +248,16 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 		return nil, err
 	}
 	for srows.Next() {
-		var s SousSecteur
-		if err := srows.Scan(&st.AnneeSecteurs, &s.Code, &s.Libelle, &s.Depenses,
-			&s.Recettes, &s.Solde); err != nil {
+		var s SubSector
+		if err := srows.Scan(&st.YearSectors, &s.Code, &s.Label, &s.Expenses,
+			&s.Revenues, &s.Balance); err != nil {
 			break
 		}
 		if s.Code == "S13" {
-			st.SoldeS13 = s.Solde
+			st.BalanceS13 = s.Balance
 			continue
 		}
-		st.Secteurs = append(st.Secteurs, s)
+		st.Sectors = append(st.Sectors, s)
 	}
 	srows.Close()
 
@@ -266,6 +266,6 @@ func loadDette(ctx context.Context, pool *pgxpool.Pool) (*StatsDette, error) {
 	_ = pool.QueryRow(ctx, `
 		SELECT montant_eur, exercice FROM core.execution_etat
 		WHERE ligne='Charges de la dette de l’Etat'
-		ORDER BY date_arrete DESC LIMIT 1`).Scan(&st.ChargeDette, &st.AnneeChargeDette)
+		ORDER BY date_arrete DESC LIMIT 1`).Scan(&st.DebtService, &st.YearDebtService)
 	return st, nil
 }

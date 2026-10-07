@@ -14,7 +14,7 @@ import (
 // aliasPaysFrancophonie : les six entités où le nom Francoscope diffère
 // réellement du nom Natural Earth (au-delà d'un accent ou d'une apostrophe
 // différente, normalisés à part) — vérifié une par une, pas deviné.
-var aliasPaysFrancophonie = map[string]string{
+var aliasCountryFrancophonie = map[string]string{
 	"Cabo Verde":                         "Cap-Vert",
 	"Centrafrique":                       "République centrafricaine",
 	"Congo":                              "République du Congo",
@@ -23,11 +23,11 @@ var aliasPaysFrancophonie = map[string]string{
 	"Fédération de Russie":               "Russie",
 }
 
-// normaliserNomPays réduit un nom à ses lettres et chiffres en minuscules,
+// normalizeNameCountry réduit un nom à ses lettres et chiffres en minuscules,
 // accents et apostrophes typographiques supprimés — pour rapprocher
 // "Viet Nam" (Francoscope) de "Viêt Nam" (Natural Earth), ou "Côte d'Ivoire"
 // de "Côte d’Ivoire", sans dépendre du caractère exact utilisé.
-func normaliserNomPays(s string) string {
+func normalizeNameCountry(s string) string {
 	var b strings.Builder
 	for _, r := range s {
 		r = unicode.ToLower(r)
@@ -51,35 +51,35 @@ func normaliserNomPays(s string) string {
 	return b.String()
 }
 
-type PaysFrancophone struct {
-	Nom                                                     string
-	PopulationMilliers, FrancophonePct, FrancophoneMilliers float64
-	LabelX, LabelY, LabelR                                  float64
+type CountryFrancophone struct {
+	Name                                                      string
+	PopulationThousands, FrancophonePct, FrancophoneThousands float64
+	LabelX, LabelY, LabelR                                    float64
 }
 
 type StatsFrancophonie struct {
-	CarteSVG          template.HTML
-	NbPaysCartes      int
-	NbPaysTotal       int
-	TopParPct         []PaysFrancophone
-	TopParNombre      []PaysFrancophone
-	TopParPctTable    template.HTML
-	TopParNombreTable template.HTML
+	MapSVG            template.HTML
+	CountCountryMaps  int
+	CountCountryTotal int
+	TopPerPct         []CountryFrancophone
+	TopPerCount       []CountryFrancophone
+	TopPerPctTable    template.HTML
+	TopPerCountTable  template.HTML
 }
 
-// tableauFrancophonie : un classement simple, deux colonnes numériques —
+// tableFrancophonie : un classement simple, deux colonnes numériques —
 // même patron que tableauDelocalisationCSP (appareil_productif.go).
-func tableauFrancophonie(pays []PaysFrancophone, colonneValeur string, valeur func(PaysFrancophone) string) template.HTML {
+func tableFrancophonie(country []CountryFrancophone, columnValue string, value func(CountryFrancophone) string) template.HTML {
 	var t strings.Builder
-	t.WriteString(`<div class="scroll"><table><thead><tr><th>Pays</th><th>` + colonneValeur + `</th></tr></thead><tbody>`)
-	for _, p := range pays {
-		fmt.Fprintf(&t, `<tr><td>%s</td><td>%s</td></tr>`, template.HTMLEscapeString(p.Nom), valeur(p))
+	t.WriteString(`<div class="scroll"><table><thead><tr><th>Pays</th><th>` + columnValue + `</th></tr></thead><tbody>`)
+	for _, p := range country {
+		fmt.Fprintf(&t, `<tr><td>%s</td><td>%s</td></tr>`, template.HTMLEscapeString(p.Name), value(p))
 	}
 	t.WriteString(`</tbody></table></div>`)
 	return template.HTML(t.String())
 }
 
-func chargerFrancophonie(ctx context.Context, pool *pgxpool.Pool) (*StatsFrancophonie, error) {
+func loadFrancophonie(ctx context.Context, pool *pgxpool.Pool) (*StatsFrancophonie, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT entite, population_2025_milliers, francophone_pct, francophone_milliers
 		FROM core.francophonie_entite WHERE type_entite='pays'
@@ -87,46 +87,46 @@ func chargerFrancophonie(ctx context.Context, pool *pgxpool.Pool) (*StatsFrancop
 	if err != nil {
 		return nil, err
 	}
-	var tous []PaysFrancophone
+	var all []CountryFrancophone
 	for rows.Next() {
-		var p PaysFrancophone
-		if err := rows.Scan(&p.Nom, &p.PopulationMilliers, &p.FrancophonePct, &p.FrancophoneMilliers); err != nil {
+		var p CountryFrancophone
+		if err := rows.Scan(&p.Name, &p.PopulationThousands, &p.FrancophonePct, &p.FrancophoneThousands); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		tous = append(tous, p)
+		all = append(all, p)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
 	rows.Close()
-	if len(tous) == 0 {
+	if len(all) == 0 {
 		return nil, nil
 	}
 
-	const tolFrancophonie = 0.15 // degrés (EPSG:4326) : assez pour un repère mondial
+	const toleranceFrancophonie = 0.15 // degrés (EPSG:4326) : assez pour un repère mondial
 	geoRows, err := pool.Query(ctx, `
 		SELECT nom_fr, st_assvg(g, 0, 2), st_x((ic).center), -st_y((ic).center), (ic).radius
 		FROM (SELECT nom_fr, st_simplifypreservetopology(geom, $1) AS g FROM geo.contour_pays) x,
-		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l`, tolFrancophonie)
+		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l`, toleranceFrancophonie)
 	if err != nil {
 		return nil, err
 	}
-	var fondsChemins []string
-	type geoPays struct {
-		chemin                 string
+	var fundsPaths []string
+	type geoCountry struct {
+		path                   string
 		labelX, labelY, labelR float64
 	}
-	chemins := map[string]geoPays{}
+	paths := map[string]geoCountry{}
 	for geoRows.Next() {
-		var nom string
-		var g geoPays
-		if err := geoRows.Scan(&nom, &g.chemin, &g.labelX, &g.labelY, &g.labelR); err != nil {
+		var name string
+		var g geoCountry
+		if err := geoRows.Scan(&name, &g.path, &g.labelX, &g.labelY, &g.labelR); err != nil {
 			geoRows.Close()
 			return nil, err
 		}
-		fondsChemins = append(fondsChemins, g.chemin)
-		chemins[normaliserNomPays(nom)] = g
+		fundsPaths = append(fundsPaths, g.path)
+		paths[normalizeNameCountry(name)] = g
 	}
 	if err := geoRows.Err(); err != nil {
 		geoRows.Close()
@@ -134,56 +134,56 @@ func chargerFrancophonie(ctx context.Context, pool *pgxpool.Pool) (*StatsFrancop
 	}
 	geoRows.Close()
 
-	var cartographies []PaysFrancophone
-	var cheminsPays []string
-	for _, p := range tous {
-		nomRecherche := p.Nom
-		if a, ok := aliasPaysFrancophonie[p.Nom]; ok {
-			nomRecherche = a
+	var maps []CountryFrancophone
+	var pathsCountry []string
+	for _, p := range all {
+		nameSearch := p.Name
+		if a, ok := aliasCountryFrancophonie[p.Name]; ok {
+			nameSearch = a
 		}
-		if g, ok := chemins[normaliserNomPays(nomRecherche)]; ok {
+		if g, ok := paths[normalizeNameCountry(nameSearch)]; ok {
 			p.LabelX, p.LabelY, p.LabelR = g.labelX, g.labelY, g.labelR
-			cartographies = append(cartographies, p)
-			cheminsPays = append(cheminsPays, g.chemin)
+			maps = append(maps, p)
+			pathsCountry = append(pathsCountry, g.path)
 		}
 	}
 
-	st := &StatsFrancophonie{NbPaysCartes: len(cartographies), NbPaysTotal: len(tous)}
-	st.CarteSVG = dessinerCarteFrancophonie(fondsChemins, cartographies, cheminsPays)
+	st := &StatsFrancophonie{CountCountryMaps: len(maps), CountCountryTotal: len(all)}
+	st.MapSVG = drawMapFrancophonie(fundsPaths, maps, pathsCountry)
 
-	parPct := append([]PaysFrancophone(nil), tous...)
-	sort.Slice(parPct, func(i, j int) bool { return parPct[i].FrancophonePct > parPct[j].FrancophonePct })
-	if len(parPct) > 12 {
-		parPct = parPct[:12]
+	perPct := append([]CountryFrancophone(nil), all...)
+	sort.Slice(perPct, func(i, j int) bool { return perPct[i].FrancophonePct > perPct[j].FrancophonePct })
+	if len(perPct) > 12 {
+		perPct = perPct[:12]
 	}
-	st.TopParPct = parPct
+	st.TopPerPct = perPct
 
-	parNombre := append([]PaysFrancophone(nil), tous...)
-	sort.Slice(parNombre, func(i, j int) bool { return parNombre[i].FrancophoneMilliers > parNombre[j].FrancophoneMilliers })
-	if len(parNombre) > 12 {
-		parNombre = parNombre[:12]
+	perCount := append([]CountryFrancophone(nil), all...)
+	sort.Slice(perCount, func(i, j int) bool { return perCount[i].FrancophoneThousands > perCount[j].FrancophoneThousands })
+	if len(perCount) > 12 {
+		perCount = perCount[:12]
 	}
-	st.TopParNombre = parNombre
-	st.TopParPctTable = tableauFrancophonie(parPct, "Francophones",
-		func(p PaysFrancophone) string { return Decimal(p.FrancophonePct, 1) + " %" })
-	st.TopParNombreTable = tableauFrancophonie(parNombre, "Francophones",
-		func(p PaysFrancophone) string { return Nombre(int(p.FrancophoneMilliers * 1000)) })
+	st.TopPerCount = perCount
+	st.TopPerPctTable = tableFrancophonie(perPct, "Francophones",
+		func(p CountryFrancophone) string { return Decimal(p.FrancophonePct, 1) + " %" })
+	st.TopPerCountTable = tableFrancophonie(perCount, "Francophones",
+		func(p CountryFrancophone) string { return Count(int(p.FrancophoneThousands * 1000)) })
 
 	return st, nil
 }
 
-// dessinerCarteFrancophonie : une choroplèthe par seuils — la part de
+// drawMapFrancophonie : une choroplèthe par seuils — la part de
 // francophones dans la population, pas leur nombre absolu (déjà montré par
 // le classement à côté). Fond Natural Earth complet (tous les pays,
 // francophones ou non, en gris neutre), les pays francophones repeints
 // par-dessus selon leur seuil. ST_AsSVG inverse déjà l'axe Y (convention
 // PostGIS), aucun retournement manuel à faire ici, à la différence des
 // cercles proportionnels utilisés ailleurs sur ce site (ST_X/ST_Y bruts).
-func dessinerCarteFrancophonie(fonds []string, pays []PaysFrancophone, chemins []string) template.HTML {
-	if len(pays) == 0 {
+func drawMapFrancophonie(funds []string, country []CountryFrancophone, paths []string) template.HTML {
+	if len(country) == 0 {
 		return ""
 	}
-	seuil := func(pct float64) string {
+	threshold := func(pct float64) string {
 		switch {
 		case pct >= 90:
 			return "fr-5"
@@ -202,14 +202,14 @@ func dessinerCarteFrancophonie(fonds []string, pays []PaysFrancophone, chemins [
 	var b strings.Builder
 	b.WriteString(`<svg viewBox="-180 -85 360 170" class="geo monde francophonie" role="img" ` +
 		`aria-label="Part de francophones dans la population, par pays, 2025">`)
-	for _, d := range fonds {
+	for _, d := range funds {
 		fmt.Fprintf(&b, `<path class="fond" d="%s"/>`, d)
 	}
-	for i, p := range pays {
-		titre := fmt.Sprintf("%s — %s %% de francophones (%s sur %s habitants)",
-			p.Nom, Decimal(p.FrancophonePct, 1), Nombre(int(p.FrancophoneMilliers*1000)), Nombre(int(p.PopulationMilliers*1000)))
+	for i, p := range country {
+		title := fmt.Sprintf("%s — %s %% de francophones (%s sur %s habitants)",
+			p.Name, Decimal(p.FrancophonePct, 1), Count(int(p.FrancophoneThousands*1000)), Count(int(p.PopulationThousands*1000)))
 		fmt.Fprintf(&b, `<path class="pays-p %s" d="%s"><title>%s</title></path>`,
-			seuil(p.FrancophonePct), chemins[i], template.HTMLEscapeString(titre))
+			threshold(p.FrancophonePct), paths[i], template.HTMLEscapeString(title))
 	}
 	// Nommer les ~90 pays de cette carte les aurait tassés les uns sur les
 	// autres (repéré sur les cartes déjà publiées) — seuls les pays où le
@@ -218,22 +218,22 @@ func dessinerCarteFrancophonie(fonds []string, pays []PaysFrancophone, chemins [
 	// vrai sujet de cette carte, pas la liste des 88 membres et observateurs
 	// de l'OIF, dont la plupart ont un pourcentage de francophones proche
 	// de zéro.
-	const seuilPctEtiquette = 30.0
-	const seuilRayonEtiquette = 0.15 // degrés : sous ce seuil (Monaco, les Seychelles...), aucun nom ne tient
+	const thresholdPctLabel = 30.0
+	const thresholdRadiusLabel = 0.15 // degrés : sous ce seuil (Monaco, les Seychelles...), aucun nom ne tient
 	// « Congo (République démocratique du) » débordait largement de son
 	// pays sur la carte, empiétant sur ses voisins (repéré à la vue de la
 	// carte publiée) — le nom complet Francoscope reste dans l'infobulle.
-	nomEtiquette := map[string]string{"Congo (République démocratique du)": "RD Congo"}
-	for _, p := range pays {
-		if p.FrancophonePct < seuilPctEtiquette || p.LabelR < seuilRayonEtiquette {
+	nameLabel := map[string]string{"Congo (République démocratique du)": "RD Congo"}
+	for _, p := range country {
+		if p.FrancophonePct < thresholdPctLabel || p.LabelR < thresholdRadiusLabel {
 			continue
 		}
-		nom := p.Nom
-		if court, ok := nomEtiquette[nom]; ok {
-			nom = court
+		name := p.Name
+		if short, ok := nameLabel[name]; ok {
+			name = short
 		}
 		fmt.Fprintf(&b, `<text class="nom-francophone" x="%.3f" y="%.3f" text-anchor="middle">%s</text>`,
-			p.LabelX, p.LabelY, template.HTMLEscapeString(nom))
+			p.LabelX, p.LabelY, template.HTMLEscapeString(name))
 	}
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())

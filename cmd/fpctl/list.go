@@ -467,7 +467,7 @@ func afficherDeps(ctx context.Context, nom string, enJSON, enPages bool) error {
 		// commande d'affichage) si la migration qui introduit
 		// core.sitegen_table_usage n'est pas encore passée — ajouterNoeudPage
 		// se contente alors de ne rien afficher pour Tables.
-		if t, err := sitegen.TablesPubliees(ctx, pool); err == nil {
+		if t, err := sitegen.TablesPublished(ctx, pool); err == nil {
 			tablesParNoeud = t
 		}
 	}

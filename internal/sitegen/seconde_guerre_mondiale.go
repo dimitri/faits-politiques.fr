@@ -12,35 +12,35 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type StatsSecondeGuerreMondiale struct {
-	CarteSVG                                        template.HTML
-	LongueurKm                                      float64
-	DebarquementSVG                                 template.HTML
-	NbAxe, NbOccupe, NbAllie, NbNeutre, NbNonClasse int
+type StatsSecondWorldWar struct {
+	MapSVG                                                           template.HTML
+	LengthKm                                                         float64
+	LandingSVG                                                       template.HTML
+	CountAxis, CountOccupied, CountAlly, CountNeutral, CountNonClass int
 }
 
-// pieceEurope : un pays dessiné sur la carte d'Europe (chemin déjà en
+// roomEurope : un pays dessiné sur la carte d'Europe (chemin déjà en
 // Lambert-93/LAEA, voir dessinerCarteSGM), avec l'ancre de son étiquette —
 // le centre du plus grand cercle inscriptible dans sa forme
 // (ST_MaximumInscribedCircle), garanti à l'intérieur du polygone, contrairement
 // à un centroïde qui peut tomber hors d'une forme concave (la Norvège,
 // notamment).
-type pieceEurope struct {
-	classe, nom, chemin    string
+type roomEurope struct {
+	class, name, path      string
 	labelX, labelY, labelR float64
 }
 
-// pointDebarquement : une plage de débarquement, 1944 — coordonnées relevées
+// pointLanding : une plage de débarquement, 1944 — coordonnées relevées
 // sur la commune ou le lieu-dit portant le nom de la plage (vérifiées
 // individuellement, pas une seule source pour les huit), pas la précision
 // d'un relevé militaire d'époque : suffisant pour un repère sur cette carte,
 // pas pour rejouer le débarquement mètre par mètre.
-type pointDebarquement struct {
-	nom, secteur, operation string
+type pointLanding struct {
+	name, sector, operation string
 	lat, lon                float64
 }
 
-var pointsDebarquement = []pointDebarquement{
+var pointsLanding = []pointLanding{
 	// Opération Overlord, Normandie, 6 juin 1944 — cinq plages, ordre
 	// ouest-est. Coordonnées : lieux-dits éponymes, Calvados/Manche.
 	{"Utah", "1ʳᵉ armée américaine", "Overlord", 49.42, -1.17},
@@ -78,7 +78,7 @@ var pointsDebarquement = []pointDebarquement{
 // internal/geo/europe_1940.go) depuis la version 9 de ce dossier — pas les
 // noms Natural Earth d'avant (« Germany », « Italy ») : cette carte dessine
 // désormais les frontières de 1940, pas celles d'aujourd'hui.
-var statutBelligerant = map[string]string{
+var statusBelligerent = map[string]string{
 	"Germany (Prussia)": "axe", "Italy/Sardinia": "axe",
 	"Poland": "occupe", "Norway": "occupe", "Denmark": "occupe",
 	"Netherlands": "occupe", "Belgium": "occupe", "Luxembourg": "occupe",
@@ -88,7 +88,7 @@ var statutBelligerant = map[string]string{
 
 // nomStatut : l'intitulé affiché dans la légende chiffrée, dans le même
 // ordre que la légende de couleurs.
-var nomStatut = []struct{ classe, libelle string }{
+var nameStatus = []struct{ class, label string }{
 	{"axe", "Axe"},
 	{"occupe", "Occupé par l'Axe dès 1939-1940"},
 	{"allie", "Allié"},
@@ -96,7 +96,7 @@ var nomStatut = []struct{ classe, libelle string }{
 	{"non-classe", "Hors classement (repère géographique)"},
 }
 
-// chargerSecondeGuerreMondiale : la France (occupée/libre, ligne de
+// loadSecondWorldWar : la France (occupée/libre, ligne de
 // démarcation) resituée dans l'Europe de l'Ouest plutôt que seule sur un
 // fond vide — même source que le fond de la carte Francophonie
 // (geo.contour_pays), quelques pays voisins classés par statut (voir
@@ -112,7 +112,7 @@ var nomStatut = []struct{ classe, libelle string }{
 // longitude vaut environ 0,68 fois un degré de latitude en distance réelle
 // (cosinus de 47°) — tout y paraissait environ 47 % trop large d'ouest en
 // est, un vrai défaut visuel, pas un choix.
-func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*StatsSecondeGuerreMondiale, error) {
+func loadSecondWorldWar(ctx context.Context, pool *pgxpool.Pool) (*StatsSecondWorldWar, error) {
 	// France métropolitaine (Corse comprise), isolée des outre-mer par le
 	// découpage en polygones distincts de Natural Earth (path 1 = Corse,
 	// path 2 = continent ; les autres, Guyane, Réunion..., sont exclus).
@@ -127,7 +127,7 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 	// échouerait au Scan (« cannot scan NULL into *float64 ») AVANT que le
 	// garde-fou !fond2154.Valid juste en dessous ait pu renvoyer « rien à
 	// dessiner », et cette erreur ferait tomber toute la construction du site.
-	var fond2154, zoneOccupee3035, zoneLibre3035, vb2154 sql.NullString
+	var background2154, zoneOccupied3035, zoneFree3035, vb2154 sql.NullString
 	var labelFranceXN, labelFranceYN sql.NullFloat64
 	if err := pool.QueryRow(ctx, `
 		WITH france AS (
@@ -194,10 +194,10 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 		               round(st_xmax(g2154)-st_xmin(g2154))||' '||round(st_ymax(g2154)-st_ymin(g2154)) FROM proj),
 		       (SELECT st_x((ST_MaximumInscribedCircle(g3035)).center) FROM proj),
 		       (SELECT -st_y((ST_MaximumInscribedCircle(g3035)).center) FROM proj)
-		`).Scan(&fond2154, &zoneOccupee3035, &zoneLibre3035, &vb2154, &labelFranceXN, &labelFranceYN); err != nil {
+		`).Scan(&background2154, &zoneOccupied3035, &zoneFree3035, &vb2154, &labelFranceXN, &labelFranceYN); err != nil {
 		return nil, err
 	}
-	if !fond2154.Valid || fond2154.String == "" {
+	if !background2154.Valid || background2154.String == "" {
 		return nil, nil
 	}
 	labelFranceX, labelFranceY := labelFranceXN.Float64, labelFranceYN.Float64
@@ -238,8 +238,8 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 	// droite d'un coin à l'autre.
 	const clipEuropeWGS84 = `st_makeenvelope(-10, 37.5, 40, 71.5, 4326)`
 	const clipEurope3035 = `st_transform(st_segmentize(st_makeenvelope(-10, 37.5, 40, 71.5, 4326), 0.5), 3035)`
-	const seuilAireM2 = 1e9
-	const tolEuropeM = 8000.0 // mètres (EPSG:3035), après transformation
+	const thresholdAreaM2 = 1e9
+	const toleranceEuropeM = 8000.0 // mètres (EPSG:3035), après transformation
 
 	rows, err := pool.Query(ctx, `
 		WITH pays AS (
@@ -253,25 +253,25 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 		       st_x((ic).center), -st_y((ic).center), (ic).radius
 		FROM pays, LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l
 		WHERE NOT st_isempty(g) AND st_area(g) > $2
-		ORDER BY st_area(g) DESC`, tolEuropeM, seuilAireM2)
+		ORDER BY st_area(g) DESC`, toleranceEuropeM, thresholdAreaM2)
 	if err != nil {
 		return nil, err
 	}
-	var voisins []pieceEurope
-	compte := map[string]int{}
+	var neighbors []roomEurope
+	account := map[string]int{}
 	for rows.Next() {
-		var p pieceEurope
-		var nomEn string
-		if err := rows.Scan(&p.nom, &nomEn, &p.chemin, &p.labelX, &p.labelY, &p.labelR); err != nil {
+		var p roomEurope
+		var nameIn string
+		if err := rows.Scan(&p.name, &nameIn, &p.path, &p.labelX, &p.labelY, &p.labelR); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		p.classe = statutBelligerant[nomEn]
-		if p.classe == "" {
-			p.classe = "non-classe"
+		p.class = statusBelligerent[nameIn]
+		if p.class == "" {
+			p.class = "non-classe"
 		}
-		compte[p.classe]++
-		voisins = append(voisins, p)
+		account[p.class]++
+		neighbors = append(neighbors, p)
 	}
 	if err := rows.Err(); err != nil {
 		rows.Close()
@@ -300,11 +300,11 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 	// même emprise que le fond de pays ci-dessus) prend le relais — sans
 	// lui, le Rhin ou le Danube s'arrêtaient net à la frontière française,
 	// comme s'ils n'existaient qu'en France.
-	fleuvesFrance, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
+	riversFrance, err := riversSVG(ctx, pool, 2154, 1, 0)
 	if err != nil {
 		return nil, err
 	}
-	var fleuvesEurope string
+	var riversEurope string
 	fRows, err := pool.Query(ctx, `
 		SELECT st_assvg(st_intersection(st_transform(geom, 3035), `+clipEurope3035+`), 1, 0)
 		FROM geo.cours_eau_monde WHERE st_intersects(geom, `+clipEuropeWGS84+`)`)
@@ -328,15 +328,15 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 		return nil, err
 	}
 	fRows.Close()
-	fleuvesEurope = feB.String()
+	riversEurope = feB.String()
 
 	// Les huit points de débarquement sont fixés en Go (coordonnées
 	// vérifiées individuellement, voir pointsDebarquement) : une seule
 	// requête les projette tous en Lambert-93, dans le même ordre, plutôt
 	// qu'un calcul de projection refait à la main.
-	lons := make([]float64, len(pointsDebarquement))
-	lats := make([]float64, len(pointsDebarquement))
-	for i, p := range pointsDebarquement {
+	lons := make([]float64, len(pointsLanding))
+	lats := make([]float64, len(pointsLanding))
+	for i, p := range pointsLanding {
 		lons[i], lats[i] = p.lon, p.lat
 	}
 	ptRows, err := pool.Query(ctx, `
@@ -347,7 +347,7 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 	if err != nil {
 		return nil, err
 	}
-	pointsProjetes := make([]pointProjete, 0, len(pointsDebarquement))
+	pointsProjected := make([]pointProjected, 0, len(pointsLanding))
 	i := 0
 	for ptRows.Next() {
 		var x, y float64
@@ -355,8 +355,8 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 			ptRows.Close()
 			return nil, err
 		}
-		p := pointsDebarquement[i]
-		pointsProjetes = append(pointsProjetes, pointProjete{X: x, Y: -y, Nom: p.nom, Secteur: p.secteur, Operation: p.operation})
+		p := pointsLanding[i]
+		pointsProjected = append(pointsProjected, pointProjected{X: x, Y: -y, Name: p.name, Sector: p.sector, Operation: p.operation})
 		i++
 	}
 	if err := ptRows.Err(); err != nil {
@@ -365,45 +365,45 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 	}
 	ptRows.Close()
 
-	var ligne2154, ligne3035 sql.NullString
-	var longueurM float64
+	var line2154, line3035 sql.NullString
+	var lengthM float64
 	err = pool.QueryRow(ctx, `
 		SELECT st_assvg(st_transform(geom, 2154), 1, 0), st_assvg(st_transform(geom, 3035), 1, 0), longueur_m
 		FROM geo.ligne_demarcation LIMIT 1`).
-		Scan(&ligne2154, &ligne3035, &longueurM)
+		Scan(&line2154, &line3035, &lengthM)
 
 	// La ligne de démarcation avait disparu, dans les faits, depuis
 	// l'invasion de la zone libre en novembre 1942 (voir le dossier, § 2) —
 	// bien avant les deux débarquements de 1944. La montrer dessus comme un
 	// partage occupée/libre encore actif serait faux ; dessinerDebarquements
 	// la trace donc en simple repère estompé, jamais en aplat de zone.
-	debarquementSVG := dessinerDebarquements(fond2154.String, fleuvesFrance, vb2154.String, ligne2154.String, pointsProjetes)
+	landingSVG := drawLandings(background2154.String, riversFrance, vb2154.String, line2154.String, pointsProjected)
 
-	franceEtiquette := pieceEurope{nom: "France", labelX: labelFranceX, labelY: labelFranceY}
-	st := &StatsSecondeGuerreMondiale{
-		DebarquementSVG: debarquementSVG,
-		NbAxe:           compte["axe"], NbOccupe: compte["occupe"], NbAllie: compte["allie"],
-		NbNeutre: compte["neutre"], NbNonClasse: compte["non-classe"],
+	franceLabel := roomEurope{name: "France", labelX: labelFranceX, labelY: labelFranceY}
+	st := &StatsSecondWorldWar{
+		LandingSVG: landingSVG,
+		CountAxis:  account["axe"], CountOccupied: account["occupe"], CountAlly: account["allie"],
+		CountNeutral: account["neutre"], CountNonClass: account["non-classe"],
 	}
 	if err != nil {
-		st.CarteSVG = dessinerCarteSGM(voisins, zoneOccupee3035.String, zoneLibre3035.String, fleuvesEurope, vb3035, "", franceEtiquette)
+		st.MapSVG = drawMapSGM(neighbors, zoneOccupied3035.String, zoneFree3035.String, riversEurope, vb3035, "", franceLabel)
 		return st, nil
 	}
 
-	st.LongueurKm = longueurM / 1000
-	st.CarteSVG = dessinerCarteSGM(voisins, zoneOccupee3035.String, zoneLibre3035.String, fleuvesEurope, vb3035, ligne3035.String, franceEtiquette)
+	st.LengthKm = lengthM / 1000
+	st.MapSVG = drawMapSGM(neighbors, zoneOccupied3035.String, zoneFree3035.String, riversEurope, vb3035, line3035.String, franceLabel)
 	return st, nil
 }
 
-// pointProjete : une plage de débarquement projetée en Lambert-93 (X, Y déjà
+// pointProjected : une plage de débarquement projetée en Lambert-93 (X, Y déjà
 // inversé pour l'affichage SVG — même convention que le reste du dépôt,
 // cy = -y_lambert), prête à dessiner.
-type pointProjete struct {
+type pointProjected struct {
 	X, Y                    float64
-	Nom, Secteur, Operation string
+	Name, Sector, Operation string
 }
 
-// dessinerDebarquements : la France seule (même fond que dessinerCarteSGM,
+// drawLandings : la France seule (même fond que dessinerCarteSGM,
 // sans les voisins — Normandie et Provence sont à l'intérieur du pays, pas à
 // sa frontière), un point par plage de débarquement (pointsDebarquement,
 // ci-dessus), coloré par opération. Un halo et une étiquette par opération,
@@ -415,16 +415,16 @@ type pointProjete struct {
 // de démarcation, quand elle est fournie, n'est qu'un repère estompé — elle
 // avait disparu dans les faits depuis novembre 1942 (voir le dossier, § 2),
 // bien avant ces deux dates, jamais un partage occupée/libre encore actif.
-func dessinerDebarquements(fond, fleuves, viewBox, ligne string, pts []pointProjete) template.HTML {
+func drawLandings(background, rivers, viewBox, line string, pts []pointProjected) template.HTML {
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo france sgm debarquements" role="img" `+
 		`aria-label="Les débarquements alliés en France, 1944 : Normandie (6 juin) et Provence (15 août)">`, viewBox)
-	fmt.Fprintf(&b, `<path class="fond" d="%s"/>`, fond)
-	b.WriteString(fleuves)
-	if ligne != "" {
+	fmt.Fprintf(&b, `<path class="fond" d="%s"/>`, background)
+	b.WriteString(rivers)
+	if line != "" {
 		fmt.Fprintf(&b, `<path class="ligne-demarcation ancienne" d="%s">`+
 			`<title>Ligne de démarcation, juin 1940 - mars 1943 — disparue dans les faits dès novembre 1942, `+
-			`bien avant les débarquements : simple repère géographique, pas un partage encore actif</title></path>`, ligne)
+			`bien avant les débarquements : simple repère géographique, pas un partage encore actif</title></path>`, line)
 	}
 
 	for _, op := range []string{"Overlord", "Dragoon"} {
@@ -438,36 +438,36 @@ func dessinerDebarquements(fond, fleuves, viewBox, ligne string, pts []pointProj
 		if len(xs) == 0 {
 			continue
 		}
-		var sommeX, sommeY float64
+		var sumX, sumY float64
 		for i := range xs {
-			sommeX += xs[i]
-			sommeY += ys[i]
+			sumX += xs[i]
+			sumY += ys[i]
 		}
-		cx, cy := sommeX/float64(len(xs)), sommeY/float64(len(ys))
-		rayon := 0.0
+		cx, cy := sumX/float64(len(xs)), sumY/float64(len(ys))
+		radius := 0.0
 		for i := range xs {
-			if d := math.Hypot(xs[i]-cx, ys[i]-cy); d > rayon {
-				rayon = d
+			if d := math.Hypot(xs[i]-cx, ys[i]-cy); d > radius {
+				radius = d
 			}
 		}
-		rayon += 32000
-		classe, nom, decalage := "overlord", "Normandie", -58000.0
+		radius += 32000
+		class, name, offset := "overlord", "Normandie", -58000.0
 		if op == "Dragoon" {
-			classe, nom, decalage = "dragoon", "Provence", 58000.0
+			class, name, offset = "dragoon", "Provence", 58000.0
 		}
-		fmt.Fprintf(&b, `<circle class="halo %s" cx="%.0f" cy="%.0f" r="%.0f"/>`, classe, cx, cy, rayon)
+		fmt.Fprintf(&b, `<circle class="halo %s" cx="%.0f" cy="%.0f" r="%.0f"/>`, class, cx, cy, radius)
 		fmt.Fprintf(&b, `<text class="repere %s" x="%.0f" y="%.0f" text-anchor="middle">%s</text>`,
-			classe, cx, cy+decalage, nom)
+			class, cx, cy+offset, name)
 	}
 
 	for _, p := range pts {
-		classe, date := "overlord", "6 juin 1944"
+		class, date := "overlord", "6 juin 1944"
 		if p.Operation == "Dragoon" {
-			classe, date = "dragoon", "15 août 1944"
+			class, date = "dragoon", "15 août 1944"
 		}
 		fmt.Fprintf(&b, `<circle class="debarquement %s" cx="%.0f" cy="%.0f" r="14000">`+
 			`<title>%s (%s) — %s, %s</title></circle>`,
-			classe, p.X, p.Y, p.Nom, p.Operation, p.Secteur, date)
+			class, p.X, p.Y, p.Name, p.Operation, p.Sector, date)
 	}
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())
@@ -477,9 +477,9 @@ func dessinerDebarquements(fond, fleuves, viewBox, ligne string, pts []pointProj
 // cercle inscriptible dans un pays pour lui donner une étiquette — en
 // dessous, le nom ne tiendrait pas lisiblement (un dixième du Luxembourg,
 // le plus petit pays conservé par le filtre d'aire de chargerSecondeGuerreMondiale).
-const seuilEtiquettePays = 8000.0
+const thresholdLabelCountry = 8000.0
 
-// dessinerCarteSGM : la France dans son contexte européen — chaque pays de
+// drawMapSGM : la France dans son contexte européen — chaque pays de
 // l'emprise (voir chargerSecondeGuerreMondiale) rempli par statut quand il
 // est connu, en gris neutre sinon, jamais un vide ; les grands cours d'eau
 // (Natural Earth) et le nom de chaque pays en France comme repères ; le
@@ -490,32 +490,32 @@ const seuilEtiquettePays = 8000.0
 // là où une version antérieure ne traçait qu'un fond uniforme sous la ligne
 // (le partage réel de 1940-1942 ne se voyait pas — repéré à la vue de la
 // carte publiée).
-func dessinerCarteSGM(voisins []pieceEurope, zoneOccupee, zoneLibre, fleuves, viewBox, ligne string, france pieceEurope) template.HTML {
+func drawMapSGM(neighbors []roomEurope, zoneOccupied, zoneFree, rivers, viewBox, line string, france roomEurope) template.HTML {
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg viewBox="%s" class="geo france sgm" role="img" `+
 		`aria-label="La France et ses voisins d'Europe, coupée en zone occupée et zone libre par la ligne de démarcation, 1940-1942">`, viewBox)
 	// Un rectangle plein aux dimensions exactes du viewBox : la Manche, la mer
 	// du Nord et la Baltique restaient blanches, indiscernables du fond de
 	// page — pas une terre neutre non plus, une vraie mer.
-	var largeurViewBox float64
-	if parts := strings.Fields(viewBox); len(parts) == 4 {
+	var widthViewBox float64
+	if shares := strings.Fields(viewBox); len(shares) == 4 {
 		fmt.Fprintf(&b, `<rect class="ocean" x="%s" y="%s" width="%s" height="%s"/>`,
-			parts[0], parts[1], parts[2], parts[3])
-		largeurViewBox, _ = strconv.ParseFloat(parts[2], 64)
+			shares[0], shares[1], shares[2], shares[3])
+		widthViewBox, _ = strconv.ParseFloat(shares[2], 64)
 	}
-	b.WriteString(fleuves)
-	for _, p := range voisins {
+	b.WriteString(rivers)
+	for _, p := range neighbors {
 		fmt.Fprintf(&b, `<path class="pays-p %s" d="%s"><title>%s</title></path>`,
-			p.classe, p.chemin, template.HTMLEscapeString(p.nom))
+			p.class, p.path, template.HTMLEscapeString(p.name))
 	}
-	if zoneOccupee != "" {
-		fmt.Fprintf(&b, `<path class="fond occupee" d="%s"><title>Zone occupée</title></path>`, zoneOccupee)
+	if zoneOccupied != "" {
+		fmt.Fprintf(&b, `<path class="fond occupee" d="%s"><title>Zone occupée</title></path>`, zoneOccupied)
 	}
-	if zoneLibre != "" {
-		fmt.Fprintf(&b, `<path class="fond libre" d="%s"><title>Zone libre</title></path>`, zoneLibre)
+	if zoneFree != "" {
+		fmt.Fprintf(&b, `<path class="fond libre" d="%s"><title>Zone libre</title></path>`, zoneFree)
 	}
-	if ligne != "" {
-		fmt.Fprintf(&b, `<path class="ligne-demarcation" d="%s"><title>Ligne de démarcation, 1940-1942</title></path>`, ligne)
+	if line != "" {
+		fmt.Fprintf(&b, `<path class="ligne-demarcation" d="%s"><title>Ligne de démarcation, 1940-1942</title></path>`, line)
 	}
 
 	// Un <text font-size="..."> direct, réglé à l'échelle du viewBox (des
@@ -527,14 +527,14 @@ func dessinerCarteSGM(voisins []pieceEurope, zoneOccupee, zoneLibre, fleuves, vi
 	// un <g transform="... scale(k)"> qui l'agrandit à l'échelle de la
 	// carte — une transformation matricielle, jamais sujette au même
 	// problème de rendu de police.
-	echelle := largeurViewBox / 700 // ≈ la largeur réelle de la carte à l'écran, en pixels
-	if echelle <= 0 {
-		echelle = 1
+	scale := widthViewBox / 700 // ≈ la largeur réelle de la carte à l'écran, en pixels
+	if scale <= 0 {
+		scale = 1
 	}
-	etiquette := func(p pieceEurope, classe string) {
+	label := func(p roomEurope, class string) {
 		fmt.Fprintf(&b, `<g transform="translate(%.0f,%.0f) scale(%.2f)">`+
 			`<text class="nom-pays %s" x="0" y="0" text-anchor="middle">%s</text></g>`,
-			p.labelX, p.labelY, echelle, classe, template.HTMLEscapeString(p.nom))
+			p.labelX, p.labelY, scale, class, template.HTMLEscapeString(p.name))
 	}
 	// Nommer aussi les pays hors classement submergeait l'Europe centrale et
 	// les Balkans d'étiquettes tassées les unes sur les autres (jusqu'à
@@ -549,43 +549,43 @@ func dessinerCarteSGM(voisins []pieceEurope, zoneOccupee, zoneLibre, fleuves, vi
 	// à l'est, contraire à la demande explicite de ne pas les effacer de la
 	// carte. Sans nom, la Finlande se distinguait mal de l'URSS voisine :
 	// même teinte « hors classement », aucune autre différence visuelle.
-	etiquetesMalgreNonClasse := map[string]bool{"URSS": true, "Finlande": true}
-	for _, p := range voisins {
-		if p.labelR < seuilEtiquettePays || (p.classe == "non-classe" && !etiquetesMalgreNonClasse[p.nom]) {
+	labeledDespiteNonClass := map[string]bool{"URSS": true, "Finlande": true}
+	for _, p := range neighbors {
+		if p.labelR < thresholdLabelCountry || (p.class == "non-classe" && !labeledDespiteNonClass[p.name]) {
 			continue
 		}
-		etiquette(p, "")
+		label(p, "")
 	}
-	etiquette(france, "nom-france")
+	label(france, "nom-france")
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())
 }
 
 type pointPopulation struct {
-	Annee      int
+	Year       int
 	Population int64
 }
 
-type PopulationGuerres struct {
+type PopulationWars struct {
 	SVG              template.HTML
 	Pop1911, Pop1921 int64
-	BaisseAbsolue    int64
-	BaissePct        float64
+	DecreaseAbsolute int64
+	DecreasePct      float64
 	Pop1936, Pop1954 int64
 }
 
-// chargerPopulationGuerres : la population communale agrégée au niveau
+// loadPopulationWars : la population communale agrégée au niveau
 // national (core.population_historique_commune, Insee 1876-1999) — la
 // seule série de ce dossier qui montre un choc démographique mesuré
 // indépendamment de tout dénombrement militaire ou civil. Le creux de la
 // Première Guerre mondiale (1911→1921) est directement lisible ; celui de
 // la Seconde ne l'est pas, la source sautant de 1936 à 1954 sans point en
 // 1946.
-// chargerPopulationGuerres lit mv.population_nationale_annee (internal/
+// loadPopulationWars lit mv.population_nationale_annee (internal/
 // matview) — plus le GROUP BY sur la totalité de core.
 // population_historique_commune (657k lignes) que cette fonction refaisait
 // à chaque construction.
-func chargerPopulationGuerres(ctx context.Context, pool *pgxpool.Pool) (*PopulationGuerres, error) {
+func loadPopulationWars(ctx context.Context, pool *pgxpool.Pool) (*PopulationWars, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT annee, population FROM mv.population_nationale_annee
 		ORDER BY annee`)
@@ -594,14 +594,14 @@ func chargerPopulationGuerres(ctx context.Context, pool *pgxpool.Pool) (*Populat
 	}
 	defer rows.Close()
 	var pts []pointPopulation
-	valeurs := map[int]int64{}
+	values := map[int]int64{}
 	for rows.Next() {
 		var p pointPopulation
-		if err := rows.Scan(&p.Annee, &p.Population); err != nil {
+		if err := rows.Scan(&p.Year, &p.Population); err != nil {
 			return nil, err
 		}
 		pts = append(pts, p)
-		valeurs[p.Annee] = p.Population
+		values[p.Year] = p.Population
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -609,21 +609,21 @@ func chargerPopulationGuerres(ctx context.Context, pool *pgxpool.Pool) (*Populat
 	if len(pts) == 0 {
 		return nil, nil
 	}
-	pg := &PopulationGuerres{
-		Pop1911: valeurs[1911], Pop1921: valeurs[1921],
-		Pop1936: valeurs[1936], Pop1954: valeurs[1954],
+	pg := &PopulationWars{
+		Pop1911: values[1911], Pop1921: values[1921],
+		Pop1936: values[1936], Pop1954: values[1954],
 	}
 	if pg.Pop1911 > 0 {
-		pg.BaisseAbsolue = pg.Pop1911 - pg.Pop1921
-		pg.BaissePct = float64(pg.BaisseAbsolue) / float64(pg.Pop1911) * 100
+		pg.DecreaseAbsolute = pg.Pop1911 - pg.Pop1921
+		pg.DecreasePct = float64(pg.DecreaseAbsolute) / float64(pg.Pop1911) * 100
 	}
-	pg.SVG = dessinerPopulationGuerres(pts)
+	pg.SVG = drawPopulationWars(pts)
 	return pg, nil
 }
 
-func dessinerPopulationGuerres(pts []pointPopulation) template.HTML {
+func drawPopulationWars(pts []pointPopulation) template.HTML {
 	const w, h, ml, mr, mt, mb = 720.0, 260.0, 40.0, 14.0, 14.0, 26.0
-	anneeDebut, anneeFin := pts[0].Annee, pts[len(pts)-1].Annee
+	yearStart, yearEnd := pts[0].Year, pts[len(pts)-1].Year
 	maxVal := int64(0)
 	for _, p := range pts {
 		if p.Population > maxVal {
@@ -631,40 +631,40 @@ func dessinerPopulationGuerres(pts []pointPopulation) template.HTML {
 		}
 	}
 	maxValM := float64(maxVal) / 1e6 * 1.1
-	x := func(annee int) float64 { return ml + (w-ml-mr)*float64(annee-anneeDebut)/float64(anneeFin-anneeDebut) }
+	x := func(year int) float64 { return ml + (w-ml-mr)*float64(year-yearStart)/float64(yearEnd-yearStart) }
 	y := func(popM float64) float64 { return mt + (h-mt-mb)*(1-popM/maxValM) }
 
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg class="courbe population-guerres" viewBox="0 0 %.0f %.0f" role="img" `+
-		`aria-label="Population de la France, %d à %d">`, w, h, anneeDebut, anneeFin)
+		`aria-label="Population de la France, %d à %d">`, w, h, yearStart, yearEnd)
 
 	// Deux bandes : 1914-1918 et 1939-1945 — pas des zones de rupture de
 	// série (comme dans le graphique immigration), mais les deux guerres
 	// elles-mêmes, pour lire le creux de 1921 et l'absence de creux visible
 	// autour de 1954 dans leur contexte.
-	for _, guerre := range [][2]int{{1914, 1918}, {1939, 1945}} {
+	for _, war := range [][2]int{{1914, 1918}, {1939, 1945}} {
 		fmt.Fprintf(&b, `<rect class="bande-guerre" x="%.1f" y="%.1f" width="%.1f" height="%.1f"/>`,
-			x(guerre[0]), mt, x(guerre[1])-x(guerre[0]), h-mt-mb)
+			x(war[0]), mt, x(war[1])-x(war[0]), h-mt-mb)
 	}
-	for _, palier := range []float64{0, 20, 40, 60} {
-		if palier > maxValM {
+	for _, bracket := range []float64{0, 20, 40, 60} {
+		if bracket > maxValM {
 			continue
 		}
-		fmt.Fprintf(&b, `<line class="grille" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>`, ml, y(palier), w-mr, y(palier))
-		fmt.Fprintf(&b, `<text class="et" x="%.1f" y="%.1f">%d M</text>`, ml-6, y(palier)+3, int(palier))
+		fmt.Fprintf(&b, `<line class="grille" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>`, ml, y(bracket), w-mr, y(bracket))
+		fmt.Fprintf(&b, `<text class="et" x="%.1f" y="%.1f">%d M</text>`, ml-6, y(bracket)+3, int(bracket))
 	}
 
 	var coords []string
 	for _, p := range pts {
-		coords = append(coords, fmt.Sprintf("%.2f,%.2f", x(p.Annee), y(float64(p.Population)/1e6)))
+		coords = append(coords, fmt.Sprintf("%.2f,%.2f", x(p.Year), y(float64(p.Population)/1e6)))
 	}
 	fmt.Fprintf(&b, `<polyline class="ligne-pop" points="%s"/>`, strings.Join(coords, " "))
 	for _, p := range pts {
 		fmt.Fprintf(&b, `<circle class="pt-pop" cx="%.2f" cy="%.2f" r="2.6"><title>%d : %s habitants</title></circle>`,
-			x(p.Annee), y(float64(p.Population)/1e6), p.Annee, Nombre(int(p.Population)))
+			x(p.Year), y(float64(p.Population)/1e6), p.Year, Count(int(p.Population)))
 	}
-	fmt.Fprintf(&b, `<text class="an" x="%.1f" y="%.1f">%d</text>`, ml, h-8, anneeDebut)
-	fmt.Fprintf(&b, `<text class="an fin" x="%.1f" y="%.1f">%d</text>`, w-mr, h-8, anneeFin)
+	fmt.Fprintf(&b, `<text class="an" x="%.1f" y="%.1f">%d</text>`, ml, h-8, yearStart)
+	fmt.Fprintf(&b, `<text class="an fin" x="%.1f" y="%.1f">%d</text>`, w-mr, h-8, yearEnd)
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())
 }

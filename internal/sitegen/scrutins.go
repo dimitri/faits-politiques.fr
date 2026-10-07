@@ -13,81 +13,81 @@ import (
 	"golang.org/x/sync/errgroup"
 )
 
-type Scrutin struct {
+type Election struct {
 	ID        int64
 	DossierID *int64
 	Dossier   *Dossier
-	TexteID   *int64
+	TextID    *int64
 	// Expose : l'exposé des motifs du texte sur lequel porte ce scrutin, quand
 	// l'Assemblée en publie un — voir internal/an/exposes.go. Ce n'est pas un
 	// résumé neutre : l'auteur y défend son texte, et il est cité comme tel.
-	Expose      *ExposeMotif
+	Exposed     *ExposedReason
 	Institution string
-	EstEuropeen bool
-	EstSenat    bool
+	EstEuropean bool
+	EstSenate   bool
 	// InstitutionNom et Chambre évitent le piège du booléen binaire : tant que
 	// le gabarit ne connaissait que « européen ou non », les 4 764 scrutins du
 	// Sénat s'affichaient sous « Assemblée nationale, 17e législature ».
-	InstitutionNom string
-	Chambre        string
+	InstitutionName string
+	Chamber         string
 
-	Slug, Numero, Objet, Date, TypeVote string
-	Resultat, SourceUID                 string
-	Pour, Contre, Abstentions           int
+	Slug, Number, Object, Date, TypeVote string
+	Result, SourceUID                    string
+	For, Against, Abstentions            int
 
 	// TitreCourt est le libellé source rendu lisible comme un titre, sans
 	// réécriture : coupé avant les signataires, première lettre en capitale.
 	// Tronque dit si l'opération a eu lieu, auquel cas la page affiche le
 	// libellé officiel intégral juste en dessous.
-	TitreCourt   string
-	Tronque      bool
-	ResultatLong string
+	TitleShort string
+	Truncated  bool
+	ResultLong string
 
 	// Seuil : le nombre de voix requis, quand une règle s'applique à ce type
 	// de scrutin (data/seuils.csv). Zéro signifie « pas de seuil à base fixe »,
 	// et la page retombe sur une barre proportionnelle aux exprimés.
-	Seuil                              int
-	Base                               int
-	SeuilRegle, SeuilNote, SeuilSource string
+	Threshold                                     int
+	Base                                          int
+	ThresholdRule, ThresholdNote, ThresholdSource string
 
-	Exprimes     int
-	NonVotants   int
-	SansPosition int
+	Expressed       int
+	NonVoters       int
+	WithoutPosition int
 }
 
-// ScrutinLien : de quoi naviguer de proche en proche. Une fiche isolée oblige
+// ElectionLink : de quoi naviguer de proche en proche. Une fiche isolée oblige
 // à repasser par une liste pour lire le scrutin suivant.
-type ScrutinLien struct{ Slug, Objet string }
+type ElectionLink struct{ Slug, Object string }
 
-// ExposeMotif : l'exposé des motifs d'un texte, verbatim. Chapeau est un
+// ExposedReason : l'exposé des motifs d'un texte, verbatim. Chapeau est un
 // extrait (les premiers paragraphes jusqu'à une fin de phrase) ; Integral est
 // le texte complet, affiché derrière un <details> pour ne pas noyer la page.
-type ExposeMotif struct {
-	Chapeau, Integral, URL string
-	NCaracteres            int
+type ExposedReason struct {
+	Lead, Integral, URL string
+	NCharacters         int
 }
 
-type GroupeLigne struct {
-	Nom, Slug                        string
-	Pour, Contre, Abstention, Absent int
-	PctPour, PctContre, PctAbst      int
+type GroupLine struct {
+	Name, Slug                       string
+	For, Against, Abstention, Absent int
+	PctFor, PctAgainst, PctAbst      int
 	// Total : l'effectif recensé du groupe sur CE scrutin. Il sert d'échelle
 	// absolue aux barres — une barre en pourcentage des exprimés occupe toute
 	// la largeur pour tous les groupes, et fait lire 4 voix comme 72.
 	Total int
 }
 
-type VoteLigne struct {
-	Slug, Nom, Groupe, GroupeSlug, Position, PositionFr string
-	Rectifiee                                           bool
+type VoteLine struct {
+	Slug, Name, Group, GroupSlug, Position, PositionFr string
+	Adjusted                                           bool
 }
 
-// buildScrutins génère une fiche par scrutin. Le groupe de chaque votant est
+// buildElections génère une fiche par scrutin. Le groupe de chaque votant est
 // celui que la SOURCE a publié avec ce scrutin : c'est une transcription du
 // relevé, pas une reconstitution à partir des mandats — les fichiers de mandats
 // publiés par l'Assemblée ne portent pas les groupes de la 17e législature.
-func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Template,
-	layout Layout, out string, max int, seuils map[string]Seuil, src SourceInfo) (int, error) {
+func buildElections(ctx context.Context, pool *pgxpool.Pool, tpl *template.Template,
+	layout Layout, out string, max int, thresholds map[string]Threshold, src SourceInfo) (int, error) {
 
 	limit := "ALL"
 	if max > 0 {
@@ -102,32 +102,32 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 	if err != nil {
 		return 0, err
 	}
-	var all []Scrutin
+	var all []Election
 	for rows.Next() {
-		var s Scrutin
-		if err := rows.Scan(&s.ID, &s.DossierID, &s.TexteID, &s.Slug, &s.Numero, &s.Objet, &s.Date, &s.Institution, &s.TypeVote,
-			&s.Resultat, &s.SourceUID, &s.Pour, &s.Contre, &s.Abstentions); err != nil {
+		var s Election
+		if err := rows.Scan(&s.ID, &s.DossierID, &s.TextID, &s.Slug, &s.Number, &s.Object, &s.Date, &s.Institution, &s.TypeVote,
+			&s.Result, &s.SourceUID, &s.For, &s.Against, &s.Abstentions); err != nil {
 			return 0, err
 		}
-		s.Resultat = map[string]string{
+		s.Result = map[string]string{
 			"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié",
-		}[s.Resultat]
-		s.EstEuropeen = s.Institution == "PARLEMENT_EUROPEEN"
-		s.EstSenat = s.Institution == "SENAT"
+		}[s.Result]
+		s.EstEuropean = s.Institution == "PARLEMENT_EUROPEEN"
+		s.EstSenate = s.Institution == "SENAT"
 		switch s.Institution {
 		case "PARLEMENT_EUROPEEN":
-			s.InstitutionNom, s.Chambre = "Parlement européen", "europe"
+			s.InstitutionName, s.Chamber = "Parlement européen", "europe"
 		case "SENAT":
-			s.InstitutionNom, s.Chambre = "Sénat", "senat"
+			s.InstitutionName, s.Chamber = "Sénat", "senat"
 		default:
-			s.InstitutionNom, s.Chambre = "Assemblée nationale", "assemblee"
+			s.InstitutionName, s.Chamber = "Assemblée nationale", "assemblee"
 		}
-		s.TitreCourt, s.Tronque = TitreCourt(s.Objet)
-		s.ResultatLong = ResultatLong(s.Resultat, s.TypeVote)
-		s.Exprimes = s.Pour + s.Contre + s.Abstentions
-		if sl, ok := seuils[s.TypeVote]; ok {
-			s.Seuil, s.Base = sl.Voix, sl.Base
-			s.SeuilRegle, s.SeuilNote, s.SeuilSource = sl.Regle, sl.Note, sl.Source
+		s.TitleShort, s.Truncated = TitleShort(s.Object)
+		s.ResultLong = ResultLong(s.Result, s.TypeVote)
+		s.Expressed = s.For + s.Against + s.Abstentions
+		if sl, ok := thresholds[s.TypeVote]; ok {
+			s.Threshold, s.Base = sl.Votes, sl.Base
+			s.ThresholdRule, s.ThresholdNote, s.ThresholdSource = sl.Rule, sl.Note, sl.Source
 		}
 		all = append(all, s)
 	}
@@ -148,17 +148,17 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 		}
 	}
 
-	exposes, err := chargerExposes(ctx, pool)
+	exposed, err := loadExposed(ctx, pool)
 	if err != nil {
 		return 0, err
 	}
 	for i := range all {
 		if all[i].DossierID != nil {
-			all[i].Expose = exposes[*all[i].DossierID]
+			all[i].Exposed = exposed[*all[i].DossierID]
 		}
 	}
 
-	groupes, err := groupBreakdown(ctx, pool, wanted)
+	groups, err := groupBreakdown(ctx, pool, wanted)
 	if err != nil {
 		return 0, err
 	}
@@ -183,42 +183,42 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 	g.SetLimit(runtime.NumCPU())
 	for i, s := range all {
 		g.Go(func() error {
-			gs := groupes[s.ID]
+			gs := groups[s.ID]
 			maxG := 0
 			for _, gr := range gs {
 				if gr.Total > maxG {
 					maxG = gr.Total
 				}
-				s.NonVotants += gr.Absent
+				s.NonVoters += gr.Absent
 			}
 			// « Sans position enregistrée » n'est calculé que lorsqu'une base
 			// certaine existe (data/seuils.csv). Ailleurs, l'effectif de
 			// référence n'est pas une donnée : on ne le devine pas.
 			if s.Base > 0 {
 				if n := s.Base - len(votes[s.ID]); n > 0 {
-					s.SansPosition = n
+					s.WithoutPosition = n
 				}
 			}
 
-			var prec, suiv *ScrutinLien
+			var previous, suiv *ElectionLink
 			if i+1 < len(all) {
-				prec = &ScrutinLien{all[i+1].Slug, all[i+1].TitreCourt}
+				previous = &ElectionLink{all[i+1].Slug, all[i+1].TitleShort}
 			}
 			if i > 0 {
-				suiv = &ScrutinLien{all[i-1].Slug, all[i-1].TitreCourt}
+				suiv = &ElectionLink{all[i-1].Slug, all[i-1].TitleShort}
 			}
 
 			l := layout
-			l.Title = "Scrutin n° " + s.Numero
+			l.Title = "Scrutin n° " + s.Number
 			data := struct {
 				Layout
-				S          Scrutin
-				Groupes    []GroupeLigne
-				Votes      []VoteLigne
-				MaxGroupe  int
-				Prec, Suiv *ScrutinLien
-				Src        SourceInfo
-			}{l, s, gs, votes[s.ID], maxG, prec, suiv, src}
+				S              Election
+				Groups         []GroupLine
+				Votes          []VoteLine
+				MaxGroup       int
+				Previous, Suiv *ElectionLink
+				Src            SourceInfo
+			}{l, s, gs, votes[s.ID], maxG, previous, suiv, src}
 			return writeAlways(tpl, filepath.Join(out, "scrutin", s.Slug, "index.html"), data)
 		})
 	}
@@ -228,7 +228,7 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 	return len(all), nil
 }
 
-// chargerExposes charge un exposé des motifs par DOSSIER, pas par texte : un
+// loadExposed charge un exposé des motifs par DOSSIER, pas par texte : un
 // scrutin porte le texte_id de la LECTURE sur laquelle il vote, alors que
 // l'exposé n'est publié que sur le texte du DÉPÔT initial — deux texte_id
 // différents du même dossier. Sans ce détour, aucun scrutin ne rejoint
@@ -236,7 +236,7 @@ func buildScrutins(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templa
 // par dossier_id). Quand un dossier a déposé plusieurs textes avec exposé
 // (rare — texte retiré puis redéposé), le plus ancien est gardé : c'est la
 // première intention déclarée, avant qu'un texte ne soit retravaillé.
-func chargerExposes(ctx context.Context, pool *pgxpool.Pool) (map[int64]*ExposeMotif, error) {
+func loadExposed(ctx context.Context, pool *pgxpool.Pool) (map[int64]*ExposedReason, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT DISTINCT ON (t.dossier_id)
 		       t.dossier_id, e.chapeau, e.integral, e.url, e.n_caracteres
@@ -247,11 +247,11 @@ func chargerExposes(ctx context.Context, pool *pgxpool.Pool) (map[int64]*ExposeM
 		return nil, err
 	}
 	defer rows.Close()
-	out := map[int64]*ExposeMotif{}
+	out := map[int64]*ExposedReason{}
 	for rows.Next() {
 		var id int64
-		var e ExposeMotif
-		if err := rows.Scan(&id, &e.Chapeau, &e.Integral, &e.URL, &e.NCaracteres); err != nil {
+		var e ExposedReason
+		if err := rows.Scan(&id, &e.Lead, &e.Integral, &e.URL, &e.NCharacters); err != nil {
 			return nil, err
 		}
 		out[id] = &e
@@ -266,7 +266,7 @@ func chargerExposes(ctx context.Context, pool *pgxpool.Pool) (map[int64]*ExposeM
 // « fpctl ingest systeme matviews » (ou la chaîne complète, RunTout), pas
 // ici : internal/sitegen ne fait jamais de REFRESH, seulement des SELECT — même
 // principe que core.section_checksum pour le cache de construction.
-func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool) (map[int64][]GroupeLigne, error) {
+func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool) (map[int64][]GroupLine, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT scrutin_id, organisation_nom, organisation_slug, position, nombre_votes
 		FROM mv.scrutin_groupe_vote`)
@@ -275,30 +275,30 @@ func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bo
 	}
 	defer rows.Close()
 
-	acc := map[int64]map[string]*GroupeLigne{}
+	acc := map[int64]map[string]*GroupLine{}
 	for rows.Next() {
 		var sid int64
-		var nom, slug, pos string
+		var name, slug, pos string
 		var n int
-		if err := rows.Scan(&sid, &nom, &slug, &pos, &n); err != nil {
+		if err := rows.Scan(&sid, &name, &slug, &pos, &n); err != nil {
 			return nil, err
 		}
 		if !wanted[sid] {
 			continue
 		}
 		if acc[sid] == nil {
-			acc[sid] = map[string]*GroupeLigne{}
+			acc[sid] = map[string]*GroupLine{}
 		}
-		g := acc[sid][nom]
+		g := acc[sid][name]
 		if g == nil {
-			g = &GroupeLigne{Nom: nom, Slug: slug}
-			acc[sid][nom] = g
+			g = &GroupLine{Name: name, Slug: slug}
+			acc[sid][name] = g
 		}
 		switch pos {
 		case "FOR":
-			g.Pour += n
+			g.For += n
 		case "AGAINST":
-			g.Contre += n
+			g.Against += n
 		case "ABSTAIN":
 			g.Abstention += n
 		default:
@@ -306,27 +306,27 @@ func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bo
 		}
 	}
 
-	out := map[int64][]GroupeLigne{}
+	out := map[int64][]GroupLine{}
 	for sid, m := range acc {
-		var list []GroupeLigne
+		var list []GroupLine
 		for _, g := range m {
 			// Le dénominateur est le nombre de POSITIONS EXPRIMÉES : les absents
 			// sont exclus. Les inclure classerait les groupes par assiduité.
-			if e := g.Pour + g.Contre + g.Abstention; e > 0 {
-				g.PctPour = g.Pour * 100 / e
-				g.PctContre = g.Contre * 100 / e
-				g.PctAbst = 100 - g.PctPour - g.PctContre
+			if e := g.For + g.Against + g.Abstention; e > 0 {
+				g.PctFor = g.For * 100 / e
+				g.PctAgainst = g.Against * 100 / e
+				g.PctAbst = 100 - g.PctFor - g.PctAgainst
 			}
-			g.Total = g.Pour + g.Contre + g.Abstention + g.Absent
+			g.Total = g.For + g.Against + g.Abstention + g.Absent
 			list = append(list, *g)
 		}
 		sort.Slice(list, func(i, j int) bool {
-			a := list[i].Pour + list[i].Contre + list[i].Abstention + list[i].Absent
-			b := list[j].Pour + list[j].Contre + list[j].Abstention + list[j].Absent
+			a := list[i].For + list[i].Against + list[i].Abstention + list[i].Absent
+			b := list[j].For + list[j].Against + list[j].Abstention + list[j].Absent
 			if a != b {
 				return a > b
 			}
-			return list[i].Nom < list[j].Nom
+			return list[i].Name < list[j].Name
 		})
 		out[sid] = list
 	}
@@ -337,7 +337,7 @@ func groupBreakdown(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bo
 // à trois tables et le tri sur la totalité de core.ballot que cette
 // fonction refaisait à chaque construction. Voir groupBreakdown ci-dessus
 // pour le principe (mv ne se rafraîchit jamais depuis internal/sitegen).
-func nominalVotes(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool) (map[int64][]VoteLigne, error) {
+func nominalVotes(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool) (map[int64][]VoteLine, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT scrutin_id, person_slug, person_family_name, person_given_name,
 		       organisation_nom, organisation_slug, position, rectifiee
@@ -348,15 +348,15 @@ func nominalVotes(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool
 	}
 	defer rows.Close()
 
-	out := map[int64][]VoteLigne{}
+	out := map[int64][]VoteLine{}
 	for rows.Next() {
 		var sid int64
-		var v VoteLigne
+		var v VoteLine
 		var familyName, givenName string
-		if err := rows.Scan(&sid, &v.Slug, &familyName, &givenName, &v.Groupe, &v.GroupeSlug, &v.Position, &v.Rectifiee); err != nil {
+		if err := rows.Scan(&sid, &v.Slug, &familyName, &givenName, &v.Group, &v.GroupSlug, &v.Position, &v.Adjusted); err != nil {
 			return nil, err
 		}
-		v.Nom = familyName + ", " + givenName
+		v.Name = familyName + ", " + givenName
 		if !wanted[sid] {
 			continue
 		}
@@ -368,9 +368,9 @@ func nominalVotes(ctx context.Context, pool *pgxpool.Pool, wanted map[int64]bool
 
 var _ = strings.TrimSpace
 
-// derniersScrutins alimente la page Assemblée. La liste est bornée et le total
+// lastElections alimente la page Assemblée. La liste est bornée et le total
 // affiché à côté : une troncature invisible laisserait croire à une sélection.
-func derniersScrutins(ctx context.Context, pool *pgxpool.Pool, limit int) ([]Vote, error) {
+func lastElections(ctx context.Context, pool *pgxpool.Pool, limit int) ([]Vote, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT slug, objet, to_char(date_seance,'DD/MM/YYYY'), coalesce(resultat,'')
 		FROM core.scrutin
@@ -383,24 +383,24 @@ func derniersScrutins(ctx context.Context, pool *pgxpool.Pool, limit int) ([]Vot
 	var out []Vote
 	for rows.Next() {
 		var v Vote
-		if err := rows.Scan(&v.Slug, &v.Objet, &v.Date, &v.Resultat); err != nil {
+		if err := rows.Scan(&v.Slug, &v.Object, &v.Date, &v.Result); err != nil {
 			return nil, err
 		}
-		v.Objet, _ = TitreCourt(v.Objet)
-		v.Resultat = map[string]string{"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié"}[v.Resultat]
+		v.Object, _ = TitleShort(v.Object)
+		v.Result = map[string]string{"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié"}[v.Result]
 		out = append(out, v)
 	}
 	return out, rows.Err()
 }
 
-// FluxLigne alimente le flux d'accueil. « Ce qui a été voté cette semaine » est
+// FlowLine alimente le flux d'accueil. « Ce qui a été voté cette semaine » est
 // la première question d'un soir de débat, et le site n'y répondait nulle part.
-type FluxLigne struct {
-	Slug, Objet, Date, TypeVote, Resultat string
-	Pour, Contre, Abstentions, Exprimes   int
+type FlowLine struct {
+	Slug, Object, Date, TypeVote, Result string
+	For, Against, Abstentions, Expressed int
 }
 
-func derniersFlux(ctx context.Context, pool *pgxpool.Pool, limit int) ([]FluxLigne, error) {
+func lastFlow(ctx context.Context, pool *pgxpool.Pool, limit int) ([]FlowLine, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT slug, objet, to_char(date_seance,'DD/MM/YYYY'), coalesce(type_vote,''),
 		       coalesce(resultat,''), coalesce(nb_pour,0), coalesce(nb_contre,0),
@@ -413,18 +413,18 @@ func derniersFlux(ctx context.Context, pool *pgxpool.Pool, limit int) ([]FluxLig
 		return nil, err
 	}
 	defer rows.Close()
-	var out []FluxLigne
+	var out []FlowLine
 	for rows.Next() {
-		var f FluxLigne
-		if err := rows.Scan(&f.Slug, &f.Objet, &f.Date, &f.TypeVote, &f.Resultat,
-			&f.Pour, &f.Contre, &f.Abstentions); err != nil {
+		var f FlowLine
+		if err := rows.Scan(&f.Slug, &f.Object, &f.Date, &f.TypeVote, &f.Result,
+			&f.For, &f.Against, &f.Abstentions); err != nil {
 			return nil, err
 		}
-		f.Objet, _ = TitreCourt(f.Objet)
-		f.Resultat = ResultatLong(
-			map[string]string{"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié"}[f.Resultat],
+		f.Object, _ = TitleShort(f.Object)
+		f.Result = ResultLong(
+			map[string]string{"ADOPTE": "adopté", "REJETE": "rejeté", "": "non publié"}[f.Result],
 			f.TypeVote)
-		f.Exprimes = f.Pour + f.Contre + f.Abstentions
+		f.Expressed = f.For + f.Against + f.Abstentions
 		out = append(out, f)
 	}
 	return out, rows.Err()

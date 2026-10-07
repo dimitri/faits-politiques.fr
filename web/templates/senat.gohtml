@@ -2,8 +2,8 @@
 <p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Sénat</span></p>
 <span class="sur">Institution</span>
 <h1>Sénat</h1>
-<p class="lede">{{nb .Se.Scrutins}} scrutins publics, {{nb .Se.Votes}} votes nominatifs de
-{{nb .Se.Senateurs}} sénateurs, du {{.Se.Debut}} au {{.Se.Fin}}.</p>
+<p class="lede">{{nb .Se.Elections}} scrutins publics, {{nb .Se.Votes}} votes nominatifs de
+{{nb .Se.Senators}} sénateurs, du {{.Se.Start}} au {{.Se.End}}.</p>
 
 {{/* Le site a longtemps annoncé l'inverse. La correction est due au lecteur
      autant que la donnée elle-même. */}}
@@ -34,27 +34,27 @@ C'était faux&nbsp;: le dump Dosleg donne le vote de <em>chaque</em> sénateur, 
 
 <h2>Derniers scrutins</h2>
 <div class="flux">
-  {{range .Se.Derniers}}<a class="ligne" href="{{$.Root}}/scrutin/{{.Slug}}/"
+  {{range .Se.Last}}<a class="ligne" href="{{$.Root}}/scrutin/{{.Slug}}/"
      style="grid-template-columns:5.4rem 1fr 10rem 7rem">
     <span class="d">{{.Date}}</span>
-    <span class="o">{{.Objet}}</span>
-    <span class="mini" role="img" aria-label="{{.Pour}} pour, {{.Contre}} contre, {{.Abstentions}} abstentions">
-      <i style="width:{{pct .Pour .Exprimes}}%;background:var(--pour)"></i>
-      <i style="width:{{pct .Contre .Exprimes}}%;background:var(--contre)"></i>
-      <i style="width:{{pct .Abstentions .Exprimes}}%;background:var(--abst)"></i></span>
-    <span class="r z" style="font-weight:400">{{nb .Pour}} · {{nb .Contre}} · {{nb .Abstentions}}</span>
+    <span class="o">{{.Object}}</span>
+    <span class="mini" role="img" aria-label="{{.For}} pour, {{.Against}} contre, {{.Abstentions}} abstentions">
+      <i style="width:{{pct .For .Expressed}}%;background:var(--pour)"></i>
+      <i style="width:{{pct .Against .Expressed}}%;background:var(--contre)"></i>
+      <i style="width:{{pct .Abstentions .Expressed}}%;background:var(--abst)"></i></span>
+    <span class="r z" style="font-weight:400">{{nb .For}} · {{nb .Against}} · {{nb .Abstentions}}</span>
   </a>{{end}}
 </div>
-<p class="small muted">{{len .Se.Derniers}} scrutins affichés sur {{nb .Se.Scrutins}}&nbsp;: la
+<p class="small muted">{{len .Se.Last}} scrutins affichés sur {{nb .Se.Elections}}&nbsp;: la
 liste est bornée, et la troncature est visible plutôt que silencieuse. La colonne de droite donne
 le décompte pour · contre · abstentions, <strong>pas un résultat</strong>&nbsp;: la source n'en
 publie pas.</p>
 
 <h2>Sénateurs</h2>
-<p class="small muted">{{nb (len .Se.Senateurs2)}} sénateurs ayant pris part à au moins un scrutin
+<p class="small muted">{{nb (len .Se.Senators2)}} sénateurs ayant pris part à au moins un scrutin
 public sur la période. Ordre alphabétique&nbsp;: ce site ne classe pas les personnes.</p>
 <div class="grid">
-{{range .Se.Senateurs2}}<div class="small"><a href="{{$.Root}}/depute/{{.Slug}}/">{{.Prenom}} {{.Nom}}</a></div>{{end}}
+{{range .Se.Senators2}}<div class="small"><a href="{{$.Root}}/depute/{{.Slug}}/">{{.FirstName}} {{.Name}}</a></div>{{end}}
 </div>
 
 <details class="plus" open>

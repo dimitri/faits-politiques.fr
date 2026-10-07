@@ -9,7 +9,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// StatsIndochinePartition alimente la figure dédiée de
+// StatsIndochinaPartition alimente la figure dédiée de
 // docs/guerres-decolonisation-donnees.md (§ 1 et § 5) : l'Indochine
 // française avant les accords de Genève, puis la partition du Viêt Nam
 // qu'ils actent, jusqu'à la chute de Saïgon en 1975.
@@ -27,30 +27,30 @@ import (
 // établie (§ 2 du dossier empire colonial). D'où une figure séparée, plus
 // petite, à deux volets (avant / après Genève) plutôt qu'un ajout à la carte
 // existante.
-type StatsIndochinePartition struct {
-	CarteSVG   template.HTML
+type StatsIndochinaPartition struct {
+	MapSVG     template.HTML
 	Population template.HTML
 }
 
-// chargerIndochinePartition construit la figure « avant / après Genève » :
+// loadIndochinaPartition construit la figure « avant / après Genève » :
 // à gauche, l'Indochine française à sa dernière extension (Cambodge, Laos,
 // Viêt Nam unifié — les mêmes géométries CShapes que geo.territoire_colonial,
 // § 2 du dossier empire colonial) ; à droite, la partition de 1954
 // (geo.indochine_partition_1954), avec le Laos et le Cambodge redessinés en
 // ton neutre pour situer géographiquement les deux Viêt Nam sans laisser
 // croire qu'ils ont, eux aussi, été partitionnés.
-func chargerIndochinePartition(ctx context.Context, pool *pgxpool.Pool) (*StatsIndochinePartition, error) {
-	const tol = 0.01 // degrés : région bien plus petite que le fond « monde » de empire_colonial.go
+func loadIndochinaPartition(ctx context.Context, pool *pgxpool.Pool) (*StatsIndochinaPartition, error) {
+	const tolerance = 0.01 // degrés : région bien plus petite que le fond « monde » de empire_colonial.go
 
-	avant, err := piecesAvantGeneve(ctx, pool, tol)
+	before, err := roomsBeforeGeneva(ctx, pool, tolerance)
 	if err != nil {
 		return nil, err
 	}
-	apres, err := piecesApresGeneve(ctx, pool, tol)
+	after, err := roomsAfterGeneva(ctx, pool, tolerance)
 	if err != nil {
 		return nil, err
 	}
-	if len(avant) == 0 && len(apres) == 0 {
+	if len(before) == 0 && len(after) == 0 {
 		return nil, nil
 	}
 
@@ -61,14 +61,14 @@ func chargerIndochinePartition(ctx context.Context, pool *pgxpool.Pool) (*StatsI
 	// contexte, jamais le sujet de la carte. Les mêmes voisins apparaissent
 	// sur les deux volets : l'orientation géographique ne change pas entre
 	// 1954 et après.
-	voisins, err := piecesVoisinsAsie(ctx, pool, tol)
+	neighbors, err := roomsNeighborsAsia(ctx, pool, tolerance)
 	if err != nil {
 		return nil, err
 	}
-	avant = append(append([]pieceIndochine{}, voisins...), avant...)
-	apres = append(append([]pieceIndochine{}, voisins...), apres...)
+	before = append(append([]roomIndochina{}, neighbors...), before...)
+	after = append(append([]roomIndochina{}, neighbors...), after...)
 
-	population, err := chargerPopulationIndochine(ctx, pool)
+	population, err := loadPopulationIndochina(ctx, pool)
 	if err != nil {
 		return nil, err
 	}
@@ -85,14 +85,14 @@ func chargerIndochinePartition(ctx context.Context, pool *pgxpool.Pool) (*StatsI
 	// lisiblement — aucun des sept pays de cette carte n'est concerné
 	// (rayon minimal observé environ 0,87°), gardé pour ne pas dépendre
 	// silencieusement de cette hypothèse si la liste change un jour.
-	const seuilEtiquetteIndochine = 0.3
-	dessiner := func(pp []pieceIndochine, aria string) string {
+	const thresholdLabelIndochina = 0.3
+	draw := func(pp []roomIndochina, aria string) string {
 		var b strings.Builder
 		fmt.Fprintf(&b, `<svg viewBox="%s" class="geo monde indochine-1954" role="img" aria-label="%s">`,
 			viewBox, template.HTMLEscapeString(aria))
 		for _, p := range pp {
 			fmt.Fprintf(&b, `<path class="%s" d="%s" data-nom="%s"><title>%s</title></path>`,
-				p.classe, p.chemin, template.HTMLEscapeString(p.nom), template.HTMLEscapeString(p.titre))
+				p.class, p.path, template.HTMLEscapeString(p.name), template.HTMLEscapeString(p.title))
 		}
 		// Viewbox à l'échelle du degré (17 unités de large, contrairement
 		// aux cartes en Lambert-93/LAEA du dossier Seconde Guerre mondiale,
@@ -101,15 +101,15 @@ func chargerIndochinePartition(ctx context.Context, pool *pgxpool.Pool) (*StatsI
 		// grande pour buter sur le rendu de glyphes de Chromium contourné
 		// là-bas par une transformation matricielle — inutile ici.
 		for _, p := range pp {
-			if p.labelR < seuilEtiquetteIndochine {
+			if p.labelR < thresholdLabelIndochina {
 				continue
 			}
-			classe := "repere-asie"
-			if p.classe == "voisin" {
-				classe += " repere-contexte"
+			class := "repere-asie"
+			if p.class == "voisin" {
+				class += " repere-contexte"
 			}
 			fmt.Fprintf(&b, `<text class="%s" x="%.3f" y="%.3f" text-anchor="middle">%s</text>`,
-				classe, p.labelX, p.labelY, template.HTMLEscapeString(p.nom))
+				class, p.labelX, p.labelY, template.HTMLEscapeString(p.name))
 		}
 		b.WriteString(`</svg>`)
 		return b.String()
@@ -122,16 +122,16 @@ func chargerIndochinePartition(ctx context.Context, pool *pgxpool.Pool) (*StatsI
 	out.WriteString(`<div class="deux-cartes">`)
 	fmt.Fprintf(&out, `<div><div class="carte-pleine">%s</div><p class="etiquette-survol" aria-live="polite"></p>`+
 		`<p class="sous-legende">Avant les accords de Genève</p></div>`,
-		dessiner(avant, "L'Indochine française avant les accords de Genève, à sa dernière extension"))
+		draw(before, "L'Indochine française avant les accords de Genève, à sa dernière extension"))
 	fmt.Fprintf(&out, `<div><div class="carte-pleine">%s</div><p class="etiquette-survol" aria-live="polite"></p>`+
 		`<p class="sous-legende">Après (1954-1975)</p></div>`,
-		dessiner(apres, "La partition du Viêt Nam après les accords de Genève de 1954, jusqu'à la chute de Saïgon en 1975"))
+		draw(after, "La partition du Viêt Nam après les accords de Genève de 1954, jusqu'à la chute de Saïgon en 1975"))
 	out.WriteString(`</div>`)
 
-	return &StatsIndochinePartition{CarteSVG: template.HTML(out.String()), Population: population}, nil
+	return &StatsIndochinaPartition{MapSVG: template.HTML(out.String()), Population: population}, nil
 }
 
-// chargerPopulationIndochine : trois petits graphiques en barres (Viêt Nam,
+// loadPopulationIndochina : trois petits graphiques en barres (Viêt Nam,
 // Cambodge, Laos), pas une seule courbe partagée — le Viêt Nam pèse dix fois
 // le Cambodge ou le Laos sur toute la période, une échelle commune écraserait
 // les deux plus petits pays à une ligne plate. Réutilise courbe()
@@ -139,21 +139,21 @@ func chargerIndochinePartition(ctx context.Context, pool *pgxpool.Pool) (*StatsI
 // Source : CLIO-INFRA (core.population_indochine_historique, migration
 // 0153) — frontières ACTUELLES, pas coloniales, voir le commentaire de la
 // migration.
-func chargerPopulationIndochine(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
-	format := func(v float64) string { return Nombre(int(v+0.5)) + " milliers" }
+func loadPopulationIndochina(ctx context.Context, pool *pgxpool.Pool) (template.HTML, error) {
+	format := func(v float64) string { return Count(int(v+0.5)) + " milliers" }
 	var out strings.Builder
 	out.WriteString(`<div class="deux-cartes">`)
-	for _, pays := range []string{"Vietnam", "Cambodge", "Laos"} {
+	for _, country := range []string{"Vietnam", "Cambodge", "Laos"} {
 		rows, err := pool.Query(ctx, `
 			SELECT annee, population_milliers::float8 FROM core.population_indochine_historique
-			WHERE pays = $1 ORDER BY annee`, pays)
+			WHERE pays = $1 ORDER BY annee`, country)
 		if err != nil {
 			return "", err
 		}
-		var pts []PointAnnee
+		var pts []PointYear
 		for rows.Next() {
-			var p PointAnnee
-			if err := rows.Scan(&p.Annee, &p.Valeur); err != nil {
+			var p PointYear
+			if err := rows.Scan(&p.Year, &p.Value); err != nil {
 				rows.Close()
 				return "", err
 			}
@@ -167,49 +167,49 @@ func chargerPopulationIndochine(ctx context.Context, pool *pgxpool.Pool) (templa
 		if len(pts) < 2 {
 			continue
 		}
-		fmt.Fprintf(&out, `<div>%s<p class="sous-legende">%s</p></div>`, courbe(pts, format), pays)
+		fmt.Fprintf(&out, `<div>%s<p class="sous-legende">%s</p></div>`, curve(pts, format), country)
 	}
 	out.WriteString(`</div>`)
 	return template.HTML(out.String()), nil
 }
 
-type pieceIndochine struct {
-	classe, nom, titre, chemin string
-	labelX, labelY, labelR     float64
+type roomIndochina struct {
+	class, name, title, path string
+	labelX, labelY, labelR   float64
 }
 
-// nomCourt : le nom affiché au survol (étiquette courte) plutôt que le nom
+// nameShort : le nom affiché au survol (étiquette courte) plutôt que le nom
 // de colonne complet — geo.territoire_colonial nomme le Viêt Nam par son
 // découpage colonial (Cochinchine, Annam, Tonkin), exact pour un intitulé
 // de tableau, imprononçable pour une étiquette de carte.
-func nomCourt(territoire string) string {
-	if territoire == "Vietnam (Cochinchine, Annam, Tonkin)" {
+func nameShort(territory string) string {
+	if territory == "Vietnam (Cochinchine, Annam, Tonkin)" {
 		return "Viêt Nam"
 	}
-	return territoire
+	return territory
 }
 
-// nomCourtPartition : « République démocratique du Viêt Nam (Nord) » et
+// nameShortPartition : « République démocratique du Viêt Nam (Nord) » et
 // « République du Viêt Nam (Sud) » débordaient de leur carte, moitié moins
 // large que celle de l'empire colonial — le nom complet officiel reste dans
 // le titre (survol), l'étiquette n'a besoin que de distinguer les deux.
-func nomCourtPartition(territoire, camp string) string {
+func nameShortPartition(territory, camp string) string {
 	if camp == "nord" {
 		return "Viêt Nam (Nord)"
 	}
 	if camp == "sud" {
 		return "Viêt Nam (Sud)"
 	}
-	return territoire
+	return territory
 }
 
-// piecesAvantGeneve : Cambodge, Laos et le Viêt Nam unifié, à leur dernière
+// roomsBeforeGeneva : Cambodge, Laos et le Viêt Nam unifié, à leur dernière
 // extension avant l'indépendance — les trois lignes de
 // geo.territoire_colonial pour l'Asie du Sud-Est (§ 2 du dossier empire
 // colonial), redessinées ici dans une seule couleur neutre : ce volet montre
 // une étendue, pas une chronologie (déjà montrée par la carte des 22
 // territoires).
-func piecesAvantGeneve(ctx context.Context, pool *pgxpool.Pool, tol float64) ([]pieceIndochine, error) {
+func roomsBeforeGeneva(ctx context.Context, pool *pgxpool.Pool, tolerance float64) ([]roomIndochina, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT territoire, note_independance,
 		       st_assvg(g, 0, 2), st_x((ic).center), -st_y((ic).center), (ic).radius
@@ -217,32 +217,32 @@ func piecesAvantGeneve(ctx context.Context, pool *pgxpool.Pool, tol float64) ([]
 		      FROM geo.territoire_colonial
 		      WHERE territoire IN ('Cambodge', 'Laos', 'Vietnam (Cochinchine, Annam, Tonkin)')
 		        AND geom IS NOT NULL) x,
-		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l`, tol)
+		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l`, tolerance)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
 
-	var pp []pieceIndochine
+	var pp []roomIndochina
 	for rows.Next() {
-		var territoire, note, chemin string
-		var p pieceIndochine
-		if err := rows.Scan(&territoire, &note, &chemin, &p.labelX, &p.labelY, &p.labelR); err != nil {
+		var territory, note, path string
+		var p roomIndochina
+		if err := rows.Scan(&territory, &note, &path, &p.labelX, &p.labelY, &p.labelR); err != nil {
 			return nil, err
 		}
-		p.classe, p.nom, p.titre, p.chemin = "avant", nomCourt(territoire), territoire+" — "+note, chemin
+		p.class, p.name, p.title, p.path = "avant", nameShort(territory), territory+" — "+note, path
 		pp = append(pp, p)
 	}
 	return pp, rows.Err()
 }
 
-// piecesApresGeneve : la République démocratique du Viêt Nam (Nord) et la
+// roomsAfterGeneva : la République démocratique du Viêt Nam (Nord) et la
 // République du Viêt Nam (Sud) (geo.indochine_partition_1954), plus le Laos
 // et le Cambodge redessinés en ton neutre — déjà indépendants depuis 1953,
 // ils ne sont pas concernés par la partition, mais les faire disparaître
 // aurait laissé les deux Viêt Nam flotter sans repère régional.
-func piecesApresGeneve(ctx context.Context, pool *pgxpool.Pool, tol float64) ([]pieceIndochine, error) {
-	var pp []pieceIndochine
+func roomsAfterGeneva(ctx context.Context, pool *pgxpool.Pool, tolerance float64) ([]roomIndochina, error) {
+	var pp []roomIndochina
 
 	ctxRows, err := pool.Query(ctx, `
 		SELECT territoire, note_independance,
@@ -250,18 +250,18 @@ func piecesApresGeneve(ctx context.Context, pool *pgxpool.Pool, tol float64) ([]
 		FROM (SELECT territoire, note_independance, st_simplifypreservetopology(geom, $1) AS g
 		      FROM geo.territoire_colonial
 		      WHERE territoire IN ('Cambodge', 'Laos') AND geom IS NOT NULL) x,
-		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l`, tol)
+		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l`, tolerance)
 	if err != nil {
 		return nil, err
 	}
 	for ctxRows.Next() {
-		var territoire, note, chemin string
-		var p pieceIndochine
-		if err := ctxRows.Scan(&territoire, &note, &chemin, &p.labelX, &p.labelY, &p.labelR); err != nil {
+		var territory, note, path string
+		var p roomIndochina
+		if err := ctxRows.Scan(&territory, &note, &path, &p.labelX, &p.labelY, &p.labelR); err != nil {
 			ctxRows.Close()
 			return nil, err
 		}
-		p.classe, p.nom, p.titre, p.chemin = "contexte", nomCourt(territoire), territoire+" — déjà indépendant en 1954. "+note, chemin
+		p.class, p.name, p.title, p.path = "contexte", nameShort(territory), territory+" — déjà indépendant en 1954. "+note, path
 		pp = append(pp, p)
 	}
 	if err := ctxRows.Err(); err != nil {
@@ -270,61 +270,61 @@ func piecesApresGeneve(ctx context.Context, pool *pgxpool.Pool, tol float64) ([]
 	}
 	ctxRows.Close()
 
-	partRows, err := pool.Query(ctx, `
+	shareRows, err := pool.Query(ctx, `
 		SELECT territoire, camp, note, date_debut::text, date_fin::text,
 		       st_assvg(g, 0, 2), st_x((ic).center), -st_y((ic).center), (ic).radius
 		FROM (SELECT territoire, camp, note, date_debut, date_fin, st_simplifypreservetopology(geom, $1) AS g
 		      FROM geo.indochine_partition_1954 WHERE geom IS NOT NULL) x,
 		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l
-		ORDER BY camp`, tol)
+		ORDER BY camp`, tolerance)
 	if err != nil {
 		return nil, err
 	}
-	defer partRows.Close()
-	for partRows.Next() {
-		var territoire, camp, note, debut, fin, chemin string
-		var p pieceIndochine
-		if err := partRows.Scan(&territoire, &camp, &note, &debut, &fin, &chemin, &p.labelX, &p.labelY, &p.labelR); err != nil {
+	defer shareRows.Close()
+	for shareRows.Next() {
+		var territory, camp, note, start, end, path string
+		var p roomIndochina
+		if err := shareRows.Scan(&territory, &camp, &note, &start, &end, &path, &p.labelX, &p.labelY, &p.labelR); err != nil {
 			return nil, err
 		}
-		p.classe, p.nom, p.titre, p.chemin = camp, nomCourtPartition(territoire, camp), territoire+" ("+debut+" – "+fin+") — "+note, chemin
+		p.class, p.name, p.title, p.path = camp, nameShortPartition(territory, camp), territory+" ("+start+" – "+end+") — "+note, path
 		pp = append(pp, p)
 	}
-	return pp, partRows.Err()
+	return pp, shareRows.Err()
 }
 
-// piecesVoisinsAsie : Chine, Thaïlande, Birmanie et Malaisie, simples repères
+// roomsNeighborsAsia : Chine, Thaïlande, Birmanie et Malaisie, simples repères
 // géographiques — jamais le sujet de cette carte, jamais colorés comme le
 // Cambodge, le Laos ou le Viêt Nam. Chacune n'est gardée que sur la part la
 // plus proche de l'Indochine (emprise fixe avant simplification, même
 // technique que le clipOuestEurope de cmd/build/seconde_guerre_mondiale.go) :
 // la Chine seule s'étend jusqu'au 53ᵉ parallèle et la Malaisie jusqu'à
 // Bornéo, bien au-delà de ce qu'une carte de l'Indochine doit montrer.
-func piecesVoisinsAsie(ctx context.Context, pool *pgxpool.Pool, tol float64) ([]pieceIndochine, error) {
+func roomsNeighborsAsia(ctx context.Context, pool *pgxpool.Pool, tolerance float64) ([]roomIndochina, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT nom_fr, st_assvg(g, 0, 2), st_x((ic).center), -st_y((ic).center), (ic).radius
 		FROM (SELECT nom_fr, st_simplifypreservetopology(
 		                 st_intersection(geom, st_makeenvelope(93, 4, 112, 25, 4326)), $1) AS g
 		      FROM geo.contour_pays
 		      WHERE nom_fr IN ('République populaire de Chine', 'Thaïlande', 'Birmanie', 'Malaisie')) x,
-		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l`, tol)
+		     LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l`, tolerance)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	nomUsuel := map[string]string{"République populaire de Chine": "Chine"}
-	var pp []pieceIndochine
+	nameUsual := map[string]string{"République populaire de Chine": "Chine"}
+	var pp []roomIndochina
 	for rows.Next() {
-		var nomFr, chemin string
-		var p pieceIndochine
-		if err := rows.Scan(&nomFr, &chemin, &p.labelX, &p.labelY, &p.labelR); err != nil {
+		var nameFr, path string
+		var p roomIndochina
+		if err := rows.Scan(&nameFr, &path, &p.labelX, &p.labelY, &p.labelR); err != nil {
 			return nil, err
 		}
-		nom := nomUsuel[nomFr]
-		if nom == "" {
-			nom = nomFr
+		name := nameUsual[nameFr]
+		if name == "" {
+			name = nameFr
 		}
-		p.classe, p.nom, p.titre, p.chemin = "voisin", nom, nomFr+" — repère géographique", chemin
+		p.class, p.name, p.title, p.path = "voisin", name, nameFr+" — repère géographique", path
 		pp = append(pp, p)
 	}
 	return pp, rows.Err()

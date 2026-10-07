@@ -3,24 +3,24 @@
   <span>{{.Th.Label}}</span></p>
 <span class="sur">Thème du Sénat · {{.Th.Code}}</span>
 <h1>{{.Th.Label}}</h1>
-<p class="lede">{{nb .Th.Scrutins}} scrutins de l'Assemblée nationale rattachés à ce thème par la
+<p class="lede">{{nb .Th.Elections}} scrutins de l'Assemblée nationale rattachés à ce thème par la
 navette.</p>
 
-{{if .Th.Groupes}}
+{{if .Th.Groups}}
 <h2>Positions par groupe sur ce thème</h2>
 <div class="scroll"><table class="pile">
 <thead><tr><th>Groupe</th><th class="n">Pour</th><th class="n">Contre</th><th class="n">Abst.</th>
   <th class="n">Non-votants</th><th style="width:34%">Bulletins sur ce thème</th></tr></thead>
-<tbody>{{$max := .MaxGroupe}}{{range .Th.Groupes}}<tr>
-  <td><a href="{{$.Root}}/groupe/{{.Slug}}/">{{.Nom}}</a></td>
-  <td class="n pos FOR" data-l="Pour">{{nb .Pour}}</td>
-  <td class="n pos AGAINST" data-l="Contre">{{nb .Contre}}</td>
+<tbody>{{$max := .MaxGroup}}{{range .Th.Groups}}<tr>
+  <td><a href="{{$.Root}}/groupe/{{.Slug}}/">{{.Name}}</a></td>
+  <td class="n pos FOR" data-l="Pour">{{nb .For}}</td>
+  <td class="n pos AGAINST" data-l="Contre">{{nb .Against}}</td>
   <td class="n pos ABSTAIN" data-l="Abst.">{{nb .Abstention}}</td>
   <td class="n pos ABSENT" data-l="Non-votants">{{nb .Absent}}</td>
   <td data-l="Bulletins"><div style="display:flex;align-items:center;gap:.7rem">
     <div class="ech" style="flex:1"><div class="g" style="width:{{pct .Total $max}}%">
-      {{if .Pour}}<i style="width:{{pct .Pour .Total}}%;background:var(--pour)"></i>{{end}}
-      {{if .Contre}}<i style="width:{{pct .Contre .Total}}%;background:var(--contre)"></i>{{end}}
+      {{if .For}}<i style="width:{{pct .For .Total}}%;background:var(--pour)"></i>{{end}}
+      {{if .Against}}<i style="width:{{pct .Against .Total}}%;background:var(--contre)"></i>{{end}}
       {{if .Abstention}}<i style="width:{{pct .Abstention .Total}}%;background:var(--abst)"></i>{{end}}
       {{if .Absent}}<i style="width:{{pct .Absent .Total}}%;background:var(--absent-f)"></i>{{end}}
     </div></div>
@@ -38,22 +38,22 @@ partis notés par CHES et les groupes parlementaires n'existe pas en base.
 <p class="nodata">Aucune ventilation par groupe pour ce thème.</p>
 {{end}}
 
-{{if .Th.Candidats}}
+{{if .Th.Candidates}}
 <h2>Ce que les candidats de 2027 ont voté sur ce thème</h2>
 <div class="scroll"><table class="pile">
 <thead><tr><th>Candidat</th><th>Organisation</th><th class="n">Pour</th><th class="n">Contre</th>
   <th class="n">Abst.</th><th class="n">Exprimés</th><th style="width:24%">Répartition</th></tr></thead>
-<tbody>{{range .Th.Candidats}}<tr>
-  <td><a href="{{$.Root}}/candidat/{{.Slug}}/">{{.Nom}}</a></td>
-  <td class="small z" data-l="Organisation">{{.Organisation}}</td>
-  <td class="n pos FOR" data-l="Pour">{{nb .Pour}}</td>
-  <td class="n pos AGAINST" data-l="Contre">{{nb .Contre}}</td>
+<tbody>{{range .Th.Candidates}}<tr>
+  <td><a href="{{$.Root}}/candidat/{{.Slug}}/">{{.Name}}</a></td>
+  <td class="small z" data-l="Organisation">{{.Organization}}</td>
+  <td class="n pos FOR" data-l="Pour">{{nb .For}}</td>
+  <td class="n pos AGAINST" data-l="Contre">{{nb .Against}}</td>
   <td class="n pos ABSTAIN" data-l="Abst.">{{nb .Abstention}}</td>
-  <td class="n" data-l="Exprimés">{{nb .Exprimes}}</td>
+  <td class="n" data-l="Exprimés">{{nb .Expressed}}</td>
   <td data-l="Répartition"><div class="bar" style="margin:0">
-    <i style="width:{{pct .Pour .Exprimes}}%;background:var(--pour)"></i>
-    <i style="width:{{pct .Contre .Exprimes}}%;background:var(--contre)"></i>
-    <i style="width:{{pct .Abstention .Exprimes}}%;background:var(--abst)"></i></div></td>
+    <i style="width:{{pct .For .Expressed}}%;background:var(--pour)"></i>
+    <i style="width:{{pct .Against .Expressed}}%;background:var(--contre)"></i>
+    <i style="width:{{pct .Abstention .Expressed}}%;background:var(--abst)"></i></div></td>
 </tr>{{end}}</tbody></table></div>
 <p class="note"><strong>Un décompte, pas une position sur le thème.</strong> Voter contre un texte
 rattaché à «&nbsp;{{.Th.Label}}&nbsp;» peut viser son véhicule législatif, son calendrier, ou un
@@ -64,19 +64,19 @@ elle dit qu'il n'a pas voté dans le périmètre de ce site.</p>
 {{end}}
 
 <h2>Scrutins rattachés</h2>
-{{if .Th.Derniers}}
+{{if .Th.Last}}
 <div class="flux">
-  {{range .Th.Derniers}}<a class="ligne" href="{{$.Root}}/scrutin/{{.Slug}}/">
+  {{range .Th.Last}}<a class="ligne" href="{{$.Root}}/scrutin/{{.Slug}}/">
     <span class="d">{{.Date}}</span>
-    <span class="o">{{.Objet}}</span>
-    <span class="mini" role="img" aria-label="{{.Pour}} pour, {{.Contre}} contre, {{.Abstentions}} abstentions">
-      <i style="width:{{pct .Pour .Exprimes}}%;background:var(--pour)"></i>
-      <i style="width:{{pct .Contre .Exprimes}}%;background:var(--contre)"></i>
-      <i style="width:{{pct .Abstentions .Exprimes}}%;background:var(--abst)"></i></span>
-    <span class="r">{{.Resultat}}</span>
+    <span class="o">{{.Object}}</span>
+    <span class="mini" role="img" aria-label="{{.For}} pour, {{.Against}} contre, {{.Abstentions}} abstentions">
+      <i style="width:{{pct .For .Expressed}}%;background:var(--pour)"></i>
+      <i style="width:{{pct .Against .Expressed}}%;background:var(--contre)"></i>
+      <i style="width:{{pct .Abstentions .Expressed}}%;background:var(--abst)"></i></span>
+    <span class="r">{{.Result}}</span>
   </a>{{end}}
 </div>
-<p class="small muted">{{len .Th.Derniers}} scrutins affichés sur {{nb .Th.Scrutins}}&nbsp;: la
+<p class="small muted">{{len .Th.Last}} scrutins affichés sur {{nb .Th.Elections}}&nbsp;: la
 liste est bornée, et la troncature est visible plutôt que silencieuse.</p>
 {{else}}<p class="nodata">Aucun scrutin listé pour ce thème.</p>{{end}}
 

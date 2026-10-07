@@ -2,18 +2,18 @@
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
   {{if .Cand}}<a href="{{.Root}}/candidats/">Candidats 2027</a>
   {{else}}<a href="{{.Root}}/assemblee/">Assemblée nationale</a>{{end}} ›
-  <span>{{.P.Prenom}} {{.P.Nom}}</span></p>
+  <span>{{.P.FirstName}} {{.P.Name}}</span></p>
 
 <div class="entete-portrait" style="margin-top:.6rem">
-  {{if and .Cand .Cand.Portrait}}<img src="{{.Root}}/media/{{.Cand.Portrait.Fichier}}"
-    alt="Portrait de {{.P.Prenom}} {{.P.Nom}}" width="104" height="104" loading="lazy"
+  {{if and .Cand .Cand.Portrait}}<img src="{{.Root}}/media/{{.Cand.Portrait.File}}"
+    alt="Portrait de {{.P.FirstName}} {{.P.Name}}" width="104" height="104" loading="lazy"
     style="object-fit:cover">{{end}}
   <div style="flex:1;min-width:16rem">
-    {{if .P.Mandat}}<span class="sur">{{.P.Mandat}}</span>{{end}}
-    <h1 style="margin-top:0">{{.P.Prenom}} {{.P.Nom}}</h1>
-    {{if .P.Groupe}}<p class="muted" style="margin:.4rem 0 0;font-size:.95rem">{{.P.Groupe}}</p>{{end}}
+    {{if .P.Term}}<span class="sur">{{.P.Term}}</span>{{end}}
+    <h1 style="margin-top:0">{{.P.FirstName}} {{.P.Name}}</h1>
+    {{if .P.Group}}<p class="muted" style="margin:.4rem 0 0;font-size:.95rem">{{.P.Group}}</p>{{end}}
     {{if and .Cand .Cand.Portrait}}<p class="small muted" style="margin:.5rem 0 0">Portrait&nbsp;:
-      {{.Cand.Portrait.Licence}}{{if .Cand.Portrait.Auteur}}, {{.Cand.Portrait.Auteur}}{{end}} —
+      {{.Cand.Portrait.License}}{{if .Cand.Portrait.Author}}, {{.Cand.Portrait.Author}}{{end}} —
       <a href="{{.Cand.Portrait.SourceURL}}" target="_blank" rel="noopener">Wikimedia Commons</a></p>{{end}}
   </div>
   <div class="actions" style="margin:0">
@@ -21,9 +21,9 @@
 </div>
 
 {{if .Cand}}<p class="lede">Candidat déclaré à l'élection présidentielle de 2027 pour
-{{if .Cand.Org}}<a href="{{.Root}}/organisation/{{.Cand.Org.Slug}}/">{{.Cand.Organisation}}</a>{{else}}{{.Cand.Organisation}}{{end}}{{if .Cand.DateDeclaration}}, déclaré le {{.Cand.DateDeclaration}}{{end}}.
+{{if .Cand.Org}}<a href="{{.Root}}/organisation/{{.Cand.Org.Slug}}/">{{.Cand.Organization}}</a>{{else}}{{.Cand.Organization}}{{end}}{{if .Cand.DateDeclaration}}, déclaré le {{.Cand.DateDeclaration}}{{end}}.
 <span class="small">Source&nbsp;: <a href="{{.Cand.SourceURL}}">déclaration publique</a>,
-consultée le {{.Cand.SourceConsultee}}.</span></p>{{end}}
+consultée le {{.Cand.SourceConsulted}}.</span></p>{{end}}
 
 {{if .Cand}}
 {{/* Ce que le site sait d'un candidat qui n'a jamais siégé au Parlement. Sans
@@ -33,36 +33,36 @@ consultée le {{.Cand.SourceConsultee}}.</span></p>{{end}}
 <h2 style="margin-top:2.2rem">Ce que le site sait, et d'où</h2>
 <div class="angles">
   <div class="angle{{if not .P.HasVotes}} vide{{end}}"><div class="t">Votes au Parlement</div>
-    {{if .P.HasVotes}}<div class="v">{{nb .P.Exprimes}}</div>
+    {{if .P.HasVotes}}<div class="v">{{nb .P.Expressed}}</div>
       <div class="d">positions exprimées, détaillées plus bas</div>
     {{else}}<div class="v">n'a pas siégé dans une assemblée couverte par ce site</div>{{end}}</div>
 
-  <div class="angle{{if not (and .Local (eq .Local.Statut "RETENU"))}} vide{{end}}">
+  <div class="angle{{if not (and .Local (eq .Local.Status "RETENU"))}} vide{{end}}">
     <div class="t">Mandats locaux</div>
-    {{if and .Local (eq .Local.Statut "RETENU")}}<div class="v">{{len .Local.Mandats}}</div>
+    {{if and .Local (eq .Local.Status "RETENU")}}<div class="v">{{len .Local.Terms}}</div>
       <div class="d">en cours au répertoire national des élus</div>
     {{else if .Local}}<div class="v">aucun mandat local rattaché — voir la note ci-dessous</div>
     {{else}}<div class="v">aucun rapprochement avec le répertoire national des élus</div>{{end}}</div>
 
-  <div class="angle{{if not (and .K .K.Comptes.Present)}} vide{{end}}">
+  <div class="angle{{if not (and .K .K.Accounts.Present)}} vide{{end}}">
     <div class="t">Comptes du parti</div>
-    {{if and .K .K.Comptes.Present}}<div class="v">{{.K.Exercices}}</div>
+    {{if and .K .K.Accounts.Present}}<div class="v">{{.K.FiscalYears}}</div>
       <div class="d">exercices déposés à la CNCCFP{{if .Cand.Org}} par
-        <a href="{{$.Root}}/organisation/{{.Cand.Org.Slug}}/">{{.Cand.Organisation}}</a>{{end}}</div>
-    {{else if .K}}<div class="v">{{.K.Comptes.Raison}}</div>
+        <a href="{{$.Root}}/organisation/{{.Cand.Org.Slug}}/">{{.Cand.Organization}}</a>{{end}}</div>
+    {{else if .K}}<div class="v">{{.K.Accounts.Reason}}</div>
     {{else}}<div class="v">non renseigné</div>{{end}}</div>
 
-  <div class="angle{{if not (and .K .K.Interets.Present)}} vide{{end}}">
+  <div class="angle{{if not (and .K .K.Interest.Present)}} vide{{end}}">
     <div class="t">Intérêts déclarés</div>
-    {{if and .K .K.Interets.Present}}<div class="v">{{nb .K.NbInterets}}</div>
+    {{if and .K .K.Interest.Present}}<div class="v">{{nb .K.CountInterest}}</div>
       <div class="d">lignes de déclaration HATVP</div>
-    {{else if .K}}<div class="v">{{.K.Interets.Raison}}</div>
+    {{else if .K}}<div class="v">{{.K.Interest.Reason}}</div>
     {{else}}<div class="v">non renseigné</div>{{end}}</div>
 </div>
 
 {{if .Local}}
-<p class="note {{if eq .Local.Statut "RETENU"}}proc{{else}}abs{{end}}">
-  {{if eq .Local.Statut "RETENU"}}<strong>Les mandats locaux ci-dessous viennent d'un rapprochement
+<p class="note {{if eq .Local.Status "RETENU"}}proc{{else}}abs{{end}}">
+  {{if eq .Local.Status "RETENU"}}<strong>Les mandats locaux ci-dessous viennent d'un rapprochement
   fait par ce site</strong>, pas d'un identifiant commun aux deux sources&nbsp;: le répertoire des
   élus et la liste des candidats n'en partagent aucun. Vérification retenue&nbsp;:
   {{.Local.Verification}}.{{if .Local.Source}} <a href="{{.Local.Source}}" target="_blank"
@@ -74,29 +74,29 @@ consultée le {{.Cand.SourceConsultee}}.</span></p>{{end}}
 </p>
 {{end}}
 
-{{if and .Local (eq .Local.Statut "RETENU") .Local.Mandats}}
+{{if and .Local (eq .Local.Status "RETENU") .Local.Terms}}
 <div class="scroll"><table class="pile">
 <thead><tr><th>Mandat</th><th>Fonction</th><th>Où</th><th>Depuis</th></tr></thead>
-<tbody>{{range .Local.Mandats}}<tr>
+<tbody>{{range .Local.Terms}}<tr>
   <td data-l="Mandat"><b>{{.Type}}</b></td>
   <td class="small z" data-l="Fonction">{{if .Role}}{{.Role}}{{else}}—{{end}}</td>
-  <td class="small" data-l="Où">{{if .Lieux}}{{template "lieux" .Lieux}}{{else if .Lieu}}{{.Lieu}}{{else}}<span class="z">non publié</span>{{end}}</td>
+  <td class="small" data-l="Où">{{if .Places}}{{template "lieux" .Places}}{{else if .Place}}{{.Place}}{{else}}<span class="z">non publié</span>{{end}}</td>
   <td class="small z" data-l="Depuis">{{.Depuis}}</td>
 </tr>{{end}}</tbody></table></div>
 {{end}}
 
-{{if and .K .K.Terrain.Present (not .K.Apercu.Vide)}}
+{{if and .K .K.Terrain.Present (not .K.Overview.Empty)}}
 <h2>Où son parti a recueilli des voix</h2>
 <div class="une-carte">
-  <a href="{{.Root}}/2027/{{.K.Page.Slug}}/">{{.K.Apercu.SVG}}</a>
+  <a href="{{.Root}}/2027/{{.K.Page.Slug}}/">{{.K.Overview.SVG}}</a>
   <div>
     <p>Part des voix obtenues aux municipales de 2026, premier tour, par les listes que le ministère
     de l'Intérieur range sous la nuance <code>{{.K.NuanceCode}}</code>, rapportée aux
-    <strong>seules listes nuancées</strong>. {{nb .K.CommunesListes}} communes,
-    {{nb .K.SiegesCM}} sièges, {{nb64 .K.VoixMunicipales}} voix.</p>
-    {{template "cartons" .K.Apercu.Cartons}}
-    {{$t := .K.Apercu.Teintes}}<div class="echelle"><span class="u">{{.K.Apercu.Unite}}</span>
-      {{range $i, $b := .K.Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+    <strong>seules listes nuancées</strong>. {{nb .K.MunicipalitiesLists}} communes,
+    {{nb .K.SeatsCM}} sièges, {{nb64 .K.VotesMunicipal}} voix.</p>
+    {{template "cartons" .K.Overview.Tiles}}
+    {{$t := .K.Overview.Shades}}<div class="echelle"><span class="u">{{.K.Overview.Unit}}</span>
+      {{range $i, $b := .K.Overview.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
     <p class="small muted"><strong>Le score d'un parti n'est pas celui de son candidat.</strong>
     Une municipale se joue sur des listes locales, souvent d'union, en 2026. Le rattachement de la
     nuance au parti est une décision de ce site, consignée dans
@@ -109,16 +109,16 @@ consultée le {{.Cand.SourceConsultee}}.</span></p>{{end}}
 {{end}}
 
 <h2 style="margin-top:2.2rem">Mandats</h2>
-{{if .P.Mandats}}
+{{if .P.Terms}}
 <div class="scroll"><table class="pile">
 <thead><tr><th>Mandat</th><th>Fonction</th><th>Où</th><th>Période</th>
   <th>Président en fonction</th></tr></thead>
-<tbody>{{range .P.Mandats}}<tr>
+<tbody>{{range .P.Terms}}<tr>
   <td><b>{{libMandat .Type}}</b></td>
   <td class="small z" data-l="Fonction">{{if .Role}}{{.Role}}{{else}}—{{end}}</td>
-  <td class="small" data-l="Où">{{if .Lieux}}{{template "lieux" .Lieux}}{{else if .Portefeuille}}{{.Portefeuille}}{{else if .Circo}}{{.Circo}}{{else}}<span class="z">non publié par la source</span>{{end}}</td>
-  <td class="small z" data-l="Période">{{.Periode}}</td>
-  <td class="small z" data-l="Président">{{if .SousPresidence}}{{.SousPresidence}}{{else}}—{{end}}</td>
+  <td class="small" data-l="Où">{{if .Places}}{{template "lieux" .Places}}{{else if .Portfolio}}{{.Portfolio}}{{else if .District}}{{.District}}{{else}}<span class="z">non publié par la source</span>{{end}}</td>
+  <td class="small z" data-l="Période">{{.Period}}</td>
+  <td class="small z" data-l="Président">{{if .SubPresidency}}{{.SubPresidency}}{{else}}—{{end}}</td>
 </tr>{{end}}</tbody></table></div>
 <p class="note">Les fonctions et portefeuilles sont repris <strong>tels que publiés</strong> par
 l'Assemblée, sans normalisation. Un mandat ministériel figure ici parce qu'il est publié dans le
@@ -135,24 +135,24 @@ responsable des actes du président, ni l'inverse.</p>
      ne veut rien dire tant qu'on ignore pendant quelle législature, ni si la
      personne a été ministre au milieu. Le taux de participation, lui, n'est
      pas affiché : voir la carte d'absence typée. */}}
-<h2>{{nb .P.Exprimes}} positions exprimées</h2>
+<h2>{{nb .P.Expressed}} positions exprimées</h2>
 <div style="display:grid;gap:1.6rem;grid-template-columns:repeat(auto-fit,minmax(19rem,1fr));
   align-items:start;margin-top:1.2rem">
   <div>
     <div class="bar" style="height:26px" role="img"
-         aria-label="{{.P.Pour}} pour, {{.P.Contre}} contre, {{.P.Abstention}} abstentions">
-      <i style="width:{{pct .P.Pour .P.Exprimes}}%;background:var(--pour)"></i>
-      <i style="width:{{pct .P.Contre .P.Exprimes}}%;background:var(--contre)"></i>
-      <i style="width:{{pct .P.Abstention .P.Exprimes}}%;background:var(--abst)"></i></div>
+         aria-label="{{.P.For}} pour, {{.P.Against}} contre, {{.P.Abstention}} abstentions">
+      <i style="width:{{pct .P.For .P.Expressed}}%;background:var(--pour)"></i>
+      <i style="width:{{pct .P.Against .P.Expressed}}%;background:var(--contre)"></i>
+      <i style="width:{{pct .P.Abstention .P.Expressed}}%;background:var(--abst)"></i></div>
     <div class="seuil-lg" style="margin-top:1rem">
       <span style="color:var(--encre)"><i style="background:var(--pour)"></i>
-        <b>{{nb .P.Pour}}</b>&nbsp;pour</span>
+        <b>{{nb .P.For}}</b>&nbsp;pour</span>
       <span style="color:var(--encre)"><i style="background:var(--contre)"></i>
-        <b>{{nb .P.Contre}}</b>&nbsp;contre</span>
+        <b>{{nb .P.Against}}</b>&nbsp;contre</span>
       <span style="color:var(--encre)"><i style="background:var(--abst)"></i>
         <b>{{nb .P.Abstention}}</b>&nbsp;abstentions</span>
       <span><i style="background:transparent;border:1.5px solid var(--absent)"></i>
-        {{nb .P.NonVotant}} non-votant{{if gt .P.NonVotant 1}}s{{end}}</span>
+        {{nb .P.NonVoter}} non-votant{{if gt .P.NonVoter 1}}s{{end}}</span>
     </div>
     <p class="note">Cette répartition porte sur les positions <em>exprimées</em>. Elle ne mesure ni
     une ligne politique ni une proximité&nbsp;: un vote contre peut viser le véhicule législatif, le
@@ -188,15 +188,15 @@ responsable des actes du président, ni l'inverse.</p>
   <button type="button" class="puce" data-g="Abstention">Abstention</button>
 </div>
 <p class="small muted"><span data-compte>{{.P.VotesShown}}</span> scrutins affichés sur
-  {{nb .P.Exprimes}} positions exprimées&nbsp;: la liste est bornée, et la troncature est visible
+  {{nb .P.Expressed}} positions exprimées&nbsp;: la liste est bornée, et la troncature est visible
   plutôt que silencieuse.</p>
 <div class="scroll"><table class="pile pile-1" id="votes-personne">
 <thead><tr><th>Date</th><th>Objet</th><th>Position</th><th>Résultat</th></tr></thead>
 <tbody>{{range .P.Votes}}<tr data-g="{{.PositionFr}}">
   <td class="small z" style="white-space:nowrap">{{.Date}}</td>
-  <td data-l="Objet"><a href="{{$.Root}}/scrutin/{{.Slug}}/">{{.Objet}}</a></td>
+  <td data-l="Objet"><a href="{{$.Root}}/scrutin/{{.Slug}}/">{{.Object}}</a></td>
   <td data-l="Position"><span class="pastille {{.Position}}">{{.PositionFr}}</span></td>
-  <td class="small z" data-l="Résultat">{{.Resultat}}</td>
+  <td class="small z" data-l="Résultat">{{.Result}}</td>
 </tr>{{end}}</tbody></table></div>
 <p class="note abs">Le filtre est purement local&nbsp;: aucune requête, le site reste statique. Il
 ne porte que sur les scrutins affichés ci-dessus, pas sur l'ensemble des positions exprimées.</p>
@@ -215,8 +215,8 @@ parlementaire.</p>
     <div class="scroll"><table class="pile">
     <thead><tr><th>Organisation</th><th>Nature</th><th>Période</th><th>Comment on le sait</th></tr></thead>
     <tbody>{{range .P.Affiliations}}<tr>
-      <td>{{.Nom}}</td><td class="small z" data-l="Nature">{{.Kind}}</td>
-      <td class="small z" data-l="Période">{{.Periode}}</td>
+      <td>{{.Name}}</td><td class="small z" data-l="Nature">{{.Kind}}</td>
+      <td class="small z" data-l="Période">{{.Period}}</td>
       <td class="small z" data-l="Source">{{.Via}}</td>
     </tr>{{end}}</tbody></table></div>
     <p class="note">L'appartenance à un groupe parlementaire est publiée par l'Assemblée. Le

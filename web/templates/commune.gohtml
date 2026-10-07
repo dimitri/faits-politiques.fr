@@ -2,64 +2,64 @@
 {{$c := .C}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
   <a href="{{.Root}}/collectivites/">Collectivités</a>
-  {{if $c.Region.Nom}} › {{if $c.Region.URL}}<a href="{{$c.Region.URL}}">{{$c.Region.Nom}}</a>{{else}}{{$c.Region.Nom}}{{end}}{{end}}
-  {{if $c.Dept.Nom}} › {{if $c.Dept.URL}}<a href="{{$c.Dept.URL}}">{{$c.Dept.Nom}}</a>{{else}}{{$c.Dept.Nom}}{{end}}{{end}}
-  › <span>{{$c.Nom}}</span></p>
+  {{if $c.Region.Name}} › {{if $c.Region.URL}}<a href="{{$c.Region.URL}}">{{$c.Region.Name}}</a>{{else}}{{$c.Region.Name}}{{end}}{{end}}
+  {{if $c.Dept.Name}} › {{if $c.Dept.URL}}<a href="{{$c.Dept.URL}}">{{$c.Dept.Name}}</a>{{else}}{{$c.Dept.Name}}{{end}}{{end}}
+  › <span>{{$c.Name}}</span></p>
 <span class="sur">Commune · code INSEE {{$c.Code}}</span>
-<h1>{{$c.Nom}}</h1>
-<p class="lede">{{if $c.Population}}{{nb $c.Population}} habitants{{else}}Population non publiée{{end}}{{if $c.Dept.Nom}},
-{{if $c.Dept.URL}}<a href="{{$c.Dept.URL}}">{{$c.Dept.Nom}}</a>{{else}}{{$c.Dept.Nom}}{{end}}{{end}}{{if $c.EPCI}}. Membre de
-{{if $c.EPCI.URL}}<a href="{{$c.EPCI.URL}}">{{$c.EPCI.Nom}}</a>{{else}}{{$c.EPCI.Nom}}{{end}}{{if $c.NatureEPCI}} <span class="z">({{lower $c.NatureEPCI}})</span>{{end}}{{end}}.</p>
+<h1>{{$c.Name}}</h1>
+<p class="lede">{{if $c.Population}}{{nb $c.Population}} habitants{{else}}Population non publiée{{end}}{{if $c.Dept.Name}},
+{{if $c.Dept.URL}}<a href="{{$c.Dept.URL}}">{{$c.Dept.Name}}</a>{{else}}{{$c.Dept.Name}}{{end}}{{end}}{{if $c.EPCI}}. Membre de
+{{if $c.EPCI.URL}}<a href="{{$c.EPCI.URL}}">{{$c.EPCI.Name}}</a>{{else}}{{$c.EPCI.Name}}{{end}}{{if $c.NatureEPCI}} <span class="z">({{lower $c.NatureEPCI}})</span>{{end}}{{end}}.</p>
 
 {{template "situation" $c.Situation}}
 
 <h2>Le conseil municipal</h2>
-{{if $c.Maire}}
+{{if $c.Mayor}}
 <div class="cartes trois">
-  <div class="carte"><span class="v" style="font-size:1.25rem">{{if $c.Maire.Fiche}}<a href="{{$.Root}}/depute/{{$c.Maire.Slug}}/">{{$c.Maire.Nom}}</a>{{else}}{{$c.Maire.Nom}}{{end}}</span>
+  <div class="carte"><span class="v" style="font-size:1.25rem">{{if $c.Mayor.Profile}}<a href="{{$.Root}}/depute/{{$c.Mayor.Slug}}/">{{$c.Mayor.Name}}</a>{{else}}{{$c.Mayor.Name}}{{end}}</span>
     <span class="t">Maire</span>
-    <span class="d">Depuis le {{$c.Maire.Depuis}}. Élu par le conseil municipal, pas au suffrage
+    <span class="d">Depuis le {{$c.Mayor.Depuis}}. Élu par le conseil municipal, pas au suffrage
       universel direct.</span></div>
-  <div class="carte"><span class="v">{{$c.NbConseillers}}</span><span class="t">Conseillers municipaux</span>
+  <div class="carte"><span class="v">{{$c.CountCouncillors}}</span><span class="t">Conseillers municipaux</span>
     <span class="d">En fonction selon le répertoire national des élus, maire compris.</span></div>
 </div>
 {{else}}<p class="nodata">Le répertoire national des élus ne publie pas de maire en fonction pour cette
 commune.</p>{{end}}
 
-{{if $c.Elus}}
-<details class="plus"{{if le (len $c.Elus) 12}} open{{end}}>
-  <summary>Les {{len $c.Elus}} autres membres du conseil</summary>
+{{if $c.Elected}}
+<details class="plus"{{if le (len $c.Elected) 12}} open{{end}}>
+  <summary>Les {{len $c.Elected}} autres membres du conseil</summary>
   <div class="dedans">
   <div class="scroll"><table class="pile">
   <thead><tr><th>Nom</th><th>Fonction</th><th>Depuis</th></tr></thead>
-  <tbody>{{range $c.Elus}}<tr>
-    <td>{{if .Fiche}}<a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a>{{else}}{{.Nom}}{{end}}</td>
-    <td class="small z" data-l="Fonction">{{if .Fonction}}{{.Fonction}}{{else}}conseiller{{end}}</td>
+  <tbody>{{range $c.Elected}}<tr>
+    <td>{{if .Profile}}<a href="{{$.Root}}/depute/{{.Slug}}/">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td>
+    <td class="small z" data-l="Fonction">{{if .Function}}{{.Function}}{{else}}conseiller{{end}}</td>
     <td class="small z" data-l="Depuis">{{.Depuis}}</td>
   </tr>{{end}}</tbody></table></div>
   </div>
 </details>
 {{end}}
 
-{{if $c.Listes}}
-<h2>Municipales, {{if eq $c.TourFinal 2}}second tour{{else}}premier tour{{end}}</h2>
+{{if $c.Lists}}
+<h2>Municipales, {{if eq $c.RoundFinal 2}}second tour{{else}}premier tour{{end}}</h2>
 <div class="scroll"><table>
 <thead><tr><th>Liste</th><th>Nuance</th><th class="n">Voix</th><th class="n">Part</th><th class="n">Sièges</th></tr></thead>
-<tbody>{{range $c.Listes}}<tr>
-  <td class="small">{{.Libelle}}</td>
+<tbody>{{range $c.Lists}}<tr>
+  <td class="small">{{.Label}}</td>
   <td class="small z">{{if .Nuance}}<code>{{.Nuance}}</code>{{else}}—{{end}}</td>
-  <td class="n">{{nb .Voix}}</td><td class="n">{{dec .Pct 1}} %</td>
-  <td class="n">{{if .Sieges}}{{.Sieges}}{{else}}<span class="z">0</span>{{end}}</td>
+  <td class="n">{{nb .Votes}}</td><td class="n">{{dec .Pct 1}} %</td>
+  <td class="n">{{if .Seats}}{{.Seats}}{{else}}<span class="z">0</span>{{end}}</td>
 </tr>{{end}}</tbody></table></div>
-{{if $c.ListesT1}}
+{{if $c.ListsT1}}
 <details class="plus">
-  <summary>Le premier tour ({{len $c.ListesT1}} listes)</summary>
+  <summary>Le premier tour ({{len $c.ListsT1}} listes)</summary>
   <div class="dedans"><div class="scroll"><table>
   <thead><tr><th>Liste</th><th>Nuance</th><th class="n">Voix</th><th class="n">Part</th></tr></thead>
-  <tbody>{{range $c.ListesT1}}<tr>
-    <td class="small">{{.Libelle}}</td>
+  <tbody>{{range $c.ListsT1}}<tr>
+    <td class="small">{{.Label}}</td>
     <td class="small z">{{if .Nuance}}<code>{{.Nuance}}</code>{{else}}—{{end}}</td>
-    <td class="n">{{nb .Voix}}</td><td class="n">{{dec .Pct 1}} %</td>
+    <td class="n">{{nb .Votes}}</td><td class="n">{{dec .Pct 1}} %</td>
   </tr>{{end}}</tbody></table></div></div>
 </details>
 {{end}}
@@ -72,11 +72,11 @@ donc pas.</p>
 {{end}}
 
 {{if $c.Finances}}
-<h2>Finances, exercice {{$c.AnneeFinances}}</h2>
+<h2>Finances, exercice {{$c.YearFinances}}</h2>
 <div class="scroll"><table>
 <thead><tr><th>Indicateur</th><th class="n">Par habitant</th><th class="n">Médiane des communes de même taille</th></tr></thead>
 <tbody>{{range $c.Finances}}<tr>
-  <td>{{.Libelle}}</td><td class="n">{{.Valeur}}</td><td class="n z">{{.Mediane}}</td>
+  <td>{{.Label}}</td><td class="n">{{.Value}}</td><td class="n z">{{.Median}}</td>
 </tr>{{end}}</tbody></table></div>
 <p class="note">La comparaison est faite avec les communes de la même strate de population&nbsp;: une
 médiane toutes communes confondues rapprocherait une métropole d'un village. Un écart ne dit rien
@@ -84,14 +84,14 @@ d'une bonne ou d'une mauvaise gestion — il dépend d'abord de ce que la commun
 que par son intercommunalité.</p>
 {{end}}
 
-{{if $c.Securite}}
-<h2>Faits enregistrés, {{$c.AnneeSecurite}}</h2>
+{{if $c.Security}}
+<h2>Faits enregistrés, {{$c.YearSecurity}}</h2>
 <div class="scroll"><table>
 <thead><tr><th>Indicateur</th><th class="n">Faits</th><th class="n">Pour 1 000 habitants</th></tr></thead>
-<tbody>{{range $c.Securite}}<tr>
-  <td class="small">{{.Libelle}}</td>
-  {{if .Masque}}<td colspan="2" class="n small z">non diffusé par le SSMSI — trop peu de faits pour publier sans identifier</td>
-  {{else}}<td class="n">{{.Nombre}}</td><td class="n">{{.Taux}}</td>{{end}}
+<tbody>{{range $c.Security}}<tr>
+  <td class="small">{{.Label}}</td>
+  {{if .Mask}}<td colspan="2" class="n small z">non diffusé par le SSMSI — trop peu de faits pour publier sans identifier</td>
+  {{else}}<td class="n">{{.Count}}</td><td class="n">{{.Rate}}</td>{{end}}
 </tr>{{end}}</tbody></table></div>
 <p class="note">Des faits <strong>enregistrés</strong> par la police et la gendarmerie, pas des faits
 commis. Rapportés à la population résidente, pas à la population présente.

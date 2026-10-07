@@ -7,12 +7,12 @@ import (
 )
 
 type SourceDetail struct {
-	Slug, Label, Publisher, Tier, Licence, ReuseClass string
+	Slug, Label, Publisher, Tier, License, ReuseClass string
 	Attribution, Cadence, Notes                       string
-	Redistribuable                                    bool
-	DerniereIngestion, Statut                         string
-	Documents, Enregistrements, Octets                int64
-	Empreinte                                         string
+	Redistributable                                   bool
+	LastIngestion, Status                             string
+	Documents, Records, Bytes                         int64
+	Footprint                                         string
 	URLs                                              []string
 }
 
@@ -60,9 +60,9 @@ func loadSources(ctx context.Context, pool *pgxpool.Pool) ([]SourceDetail, error
 	var out []SourceDetail
 	for rows.Next() {
 		var d SourceDetail
-		if err := rows.Scan(&d.Slug, &d.Label, &d.Publisher, &d.Tier, &d.Licence,
-			&d.ReuseClass, &d.Attribution, &d.Cadence, &d.Notes, &d.Redistribuable,
-			&d.DerniereIngestion, &d.Statut, &d.Documents, &d.Octets); err != nil {
+		if err := rows.Scan(&d.Slug, &d.Label, &d.Publisher, &d.Tier, &d.License,
+			&d.ReuseClass, &d.Attribution, &d.Cadence, &d.Notes, &d.Redistributable,
+			&d.LastIngestion, &d.Status, &d.Documents, &d.Bytes); err != nil {
 			return nil, err
 		}
 		d.Tier = tierFr[d.Tier]
@@ -91,21 +91,21 @@ func loadSources(ctx context.Context, pool *pgxpool.Pool) ([]SourceDetail, error
 	if err != nil {
 		return nil, err
 	}
-	urlsParSlug := map[string][]string{}
+	urlsPerSlug := map[string][]string{}
 	for urls.Next() {
 		var slug, u string
 		if err := urls.Scan(&slug, &u); err != nil {
 			urls.Close()
 			return nil, err
 		}
-		urlsParSlug[slug] = append(urlsParSlug[slug], u)
+		urlsPerSlug[slug] = append(urlsPerSlug[slug], u)
 	}
 	urls.Close()
 	if err := urls.Err(); err != nil {
 		return nil, err
 	}
 
-	empreintes, err := pool.Query(ctx, `
+	footprints, err := pool.Query(ctx, `
 		SELECT DISTINCT ON (s.slug) s.slug, encode(d.sha256,'hex')
 		  FROM raw.retrieval r
 		  JOIN raw.document d ON d.id = r.document_id
@@ -114,94 +114,94 @@ func loadSources(ctx context.Context, pool *pgxpool.Pool) ([]SourceDetail, error
 	if err != nil {
 		return nil, err
 	}
-	empreinteParSlug := map[string]string{}
-	for empreintes.Next() {
+	footprintPerSlug := map[string]string{}
+	for footprints.Next() {
 		var slug, emp string
-		if err := empreintes.Scan(&slug, &emp); err != nil {
-			empreintes.Close()
+		if err := footprints.Scan(&slug, &emp); err != nil {
+			footprints.Close()
 			return nil, err
 		}
-		empreinteParSlug[slug] = emp
+		footprintPerSlug[slug] = emp
 	}
-	empreintes.Close()
-	if err := empreintes.Err(); err != nil {
+	footprints.Close()
+	if err := footprints.Err(); err != nil {
 		return nil, err
 	}
 
 	// mv.source_enregistrements (internal/matview) — plus le JOIN à quatre
 	// tables sur la totalité de raw.record (489 Mo) rejoué une fois par
 	// source.
-	enrRows, err := pool.Query(ctx, `SELECT source_slug, nombre_enregistrements FROM mv.source_enregistrements`)
+	registeredRows, err := pool.Query(ctx, `SELECT source_slug, nombre_enregistrements FROM mv.source_enregistrements`)
 	if err != nil {
 		return nil, err
 	}
-	enrParSlug := map[string]int64{}
-	for enrRows.Next() {
+	registeredPerSlug := map[string]int64{}
+	for registeredRows.Next() {
 		var slug string
 		var n int64
-		if err := enrRows.Scan(&slug, &n); err != nil {
-			enrRows.Close()
+		if err := registeredRows.Scan(&slug, &n); err != nil {
+			registeredRows.Close()
 			return nil, err
 		}
-		enrParSlug[slug] = n
+		registeredPerSlug[slug] = n
 	}
-	enrRows.Close()
-	if err := enrRows.Err(); err != nil {
+	registeredRows.Close()
+	if err := registeredRows.Err(); err != nil {
 		return nil, err
 	}
 
 	for i := range out {
-		out[i].URLs = urlsParSlug[out[i].Slug]
-		out[i].Empreinte = empreinteParSlug[out[i].Slug]
-		if len(out[i].Empreinte) > 20 {
-			out[i].Empreinte = out[i].Empreinte[:20] + "…"
+		out[i].URLs = urlsPerSlug[out[i].Slug]
+		out[i].Footprint = footprintPerSlug[out[i].Slug]
+		if len(out[i].Footprint) > 20 {
+			out[i].Footprint = out[i].Footprint[:20] + "…"
 		}
-		out[i].Enregistrements = enrParSlug[out[i].Slug]
+		out[i].Records = registeredPerSlug[out[i].Slug]
 	}
 	return out, nil
 }
 
-type TypeFichier struct {
-	Type   string
-	Nombre int64
-	Octets int64
+type TypeFile struct {
+	Type  string
+	Count int64
+	Bytes int64
 }
 
-type TableVolumineuse struct {
-	Nom    string
-	Lignes int64
-	Octets int64
+type TableLarge struct {
+	Name  string
+	Lines int64
+	Bytes int64
 }
 
-// StatsGlobalesSources : de quoi répondre, avant la liste des flux, à
+// StatsGlobalSources : de quoi répondre, avant la liste des flux, à
 // « combien de sources, combien de fichiers, combien pèse tout ça » — un
 // chiffre vérifié par introspection PostgreSQL directe, pas une estimation.
-type StatsGlobalesSources struct {
-	NbSources         int64
-	NbFichiers        int64
-	OctetsFichiers    int64
-	TypesFichiers     []TypeFichier
-	NbTables          int64
-	NbLignes          int64
-	OctetsBase        int64
-	PlusGrossesTables []TableVolumineuse
+type StatsGlobalSources struct {
+	CountSources    int64
+	CountFiles      int64
+	BytesFiles      int64
+	TypesFiles      []TypeFile
+	CountTables     int64
+	CountLines      int64
+	BytesBase       int64
+	PlusLargeTables []TableLarge
 }
 
-// chargerStatsGlobalesSources : deux mesures de taille distinctes, jamais
+// loadStatsGlobalSources : deux mesures de taille distinctes, jamais
 // fusionnées — celle de l'archive scellée (raw.document, les fichiers sources
 // tels que récupérés) et celle de la base (pg_database_size, les données une
 // fois extraites et normalisées). Qu'elles se ressemblent en ordre de
 // grandeur est une coïncidence, pas la même chose : l'une mesure ce qui a été
 // téléchargé, l'autre ce que Postgres stocke une fois structuré.
-func chargerStatsGlobalesSources(ctx context.Context, pool *pgxpool.Pool) (*StatsGlobalesSources, error) {
-	var st StatsGlobalesSources
+func loadStatsGlobalSources(ctx context.Context, pool *pgxpool.Pool) (*StatsGlobalSources, error) {
+	var st StatsGlobalSources
 
-	if err := pool.QueryRow(ctx, `SELECT count(*) FROM raw.source`).Scan(&st.NbSources); err != nil {
+	if err := pool.QueryRow(ctx, `SELECT count(*) FROM raw.source`).Scan(&st.CountSources); err != nil {
 		return nil, err
 	}
 	if err := pool.QueryRow(ctx,
 		`SELECT count(*), coalesce(sum(byte_size),0) FROM raw.document`).
-		Scan(&st.NbFichiers, &st.OctetsFichiers); err != nil {
+		Scan(&st.CountFiles, &st.BytesFiles); err != nil {
 		return nil, err
 	}
 
@@ -212,12 +212,12 @@ func chargerStatsGlobalesSources(ctx context.Context, pool *pgxpool.Pool) (*Stat
 		return nil, err
 	}
 	for rows.Next() {
-		var t TypeFichier
-		if err := rows.Scan(&t.Type, &t.Nombre, &t.Octets); err != nil {
+		var t TypeFile
+		if err := rows.Scan(&t.Type, &t.Count, &t.Bytes); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		st.TypesFichiers = append(st.TypesFichiers, t)
+		st.TypesFiles = append(st.TypesFiles, t)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
@@ -226,17 +226,17 @@ func chargerStatsGlobalesSources(ctx context.Context, pool *pgxpool.Pool) (*Stat
 
 	if err := pool.QueryRow(ctx, `
 		SELECT count(*) FROM pg_tables WHERE schemaname IN ('core','ref','geo','derived','raw')`).
-		Scan(&st.NbTables); err != nil {
+		Scan(&st.CountTables); err != nil {
 		return nil, err
 	}
 	if err := pool.QueryRow(ctx, `
 		SELECT coalesce(sum(n_live_tup),0) FROM pg_stat_user_tables
 		WHERE schemaname IN ('core','ref','geo','derived','raw')`).
-		Scan(&st.NbLignes); err != nil {
+		Scan(&st.CountLines); err != nil {
 		return nil, err
 	}
 	if err := pool.QueryRow(ctx, `SELECT pg_database_size(current_database())`).
-		Scan(&st.OctetsBase); err != nil {
+		Scan(&st.BytesBase); err != nil {
 		return nil, err
 	}
 
@@ -248,12 +248,12 @@ func chargerStatsGlobalesSources(ctx context.Context, pool *pgxpool.Pool) (*Stat
 		return nil, err
 	}
 	for rowsT.Next() {
-		var t TableVolumineuse
-		if err := rowsT.Scan(&t.Nom, &t.Lignes, &t.Octets); err != nil {
+		var t TableLarge
+		if err := rowsT.Scan(&t.Name, &t.Lines, &t.Bytes); err != nil {
 			rowsT.Close()
 			return nil, err
 		}
-		st.PlusGrossesTables = append(st.PlusGrossesTables, t)
+		st.PlusLargeTables = append(st.PlusLargeTables, t)
 	}
 	rowsT.Close()
 	if err := rowsT.Err(); err != nil {

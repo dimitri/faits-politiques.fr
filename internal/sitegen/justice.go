@@ -10,44 +10,44 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type etablissementSurpeuple struct {
-	Etablissement, Quartier, Direction string
-	Densite                            float64
-	Detenus, Capacite                  int
+type institutionOvercrowded struct {
+	Institution, Neighborhood, Direction string
+	Density                              float64
+	Inmates, Capacity                    int
 }
 
 type StatsJustice struct {
-	TopSurpeuplementSVG template.HTML
-	NbLignes            int
-	NbAnomalies         int
-	TotalDetenus        int
-	TotalCapacite       int
+	TopOvercrowdingSVG template.HTML
+	CountLines         int
+	CountAnomalies     int
+	TotalInmates       int
+	TotalCapacity      int
 }
 
-// chargerJustice : les vingt quartiers d'établissement les plus densément
+// loadJustice : les vingt quartiers d'établissement les plus densément
 // peuplés (densité carcérale = détenus / capacité opérationnelle, calculée
 // par la source elle-même). Une ligne à densité infinie (capacité
 // officielle nulle mais des détenus réels — un artefact de la source, pas
 // une erreur de lecture) est exclue du classement et comptée à part.
-func chargerJustice(ctx context.Context, pool *pgxpool.Pool) (*StatsJustice, error) {
+func loadJustice(ctx context.Context, pool *pgxpool.Pool) (*StatsJustice, error) {
 	st := &StatsJustice{}
 	// sum(...) est une agrégation : la ligne existe même sans établissement
 	// encore ingéré, avec des sommes NULL — count(*) reste, lui, toujours 0
 	// dans ce cas, d'où le garde-fou qui suit.
-	var totalDetenus, totalCapacite sql.NullInt64
+	var totalInmates, totalCapacity sql.NullInt64
 	if err := pool.QueryRow(ctx, `
 		SELECT count(*), sum(ecroues_detenus), sum(capacite_operationnelle)
 		FROM core.etablissement_penitentiaire`).
-		Scan(&st.NbLignes, &totalDetenus, &totalCapacite); err != nil {
+		Scan(&st.CountLines, &totalInmates, &totalCapacity); err != nil {
 		return nil, err
 	}
-	if st.NbLignes == 0 {
+	if st.CountLines == 0 {
 		return nil, nil
 	}
-	st.TotalDetenus, st.TotalCapacite = int(totalDetenus.Int64), int(totalCapacite.Int64)
+	st.TotalInmates, st.TotalCapacity = int(totalInmates.Int64), int(totalCapacity.Int64)
 	if err := pool.QueryRow(ctx, `
 		SELECT count(*) FROM core.etablissement_penitentiaire
-		WHERE capacite_operationnelle = 0 AND ecroues_detenus > 0`).Scan(&st.NbAnomalies); err != nil {
+		WHERE capacite_operationnelle = 0 AND ecroues_detenus > 0`).Scan(&st.CountAnomalies); err != nil {
 		return nil, err
 	}
 
@@ -60,10 +60,10 @@ func chargerJustice(ctx context.Context, pool *pgxpool.Pool) (*StatsJustice, err
 		return nil, err
 	}
 	defer rows.Close()
-	var top []etablissementSurpeuple
+	var top []institutionOvercrowded
 	for rows.Next() {
-		var e etablissementSurpeuple
-		if err := rows.Scan(&e.Etablissement, &e.Quartier, &e.Direction, &e.Densite, &e.Detenus, &e.Capacite); err != nil {
+		var e institutionOvercrowded
+		if err := rows.Scan(&e.Institution, &e.Neighborhood, &e.Direction, &e.Density, &e.Inmates, &e.Capacity); err != nil {
 			return nil, err
 		}
 		top = append(top, e)
@@ -71,36 +71,36 @@ func chargerJustice(ctx context.Context, pool *pgxpool.Pool) (*StatsJustice, err
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	st.TopSurpeuplementSVG = dessinerTopSurpeuplement(top)
+	st.TopOvercrowdingSVG = drawTopOvercrowding(top)
 	return st, nil
 }
 
-func dessinerTopSurpeuplement(top []etablissementSurpeuple) template.HTML {
+func drawTopOvercrowding(top []institutionOvercrowded) template.HTML {
 	if len(top) == 0 {
 		return ""
 	}
-	const w, mr, ml, largeurBarre, gap = 720.0, 70.0, 260.0, 15.0, 6.0
-	h := float64(len(top))*(largeurBarre+gap) + gap
-	largeurAxe := w - ml - mr
-	max := top[0].Densite
+	const w, mr, ml, widthBar, gap = 720.0, 70.0, 260.0, 15.0, 6.0
+	h := float64(len(top))*(widthBar+gap) + gap
+	widthAxis := w - ml - mr
+	max := top[0].Density
 
 	var b strings.Builder
 	fmt.Fprintf(&b, `<svg viewBox="0 0 %.0f %.0f" class="barres-surpeuplement" role="img" `+
 		`aria-label="Vingt quartiers d'établissement les plus densément peuplés">`, w, h)
 	fmt.Fprintf(&b, `<line class="seuil" x1="%.1f" y1="0" x2="%.1f" y2="%.1f"/>`,
-		ml+largeurAxe*100/max, ml+largeurAxe*100/max, h)
+		ml+widthAxis*100/max, ml+widthAxis*100/max, h)
 	for i, e := range top {
-		y := gap + float64(i)*(largeurBarre+gap)
-		largeur := largeurAxe * e.Densite / max
+		y := gap + float64(i)*(widthBar+gap)
+		width := widthAxis * e.Density / max
 		fmt.Fprintf(&b, `<text class="cat" x="%.1f" y="%.1f">%s (%s)</text>`,
-			ml-8, y+largeurBarre/2+3, template.HTMLEscapeString(e.Etablissement), template.HTMLEscapeString(e.Quartier))
+			ml-8, y+widthBar/2+3, template.HTMLEscapeString(e.Institution), template.HTMLEscapeString(e.Neighborhood))
 		fmt.Fprintf(&b, `<rect class="barre" x="%.1f" y="%.1f" width="%.1f" height="%.0f">`+
 			`<title>%s, %s (%s) : %d détenus pour %d places, %s %%</title></rect>`,
-			ml, y, largeur, largeurBarre,
-			template.HTMLEscapeString(e.Etablissement), template.HTMLEscapeString(e.Quartier), template.HTMLEscapeString(e.Direction),
-			e.Detenus, e.Capacite, Decimal(e.Densite, 0))
+			ml, y, width, widthBar,
+			template.HTMLEscapeString(e.Institution), template.HTMLEscapeString(e.Neighborhood), template.HTMLEscapeString(e.Direction),
+			e.Inmates, e.Capacity, Decimal(e.Density, 0))
 		fmt.Fprintf(&b, `<text class="val" x="%.1f" y="%.1f">%s %%</text>`,
-			ml+largeur+6, y+largeurBarre/2+3, Decimal(e.Densite, 0))
+			ml+width+6, y+widthBar/2+3, Decimal(e.Density, 0))
 	}
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())

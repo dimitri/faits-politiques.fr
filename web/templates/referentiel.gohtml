@@ -1,6 +1,6 @@
 {{define "content"}}
 <p class="small muted">Référentiel tiers</p>
-<h1>{{.R.Titre}}</h1>
+<h1>{{.R.Title}}</h1>
 
 <div class="warn">
 <strong>Ce référentiel n'est pas une source de faits.</strong> C'est le jugement
@@ -10,17 +10,17 @@ elles décrivent une méthode, elles ne la reprennent pas mot pour mot.
 </div>
 
 <h2>Comment les catégories sont attribuées</h2>
-<p>{{.R.Methode}}</p>
+<p>{{.R.Method}}</p>
 
 <h2>Catégories et dimensions</h2>
 {{range .R.Tags}}
-<h3 id="{{.Cle}}"><code>{{.Cle}}</code> — {{.LibelleFr}}</h3>
-<p>{{.TexteFr}}</p>
+<h3 id="{{.Key}}"><code>{{.Key}}</code> — {{.LabelFr}}</h3>
+<p>{{.TextFr}}</p>
 {{end}}
 
 <h2>Organisations concernées sur ce site</h2>
 {{if .Orgs}}
-<ul class="tight">{{range .Orgs}}<li><a href="{{$.Root}}/organisation/{{.Slug}}/">{{.Libelle}}</a></li>{{end}}</ul>
+<ul class="tight">{{range .Orgs}}<li><a href="{{$.Root}}/organisation/{{.Slug}}/">{{.Label}}</a></li>{{end}}</ul>
 {{else}}<p class="nodata">Aucune organisation suivie par ce site n'est couverte par ce référentiel.</p>{{end}}
 
 <div class="warn">

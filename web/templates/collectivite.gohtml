@@ -2,18 +2,18 @@
 {{$k := .K}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> ›
   <a href="{{.Root}}/collectivites/">Collectivités</a>
-  {{if $k.Region}} › {{if $k.Region.URL}}<a href="{{$k.Region.URL}}">{{$k.Region.Nom}}</a>{{else}}{{$k.Region.Nom}}{{end}}{{end}}
-  › <span>{{$k.Nom}}</span></p>
-<span class="sur">{{$k.TypeLabel}} · exercice {{$k.Exercice}}</span>
-<h1>{{$k.Nom}}</h1>
-<p class="lede">{{nb $k.Population}} habitants{{if $k.Conseillers}}, {{$k.Conseillers}} conseillers
-{{$k.MotConseiller}}{{end}}{{if $k.NbEPCI}}, {{$k.NbEPCI}} intercommunalités à fiscalité propre{{end}}.</p>
+  {{if $k.Region}} › {{if $k.Region.URL}}<a href="{{$k.Region.URL}}">{{$k.Region.Name}}</a>{{else}}{{$k.Region.Name}}{{end}}{{end}}
+  › <span>{{$k.Name}}</span></p>
+<span class="sur">{{$k.TypeLabel}} · exercice {{$k.FiscalYear}}</span>
+<h1>{{$k.Name}}</h1>
+<p class="lede">{{nb $k.Population}} habitants{{if $k.Councillors}}, {{$k.Councillors}} conseillers
+{{$k.WordCouncillor}}{{end}}{{if $k.CountEPCI}}, {{$k.CountEPCI}} intercommunalités à fiscalité propre{{end}}.</p>
 
 {{template "situation" $k.Situation}}
 
 {{if $k.President}}
 <div class="cartes trois">
-  <div class="carte"><span class="v" style="font-size:1.25rem">{{$k.President.Nom}}</span>
+  <div class="carte"><span class="v" style="font-size:1.25rem">{{$k.President.Name}}</span>
     <span class="t">{{$k.President.Role}}</span>
     <span class="d">En fonction depuis le {{$k.President.Depuis}}. Élu par les conseillers, pas au
       suffrage universel direct.</span></div>
@@ -25,44 +25,44 @@ collectivité.</p>
 
 <h2>Les cinq indicateurs financiers</h2>
 <div class="scroll"><table>
-<thead><tr><th>Indicateur</th><th class="n">Total {{$k.Exercice}}</th><th class="n">Par habitant</th>
+<thead><tr><th>Indicateur</th><th class="n">Total {{$k.FiscalYear}}</th><th class="n">Par habitant</th>
   <th class="n">Médiane du niveau</th><th class="n">Rang</th></tr></thead>
-<tbody>{{range $k.Lignes}}<tr>
-  <td>{{.Libelle}}</td>
+<tbody>{{range $k.Lines}}<tr>
+  <td>{{.Label}}</td>
   <td class="n">{{montant .Total}}</td>
-  <td class="n">{{eurHab .ParHab}}</td>
-  <td class="n z">{{eurHab .Mediane}}</td>
-  <td class="n z">{{.Rang}}<sup>e</sup> sur {{.Sur}}</td>
+  <td class="n">{{eurHab .PerInhabitants}}</td>
+  <td class="n z">{{eurHab .Median}}</td>
+  <td class="n z">{{.Rank}}<sup>e</sup> sur {{.On}}</td>
 </tr>{{end}}</tbody></table></div>
 <p class="note">Le rang classe du plus élevé au plus bas <strong>par habitant</strong>. Il ne dit
 rien d'une bonne ou d'une mauvaise gestion&nbsp;: un montant par habitant dépend d'abord de ce que
 la collectivité gère en propre, et de la taille de son dénominateur.</p>
 
-{{with $k.Recettes}}
+{{with $k.Revenues}}
 <h2>D'où vient l'argent</h2>
-<p class="q">{{montant .Total}} de recettes en {{$k.Exercice}}. Ce sont les comptes propres
-de la collectivité ({{$k.Nom}}), pas une moyenne nationale répartie&nbsp;: chaque collectivité publie les siens, agrégés par l'Observatoire des finances et de
+<p class="q">{{montant .Total}} de recettes en {{$k.FiscalYear}}. Ce sont les comptes propres
+de la collectivité ({{$k.Name}}), pas une moyenne nationale répartie&nbsp;: chaque collectivité publie les siens, agrégés par l'Observatoire des finances et de
 la gestion publique locales (OFGL).</p>
 <div class="origine">
   <div class="origine-ligne">
-    <span class="origine-nom">{{$k.Nom}}</span>
-    <span class="origine-barre" role="img" aria-label="Impôts et taxes {{dec .ImpotsPct 0}} %, dotation globale de fonctionnement {{dec .DGFPct 0}} %, autres recettes {{dec .AutresPct 0}} %">
-      <i class="o-imp" style="width:{{printf "%.1f" .ImpotsPct}}%"></i><i class="o-dgf" style="width:{{printf "%.1f" .DGFPct}}%"></i><i class="o-aut" style="width:{{printf "%.1f" .AutresPct}}%"></i>
+    <span class="origine-nom">{{$k.Name}}</span>
+    <span class="origine-barre" role="img" aria-label="Impôts et taxes {{dec .TaxesPct 0}} %, dotation globale de fonctionnement {{dec .DGFPct 0}} %, autres recettes {{dec .OthersPct 0}} %">
+      <i class="o-imp" style="width:{{printf "%.1f" .TaxesPct}}%"></i><i class="o-dgf" style="width:{{printf "%.1f" .DGFPct}}%"></i><i class="o-aut" style="width:{{printf "%.1f" .OthersPct}}%"></i>
     </span>
   </div>
   <div class="origine-ligne ref">
-    <span class="origine-nom">Ensemble des {{.RefLibelle}}</span>
-    <span class="origine-barre" role="img" aria-label="Impôts et taxes {{dec .RefImpotsPct 0}} %, dotation globale de fonctionnement {{dec .RefDGFPct 0}} %, autres recettes {{dec .RefAutrePct 0}} %">
-      <i class="o-imp" style="width:{{printf "%.1f" .RefImpotsPct}}%"></i><i class="o-dgf" style="width:{{printf "%.1f" .RefDGFPct}}%"></i><i class="o-aut" style="width:{{printf "%.1f" .RefAutrePct}}%"></i>
+    <span class="origine-nom">Ensemble des {{.RefLabel}}</span>
+    <span class="origine-barre" role="img" aria-label="Impôts et taxes {{dec .RefTaxesPct 0}} %, dotation globale de fonctionnement {{dec .RefDGFPct 0}} %, autres recettes {{dec .RefOtherPct 0}} %">
+      <i class="o-imp" style="width:{{printf "%.1f" .RefTaxesPct}}%"></i><i class="o-dgf" style="width:{{printf "%.1f" .RefDGFPct}}%"></i><i class="o-aut" style="width:{{printf "%.1f" .RefOtherPct}}%"></i>
     </span>
   </div>
 </div>
 <div class="scroll"><table>
-<thead><tr><th>Origine</th><th class="n">{{$k.Nom}}</th><th class="n">Part</th><th class="n">Ensemble des {{.RefLibelle}}</th></tr></thead>
+<thead><tr><th>Origine</th><th class="n">{{$k.Name}}</th><th class="n">Part</th><th class="n">Ensemble des {{.RefLabel}}</th></tr></thead>
 <tbody>
-<tr><td><i class="pastille o-imp"></i>Impôts et taxes</td><td class="n">{{montant .Impots}}</td><td class="n">{{dec .ImpotsPct 0}}&nbsp;%</td><td class="n z">{{dec .RefImpotsPct 0}}&nbsp;%</td></tr>
+<tr><td><i class="pastille o-imp"></i>Impôts et taxes</td><td class="n">{{montant .Taxes}}</td><td class="n">{{dec .TaxesPct 0}}&nbsp;%</td><td class="n z">{{dec .RefTaxesPct 0}}&nbsp;%</td></tr>
 <tr><td><i class="pastille o-dgf"></i>Dotation globale de fonctionnement (État)</td><td class="n">{{montant .DGF}}</td><td class="n">{{dec .DGFPct 0}}&nbsp;%</td><td class="n z">{{dec .RefDGFPct 0}}&nbsp;%</td></tr>
-<tr><td><i class="pastille o-aut"></i>Autres recettes</td><td class="n">{{montant .Autres}}</td><td class="n">{{dec .AutresPct 0}}&nbsp;%</td><td class="n z">{{dec .RefAutrePct 0}}&nbsp;%</td></tr>
+<tr><td><i class="pastille o-aut"></i>Autres recettes</td><td class="n">{{montant .Others}}</td><td class="n">{{dec .OthersPct 0}}&nbsp;%</td><td class="n z">{{dec .RefOtherPct 0}}&nbsp;%</td></tr>
 </tbody></table></div>
 <p class="note">«&nbsp;Impôts et taxes&nbsp;» ne veut pas dire «&nbsp;impôts votés sur
 place&nbsp;»&nbsp;: on y trouve des taxes dont la collectivité fixe le taux, d'autres dont elle ne
@@ -80,54 +80,54 @@ fraction de TVA&nbsp;: elle est presque nulle, sans que l'État verse moins.{{en
 <div class="scroll"><table>
 <thead><tr><th>Fonction</th><th>Nom</th></tr></thead>
 <tbody>{{range $k.Vices}}<tr><td class="small z">{{.Role}}</td>
-  <td>{{if .Fiche}}<a href="{{$.Root}}/depute/{{.Slug}}/">{{.Nom}}</a>{{else}}{{.Nom}}{{end}}</td></tr>{{end}}</tbody></table></div>
+  <td>{{if .Profile}}<a href="{{$.Root}}/depute/{{.Slug}}/">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td></tr>{{end}}</tbody></table></div>
 {{end}}
 
-{{if $k.Groupements}}
-<h2>Les {{len $k.Groupements}} intercommunalités à fiscalité propre</h2>
+{{if $k.Groupings}}
+<h2>Les {{len $k.Groupings}} intercommunalités à fiscalité propre</h2>
 <p class="q">Communautés de communes, d'agglomération, urbaines et métropoles ayant leur siège dans
 ce département. Le président est celui que publie la base nationale des intercommunalités.</p>
 <div class="scroll"><table>
 <thead><tr><th>Groupement</th><th>Forme</th><th>Président</th><th class="n">Habitants</th>
   <th class="n">Communes</th><th class="n">Compétences</th><th class="n">Dette / hab.</th></tr></thead>
-<tbody>{{range $k.Groupements}}<tr>
-  <td><a href="{{$.Root}}/collectivites/epci/{{.Siren}}/">{{.Nom}}</a> <span class="z small">{{.Siren}}</span></td>
+<tbody>{{range $k.Groupings}}<tr>
+  <td><a href="{{$.Root}}/collectivites/epci/{{.Siren}}/">{{.Name}}</a> <span class="z small">{{.Siren}}</span></td>
   <td class="small z">{{.Nature}}</td>
   <td class="small">{{if .President}}{{.President}}{{else}}<span class="z">non publié</span>{{end}}</td>
   <td class="n">{{nb .Population}}</td>
-  <td class="n z">{{.Membres}}</td>
-  <td class="n z">{{.Competences}}</td>
-  <td class="n">{{eurHab (index .ParHab "ofgl.dette_par_hab")}}</td>
+  <td class="n z">{{.Members}}</td>
+  <td class="n z">{{.Responsibilities}}</td>
+  <td class="n">{{eurHab (index .PerInhabitants "ofgl.dette_par_hab")}}</td>
 </tr>{{end}}</tbody></table></div>
 {{end}}
 
-{{if $k.Communes}}
-<h2>Les {{len $k.Communes}} communes</h2>
+{{if $k.Municipalities}}
+<h2>Les {{len $k.Municipalities}} communes</h2>
 <details class="plus">
   <summary>Toutes les communes, par ordre alphabétique</summary>
-  <div class="dedans"><ul class="liens-communes">{{range $k.Communes}}<li><a href="{{.URL}}">{{.Nom}}</a></li>{{end}}</ul></div>
+  <div class="dedans"><ul class="liens-communes">{{range $k.Municipalities}}<li><a href="{{.URL}}">{{.Name}}</a></li>{{end}}</ul></div>
 </details>
 {{end}}
 
-{{if $k.Circonscriptions}}
-<h2>Les {{len $k.Circonscriptions}} circonscriptions législatives</h2>
+{{if $k.Districts}}
+<h2>Les {{len $k.Districts}} circonscriptions législatives</h2>
 <p class="q">Chacune élit un député. Leur page les situe dans la France entière, avec leurs
 communes et leurs députés depuis 2012.</p>
-<ul class="liens-cartes">{{range $k.Circonscriptions}}<li><a href="{{.URL}}">{{.Nom}}</a></li>{{end}}</ul>
+<ul class="liens-cartes">{{range $k.Districts}}<li><a href="{{.URL}}">{{.Name}}</a></li>{{end}}</ul>
 {{end}}
 
-{{if $k.Departements}}
-<h2>Les {{len $k.Departements}} départements de la région</h2>
-<ul class="liens-cartes">{{range $k.Departements}}<li>{{if .URL}}<a href="{{.URL}}">{{.Nom}}</a>{{else}}{{.Nom}}{{end}} <span class="z small">{{.Code}}</span></li>{{end}}</ul>
+{{if $k.Departments}}
+<h2>Les {{len $k.Departments}} départements de la région</h2>
+<ul class="liens-cartes">{{range $k.Departments}}<li>{{if .URL}}<a href="{{.URL}}">{{.Name}}</a>{{else}}{{.Name}}{{end}} <span class="z small">{{.Code}}</span></li>{{end}}</ul>
 {{end}}
 
-{{if $k.Voisines}}
-<h2>Les autres {{lower $k.TypePluriel}}</h2>
+{{if $k.Neighboring}}
+<h2>Les autres {{lower $k.TypePlural}}</h2>
 <ul class="liens-cartes">
-  {{range $k.Voisines}}<li><a href="{{$.Root}}/collectivites/{{$k.TypeURL}}/{{.Slug}}/">{{.Titre}}</a></li>{{end}}
+  {{range $k.Neighboring}}<li><a href="{{$.Root}}/collectivites/{{$k.TypeURL}}/{{.Slug}}/">{{.Title}}</a></li>{{end}}
 </ul>
 {{end}}
 
-<p class="src">Finances&nbsp;: OFGL / DGCL, exercice {{$k.Exercice}}. Exécutifs&nbsp;: répertoire
+<p class="src">Finances&nbsp;: OFGL / DGCL, exercice {{$k.FiscalYear}}. Exécutifs&nbsp;: répertoire
 national des élus. Intercommunalités&nbsp;: base nationale sur les intercommunalités.</p>
 {{end}}

@@ -10,15 +10,15 @@ import (
 )
 
 type Media struct {
-	Fichier, SourceURL, Licence, Auteur string
-	Largeur, Hauteur                    int
+	File, SourceURL, License, Author string
+	Width, Height                    int
 }
 
 // loadMedias charge les portraits et logos retenus. Seuls des fichiers sous
 // licence libre sont en base : le crédit affiché n'est pas décoratif, il est la
 // condition de la réutilisation.
 func loadMedias(ctx context.Context, pool *pgxpool.Pool) (map[string]*Media, map[int64]*Media, error) {
-	parPersonne := map[string]*Media{}
+	perPerson := map[string]*Media{}
 	rows, err := pool.Query(ctx, `
 		SELECT p.slug, m.fichier, m.source_url, m.licence, coalesce(m.auteur,''),
 		       coalesce(m.largeur,0), coalesce(m.hauteur,0)
@@ -30,15 +30,15 @@ func loadMedias(ctx context.Context, pool *pgxpool.Pool) (map[string]*Media, map
 	for rows.Next() {
 		var slug string
 		m := &Media{}
-		if err := rows.Scan(&slug, &m.Fichier, &m.SourceURL, &m.Licence, &m.Auteur,
-			&m.Largeur, &m.Hauteur); err != nil {
+		if err := rows.Scan(&slug, &m.File, &m.SourceURL, &m.License, &m.Author,
+			&m.Width, &m.Height); err != nil {
 			return nil, nil, err
 		}
-		parPersonne[slug] = m
+		perPerson[slug] = m
 	}
 	rows.Close()
 
-	parOrg := map[int64]*Media{}
+	perOrg := map[int64]*Media{}
 	rows, err = pool.Query(ctx, `
 		SELECT m.organization_id, m.fichier, m.source_url, m.licence, coalesce(m.auteur,''),
 		       coalesce(m.largeur,0), coalesce(m.hauteur,0)
@@ -50,13 +50,13 @@ func loadMedias(ctx context.Context, pool *pgxpool.Pool) (map[string]*Media, map
 	for rows.Next() {
 		var id int64
 		m := &Media{}
-		if err := rows.Scan(&id, &m.Fichier, &m.SourceURL, &m.Licence, &m.Auteur,
-			&m.Largeur, &m.Hauteur); err != nil {
+		if err := rows.Scan(&id, &m.File, &m.SourceURL, &m.License, &m.Author,
+			&m.Width, &m.Height); err != nil {
 			return nil, nil, err
 		}
-		parOrg[id] = m
+		perOrg[id] = m
 	}
-	return parPersonne, parOrg, rows.Err()
+	return perPerson, perOrg, rows.Err()
 }
 
 // copyMedia recopie les fichiers dans le site généré.

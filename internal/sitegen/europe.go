@@ -9,30 +9,30 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type GroupeEP struct {
-	Slug, Nom, NomCourt                string
-	Effectif, Pour, Contre, Abstention int
+type GroupEP struct {
+	Slug, Name, NameShort               string
+	Headcount, For, Against, Abstention int
 }
 
-type ThemeEuroVoc struct {
+type ThemeEuroVocabulary struct {
 	Code, Label string
-	Scrutins    int
+	Elections   int
 }
 
 type StatsEurope struct {
-	Scrutins, Votes, Eurodeputes int
-	Groupes                      []GroupeEP
-	Derniers                     []Vote
-	Themes                       []ThemeEuroVoc
-	ThemesSVG                    template.HTML
-	Eurodep                      []*Person
+	Elections, Votes, Eurodeputes int
+	Groups                        []GroupEP
+	Last                          []Vote
+	Themes                        []ThemeEuroVocabulary
+	ThemesSVG                     template.HTML
+	Eurodep                       []*Person
 }
 
-// dessinerThemesEuroVoc : les vingt thématiques EuroVoc les plus fréquentes
+// drawThemesEuroVocabulary : les vingt thématiques EuroVoc les plus fréquentes
 // parmi les scrutins chargés — le classement complet (jusqu'à 60 thèmes,
 // seuil à 20 scrutins) reste disponible dans le tableau qui suit le
 // graphique, celui-ci n'en montre que la tête pour rester lisible.
-func dessinerThemesEuroVoc(themes []ThemeEuroVoc) template.HTML {
+func drawThemesEuroVocabulary(themes []ThemeEuroVocabulary) template.HTML {
 	if len(themes) == 0 {
 		return ""
 	}
@@ -40,7 +40,7 @@ func dessinerThemesEuroVoc(themes []ThemeEuroVoc) template.HTML {
 	if n > 20 {
 		n = 20
 	}
-	max := themes[0].Scrutins
+	max := themes[0].Elections
 	if max <= 0 {
 		return ""
 	}
@@ -50,7 +50,7 @@ func dessinerThemesEuroVoc(themes []ThemeEuroVoc) template.HTML {
 		fmt.Fprintf(&b, `<div class="ligne"><span class="n">%s</span>`+
 			`<span class="piste"><i style="width:%.1f%%"></i></span>`+
 			`<span class="v">%s</span></div>`,
-			template.HTMLEscapeString(t.Label), 100*float64(t.Scrutins)/float64(max), Nombre(t.Scrutins))
+			template.HTMLEscapeString(t.Label), 100*float64(t.Elections)/float64(max), Count(t.Elections))
 	}
 	b.WriteString(`</div>`)
 	return template.HTML(b.String())
@@ -71,7 +71,7 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 		       (SELECT count(*) FROM mv.scrutin_vote_nominal mv JOIN core.scrutin s ON s.id=mv.scrutin_id
 		         WHERE s.institution='PARLEMENT_EUROPEEN'),
 		       (SELECT count(*) FROM core.person_identifier WHERE scheme='EP_MEP')`).
-		Scan(&e.Scrutins, &e.Votes, &e.Eurodeputes); err != nil {
+		Scan(&e.Elections, &e.Votes, &e.Eurodeputes); err != nil {
 		return nil, err
 	}
 
@@ -90,12 +90,12 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 		return nil, err
 	}
 	for rows.Next() {
-		var g GroupeEP
-		if err := rows.Scan(&g.Slug, &g.Nom, &g.NomCourt, &g.Effectif,
-			&g.Pour, &g.Contre, &g.Abstention); err != nil {
+		var g GroupEP
+		if err := rows.Scan(&g.Slug, &g.Name, &g.NameShort, &g.Headcount,
+			&g.For, &g.Against, &g.Abstention); err != nil {
 			return nil, err
 		}
-		e.Groupes = append(e.Groupes, g)
+		e.Groups = append(e.Groups, g)
 	}
 	rows.Close()
 
@@ -108,11 +108,11 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 	}
 	for rows.Next() {
 		var v Vote
-		if err := rows.Scan(&v.Slug, &v.Objet, &v.Date, &v.Resultat); err != nil {
+		if err := rows.Scan(&v.Slug, &v.Object, &v.Date, &v.Result); err != nil {
 			return nil, err
 		}
-		v.Objet, _ = TitreCourt(v.Objet)
-		e.Derniers = append(e.Derniers, v)
+		v.Object, _ = TitleShort(v.Object)
+		e.Last = append(e.Last, v)
 	}
 	rows.Close()
 
@@ -129,14 +129,14 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 		return nil, err
 	}
 	for rows.Next() {
-		var t ThemeEuroVoc
-		if err := rows.Scan(&t.Code, &t.Label, &t.Scrutins); err != nil {
+		var t ThemeEuroVocabulary
+		if err := rows.Scan(&t.Code, &t.Label, &t.Elections); err != nil {
 			return nil, err
 		}
 		e.Themes = append(e.Themes, t)
 	}
 	rows.Close()
-	e.ThemesSVG = dessinerThemesEuroVoc(e.Themes)
+	e.ThemesSVG = drawThemesEuroVocabulary(e.Themes)
 
 	rows, err = pool.Query(ctx, `
 		SELECT DISTINCT p.slug, p.given_name, p.family_name,
@@ -152,7 +152,7 @@ func loadEurope(ctx context.Context, pool *pgxpool.Pool) (*StatsEurope, error) {
 	defer rows.Close()
 	for rows.Next() {
 		p := &Person{}
-		if err := rows.Scan(&p.Slug, &p.Prenom, &p.Nom, &p.Groupe); err != nil {
+		if err := rows.Scan(&p.Slug, &p.FirstName, &p.Name, &p.Group); err != nil {
 			return nil, err
 		}
 		e.Eurodep = append(e.Eurodep, p)

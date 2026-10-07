@@ -7,22 +7,22 @@ import (
 )
 
 type Tag struct {
-	SetSlug, Cle, LibelleFr, TexteFr string
+	SetSlug, Key, LabelFr, TextFr string
 }
 
-type Referentiel struct {
-	Slug, Titre, Methode string
-	Tags                 []Tag
+type Reference struct {
+	Slug, Title, Method string
+	Tags                []Tag
 }
 
-// loadReferentiels lit les explications françaises des catégories employées par
+// loadReferences lit les explications françaises des catégories employées par
 // les référentiels tiers.
 //
 // Ces textes sont LES NÔTRES : ils expliquent une méthode, ils ne la reprennent
 // pas mot pour mot et ne l'endossent pas. La catégorie reste toujours affichée
 // dans le vocabulaire d'origine — « far right » n'est jamais traduit en
 // « extrême droite », parce que ce ne sont pas les mêmes objets.
-func loadReferentiels(path string) (map[string]*Referentiel, map[string]Tag, error) {
+func loadReferences(path string) (map[string]*Reference, map[string]Tag, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, nil, err
@@ -46,7 +46,7 @@ func loadReferentiels(path string) (map[string]*Referentiel, map[string]Tag, err
 		return ""
 	}
 
-	refs := map[string]*Referentiel{}
+	refs := map[string]*Reference{}
 	tags := map[string]Tag{}
 	for _, rec := range recs[1:] {
 		set := get(rec, "set_slug")
@@ -55,18 +55,18 @@ func loadReferentiels(path string) (map[string]*Referentiel, map[string]Tag, err
 		}
 		ref, ok := refs[set]
 		if !ok {
-			ref = &Referentiel{Slug: set}
+			ref = &Reference{Slug: set}
 			refs[set] = ref
 		}
 		switch get(rec, "type") {
 		case "METHODE":
-			ref.Titre = get(rec, "libelle_fr")
-			ref.Methode = get(rec, "texte_fr")
+			ref.Title = get(rec, "libelle_fr")
+			ref.Method = get(rec, "texte_fr")
 		case "TAG":
-			t := Tag{SetSlug: set, Cle: get(rec, "cle"),
-				LibelleFr: get(rec, "libelle_fr"), TexteFr: get(rec, "texte_fr")}
+			t := Tag{SetSlug: set, Key: get(rec, "cle"),
+				LabelFr: get(rec, "libelle_fr"), TextFr: get(rec, "texte_fr")}
 			ref.Tags = append(ref.Tags, t)
-			tags[set+"/"+t.Cle] = t
+			tags[set+"/"+t.Key] = t
 		}
 	}
 	return refs, tags, nil

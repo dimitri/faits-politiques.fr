@@ -1,8 +1,8 @@
 {{define "content"}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Sécurité</span></p>
-<span class="sur">Faits enregistrés · {{.S.Debut}}–{{.S.Annee}}</span>
+<span class="sur">Faits enregistrés · {{.S.Start}}–{{.S.Year}}</span>
 <h1>Sécurité</h1>
-<p class="lede">Quinze indicateurs, {{nb .S.Communes}} communes, dix ans. Publiés par le service
+<p class="lede">Quinze indicateurs, {{nb .S.Municipalities}} communes, dix ans. Publiés par le service
 statistique du ministère de l'Intérieur.</p>
 
 <p class="note proc"><strong>Ce sont des faits <em>enregistrés</em>, pas des faits commis.</strong>
@@ -15,19 +15,19 @@ faits, le SSMSI ne diffuse pas la valeur — un fait rare dans une petite commun
 personnes. Ces communes sont exclues du calcul, pas comptées comme zéro.</p>
 
 <div class="cartes-grille">
-{{range .S.Indicateurs}}
+{{range .S.Indicators}}
   <a class="bloc-carte" href="{{$.Root}}/securite/{{.Slug}}/">
-    <h3>{{.Libelle}}</h3>
+    <h3>{{.Label}}</h3>
     <p class="q">{{if .Question}}{{.Question}}{{end}}</p>
-    {{if .Apercu.Vide}}<p class="nodata">Aucune donnée diffusée.</p>{{else}}
-    {{.Apercu.SVG}}
-    {{$t := .Apercu.Teintes}}<span class="echelle"><span class="u">‰ habitants</span>
-      {{range $i, $b := .Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+    {{if .Overview.Empty}}<p class="nodata">Aucune donnée diffusée.</p>{{else}}
+    {{.Overview.SVG}}
+    {{$t := .Overview.Shades}}<span class="echelle"><span class="u">‰ habitants</span>
+      {{range $i, $b := .Overview.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
     </span>
     {{end}}
-    {{template "cartons" .Apercu.Cartons}}
-    <span class="src">{{dec .National 1}} ‰ au niveau national en {{$.S.Annee}}
-      {{if .Masques}} · {{nb .Masques}} communes masquées{{end}}</span>
+    {{template "cartons" .Overview.Tiles}}
+    <span class="src">{{dec .National 1}} ‰ au niveau national en {{$.S.Year}}
+      {{if .Masks}} · {{nb .Masks}} communes masquées{{end}}</span>
     <span class="voir">Voir la carte, l'évolution et le classement →</span>
   </a>
 {{end}}

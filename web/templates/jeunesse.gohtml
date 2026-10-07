@@ -4,64 +4,64 @@
   <a href="{{.Root}}/comprendre/">Comprendre</a> › <span>Jeunesse</span></p>
 <span class="sur">PLF · DEPP InserJeunes</span>
 <h1>La jeunesse : études supérieures, apprentissage, premiers emplois</h1>
-<p class="lede">{{dec $j.EnseignementSup 2}}&nbsp;Md€ pour l'enseignement supérieur dans le budget de
+<p class="lede">{{dec $j.EducationHigher 2}}&nbsp;Md€ pour l'enseignement supérieur dans le budget de
 l'État, {{dec $j.CEJ2025 3}}&nbsp;Md€ pour le Contrat d'engagement jeune — deux guichets distincts
 de l'apprentissage, financé hors budget de l'État par la taxe d'apprentissage et les employeurs.</p>
 
-{{if $j.CourbeSVG}}
+{{if $j.CurveSVG}}
 <h2>L'insertion après l'apprentissage, promotion par promotion</h2>
 <p class="q">Taux d'emploi médian des CFA à 6 mois, toutes filières confondues&nbsp;: de
-{{dec $j.TauxDebut 0}}&nbsp;% ({{$j.PremierePromo}}) à {{dec $j.TauxFin 0}}&nbsp;%
-({{$j.DernierePromo}}).</p>
-{{$j.CourbeSVG}}
+{{dec $j.RateStart 0}}&nbsp;% ({{$j.FirstPromo}}) à {{dec $j.RateEnd 0}}&nbsp;%
+({{$j.LastPromo}}).</p>
+{{$j.CurveSVG}}
 <p class="note abs">Une médiane des CFA mesurés, jamais une moyenne nationale pondérée&nbsp;:
 InserJeunes ne publie aucun effectif par CFA. <a href="{{.Root}}/comprendre/jeunesse-donnees/">Le
 détail, § 3</a>.</p>
 {{end}}
 
-{{if $j.NiveauxEmploi}}
+{{if $j.LevelsEmployment}}
 <h2>Par niveau de diplôme, la promotion la plus récente</h2>
 <table class="donnees">
   <thead><tr><th>Niveau</th><th class="n">CFA mesurés</th><th class="n">Taux d'emploi à 6 mois (médiane)</th></tr></thead>
-  <tbody>{{range $j.NiveauxEmploi}}<tr><td>{{.Niveau}}</td><td class="n">{{nb .NbCFA}}</td><td class="n">{{dec .MedianeEmploi 0}}&nbsp;%</td></tr>{{end}}</tbody>
+  <tbody>{{range $j.LevelsEmployment}}<tr><td>{{.Level}}</td><td class="n">{{nb .CountCFA}}</td><td class="n">{{dec .MedianEmployment 0}}&nbsp;%</td></tr>{{end}}</tbody>
 </table>
 {{end}}
 
 <h2>Où l'insertion est-elle la meilleure</h2>
-{{/* Même garde que vieillesse.gohtml : Carte.Vide ne distingue pas « des
+{{/* Même garde que vieillesse.gohtml : Carte.Empty ne distingue pas « des
      régions connues, toutes sans valeur » de « aucune carte construite »
      (core.insertion_apprentissage vide, la source « jeunesse » étant hors
-     chaîne par défaut — ingest.ChaineParDefaut). Le zéro de CarteTerritoire a
-     Carte.Vide à false : sans le test sur Slug, la page publiait un cadre vide,
+     chaîne par défaut — ingest.ChainePerDefaut). Le zéro de CarteTerritoire a
+     Carte.Empty à false : sans le test sur Slug, la page publiait un cadre vide,
      « 0 régions renseignées » et un lien mort vers /jeunesse/carte//. */}}
-{{if or (not $j.CarteInsertion.Slug) $j.CarteInsertion.Page.Carte.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+{{if or (not $j.MapInsertion.Slug) $j.MapInsertion.Page.Map.Empty}}<p class="nodata">Aucune donnée.</p>{{else}}
 <div class="cartes-lignes carte-dossier">
 <div class="bloc-carte ligne">
   <div>
-    {{$j.CarteInsertion.Page.Carte.SVG}}
-    {{template "cartons" $j.CarteInsertion.Page.Carte.Cartons}}
+    {{$j.MapInsertion.Page.Map.SVG}}
+    {{template "cartons" $j.MapInsertion.Page.Map.Tiles}}
   </div>
   <div>
-    <h3>{{$j.CarteInsertion.Titre}}</h3>
-    <p class="q">{{$j.CarteInsertion.Question}}</p>
-    {{$t := $j.CarteInsertion.Page.Carte.Teintes}}<div class="echelle"><span class="u">{{$j.CarteInsertion.Page.Carte.Unite}}</span>
-      {{range $i, $b := $j.CarteInsertion.Page.Carte.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
-      {{if $j.CarteInsertion.Page.Carte.NbAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
+    <h3>{{$j.MapInsertion.Title}}</h3>
+    <p class="q">{{$j.MapInsertion.Question}}</p>
+    {{$t := $j.MapInsertion.Page.Map.Shades}}<div class="echelle"><span class="u">{{$j.MapInsertion.Page.Map.Unit}}</span>
+      {{range $i, $b := $j.MapInsertion.Page.Map.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+      {{if $j.MapInsertion.Page.Map.CountAbsents}}<span><i style="background:#EFEBE2"></i>aucune donnée</span>{{end}}
     </div>
-    <span class="src">{{$j.CarteInsertion.Source}} · {{$j.CarteInsertion.Page.Carte.Total}} régions renseignées{{if $j.CarteInsertion.Page.Carte.NbAbsents}}, {{$j.CarteInsertion.Page.Carte.NbAbsents}} sans donnée{{end}}</span>
-    <a class="voir" href="{{.Root}}/jeunesse/carte/{{$j.CarteInsertion.Slug}}/">Le classement des régions et la méthode →</a>
+    <span class="src">{{$j.MapInsertion.Source}} · {{$j.MapInsertion.Page.Map.Total}} régions renseignées{{if $j.MapInsertion.Page.Map.CountAbsents}}, {{$j.MapInsertion.Page.Map.CountAbsents}} sans donnée{{end}}</span>
+    <a class="voir" href="{{.Root}}/jeunesse/carte/{{$j.MapInsertion.Slug}}/">Le classement des régions et la méthode →</a>
   </div>
 </div>
 </div>
 {{end}}
-{{if $j.CarteInsertion.Note}}<p class="note abs">{{$j.CarteInsertion.Note}}</p>{{end}}
+{{if $j.MapInsertion.Note}}<p class="note abs">{{$j.MapInsertion.Note}}</p>{{end}}
 
 <h2>Les études supérieures et le Contrat d'engagement jeune</h2>
 <table class="donnees">
   <thead><tr><th>Poste</th><th class="n">Md€</th></tr></thead>
   <tbody>
-    <tr><td>Formations supérieures et recherche universitaire</td><td class="n">{{dec $j.EnseignementSup 2}}</td></tr>
-    <tr><td>Vie étudiante (bourses, CROUS)</td><td class="n">{{dec $j.VieEtudiante 2}}</td></tr>
+    <tr><td>Formations supérieures et recherche universitaire</td><td class="n">{{dec $j.EducationHigher 2}}</td></tr>
+    <tr><td>Vie étudiante (bourses, CROUS)</td><td class="n">{{dec $j.LifeStudent 2}}</td></tr>
     <tr><td>Contrat d'engagement jeune (2024)</td><td class="n">{{dec $j.CEJ2024 3}}</td></tr>
     <tr><td>Contrat d'engagement jeune (2025)</td><td class="n">{{dec $j.CEJ2025 3}}</td></tr>
   </tbody>

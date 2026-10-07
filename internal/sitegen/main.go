@@ -38,16 +38,16 @@ var positionFr = map[string]string{
 type SourceInfo struct{ Attribution, Label, Fetched, SHA string }
 
 type Coverage struct {
-	Scrutins, Ballots, Deputes, Orgs int
-	Dossiers                         int
-	Candidats, CandidatsAvecBilan    int
-	CandidatsPrimaire                int
-	Organisations                    int
-	Documents                        int64
-	ScrutinsPE, Themes               int
-	ScrutinsSenat, VotesSenat        int
-	Senateurs, ThemesSenat           int
-	Communes                         int
+	Elections, Ballots, Deputies, Orgs int
+	Dossiers                           int
+	Candidates, CandidatesWithSummary  int
+	CandidatesPrimary                  int
+	Organizations                      int
+	Documents                          int64
+	ElectionsPE, Themes                int
+	ElectionsSenate, VotesSenate       int
+	Senators, ThemesSenate             int
+	Municipalities                     int
 }
 
 type Layout struct {
@@ -55,12 +55,12 @@ type Layout struct {
 	// Noms des ressources partagées, empreinte comprise. Voir assets.go.
 	CSS, JS             string
 	Hero                bool
-	HeroTitre, HeroLede string
+	HeroTitle, HeroLede string
 	// HeroVisuel : un graphique à côté du titre (accueil), sous le titre sur mobile.
-	HeroVisuel        template.HTML
-	DerniereIngestion string
-	Sources           []SourceInfo
-	Cov               Coverage
+	HeroVisual    template.HTML
+	LastIngestion string
+	Sources       []SourceInfo
+	Cov           Coverage
 	// Partage social (og:*, twitter:*) — voir internal/sitegen/social.go.
 	// Description et Image sont vides par défaut ; base.gohtml retombe alors
 	// sur une description générique et sur og-defaut.png. CanonicalBase est le
@@ -73,38 +73,38 @@ type Layout struct {
 }
 
 type Vote struct {
-	Slug, Objet, Date, Position, PositionFr, Resultat string
-	Rectifiee                                         bool
+	Slug, Object, Date, Position, PositionFr, Result string
+	Adjusted                                         bool
 }
 
-type Mandat struct {
-	Type, Circo, Periode, Role, Portefeuille string
-	DebutISO, FinISO                         string
-	SousPresidence                           string
-	CommuneCode                              string
-	Lieux                                    []Lieu
+type Term struct {
+	Type, District, Period, Role, Portfolio string
+	StartISO, EndISO                        string
+	SubPresidency                           string
+	MunicipalityCode                        string
+	Places                                  []Place
 }
-type Affil struct{ Nom, Kind, Periode, Via string }
+type Affil struct{ Name, Kind, Period, Via string }
 
 type Person struct {
 	ID                                  int64
-	Slug, Prenom, Nom, Groupe, Mandat   string
-	Mandats                             []Mandat
+	Slug, FirstName, Name, Group, Term  string
+	Terms                               []Term
 	Affiliations                        []Affil
-	Pour, Contre, Abstention, NonVotant int
-	PctPour, PctContre, PctAbst         int
-	Exprimes, PctExprimes, VotesShown   int
+	For, Against, Abstention, NonVoter  int
+	PctFor, PctAgainst, PctAbst         int
+	Expressed, PctExpressed, VotesShown int
 	HasVotes                            bool
 	Votes                               []Vote
 }
 
-type Candidat struct {
-	Slug, Nom, Prenom, Organisation, Statut     string
-	DateDeclaration, SourceURL, SourceConsultee string
-	SiteCampagne                                string
-	OrganisationSlug                            string
+type Candidate struct {
+	Slug, Name, FirstName, Organization, Status string
+	DateDeclaration, SourceURL, SourceConsulted string
+	SiteCampaign                                string
+	OrganizationSlug                            string
 	Person                                      *Person
-	Org                                         *Organisation
+	Org                                         *Organization
 	Portrait                                    *Media
 }
 
@@ -141,7 +141,7 @@ func run(ctx context.Context, args []string, sections []string) error {
 	tpl := fs.String("templates", "web/templates", "gabarits")
 	dataDir := fs.String("data", "data", "décisions éditoriales")
 	root := fs.String("root", "", "préfixe d'URL")
-	maxScrutins := fs.Int("max-scrutins", 0, "limite de pages scrutin (0 = toutes)")
+	maxElections := fs.Int("max-scrutins", 0, "limite de pages scrutin (0 = toutes)")
 	cpuProfile := fs.String("cpuprofile", "", "écrit un profil CPU pprof à ce chemin (diagnostic, pas d'usage courant)")
 	if err := fs.Parse(args); err != nil {
 		return err
@@ -168,9 +168,9 @@ func run(ctx context.Context, args []string, sections []string) error {
 	// désormais distinct, et l'échange final ne laisse le site absent que le
 	// temps de deux renommages. Si la construction échoue, le site en ligne
 	// n'est pas touché.
-	chantier := strings.TrimRight(*out, "/") + ".construction"
-	if err := buildAt(ctx, chantier, *tpl, *dataDir, *root, *maxScrutins, sections); err != nil {
-		if errors.Is(err, errRienAFaire) {
+	project := strings.TrimRight(*out, "/") + ".construction"
+	if err := buildAt(ctx, project, *tpl, *dataDir, *root, *maxElections, sections); err != nil {
+		if errors.Is(err, errNothingAMake) {
 			// buildAt est retourné avant même de créer chantier/ : rien à
 			// mettre en place, le site publié est déjà à jour.
 			return nil
@@ -184,38 +184,38 @@ func run(ctx context.Context, args []string, sections []string) error {
 	// /scrutin/ en production.
 	if len(sections) > 0 {
 		logs.Notice(fmt.Sprintf("%s: partial site kept in %s/, NOT deployed. "+
-			"Inspect it, then rerun \"fpctl build site\" to publish.", strings.Join(sections, ","), chantier))
+			"Inspect it, then rerun \"fpctl build site\" to publish.", strings.Join(sections, ","), project))
 		return nil
 	}
-	if err := mettreEnPlace(chantier, *out); err != nil {
+	if err := setInPlace(project, *out); err != nil {
 		return fmt.Errorf("mise en place : %w", err)
 	}
 	return nil
 }
 
-// mettreEnPlace remplace le site servi par celui qui vient d'être construit.
+// setInPlace remplace le site servi par celui qui vient d'être construit.
 // L'ancien est renommé avant d'être effacé : le serveur ne voit jamais un
 // répertoire à moitié supprimé.
-func mettreEnPlace(chantier, out string) error {
-	ancien := strings.TrimRight(out, "/") + ".precedent"
-	if err := os.RemoveAll(ancien); err != nil {
+func setInPlace(project, out string) error {
+	former := strings.TrimRight(out, "/") + ".precedent"
+	if err := os.RemoveAll(former); err != nil {
 		return err
 	}
 	if _, err := os.Stat(out); err == nil {
-		if _, err := os.Stat(filepath.Join(out, marqueurSortie)); err != nil {
-			return fmt.Errorf("%s ne porte pas %s : refus de le remplacer", out, marqueurSortie)
+		if _, err := os.Stat(filepath.Join(out, markerOutput)); err != nil {
+			return fmt.Errorf("%s ne porte pas %s : refus de le remplacer", out, markerOutput)
 		}
-		if err := os.Rename(out, ancien); err != nil {
+		if err := os.Rename(out, former); err != nil {
 			return err
 		}
 	}
-	if err := os.Rename(chantier, out); err != nil {
+	if err := os.Rename(project, out); err != nil {
 		return err
 	}
-	return os.RemoveAll(ancien)
+	return os.RemoveAll(former)
 }
 
-func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins int, sections []string) error {
+func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxElections int, sections []string) error {
 	start := time.Now()
 	// requested : nil quand sections est vide (construction complète, rien
 	// n'est écarté — la seule que mettreEnPlace doit voir) ; sinon les noms
@@ -256,8 +256,8 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	// table_trace.go) — republié en base une fois reg.Executer terminé
 	// (publierTables, plus bas), pour que fpctl list deps et la
 	// vérification du périmètre CI n'aient plus à deviner.
-	tracer := newTableTracer()
-	pool, err := store.OpenWithTracer(ctx, 8, tracer)
+	draw := newTableDraw()
+	pool, err := store.OpenWithTracer(ctx, 8, draw)
 	if err != nil {
 		return err
 	}
@@ -268,46 +268,46 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	// (out est le chantier, pas encore mis en place) ; nouveau est réécrit à
 	// la fin, quoi qu'il arrive, pour que la prochaine construction ait
 	// quelque chose à comparer même si tout a été refait cette fois.
-	siteActuel := strings.TrimSuffix(out, ".construction")
-	ancienCache := chargerManifeste(siteActuel)
-	nouveauCache := manifesteCache{Sections: map[string]etatSection{}}
+	siteCurrent := strings.TrimSuffix(out, ".construction")
+	formerCache := loadManifest(siteCurrent)
+	newCache := manifestCache{Sections: map[string]stateSection{}}
 
 	// Court-circuit global : avant tout chargement, la question la moins
 	// chère à poser est aussi la plus rentable — rien n'a changé DU TOUT
 	// depuis la dernière construction ? -only et -max-scrutins produisent
 	// délibérément un site partiel : jamais la référence à laquelle comparer.
-	if len(sections) == 0 && maxScrutins == 0 {
-		communesOK, _, err := sectionInchangee(ctx, pool, ancienCache, "communes")
+	if len(sections) == 0 && maxElections == 0 {
+		municipalitiesOK, _, err := sectionUnchanged(ctx, pool, formerCache, "communes")
 		if err != nil {
 			return err
 		}
-		scrutinOK, _, err := sectionInchangee(ctx, pool, ancienCache, "scrutin")
+		electionOK, _, err := sectionUnchanged(ctx, pool, formerCache, "scrutin")
 		if err != nil {
 			return err
 		}
-		resteOK, _, err := resteInchange(ctx, pool, ancienCache)
+		remainderOK, _, err := remainderUnchanged(ctx, pool, formerCache)
 		if err != nil {
 			return err
 		}
-		if communesOK && scrutinOK && resteOK {
+		if municipalitiesOK && electionOK && remainderOK {
 			fmt.Printf("rien n'a changé depuis la dernière construction (%s écoulées)\n",
 				time.Since(start).Round(time.Millisecond))
-			return errRienAFaire
+			return errNothingAMake
 		}
 	}
 
-	fns := template.FuncMap{"jauge": Jauge, "poleG": PoleGauche, "poleD": PoleDroit,
-		"lower": strings.ToLower, "nb": Nombre, "octets": Octets, "ico": Icone,
-		"marque": Marque, "grille": Grille, "pct": Pourcent, "nb64": Nombre64,
-		"mdEur": mdEur, "pctFr": pctFr, "dec": Decimal, "eurHab": eurHab, "montant": Montant,
-		"echelon": func(t string) string { return libelleEchelon[t] },
+	fns := template.FuncMap{"jauge": Gauge, "poleG": HubLeft, "poleD": HubRight,
+		"lower": strings.ToLower, "nb": Count, "octets": Bytes, "ico": Icone,
+		"marque": Brand, "grille": Grid, "pct": Percent, "nb64": Count64,
+		"mdEur": mdEur, "pctFr": pctFr, "dec": Decimal, "eurHab": eurInhabitants, "montant": Amount,
+		"echelon": func(t string) string { return labelTier[t] },
 		"risqueCouleur": func(code string) string {
-			if c := couleurRisque[code]; c != "" {
+			if c := colorRisk[code]; c != "" {
 				return c
 			}
 			return "#8A7F6B"
 		},
-		"libMandat": libelleMandat,
+		"libMandat": labelTerm,
 		// dict : passer plusieurs valeurs à un sous-gabarit, qui n'en reçoit
 		// qu'une. Sert à transmettre Root avec la liste des décrets.
 		"dict": func(kv ...any) map[string]any {
@@ -331,11 +331,11 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 		return template.Must(t.ParseFiles(filepath.Join(tplDir, name)))
 	}
 
-	if err := preparerSortie(out); err != nil {
+	if err := prepareOutput(out); err != nil {
 		return err
 	}
 
-	assets, err := copierAssets("web/assets", out)
+	assets, err := copyAssets("web/assets", out)
 	if err != nil {
 		return err
 	}
@@ -359,16 +359,16 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	}
 	_ = pool.QueryRow(ctx, `
 		SELECT coalesce(to_char(max(fetched_at),'DD/MM/YYYY'),'')
-		FROM raw.retrieval WHERE document_id IS NOT NULL`).Scan(&layout.DerniereIngestion)
+		FROM raw.retrieval WHERE document_id IS NOT NULL`).Scan(&layout.LastIngestion)
 	fmt.Printf("  chargement initial : %s écoulées\n", time.Since(start).Round(time.Second))
 
 	env := &environment{
 		pool: pool, dataDir: dataDir, out: out, root: root, start: start,
 		layout: layout, page: page, writeSection: writeSection, writeAlways: writeAlways, excluded: excluded,
-		maxScrutins: maxScrutins, previousCacheValue: ancienCache, currentSite: siteActuel,
-		newCache: &nouveauCache,
+		maxElections: maxElections, previousCacheValue: formerCache, currentSite: siteCurrent,
+		newCache: &newCache,
 	}
-	reg := buildRegistry(env)
+	region := buildRegistry(env)
 	targets := ResolveTargets(sections)
 
 	// runtime.NumCPU(), pas la Concurrence -j de l'ingest (qui n'existe pas
@@ -376,15 +376,15 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	// indépendantes contre le même pool à 8 connexions (OpenWithMaxConns
 	// ci-dessus) — au-delà, une vague large mettrait simplement en file
 	// d'attente plutôt que d'accélérer quoi que ce soit.
-	results, err := reg.Executer(ctx, targets, pipeline.Options{Concurrence: runtime.NumCPU()})
+	results, err := region.Executer(ctx, targets, pipeline.Options{Concurrence: runtime.NumCPU()})
 	if err != nil {
 		return err
 	}
 	executes := make([]string, 0, len(results))
-	for nom := range results {
-		executes = append(executes, nom)
+	for name := range results {
+		executes = append(executes, name)
 	}
-	if err := publierTables(ctx, pool, reg, tracer, executes); err != nil {
+	if err := publishTables(ctx, pool, region, draw, executes); err != nil {
 		return fmt.Errorf("publication des tables lues par page : %w", err)
 	}
 
@@ -400,11 +400,11 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 
 	// Plan du site et robots.txt : en dernier, une fois que out/ porte
 	// exactement l'arborescence publiée — voir internal/sitegen/sitemap.go.
-	nSitemap, err := ecrireSitemap(out, layout.CanonicalBase)
+	nSitemap, err := writeSitemap(out, layout.CanonicalBase)
 	if err != nil {
 		return err
 	}
-	if err := ecrireRobots(out, layout.CanonicalBase); err != nil {
+	if err := writeRobots(out, layout.CanonicalBase); err != nil {
 		return err
 	}
 	logs.Notice(fmt.Sprintf("sitemap: %s, %s", logs.Plural(nSitemap, "URL"), layout.CanonicalBase+"/sitemap.xml"))
@@ -412,35 +412,35 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxScrutins
 	id := dep[identityBundle](results, "identite")
 	n, _ := results["scrutin"].(int)
 	logs.Notice(fmt.Sprintf("site generated in %s/: %s, %s, %s, %s, %s (%s)",
-		out, logs.Plural(len(id.Persons), "MP"), logs.Plural(len(id.Candidats), "candidate"),
-		logs.Plural(len(id.Orgs), "organization"), logs.Plural(len(id.Groupes), "group"),
+		out, logs.Plural(len(id.Persons), "MP"), logs.Plural(len(id.Candidates), "candidate"),
+		logs.Plural(len(id.Orgs), "organization"), logs.Plural(len(id.Groups), "group"),
 		logs.Plural(n, "vote"), time.Since(start).Round(time.Millisecond)))
 
 	// « reste » (voir resteInchange) : comme pour scrutin, jamais à partir
 	// d'une construction tronquée par -only/-max-scrutins — elle serait prise
 	// pour une construction complète par le prochain lancement, sans troncature.
-	if len(sections) == 0 && maxScrutins == 0 {
-		_, etatReste, err := resteInchange(ctx, pool, ancienCache)
+	if len(sections) == 0 && maxElections == 0 {
+		_, stateRemainder, err := remainderUnchanged(ctx, pool, formerCache)
 		if err != nil {
 			return err
 		}
-		nouveauCache.Sections["reste"] = etatReste
+		newCache.Sections["reste"] = stateRemainder
 	}
 
 	// Écrit quoi qu'il arrive, y compris pour une section refaite cette fois :
 	// c'est cet état-ci, celui que ce chantier vient de produire, auquel la
 	// prochaine construction devra se comparer une fois mis en place.
-	if err := nouveauCache.ecrire(out); err != nil {
+	if err := newCache.write(out); err != nil {
 		return err
 	}
 	return nil
 }
 
-// trierPersonnes : ordre alphabétique sur le nom puis le prénom. Ce site ne
+// sortPeople : ordre alphabétique sur le nom puis le prénom. Ce site ne
 // classe pas les personnes autrement.
-func trierPersonnes(l []*Person) {
+func sortPeople(l []*Person) {
 	sort.Slice(l, func(i, j int) bool {
-		return CleTri(l[i].Nom+" "+l[i].Prenom) < CleTri(l[j].Nom+" "+l[j].Prenom)
+		return KeySort(l[i].Name+" "+l[i].FirstName) < KeySort(l[j].Name+" "+l[j].FirstName)
 	})
 }
 
@@ -453,12 +453,12 @@ func trierPersonnes(l []*Person) {
 // On n'efface que ce que ce programme a écrit : le marqueur en atteste. Un
 // répertoire non vide qui ne le porte pas fait échouer la construction plutôt
 // que d'être supprimé.
-const marqueurSortie = ".site-genere"
+const markerOutput = ".site-genere"
 
-func preparerSortie(out string) error {
+func prepareOutput(out string) error {
 	info, err := os.Stat(out)
 	if os.IsNotExist(err) {
-		return ecrireMarqueur(out)
+		return writeMarker(out)
 	}
 	if err != nil {
 		return err
@@ -466,26 +466,26 @@ func preparerSortie(out string) error {
 	if !info.IsDir() {
 		return fmt.Errorf("%s n'est pas un répertoire", out)
 	}
-	if _, err := os.Stat(filepath.Join(out, marqueurSortie)); err != nil {
+	if _, err := os.Stat(filepath.Join(out, markerOutput)); err != nil {
 		entries, err := os.ReadDir(out)
 		if err != nil {
 			return err
 		}
 		if len(entries) > 0 {
 			return fmt.Errorf("%s n'est pas vide et ne porte pas %s : "+
-				"refus de l'effacer", out, marqueurSortie)
+				"refus de l'effacer", out, markerOutput)
 		}
 	} else if err := os.RemoveAll(out); err != nil {
 		return err
 	}
-	return ecrireMarqueur(out)
+	return writeMarker(out)
 }
 
-func ecrireMarqueur(out string) error {
+func writeMarker(out string) error {
 	if err := os.MkdirAll(out, 0o755); err != nil {
 		return err
 	}
-	return os.WriteFile(filepath.Join(out, marqueurSortie),
+	return os.WriteFile(filepath.Join(out, markerOutput),
 		[]byte("Répertoire produit par internal/sitegen. Effacé et réécrit à chaque construction.\n"), 0o644)
 }
 
@@ -500,7 +500,7 @@ func writeAlways(t *template.Template, path string, data any) error {
 	if err := t.ExecuteTemplate(&buf, "base", data); err != nil {
 		return err
 	}
-	return os.WriteFile(path, corrigerTypographie(buf.Bytes()), 0o644)
+	return os.WriteFile(path, fixTypography(buf.Bytes()), 0o644)
 }
 
 func sources(ctx context.Context, pool *pgxpool.Pool) ([]SourceInfo, error) {
@@ -544,7 +544,7 @@ func coverage(ctx context.Context, pool *pgxpool.Pool) (Coverage, error) {
 		       (SELECT count(*) FROM core.organization),
 		       (SELECT count(*) FROM core.scrutin WHERE institution='ASSEMBLEE_NATIONALE'),
 		       (SELECT count(*) FROM core.dossier)`).
-		Scan(&c.Ballots, &c.Deputes, &c.Orgs, &c.Scrutins, &c.Dossiers)
+		Scan(&c.Ballots, &c.Deputies, &c.Orgs, &c.Elections, &c.Dossiers)
 	if err != nil {
 		return c, err
 	}
@@ -559,7 +559,7 @@ func coverage(ctx context.Context, pool *pgxpool.Pool) (Coverage, error) {
 		         JOIN core.scrutin s ON s.id=mv.scrutin_id WHERE s.institution='SENAT'),
 		       (SELECT count(*) FROM ref.topic WHERE taxonomy_version='senat'),
 		       (SELECT count(DISTINCT commune_code) FROM mv.commune_indicator_dernier)`).
-		Scan(&c.Documents, &c.ScrutinsPE, &c.Themes,
-			&c.ScrutinsSenat, &c.VotesSenat, &c.Senateurs, &c.ThemesSenat, &c.Communes)
+		Scan(&c.Documents, &c.ElectionsPE, &c.Themes,
+			&c.ElectionsSenate, &c.VotesSenate, &c.Senators, &c.ThemesSenate, &c.Municipalities)
 	return c, err
 }

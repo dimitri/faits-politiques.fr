@@ -7,20 +7,20 @@ import (
 	"strings"
 )
 
-// SegmentAnneau : une part d'un anneau proportionnel, avec sa teinte FIXE —
+// SegmentRing : une part d'un anneau proportionnel, avec sa teinte FIXE —
 // jamais recalculée par valeur, pour qu'une catégorie garde sa couleur d'un
 // dessin à l'autre.
-type SegmentAnneau struct {
-	Libelle, Couleur string
-	Valeur, Part     float64 // Part en % du total, déjà calculée par l'appelant
+type SegmentRing struct {
+	Label, Color string
+	Value, Share float64 // Part en % du total, déjà calculée par l'appelant
 }
 
-// dessinerAnneau trace un anneau proportionnel générique. C'est le moteur
+// drawRing trace un anneau proportionnel générique. C'est le moteur
 // commun à toutes les répartitions en donut du site : seules les couleurs, les
 // valeurs et le total affiché au centre changent d'un usage à l'autre — la
 // géométrie ne devrait jamais être réécrite deux fois.
-func dessinerAnneau(segments []SegmentAnneau, formatValeur func(float64) string,
-	totalTexte, totalLegende, ariaLabel string, seuilEtiquette float64) template.HTML {
+func drawRing(segments []SegmentRing, formatValue func(float64) string,
+	totalText, totalLegend, ariaLabel string, thresholdLabel float64) template.HTML {
 
 	if len(segments) == 0 {
 		return ""
@@ -35,11 +35,11 @@ func dessinerAnneau(segments []SegmentAnneau, formatValeur func(float64) string,
 	fmt.Fprintf(&b, `<svg class="donut" viewBox="0 0 400 240" role="img" aria-label="%s">`,
 		template.HTMLEscapeString(ariaLabel))
 
-	cumul := 0.0
+	cumulative := 0.0
 	for _, seg := range segments {
-		part := seg.Part / 100
-		dash := part * circonf
-		coul := seg.Couleur
+		share := seg.Share / 100
+		dash := share * circonf
+		coul := seg.Color
 		if coul == "" {
 			coul = "#8A7F6B"
 		}
@@ -47,12 +47,12 @@ func dessinerAnneau(segments []SegmentAnneau, formatValeur func(float64) string,
 			`fill="none" stroke="%s" stroke-width="%.0f" `+
 			`stroke-dasharray="%.2f %.2f" stroke-dashoffset="%.2f" `+
 			`transform="rotate(-90 %.0f %.0f)"><title>%s — %s (%s%%)</title></circle>`,
-			cx, cy, r, coul, sw, dash, circonf-dash, -cumul*circonf, cx, cy,
-			template.HTMLEscapeString(seg.Libelle), template.HTMLEscapeString(formatValeur(seg.Valeur)),
-			template.HTMLEscapeString(Decimal(seg.Part, 1)))
+			cx, cy, r, coul, sw, dash, circonf-dash, -cumulative*circonf, cx, cy,
+			template.HTMLEscapeString(seg.Label), template.HTMLEscapeString(formatValue(seg.Value)),
+			template.HTMLEscapeString(Decimal(seg.Share, 1)))
 
-		if seg.Part >= seuilEtiquette {
-			mid := (cumul + part/2) * 2 * math.Pi
+		if seg.Share >= thresholdLabel {
+			mid := (cumulative + share/2) * 2 * math.Pi
 			ang := mid - math.Pi/2 // on part du haut, sens horaire
 			lr := r + sw/2 + 20
 			lx := cx + lr*math.Cos(ang)
@@ -64,16 +64,16 @@ func dessinerAnneau(segments []SegmentAnneau, formatValeur func(float64) string,
 				anchor = "end"
 			}
 			fmt.Fprintf(&b, `<text class="tr-lib" x="%.1f" y="%.1f" text-anchor="%s">%s</text>`,
-				lx, ly-5, anchor, template.HTMLEscapeString(seg.Libelle))
+				lx, ly-5, anchor, template.HTMLEscapeString(seg.Label))
 			fmt.Fprintf(&b, `<text class="tr-val" x="%.1f" y="%.1f" text-anchor="%s">%s</text>`,
-				lx, ly+10, anchor, template.HTMLEscapeString(Decimal(seg.Part, 1))+" %")
+				lx, ly+10, anchor, template.HTMLEscapeString(Decimal(seg.Share, 1))+" %")
 		}
-		cumul += part
+		cumulative += share
 	}
 	fmt.Fprintf(&b, `<text class="don-total" x="%.0f" y="%.0f" text-anchor="middle">%s</text>`,
-		cx, cy-4, template.HTMLEscapeString(totalTexte))
+		cx, cy-4, template.HTMLEscapeString(totalText))
 	fmt.Fprintf(&b, `<text class="don-total-l" x="%.0f" y="%.0f" text-anchor="middle">%s</text>`,
-		cx, cy+14, template.HTMLEscapeString(totalLegende))
+		cx, cy+14, template.HTMLEscapeString(totalLegend))
 	b.WriteString(`</svg>`)
 	return template.HTML(b.String())
 }
@@ -84,7 +84,7 @@ func dessinerAnneau(segments []SegmentAnneau, formatValeur func(float64) string,
 // Six teintes FIXES par code de risque. Aucune ne reprend le vert, le rouge ou
 // l'ocre — réservés aux positions de vote — ni la rampe séquentielle des
 // cartes, réservée aux magnitudes.
-var couleurRisque = map[string]string{
+var colorRisk = map[string]string{
 	"E11-2": "#1E5C69", // Vieillesse-survie
 	"E11-1": "#4A8894", // Santé
 	"E11-3": "#6B5CA5", // Famille
@@ -93,18 +93,18 @@ var couleurRisque = map[string]string{
 	"E11-5": "#8A7F6B", // Logement
 }
 
-func donutRisques(risques []RisqueSocial, total float64, formatTotal string) template.HTML {
+func donutRisks(risks []RiskSocial, total float64, formatTotal string) template.HTML {
 	if total <= 0 {
 		return ""
 	}
-	var segs []SegmentAnneau
-	for _, r0 := range risques {
-		segs = append(segs, SegmentAnneau{
-			Libelle: r0.Libelle, Couleur: couleurRisque[r0.Code],
-			Valeur: r0.Montant, Part: r0.Part,
+	var segs []SegmentRing
+	for _, r0 := range risks {
+		segs = append(segs, SegmentRing{
+			Label: r0.Label, Color: colorRisk[r0.Code],
+			Value: r0.Amount, Share: r0.Share,
 		})
 	}
-	return dessinerAnneau(segs, mdEur, formatTotal, "prestations",
+	return drawRing(segs, mdEur, formatTotal, "prestations",
 		"Répartition des prestations entre les six risques, total "+formatTotal, 6)
 }
 
@@ -114,20 +114,20 @@ func donutRisques(risques []RisqueSocial, total float64, formatTotal string) tem
 // dividende potentiel : l'excédent brut d'exploitation, avant tout partage
 // entre actionnaires, prêteurs et investissement. Toujours les mêmes trois
 // teintes, dans le même ordre, pour comparer deux années d'un coup d'œil.
-var couleursPartageVA = []string{"#4A8894", "#B0763A", "#1E5C69"} // Rémunération, Impôts, EBE
+var colorsSharedVA = []string{"#4A8894", "#B0763A", "#1E5C69"} // Rémunération, Impôts, EBE
 
-func fluxPartageVA(annee int, remun, impots, ebe, va float64) template.HTML {
+func flowSharedVA(year int, remun, taxes, ebe, va float64) template.HTML {
 	if va <= 0 {
 		return ""
 	}
-	type cible struct {
-		Libelle, Sous, Couleur string
-		Valeur                 float64
+	type target struct {
+		Label, Sub, Color string
+		Value             float64
 	}
-	cibles := []cible{
-		{"Rémunération des salariés", "salaires et cotisations", couleursPartageVA[0], remun},
-		{"Impôts sur la production", "net des subventions", couleursPartageVA[1], impots},
-		{"Excédent brut d'exploitation", "dont une part en dividendes", couleursPartageVA[2], ebe},
+	targets := []target{
+		{"Rémunération des salariés", "salaires et cotisations", colorsSharedVA[0], remun},
+		{"Impôts sur la production", "net des subventions", colorsSharedVA[1], taxes},
+		{"Excédent brut d'exploitation", "dont une part en dividendes", colorsSharedVA[2], ebe},
 	}
 
 	const hTotal = 150.0 // hauteur représentant les 100 % de VA
@@ -142,22 +142,22 @@ func fluxPartageVA(annee int, remun, impots, ebe, va float64) template.HTML {
 		`aria-label="Partage de la valeur ajoutée en %d, total %s : %s"><defs>`+
 		`<marker id="fva%d" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" `+
 		`orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" class="fva-pointe"/></marker></defs>`,
-		annee, mdEur(va), template.HTMLEscapeString(fmt.Sprintf(
+		year, mdEur(va), template.HTMLEscapeString(fmt.Sprintf(
 			"%s rémunération (%s), %s impôts sur la production (%s), %s excédent brut d'exploitation (%s)",
-			Decimal(100*remun/va, 1)+" %", mdEur(remun), Decimal(100*impots/va, 1)+" %",
-			mdEur(impots), Decimal(100*ebe/va, 1)+" %", mdEur(ebe))), annee)
+			Decimal(100*remun/va, 1)+" %", mdEur(remun), Decimal(100*taxes/va, 1)+" %",
+			mdEur(taxes), Decimal(100*ebe/va, 1)+" %", mdEur(ebe))), year)
 
 	fmt.Fprintf(&b, `<rect class="fva-source" x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="6"/>`,
 		xSrcL, yTop, xSrcR-xSrcL, hTotal)
 	fmt.Fprintf(&b, `<text class="fva-t fva-src-t" x="%.0f" y="%.0f" text-anchor="middle">%d</text>`,
-		(xSrcL+xSrcR)/2, yTop+hTotal/2-6, annee)
+		(xSrcL+xSrcR)/2, yTop+hTotal/2-6, year)
 	fmt.Fprintf(&b, `<text class="fva-s" x="%.0f" y="%.0f" text-anchor="middle">valeur ajoutée</text>`,
 		(xSrcL+xSrcR)/2, yTop+hTotal/2+11)
 
 	cum := 0.0
-	for i, c := range cibles {
-		part := 100 * c.Valeur / va
-		h := hTotal * part / 100
+	for i, c := range targets {
+		share := 100 * c.Value / va
+		h := hTotal * share / 100
 		if h < 0 {
 			h = 0 // un impôt net négatif (subventions > impôts) n'a pas de largeur à dessiner
 		}
@@ -169,9 +169,9 @@ func fluxPartageVA(annee int, remun, impots, ebe, va float64) template.HTML {
 		fmt.Fprintf(&b, `<path class="fva-ruban r%d" d="M%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f `+
 			`L%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f Z" marker-end="url(#fva%d)"><title>%s — %s (%s %%)</title></path>`,
 			i, xSrcR, y0t, xm, y0t, xm, y0t, xDstL, y0t,
-			xDstL, y0b, xm, y0b, xm, y0b, xSrcR, y0b, annee,
-			template.HTMLEscapeString(c.Libelle), template.HTMLEscapeString(mdEur(c.Valeur)),
-			Decimal(part, 1))
+			xDstL, y0b, xm, y0b, xm, y0b, xSrcR, y0b, year,
+			template.HTMLEscapeString(c.Label), template.HTMLEscapeString(mdEur(c.Value)),
+			Decimal(share, 1))
 		by0, by1 := y0t, y0b
 		if by1-by0 > gap*2 {
 			by0, by1 = by0+gap/2, by1-gap/2
@@ -187,9 +187,9 @@ func fluxPartageVA(annee int, remun, impots, ebe, va float64) template.HTML {
 		// le tableau qui suit.
 		if h >= 18 {
 			fmt.Fprintf(&b, `<text class="fva-dt" x="%.0f" y="%.1f">%s</text>`,
-				xDstR+8, my-2, template.HTMLEscapeString(c.Libelle))
+				xDstR+8, my-2, template.HTMLEscapeString(c.Label))
 			fmt.Fprintf(&b, `<text class="fva-ds" x="%.0f" y="%.1f">%s — %s %%</text>`,
-				xDstR+8, my+13, mdEur(c.Valeur), Decimal(part, 1))
+				xDstR+8, my+13, mdEur(c.Value), Decimal(share, 1))
 		}
 		cum += h
 	}

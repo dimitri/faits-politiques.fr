@@ -156,7 +156,7 @@ func runDumpCI(ctx context.Context, args []string) error {
 // construction n'a encore tourné) : rien à comparer, pas une raison de
 // faire échouer l'export.
 func verifierPerimetreCI(ctx context.Context, pool *pgxpool.Pool) error {
-	parNoeud, err := sitegen.TablesPubliees(ctx, pool)
+	parNoeud, err := sitegen.TablesPublished(ctx, pool)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			return nil

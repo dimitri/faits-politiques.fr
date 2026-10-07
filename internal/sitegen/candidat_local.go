@@ -17,26 +17,26 @@ import (
 // conseillère municipale de Limey-Remenauville. Le rapprochement est donc écrit
 // à la main, ligne à ligne, dans data/candidats-mandats-locaux.csv, avec sa
 // vérification et sa source — les refus compris.
-type MandatLocal struct {
-	Type, Role, Lieu, Depuis string
-	TypeCode, Commune, Circo string
-	Lieux                    []Lieu
+type TermLocal struct {
+	Type, Role, Place, Depuis        string
+	TypeCode, Municipality, District string
+	Places                           []Place
 }
 
-type RapprochementRNE struct {
-	Statut       string
+type ReconciliationRNE struct {
+	Status       string
 	Verification string
 	Source       string
-	Mandats      []MandatLocal
+	Terms        []TermLocal
 }
 
-func loadMandatsLocaux(ctx context.Context, pool *pgxpool.Pool, path string) (
-	map[string]*RapprochementRNE, error) {
+func loadTermsPremises(ctx context.Context, pool *pgxpool.Pool, path string) (
+	map[string]*ReconciliationRNE, error) {
 
 	f, err := os.Open(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return map[string]*RapprochementRNE{}, nil
+			return map[string]*ReconciliationRNE{}, nil
 		}
 		return nil, err
 	}
@@ -48,7 +48,7 @@ func loadMandatsLocaux(ctx context.Context, pool *pgxpool.Pool, path string) (
 	if err != nil {
 		return nil, err
 	}
-	out := map[string]*RapprochementRNE{}
+	out := map[string]*ReconciliationRNE{}
 	var ids []int64
 	for i, rec := range recs {
 		if i == 0 || len(rec) < 4 {
@@ -56,14 +56,14 @@ func loadMandatsLocaux(ctx context.Context, pool *pgxpool.Pool, path string) (
 		}
 		slug := strings.TrimSpace(rec[0])
 		id, _ := strconv.ParseInt(strings.TrimSpace(rec[1]), 10, 64)
-		rp := &RapprochementRNE{
-			Statut: strings.TrimSpace(rec[2]), Verification: strings.TrimSpace(rec[3]),
+		rp := &ReconciliationRNE{
+			Status: strings.TrimSpace(rec[2]), Verification: strings.TrimSpace(rec[3]),
 		}
 		if len(rec) > 4 {
 			rp.Source = strings.TrimSpace(rec[4])
 		}
 		out[slug] = rp
-		if rp.Statut == "RETENU" && id != 0 {
+		if rp.Status == "RETENU" && id != 0 {
 			ids = append(ids, id)
 		}
 	}
@@ -88,16 +88,16 @@ func loadMandatsLocaux(ctx context.Context, pool *pgxpool.Pool, path string) (
 		return nil, err
 	}
 	defer rows.Close()
-	mandatsParID := map[int64][]MandatLocal{}
+	termsPerID := map[int64][]TermLocal{}
 	for rows.Next() {
 		var pid int64
-		var m MandatLocal
-		if err := rows.Scan(&pid, &m.Type, &m.Role, &m.Lieu, &m.Depuis, &m.Commune, &m.Circo); err != nil {
+		var m TermLocal
+		if err := rows.Scan(&pid, &m.Type, &m.Role, &m.Place, &m.Depuis, &m.Municipality, &m.District); err != nil {
 			return nil, err
 		}
 		m.TypeCode = m.Type
-		m.Type = libelleMandat(m.Type)
-		mandatsParID[pid] = append(mandatsParID[pid], m)
+		m.Type = labelTerm(m.Type)
+		termsPerID[pid] = append(termsPerID[pid], m)
 	}
 	if err := rows.Err(); err != nil {
 		return nil, err
@@ -109,12 +109,12 @@ func loadMandatsLocaux(ctx context.Context, pool *pgxpool.Pool, path string) (
 		}
 		slug := strings.TrimSpace(rec[0])
 		id, _ := strconv.ParseInt(strings.TrimSpace(rec[1]), 10, 64)
-		out[slug].Mandats = mandatsParID[id]
+		out[slug].Terms = termsPerID[id]
 	}
 	return out, nil
 }
 
-var libellesMandat = map[string]string{
+var labelsTerm = map[string]string{
 	"MAIRE": "Maire", "CONSEILLER_MUNICIPAL": "Conseiller municipal",
 	"CONSEILLER_COMMUNAUTAIRE": "Conseiller communautaire",
 	"CONSEILLER_DEPARTEMENTAL": "Conseiller départemental",
@@ -124,20 +124,20 @@ var libellesMandat = map[string]string{
 	"PRESIDENT_REPUBLIQUE": "Président de la République",
 }
 
-func libelleMandat(t string) string {
-	if l := libellesMandat[t]; l != "" {
+func labelTerm(t string) string {
+	if l := labelsTerm[t]; l != "" {
 		return l
 	}
 	return t
 }
 
-// situerMandatsLocaux pose la chaîne de lieux sur les mandats des candidats,
+// locateTermsPremises pose la chaîne de lieux sur les mandats des candidats,
 // une fois le résolveur construit.
-func situerMandatsLocaux(locaux map[string]*RapprochementRNE, r *Resolveur) {
-	for _, rp := range locaux {
-		for i := range rp.Mandats {
-			m := &rp.Mandats[i]
-			m.Lieux = r.Mandat(m.TypeCode, m.Commune, m.Circo)
+func locateTermsPremises(premises map[string]*ReconciliationRNE, r *Resolver) {
+	for _, rp := range premises {
+		for i := range rp.Terms {
+			m := &rp.Terms[i]
+			m.Places = r.Term(m.TypeCode, m.Municipality, m.District)
 		}
 	}
 }
