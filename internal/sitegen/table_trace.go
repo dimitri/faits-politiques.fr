@@ -164,6 +164,15 @@ func publierTables(ctx context.Context, pool *pgxpool.Pool, reg *pipeline.Regist
 	defer tx.Rollback(ctx)
 	if _, err := tx.Exec(ctx,
 		`DELETE FROM core.sitegen_table_usage WHERE etape = ANY($1::text[])`, executes); err != nil {
+		// build-pr (restauration du seul périmètre CI, voir cmd/fpctl/
+		// dump.go) ne fait jamais tourner les migrations — cette table n'y
+		// existe donc jamais, par construction, puisqu'elle n'appartient
+		// pas à internal/matview.Perimetre(). Rien à publier dans cet
+		// environnement-là ; ce n'est jamais une raison de faire échouer la
+		// construction du site elle-même.
+		if strings.Contains(err.Error(), "does not exist") {
+			return nil
+		}
 		return fmt.Errorf("nettoyage du reflet des tables lues : %w", err)
 	}
 	for _, nom := range executes {
