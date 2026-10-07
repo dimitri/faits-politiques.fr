@@ -420,7 +420,8 @@ func loadSocial(ctx context.Context, pool *pgxpool.Pool) (*StatsSocial, error) {
 	}
 	prows.Close()
 	millions := func(v float64) string { return Decimal(v/1e6, 1) + "\u202fM" }
-	st.CourbeAvecPop = courbeAvecLigne(st.Serie, st.Population, mdEur, millions)
+	st.CourbeAvecPop = courbeAvecLigne(st.Serie, st.Population, mdEur, millions,
+		"avec la population sur une échelle séparée")
 
 	// La structure par \u00e2ge : \u00ab la population a aussi vieilli \u00bb, affirm\u00e9 dans
 	// la note ci-dessous mais jamais montr\u00e9 ailleurs sur le site avant cette

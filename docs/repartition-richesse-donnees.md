@@ -1,6 +1,6 @@
 # Répartition de la richesse en France : ce qu'il y a dans le dernier décile
 
-> **Dossier** · version 2 · 16 septembre 2026
+> **Dossier** · version 4 · 22 septembre 2026
 >
 > [docs/pauvrete-donnees.md](pauvrete-donnees.md) montre les déciles de niveau de vie D1 à D9, et
 > laisse le dixième décile délibérément « non borné » : la table source (Insee-Filosofi) ne publie
@@ -55,6 +55,12 @@ borné » ne donne pas à voir.
 **Un seul millésime (2021), pas une série** : contrairement au § 2, cette fiche ne publie ces
 seuils précis que pour une année. Une série plus longue existerait peut-être dans d'autres
 publications Insee, non identifiée à ce jour.
+
+**Ce D9 (41 220 €/an) ne coïncide pas exactement avec celui du dossier pauvreté (3 875 €/mois,
+soit 46 500 €/an, § 2 de ce dossier) : ce n'est pas une incohérence, ce sont deux fiches
+Insee-Filosofi distinctes, à deux millésimes différents (2021 ici, 2023 là-bas).** Le classement
+par décile est stable d'une année sur l'autre, mais pas le montant du seuil lui-même — en le
+citant, ne jamais mélanger un seuil 2021 de cette fiche avec une série 2023 de l'autre.
 
 ### 2. La part du revenu captée par le sommet, 2004-2021
 
@@ -138,6 +144,41 @@ fortement au sommet, la part immobilière recule d'autant :
 
 **La part de masse 2015 n'est pas publiée par la source** : seule 2021 a cette colonne. La
 comparaison 2015→2021 se limite donc aux seuils et moyennes, pas à la part de masse détenue.
+
+#### 3.1 Repère : les milliardaires (Forbes, Challenges, Oxfam — non chargé)
+
+**Le tableau ci-dessus s'arrête au 99ᵉ centile (patrimoine moyen 4,87 M€ en 2021, § 3).** Trois
+sources non officielles, hors du champ de ce dossier (§ 6), publient des chiffres sur la population
+bien plus restreinte des milliardaires — un ordre de grandeur au-dessus, jamais mesuré par les
+enquêtes par sondage Insee (échantillon trop petit).
+
+- **Forbes**, classement mondial des milliardaires, édition 2025 : **52 Français**, fortune cumulée
+  **624 Md$**. Méthode Forbes : une estimation annuelle à partir de sources publiques (cours de
+  bourse, participations connues, transactions immobilières déclarées), pas une déclaration fiscale
+  vérifiée — le rang et le montant de chaque fortune sont régulièrement révisés d'une édition à
+  l'autre, y compris à la baisse (Bernard Arnault, 1ᵉʳ français, −23 % sur un an dans l'édition 2025).
+- **Challenges**, « Les 500 plus grandes fortunes de France » (classement annuel depuis 1996, mêmes
+  réserves méthodologiques que Forbes — pas d'accès aux déclarations fiscales des intéressés) :
+  patrimoine cumulé des 500 = **1 128 Md€ en 2025**, en repli de 100 Md€ sur le record de 2024,
+  contre un patrimoine de départ sans commune mesure en 1996 — **multiplié par 6,6 entre 2003 et
+  2025** selon *Inegalites.fr*.
+- **Oxfam France**, rapport « Résister au règne des plus riches » (janvier 2026, Focus France),
+  recalculé à partir des données Forbes : **« depuis 2017 et l'arrivée d'Emmanuel Macron au
+  pouvoir, les milliardaires à eux seuls ont vu leur fortune doubler, un gain de plus de 220
+  milliards d'euros concentré sur 32 personnes »**. Le même rapport cite par ailleurs, pour une
+  population différente (**53 milliardaires français**, le compte le plus récent, pas les 32 mêmes
+  personnes suivies dans le temps), une fortune cumulée supérieure à celle de 32 millions de
+  Français réunis. **Ces deux chiffres (32 personnes suivies depuis 2017 ; 53 milliardaires
+  aujourd'hui) ne désignent pas le même ensemble** — un amalgame fréquent dans les reprises
+  médiatiques de ce rapport.
+
+**Pourquoi ces trois chiffres restent cités, pas chargés** : Forbes et Challenges sont des
+méthodologies journalistiques d'estimation (§ 6 l'exclut déjà pour Forbes), pas des statistiques
+officielles Insee ou DGFiP ; Oxfam ne produit pas sa propre mesure mais recalcule à partir de
+Forbes. Aucune des trois ne publie de série téléchargeable, documentée et stable dans le temps —
+la contrepartie de leur intérêt (elles seules descendent jusqu'aux plus grandes fortunes
+individuelles) est une précision moindre et des révisions fréquentes, à la hausse comme à la
+baisse, d'une édition à l'autre.
 
 ### 4. L'héritage, un facteur d'accès à la richesse
 
@@ -231,6 +272,11 @@ séparément.
 - DGFiP, statistiques annuelles de l'impôt sur la fortune immobilière (citation, § 6).
 - Conseil d'analyse économique, note n° 69 « Repenser l'héritage », décembre 2021 (citation non
   vérifiée sur document primaire, § 6).
+- Forbes, classement mondial des milliardaires, édition 2025 (citation, § 3.1).
+- Challenges, « Les 500 plus grandes fortunes de France », édition 2025, et *Inegalites.fr*
+  (citation, § 3.1).
+- Oxfam France, « Résister au règne des plus riches », Focus France, janvier 2026 (citation,
+  recalculée à partir de Forbes, § 3.1).
 - [docs/pauvrete-donnees.md](pauvrete-donnees.md), pour les déciles D1 à D9 et les seuils de
   pauvreté, sur l'autre bout de la même distribution.
 
@@ -257,6 +303,17 @@ séparément.
 
 ## Versions
 
+- **Version 4** (22 septembre 2026) : repère sur les milliardaires ajouté (§ 3.1 — Forbes,
+  Challenges, Oxfam France), à la suite d'une question directe sur un chiffre entendu en débat
+  politique (« les milliardaires ont doublé leur fortune en 10 ans »). Vérifié sur les documents
+  primaires (rapport Oxfam janvier 2026, page 4 : gain de 220 Md€ depuis 2017 concentré sur 32
+  personnes — pas les 53 milliardaires comptés aujourd'hui, deux ensembles distincts que le
+  rapport lui-même ne confond pas mais que les reprises médiatiques amalgament souvent). Cité
+  avec sa provenance précise, comme l'estimation Zucman du § 3 : aucune des trois sources n'est
+  une statistique officielle, aucune table ne les charge.
+- **Version 3** (20 septembre 2026) : note explicite sur l'écart entre le D9 de ce dossier
+  (41 220 €/an, 2021) et celui du dossier pauvreté (46 500 €/an, 2023, § 1 de ce dossier) —
+  deux fiches Insee-Filosofi distinctes, jamais à confondre malgré le même nom de décile.
 - **Version 1** (16 septembre 2026) : premier chargement — seuils de revenu 2021 (D5 à Q99,99),
   série de parts du revenu 2004-2021, patrimoine des hauts patrimoines 2015-2021 (seuils, moyennes,
   composition). Conçu comme le prolongement du dossier pauvreté à l'intérieur du dixième décile,

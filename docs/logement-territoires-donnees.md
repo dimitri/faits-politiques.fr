@@ -1,6 +1,6 @@
 # Logement, hébergement et territoires : la mission « Cohésion des territoires »
 
-> **Dossier** · version 2 · 19 septembre 2026
+> **Dossier** · version 4 · 20 septembre 2026
 >
 > Les aides personnelles au logement, l'hébergement d'urgence, la rénovation de l'habitat, la politique de la ville et l'aménagement du territoire : ce que demande l'État pour ces politiques, les lois qui les fondent et les constats du contrôle parlementaire. Le dossier ne part d'aucune thèse et suit le plan commun des dossiers.
 
@@ -76,8 +76,8 @@ Montants demandés au projet de loi de finances de chaque année, ni votés ni e
 
 <!-- schema:carte-sru -->
 
-Sur les 2 196 communes soumises à l'article 55 de la loi SRU au 1ᵉʳ janvier
-2025, **la majorité respecte ou dépasse son taux cible de logements
+Sur les 2 206 communes soumises à l'article 55 de la loi SRU au 1ᵉʳ janvier
+2026, **la majorité respecte ou dépasse son taux cible de logements
 sociaux** — mais une minorité substantielle en reste loin, avec deux
 statuts que le dossier ne confond jamais : les communes **déficitaires**
 (sous leur objectif, sans sanction renforcée) et les communes
@@ -90,6 +90,34 @@ seul chiffre national de conformité.
 25 % selon la tension du marché local — un dépassement du taux national
 moyen ne dit donc rien du respect, par une commune donnée, de son propre
 objectif.
+
+**L'exemption est une dimension à part, pas un quatrième statut** : le
+fichier source la place lui-même en colonne « 4 bis », distincte du calcul
+de carence/déficit (colonne 4). L'article L. 302-5 du code de la
+construction et de l'habitation exempte de l'obligation SRU deux types de
+communes — celles isolées, mal reliées aux bassins d'emploi voisins, et
+celles où la tension de la demande de logement social (rapport
+demandes/attributions annuelles) reste sous un seuil fixé par décret —
+sans préciser, dans ce fichier, lequel des deux motifs s'applique à
+laquelle. **Une commune exemptée peut rester classée déficitaire** : les
+deux se recoupent réellement dans les données (au dernier millésime, une
+partie substantielle des communes déficitaires sont aussi exemptées) —
+l'exemption dispense des obligations et des sanctions, elle ne change pas
+le résultat du calcul de taux. **Une minorité de communes exemptées ont
+malgré tout un prélèvement dû** au dernier millésime — l'écart entre les
+deux colonnes du fichier source, pas une erreur de ce dossier ; à
+éclaircir si une explication officielle se trouve.
+
+### Le prélèvement SRU, une sanction chiffrée
+
+<!-- schema:sru-prelevement -->
+
+Le déficit de logements sociaux d'une commune carencée n'est pas qu'un
+constat : il déclenche un **prélèvement financier**, majoré par le préfet
+pour les communes carencées, et dont le montant net (déductions faites
+des dépenses réelles engagées pour le logement social) est publié commune
+par commune depuis le millésime 2024. Le nombre de communes carencées
+varie peu d'une année sur l'autre ; le prélèvement total, si.
 
 ### Constats chiffrés cités
 
@@ -105,7 +133,7 @@ Les budgets des communes et intercommunalités, qui portent une part de ces poli
 
 ## Ce que les données ne disent pas
 
-- **Le nombre de logements sociaux par commune et le respect du taux fixé par la loi SRU** : chargé pour la première fois dans cette version (voir « La loi SRU, commune par commune » ci-dessus).
+- **Le nombre de logements sociaux par commune et le respect du taux fixé par la loi SRU**, sur quatre millésimes (2023 à 2026) et avec le prélèvement net réellement payé par chaque commune carencée (voir « La loi SRU, commune par commune » et « Le prélèvement SRU, une sanction chiffrée » ci-dessus).
 - **Le répertoire complet du parc locatif social (RPLS)**, avec le type de financement (PLAI/PLUS/PLS) par logement : identifié (SDES, 430 000 lignes), non chargé dans cette version — le nom du bailleur social n'y figure d'ailleurs pas, seulement le type de financement.
 - **Les permis de construire par commune (Sitadel3)** : identifié comme structuré et à jour mensuellement, non chargé dans cette version.
 - **Les bénéficiaires des aides au logement par territoire** : non chargés ; le dossier cite le total donné par le Sénat.
@@ -139,10 +167,26 @@ Les budgets des communes et intercommunalités, qui portent une part de ces poli
 | [Rapport spécial du Sénat, « Cohésion des territoires » — politique des territoires, PLF 2026 (synthèse)](https://www.senat.fr/rap/l25-139-35-2/l25-139-35-2-syn.pdf) | PRIMARY_OFFICIAL |
 | Journal officiel (textes cités au cadre) | PRIMARY_OFFICIAL |
 | Comptes rendus de l'Assemblée nationale | PRIMARY_OFFICIAL |
-| DGALN/DHUP, inventaire SRU par commune au 1ᵉʳ janvier 2025, data.gouv.fr | PRIMARY_OFFICIAL |
+| DGALN/DHUP, inventaire SRU par commune, millésimes 2023 à 2026, data.gouv.fr | PRIMARY_OFFICIAL |
+| [Article L. 302-5 du code de la construction et de l'habitation, critères d'exemption SRU](https://www.legifrance.gouv.fr/codes/article_lc/LEGIARTI000045214963) | PRIMARY_OFFICIAL |
+| DGALN/DHUP, dictionnaire des données de l'inventaire SRU (fichier de documentation, data.gouv.fr) | PRIMARY_OFFICIAL |
 
 ## Versions
 
+- **Version 4** (20 septembre 2026) : l'exemption SRU (colonne « 4 bis » du
+  fichier source, article L. 302-5 CCH), chargée mais jamais surfacée
+  jusqu'ici — une dimension à part du statut carencée/déficitaire, pas un
+  quatrième statut : les deux se recoupent réellement dans les données
+  (une commune exemptée peut rester classée déficitaire par le calcul de
+  taux). Une minorité de communes exemptées ont malgré tout un prélèvement
+  dû au dernier millésime, signalé sans être expliqué.
+- **Version 3** (20 septembre 2026) : l'inventaire SRU devient pluriannuel
+  (2023 à 2026 au lieu du seul millésime 2025) et se complète du
+  prélèvement net réellement payé par les communes carencées — 135,2 M€
+  au dernier millésime (2026), sur 690 communes, jusqu'à 10,1 M€ pour la
+  commune la plus prélevée. Carte et classement portent désormais sur le
+  1ᵉʳ janvier 2026 (2 206 communes) ; une nouvelle courbe suit les
+  communes carencées et le prélèvement total de 2023 à 2026.
 - **Version 2** (19 septembre 2026) : carte des 2 196 communes soumises à la
   loi SRU, par statut (carencée, déficitaire, conforme) — le nombre de
   logements sociaux et le taux SRU par commune, chargés pour la première

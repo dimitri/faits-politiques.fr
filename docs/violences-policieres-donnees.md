@@ -42,6 +42,8 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
+- **L'Assemblée nationale constate elle-même l'absence de statistiques sur les blessés parmi les manifestants** (20 janvier 2021). La commission d'enquête, créée après les mobilisations des Gilets jaunes, écrit noir sur blanc qu'il n'existe pas de statistiques précises sur les blessés parmi les manifestants — l'absence documentée dans cette note (§ 6) n'est donc pas un simple constat d'un tiers, mais l'aveu de l'Assemblée nationale elle-même. — Commission d'enquête de l'Assemblée nationale sur le maintien de l'ordre · [source](https://www.assemblee-nationale.fr/dyn/15/rapports/ceordre/l15b3786_rapport-enquete.pdf) · *officiel*
+- **406 dossiers judiciaires ouverts par l'IGPN sur les Gilets jaunes, quatre condamnations** (20 janvier 2021). La directrice de l'IGPN, entendue par la commission, indique que son service a traité 406 dossiers judiciaires liés aux Gilets jaunes depuis le 17 novembre 2018, dont 311 retournés à l'autorité judiciaire — pour des suites connues de quatre condamnations, six poursuites, quatre mises en examen et 205 classements sans suite par les parquets. Parallèlement, 67 enquêtes administratives ont été ouvertes, dont huit ont retenu un usage disproportionné de la force visant 17 policiers. — Commission d'enquête de l'Assemblée nationale sur le maintien de l'ordre · [source](https://www.assemblee-nationale.fr/dyn/15/rapports/ceordre/l15b3786_rapport-enquete.pdf) · *officiel*
 - **Le taux d'élucidation des affaires de violences par PDAP a baissé de 25 points entre 2016 et 2024** (17 novembre 2025). L'association Flagrant déni, à partir de données officielles inédites obtenues de la Chancellerie, constate que le taux d'affaires de violences par personne dépositaire de l'autorité publique élucidées (au moins un auteur retrouvé) a baissé de 25 points entre 2016 et 2024, et chiffre à 700 en 2016 puis 1 110 en 2024 le nombre de ces affaires — une hausse de l'ordre de 60 %. — Flagrant déni, Polices des polices : pourquoi il faut tout changer · [source](https://www.flagrant-deni.fr/wp-content/uploads/2025/11/FD-RAPPORT-numerique-vf.pdf) · *déclaratif*
 - **2 434 réclamations sur la déontologie de la sécurité en 2024** (5 mars 2025). Le Défenseur des droits a reçu 2 434 réclamations en matière de déontologie de la sécurité en 2024. Une réclamation n'est pas un manquement établi. — Défenseur des droits (rapport annuel d'activité 2024) · [source](https://www.defenseurdesdroits.fr/sites/default/files/2025-03/ddd_rapport-annuel-2024_20250305.pdf) · *officiel*
 
@@ -80,11 +82,16 @@ et évaluations ci-dessus.
 de définition commune de ce qu'est un décès en garde à vue, ni de méthodologie
 d'enquête partagée. Eurostat ne publie pas la catégorie.
 
-Le seul recensement comparatif est **journalistique** : le European Data
-Journalism Network dénombre **488 décès en garde à vue ou en opération de
-police dans treize pays de l'Union entre 2020 et 2022, dont 107 en France** —
-le plus fort total absolu. Source de niveau 2 au sens du projet, et construite
-précisément parce que la source officielle manque.
+Le seul recensement comparatif est **journalistique** : l'organe de presse
+espagnol [Civio](https://civio.es/justicia/2024/10/30/most-european-countries-do-not-meet-un-criteria-for-investigating-deaths-in-police-custody/),
+avec le [European Data Journalism Network](https://www.europeandatajournalism.eu/deaths-in-custody-and-police-operations-2024/),
+dénombre **488 décès en garde à vue ou en opération de police dans treize
+pays de l'Union entre 2020 et 2022, dont 107 en France** — le plus fort
+total absolu (l'Irlande arrive en tête rapportée à la population, 1,34 pour
+100 000 habitants). Plus d'un tiers de ces décès, quand la cause est
+connue, sont dus à des tirs de la police — la France et l'Allemagne y
+concentrant les effectifs les plus élevés. Source de niveau 2 au sens du
+projet, et construite précisément parce que la source officielle manque.
 
 ### 4. Les arrêts de la Cour européenne des droits de l'homme chargés
 

@@ -843,13 +843,41 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return geo.IngestContourPays(ctx, pool, arch)
 		}},
+	{Nom: "cours-eau-monde", Categorie: CategorieSysteme,
+		Description: "fond mondial des grands cours d'eau (Natural Earth, même échelle que contour-pays)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return geo.IngestCoursEauMonde(ctx, pool, arch)
+		}},
 	{Nom: "empire-colonial", Categorie: CategorieSysteme, Description: "Empire colonial français, géographie et chronologie (CShapes 2.0)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return geo.IngestTerritoireColonial(ctx, pool, arch)
+			if err := geo.IngestTerritoireColonial(ctx, pool, arch); err != nil {
+				return err
+			}
+			return macro.IngestCLIOInfraPopulation(ctx, pool, arch)
 		}},
 	{Nom: "ligne-demarcation", Categorie: CategorieSysteme, Description: "ligne de démarcation 1940-1942 (Département de l'Ain)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return geo.IngestLigneDemarcation(ctx, pool, arch)
+		}},
+	{Nom: "europe-1940", Categorie: CategorieSysteme,
+		Description: "Europe au 1er septembre 1940 (CShapes 2.0) — frontières d'époque pour la carte de la Seconde Guerre mondiale",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return geo.IngestEuropeGuerre1940(ctx, pool, arch)
+		}},
+	{Nom: "education-depense-eleve", Categorie: CategorieSocial,
+		Description: "dépense par élève et par étudiant, 1980-2024 (RERS 10.05)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return education.IngestDepenseEleve(ctx, pool, arch)
+		}},
+	{Nom: "education-effectifs-historique", Categorie: CategorieSocial,
+		Description: "effectifs d'élèves, série longue (RERS 3.01/4.01, 1960-2025)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return education.IngestEffectifsHistorique(ctx, pool, arch)
+		}},
+	{Nom: "education-bac-reussite", Categorie: CategorieSocial,
+		Description: "taux de réussite au baccalauréat (INSEE, série BDM 001769473)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return education.IngestBacReussite(ctx, pool, arch)
 		}},
 	{Nom: "prefets", Categorie: CategorieSysteme, Description: "représentation de l'État dans les départements",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {

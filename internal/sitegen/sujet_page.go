@@ -622,6 +622,18 @@ func enBref(ctx context.Context, pool *pgxpool.Pool, s *Sujet, acc *DonneesAccue
 	}
 	pct := func(v float64) string { return Decimal(v, 1) + "\u00a0%" }
 	md := func(v float64) string { return Nombre(int(v/1000+0.5)) + "\u00a0Md€" }
+	fluxSNF := func(serie, libelle string, format func(float64) string) {
+		var annee int
+		var v float64
+		if err := pool.QueryRow(ctx, `
+			SELECT annee, sum(valeur_meur)::float8 FROM (
+				SELECT substring(trimestre from 1 for 4)::int AS annee, valeur_meur
+				FROM core.flux_financier_snf WHERE serie=$1
+			) t GROUP BY annee HAVING count(*)=4 ORDER BY annee DESC LIMIT 1`, serie).Scan(&annee, &v); err != nil {
+			return
+		}
+		ajouter(ChiffreCle{format(v), libelle, fmt.Sprintf("%d · Insee, comptes des sociétés non financières (BDM)", annee)}, true)
+	}
 
 	switch s.ID {
 	case "retraites":
@@ -689,6 +701,75 @@ func enBref(ctx context.Context, pool *pgxpool.Pool, s *Sujet, acc *DonneesAccue
 		macro("dette.publique.pib", "de dette rapportée au PIB", "Eurostat", pct)
 	case "pouvoirs-publics":
 		mission("Pouvoirs publics")
+	case "jeunesse":
+		requete(`SELECT exercice, sum(credit_paiement)::float8 FROM core.budget_programme
+			WHERE mission_libelle='Recherche et enseignement supérieur'
+			  AND programme_libelle IN ('Formations supérieures et recherche universitaire','Vie étudiante')
+			GROUP BY exercice ORDER BY exercice DESC LIMIT 1`,
+			"isolables pour l'enseignement supérieur dans le budget de l'État", "projet de loi de finances, Direction du budget",
+			func(v float64) string { return Decimal(v/1e9, 2) + "\u00a0Md€" })
+	case "investissement":
+		fluxSNF("fbcf", "d'investissement productif (FBCF) des sociétés non financières",
+			func(v float64) string { return Decimal(v/1000, 1) + "\u00a0Md€" })
+		fluxSNF("dividendes", "de dividendes versés par les sociétés non financières",
+			func(v float64) string { return Decimal(v/1000, 1) + "\u00a0Md€" })
+	case "emploi":
+		macro("emploi.total", "emplois en France (concept intérieur, tous statuts)", "Insee/Eurostat, comptabilité nationale",
+			func(v float64) string { return Decimal(v/1000, 2) + "\u00a0millions" })
+	case "depenses-fiscales":
+		// Même année que la page dépenses fiscales elle-même (§ 1, chargerStatsDepensesFiscales) :
+		// la dernière année d'exécution disponible dans le dernier millésime, pas l'année en
+		// prévision (souvent moins de dispositifs chiffrés) que donnerait un simple MAX(annee).
+		requete(`SELECT annee, sum(montant_eur)::float8 FROM core.depense_fiscale
+			WHERE millesime=(SELECT max(millesime) FROM core.depense_fiscale)
+			  AND annee=(SELECT max(millesime) FROM core.depense_fiscale) - 1
+			  AND mention IS NULL
+			GROUP BY annee`,
+			"de dépenses fiscales chiffrées, dernière année d'exécution", "PLF, Évaluation des voies et moyens (tome II)",
+			func(v float64) string { return Decimal(v/1e9, 1) + "\u00a0Md€" })
+	case "fraude-fiscale":
+		requete(`SELECT annee, montant_encaisse_m::float8 FROM core.controle_fiscal_resultats ORDER BY annee DESC LIMIT 1`,
+			"encaissés par le contrôle fiscal", "Sénat, commission des finances / DGFiP",
+			func(v float64) string { return Decimal(v/1000, 1) + "\u00a0Md€" })
+	case "sci-holding":
+		requete(`SELECT extract(year from now())::int, actives::float8 FROM mv.sci_holding_actives WHERE cle='sci-holding'`,
+			"sociétés civiles immobilières actives", "Insee, répertoire Sirene",
+			func(v float64) string { return Nombre(int(v + 0.5)) })
+	case "richesse":
+		requete(`SELECT annee, part_pct::float8 FROM core.revenu_part_groupe WHERE groupe='1_PLUS_AISES' ORDER BY annee DESC LIMIT 1`,
+			"part du revenu déclaré captée par le 1\u00a0% les plus aisés", "Insee-DGFiP-Cnaf-Cnav-CCMSA, Filosofi", pct)
+	case "union-europeenne":
+		requete(`SELECT annee, valeur::float8 FROM core.indicateur_mondial WHERE indicateur='NY.GDP.MKTP.CD' AND pays_code='EU' ORDER BY annee DESC LIMIT 1`,
+			"de PIB pour l'Union européenne", "Banque mondiale",
+			func(v float64) string { return Nombre(int(v/1e9+0.5)) + "\u00a0Md$" })
+	case "francophonie":
+		var total float64
+		if err := pool.QueryRow(ctx, `SELECT sum(francophone_milliers)::float8 FROM core.francophonie_entite
+			WHERE type_entite='pays' AND francophone_milliers IS NOT NULL`).Scan(&total); err == nil {
+			ajouter(ChiffreCle{Nombre(int(total/1000+0.5)) + "\u00a0millions", "de francophones dans le monde, sur les pays chargés",
+				"2025 · ODSEF / OIF"}, true)
+		}
+	case "climat-international":
+		requete(`SELECT extract(year from now())::int, count(*)::float8 FROM core.ratification_accord_paris WHERE date_ratification IS NOT NULL`,
+			"pays et organisations ont ratifié l'Accord de Paris, sur 198 parties chargées", "Registre des traités, Nations unies",
+			func(v float64) string { return Nombre(int(v)) })
+	case "appareil-productif":
+		requete(`SELECT e1.annee, (e1.emploi_milliers / e2.emploi_milliers * 100)::float8
+			FROM core.emploi_secteur_nace e1 JOIN core.emploi_secteur_nace e2
+				ON e2.annee = e1.annee AND e2.code_nace='TOTAL'
+			WHERE e1.code_nace='B-E' ORDER BY e1.annee DESC LIMIT 1`,
+			"de l'emploi total en France dans l'industrie (y compris énergie)", "Insee, comptes nationaux", pct)
+	case "ports":
+		requete(`SELECT annee, sum(tonnage_tot)::float8 FROM core.trafic_portuaire
+			WHERE port IN ('HAROPA','MARSEILLE','DUNKERQUE','NANTES SAINT-NAZAIRE')
+			  AND annee=(SELECT max(annee) FROM core.trafic_portuaire)
+			GROUP BY annee`,
+			"de trafic maritime cumulé pour les quatre grands ports français", "SDES, ministère de la Transition écologique",
+			func(v float64) string { return Decimal(v/1e6, 1) + "\u00a0Mt" })
+	case "eau":
+		requete(`SELECT annee, count(*)::float8 FROM core.service_eau_potable GROUP BY annee ORDER BY annee DESC LIMIT 1`,
+			"services publics d'eau potable recensés", "SISPEA, Observatoire de l'eau (OFB)",
+			func(v float64) string { return Nombre(int(v + 0.5)) })
 	default:
 		credits0()
 	}

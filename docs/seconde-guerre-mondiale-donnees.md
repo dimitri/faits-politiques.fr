@@ -1,6 +1,6 @@
 # La France dans la Seconde Guerre mondiale : occupation, pertes, déportation
 
-> **Dossier** · version 7 · 21 septembre 2026
+> **Dossier** · version 9 · 22 septembre 2026
 >
 > Où passait la ligne de démarcation, combien de militaires français sont
 > morts, combien de personnes ont été déportées depuis la France : ce
@@ -308,6 +308,39 @@ réellement, et dit explicitement ce qu'elle ne peut pas montrer.**
 
 ## Versions
 
+- **Version 9** (22 septembre 2026) : la carte d'Europe (§ 2) dessine
+  désormais les voisins de la France avec leurs frontières au 1ᵉʳ septembre
+  1940 (CShapes 2.0, `geo.contour_europe_1940`, nouvelle table — voir
+  `internal/geo/europe_1940.go`), pas les frontières actuelles — signalé
+  directement : une carte au sujet de 1940 dessinée avec les frontières
+  d'aujourd'hui montrait une Pologne amputée par rapport à son étendue
+  réelle, et faisait apparaître l'Ukraine, la Biélorussie et les pays
+  baltes comme des États indépendants, qu'aucun ne l'était à cette date.
+  L'URSS est maintenant une entité unique à sa vraie frontière occidentale
+  de 1940 — ni minimisée, ni coupée du cadrage comme le demandait
+  l'utilisateur — et porte désormais un nom, comme la Finlande à côté
+  d'elle (les deux seules exceptions à la règle « pas de nom hors
+  classement » de la version 6 : deux entités uniques et sans ambiguïté,
+  pas un groupe de petits pays tassés). Corrigé aussi un bord est de la
+  carte visiblement incliné en diagonale à travers l'URSS : `st_makeenvelope`
+  ne pose que 4 sommets, le transformer directement relie ces sommets par
+  des droites au lieu de suivre la vraie courbe du méridien une fois
+  reprojeté — invisible tant que le bord ne traversait que de l'océan ou
+  de petits pays, flagrant contre un aussi grand pays. `st_segmentize`
+  ajoute des sommets tous les 0,5° avant la reprojection pour suivre la
+  courbe réelle.
+- **Version 8** (22 septembre 2026) : la version 7 avait élargi le
+  cadrage de la carte d'Europe (§ 2) jusqu'à 71,5°N et 32,5°E, un seul
+  rectangle, pour inclure la Finlande — mais un rectangle unique élargi à
+  ces bornes, à TOUTES les latitudes, faisait aussi entrer une large bande
+  de Biélorussie, d'Ukraine et de Russie (aire hors classement multipliée
+  par plus de cinq, vérifié) : la carte affichée redevenait dominée par une
+  zone grise sans repère, le défaut que la version 6 avait déjà cherché à
+  corriger. Corrigé en remplaçant ce rectangle unique par deux rectangles
+  unis : l'emprise d'origine (jusqu'à 22°E, jusqu'à 59°N) reste inchangée,
+  un second rectangle plus étroit ne s'élargit vers l'est (jusqu'à 32,5°E)
+  qu'AU-DESSUS de 59°N, où se trouvent la Finlande et le nord de la
+  Scandinavie mais aucun des trois grands pays à exclure.
 - **Version 7** (21 septembre 2026) : quatre défauts de la carte d'Europe
   (§ 2) signalés directement sur la version publiée, corrigés. Le cadrage
   était découpé par un rectangle en degrés WGS84 AVANT projection : ses

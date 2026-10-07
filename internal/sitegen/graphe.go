@@ -971,8 +971,17 @@ func buildRegistry(env *environment) *pipeline.Registre {
 	addNode(reg, "carte-sru", nil, func(ctx context.Context, _ pipeline.Results) (*CarteSRU, error) {
 		return chargerCarteSRU(ctx, e.pool)
 	})
+	addNode(reg, "sru-prelevement", nil, func(ctx context.Context, _ pipeline.Results) (*PrelevementSRU, error) {
+		return chargerPrelevementSRU(ctx, e.pool)
+	})
 	addNode(reg, "effort-recherche", nil, func(ctx context.Context, _ pipeline.Results) (*EffortRecherche, error) {
 		return chargerEffortRecherche(ctx, e.pool)
+	})
+	addNode(reg, "indochine-partition", nil, func(ctx context.Context, _ pipeline.Results) (*StatsIndochinePartition, error) {
+		return chargerIndochinePartition(ctx, e.pool)
+	})
+	addNode(reg, "medecins-evolution", nil, func(ctx context.Context, _ pipeline.Results) (template.HTML, error) {
+		return chargerSerieMedecins(ctx, e.pool)
 	})
 
 	// --- sujets-data : voir la note de tête de fichier.
@@ -983,8 +992,8 @@ func buildRegistry(env *environment) *pipeline.Registre {
 		"empire-colonial", "seconde-guerre-mondiale", "population-guerres", "controle-fiscal", "ports-francais",
 		"ports-europe", "carte-infrastructure-ports", "report-modal-port", "report-modal-conteneurs", "justice",
 		"carte-semi-conducteurs", "contributif-non-contributif", "carte-musees", "ecart-prix-dom", "alimentaire-dom",
-		"carte-etudiants", "carte-sru", "effort-recherche", "sipri", "historique-immigration", "age-depart-retraite",
-		"taux-remplacement",
+		"carte-etudiants", "carte-sru", "sru-prelevement", "effort-recherche", "sipri", "historique-immigration",
+		"age-depart-retraite", "taux-remplacement", "indochine-partition", "medecins-evolution",
 	}
 	addNode(reg, "sujets-data", sujetsDeps, func(ctx context.Context, d pipeline.Results) (topicsReady, error) {
 		return topicsReady{}, buildTopicsData(ctx, e, d)

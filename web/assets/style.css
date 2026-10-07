@@ -620,8 +620,13 @@ gap:1.4rem;align-items:start;flex-direction:unset}
    depuis le 20 septembre 2026) — même rapport carte/légende que
    .cartes-empilees (1.15fr/1fr), scopé à .cartes-lignes.grandes seul pour ne
    pas élargir la grille étroite des autres usages de .cartes-lignes
-   (l'index complet de /collectivites/, en vignettes, doit le rester). */
-.cartes-lignes.grandes .bloc-carte.ligne{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr)}
+   (l'index complet de /collectivites/, en vignettes, doit le rester).
+   max-width:none annule le plafond à 44rem de .onglets-carte .panneaux
+   .bloc-carte (ligne plus bas) : ce plafond visait les anciennes vignettes
+   de ce composant, pas une carte pleine qui doit occuper toute la largeur
+   disponible — sinon la moitié droite de la section reste vide. */
+.cartes-lignes.grandes .bloc-carte.ligne{grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);
+max-width:none}
 @media(max-width:52rem){.cartes-lignes.grandes .bloc-carte.ligne{grid-template-columns:1fr}}
 .bloc-carte{background:var(--carte);border:1px solid var(--filet);
 border-radius:var(--rayon);padding:1.1rem 1.15rem;display:flex;flex-direction:column;
@@ -719,7 +724,11 @@ stroke-linejoin:round;stroke-linecap:round}
 
 /* Choroplèthe mondiale : fond neutre pour tous les pays, seuils de bleu-vert
    croissants pour la part de francophones — une seule teinte, pas un
-   dégradé arc-en-ciel qui suggérerait une échelle continue non étiquetée. */
+   dégradé arc-en-ciel qui suggérerait une échelle continue non étiquetée.
+   Le bleu d'océan (--accent-doux, la même teinte pâle que .poids ailleurs
+   sur le site) comble l'espace hors des pays — sans lui les territoires
+   flottaient sur un fond vide, ni mer ni terre. */
+.geo.monde{background:var(--accent-doux);border-radius:var(--rayon-s)}
 .geo.monde .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:.3;pointer-events:none}
 .geo.monde .pays-p{stroke:var(--carte);stroke-width:.3}
 .geo.monde .pays-p:hover{opacity:.8}
@@ -758,6 +767,46 @@ table tr.vague-1 td:first-child{border-left:3px solid #C97B4A}
 table tr.vague-2 td:first-child{border-left:3px solid #8C4B3A}
 table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 
+/* Quatre petites cartes du monde côte à côte (1900/1920/1938/1946) : la
+   croissance de l'empire, pas sa décolonisation — une seule teinte, jamais
+   les couleurs de vague-1/2/3 ci-dessus, qui n'ont pas de sens ici. */
+.empire-extension{display:grid;gap:1rem;grid-template-columns:repeat(auto-fit,minmax(11rem,1fr));
+margin:1rem 0}
+.empire-extension figure{margin:0;background:var(--carte);border:1px solid var(--filet);
+border-radius:var(--rayon-s);padding:.6rem .6rem .7rem;text-align:center}
+.empire-extension .territoire-p.annee-repere{fill:#8C4B3A}
+.empire-extension figcaption{margin-top:.5rem;font:500 .92rem var(--titre);color:var(--encre)}
+.empire-extension figcaption span{display:block;font:400 .72rem var(--mono);color:var(--attenue);
+margin-top:.15rem}
+
+/* La partition de l'Indochine, 1954 : deux volets côte à côte (.deux-cartes,
+   déjà utilisé par budget.gohtml) plutôt qu'un ajout à la carte de l'empire
+   colonial ci-dessus — la République démocratique du Viêt Nam (Nord) et la
+   République du Viêt Nam (Sud) n'ont pas de « date d'indépendance vis-à-vis
+   de la France », le cadre de vague-1/2/3 ne s'applique donc pas (voir
+   cmd/build/indochine_partition.go). Même bleu neutre que .fr-0
+   (Francophonie) pour le volet « avant » et pour le Laos/Cambodge du volet
+   « après » — ce ne sont pas des catégories à comparer entre elles, juste un
+   repère géographique commun aux deux volets.  */
+.geo.indochine-1954{background:var(--accent-doux);border-radius:var(--rayon-s)}
+.geo.indochine-1954 .voisin{fill:var(--papier2);stroke:var(--carte);stroke-width:.05;opacity:.8}
+.geo.indochine-1954 .avant,.geo.indochine-1954 .contexte{fill:#6FABB4;stroke:var(--carte);stroke-width:.05}
+.geo.indochine-1954 .nord{fill:#8C4B3A;stroke:var(--carte);stroke-width:.05}
+.geo.indochine-1954 .sud{fill:#C97B4A;stroke:var(--carte);stroke-width:.05}
+/* Échelle en degrés (17 unités de large, voir chargerIndochinePartition) :
+   une taille de police directe reste normale ici, pas besoin de la
+   transformation matricielle utilisée pour les cartes en Lambert-93/LAEA
+   du dossier Seconde Guerre mondiale. */
+.geo.indochine-1954 .repere-asie{font:600 .6px/1 var(--sans);fill:var(--seuil);opacity:.9;pointer-events:none}
+.geo.indochine-1954 .repere-contexte{font-weight:500;font-size:.5px;opacity:.7}
+.sous-legende{text-align:center;font:500 .78rem/1 var(--sans);color:var(--attenue);margin:.4rem 0 0}
+/* Étiquette de survol (site.js) : le nom de la forme survolée, affiché ici
+   plutôt que dans l'infobulle native du navigateur (lente à apparaître,
+   minuscule, invisible au clavier). Hauteur réservée même vide, pour que
+   la légende sous elle ne saute pas d'une ligne à l'autre. */
+.etiquette-survol{text-align:center;font:600 .8rem/1.4rem var(--sans);color:var(--encre);
+  min-height:1.4rem;margin:.3rem 0 0}
+
 /* Ports français : quatre grands ports maritimes, chacun sa couleur — pas
    de gris/nommé comme SIPRI, quatre lignes seulement restent lisibles. */
 .ports-fr .grille{stroke:var(--filet);stroke-width:1}
@@ -787,9 +836,14 @@ table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 
 /* Semi-conducteurs : cinq sites, un seul marqueur — pas de taille
    proportionnelle, l'aide publique n'étant connue que pour deux sites sur
-   cinq (voir le commentaire de cmd/build/souverainete_carte.go). */
-.geo.france.semi-conducteurs .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:.04}
-.geo.france.semi-conducteurs .site{fill:var(--accent);stroke:var(--carte);stroke-width:.03}
+   cinq (voir le commentaire de cmd/build/souverainete_carte.go). Projetée
+   en Lambert-93 depuis le 20 septembre 2026 (elle dessinait les degrés
+   WGS84 bruts, étirés d'environ 47 % d'ouest en est à cette latitude) —
+   d'où des largeurs de trait à l'échelle du mètre, comme les autres
+   cartes Lambert-93 du site. */
+.geo.france.semi-conducteurs .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:2000}
+.geo.france.semi-conducteurs .fleuve{stroke-width:800}
+.geo.france.semi-conducteurs .site{fill:var(--accent);stroke:var(--carte);stroke-width:1200}
 
 /* Établissements pénitentiaires : un seuil à 100 %, une seule teinte pour
    les vingt barres — c'est le classement qui informe, pas une couleur. */
@@ -821,6 +875,9 @@ table tr.vague-3 td:first-child{border-left:3px solid #4A2E3A}
 .report-modal-conteneurs .seg-fleuve{fill:var(--eau)}
 .report-modal-conteneurs .seg-route{fill:var(--absent-f)}
 
+/* Seconde Guerre mondiale : la France en silhouette, la ligne de
+   démarcation par-dessus — pas de remplissage par zone, aucune géométrie
+   de zone vérifiée n'ayant été trouvée (voir le dossier). */
 /* La France resituée dans l'Europe de l'Ouest de 1940 (§ 20 septembre 2026,
    la carte ne montrait que la France seule sur un fond vide) : la France
    elle-même en fond clair et trait plus marqué pour rester le sujet
@@ -1346,43 +1403,65 @@ text-decoration:none;color:var(--encre)}
 
 /* Chiffres-clés : trois chiffres avant la grille des familles, sur le
    modèle des sites de référence du genre (data-journalisme, portails
-   budgétaires) qui ouvrent sur l'ampleur du site avant le détail. Une
-   seule rangée de cellules égales, pas des cartes — ce ne sont pas des
-   liens, juste la preuve du sérieux avant le classement thématique. */
-.chiffres-cles{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--filet);
-border:1px solid var(--filet);border-radius:var(--rayon);overflow:hidden;margin-bottom:1.6rem}
-.chiffres-cles div{background:var(--carte);padding:1.2rem 1.3rem}
-.chiffres-cles b{display:block;font:500 2.2rem/1 var(--titre);letter-spacing:-.01em;
+   budgétaires) qui ouvrent sur l'ampleur du site avant le détail. Trois
+   cartes distinctes comme .niveau ci-dessus (border-radius seule sur
+   chacune), pas le calque gap+background de .solde&nbsp;: cette technique
+   suppose un fond de cellule proche du gris du filet (papier2, comme dans
+   .solde) — sur un fond blanc (--carte) le filet tranchait en une bande
+   jaunâtre visible entre les colonnes. */
+/* Nom distinct de .chiffres-cles (plus bas dans cette feuille, pour les
+   pages sujet) : les deux ont coexisté un temps sous le même nom, et la
+   règle .chiffres-cles div{border-top...} de sujet.gohtml, plus bas dans le
+   fichier, écrasait silencieusement le fond/la bordure/l'arrondi ci-dessous
+   par cascade — ne laissant plus qu'un filet noir en haut de chaque carte. */
+.chiffres-cles-accueil{display:grid;grid-template-columns:repeat(3,1fr);gap:1rem;margin-bottom:1.6rem}
+/* Fond teinté (le même bleu doux que les cartes, --accent-doux) plutôt que
+   --carte : sur la page d'accueil, ces trois chiffres sont la donnée qui
+   ouvre la section, pas une carte parmi d'autres — ils doivent se
+   distinguer des cartes « famille » juste en dessous, blanches sur le
+   même fond de page. */
+.chiffres-cles-accueil div{background:var(--accent-doux);border:1px solid var(--filet);border-radius:var(--rayon);
+padding:1.2rem 1.3rem}
+.chiffres-cles-accueil b{display:block;font:500 2.2rem/1 var(--titre);letter-spacing:-.01em;
 font-variant-numeric:tabular-nums}
-.chiffres-cles span{display:block;margin-top:.4rem;font-size:.82rem;color:var(--attenue);line-height:1.4}
-@media(max-width:34rem){.chiffres-cles{grid-template-columns:1fr}}
+.chiffres-cles-accueil span{display:block;margin-top:.4rem;font-size:.82rem;color:var(--attenue);line-height:1.4}
+@media(max-width:34rem){.chiffres-cles-accueil{grid-template-columns:1fr}}
 
-.familles{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(19rem,1fr))}
+/* Cartes de famille (révisé le 20 septembre 2026, deuxième passe) : la carte
+   entière est le lien vers /sujets/<id>/, sa propre page avec une carte par
+   sujet et son chiffre-clé réel — plus de puces de noms ni de jauge de poids
+   ici, jugées illisibles pour ce qu'elles ajoutaient. Un chiffre, un nom, une
+   phrase, un lien : le même registre que .niveau (« Qui dépense » ci-dessus). */
+.familles{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(17rem,1fr))}
 .famille{background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);
-padding:1rem 1.1rem 1.1rem;display:flex;flex-direction:column}
-.famille h3{margin:.5rem 0 0;font:500 1.12rem/1.25 var(--titre)}
-.famille h3 a{color:var(--encre);text-decoration:none}
-.famille h3 a:hover{color:var(--accent)}
-/* poids-n/poids-u : le chiffre COFOG, en gros, comme un vrai chiffre-clé —
-   plus l'ancien libellé « X € sur 1 000 » en petit texte plat. poids-hors/
-   poids-hu : les familles sans fonction de dépense (fiscalité, histoire…)
-   affichent leur nombre de sujets à la même échelle visuelle, jamais en
-   barre de poids qu'on lirait comme un poids nul. */
-.famille .poids-n{display:block;font:500 1.7rem/1 var(--titre);letter-spacing:-.01em;
+padding:1.1rem 1.15rem 1.15rem;display:flex;flex-direction:column;color:inherit;text-decoration:none}
+.famille:hover{border-color:var(--accent)}
+.famille:hover h3{color:var(--accent)}
+.famille h3{margin:.5rem 0 0;font:500 1.12rem/1.25 var(--titre);color:var(--encre)}
+.famille .q{margin:.35rem 0 0;font-size:.86rem;color:var(--attenue);line-height:1.5}
+.famille .poids-n,.famille .poids-hors{display:block;font:500 1.7rem/1 var(--titre);
+letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.famille .poids-hors{color:var(--attenue)}
+.famille .poids-n .poids-u,.famille .poids-hors .poids-u{display:inline-block;font:400 .7rem var(--mono);
+color:var(--attenue);letter-spacing:.03em;margin-left:.3rem;font-variant-numeric:normal}
+.famille .voir{margin-top:auto;padding-top:.7rem;font:500 .8rem var(--sans);color:var(--accent)}
+.famille:hover .voir{text-decoration:underline}
+
+/* Page /sujets/<famille>/ : une carte par sujet, avec son propre
+   chiffre-clé (Sujet.EnBref[0]) — le pendant, à l'échelle du sujet, du
+   chiffre de famille sur l'accueil. Un sujet sans chiffre-clé chargé
+   (EnBref vide) montre sa carte sans numéro plutôt qu'un zéro inventé. */
+.sujets-cartes{display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(16rem,1fr));
+margin-top:1.6rem}
+.sujet-carte{background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);
+padding:1.15rem 1.25rem 1.3rem;display:flex;flex-direction:column;color:inherit;text-decoration:none}
+.sujet-carte:hover{border-color:var(--accent)}
+.sujet-carte:hover h2{color:var(--accent)}
+.sujet-carte .n{display:block;font:500 2rem/1.1 var(--titre);letter-spacing:-.01em;
 font-variant-numeric:tabular-nums}
-.famille .poids-n .poids-u{font:400 .7rem var(--mono);color:var(--attenue);margin-left:.25rem}
-.famille .poids-hors{display:block;font:500 1.7rem/1 var(--titre);color:var(--attenue);
-letter-spacing:-.01em}
-.famille .poids-hu{display:block;font:400 .66rem/1.6 var(--mono);letter-spacing:.05em;
-text-transform:uppercase;color:var(--attenue)}
-.famille .jauge{margin-top:.4rem}
-.famille .puces{display:flex;flex-wrap:wrap;gap:.35rem;margin:.8rem 0 .9rem}
-.famille .puces a{font:400 .78rem var(--sans);color:var(--attenue);text-decoration:none;
-background:var(--papier2);border:1px solid var(--filet2);border-radius:999px;padding:.26rem .6rem}
-.famille .puces a:hover{color:var(--accent);border-color:var(--accent)}
-.famille .voir{margin-top:auto;padding-top:.5rem;font:500 .8rem var(--sans);color:var(--accent);
-text-decoration:none}
-.famille .voir:hover{text-decoration:underline}
+.sujet-carte .d{display:block;margin-top:.3rem;font-size:.78rem;color:var(--attenue);line-height:1.4}
+.sujet-carte h2{margin:.9rem 0 0;font:500 1.05rem/1.28 var(--titre);color:var(--encre)}
+.sujet-carte .q{margin:.35rem 0 0;font-size:.85rem;color:var(--attenue);line-height:1.5}
 
 /* Page /sujets/ : les mêmes cartes de famille que l'accueil, en plus grand
    (neuf familles à parcourir plutôt que neuf sections empilées pleine

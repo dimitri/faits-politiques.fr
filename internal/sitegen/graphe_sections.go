@@ -203,7 +203,10 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 	schemaAlimentaireDOM := dep[template.HTML](deps, "alimentaire-dom")
 	carteEtudiants := dep[*CarteEtudiants](deps, "carte-etudiants")
 	carteSRU := dep[*CarteSRU](deps, "carte-sru")
+	prelevementSRU := dep[*PrelevementSRU](deps, "sru-prelevement")
 	effortRecherche := dep[*EffortRecherche](deps, "effort-recherche")
+	statsIndochinePartition := dep[*StatsIndochinePartition](deps, "indochine-partition")
+	serieMedecins := dep[template.HTML](deps, "medecins-evolution")
 	schemaSIPRI := dep[template.HTML](deps, "sipri")
 	schemaHistoriqueImmigration := dep[template.HTML](deps, "historique-immigration")
 	schemaAgeDepartRetraite := dep[template.HTML](deps, "age-depart-retraite")
@@ -491,6 +494,33 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- tableau:empire-colonial-territoires -->",
 				string(statsEmpireColonial.Table)))
 		}
+		if statsEmpireColonial != nil && statsEmpireColonial.ExtensionSVG != "" &&
+			strings.Contains(string(d.Corps), "<!-- schema:empire-colonial-extension -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:empire-colonial-extension -->",
+				`<figure class="schema">`+string(statsEmpireColonial.ExtensionSVG)+
+					`<figcaption>L'empire colonial français à quatre dates fixes, pas à sa dernière extension avant `+
+					`chaque indépendance comme la carte ci-dessus — la croissance de l'empire, pas seulement son `+
+					`rétrécissement. Un territoire absent d'une carte n'y était pas encore français, ou déjà `+
+					`indépendant à cette date (CShapes 2.0).</figcaption></figure>`))
+		}
+		if statsIndochinePartition != nil && strings.Contains(string(d.Corps), "<!-- schema:indochine-1954 -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:indochine-1954 -->",
+				`<figure class="schema">`+string(statsIndochinePartition.CarteSVG)+
+					`<figcaption>Cambodge, Laos et Viêt Nam unifié à leur dernière extension coloniale (CShapes 2.0, `+
+					`mêmes données que la carte de l'empire colonial), puis la partition du Viêt Nam actée par les `+
+					`accords de Genève du 21 juillet 1954 jusqu'à la chute de Saïgon le 30 avril 1975 — le Laos et `+
+					`le Cambodge, déjà indépendants depuis 1953, ne sont pas concernés par cette partition et sont `+
+					`redessinés à titre de repère.</figcaption></figure>`))
+		}
+		if statsIndochinePartition != nil && statsIndochinePartition.Population != "" &&
+			strings.Contains(string(d.Corps), "<!-- schema:indochine-population -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:indochine-population -->",
+				`<figure class="schema">`+string(statsIndochinePartition.Population)+
+					`<figcaption>Population du Viêt Nam, du Cambodge et du Laos, 1500-2000 (CLIO-INFRA, licence CC0-1.0) — `+
+					`aux frontières ACTUELLES de ces trois pays, jamais au périmètre de l'Indochine française ni à un `+
+					`recensement colonial. Trois échelles distinctes : le Viêt Nam pèse dix fois les deux autres réunis, `+
+					`une échelle commune aurait aplati le Cambodge et le Laos.</figcaption></figure>`))
+		}
 		if statsSGM != nil && strings.Contains(string(d.Corps), "<!-- schema:sgm-ligne-demarcation -->") {
 			var b strings.Builder
 			// Même intégration que carte-detail.gohtml (.cartes-lignes.carte-dossier,
@@ -513,16 +543,20 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 				`<div><dt>Occupés par l'Axe dès 1939-1940</dt><dd><b>%d</b></dd></div>`+
 				`<div><dt>Alliés</dt><dd><b>%d</b></dd></div>`+
 				`<div><dt>Neutres</dt><dd><b>%d</b></dd></div>`+
-				`<div><dt>Hors classement</dt><dd><b>%d</b><span>Europe centrale et Balkans, non traités par ce dossier</span></dd></div>`+
+				`<div><dt>Hors classement</dt><dd><b>%d</b><span>URSS, Europe centrale et Balkans, non traités par ce dossier</span></dd></div>`+
 				`<div><dt>Ligne de démarcation</dt><dd><b>%s</b><span>km, zone occupée / zone libre, juin 1940 - mars 1943</span></dd></div>`+
 				`</dl>`, statsSGM.NbAxe, statsSGM.NbOccupe, statsSGM.NbAllie, statsSGM.NbNeutre, statsSGM.NbNonClasse,
 				Decimal(statsSGM.LongueurKm, 0))
-			b.WriteString(`<span class="src">Statuts simplifiés à 1940 (l'Italie a changé de camp en 1943, non ` +
-				`représenté) ; convention de couleurs Axe/Alliés/Neutre reprise de la légende Wikimedia « Map of ` +
-				`participants in World War II », la plus citée mais pas la seule en usage. Fond de carte et cours ` +
-				`d'eau : Natural Earth, domaine public. Ni l'annexion de fait de l'Alsace-Moselle ni la zone ` +
-				`d'occupation italienne (à partir de novembre 1942) n'ont de géométrie vérifiée trouvée ; non ` +
-				`représentées ici, voir § 2.</span>`)
+			b.WriteString(`<span class="src">Frontières des pays voisins au 1ᵉʳ septembre 1940 (CShapes 2.0), ` +
+				`pas les frontières actuelles : à cette date, la Pologne s'étend encore à l'est de sa frontière ` +
+				`d'aujourd'hui, et l'Ukraine, la Biélorussie et les pays baltes ne sont pas des États — leur ` +
+				`territoire relève soit de la Pologne d'avant-guerre, soit de l'URSS. CShapes ne subdivise ni la ` +
+				`Tchécoslovaquie ni la Yougoslavie entre occupants. Statuts simplifiés à 1940 (l'Italie a changé de ` +
+				`camp en 1943, non représenté) ; convention de couleurs Axe/Alliés/Neutre reprise de la légende ` +
+				`Wikimedia « Map of participants in World War II », la plus citée mais pas la seule en usage. Fond ` +
+				`de carte : CShapes 2.0 (ETH Zürich) ; cours d'eau : Natural Earth, domaine public. Ni l'annexion ` +
+				`de fait de l'Alsace-Moselle ni la zone d'occupation italienne (à partir de novembre 1942) n'ont ` +
+				`de géométrie vérifiée trouvée ; non représentées ici, voir § 2.</span>`)
 			b.WriteString(`</div></div></div>`)
 			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sgm-ligne-demarcation -->", b.String()))
 		}
@@ -649,14 +683,57 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 						Nombre(int(carteEtudiants.Total)), carteEtudiants.NbCommunes, carteEtudiants.Annee)))
 		}
 		if carteSRU != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-sru -->") {
-			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-sru -->",
-				`<figure class="schema"><div class="carte-pleine">`+string(carteSRU.SVG)+`</div>`+
-					`<div class="echelle"><span><i class="sru-conforme"></i>Conforme ou au-delà</span>`+
-					`<span><i class="sru-deficitaire"></i>Déficitaire</span>`+
-					`<span><i class="sru-carencee"></i>Carencée</span></div>`+
-					fmt.Sprintf(`<figcaption>%d communes soumises à la loi SRU au 1ᵉʳ janvier 2025 (DGALN/DHUP), dont `+
-						`%d carencées et %d déficitaires non carencées. Taille du cercle proportionnelle à la `+
-						`population.</figcaption></figure>`, carteSRU.NbCommunes, carteSRU.NbCarencees, carteSRU.NbDeficitaires)))
+			// Même intégration que les autres cartes de dossier
+			// (.cartes-lignes.carte-dossier, carte à gauche, légende +
+			// résumé chiffré à droite), plutôt que le .carte-pleine nu
+			// d'avant l'audit d'intégration cartographique du 20 septembre
+			// 2026. L'exemption (colonne « 4 bis » du fichier source, voir
+			// docs/logement-territoires-donnees.md) est une dimension à
+			// part, jamais un quatrième statut de couleur sur la carte —
+			// elle a donc sa propre ligne dans le résumé chiffré plutôt
+			// qu'une entrée dans l'échelle de couleurs.
+			var b strings.Builder
+			b.WriteString(`<div class="cartes-lignes carte-dossier"><div class="bloc-carte ligne"><div>`)
+			b.WriteString(string(carteSRU.SVG))
+			b.WriteString(`</div><div>`)
+			b.WriteString(`<div class="echelle"><span><i class="sru-conforme"></i>Conforme ou au-delà</span>` +
+				`<span><i class="sru-deficitaire"></i>Déficitaire</span>` +
+				`<span><i class="sru-carencee"></i>Carencée</span></div>`)
+			fmt.Fprintf(&b, `<dl class="legende-situation">`+
+				`<div><dt>Communes soumises à la loi SRU</dt><dd><b>%d</b></dd></div>`+
+				`<div><dt>Carencées</dt><dd><b>%d</b></dd></div>`+
+				`<div><dt>Déficitaires non carencées</dt><dd><b>%d</b></dd></div>`+
+				`<div><dt>Conformes ou au-delà</dt><dd><b>%d</b></dd></div>`+
+				`<div><dt>Exemptées (art. L.302-5 CCH)</dt><dd><b>%d</b><span>dimension distincte du statut ci-dessus — `+
+				`une commune exemptée peut rester classée déficitaire ou carencée</span></dd></div>`+
+				`<div><dt>Exemptées avec un prélèvement dû</dt><dd><b>%d</b><span>écart entre les deux colonnes du `+
+				`fichier source, non expliqué par ce dossier</span></dd></div>`+
+				`</dl>`, carteSRU.NbCommunes, carteSRU.NbCarencees, carteSRU.NbDeficitaires, carteSRU.NbConformes,
+				carteSRU.NbExemptees, carteSRU.NbExempteesPrelevees)
+			fmt.Fprintf(&b, `<span class="src">%d communes soumises à la loi SRU au 1ᵉʳ janvier %d (DGALN/DHUP) · `+
+				`taille du cercle proportionnelle à la population · contours&nbsp;: © les contributeurs OpenStreetMap, `+
+				`ODbL&nbsp;1.0</span>`, carteSRU.NbCommunes, carteSRU.Annee)
+			b.WriteString(`</div></div></div>`)
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-sru -->", b.String()))
+		}
+		if prelevementSRU != nil && strings.Contains(string(d.Corps), "<!-- schema:sru-prelevement -->") {
+			var top strings.Builder
+			top.WriteString(`<table><thead><tr><th>commune</th><th>département</th>` +
+				`<th style="text-align:right">prélèvement net</th></tr></thead><tbody>`)
+			for _, r := range prelevementSRU.Top {
+				fmt.Fprintf(&top, `<tr><td>%s</td><td>%s</td><td style="text-align:right">%s €</td></tr>`,
+					template.HTMLEscapeString(r.Commune), template.HTMLEscapeString(r.Departement), Nombre(int(r.Montant)))
+			}
+			top.WriteString(`</tbody></table>`)
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:sru-prelevement -->",
+				`<figure class="schema"><div class="carte-pleine">`+string(prelevementSRU.Trend)+`</div>`+
+					top.String()+
+					fmt.Sprintf(`<figcaption>Communes carencées (barres, échelle de gauche) et prélèvement SRU net total `+
+						`(ligne, échelle de droite), %d à %d — le prélèvement n'existe comme donnée qu'à partir de %d. `+
+						`Au dernier millésime (%d) : %s € prélevés sur %d communes, dont les cinq plus lourdement `+
+						`prélevées ci-dessus.</figcaption></figure>`,
+						prelevementSRU.AnneeDebut, prelevementSRU.AnneeFin, 2024,
+						prelevementSRU.Annee, Nombre(int(prelevementSRU.Total)), prelevementSRU.NbCommunesPrelevement)))
 		}
 		if effortRecherche != nil && strings.Contains(string(d.Corps), "<!-- schema:effort-recherche -->") {
 			estim := ""
@@ -717,20 +794,57 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 					`par le consommateur final.</figcaption></figure>`))
 		}
 		if carteMedecins != nil && strings.Contains(string(d.Corps), "<!-- schema:carte-medecins-generalistes -->") {
-			c := carteMedecins.Page.Carte
-			var echelle strings.Builder
-			echelle.WriteString(`<div class="echelle"><span class="u">` + template.HTMLEscapeString(c.Unite) + `</span>`)
-			for i, b := range c.Bornes {
-				fmt.Fprintf(&echelle, `<span><i style="background:%s"></i>%s</span>`, c.Teintes[i], b)
+			p := carteMedecins.Page
+			c := p.Carte
+			var b strings.Builder
+			// Même intégration que carte-detail.gohtml (.cartes-lignes.carte-dossier,
+			// carte à gauche, légende + résumé chiffré à droite) — jamais le
+			// .carte-pleine nu utilisé ici avant l'audit d'intégration cartographique
+			// du 20 septembre 2026, seule carte du site restée à l'ancien format.
+			if p.Question != "" {
+				fmt.Fprintf(&b, `<p class="q">%s</p>`, template.HTMLEscapeString(p.Question))
 			}
-			echelle.WriteString(`</div>`)
-			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-medecins-generalistes -->",
-				`<figure class="schema"><div class="carte-pleine">`+string(c.SVG)+`</div>`+
-					echelle.String()+
-					`<figcaption>`+template.HTMLEscapeString(carteMedecins.Question)+` `+
-					template.HTMLEscapeString(carteMedecins.Note)+` `+
-					`<a href="`+root+`/collectivites/carte/medecins-generalistes/">Le classement des 101 `+
-					`départements et la méthode →</a></figcaption></figure>`))
+			b.WriteString(`<div class="cartes-lignes carte-dossier"><div class="bloc-carte ligne"><div>`)
+			b.WriteString(string(c.SVG))
+			b.WriteString(cartonsHTML(c.Cartons))
+			b.WriteString(`</div><div>`)
+			fmt.Fprintf(&b, `<div class="echelle"><span class="u">%s</span>`, template.HTMLEscapeString(c.Unite))
+			for i, borne := range c.Bornes {
+				fmt.Fprintf(&b, `<span><i style="background:%s"></i>%s</span>`, c.Teintes[i], borne)
+			}
+			if c.NbAbsents > 0 {
+				b.WriteString(`<span><i style="background:#EFEBE2"></i>aucune donnée</span>`)
+			}
+			b.WriteString(`</div>`)
+			if r := p.Resume; r != nil {
+				fmt.Fprintf(&b, `<dl class="legende-situation">`+
+					`<div><dt>Départements couverts</dt><dd><b>%s</b></dd></div>`+
+					`<div><dt>Médiane</dt><dd><b>%s</b></dd></div>`+
+					`<div><dt>Maximum</dt><dd><b>%s</b><span>%s</span></dd></div>`+
+					`<div><dt>Minimum</dt><dd><b>%s</b><span>%s</span></dd></div></dl>`,
+					Nombre(r.Nombre), r.MedianeValeur, r.MaxValeur, template.HTMLEscapeString(r.MaxNom),
+					r.MinValeur, template.HTMLEscapeString(r.MinNom))
+			}
+			fmt.Fprintf(&b, `<span class="src">%s · %d départements renseignés`,
+				template.HTMLEscapeString(p.Source), c.Total)
+			if c.NbAbsents > 0 {
+				fmt.Fprintf(&b, `, %d sans donnée`, c.NbAbsents)
+			}
+			b.WriteString(` · contours&nbsp;: © les contributeurs OpenStreetMap, ODbL&nbsp;1.0</span>`)
+			if p.Note != "" {
+				fmt.Fprintf(&b, `<span class="src">%s</span>`, template.HTMLEscapeString(p.Note))
+			}
+			fmt.Fprintf(&b, `<a class="voir" href="%s/collectivites/carte/medecins-generalistes/">Le classement des `+
+				`101 départements et la méthode →</a>`, root)
+			b.WriteString(`</div></div></div>`)
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:carte-medecins-generalistes -->", b.String()))
+		}
+		if serieMedecins != "" && strings.Contains(string(d.Corps), "<!-- schema:medecins-evolution -->") {
+			d.Corps = template.HTML(strings.ReplaceAll(string(d.Corps), "<!-- schema:medecins-evolution -->",
+				`<figure class="schema">`+string(serieMedecins)+
+					`<figcaption>Effectif total de médecins, tous secteurs et catégories confondus, France `+
+					`entière, 2010-2024 (Cnam, Démographie secteurs conventionnels). L'axe part de zéro&nbsp;: `+
+					`une baisse de quelques pour cent ne doit pas ressembler à un effondrement.</figcaption></figure>`))
 		}
 	}
 

@@ -130,7 +130,11 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	// Les fleuves en dernier, par-dessus départements et régions — ce fichier
 	// est un <img> statique, il ne lit pas les variables CSS du thème
 	// (comme le reste de ce fond) : couleur fixe plutôt que var(--eau).
-	b.WriteString(`</g><g fill="none" stroke="#5E93B0" stroke-opacity=".55" stroke-width="700" stroke-linejoin="round" pointer-events="none">`)
+	// Un bleu franc et un trait aussi épais que la limite de région (1800,
+	// juste au-dessus) : à la largeur d'affichage réelle de ce fond (~600 px
+	// pour toute la France), le bleu discret de var(--eau) à 700 devenait
+	// invisible — repéré sur les pages région et département.
+	b.WriteString(`</g><g fill="none" stroke="#2C74A6" stroke-opacity=".85" stroke-width="1600" stroke-linejoin="round" pointer-events="none">`)
 	b.WriteString(f.deps.fleuves)
 	b.WriteString(`</g></svg>`)
 	if err := os.MkdirAll(filepath.Join(out, "media"), 0o755); err != nil {

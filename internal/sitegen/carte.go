@@ -327,6 +327,28 @@ func etiquettesRegions(j *JeuContours) string {
 	return b.String()
 }
 
+// cartonsHTML : même rendu que le template nommé "cartons" (base.gohtml),
+// pour les rares cas où une carte s'insère depuis du Go plutôt que depuis un
+// gabarit — voir l'injection de carteMedecins dans main.go.
+func cartonsHTML(cartons []Carton) string {
+	if len(cartons) == 0 {
+		return ""
+	}
+	var b strings.Builder
+	b.WriteString(`<div class="cartons"><span class="t">Outre-mer</span>`)
+	for _, c := range cartons {
+		cl := ""
+		if c.Absent {
+			cl = "vide"
+		}
+		fmt.Fprintf(&b, `<figure class="%s">%s<figcaption>%s<span>%s</span></figcaption></figure>`,
+			cl, c.SVG, template.HTMLEscapeString(c.Nom), template.HTMLEscapeString(c.Valeur))
+	}
+	b.WriteString(`</div><p class="note-cartons">Chaque carton a <strong>sa propre échelle</strong> et sa propre ` +
+		`projection&nbsp;: les surfaces ne se comparent pas d'un carton à l'autre, ni à l'hexagone.</p>`)
+	return b.String()
+}
+
 func indexer(cases []CaseCarte) map[string]CaseCarte {
 	m := make(map[string]CaseCarte, len(cases))
 	for _, c := range cases {

@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"os"
+	"strconv"
 	"time"
 
 	"github.com/faits-politiques/faits-politiques/internal/archive"
@@ -133,10 +134,40 @@ var territoiresColoniaux = []territoireColonial{
 		"Vietnam (Annam/Cochin China/Tonkin)", "1954-04-30"},
 }
 
+// territoireIndochine1954 décrit l'une des deux entités nées de la
+// partition du Viêt Nam actée par les accords de Genève (21 juillet 1954) :
+// pas un territoire de l'empire colonial français (voir le commentaire de
+// la migration 0151 pour pourquoi ce n'est pas une ligne de plus dans
+// territoiresColoniaux ci-dessus), mais la même source CShapes, déjà
+// téléchargée pour cette dernière — d'où le partage du fichier CSV et du
+// run d'archive plutôt qu'une fonction d'ingestion séparée.
+type territoireIndochine1954 struct {
+	territoire, camp              string
+	dateDebut, dateFin            string
+	note                          string
+	cshapesNom, cshapesFinPeriode string
+}
+
+var territoiresIndochine1954 = []territoireIndochine1954{
+	{"République démocratique du Viêt Nam (Nord)", "nord", "1954-05-01", "1975-04-30",
+		"Proclamée dès 1945 par Hô Chi Minh, reconnue comme la moitié nord du Viêt Nam " +
+			"(nord du 17ᵉ parallèle) par les accords de Genève du 21 juillet 1954 — CShapes " +
+			"situe le début de cette période au 1er mai 1954, avant la signature du texte. " +
+			"Devient l'ensemble du Viêt Nam réunifié à la chute de Saïgon, le 30 avril 1975.",
+		"Vietnam, Democratic Republic of", "1975-04-30"},
+	{"République du Viêt Nam (Sud)", "sud", "1954-05-01", "1975-04-30",
+		"Moitié sud du Viêt Nam (sud du 17ᵉ parallèle) après la partition de Genève, " +
+			"héritière de l'État du Viêt Nam proclamé en 1949 ; cesse d'exister à la chute " +
+			"de Saïgon, le 30 avril 1975, absorbée par la République démocratique du Viêt Nam.",
+		"Vietnam, Republic of", "1975-04-30"},
+}
+
 // IngestTerritoireColonial charge la géographie (CShapes 2.0) des
 // territoires de l'empire colonial français listés ci-dessus, à leur
-// dernière période sous administration française. Voir
-// docs/empire-colonial-donnees.md.
+// dernière période sous administration française, ainsi que — depuis le
+// même fichier CSV — les deux entités de la partition du Viêt Nam de 1954
+// (geo.indochine_partition_1954, table séparée, voir la migration 0151).
+// Voir docs/empire-colonial-donnees.md et docs/guerres-decolonisation-donnees.md.
 func IngestTerritoireColonial(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceEmpireColonial)
 	if err != nil {
@@ -170,13 +201,22 @@ func IngestTerritoireColonial(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	for i, h := range header {
 		col[h] = i
 	}
-	for _, must := range []string{"cntry_name", "gwedate", "the_geom"} {
+	for _, must := range []string{"cntry_name", "gwedate", "gwsyear", "gweyear", "the_geom"} {
 		if _, ok := col[must]; !ok {
 			return fail(fmt.Errorf("colonne %q absente du CSV CShapes", must))
 		}
 	}
 
+	// periode : une ligne CShapes pour un pays — une plage d'années, pas une
+	// seule date. Nécessaire pour situer l'empire à une année FIXE (1900,
+	// 1920...) plutôt qu'à la seule dernière période avant indépendance :
+	// voir chargerExtensionEmpire ci-dessous.
+	type periode struct {
+		debut, fin int
+		geom       string
+	}
 	geomParPeriode := map[[2]string]string{}
+	periodesParPays := map[string][]periode{}
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {
@@ -185,7 +225,13 @@ func IngestTerritoireColonial(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		if err != nil {
 			return fail(fmt.Errorf("ligne CShapes illisible : %w", err))
 		}
-		geomParPeriode[[2]string{rec[col["cntry_name"]], rec[col["gwedate"]]}] = rec[col["the_geom"]]
+		nom := rec[col["cntry_name"]]
+		geomParPeriode[[2]string{nom, rec[col["gwedate"]]}] = rec[col["the_geom"]]
+		debut, errD := strconv.Atoi(rec[col["gwsyear"]])
+		fin, errF := strconv.Atoi(rec[col["gweyear"]])
+		if errD == nil && errF == nil {
+			periodesParPays[nom] = append(periodesParPays[nom], periode{debut, fin, rec[col["the_geom"]]})
+		}
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -194,6 +240,9 @@ func IngestTerritoireColonial(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	}
 	defer tx.Rollback(ctx)
 	if _, err := tx.Exec(ctx, `DELETE FROM geo.territoire_colonial`); err != nil {
+		return fail(err)
+	}
+	if _, err := tx.Exec(ctx, `DELETE FROM geo.indochine_partition_1954`); err != nil {
 		return fail(err)
 	}
 
@@ -222,14 +271,84 @@ func IngestTerritoireColonial(ctx context.Context, pool *pgxpool.Pool, arch *arc
 			return fail(fmt.Errorf("%s : insertion : %w", t.territoire, err))
 		}
 	}
+	for _, p := range territoiresIndochine1954 {
+		for _, d := range []string{p.dateDebut, p.dateFin} {
+			if _, err := time.Parse("2006-01-02", d); err != nil {
+				return fail(fmt.Errorf("%s : date illisible : %w", p.territoire, err))
+			}
+		}
+		ewkt, ok := geomParPeriode[[2]string{p.cshapesNom, p.cshapesFinPeriode}]
+		if !ok {
+			manquants++
+			fmt.Printf("  %s : aucune géométrie CShapes pour %q au %s\n", p.territoire, p.cshapesNom, p.cshapesFinPeriode)
+			ewkt = ""
+		}
+		var geomExpr any
+		if ewkt != "" {
+			geomExpr = ewkt
+		}
+		if _, err := tx.Exec(ctx, `
+			INSERT INTO geo.indochine_partition_1954
+				(territoire, camp, date_debut, date_fin, note, geom, source_id)
+			VALUES ($1, $2, $3, $4, $5, ST_Multi(ST_GeomFromEWKT($6)), $7)`,
+			p.territoire, p.camp, p.dateDebut, p.dateFin, p.note, geomExpr, srcID); err != nil {
+			return fail(fmt.Errorf("%s : insertion : %w", p.territoire, err))
+		}
+	}
 	if manquants > 0 {
 		return fail(fmt.Errorf("%d territoires sans géométrie CShapes — vérifier les noms/dates", manquants))
 	}
+
+	// L'empire à quatre dates fixes (voir la migration 0154) : pas la
+	// dernière période avant indépendance comme ci-dessus, mais la période
+	// CShapes qui couvre chaque année repère — un territoire absent d'une
+	// carte donnée parce qu'il n'était pas encore français à cette date
+	// (anneeRattachement > repère) ou déjà indépendant (repère >= année
+	// d'indépendance), jamais parce que la donnée manquerait.
+	if _, err := tx.Exec(ctx, `DELETE FROM geo.empire_colonial_extension`); err != nil {
+		return fail(err)
+	}
+	var extensions int
+	for _, anneeRepere := range []int{1900, 1920, 1938, 1946} {
+		for _, t := range territoiresColoniaux {
+			anneeIndep, err := strconv.Atoi(t.dateIndependance[:4])
+			if err != nil {
+				return fail(fmt.Errorf("%s : année d'indépendance illisible : %w", t.territoire, err))
+			}
+			if anneeRepere < t.anneeRattachement || anneeRepere >= anneeIndep {
+				continue
+			}
+			var geom string
+			for _, per := range periodesParPays[t.cshapesNom] {
+				if anneeRepere >= per.debut && anneeRepere <= per.fin {
+					geom = per.geom
+					break
+				}
+			}
+			if geom == "" {
+				continue
+			}
+			if _, err := tx.Exec(ctx, `
+				INSERT INTO geo.empire_colonial_extension (territoire, annee_repere, geom, source_id)
+				VALUES ($1, $2, ST_Multi(ST_GeomFromEWKT($3)), $4)`,
+				t.territoire, anneeRepere, geom, srcID); err != nil {
+				return fail(fmt.Errorf("%s à %d : insertion extension : %w", t.territoire, anneeRepere, err))
+			}
+			extensions++
+		}
+	}
+
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"territoires": len(territoiresColoniaux)}, "")
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
+		"territoires":              len(territoiresColoniaux),
+		"indochine_partition_54":   len(territoiresIndochine1954),
+		"extension_annees_reperes": extensions,
+	}, "")
 	fmt.Printf("  Empire colonial français : %d territoires (CShapes 2.0 + Wikidata, vérifiés territoire par territoire)\n", len(territoiresColoniaux))
+	fmt.Printf("  Partition de l'Indochine, 1954 : %d entités (CShapes 2.0)\n", len(territoiresIndochine1954))
+	fmt.Printf("  Extension à 1900/1920/1938/1946 : %d lignes territoire×année\n", extensions)
 	return nil
 }

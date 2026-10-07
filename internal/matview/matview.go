@@ -401,6 +401,17 @@ var Catalogue = []Definition{
 		Tables: []string{"jo.texte"},
 		SQL:    `SELECT id FROM jo.texte`,
 	},
+	{
+		// Une ligne, pour éviter d'exporter les 13 070 047 lignes de
+		// ref.unite_legale (SIRENE) dans le périmètre CI (internal/matview.
+		// TablesDirectes) pour une seule statistique — voir sujet_page.go,
+		// enBref, case "sci-holding".
+		Nom:    "sci_holding_actives",
+		Tables: []string{"ref.unite_legale"},
+		SQL: `SELECT 'sci-holding' AS cle, count(*)::bigint AS actives
+	  FROM ref.unite_legale
+	 WHERE etat_administratif = 'A' AND categorie_juridique IN ('6540', '6541')`,
+	},
 }
 
 // TableDirecte : une table de core/ref/geo que internal/sitegen lit
@@ -461,6 +472,7 @@ var TablesDirectes = []TableDirecte{
 	{"core.gini_patrimoine_niveau_vie", "lu directement par internal/sitegen — 1 lignes"},
 	{"geo.ligne_demarcation", "lu directement par internal/sitegen — 1 lignes"},
 	{"ref.classification_set", "lu directement par internal/sitegen — 2 lignes"},
+	{"geo.indochine_partition_1954", "lu directement par internal/sitegen — 2 lignes"},
 	{"core.report_modal_conteneurs", "lu directement par internal/sitegen — 3 lignes"},
 	{"core.report_modal_port", "lu directement par internal/sitegen — 4 lignes"},
 	{"core.filosofi_haut_revenu", "lu directement par internal/sitegen — 5 lignes"},
@@ -483,6 +495,7 @@ var TablesDirectes = []TableDirecte{
 	{"core.pdr_voix", "lu directement par internal/sitegen — 22 lignes"},
 	{"geo.territoire_colonial", "lu directement par internal/sitegen — 22 lignes"},
 	{"core.delocalisation_annuelle", "lu directement par internal/sitegen — 23 lignes"},
+	{"geo.contour_europe_1940", "lu directement par internal/sitegen — 24 lignes"},
 	{"ref.indicator", "lu directement par internal/sitegen — 26 lignes"},
 	{"core.qualification_secnumcloud", "lu directement par internal/sitegen — 27 lignes"},
 	{"core.media", "lu directement par internal/sitegen — 29 lignes"},
@@ -490,11 +503,13 @@ var TablesDirectes = []TableDirecte{
 	{"core.titre_sejour_stock", "lu directement par internal/sitegen — 33 lignes"},
 	{"core.effort_recherche", "lu directement par internal/sitegen — 34 lignes"},
 	{"core.education_effectif_eleves", "lu directement par internal/sitegen — 35 lignes"},
+	{"core.population_indochine_historique", "lu directement par internal/sitegen — 42 lignes"},
 	{"core.pauvrete_seuil_annuel", "lu directement par internal/sitegen — 56 lignes"},
 	{"geo.contour_eptb_epage", "lu directement par internal/sitegen — 65 lignes"},
 	{"core.eptb_epage", "lu directement par internal/sitegen — 67 lignes"},
 	{"core.party_classification", "lu directement par internal/sitegen — 73 lignes"},
 	{"core.revenu_agricole_reel", "lu directement par internal/sitegen — 74 lignes"},
+	{"geo.empire_colonial_extension", "lu directement par internal/sitegen — 75 lignes"},
 	{"geo.cours_eau", "lu directement par internal/sitegen — 77 lignes"},
 	{"core.revenu_part_groupe", "lu directement par internal/sitegen — 90 lignes"},
 	{"core.delocalisation_departement", "lu directement par internal/sitegen — 96 lignes"},
@@ -511,12 +526,14 @@ var TablesDirectes = []TableDirecte{
 	{"geo.contour_pays", "lu directement par internal/sitegen — 242 lignes"},
 	{"core.etablissement_penitentiaire", "lu directement par internal/sitegen — 272 lignes"},
 	{"core.agriculture_indicateur", "lu directement par internal/sitegen — 315 lignes"},
+	{"geo.cours_eau_monde", "lu directement par internal/sitegen — 462 lignes"},
 	{"core.encaissement_urssaf", "lu directement par internal/sitegen — 525 lignes"},
 	{"core.chomage_tranche_unedic", "lu directement par internal/sitegen — 540 lignes"},
 	{"core.demande_asile_ofpra", "lu directement par internal/sitegen — 553 lignes"},
 	{"geo.contour_circonscription", "lu directement par internal/sitegen — 558 lignes"},
 	{"ref.circonscription_legislative", "lu directement par internal/sitegen — 566 lignes"},
 	{"core.emploi_secteur_nace", "lu directement par internal/sitegen — 612 lignes"},
+	{"core.flux_financier_snf", "lu directement par internal/sitegen — 620 lignes"},
 	{"core.execution_etat", "lu directement par internal/sitegen — 806 lignes"},
 	{"core.exoneration_cotisation", "lu directement par internal/sitegen — 890 lignes"},
 	{"core.ifi_commune", "lu directement par internal/sitegen — 1 112 lignes"},
@@ -528,6 +545,7 @@ var TablesDirectes = []TableDirecte{
 	{"core.trafic_portuaire", "lu directement par internal/sitegen — 1 540 lignes"},
 	{"core.texte_expose", "lu directement par internal/sitegen — 1 559 lignes"},
 	{"ref.depense_fiscale_beneficiaire", "lu directement par internal/sitegen — 1 879 lignes"},
+	{"core.sru_commune_dernier", "vue sur core.sru_commune (dernier millésime) lue directement par internal/sitegen — 2 206 lignes"},
 	{"core.indicateur_mondial", "lu directement par internal/sitegen — 3 044 lignes"},
 	{"core.budget_programme", "lu directement par internal/sitegen — 4 796 lignes"},
 	{"core.taux_remplacement_retraite", "lu directement par internal/sitegen — 4 806 lignes"},
@@ -538,6 +556,7 @@ var TablesDirectes = []TableDirecte{
 	{"core.dossier_author", "lu directement par internal/sitegen — 7 305 lignes"},
 	{"core.sru_commune", "lu directement par internal/sitegen — 8 743 lignes"},
 	{"geo.autoroute_portuaire", "lu directement par internal/sitegen — 9 062 lignes"},
+	{"core.service_eau_potable", "lu directement par internal/sitegen — 10 231 lignes"},
 	{"core.bilan_alimentaire", "lu directement par internal/sitegen — 10 770 lignes"},
 	{"core.effectifs_etudiants_commune", "lu directement par internal/sitegen — 14 719 lignes"},
 	{"core.population_age", "lu directement par internal/sitegen — 15 897 lignes"},
@@ -550,6 +569,7 @@ var TablesDirectes = []TableDirecte{
 	{"geo.contour_cog", "lu directement par internal/sitegen — 72 284 lignes"},
 	{"core.marche_numerique", "lu directement par internal/sitegen — 75 228 lignes"},
 	{"core.epci_membre", "lu directement par internal/sitegen — 129 560 lignes"},
+	{"core.medecin_secteur_effectif", "lu directement par internal/sitegen — 177 720 lignes"},
 	{"core.declaration_item", "lu directement par internal/sitegen — 341 931 lignes"},
 	{"core.person_identifier", "lu directement par internal/sitegen — 517 528 lignes"},
 	{"derived.autonomie_alimentaire", "lu directement par internal/sitegen — 1 186 lignes"},

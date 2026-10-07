@@ -205,3 +205,24 @@
     location.href='departement/'+chemin.getAttribute('data-code')+'/';
   });
 })();
+
+// Étiquette de survol, générique à toute carte : un « .carte-pleine » dont
+// les formes portent data-nom, suivi d'un « .etiquette-survol » dans le même
+// parent, affiche ce nom au survol ou au focus clavier — plutôt que la seule
+// infobulle native du navigateur (lente à apparaître, minuscule, invisible
+// au clavier). Sans data-nom sur les formes, ou sans étiquette dans le
+// gabarit, ce bloc ne fait rien : jamais d'erreur, jamais de survol cassé.
+[].forEach.call(document.querySelectorAll('.carte-pleine'),function(bloc){
+  var svg=bloc.querySelector('svg.geo'); if(!svg) return;
+  var formes=svg.querySelectorAll('[data-nom]'); if(!formes.length) return;
+  var etq=bloc.parentNode.querySelector('.etiquette-survol'); if(!etq) return;
+  [].forEach.call(formes,function(f){
+    f.setAttribute('tabindex','0');
+    var montrer=function(){etq.textContent=f.getAttribute('data-nom')};
+    var cacher=function(){etq.textContent=''};
+    f.addEventListener('mouseenter',montrer);
+    f.addEventListener('mouseleave',cacher);
+    f.addEventListener('focus',montrer);
+    f.addEventListener('blur',cacher);
+  });
+});

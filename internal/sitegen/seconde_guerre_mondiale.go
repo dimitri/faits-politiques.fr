@@ -74,8 +74,12 @@ var pointsDebarquement = []pointDebarquement{
 // légende du fichier Wikimedia « Map of participants in World War II »
 // pour Axe/Alliés/Neutre, la convention la plus citée mais pas la seule
 // qui existe — d'autres atlas emploient l'orange pour l'Axe.
+// Clés en anglais telles que nommées par CShapes 2.0 (geo.contour_europe_1940,
+// internal/geo/europe_1940.go) depuis la version 9 de ce dossier — pas les
+// noms Natural Earth d'avant (« Germany », « Italy ») : cette carte dessine
+// désormais les frontières de 1940, pas celles d'aujourd'hui.
 var statutBelligerant = map[string]string{
-	"Germany": "axe", "Italy": "axe",
+	"Germany (Prussia)": "axe", "Italy/Sardinia": "axe",
 	"Poland": "occupe", "Norway": "occupe", "Denmark": "occupe",
 	"Netherlands": "occupe", "Belgium": "occupe", "Luxembourg": "occupe",
 	"United Kingdom": "allie",
@@ -198,53 +202,54 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 	}
 	labelFranceX, labelFranceY := labelFranceXN.Float64, labelFranceYN.Float64
 
-	// Une emprise fixe plutôt qu'un tampon spatial autour de la France : la
-	// géométrie France de Natural Earth inclut les outre-mer (Guyane,
-	// Réunion...), et un st_expand sur leur union fait exploser le tampon à
-	// l'échelle du globe — vérifié, 159 pays retournés jusqu'en Afghanistan.
-	// Cette emprise reste centrée sur l'Europe de l'Ouest ; elle mord
-	// nécessairement, à ses bords, sur l'Europe centrale et les Balkans
-	// (aucun rectangle ne peut suivre exactement un contour historique) —
-	// ces pays-là sont dessinés, pour ne laisser aucun vide dans le cadrage,
-	// mais restent hors de statutBelligerant : non classés, pas classés
-	// neutres par erreur. La Finlande (cobelligérante de l'Allemagne contre
-	// l'URSS, jamais occupée) est un des cas que ce classement à quatre
-	// catégories ne peut pas trancher correctement ; si elle apparaît dans
-	// l'emprise, elle reste donc, comme la Tchéquie ou la Hongrie, non
-	// classée plutôt que devinée.
+	// Les voisins viennent de geo.contour_europe_1940 (CShapes 2.0, coupe au
+	// 1ᵉʳ septembre 1940 — voir internal/geo/europe_1940.go), pas des
+	// frontières actuelles (geo.contour_pays) : une carte au sujet de 1940
+	// dessinée avec les frontières d'aujourd'hui plaçait la Pologne à sa
+	// taille actuelle (amputée à l'est par rapport à 1940) et faisait
+	// apparaître l'Ukraine, la Biélorussie et les pays baltes comme des
+	// États indépendants — aucun ne l'était à cette date, absorbés ou
+	// partagés entre la Pologne d'avant-guerre et l'URSS (signalé
+	// directement par l'utilisateur). geo.contour_europe_1940 ne contient
+	// qu'une seule URSS, à ses frontières réelles de septembre 1940 : ni
+	// minimisée ni coupée du cadrage.
 	//
-	// Plusieurs pays portent aussi des territoires lointains dans Natural
-	// Earth (Pays-Bas → Caraïbes, Espagne → Canaries, Portugal → Açores,
-	// Norvège → Svalbard) : l'intersection avec cette emprise les retire
-	// tous d'un coup. Le filtre d'aire (1000 km² après projection) élimine
-	// ensuite les esquilles qu'une frontière tangente à l'emprise laisse
-	// passer (Kaliningrad, coin de Lituanie...) — pas les vrais petits pays
-	// (le Luxembourg, le plus petit conservé, en fait dix fois plus).
-	// clipEuropeWGS84 : un pré-filtre st_intersects bon marché (index
-	// spatial), pas la découpe visuelle. La découpe visuelle se fait plus
-	// bas avec clipEurope3035, APRÈS projection : un rectangle WGS84 (bords
-	// = méridiens/parallèles, des droites) découpé AVANT projection se
-	// retrouve avec des bords courbes une fois reprojeté en LAEA (3035),
-	// visibles comme des bords inclinés ne suivant pas le cadre rectangulaire
-	// de la carte (repéré à la vue de la carte publiée). Bornes : jusqu'à
-	// 71,5°N et 32,5°E pour inclure la Finlande et la Norvège en entier
-	// (toutes deux tronquées par l'ancienne borne à 59°N) — la Finlande
-	// reste malgré tout non classée (voir plus haut), la carte s'agrandit
-	// seulement pour ne plus l'effacer du cadrage.
-	const clipEuropeWGS84 = `st_makeenvelope(-10, 34, 32.5, 71.5, 4326)`
-	const clipEurope3035 = `st_transform(st_makeenvelope(-10, 34, 32.5, 71.5, 4326), 3035)`
+	// Une emprise fixe plutôt qu'un tampon spatial : l'URSS de 1940
+	// s'étend jusqu'au Pacifique, un st_expand dessus fait exploser le
+	// cadrage à l'échelle du globe. clipEuropeWGS84 sert de pré-filtre
+	// st_intersects bon marché (index spatial) ; la découpe visuelle se
+	// fait avec clipEurope3035, APRÈS projection. Bornes : jusqu'à 71,5°N
+	// (Norvège et Finlande de 1940 entières) et jusqu'à 40°E (Moscou, pour
+	// donner une échelle à l'URSS plutôt qu'une bande arbitrairement
+	// étroite).
+	//
+	// st_makeenvelope ne pose que 4 sommets, aux coins du rectangle. Le
+	// transformer directement (st_transform tel quel) ne fait que déplacer
+	// CES 4 POINTS vers leurs coordonnées LAEA et relie les nouveaux points
+	// par des droites — pas la vraie courbe que suit un méridien ou un
+	// parallèle une fois reprojeté. Le bord ouest (Atlantique, longue côte
+	// réelle à suivre) et le bord sud passaient inaperçus ainsi, mais le
+	// bord est (40°E) tombe en pleine URSS, un immense pays d'un seul tenant
+	// : la corde droite entre ses deux coins tranche le pays par une balafre
+	// diagonale bien visible, au lieu de suivre le vrai méridien (repéré
+	// directement sur la carte publiée). st_segmentize ajoute des sommets
+	// tous les 0,5° AVANT la reprojection : la ligne transformée suit alors
+	// de près la vraie courbe du méridien/parallèle, au lieu de sauter en
+	// droite d'un coin à l'autre.
+	const clipEuropeWGS84 = `st_makeenvelope(-10, 37.5, 40, 71.5, 4326)`
+	const clipEurope3035 = `st_transform(st_segmentize(st_makeenvelope(-10, 37.5, 40, 71.5, 4326), 0.5), 3035)`
 	const seuilAireM2 = 1e9
 	const tolEuropeM = 8000.0 // mètres (EPSG:3035), après transformation
 
 	rows, err := pool.Query(ctx, `
 		WITH pays AS (
-			SELECT nom_fr, nom_en,
+			SELECT nom, nom_en,
 			       st_simplifypreservetopology(
 			           st_intersection(st_transform(geom, 3035), `+clipEurope3035+`), $1) AS g
-			FROM geo.contour_pays
-			WHERE nom_fr <> 'France' AND st_intersects(geom, `+clipEuropeWGS84+`)
+			FROM geo.contour_europe_1940
+			WHERE st_intersects(geom, `+clipEuropeWGS84+`)
 		)
-		SELECT nom_fr, nom_en, st_assvg(g, 1, 0),
+		SELECT nom, nom_en, st_assvg(g, 1, 0),
 		       st_x((ic).center), -st_y((ic).center), (ic).radius
 		FROM pays, LATERAL (SELECT ST_MaximumInscribedCircle(g) AS ic) l
 		WHERE NOT st_isempty(g) AND st_area(g) > $2
@@ -278,7 +283,7 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 	if err := pool.QueryRow(ctx, `
 		WITH pays AS (
 			SELECT st_intersection(st_transform(geom, 3035), `+clipEurope3035+`) AS geom
-			FROM geo.contour_pays WHERE nom_fr <> 'France' AND st_intersects(geom, `+clipEuropeWGS84+`)
+			FROM geo.contour_europe_1940 WHERE st_intersects(geom, `+clipEuropeWGS84+`)
 			UNION ALL
 			SELECT st_transform(geom, 3035) FROM (SELECT (ST_Dump(geom)).path AS path, (ST_Dump(geom)).geom AS geom
 			                   FROM geo.contour_pays WHERE nom_fr='France') d
@@ -290,16 +295,40 @@ func chargerSecondeGuerreMondiale(ctx context.Context, pool *pgxpool.Pool) (*Sta
 		return nil, err
 	}
 
-	// geo.cours_eau ne couvre que la France (voir carte.go) — un calque
-	// Europe entière (Rhin, Danube...) existe par ailleurs (geo.cours_eau_monde)
-	// mais appartient à un chantier séparé, pas encore disponible ici : la
-	// carte d'Europe reste donc sans cours d'eau hors de France pour cette
-	// version, plutôt que de dépendre d'une table absente.
+	// geo.cours_eau ne couvre que la France (voir carte.go) : sur cette
+	// carte d'Europe, geo.cours_eau_monde (Natural Earth, même échelle et
+	// même emprise que le fond de pays ci-dessus) prend le relais — sans
+	// lui, le Rhin ou le Danube s'arrêtaient net à la frontière française,
+	// comme s'ils n'existaient qu'en France.
 	fleuvesFrance, err := fleuvesSVG(ctx, pool, 2154, 1, 0)
 	if err != nil {
 		return nil, err
 	}
 	var fleuvesEurope string
+	fRows, err := pool.Query(ctx, `
+		SELECT st_assvg(st_intersection(st_transform(geom, 3035), `+clipEurope3035+`), 1, 0)
+		FROM geo.cours_eau_monde WHERE st_intersects(geom, `+clipEuropeWGS84+`)`)
+	if err != nil {
+		return nil, err
+	}
+	var feB strings.Builder
+	for fRows.Next() {
+		var d string
+		if err := fRows.Scan(&d); err != nil {
+			fRows.Close()
+			return nil, err
+		}
+		if d == "" {
+			continue
+		}
+		fmt.Fprintf(&feB, `<path class="fleuve" d="%s"/>`, d)
+	}
+	if err := fRows.Err(); err != nil {
+		fRows.Close()
+		return nil, err
+	}
+	fRows.Close()
+	fleuvesEurope = feB.String()
 
 	// Les huit points de débarquement sont fixés en Go (coordonnées
 	// vérifiées individuellement, voir pointsDebarquement) : une seule
@@ -514,8 +543,15 @@ func dessinerCarteSGM(voisins []pieceEurope, zoneOccupee, zoneLibre, fleuves, vi
 	// vraiment (voir statutBelligerant) sont donc nommés ; les autres
 	// restent en couleur, sans étiquette, cohérent avec « hors classement »
 	// qui dit déjà que ce dossier n'a rien de vérifié à affirmer sur eux.
+	// Deux exceptions : l'URSS et la Finlande, deux entités uniques et sans
+	// ambiguïté (pas un groupe de petits pays tassés) — les laisser sans nom
+	// ferait deviner au lecteur ce que représentent ces deux grandes zones
+	// à l'est, contraire à la demande explicite de ne pas les effacer de la
+	// carte. Sans nom, la Finlande se distinguait mal de l'URSS voisine :
+	// même teinte « hors classement », aucune autre différence visuelle.
+	etiquetesMalgreNonClasse := map[string]bool{"URSS": true, "Finlande": true}
 	for _, p := range voisins {
-		if p.labelR < seuilEtiquettePays || p.classe == "non-classe" {
+		if p.labelR < seuilEtiquettePays || (p.classe == "non-classe" && !etiquetesMalgreNonClasse[p.nom]) {
 			continue
 		}
 		etiquette(p, "")

@@ -2298,6 +2298,12 @@ var checks = []check{
 		sources: []string{"contour-pays"},
 	},
 	{
+		name:    "fond mondial des cours d'eau : au moins 400 tracés chargés",
+		query:   `SELECT count(*) FROM geo.cours_eau_monde`,
+		min:     400,
+		sources: []string{"cours-eau-monde"},
+	},
+	{
 		// Une part de francophones est un pourcentage : au-delà de 100, une
 		// colonne a été décalée à la lecture du fichier.
 		name:  "Francophonie : les parts restent des pourcentages plausibles",
@@ -2360,6 +2366,26 @@ var checks = []check{
 		        WHERE extract(year FROM date_independance) < annee_rattachement`,
 	},
 	{
+		name:    "Indochine : population CLIO-INFRA chargée pour les trois pays",
+		query:   `SELECT count(DISTINCT pays) - 3 FROM core.population_indochine_historique`,
+		sources: []string{"empire-colonial"},
+	},
+	{
+		// La population ne peut décroître que par accident de saisie sur une
+		// série longue et stable comme celle-ci (jamais de guerre ou de
+		// famine documentée dans CLIO-INFRA elle-même pour ces trois pays
+		// sur des pas de temps aussi larges) : un doublon de millésime ou une
+		// valeur en milliers confondue avec une valeur en unités ferait
+		// apparaître une chute brutale d'un point à l'autre.
+		name: "Indochine : aucune chute de plus de 50 % de population d'un point à l'autre",
+		query: `SELECT count(*) FROM (
+			SELECT pays, annee, population_milliers,
+			       lag(population_milliers) OVER (PARTITION BY pays ORDER BY annee) AS precedent
+			FROM core.population_indochine_historique
+		) x WHERE precedent IS NOT NULL AND population_milliers < precedent * 0.5`,
+		sources: []string{"empire-colonial"},
+	},
+	{
 		name:    "Seconde Guerre mondiale : la ligne de démarcation est chargée",
 		query:   `SELECT count(*) FROM geo.ligne_demarcation`,
 		min:     1,
@@ -2378,27 +2404,90 @@ var checks = []check{
 		query: `SELECT count(*) FROM core.etablissement_penitentiaire WHERE densite_pct < 0`,
 	},
 	{
-		name:    "SRU : au moins 2000 communes chargées",
-		query:   `SELECT count(*) FROM core.sru_commune`,
+		name:    "SRU : au moins 2000 communes dans le dernier millésime chargé",
+		query:   `SELECT count(*) FROM core.sru_commune_dernier`,
 		min:     2000,
 		sources: []string{"sru"},
 	},
 	{
-		// La carte (internal/sitegen/logement.go) joint core.sru_commune à
+		// La table est pluriannuelle depuis 0191_sru_pluriannuel.sql (2023 à
+		// 2026) : un millésime dont le nombre de communes sortirait de la
+		// fourchette observée sur les quatre fichiers réels (2157 à 2206)
+		// signalerait un fichier tronqué ou un mauvais délimiteur/en-tête
+		// pour ce millésime précis — chacun a les siens, vérifiés
+		// séparément à l'écriture du connecteur (internal/macro/sru.go).
+		name: "SRU : chaque millésime (2023-2026) compte un nombre de communes plausible",
+		query: `SELECT count(*) FROM (
+			SELECT annee, count(*) AS n FROM core.sru_commune GROUP BY annee
+		) x WHERE x.n NOT BETWEEN 2000 AND 2300`,
+		sources: []string{"sru"},
+	},
+	{
+		// Le prélèvement net n'existe comme colonne que depuis le millésime
+		// 2024 (voir COMMENT ON COLUMN core.sru_commune.prelevement_net) :
+		// 2023 doit rester entièrement NULL, et chacun des trois autres
+		// millésimes doit compter des communes à prélèvement non nul — un
+		// millésime entièrement à zéro trahirait une colonne mal alignée à
+		// la lecture, pas une réalité (des centaines de communes carencées
+		// sont prélevées chaque année).
+		name: "SRU : chaque millésime 2024-2026 compte des communes à prélèvement non nul",
+		query: `SELECT count(*) FROM (
+			SELECT annee, count(*) FILTER (WHERE prelevement_net > 0) AS n
+			FROM core.sru_commune WHERE annee <> 2023 GROUP BY annee
+		) x WHERE x.n = 0`,
+		sources: []string{"sru"},
+	},
+	{
+		// core.sru_commune_dernier promet UNE photographie cohérente (voir
+		// son COMMENT ON VIEW) : toutes ses lignes doivent porter le même
+		// millésime, jamais un mélange où chaque commune apporterait sa
+		// propre dernière année connue.
+		name:    "SRU : la vue du dernier millésime ne mélange pas plusieurs années",
+		query:   `SELECT count(DISTINCT annee) - 1 FROM core.sru_commune_dernier`,
+		sources: []string{"sru"},
+	},
+	{
+		// Colonne « 4 bis » du fichier source (article L. 302-5 CCH),
+		// distincte de carencée/déficitaire — vérifiée réelle sur chaque
+		// millésime chargé (100 à 200 communes par an, jamais 0 ni
+		// l'intégralité des 2000+ communes soumises).
+		name: "SRU : chaque millésime compte des communes exemptées, jamais toutes ni aucune",
+		query: `SELECT count(*) FROM (
+			SELECT annee, count(*) FILTER (WHERE exemptee) AS n, count(*) AS total
+			FROM core.sru_commune GROUP BY annee
+		) x WHERE x.n = 0 OR x.n = x.total`,
+		sources: []string{"sru"},
+	},
+	{
+		// La carte (internal/sitegen/logement.go) joint core.sru_commune_dernier à
 		// geo.contour_cog par code Insee, avec un repli par nom pour les
 		// quelques communes nouvelles dont le code diverge entre les deux
 		// sources. Si ce repli devient ambigu (plusieurs communes de même
 		// nom dans le même département), la jointure duplique des lignes ;
 		// si le code du COG change sans mise à jour du repli, elle en perd.
 		// Les deux comptes doivent rester strictement égaux.
+		// Même repli par nom que cmd/build/logement.go (chargerCarteSRU) —
+		// un OR unique entre égalité de code et repli par nom empêchait tout
+		// usage d'index (balayage croisé de 2 200 communes SRU contre les
+		// 35 000 du COG, plusieurs minutes), déjà corrigé côté carte mais
+		// pas ici : cette requête de vérification a fait échouer
+		// `fpctl verify data` sur ce seul contrôle avant d'être réécrite en
+		// UNION ALL de la même façon.
 		name: "SRU : la jointure vers geo.contour_cog ne perd ni ne duplique de commune",
-		query: `SELECT count(*) - (
-			SELECT count(*) FROM core.sru_commune s
+		query: `WITH par_code AS (
+			SELECT s.code_insee FROM core.sru_commune_dernier s
+			JOIN geo.contour_cog g ON g.niveau='COMMUNE' AND g.cog_millesime=2026 AND g.code=s.code_insee
+		), jointes AS (
+			SELECT count(*) AS n FROM par_code
+			UNION ALL
+			SELECT count(*) FROM core.sru_commune_dernier s
 			JOIN geo.contour_cog g ON g.niveau='COMMUNE' AND g.cog_millesime=2026
-				AND (g.code=s.code_insee
-					OR (upper(unaccent(g.nom))=upper(unaccent(s.commune))
-						AND g.code_departement = left(s.code_insee, CASE WHEN left(s.code_insee,2)='97' THEN 3 ELSE 2 END)))
-		) FROM core.sru_commune`,
+				AND upper(unaccent(g.nom))=upper(unaccent(s.commune))
+				AND g.code_departement = left(s.code_insee, CASE WHEN left(s.code_insee,2)='97' THEN 3 ELSE 2 END)
+			WHERE NOT EXISTS (SELECT 1 FROM par_code pc WHERE pc.code_insee = s.code_insee)
+		)
+		SELECT (SELECT count(*) FROM core.sru_commune_dernier) - (SELECT sum(n)::int FROM jointes)`,
+		sources: []string{"sru"},
 	},
 	{
 		name:    "Effectifs étudiants : au moins 1000 couples commune/rentrée chargés",
