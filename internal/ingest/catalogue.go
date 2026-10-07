@@ -158,11 +158,11 @@ var catalogue = []Source{
 		}},
 	{Nom: "senat-fusion", Categorie: CategorieParlement, Description: "fusion des fiches de sénateurs seule",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return senat.Fusionner(ctx, pool)
+			return senat.MergePersons(ctx, pool)
 		}},
 	{Nom: "senat-mandats", Categorie: CategorieParlement, Description: "mandats de sénateurs seuls (recalculés depuis senat_raw)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return senat.NormalizeMandats(ctx, pool)
+			return senat.NormalizeMandates(ctx, pool)
 		}},
 	{Nom: "senat-commissions", Categorie: CategorieParlement, Description: "commissions du Sénat seules",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {

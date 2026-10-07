@@ -770,10 +770,10 @@ func ingestSenat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	// existe en deux fiches, chacune amputée de la moitié de sa vie publique.
 	// Elle vient avant les mandats et les commissions pour qu'ils se
 	// rattachent à la fiche unique.
-	if err := senat.Fusionner(ctx, pool); err != nil {
+	if err := senat.MergePersons(ctx, pool); err != nil {
 		return err
 	}
-	if err := senat.NormalizeMandats(ctx, pool); err != nil {
+	if err := senat.NormalizeMandates(ctx, pool); err != nil {
 		return err
 	}
 	if err := senat.IngestCommissions(ctx, pool, arch); err != nil {

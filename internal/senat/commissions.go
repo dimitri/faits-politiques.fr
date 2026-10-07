@@ -37,7 +37,7 @@ func IngestCommissions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	if err != nil {
 		return fail(err)
 	}
-	recs, err := lireCSVSenat(f.Path)
+	recs, err := readSenateCSV(f.Path)
 	if err != nil {
 		return fail(err)
 	}
@@ -61,10 +61,10 @@ func IngestCommissions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	// le nom de la commission EST la clé, et il est stable dans le fichier.
 	// C'est une égalité de chaîne publiée par un producteur avec lui-même, pas
 	// un rapprochement entre deux sources.
-	organes := map[string]int64{}
+	bodies := map[string]int64{}
 	for _, r := range recs {
 		nom := strings.TrimSpace(r["Nom commission"])
-		if nom == "" || organes[nom] != 0 {
+		if nom == "" || bodies[nom] != 0 {
 			continue
 		}
 		typ := strings.TrimSpace(r["Type commission"])
@@ -87,12 +87,12 @@ func IngestCommissions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 			id, slug); err != nil {
 			return fail(err)
 		}
-		organes[nom] = id
+		bodies[nom] = id
 	}
 
-	var lignes [][]any
-	var sansPersonne int
-	vus := map[string]bool{}
+	var rows [][]any
+	var missingPerson int
+	seen := map[string]bool{}
 	for _, r := range recs {
 		mat := strings.TrimSpace(r["Matricule"])
 		nom := strings.TrimSpace(r["Nom commission"])
@@ -100,16 +100,16 @@ func IngestCommissions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		if mat == "" || nom == "" || debut == nil {
 			continue
 		}
-		orgID := organes[nom]
+		orgID := bodies[nom]
 		if orgID == 0 {
 			continue
 		}
 		k := mat + "|" + nom + "|" + r["Début d'appartenance"]
-		if vus[k] {
+		if seen[k] {
 			continue
 		}
-		vus[k] = true
-		lignes = append(lignes, []any{
+		seen[k] = true
+		rows = append(rows, []any{
 			mat, orgID, debut, dateSenat(r["Fin d'appartenance"]),
 			nulS(strings.TrimSpace(r["Fonction"])),
 		})
@@ -122,7 +122,7 @@ func IngestCommissions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"coms_in"},
 		[]string{"matricule", "org_id", "debut", "fin", "fonction"},
-		pgx.CopyFromRows(lignes)); err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("copie des appartenances : %w", err))
 	}
 
@@ -132,7 +132,7 @@ func IngestCommissions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		SELECT count(*) FROM coms_in c
 		 WHERE NOT EXISTS (SELECT 1 FROM core.person_identifier i
 		                   WHERE i.scheme='SENAT_MATRICULE' AND i.value=c.matricule)`).
-		Scan(&sansPersonne); err != nil {
+		Scan(&missingPerson); err != nil {
 		return fail(err)
 	}
 
@@ -154,10 +154,10 @@ func IngestCommissions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"appartenances": res.RowsAffected(), "organes": len(organes),
-		"sans_personne": sansPersonne}, "")
+		"appartenances": res.RowsAffected(), "organes": len(bodies),
+		"sans_personne": missingPerson}, "")
 	logs.Notice(fmt.Sprintf("Senate committees: %s across %s, %d without a known senator",
-		logs.Plural(int(res.RowsAffected()), "affiliation"), logs.Plural(len(organes), "body"), sansPersonne))
+		logs.Plural(int(res.RowsAffected()), "affiliation"), logs.Plural(len(bodies), "body"), missingPerson))
 	return nil
 }
 
