@@ -39,7 +39,7 @@ const TurnoutURL = "https://www.idea.int/data-tools/export?type=region_only&them
 
 // Les feuilles retenues. « All » est un doublon des trois autres et n'est pas
 // chargée : elle ferait entrer chaque élection deux fois.
-var feuillesTurnout = []string{"Presidential", "Parliamentary", "EU Parliament"}
+var turnoutSheets = []string{"Presidential", "Parliamentary", "EU Parliament"}
 
 func IngestTurnout(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceTurnout)
@@ -66,14 +66,14 @@ func IngestTurnout(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	defer x.Close()
 
 	var rows [][]any
-	vu := map[string]bool{}
-	ignorees := 0
-	for _, sheet := range feuillesTurnout {
-		lignes, err := x.rows(sheet)
+	seen := map[string]bool{}
+	ignored := 0
+	for _, sheet := range turnoutSheets {
+		records, err := x.rows(sheet)
 		if err != nil {
 			return fail(err)
 		}
-		for i, l := range lignes {
+		for i, l := range records {
 			if i == 0 {
 				// En-tête : on vérifie qu'il n'a pas bougé plutôt que de
 				// supposer que les colonnes sont restées à leur place.
@@ -83,14 +83,14 @@ func IngestTurnout(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 				}
 				continue
 			}
-			iso3, pays, date := l["C"], l["A"], l["E"]
-			if len(iso3) != 3 || pays == "" || date == "" {
-				ignorees++
+			iso3, country, date := l["C"], l["A"], l["E"]
+			if len(iso3) != 3 || country == "" || date == "" {
+				ignored++
 				continue
 			}
 			d, err := time.Parse("2006-01-02", date)
 			if err != nil {
-				ignorees++
+				ignored++
 				continue
 			}
 			typ := l["D"]
@@ -100,14 +100,14 @@ func IngestTurnout(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			// Une même élection ne doit apparaître qu'une fois : la source
 			// duplique certaines lignes entre feuilles.
 			k := iso3 + "|" + typ + "|" + date
-			if vu[k] {
+			if seen[k] {
 				continue
 			}
-			vu[k] = true
+			seen[k] = true
 			rows = append(rows, []any{
-				iso3, pays, typ, d,
-				nombreOuNil(l["G"]), nombreOuNil(l["H"]), nombreOuNil(l["J"]),
-				pourcentOuNil(l["L"]), ouiNonOuNil(l["M"]), srcID,
+				iso3, country, typ, d,
+				numberOrNil(l["G"]), numberOrNil(l["H"]), numberOrNil(l["J"]),
+				percentOrNil(l["L"]), yesNoOrNil(l["M"]), srcID,
 			})
 		}
 	}
@@ -134,14 +134,14 @@ func IngestTurnout(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"elections": len(rows), "lignes_ignorees": ignorees}, "")
-	fmt.Printf("  participation comparée : %d élections, %d lignes ignorées\n", len(rows), ignorees)
+		map[string]any{"elections": len(rows), "lignes_ignorees": ignored}, "")
+	fmt.Printf("  participation comparée : %d élections, %d lignes ignorées\n", len(rows), ignored)
 	return nil
 }
 
 // Les nombres sont écrits « 1,824,401 ». Une cellule vide, un tiret ou « N/A »
 // veulent dire « la source ne sait pas » : c'est NULL, jamais zéro.
-func nombreOuNil(s string) any {
+func numberOrNil(s string) any {
 	s = strings.Map(func(r rune) rune {
 		if r == ',' || r == ' ' || r == ' ' {
 			return -1
@@ -158,7 +158,7 @@ func nombreOuNil(s string) any {
 	return n
 }
 
-func pourcentOuNil(s string) any {
+func percentOrNil(s string) any {
 	s = strings.TrimSpace(strings.TrimSuffix(strings.TrimSpace(s), "%"))
 	if s == "" || s == "-" {
 		return nil
@@ -170,7 +170,7 @@ func pourcentOuNil(s string) any {
 	return v
 }
 
-func ouiNonOuNil(s string) any {
+func yesNoOrNil(s string) any {
 	switch strings.ToLower(strings.TrimSpace(s)) {
 	case "yes":
 		return true

@@ -61,19 +61,19 @@ var (
 )
 
 type proclamation struct {
-	annee, tour int
+	year, round int
 	url         string
 }
 
-type chiffres struct {
-	inscrits, votants, exprimes int64
-	blancs, nuls                *int64
-	candidats                   []candidat
+type figures struct {
+	registered, voters, validVotes int64
+	blank, void                    *int64
+	candidates                     []candidate
 }
 
-type candidat struct {
-	nom  string
-	voix int64
+type candidate struct {
+	name  string
+	votes int64
 }
 
 // Ingest lit ref.pdr_proclamation, scelle chaque décision, en extrait les
@@ -101,7 +101,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	var todo []proclamation
 	for rows.Next() {
 		var p proclamation
-		if err := rows.Scan(&p.annee, &p.tour, &p.url); err != nil {
+		if err := rows.Scan(&p.year, &p.round, &p.url); err != nil {
 			rows.Close()
 			return fail(err)
 		}
@@ -118,21 +118,21 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	defer tx.Rollback(ctx)
 
-	var nVoix int
+	var voteRows int
 	for _, p := range todo {
 		f, err := arch.Fetch(ctx, srcID, runID, p.url, ".html")
 		if err != nil {
-			return fail(fmt.Errorf("%d tour %d : %w", p.annee, p.tour, err))
+			return fail(fmt.Errorf("%d tour %d : %w", p.year, p.round, err))
 		}
 		raw, err := os.ReadFile(f.Path)
 		if err != nil {
 			return fail(err)
 		}
-		c, err := extraire(string(raw))
+		c, err := extract(string(raw))
 		if err != nil {
-			return fail(fmt.Errorf("%d tour %d (%s) : %w", p.annee, p.tour, p.url, err))
+			return fail(fmt.Errorf("%d tour %d (%s) : %w", p.year, p.round, p.url, err))
 		}
-		if err := controler(p, c); err != nil {
+		if err := validate(p, c); err != nil {
 			return fail(err)
 		}
 
@@ -144,49 +144,49 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			  inscrits = EXCLUDED.inscrits, votants = EXCLUDED.votants,
 			  blancs = EXCLUDED.blancs, nuls = EXCLUDED.nuls,
 			  exprimes = EXCLUDED.exprimes, document_id = EXCLUDED.document_id`,
-			p.annee, p.tour, c.inscrits, c.votants, c.blancs, c.nuls, c.exprimes,
+			p.year, p.round, c.registered, c.voters, c.blank, c.void, c.validVotes,
 			srcID, f.DocumentID); err != nil {
-			return fail(fmt.Errorf("%d : %w", p.annee, err))
+			return fail(fmt.Errorf("%d : %w", p.year, err))
 		}
 		if _, err := tx.Exec(ctx,
-			`DELETE FROM core.pdr_voix WHERE annee = $1 AND tour = $2`, p.annee, p.tour); err != nil {
+			`DELETE FROM core.pdr_voix WHERE annee = $1 AND tour = $2`, p.year, p.round); err != nil {
 			return fail(err)
 		}
 		// L'élu est celui qui a le plus de voix — et le contrôle ci-dessus a
 		// déjà vérifié qu'il dépasse la majorité absolue des exprimés.
 		best := 0
-		for i, k := range c.candidats {
-			if k.voix > c.candidats[best].voix {
+		for i, cand := range c.candidates {
+			if cand.votes > c.candidates[best].votes {
 				best = i
 			}
 		}
-		for i, k := range c.candidats {
+		for i, cand := range c.candidates {
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO core.pdr_voix (annee, tour, candidat, voix, elu)
-				VALUES ($1,$2,$3,$4,$5)`, p.annee, p.tour, k.nom, k.voix, i == best); err != nil {
-				return fail(fmt.Errorf("%d, %s : %w", p.annee, k.nom, err))
+				VALUES ($1,$2,$3,$4,$5)`, p.year, p.round, cand.name, cand.votes, i == best); err != nil {
+				return fail(fmt.Errorf("%d, %s : %w", p.year, cand.name, err))
 			}
-			nVoix++
+			voteRows++
 		}
 		fmt.Printf("  %d tour %d : %d inscrits, %d exprimés, %d candidats\n",
-			p.annee, p.tour, c.inscrits, c.exprimes, len(c.candidats))
+			p.year, p.round, c.registered, c.validVotes, len(c.candidates))
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"proclamations": len(todo), "lignes_de_voix": nVoix}, "")
+		map[string]any{"proclamations": len(todo), "lignes_de_voix": voteRows}, "")
 	return nil
 }
 
-// extraire réduit la page à du texte, se place sur le bloc de résultats, et en
+// extract réduit la page à du texte, se place sur le bloc de résultats, et en
 // tire les chiffres. L'ancrage sur « Électeurs inscrits : » avec les deux-points
 // n'est pas un détail : plusieurs décisions discutent par ailleurs du « nombre
 // d'électeurs inscrits » d'une commune contestée, sans deux-points. Sans cette
 // ancre, on chargerait les chiffres d'un bureau de vote annulé.
-func extraire(page string) (chiffres, error) {
-	var c chiffres
+func extract(page string) (figures, error) {
+	var c figures
 	// Le texte de la page passe par l'analyseur lexical de internal/balisage,
 	// pas par un motif : une décision du Conseil constitutionnel se lit
 	// entièrement ou pas du tout.
@@ -198,101 +198,101 @@ func extraire(page string) (chiffres, error) {
 	if loc == nil {
 		return c, fmt.Errorf("bloc de résultats introuvable")
 	}
-	fin := loc[0] + 1400
-	if fin > len(t) {
-		fin = len(t)
+	end := loc[0] + 1400
+	if end > len(t) {
+		end = len(t)
 	}
-	bloc := t[loc[0]:fin]
+	block := t[loc[0]:end]
 
 	var err error
-	if c.inscrits, err = nombre(reInscrits, bloc, "électeurs inscrits"); err != nil {
+	if c.registered, err = number(reInscrits, block, "électeurs inscrits"); err != nil {
 		return c, err
 	}
 	// On cherche « Votants » après les inscrits, sans quoi le mot pourrait être
 	// capté dans une phrase antérieure.
-	if c.votants, err = nombre(reVotants, bloc, "votants"); err != nil {
+	if c.voters, err = number(reVotants, block, "votants"); err != nil {
 		return c, err
 	}
-	if c.exprimes, err = nombre(reExprimes, bloc, "suffrages exprimés"); err != nil {
+	if c.validVotes, err = number(reExprimes, block, "suffrages exprimés"); err != nil {
 		return c, err
 	}
-	if v, err := nombre(reBlancs, bloc, "blancs"); err == nil {
-		c.blancs = &v
+	if v, err := number(reBlancs, block, "blancs"); err == nil {
+		c.blank = &v
 	}
-	if v, err := nombre(reNuls, bloc, "nuls"); err == nil {
-		c.nuls = &v
+	if v, err := number(reNuls, block, "nuls"); err == nil {
+		c.void = &v
 	}
 
-	for _, m := range reObtenusPar.FindAllStringSubmatch(bloc, -1) {
-		c.candidats = append(c.candidats, candidat{nom: nettoyerNom(m[1]), voix: entier(m[2])})
+	for _, m := range reObtenusPar.FindAllStringSubmatch(block, -1) {
+		c.candidates = append(c.candidates, candidate{name: cleanName(m[1]), votes: integer(m[2])})
 	}
-	if len(c.candidats) == 0 {
-		i := strings.Index(bloc, "Ont obtenu")
+	if len(c.candidates) == 0 {
+		i := strings.Index(block, "Ont obtenu")
 		if i < 0 {
 			return c, fmt.Errorf("aucun candidat trouvé")
 		}
-		reste := bloc[i:]
-		for _, fin := range []string{"Qu'ainsi", "Ainsi,", "En conséquence"} {
-			if j := strings.Index(reste, fin); j > 0 {
-				reste = reste[:j]
+		rest := block[i:]
+		for _, terminator := range []string{"Qu'ainsi", "Ainsi,", "En conséquence"} {
+			if j := strings.Index(rest, terminator); j > 0 {
+				rest = rest[:j]
 			}
 		}
-		for _, m := range reOntObtenu.FindAllStringSubmatch(reste, -1) {
-			c.candidats = append(c.candidats, candidat{nom: nettoyerNom(m[1]), voix: entier(m[2])})
+		for _, m := range reOntObtenu.FindAllStringSubmatch(rest, -1) {
+			c.candidates = append(c.candidates, candidate{name: cleanName(m[1]), votes: integer(m[2])})
 		}
 	}
-	sort.Slice(c.candidats, func(i, j int) bool { return c.candidats[i].voix > c.candidats[j].voix })
+	sort.Slice(c.candidates, func(i, j int) bool { return c.candidates[i].votes > c.candidates[j].votes })
 	return c, nil
 }
 
-// controler refuse tout ce qui ne boucle pas. Un connecteur qui charge une
+// validate refuse tout ce qui ne boucle pas. Un connecteur qui charge une
 // transcription incohérente est pire qu'un connecteur qui échoue : l'erreur
 // devient une donnée, et la donnée devient une citation.
-func controler(p proclamation, c chiffres) error {
-	ctx := fmt.Sprintf("%d tour %d", p.annee, p.tour)
-	if c.votants > c.inscrits {
-		return fmt.Errorf("%s : %d votants pour %d inscrits", ctx, c.votants, c.inscrits)
+func validate(p proclamation, c figures) error {
+	ctx := fmt.Sprintf("%d tour %d", p.year, p.round)
+	if c.voters > c.registered {
+		return fmt.Errorf("%s : %d votants pour %d inscrits", ctx, c.voters, c.registered)
 	}
-	if c.exprimes > c.votants {
-		return fmt.Errorf("%s : %d exprimés pour %d votants", ctx, c.exprimes, c.votants)
+	if c.validVotes > c.voters {
+		return fmt.Errorf("%s : %d exprimés pour %d votants", ctx, c.validVotes, c.voters)
 	}
-	if p.tour == 2 && len(c.candidats) != 2 {
-		return fmt.Errorf("%s : %d candidats au second tour, attendu 2 (%v)", ctx, len(c.candidats), c.candidats)
+	if p.round == 2 && len(c.candidates) != 2 {
+		return fmt.Errorf("%s : %d candidats au second tour, attendu 2 (%v)", ctx, len(c.candidates), c.candidates)
 	}
-	var somme int64
+	var sum int64
 	var max int64
-	for _, k := range c.candidats {
-		somme += k.voix
-		if k.voix > max {
-			max = k.voix
+	for _, cand := range c.candidates {
+		sum += cand.votes
+		if cand.votes > max {
+			max = cand.votes
 		}
 	}
-	if somme != c.exprimes {
-		return fmt.Errorf("%s : somme des voix %d ≠ suffrages exprimés %d", ctx, somme, c.exprimes)
+	if sum != c.validVotes {
+		return fmt.Errorf("%s : somme des voix %d ≠ suffrages exprimés %d", ctx, sum, c.validVotes)
 	}
-	if p.tour == 2 && max*2 <= c.exprimes {
+	if p.round == 2 && max*2 <= c.validVotes {
 		return fmt.Errorf("%s : aucun candidat n'atteint la majorité absolue", ctx)
 	}
-	if c.blancs != nil && c.nuls != nil && *c.blancs+*c.nuls != c.votants-c.exprimes {
+	if c.blank != nil && c.void != nil && *c.blank+*c.void != c.voters-c.validVotes {
 		return fmt.Errorf("%s : blancs %d + nuls %d ≠ votants - exprimés %d",
-			ctx, *c.blancs, *c.nuls, c.votants-c.exprimes)
+			ctx, *c.blank, *c.void, c.voters-c.validVotes)
 	}
 	return nil
 }
 
-func nombre(re *regexp.Regexp, s, quoi string) (int64, error) {
+func number(re *regexp.Regexp, s, label string) (int64, error) {
 	m := re.FindStringSubmatch(s)
 	if m == nil {
-		return 0, fmt.Errorf("%s : introuvable", quoi)
+		return 0, fmt.Errorf("%s : introuvable", label)
 	}
-	v := entier(m[1])
+	v := integer(m[1])
 	if v == 0 {
-		return 0, fmt.Errorf("%s : valeur illisible %q", quoi, m[1])
+		return 0, fmt.Errorf("%s : valeur illisible %q", label, m[1])
 	}
 	return v, nil
 }
 
-func entier(s string) int64 {
+func integer(s string) int64 {
 	s = reNonDigi.ReplaceAllString(s, "")
 	var n int64
 	for _, r := range s {
@@ -301,7 +301,7 @@ func entier(s string) int64 {
 	return n
 }
 
-func nettoyerNom(s string) string {
+func cleanName(s string) string {
 	s = strings.TrimSpace(s)
 	s = strings.TrimPrefix(s, "Monsieur ")
 	s = strings.TrimPrefix(s, "Madame ")

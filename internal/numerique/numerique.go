@@ -35,7 +35,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	return nil
 }
 
-func executer(ctx context.Context, arch *archive.Archive, src archive.Source,
+func run(ctx context.Context, arch *archive.Archive, src archive.Source,
 	f func(srcID, runID int64) (map[string]any, error)) error {
 	srcID, err := arch.EnsureSource(ctx, src)
 	if err != nil {
@@ -57,26 +57,26 @@ func executer(ctx context.Context, arch *archive.Archive, src archive.Source,
 }
 
 var (
-	reBalises = regexp.MustCompile(`(?s)<script.*?</script>|<style.*?</style>|<[^>]+>`)
-	reBlancs  = regexp.MustCompile(`\s+`)
+	reTags       = regexp.MustCompile(`(?s)<script.*?</script>|<style.*?</style>|<[^>]+>`)
+	reWhitespace = regexp.MustCompile(`\s+`)
 )
 
-// normaliser ramène espaces insécables et retours à la ligne à une espace, pour
+// normalize ramène espaces insécables et retours à la ligne à une espace, pour
 // comparer un texte scellé à la phrase qu'on lui fait dire.
-func normaliser(s string) string {
+func normalize(s string) string {
 	s = strings.NewReplacer("\u00a0", " ", "\u202f", " ", "\u2009", " ").Replace(s)
-	return strings.TrimSpace(reBlancs.ReplaceAllString(s, " "))
+	return strings.TrimSpace(reWhitespace.ReplaceAllString(s, " "))
 }
 
-func texteHTML(fragment string) string {
-	return normaliser(html.UnescapeString(reBalises.ReplaceAllString(fragment, " ")))
+func htmlText(fragment string) string {
+	return normalize(html.UnescapeString(reTags.ReplaceAllString(fragment, " ")))
 }
 
-// textePDF passe par pdftotext (poppler-utils) : le projet n'embarque pas de
+// pdfText passe par pdftotext (poppler-utils) : le projet n'embarque pas de
 // lecteur PDF, et les deux documents lus ici (catalogue de l'ANSSI, rapport du
 // Sénat) n'existent qu'en PDF. Comme 7z pour la SAE, l'outil est exigé
 // explicitement plutôt que contourné.
-func textePDF(ctx context.Context, path string, disposition bool) (string, error) {
+func pdfText(ctx context.Context, path string, disposition bool) (string, error) {
 	args := []string{path, "-"}
 	if disposition {
 		args = []string{"-layout", path, "-"}
@@ -88,7 +88,7 @@ func textePDF(ctx context.Context, path string, disposition bool) (string, error
 	return string(out), nil
 }
 
-func nul(s string) any {
+func nilIfEmpty(s string) any {
 	if s == "" {
 		return nil
 	}
@@ -97,7 +97,7 @@ func nul(s string) any {
 
 // Lecture en flux d'un CSV avec en-tête, comme pour les marchés de l'évasion
 // fiscale : le fichier consolidé dépasse 2,5 Go.
-func lireCSVFlux(path string, f func(col map[string]int, rec []string) error) error {
+func readCSVStream(path string, f func(columns map[string]int, rec []string) error) error {
 	fh, err := os.Open(path)
 	if err != nil {
 		return err
@@ -107,13 +107,13 @@ func lireCSVFlux(path string, f func(col map[string]int, rec []string) error) er
 	cr.ReuseRecord = true
 	cr.FieldsPerRecord = -1
 	cr.LazyQuotes = true
-	entete, err := cr.Read()
+	header, err := cr.Read()
 	if err != nil {
 		return err
 	}
-	col := map[string]int{}
-	for i, c := range entete {
-		col[strings.TrimPrefix(c, "\uFEFF")] = i
+	columns := map[string]int{}
+	for i, c := range header {
+		columns[strings.TrimPrefix(c, "\uFEFF")] = i
 	}
 	for {
 		rec, err := cr.Read()
@@ -123,16 +123,16 @@ func lireCSVFlux(path string, f func(col map[string]int, rec []string) error) er
 		if err != nil {
 			return err
 		}
-		if len(rec) < len(entete) {
+		if len(rec) < len(header) {
 			continue
 		}
-		if err := f(col, rec); err != nil {
+		if err := f(columns, rec); err != nil {
 			return err
 		}
 	}
 }
 
-func ressourceDataGouv(path, titre string) (string, error) {
+func dataGouvResource(path, title string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
@@ -147,9 +147,9 @@ func ressourceDataGouv(path, titre string) (string, error) {
 		return "", err
 	}
 	for _, r := range d.Resources {
-		if r.Title == titre {
+		if r.Title == title {
 			return r.URL, nil
 		}
 	}
-	return "", fmt.Errorf("ressource %q absente du jeu de données", titre)
+	return "", fmt.Errorf("ressource %q absente du jeu de données", title)
 }
