@@ -60,7 +60,7 @@ func syncVers(ctx context.Context, bucketDefaut, racineDefaut string, args []str
 		return err
 	}
 
-	c, err := objectstore.Client(objectstore.DepuisEnv())
+	c, err := objectstore.Client(objectstore.FromEnv())
 	if err != nil {
 		return err
 	}
