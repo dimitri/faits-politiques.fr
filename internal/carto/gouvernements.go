@@ -54,14 +54,14 @@ func IngestGouvernements(ctx context.Context, pool *pgxpool.Pool, csvPath string
 		return ""
 	}
 
-	type g struct{ nom, rang, debut string }
-	var gs []g
+	type govRow struct{ name, rank, debut string }
+	var govs []govRow
 	for _, rec := range recs[1:] {
-		x := g{get(rec, "premier_ministre"), get(rec, "rang"), get(rec, "debut")}
-		if x.nom == "" || x.debut == "" {
+		x := govRow{get(rec, "premier_ministre"), get(rec, "rang"), get(rec, "debut")}
+		if x.name == "" || x.debut == "" {
 			continue
 		}
-		gs = append(gs, x)
+		govs = append(govs, x)
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -74,22 +74,22 @@ func IngestGouvernements(ctx context.Context, pool *pgxpool.Pool, csvPath string
 		return err
 	}
 
-	var ignores int
-	for i, x := range gs {
+	var skipped int
+	for i, x := range govs {
 		fin := ""
-		if i+1 < len(gs) {
-			fin = gs[i+1].debut
+		if i+1 < len(govs) {
+			fin = govs[i+1].debut
 		}
 		// Deux gouvernements au même jour : la durée du premier serait nulle.
 		// PostgreSQL accepte un intervalle vide sans broncher, mais aucune
 		// requête ne le retrouve ensuite. Il est écarté et compté.
 		if fin != "" && fin == x.debut {
-			ignores++
+			skipped++
 			continue
 		}
-		nom := "Gouvernement " + titre(x.nom)
-		if x.rang != "" {
-			nom += " " + x.rang
+		name := "Gouvernement " + titleCase(x.name)
+		if x.rank != "" {
+			name += " " + x.rank
 		}
 
 		// Le Premier ministre est rapproché des personnes déjà connues, mais
@@ -103,7 +103,7 @@ func IngestGouvernements(ctx context.Context, pool *pgxpool.Pool, csvPath string
 			   AND EXISTS (SELECT 1 FROM core.mandate m WHERE m.person_id = p.id
 			               AND m.mandate_type IN ('DEPUTE','SENATEUR','MINISTRE',
 			                                      'DEPUTE_EUROPEEN','PRESIDENT_REPUBLIQUE'))
-			 ORDER BY p.id LIMIT 1`, nomDeFamille(x.nom)).Scan(&id)
+			 ORDER BY p.id LIMIT 1`, familyName(x.name)).Scan(&id)
 		if err == nil {
 			pm = id
 		} else if err != pgx.ErrNoRows {
@@ -114,47 +114,47 @@ func IngestGouvernements(ctx context.Context, pool *pgxpool.Pool, csvPath string
 			INSERT INTO core.gouvernement
 			  (nom, premier_ministre_person_id, validity, source_url)
 			VALUES ($1, $2, daterange($3::date, nullif($4,'')::date, '[)'), $5)`,
-			nom, pm, x.debut, fin,
+			name, pm, x.debut, fin,
 			"https://www.data.gouv.fr/datasets/composition-des-gouvernements-de-la-veme-republique-1959-2014",
 		); err != nil {
-			return fmt.Errorf("%s : %w", nom, err)
+			return fmt.Errorf("%s : %w", name, err)
 		}
 	}
 
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	logs.Notice(fmt.Sprintf("%s, from %s to %s", logs.Plural(len(gs)-ignores, "government"), gs[0].debut, gs[len(gs)-1].debut))
-	if ignores > 0 {
-		logs.Notice(fmt.Sprintf("%s skipped: same start date as the next one", logs.Plural(ignores, "entry")))
+	logs.Notice(fmt.Sprintf("%s, from %s to %s", logs.Plural(len(govs)-skipped, "government"), govs[0].debut, govs[len(govs)-1].debut))
+	if skipped > 0 {
+		logs.Notice(fmt.Sprintf("%s skipped: same start date as the next one", logs.Plural(skipped, "entry")))
 	}
 	return nil
 }
 
-// titre remet en casse normale un nom écrit tout en capitales dans la source.
-func titre(s string) string {
-	mots := strings.Fields(strings.ToLower(s))
-	for i, m := range mots {
+// titleCase remet en casse normale un nom écrit tout en capitales dans la source.
+func titleCase(s string) string {
+	words := strings.Fields(strings.ToLower(s))
+	for i, m := range words {
 		r := []rune(m)
 		if len(r) > 0 {
-			mots[i] = strings.ToUpper(string(r[0])) + string(r[1:])
+			words[i] = strings.ToUpper(string(r[0])) + string(r[1:])
 		}
 	}
-	return strings.Join(mots, " ")
+	return strings.Join(words, " ")
 }
 
-// nomDeFamille isole le patronyme : le document écrit « Michel DEBRE », prénom
+// familyName isole le patronyme : le document écrit « Michel DEBRE », prénom
 // d'abord, nom en capitales.
-func nomDeFamille(s string) string {
-	mots := strings.Fields(s)
-	var maj []string
-	for _, m := range mots {
+func familyName(s string) string {
+	words := strings.Fields(s)
+	var upper []string
+	for _, m := range words {
 		if m == strings.ToUpper(m) && len([]rune(m)) > 1 {
-			maj = append(maj, m)
+			upper = append(upper, m)
 		}
 	}
-	if len(maj) > 0 {
-		return strings.Join(maj, " ")
+	if len(upper) > 0 {
+		return strings.Join(upper, " ")
 	}
 	return s
 }
