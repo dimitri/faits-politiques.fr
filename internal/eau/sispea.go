@@ -48,15 +48,15 @@ var SourceSISPEA = archive.Source{
 
 const sispeaURLPotable = "https://www.data.gouv.fr/api/1/datasets/r/180d7556-7243-44dd-90dc-5490363cd792"
 
-func nettoyer(s string) *string {
+func cleanOrNil(s string) *string {
 	if s == "" || s == "." {
 		return nil
 	}
 	return &s
 }
 
-func modeGestionCode(brut string) (*string, error) {
-	switch brut {
+func managementModeCode(raw string) (*string, error) {
+	switch raw {
 	case "", ".", "Inconnu":
 		return nil, nil
 	case "Regie":
@@ -66,11 +66,11 @@ func modeGestionCode(brut string) (*string, error) {
 		v := "DELEGATION"
 		return &v, nil
 	default:
-		return nil, fmt.Errorf("mode_gestion inattendu : %q — le format SISPEA a peut-être changé", brut)
+		return nil, fmt.Errorf("mode_gestion inattendu : %q — le format SISPEA a peut-être changé", raw)
 	}
 }
 
-func entierNullable(s string) (*int, error) {
+func parseNullableInt(s string) (*int, error) {
 	if s == "" || s == "." {
 		return nil, nil
 	}
@@ -81,7 +81,7 @@ func entierNullable(s string) (*int, error) {
 	return &v, nil
 }
 
-func flottantNullable(s string) (*float64, error) {
+func parseNullableFloat(s string) (*float64, error) {
 	if s == "" || s == "." {
 		return nil, nil
 	}
@@ -159,9 +159,9 @@ func IngestSISPEAEauPotable(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	for i, h := range header {
 		idx[h] = i
 	}
-	requis := []string{"id_sispea_serv", "Nom_serv", "dpt", "mode_gestion", "statut_operateur",
+	required := []string{"id_sispea_serv", "Nom_serv", "dpt", "mode_gestion", "statut_operateur",
 		"nom_operateur", "d101_0", "d102_0", "agence_de_leau", "Bassin_concernE"}
-	for _, col := range requis {
+	for _, col := range required {
 		if _, ok := idx[col]; !ok {
 			return fail(fmt.Errorf("colonne %q absente du classeur SISPEA — le format a peut-être changé", col))
 		}
@@ -174,30 +174,30 @@ func IngestSISPEAEauPotable(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return ""
 	}
 
-	var lignes [][]any
+	var copyRows [][]any
 	for n, r := range rows[1:] {
-		modeGestion, err := modeGestionCode(get(r, "mode_gestion"))
+		managementMode, err := managementModeCode(get(r, "mode_gestion"))
 		if err != nil {
 			return fail(fmt.Errorf("ligne %d : %w", n+2, err))
 		}
-		pop, err := entierNullable(get(r, "d101_0"))
+		pop, err := parseNullableInt(get(r, "d101_0"))
 		if err != nil {
 			return fail(fmt.Errorf("ligne %d, population desservie : %w", n+2, err))
 		}
-		prix, err := flottantNullable(get(r, "d102_0"))
+		price, err := parseNullableFloat(get(r, "d102_0"))
 		if err != nil {
 			return fail(fmt.Errorf("ligne %d, prix : %w", n+2, err))
 		}
-		lignes = append(lignes, []any{
+		copyRows = append(copyRows, []any{
 			2023, get(r, "id_sispea_serv"), get(r, "Nom_serv"),
-			nettoyer(get(r, "dpt")), modeGestion,
-			nettoyer(get(r, "statut_operateur")), nettoyer(get(r, "nom_operateur")),
-			pop, prix,
-			nettoyer(get(r, "agence_de_leau")), nettoyer(get(r, "Bassin_concernE")),
+			cleanOrNil(get(r, "dpt")), managementMode,
+			cleanOrNil(get(r, "statut_operateur")), cleanOrNil(get(r, "nom_operateur")),
+			pop, price,
+			cleanOrNil(get(r, "agence_de_leau")), cleanOrNil(get(r, "Bassin_concernE")),
 			srcID,
 		})
 	}
-	if len(lignes) == 0 {
+	if len(copyRows) == 0 {
 		return fail(fmt.Errorf("SISPEA eau potable : aucune ligne lue"))
 	}
 
@@ -228,7 +228,7 @@ func IngestSISPEAEauPotable(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		[]string{"annee", "id_sispea", "nom_service", "code_departement", "mode_gestion",
 			"statut_operateur", "nom_operateur", "population_desservie", "prix_eur_m3",
 			"agence_de_leau", "bassin_code", "source_id"},
-		pgx.CopyFromRows(lignes)); err != nil {
+		pgx.CopyFromRows(copyRows)); err != nil {
 		return fail(fmt.Errorf("service_eau_potable : %w", err))
 	}
 	if _, err := tx.Exec(ctx, `
@@ -258,7 +258,7 @@ func IngestSISPEAEauPotable(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"services": len(lignes)}, "")
-	fmt.Printf("  SISPEA eau potable 2023 : %d services\n", len(lignes))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"services": len(copyRows)}, "")
+	fmt.Printf("  SISPEA eau potable 2023 : %d services\n", len(copyRows))
 	return nil
 }
