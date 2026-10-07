@@ -17,7 +17,7 @@ import (
 func ingestMedia(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	dataDir, mediaDir string) error {
 
-	var cibles []media.Cible
+	var cibles []media.Target
 
 	cand, err := readCSV(filepath.Join(dataDir, "candidats.csv"))
 	if err != nil {
@@ -41,8 +41,8 @@ func ingestMedia(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 			RETURNING id`, row["slug"], row["nom"], row["prenom"]).Scan(&id); err != nil {
 			return err
 		}
-		cibles = append(cibles, media.Cible{PersonID: &id, Kind: "PORTRAIT",
-			PageFR: page, Libelle: row["prenom"] + " " + row["nom"]})
+		cibles = append(cibles, media.Target{PersonID: &id, Kind: "PORTRAIT",
+			PageFR: page, Label: row["prenom"] + " " + row["nom"]})
 	}
 
 	orgs, err := readCSV(filepath.Join(dataDir, "organisations.csv"))
@@ -60,8 +60,8 @@ func ingestMedia(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 			WHERE scheme = 'CNCCFP' AND value = $1`, code).Scan(&id); err != nil {
 			continue
 		}
-		cibles = append(cibles, media.Cible{OrganizationID: &id, Kind: "LOGO",
-			PageFR: page, Libelle: row["libelle"]})
+		cibles = append(cibles, media.Target{OrganizationID: &id, Kind: "LOGO",
+			PageFR: page, Label: row["libelle"]})
 	}
 
 	return media.Ingest(ctx, pool, arch, mediaDir, filepath.Join(dataDir, "media-cache.json"), cibles)
