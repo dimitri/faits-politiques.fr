@@ -17,11 +17,11 @@ import (
 // docs/education-donnees.md § 2 mais jamais chargée avant ce chargement —
 // nécessaire pour confirmer si la légère baisse d'ETP enseignants suit la
 // démographie scolaire ou s'en écarte.
-var SourceEffectifsEleves = archive.Source{
+var SourceStudentHeadcount = archive.Source{
 	Slug: "depp-effectifs-eleves-premier-degre", Label: "Depp — effectifs d'élèves des écoles (premier degré)",
 	Publisher: "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de l'Éducation nationale (Depp)",
 	Cadence:     "annuelle (à la rentrée scolaire)",
 	Notes: "Premier degré seulement (écoles maternelles et élémentaires) — ne couvre pas les " +
@@ -30,13 +30,13 @@ var SourceEffectifsEleves = archive.Source{
 		"puisque seul le total nourrit la question posée (docs/education-donnees.md § 2).",
 }
 
-const effectifsElevesURL = "https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/" +
+const studentHeadcountURL = "https://data.education.gouv.fr/api/explore/v2.1/catalog/datasets/" +
 	"fr-en-ecoles-effectifs-nb_classes/records?select=rentree_scolaire,secteur," +
 	"sum(nombre_total_eleves)%20as%20total_eleves,count(*)%20as%20nb_ecoles" +
 	"&group_by=rentree_scolaire,secteur&limit=100"
 
-func IngestEffectifsEleves(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceEffectifsEleves)
+func IngestStudentHeadcount(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceStudentHeadcount)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func IngestEffectifsEleves(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, effectifsElevesURL, ".json")
+	f, err := arch.Fetch(ctx, srcID, runID, studentHeadcountURL, ".json")
 	if err != nil {
 		return fail(err)
 	}
@@ -60,10 +60,10 @@ func IngestEffectifsEleves(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	var rep struct {
 		TotalCount int `json:"total_count"`
 		Results    []struct {
-			RentreeScolaire string  `json:"rentree_scolaire"`
-			Secteur         string  `json:"secteur"`
-			TotalEleves     float64 `json:"total_eleves"`
-			NbEcoles        int     `json:"nb_ecoles"`
+			SchoolYear    string  `json:"rentree_scolaire"`
+			Sector        string  `json:"secteur"`
+			TotalStudents float64 `json:"total_eleves"`
+			SchoolCount   int     `json:"nb_ecoles"`
 		} `json:"results"`
 	}
 	if err := json.Unmarshal(b, &rep); err != nil {
@@ -81,11 +81,11 @@ func IngestEffectifsEleves(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 
 	var rows [][]any
 	for _, r := range rep.Results {
-		annee, err := strconv.Atoi(strings.SplitN(r.RentreeScolaire, "-", 2)[0])
+		year, err := strconv.Atoi(strings.SplitN(r.SchoolYear, "-", 2)[0])
 		if err != nil {
-			return fail(fmt.Errorf("rentrée scolaire %q : %w", r.RentreeScolaire, err))
+			return fail(fmt.Errorf("rentrée scolaire %q : %w", r.SchoolYear, err))
 		}
-		rows = append(rows, []any{annee, r.Secteur, r.NbEcoles, int64(r.TotalEleves), srcID})
+		rows = append(rows, []any{year, r.Sector, r.SchoolCount, int64(r.TotalStudents), srcID})
 	}
 
 	if _, err := tx.Exec(ctx, `

@@ -18,74 +18,74 @@ import (
 //
 // Une seule déduction est faite, parce que le droit la porte : un Premier
 // ministre reste en fonction jusqu'à la nomination du suivant.
-type MembreDecret struct {
-	Fonction, FonctionFr, Nom, Portefeuille string
-	Rattachement                            string
-	Statut, Slug                            string
-	Rang                                    int
+type MemberDecree struct {
+	Function, FunctionFr, Name, Portfolio string
+	Attachment                            string
+	Status, Slug                          string
+	Rank                                  int
 	// Fiche : la personne rapprochée a une page sur ce site. Le lien n'est
 	// posé que pour un rapprochement à homonyme unique (CANDIDAT) — jamais pour
 	// AMBIGU — et la cellule le dit.
-	Fiche bool
+	Profile bool
 }
 
-type DecretGouvernement struct {
-	ActeID, Date, DateISO string
-	Titre                 string
-	Nominations           []MembreDecret
-	Cessations            []MembreDecret
+type DecreeGovernment struct {
+	ActID, Date, DateISO string
+	Title                string
+	Nominations          []MemberDecree
+	Cessations           []MemberDecree
 }
 
-type PremierMinistre struct {
-	Nom, Debut, Fin string
-	Slug            string
-	Fiche           bool
-	EnCours         bool
+type FirstMinister struct {
+	Name, Start, End string
+	Slug             string
+	Profile          bool
+	Ongoing          bool
 	// Reconductions : un remaniement republie un décret nommant le même
 	// Premier ministre. Trois lignes « François Fillon » à trois dates ne
 	// décrivent pas trois Premiers ministres, et « Villepin, du 31/05/2005 au
 	// 31/05/2005 » ne décrit rien du tout.
-	Reconductions []string
+	Renewals []string
 }
 
-// MandatPresidentiel : une ligne par ÉLECTION, pas par personne. Charles de
+// TermPresidential : une ligne par ÉLECTION, pas par personne. Charles de
 // Gaulle, François Mitterrand, Jacques Chirac et Emmanuel Macron ont chacun été
 // élus deux fois ; les fusionner en une ligne effaçait la seconde élection et
 // son résultat, qui ne ressemble pas toujours à la première.
-type MandatPresidentiel struct {
-	Annee                   int
-	Elu, Adversaire         string
-	Slug                    string
-	Fiche                   bool
-	Debut, Fin              string
-	VoixElu, VoixAdversaire int64
-	PctElu, PctAdversaire   float64
-	PctEluInscrits          float64
-	Inscrits, Exprimes      int64
-	Abstention              float64
-	Decision, DecisionURL   string
-	SuffrageUniversel       bool
+type TermPresidential struct {
+	Year                        int
+	Elected, Opponent           string
+	Slug                        string
+	Profile                     bool
+	Start, End                  string
+	VotesElected, VotesOpponent int64
+	PctElected, PctOpponent     float64
+	PctElectedRegistered        float64
+	Registered, Expressed       int64
+	Abstention                  float64
+	Decision, DecisionURL       string
+	SuffrageUniversal           bool
 }
 
-type StatsGouvernement struct {
-	Mandats         []MandatPresidentiel
-	Presidents      []President
-	PremiersMin     []PremierMinistre
-	Decrets         []DecretGouvernement
-	Tous            []DecretGouvernement
-	NbDecrets       int
-	NbActes         int
-	NbCitations     int
-	PremierDecret   string
-	DernierDecret   string
-	Candidats       int
-	Ambigus         int
-	Absents         int
-	MandatsAMO      int
-	MandatsEnMissio int
+type StatsGovernment struct {
+	Terms         []TermPresidential
+	Presidents    []President
+	FirstMin      []FirstMinister
+	Decrees       []DecreeGovernment
+	All           []DecreeGovernment
+	CountDecrees  int
+	CountActs     int
+	CountQuotes   int
+	FirstDecree   string
+	LastDecree    string
+	Candidates    int
+	Ambiguous     int
+	Absents       int
+	TermsAMO      int
+	TermsInMissio int
 }
 
-var fonctionFr = map[string]string{
+var functionFr = map[string]string{
 	"PREMIER_MINISTRE": "Premier ministre",
 	"MINISTRE_ETAT":    "Ministre d'État",
 	"MINISTRE":         "Ministre",
@@ -94,14 +94,14 @@ var fonctionFr = map[string]string{
 	"HAUT_COMMISSAIRE": "Haut-commissaire",
 }
 
-func loadGouvernement(ctx context.Context, pool *pgxpool.Pool, dataDir string,
-	avecFiche map[string]bool) (*StatsGouvernement, error) {
+func loadGovernment(ctx context.Context, pool *pgxpool.Pool, dataDir string,
+	withProfile map[string]bool) (*StatsGovernment, error) {
 
 	presidents, err := loadPresidents(dataDir + "/presidents.csv")
 	if err != nil {
 		return nil, err
 	}
-	st := &StatsGouvernement{Presidents: presidents}
+	st := &StatsGovernment{Presidents: presidents}
 
 	// Les mandats présidentiels, élection par élection, depuis les décisions
 	// de proclamation du Conseil constitutionnel.
@@ -119,30 +119,30 @@ func loadGouvernement(ctx context.Context, pool *pgxpool.Pool, dataDir string,
 		return nil, err
 	}
 	for mrows.Next() {
-		m := MandatPresidentiel{SuffrageUniversel: true}
-		if err := mrows.Scan(&m.Annee, &m.Elu, &m.Adversaire, &m.VoixElu, &m.VoixAdversaire,
-			&m.Inscrits, &m.Exprimes, &m.Decision, &m.DecisionURL, &m.Debut); err != nil {
+		m := TermPresidential{SuffrageUniversal: true}
+		if err := mrows.Scan(&m.Year, &m.Elected, &m.Opponent, &m.VotesElected, &m.VotesOpponent,
+			&m.Registered, &m.Expressed, &m.Decision, &m.DecisionURL, &m.Start); err != nil {
 			mrows.Close()
 			return nil, err
 		}
-		m.Elu, m.Adversaire = NomPropre(m.Elu), NomPropre(m.Adversaire)
-		if m.Exprimes > 0 {
-			m.PctElu = 100 * float64(m.VoixElu) / float64(m.Exprimes)
-			m.PctAdversaire = 100 * float64(m.VoixAdversaire) / float64(m.Exprimes)
+		m.Elected, m.Opponent = NameClean(m.Elected), NameClean(m.Opponent)
+		if m.Expressed > 0 {
+			m.PctElected = 100 * float64(m.VotesElected) / float64(m.Expressed)
+			m.PctOpponent = 100 * float64(m.VotesOpponent) / float64(m.Expressed)
 		}
-		if m.Inscrits > 0 {
-			m.PctEluInscrits = 100 * float64(m.VoixElu) / float64(m.Inscrits)
+		if m.Registered > 0 {
+			m.PctElectedRegistered = 100 * float64(m.VotesElected) / float64(m.Registered)
 		}
-		st.Mandats = append(st.Mandats, m)
+		st.Terms = append(st.Terms, m)
 	}
 	mrows.Close()
 	// Le premier mandat de Charles de Gaulle ne vient pas du suffrage
 	// universel : il a été élu le 21 décembre 1958 par un collège de quelque
 	// 80 000 grands électeurs. Il n'a donc pas de proclamation du Conseil
 	// constitutionnel au sens des autres, et la ligne le dit.
-	st.Mandats = append(st.Mandats, MandatPresidentiel{
-		Annee: 1958, Elu: "Charles de Gaulle", Debut: "21/12/1958",
-		SuffrageUniversel: false,
+	st.Terms = append(st.Terms, TermPresidential{
+		Year: 1958, Elected: "Charles de Gaulle", Start: "21/12/1958",
+		SuffrageUniversal: false,
 	})
 
 	// Le lien vers la fiche : le nom publié par le Conseil constitutionnel
@@ -157,27 +157,27 @@ func loadGouvernement(ctx context.Context, pool *pgxpool.Pool, dataDir string,
 		return nil, err
 	}
 	for prows0.Next() {
-		var nom, slug string
-		if err := prows0.Scan(&nom, &slug); err != nil {
+		var name, slug string
+		if err := prows0.Scan(&name, &slug); err != nil {
 			break
 		}
-		presSlug[CleTri(nom)] = slug
+		presSlug[KeySort(name)] = slug
 	}
 	prows0.Close()
-	for i := range st.Mandats {
-		m := &st.Mandats[i]
-		m.Slug = presSlug[CleTri(m.Elu)]
-		m.Fiche = m.Slug != "" && avecFiche[m.Slug]
+	for i := range st.Terms {
+		m := &st.Terms[i]
+		m.Slug = presSlug[KeySort(m.Elected)]
+		m.Profile = m.Slug != "" && withProfile[m.Slug]
 	}
 
 	// Les dates de fin et les liens se déduisent de la succession.
-	for i := range st.Mandats {
+	for i := range st.Terms {
 		if i > 0 {
-			st.Mandats[i].Fin = st.Mandats[i-1].Debut
+			st.Terms[i].End = st.Terms[i-1].Start
 		}
 	}
 
-	_ = pool.QueryRow(ctx, `SELECT count(*) FROM core.acte_jo`).Scan(&st.NbActes)
+	_ = pool.QueryRow(ctx, `SELECT count(*) FROM core.acte_jo`).Scan(&st.CountActs)
 	_ = pool.QueryRow(ctx, `
 		SELECT count(*),
 		       count(*) FILTER (WHERE statut='CANDIDAT'),
@@ -185,12 +185,12 @@ func loadGouvernement(ctx context.Context, pool *pgxpool.Pool, dataDir string,
 		       count(*) FILTER (WHERE statut='ABSENT'),
 		       to_char(min(date_effet),'DD/MM/YYYY'), to_char(max(date_effet),'DD/MM/YYYY')
 		FROM core.gouvernement_membre`).
-		Scan(&st.NbCitations, &st.Candidats, &st.Ambigus, &st.Absents,
-			&st.PremierDecret, &st.DernierDecret)
+		Scan(&st.CountQuotes, &st.Candidates, &st.Ambiguous, &st.Absents,
+			&st.FirstDecree, &st.LastDecree)
 	_ = pool.QueryRow(ctx, `
 		SELECT count(*), count(*) FILTER (WHERE role='en mission')
 		FROM core.mandate WHERE mandate_type::text='MINISTRE'`).
-		Scan(&st.MandatsAMO, &st.MandatsEnMissio)
+		Scan(&st.TermsAMO, &st.TermsInMissio)
 
 	// La succession des Premiers ministres. Un PM cesse quand le suivant est
 	// nommé : c'est la seule règle que le droit rende évidente, et elle évite
@@ -204,15 +204,15 @@ func loadGouvernement(ctx context.Context, pool *pgxpool.Pool, dataDir string,
 	if qerr != nil {
 		return nil, qerr
 	}
-	type pmBrut struct{ date, nom, slug string }
-	var bruts []pmBrut
+	type pmGross struct{ date, name, slug string }
+	var gross []pmGross
 	for prows.Next() {
-		var b pmBrut
-		if err := prows.Scan(&b.date, &b.nom, &b.slug); err != nil {
+		var b pmGross
+		if err := prows.Scan(&b.date, &b.name, &b.slug); err != nil {
 			prows.Close()
 			return nil, err
 		}
-		bruts = append(bruts, b)
+		gross = append(gross, b)
 	}
 	prows.Close()
 	if err := prows.Err(); err != nil {
@@ -220,28 +220,28 @@ func loadGouvernement(ctx context.Context, pool *pgxpool.Pool, dataDir string,
 	}
 	// bruts est trié du plus récent au plus ancien ; on fusionne les
 	// nominations consécutives d'une même personne.
-	cleNom := func(s string) string { return CleTri(s) }
-	for i := 0; i < len(bruts); {
+	keyName := func(s string) string { return KeySort(s) }
+	for i := 0; i < len(gross); {
 		j := i
-		for j+1 < len(bruts) && cleNom(bruts[j+1].nom) == cleNom(bruts[i].nom) {
+		for j+1 < len(gross) && keyName(gross[j+1].name) == keyName(gross[i].name) {
 			j++
 		}
-		pm := PremierMinistre{Nom: NomPropre(bruts[i].nom), Debut: bruts[j].date}
+		pm := FirstMinister{Name: NameClean(gross[i].name), Start: gross[j].date}
 		for k := i; k <= j; k++ {
-			if bruts[k].slug != "" {
-				pm.Slug = bruts[k].slug
+			if gross[k].slug != "" {
+				pm.Slug = gross[k].slug
 			}
 		}
-		pm.Fiche = pm.Slug != "" && avecFiche[pm.Slug]
+		pm.Profile = pm.Slug != "" && withProfile[pm.Slug]
 		for k := j - 1; k >= i; k-- {
-			pm.Reconductions = append(pm.Reconductions, bruts[k].date)
+			pm.Renewals = append(pm.Renewals, gross[k].date)
 		}
 		if i == 0 {
-			pm.EnCours = true
+			pm.Ongoing = true
 		} else {
-			pm.Fin = bruts[i-1].date
+			pm.End = gross[i-1].date
 		}
-		st.PremiersMin = append(st.PremiersMin, pm)
+		st.FirstMin = append(st.FirstMin, pm)
 		i = j + 1
 	}
 
@@ -263,46 +263,46 @@ func loadGouvernement(ctx context.Context, pool *pgxpool.Pool, dataDir string,
 		return nil, err
 	}
 	defer drows.Close()
-	parActe := map[string]*DecretGouvernement{}
-	var ordre []string
+	perAct := map[string]*DecreeGovernment{}
+	var order []string
 	for drows.Next() {
-		var acte, date, iso, titre, sens string
-		var m MembreDecret
-		if err := drows.Scan(&acte, &date, &iso, &titre, &sens, &m.Fonction, &m.Rang,
-			&m.Nom, &m.Portefeuille, &m.Rattachement, &m.Statut, &m.Slug); err != nil {
+		var act, date, iso, title, direction string
+		var m MemberDecree
+		if err := drows.Scan(&act, &date, &iso, &title, &direction, &m.Function, &m.Rank,
+			&m.Name, &m.Portfolio, &m.Attachment, &m.Status, &m.Slug); err != nil {
 			return nil, err
 		}
-		m.Nom = NomPropre(m.Nom)
-		m.Fiche = m.Statut == "CANDIDAT" && m.Slug != "" && avecFiche[m.Slug]
-		m.FonctionFr = fonctionFr[m.Fonction]
-		if m.FonctionFr == "" {
-			m.FonctionFr = m.Fonction
+		m.Name = NameClean(m.Name)
+		m.Profile = m.Status == "CANDIDAT" && m.Slug != "" && withProfile[m.Slug]
+		m.FunctionFr = functionFr[m.Function]
+		if m.FunctionFr == "" {
+			m.FunctionFr = m.Function
 		}
-		d := parActe[acte]
+		d := perAct[act]
 		if d == nil {
-			d = &DecretGouvernement{ActeID: acte, Date: date, DateISO: iso, Titre: titre}
-			parActe[acte] = d
-			ordre = append(ordre, acte)
+			d = &DecreeGovernment{ActID: act, Date: date, DateISO: iso, Title: title}
+			perAct[act] = d
+			order = append(order, act)
 		}
-		if sens == "CESSATION" {
+		if direction == "CESSATION" {
 			d.Cessations = append(d.Cessations, m)
 		} else {
 			d.Nominations = append(d.Nominations, m)
 		}
 	}
-	for _, a := range ordre {
-		st.Decrets = append(st.Decrets, *parActe[a])
+	for _, a := range order {
+		st.Decrees = append(st.Decrees, *perAct[a])
 	}
-	sort.SliceStable(st.Decrets, func(i, j int) bool {
-		return st.Decrets[i].DateISO > st.Decrets[j].DateISO
+	sort.SliceStable(st.Decrees, func(i, j int) bool {
+		return st.Decrees[i].DateISO > st.Decrees[j].DateISO
 	})
 	// La page d'entrée n'en montre que les plus récents : les 160 décrets
 	// tenaient en une page de 520 Ko, dont personne ne lit le bas.
-	st.Tous = st.Decrets
-	st.NbDecrets = len(st.Decrets)
-	const surLIndex = 20
-	if len(st.Decrets) > surLIndex {
-		st.Decrets = st.Decrets[:surLIndex]
+	st.All = st.Decrees
+	st.CountDecrees = len(st.Decrees)
+	const onLIndex = 20
+	if len(st.Decrees) > onLIndex {
+		st.Decrees = st.Decrees[:onLIndex]
 	}
 	return st, drows.Err()
 }

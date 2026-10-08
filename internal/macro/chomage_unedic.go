@@ -16,10 +16,10 @@ import (
 // montant d'indemnisation — comme core.pension_tranche_eir, pour mesurer sur
 // une vraie distribution le biais d'une reprise fiscale non linéaire calculée
 // sur une moyenne. Voir docs/revenu-universel-microsimulation.md.
-var SourceChomageUnedic = archive.Source{
+var SourceUnemploymentUnedic = archive.Source{
 	Slug: "unedic-tranches-indemnisation", Label: "Unédic — répartition des allocataires par tranche d'indemnisation",
 	Publisher: "Unédic / France Travail", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Unédic, Fichier national des allocataires (FNA)",
 	Cadence:     "trimestrielle",
 	Notes: "Allocataires de la solidarité-État (ASS, ATS, AER) exclus : leur montant " +
@@ -31,18 +31,18 @@ var SourceChomageUnedic = archive.Source{
 const unedicXLSXURL = "https://www.data.gouv.fr/api/1/datasets/r/2aec0e50-1ec7-4809-b472-05d893a0c0f5"
 
 var (
-	reFeuilleTranches = regexp.MustCompile(`(?i)tranche`)
-	reDateFeuille     = regexp.MustCompile(`au (\d{1,2})(?:er)? (\p{L}+) (\d{4})`)
-	reTrancheFermee   = regexp.MustCompile(`^(\d[\d ]*)\s*-\s*(\d[\d ]*)$`)
-	reTrancheOuverteM = regexp.MustCompile(`^(\d[\d ]*)\s*et plus$`)
-	moisFR            = map[string]int{
+	reBracketSheet   = regexp.MustCompile(`(?i)tranche`)
+	reSheetDate      = regexp.MustCompile(`au (\d{1,2})(?:er)? (\p{L}+) (\d{4})`)
+	reClosedBracket  = regexp.MustCompile(`^(\d[\d ]*)\s*-\s*(\d[\d ]*)$`)
+	reOpenBracketMax = regexp.MustCompile(`^(\d[\d ]*)\s*et plus$`)
+	frenchMonths     = map[string]int{
 		"janvier": 1, "février": 2, "mars": 3, "avril": 4, "mai": 5, "juin": 6,
 		"juillet": 7, "août": 8, "septembre": 9, "octobre": 10, "novembre": 11, "décembre": 12,
 	}
 )
 
-func IngestChomageUnedic(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceChomageUnedic)
+func IngestUnemploymentUnedic(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceUnemploymentUnedic)
 	if err != nil {
 		return err
 	}
@@ -65,23 +65,23 @@ func IngestChomageUnedic(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	}
 	defer x.Close()
 
-	var toutesLignes [][]any
-	var trimestresCharges, rejetFeuille int
-	for _, feuille := range x.sheetNames() {
-		if !reFeuilleTranches.MatchString(feuille) || !strings.Contains(strings.ToLower(feuille), "montant") {
+	var allRows [][]any
+	var quartersLoaded, rejectedSheets int
+	for _, sheet := range x.sheetNames() {
+		if !reBracketSheet.MatchString(sheet) || !strings.Contains(strings.ToLower(sheet), "montant") {
 			continue
 		}
-		rows, err := chargerFeuilleUnedic(x, feuille)
+		rows, err := loadUnedicSheet(x, sheet)
 		if err != nil {
-			rejetFeuille++
+			rejectedSheets++
 			continue
 		}
 		for _, r := range rows {
-			toutesLignes = append(toutesLignes, append(r, srcID))
+			allRows = append(allRows, append(r, srcID))
 		}
-		trimestresCharges++
+		quartersLoaded++
 	}
-	if trimestresCharges == 0 {
+	if quartersLoaded == 0 {
 		return fail(fmt.Errorf("aucune feuille de tranches reconnue sur %d feuilles", len(x.sheetNames())))
 	}
 
@@ -102,7 +102,7 @@ func IngestChomageUnedic(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_chomage_tranche_unedic"},
 		[]string{"date_reference", "tranche_min", "tranche_max", "effectif", "pct", "source_id"},
-		pgx.CopyFromRows(toutesLignes)); err != nil {
+		pgx.CopyFromRows(allRows)); err != nil {
 		return fail(fmt.Errorf("core.chomage_tranche_unedic : %w", err))
 	}
 	ct, err := tx.Exec(ctx, `
@@ -125,51 +125,51 @@ func IngestChomageUnedic(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"trimestres_charges": trimestresCharges, "lignes_chargees": len(toutesLignes),
-			"rejet_feuille_non_reconnue": rejetFeuille, "touchees": touchees}, "")
+		map[string]any{"trimestres_charges": quartersLoaded, "lignes_chargees": len(allRows),
+			"rejet_feuille_non_reconnue": rejectedSheets, "touchees": touchees}, "")
 	fmt.Printf("  répartition par tranche d'indemnisation : %d trimestres, %d lignes (Unédic), %d touchées par la fusion\n",
-		trimestresCharges, len(toutesLignes), touchees)
+		quartersLoaded, len(allRows), touchees)
 	return nil
 }
 
-// chargerFeuilleUnedic traite une feuille "Tranches de montant(s)_<mois année>" :
+// loadUnedicSheet traite une feuille "Tranches de montant(s)_<mois année>" :
 // la date est relue dans le TITRE de la feuille (« au 30 juin 2025 »), plus
 // fiable que le nom d'onglet (variantes de casse et d'apostrophe selon les
 // trimestres). La colonne « Ensemble Assurance chômage » n'est pas à position
 // fixe : son nombre de sous-allocations a changé (ADM ajouté en 2023), donc sa
 // colonne. On la retrouve par en-tête plutôt que par lettre.
-func chargerFeuilleUnedic(x *xlsxFile, feuille string) ([][]any, error) {
-	lignes, err := x.rows(feuille)
+func loadUnedicSheet(x *xlsxFile, sheet string) ([][]any, error) {
+	sheetRows, err := x.rows(sheet)
 	if err != nil {
 		return nil, err
 	}
-	if len(lignes) < 4 {
-		return nil, fmt.Errorf("feuille %q trop courte", feuille)
+	if len(sheetRows) < 4 {
+		return nil, fmt.Errorf("feuille %q trop courte", sheet)
 	}
 
 	// Ni le titre ni l'en-tête ne sont à un numéro de ligne fixe : certaines
 	// feuilles portent une ou deux lignes vides au-dessus (mise en forme
 	// héritée d'une édition à l'autre). On les retrouve par leur CONTENU.
-	var date, colEffectif string
+	var date, headcountCol string
 	var headerIdx = -1
-	for i, l := range lignes {
+	for i, l := range sheetRows {
 		if date == "" {
 			for _, v := range l {
-				if m := reDateFeuille.FindStringSubmatch(v); m != nil {
-					jour, _ := strconv.Atoi(m[1])
-					moisNum, ok := moisFR[strings.ToLower(m[2])]
+				if m := reSheetDate.FindStringSubmatch(v); m != nil {
+					day, _ := strconv.Atoi(m[1])
+					monthNum, ok := frenchMonths[strings.ToLower(m[2])]
 					if !ok {
 						continue
 					}
-					annee, _ := strconv.Atoi(m[3])
-					date = fmt.Sprintf("%04d-%02d-%02d", annee, moisNum, jour)
+					year, _ := strconv.Atoi(m[3])
+					date = fmt.Sprintf("%04d-%02d-%02d", year, monthNum, day)
 					break
 				}
 			}
 		}
 		for col, v := range l {
 			if v == "Ensemble Assurance chômage" {
-				colEffectif, headerIdx = col, i
+				headcountCol, headerIdx = col, i
 			}
 		}
 		if date != "" && headerIdx >= 0 {
@@ -177,46 +177,46 @@ func chargerFeuilleUnedic(x *xlsxFile, feuille string) ([][]any, error) {
 		}
 	}
 	if date == "" {
-		return nil, fmt.Errorf("feuille %q : date introuvable", feuille)
+		return nil, fmt.Errorf("feuille %q : date introuvable", sheet)
 	}
-	if colEffectif == "" {
-		return nil, fmt.Errorf("feuille %q : colonne « Ensemble Assurance chômage » introuvable", feuille)
+	if headcountCol == "" {
+		return nil, fmt.Errorf("feuille %q : colonne « Ensemble Assurance chômage » introuvable", sheet)
 	}
-	colPct := colonneSuivante(colEffectif)
+	pctCol := nextColumn(headcountCol)
 
 	var rows [][]any
 	var total float64
-	for _, l := range lignes[headerIdx+1:] {
-		lib := l["B"]
-		eff, ok1 := valeurNumerique(l, colEffectif)
-		pct, ok2 := valeurNumerique(l, colPct)
+	for _, l := range sheetRows[headerIdx+1:] {
+		label := l["B"]
+		count, ok1 := numericValue(l, headcountCol)
+		pct, ok2 := numericValue(l, pctCol)
 		if !ok1 || !ok2 {
 			continue
 		}
-		lib = strings.ReplaceAll(lib, " ", " ")
-		if mm := reTrancheFermee.FindStringSubmatch(lib); mm != nil {
+		label = strings.ReplaceAll(label, " ", " ")
+		if mm := reClosedBracket.FindStringSubmatch(label); mm != nil {
 			min, _ := strconv.Atoi(strings.ReplaceAll(mm[1], " ", ""))
 			max, _ := strconv.Atoi(strings.ReplaceAll(mm[2], " ", ""))
-			rows = append(rows, []any{date, min, max, int64(eff), pct * 100})
+			rows = append(rows, []any{date, min, max, int64(count), pct * 100})
 			total += pct
-		} else if mm := reTrancheOuverteM.FindStringSubmatch(lib); mm != nil {
+		} else if mm := reOpenBracketMax.FindStringSubmatch(label); mm != nil {
 			min, _ := strconv.Atoi(strings.ReplaceAll(mm[1], " ", ""))
-			rows = append(rows, []any{date, min, nil, int64(eff), pct * 100})
+			rows = append(rows, []any{date, min, nil, int64(count), pct * 100})
 			total += pct
-		} else if lib == "Total" {
+		} else if label == "Total" {
 			break
 		}
 	}
 	if len(rows) == 0 {
-		return nil, fmt.Errorf("feuille %q : aucune tranche reconnue", feuille)
+		return nil, fmt.Errorf("feuille %q : aucune tranche reconnue", sheet)
 	}
 	if total < 0.99 || total > 1.01 {
-		return nil, fmt.Errorf("feuille %q : les tranches totalisent %.3f, pas 1", feuille, total)
+		return nil, fmt.Errorf("feuille %q : les tranches totalisent %.3f, pas 1", sheet, total)
 	}
 	return rows, nil
 }
 
-func colonneSuivante(col string) string {
+func nextColumn(col string) string {
 	// Une seule lettre suffit ici : les feuilles Unédic ne dépassent pas Z.
 	if len(col) != 1 {
 		return col

@@ -18,7 +18,7 @@ import (
 var SourceHonoraires = archive.Source{
 	Slug: "ameli-honoraires", Label: "Ameli — montants des honoraires des professionnels de santé libéraux",
 	Publisher: "Caisse nationale de l'Assurance Maladie (Cnam)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : Cnam, data.ameli.fr",
 	Cadence:     "annuelle",
 	Notes: "38 professions, 2010-2024. Les quatre champs de montant (totaux et moyens) portent la " +
@@ -63,7 +63,7 @@ func IngestHonoraires(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		TauxDepassementS2Optam    string `json:"taux_depassement_s2_optam"`
 		TauxDepassementS2NonOptam string `json:"taux_depassement_s2_non_optam"`
 	}
-	if err := lireJSONFichier(f.Path, &lignes); err != nil {
+	if err := readJSONFile(f.Path, &lignes); err != nil {
 		return fail(fmt.Errorf("honoraires : %w", err))
 	}
 
@@ -72,7 +72,7 @@ func IngestHonoraires(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	// être présents dans ce jeu (vérifié sur l'export complet avant
 	// d'écrire ce connecteur) : une valeur absente ou illisible y échoue
 	// plutôt que d'être devinée.
-	versNullableInt := func(s string) (*int64, error) {
+	toNullableInt := func(s string) (*int64, error) {
 		if s == "NS" {
 			return nil, nil
 		}
@@ -86,7 +86,7 @@ func IngestHonoraires(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	// profession n'a pas d'effectif en secteur 2, la question ne se pose
 	// pas), un sentinel distinct de "NS" mais qui devient NULL de la même
 	// façon : ni l'un ni l'autre n'est un taux de zéro.
-	versNullableFloat := func(s string) (*float64, error) {
+	toNullableFloat := func(s string) (*float64, error) {
 		if s == "NC" {
 			return nil, nil
 		}
@@ -104,41 +104,41 @@ func IngestHonoraires(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	defer tx.Rollback(ctx)
 	var rows [][]any
 	for _, l := range lignes {
-		annee, err := strconv.Atoi(l.Annee)
+		year, err := strconv.Atoi(l.Annee)
 		if err != nil {
 			return fail(fmt.Errorf("honoraires : année %q : %w", l.Annee, err))
 		}
-		honoTotal, err := versNullableInt(l.HonoSansDepassementTotaux)
+		honoTotal, err := toNullableInt(l.HonoSansDepassementTotaux)
 		if err != nil {
 			return fail(fmt.Errorf("honoraires : hono_sans_depassement_totaux %q : %w", l.HonoSansDepassementTotaux, err))
 		}
-		depTotal, err := versNullableInt(l.DepassementsTotaux)
+		depTotal, err := toNullableInt(l.DepassementsTotaux)
 		if err != nil {
 			return fail(fmt.Errorf("honoraires : depassements_totaux %q : %w", l.DepassementsTotaux, err))
 		}
-		honoMoyen, err := versNullableInt(l.HonoSansDepassementMoyens)
+		honoAvg, err := toNullableInt(l.HonoSansDepassementMoyens)
 		if err != nil {
 			return fail(fmt.Errorf("honoraires : hono_sans_depassement_moyens %q : %w", l.HonoSansDepassementMoyens, err))
 		}
-		depMoyen, err := versNullableInt(l.DepassementsMoyens)
+		depAvg, err := toNullableInt(l.DepassementsMoyens)
 		if err != nil {
 			return fail(fmt.Errorf("honoraires : depassements_moyens %q : %w", l.DepassementsMoyens, err))
 		}
-		tauxS2, err := versNullableFloat(l.TauxDepassementS2)
+		tauxS2, err := toNullableFloat(l.TauxDepassementS2)
 		if err != nil {
 			return fail(fmt.Errorf("honoraires : taux_depassement_s2 %q : %w", l.TauxDepassementS2, err))
 		}
-		tauxOptam, err := versNullableFloat(l.TauxDepassementS2Optam)
+		tauxOptam, err := toNullableFloat(l.TauxDepassementS2Optam)
 		if err != nil {
 			return fail(fmt.Errorf("honoraires : taux_depassement_s2_optam %q : %w", l.TauxDepassementS2Optam, err))
 		}
-		tauxNonOptam, err := versNullableFloat(l.TauxDepassementS2NonOptam)
+		tauxNonOptam, err := toNullableFloat(l.TauxDepassementS2NonOptam)
 		if err != nil {
 			return fail(fmt.Errorf("honoraires : taux_depassement_s2_non_optam %q : %w", l.TauxDepassementS2NonOptam, err))
 		}
 		rows = append(rows, []any{
-			annee, l.ProfessionSante, l.Region, l.LibelleRegion, l.Departement, l.LibelleDepartement,
-			honoTotal, depTotal, honoMoyen, depMoyen, tauxS2, tauxOptam, tauxNonOptam, srcID,
+			year, l.ProfessionSante, l.Region, l.LibelleRegion, l.Departement, l.LibelleDepartement,
+			honoTotal, depTotal, honoAvg, depAvg, tauxS2, tauxOptam, tauxNonOptam, srcID,
 		})
 	}
 

@@ -30,22 +30,22 @@ func NormalizeMembres(ctx context.Context, pool *pgxpool.Pool) error {
 	if err != nil {
 		return err
 	}
-	type decret struct {
+	type decree struct {
 		id      string
 		date    any
 		contenu string
 	}
-	var decrets []decret
+	var decrees []decree
 	for rows.Next() {
-		var d decret
+		var d decree
 		if err := rows.Scan(&d.id, &d.date, &d.contenu); err != nil {
 			rows.Close()
 			return err
 		}
-		decrets = append(decrets, d)
+		decrees = append(decrees, d)
 	}
 	rows.Close()
-	if len(decrets) == 0 {
+	if len(decrees) == 0 {
 		return fmt.Errorf("aucun décret de composition en base : lancer -only=jorf-gouvernement d'abord")
 	}
 
@@ -60,28 +60,28 @@ func NormalizeMembres(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 
-	var nMembres, sansMembre int
-	for _, d := range decrets {
-		membres := LireComposition(d.contenu)
-		if len(membres) == 0 {
+	var memberCount, withoutMember int
+	for _, d := range decrees {
+		members := ReadComposition(d.contenu)
+		if len(members) == 0 {
 			// Un décret dont on ne tire personne est un signal : soit le texte
 			// est une simple formule de publication, soit la lecture a échoué.
 			// Il est compté, pas passé sous silence.
-			sansMembre++
+			withoutMember++
 			continue
 		}
-		for _, m := range membres {
+		for _, m := range members {
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO core.gouvernement_membre
 				  (acte_id, date_effet, rang, sens, fonction, civilite, prenom, nom,
 				   rattachement, portefeuille, method_version)
 				VALUES ($1,$2,$3,$4,$5,$6,$7,$8,nullif($9,''),nullif($10,''),$11)
 				ON CONFLICT (acte_id, sens, fonction, nom, prenom, portefeuille) DO NOTHING`,
-				d.id, d.date, m.Rang, m.Sens, m.Fonction, m.Civilite, m.Prenom, m.Nom,
-				m.Rattachement, m.Portefeuille, MembreVersion); err != nil {
-				return fmt.Errorf("%s, %s %s : %w", d.id, m.Prenom, m.Nom, err)
+				d.id, d.date, m.Rank, m.Direction, m.Role, m.Title, m.FirstName, m.LastName,
+				m.Attachment, m.Portfolio, MembreVersion); err != nil {
+				return fmt.Errorf("%s, %s %s : %w", d.id, m.FirstName, m.LastName, err)
 			}
-			nMembres++
+			memberCount++
 		}
 	}
 
@@ -118,21 +118,21 @@ func NormalizeMembres(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("rapprochement : %w", err)
 	}
 
-	var confirmes, candidats, ambigus, absents int
+	var confirmed, candidates, ambiguous, absent int
 	if err := tx.QueryRow(ctx, `
 		SELECT count(*) FILTER (WHERE statut = 'CONFIRME'),
 		       count(*) FILTER (WHERE statut = 'CANDIDAT'),
 		       count(*) FILTER (WHERE statut = 'AMBIGU'),
 		       count(*) FILTER (WHERE statut = 'ABSENT')
-		  FROM core.gouvernement_membre`).Scan(&confirmes, &candidats, &ambigus, &absents); err != nil {
+		  FROM core.gouvernement_membre`).Scan(&confirmed, &candidates, &ambiguous, &absent); err != nil {
 		return err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
 	logs.Notice(fmt.Sprintf("composition: %s read, %s of members (%d without an extracted member)",
-		logs.Plural(len(decrets), "decree"), logs.Plural(nMembres, "mention"), sansMembre))
+		logs.Plural(len(decrees), "decree"), logs.Plural(memberCount, "mention"), withoutMember))
 	logs.Notice(fmt.Sprintf("matching: %d candidate, %d ambiguous, %d not in the database",
-		candidats, ambigus, absents))
+		candidates, ambiguous, absent))
 	return nil
 }

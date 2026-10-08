@@ -19,7 +19,7 @@ var SourceSecteurConventionnel = archive.Source{
 	Slug: "ameli-secteurs-conventionnels", Label: "Ameli — professionnels de santé libéraux par secteur conventionnel",
 	Publisher: "Caisse nationale de l'Assurance Maladie (Cnam)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Cnam, data.ameli.fr",
 	Cadence:     "annuelle",
 	Notes: "Toutes les professions de santé libérales sont chargées, pas seulement les " +
@@ -31,7 +31,7 @@ var SourceSecteurConventionnel = archive.Source{
 const secteurConventionnelURL = "https://data.ameli.fr/api/explore/v2.1/catalog/datasets/" +
 	"demographie-secteurs-conventionnels/exports/json"
 
-type ligneSecteur struct {
+type sectorRow struct {
 	Annee              string `json:"annee"`
 	ProfessionSante    string `json:"profession_sante"`
 	Region             string `json:"region"`
@@ -65,7 +65,7 @@ func IngestSecteurConventionnel(ctx context.Context, pool *pgxpool.Pool, arch *a
 	if err != nil {
 		return fail(err)
 	}
-	var lignes []ligneSecteur
+	var lignes []sectorRow
 	if err := json.Unmarshal(b, &lignes); err != nil {
 		return fail(err)
 	}
@@ -81,12 +81,12 @@ func IngestSecteurConventionnel(ctx context.Context, pool *pgxpool.Pool, arch *a
 
 	var rows [][]any
 	for _, l := range lignes {
-		annee, err := strconv.Atoi(l.Annee)
+		year, err := strconv.Atoi(l.Annee)
 		if err != nil {
 			return fail(fmt.Errorf("année illisible %q", l.Annee))
 		}
 		rows = append(rows, []any{
-			annee, l.ProfessionSante, l.Region, l.LibelleRegion,
+			year, l.ProfessionSante, l.Region, l.LibelleRegion,
 			l.Departement, l.LibelleDepartement, l.SecteurCode, l.SecteurLibelle,
 			l.Effectif, srcID,
 		})

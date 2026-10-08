@@ -11,36 +11,36 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-type PosteLigne struct {
-	Label, Caveat, Categorie string
-	Montants                 []string
+type PositionLine struct {
+	Label, Caveat, Category string
+	Amounts                 []string
 }
 
-type ClassifLigne struct {
-	Referentiel, Vocabulaire, Categorie, Periode string
-	SetSlug, LibelleFr                           string
-	Valeur                                       string // score continu, le cas échéant
+type ClassificationLine struct {
+	Reference, Vocabulary, Category, Period string
+	SetSlug, LabelFr                        string
+	Value                                   string // score continu, le cas échéant
 }
 
-type Organisation struct {
-	Slug, Libelle, CodeCNCCFP, PopuListNom, Justification string
-	GroupeANUID, CHESNom                                  string
-	OrgID                                                 int64
-	Logo                                                  *Media
-	Groupe                                                *Groupe
-	Exercices                                             []int
-	Postes                                                []PosteLigne
-	Classifications                                       []ClassifLigne
-	Candidats                                             []*Candidat
-	HasComptes                                            bool
+type Organization struct {
+	Slug, Label, CodeCNCCFP, PopulationListName, Justification string
+	GroupANUID, CHESName                                       string
+	OrgID                                                      int64
+	Logo                                                       *Media
+	Group                                                      *Group
+	FiscalYears                                                []int
+	Positions                                                  []PositionLine
+	Classifications                                            []ClassificationLine
+	Candidates                                                 []*Candidate
+	HasAccounts                                                bool
 }
 
-// loadOrganisations lit la décision éditoriale de rattachement puis charge, pour
+// loadOrganizations lit la décision éditoriale de rattachement puis charge, pour
 // chaque organisation, ses comptes publics et les classifications tierces qui la
 // concernent. Le rapprochement passe par un IDENTIFIANT (code CNCCFP, libellé
 // exact publié par le référentiel), jamais par une correspondance approchée de
 // noms : une telle correspondance serait un jugement déguisé en calcul.
-func loadOrganisations(ctx context.Context, pool *pgxpool.Pool, path string, tags map[string]Tag) (map[string]*Organisation, error) {
+func loadOrganizations(ctx context.Context, pool *pgxpool.Pool, path string, tags map[string]Tag) (map[string]*Organization, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -67,14 +67,14 @@ func loadOrganisations(ctx context.Context, pool *pgxpool.Pool, path string, tag
 		return ""
 	}
 
-	out := map[string]*Organisation{}
+	out := map[string]*Organization{}
 	var codesCNCCFP []string
 	for _, rec := range recs[1:] {
-		o := &Organisation{
-			Slug: get(rec, "slug"), Libelle: get(rec, "libelle"),
-			CodeCNCCFP: get(rec, "code_cnccfp"), PopuListNom: get(rec, "populist_nom"),
-			GroupeANUID:   get(rec, "groupe_an_uid"),
-			CHESNom:       get(rec, "ches_nom"),
+		o := &Organization{
+			Slug: get(rec, "slug"), Label: get(rec, "libelle"),
+			CodeCNCCFP: get(rec, "code_cnccfp"), PopulationListName: get(rec, "populist_nom"),
+			GroupANUID:    get(rec, "groupe_an_uid"),
+			CHESName:      get(rec, "ches_nom"),
 			Justification: get(rec, "justification"),
 		}
 		if o.Slug == "" {
@@ -90,48 +90,48 @@ func loadOrganisations(ctx context.Context, pool *pgxpool.Pool, path string, tag
 	// plutôt que jusqu'à quatre PAR organisation — une cinquantaine de
 	// lignes dans data/organisations.csv aujourd'hui, mais le même patron
 	// N+1 qu'ailleurs dans ce fichier.
-	orgIDParCode, err := chargerOrgIDParCode(ctx, pool, codesCNCCFP)
+	orgIDPerCode, err := loadOrgIDPerCode(ctx, pool, codesCNCCFP)
 	if err != nil {
 		return nil, err
 	}
-	comptesParCode, err := chargerComptesParCode(ctx, pool, codesCNCCFP)
+	accountsPerCode, err := loadAccountsPerCode(ctx, pool, codesCNCCFP)
 	if err != nil {
 		return nil, err
 	}
 	for _, o := range out {
 		if o.CodeCNCCFP != "" {
-			o.OrgID = orgIDParCode[o.CodeCNCCFP]
-			appliquerComptes(o, comptesParCode[o.CodeCNCCFP])
+			o.OrgID = orgIDPerCode[o.CodeCNCCFP]
+			applyAccounts(o, accountsPerCode[o.CodeCNCCFP])
 		}
 	}
 
-	var nomsClassif []string
+	var nomsClassification []string
 	for _, o := range out {
-		if o.PopuListNom != "" {
-			nomsClassif = append(nomsClassif, o.PopuListNom)
+		if o.PopulationListName != "" {
+			nomsClassification = append(nomsClassification, o.PopulationListName)
 		}
-		if o.CHESNom != "" {
-			nomsClassif = append(nomsClassif, o.CHESNom)
+		if o.CHESName != "" {
+			nomsClassification = append(nomsClassification, o.CHESName)
 		}
 	}
-	classifParNom, err := chargerClassificationsParNom(ctx, pool, nomsClassif, tags)
+	classificationPerName, err := loadClassificationsPerName(ctx, pool, nomsClassification, tags)
 	if err != nil {
 		return nil, err
 	}
 	for _, o := range out {
-		if o.PopuListNom != "" {
-			o.Classifications = append(o.Classifications, classifParNom[o.PopuListNom]...)
+		if o.PopulationListName != "" {
+			o.Classifications = append(o.Classifications, classificationPerName[o.PopulationListName]...)
 		}
-		if o.CHESNom != "" {
-			o.Classifications = append(o.Classifications, classifParNom[o.CHESNom]...)
+		if o.CHESName != "" {
+			o.Classifications = append(o.Classifications, classificationPerName[o.CHESName]...)
 		}
 	}
 	return out, nil
 }
 
-// chargerOrgIDParCode résout tous les codes CNCCFP en organization_id d'un
+// loadOrgIDPerCode résout tous les codes CNCCFP en organization_id d'un
 // coup — voir loadOrganisations, qui répartit ensuite par code.
-func chargerOrgIDParCode(ctx context.Context, pool *pgxpool.Pool, codes []string) (map[string]int64, error) {
+func loadOrgIDPerCode(ctx context.Context, pool *pgxpool.Pool, codes []string) (map[string]int64, error) {
 	out := map[string]int64{}
 	if len(codes) == 0 {
 		return out, nil
@@ -154,10 +154,10 @@ func chargerOrgIDParCode(ctx context.Context, pool *pgxpool.Pool, codes []string
 	return out, rows.Err()
 }
 
-// chargerComptesParCode charge les comptes CNCCFP de tous les codes d'un
+// loadAccountsPerCode charge les comptes CNCCFP de tous les codes d'un
 // coup — voir loadOrganisations, qui répartit ensuite par code.
-func chargerComptesParCode(ctx context.Context, pool *pgxpool.Pool, codes []string) (map[string][]ligneCompte, error) {
-	out := map[string][]ligneCompte{}
+func loadAccountsPerCode(ctx context.Context, pool *pgxpool.Pool, codes []string) (map[string][]lineAccount, error) {
+	out := map[string][]lineAccount{}
 	if len(codes) == 0 {
 		return out, nil
 	}
@@ -174,8 +174,8 @@ func chargerComptesParCode(ctx context.Context, pool *pgxpool.Pool, codes []stri
 	defer rows.Close()
 	for rows.Next() {
 		var code string
-		var l ligneCompte
-		if err := rows.Scan(&code, &l.code, &l.label, &l.caveat, &l.categorie, &l.exercice, &l.montant); err != nil {
+		var l lineAccount
+		if err := rows.Scan(&code, &l.code, &l.label, &l.caveat, &l.category, &l.fiscalYear, &l.amount); err != nil {
 			return nil, err
 		}
 		out[code] = append(out[code], l)
@@ -183,55 +183,55 @@ func chargerComptesParCode(ctx context.Context, pool *pgxpool.Pool, codes []stri
 	return out, rows.Err()
 }
 
-type ligneCompte struct {
-	code, label, caveat, categorie string
-	exercice                       int
-	montant                        float64
+type lineAccount struct {
+	code, label, caveat, category string
+	fiscalYear                    int
+	amount                        float64
 }
 
-// appliquerComptes reproduit la mise en forme de l'ancienne loadComptes (une
+// applyAccounts reproduit la mise en forme de l'ancienne loadComptes (une
 // requête par organisation) à partir des lignes déjà chargées en bloc.
-func appliquerComptes(o *Organisation, lignes []ligneCompte) {
-	if len(lignes) == 0 {
+func applyAccounts(o *Organization, lines []lineAccount) {
+	if len(lines) == 0 {
 		return
 	}
-	byPoste := map[string]map[int]float64{}
-	meta := map[string]PosteLigne{}
-	var ordre []string
+	byPosition := map[string]map[int]float64{}
+	meta := map[string]PositionLine{}
+	var order []string
 	years := map[int]bool{}
-	for _, l := range lignes {
-		if _, ok := byPoste[l.code]; !ok {
-			byPoste[l.code] = map[int]float64{}
-			meta[l.code] = PosteLigne{Label: l.label, Caveat: l.caveat, Categorie: l.categorie}
-			ordre = append(ordre, l.code)
+	for _, l := range lines {
+		if _, ok := byPosition[l.code]; !ok {
+			byPosition[l.code] = map[int]float64{}
+			meta[l.code] = PositionLine{Label: l.label, Caveat: l.caveat, Category: l.category}
+			order = append(order, l.code)
 		}
-		byPoste[l.code][l.exercice] = l.montant
-		years[l.exercice] = true
+		byPosition[l.code][l.fiscalYear] = l.amount
+		years[l.fiscalYear] = true
 	}
 	for y := 2021; y <= 2024; y++ {
 		if years[y] {
-			o.Exercices = append(o.Exercices, y)
+			o.FiscalYears = append(o.FiscalYears, y)
 		}
 	}
-	for _, code := range ordre {
+	for _, code := range order {
 		p := meta[code]
-		for _, y := range o.Exercices {
-			if v, ok := byPoste[code][y]; ok {
-				p.Montants = append(p.Montants, euros(v))
+		for _, y := range o.FiscalYears {
+			if v, ok := byPosition[code][y]; ok {
+				p.Amounts = append(p.Amounts, euros(v))
 			} else {
-				p.Montants = append(p.Montants, "")
+				p.Amounts = append(p.Amounts, "")
 			}
 		}
-		o.Postes = append(o.Postes, p)
+		o.Positions = append(o.Positions, p)
 	}
-	o.HasComptes = true
+	o.HasAccounts = true
 }
 
-// chargerClassificationsParNom charge les classifications de tous les noms
+// loadClassificationsPerName charge les classifications de tous les noms
 // (PopuList et CHES confondus, une même requête suffit) en une fois — voir
 // loadOrganisations, qui répartit ensuite par nom.
-func chargerClassificationsParNom(ctx context.Context, pool *pgxpool.Pool, noms []string, tags map[string]Tag) (map[string][]ClassifLigne, error) {
-	out := map[string][]ClassifLigne{}
+func loadClassificationsPerName(ctx context.Context, pool *pgxpool.Pool, noms []string, tags map[string]Tag) (map[string][]ClassificationLine, error) {
+	out := map[string][]ClassificationLine{}
 	if len(noms) == 0 {
 		return out, nil
 	}
@@ -250,37 +250,37 @@ func chargerClassificationsParNom(ctx context.Context, pool *pgxpool.Pool, noms 
 	}
 	defer rows.Close()
 	for rows.Next() {
-		var nom string
-		var c ClassifLigne
-		var cat, dim, val, debut, fin string
-		if err := rows.Scan(&nom, &c.SetSlug, &c.Referentiel, &c.Vocabulaire,
-			&cat, &dim, &val, &debut, &fin); err != nil {
+		var name string
+		var c ClassificationLine
+		var cat, dim, val, start, end string
+		if err := rows.Scan(&name, &c.SetSlug, &c.Reference, &c.Vocabulary,
+			&cat, &dim, &val, &start, &end); err != nil {
 			return nil, err
 		}
-		c.Categorie = cat
+		c.Category = cat
 		if dim != "" {
 			// Une moyenne d'appréciations d'experts n'a pas sept décimales
 			// significatives : les afficher donnerait une fausse précision.
-			c.Categorie, c.Valeur = dim, arrondi(val)
+			c.Category, c.Value = dim, arrondi(val)
 		}
-		if t, ok := tags[c.SetSlug+"/"+c.Categorie]; ok {
-			c.LibelleFr = t.LibelleFr
+		if t, ok := tags[c.SetSlug+"/"+c.Category]; ok {
+			c.LabelFr = t.LabelFr
 		}
 		switch {
-		case debut == "1900" && fin == "2100":
-			c.Periode = "sur toute la période couverte par le référentiel"
-		case debut == "1900":
-			c.Periode = "jusqu'en " + fin
-		case fin == "2100":
-			c.Periode = "depuis " + debut
-		case debut != "" && fin != "":
-			c.Periode = "de " + debut + " à " + fin
-		case debut != "":
-			c.Periode = "depuis " + debut
+		case start == "1900" && end == "2100":
+			c.Period = "sur toute la période couverte par le référentiel"
+		case start == "1900":
+			c.Period = "jusqu'en " + end
+		case end == "2100":
+			c.Period = "depuis " + start
+		case start != "" && end != "":
+			c.Period = "de " + start + " à " + end
+		case start != "":
+			c.Period = "depuis " + start
 		default:
-			c.Periode = "vague 2024"
+			c.Period = "vague 2024"
 		}
-		out[nom] = append(out[nom], c)
+		out[name] = append(out[name], c)
 	}
 	return out, rows.Err()
 }

@@ -13,7 +13,7 @@ import (
 var SourceMissingProfits = archive.Source{
 	Slug: "missing-profits-twz-wz", Label: "Tørsløv, Wier, Zucman — estimations du transfert de bénéfices vers les paradis fiscaux",
 	Publisher: "T. Tørsløv, L. Wier, G. Zucman (missingprofits.world)", Tier: "SECONDARY_PRESS",
-	Licence:     "Aucune licence déclarée ; données de réplication publiées par les auteurs",
+	License:     "Aucune licence déclarée ; données de réplication publiées par les auteurs",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : Tørsløv, Wier & Zucman (2023), The Missing Profits of Nations, Review of Economic Studies ; Wier & Zucman (2022), Global profit shifting 1975-2019, WIDER",
 	Cadence:     "ponctuelle (mises à jour des auteurs)",
@@ -29,7 +29,7 @@ const (
 	urlWZ2022  = "https://missingprofits.world/wp-content/uploads/2022/11/WZ2022.xlsb.xlsx"
 )
 
-func nombreCellule(r map[string]string, col string) (float64, bool) {
+func cellNumber(r map[string]string, col string) (float64, bool) {
 	s, ok := r[col]
 	if !ok {
 		return 0, false
@@ -39,25 +39,25 @@ func nombreCellule(r map[string]string, col string) (float64, bool) {
 }
 
 func IngestTWZ(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, arch, SourceMissingProfits, func(srcID, runID int64) (map[string]any, error) {
-		type cle struct {
+	return run(ctx, arch, SourceMissingProfits, func(srcID, runID int64) (map[string]any, error) {
+		type key struct {
 			pays string
 			an   int
 			ind  string
 		}
-		vus := map[cle]bool{}
-		var lignes [][]any
-		doublons := 0
-		ajoute := func(pays string, an int, ind string, v float64, unite string, doc int64) {
-			k := cle{pays, an, ind}
-			if vus[k] {
+		seen := map[key]bool{}
+		var outRows [][]any
+		duplicates := 0
+		add := func(pays string, an int, ind string, v float64, unite string, doc int64) {
+			k := key{pays, an, ind}
+			if seen[k] {
 				// Le classeur WZ2022 répète une ligne « India » (la seconde
 				// porte les valeurs de l'Afrique du Sud) : la première fait foi.
-				doublons++
+				duplicates++
 				return
 			}
-			vus[k] = true
-			lignes = append(lignes, []any{pays, an, ind, v, unite, srcID, doc})
+			seen[k] = true
+			outRows = append(outRows, []any{pays, an, ind, v, unite, srcID, doc})
 		}
 
 		// WZ2022, Table A : bénéfices transférés (Md$ ; positif = perdus par le
@@ -76,37 +76,37 @@ func IngestTWZ(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		if err != nil {
 			return nil, err
 		}
-		annees := []struct {
-			an              int
-			colMd, colPerte string
+		years := []struct {
+			an                 int
+			colAmount, colLoss string
 		}{{2015, "C", "J"}, {2016, "D", "K"}, {2017, "E", "L"}, {2018, "F", "M"}, {2019, "G", "N"}}
 		if rows[2]["C"] != "2015" || rows[2]["G"] != "2019" || rows[2]["N"] != "2019" {
 			return nil, fmt.Errorf("WZ2022 Table A : en-tête inattendu %v", rows[2])
 		}
-		groupe := ""
+		group := ""
 		for _, r := range rows[3:] {
-			nom := r["B"]
-			if nom == "" {
+			name := r["B"]
+			if name == "" {
 				continue
 			}
-			if _, ok := nombreCellule(r, "H"); !ok && len(r) == 1 {
-				groupe = nom // « OECD countries », « Tax havens »…
+			if _, ok := cellNumber(r, "H"); !ok && len(r) == 1 {
+				group = name // « OECD countries », « Tax havens »…
 				continue
 			}
-			for _, a := range annees {
-				if v, ok := nombreCellule(r, a.colMd); ok {
-					ajoute(nom, a.an, "BENEFICES_TRANSFERES", v, "MD_USD", f.DocumentID)
+			for _, a := range years {
+				if v, ok := cellNumber(r, a.colAmount); ok {
+					add(name, a.an, "BENEFICES_TRANSFERES", v, "MD_USD", f.DocumentID)
 				}
-				if v, ok := nombreCellule(r, a.colPerte); ok {
+				if v, ok := cellNumber(r, a.colLoss); ok {
 					ind := "PERTE_IS_PART"
-					if groupe == "Tax havens" {
+					if group == "Tax havens" {
 						ind = "GAIN_IS_PART"
 					}
-					ajoute(nom, a.an, ind, v, "RATIO", f.DocumentID)
+					add(name, a.an, ind, v, "RATIO", f.DocumentID)
 				}
 			}
 		}
-		nWZ := len(lignes)
+		nWZ := len(outRows)
 
 		// TWZ2022, Table 3 (année 2015) : bénéfices déclarés, part des
 		// entreprises étrangères, bénéfices transférés en part des bénéfices.
@@ -126,25 +126,25 @@ func IngestTWZ(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		if rows[2]["C"] != "Reported domestic profits" || rows[2]["H"] != "Shifted profits (% reported profits)" {
 			return nil, fmt.Errorf("TWZ2022 Table3 : en-tête inattendu %v", rows[2])
 		}
-		colonnes := []struct{ col, ind, unite string }{
+		columns := []struct{ col, ind, unite string }{
 			{"C", "BENEFICES_DECLARES", "MD_USD"},
 			{"D", "BENEFICES_DECLARES_ENTREPRISES_LOCALES", "MD_USD"},
 			{"E", "BENEFICES_DECLARES_ENTREPRISES_ETRANGERES", "MD_USD"},
 			{"H", "BENEFICES_TRANSFERES_PART_DECLARES", "RATIO"},
 		}
 		for _, r := range rows[3:] {
-			nom := r["B"]
-			if nom == "" || nom == "Check" || nom == "From Table 1" || nom == "Memo: Tax havens" {
+			name := r["B"]
+			if name == "" || name == "Check" || name == "From Table 1" || name == "Memo: Tax havens" {
 				continue
 			}
-			for _, c := range colonnes {
-				if v, ok := nombreCellule(r, c.col); ok {
-					ajoute(nom, 2015, c.ind, v, c.unite, f.DocumentID)
+			for _, c := range columns {
+				if v, ok := cellNumber(r, c.col); ok {
+					add(name, 2015, c.ind, v, c.unite, f.DocumentID)
 				}
 			}
 		}
-		if nWZ < 200 || len(lignes)-nWZ < 100 {
-			return nil, fmt.Errorf("lecture incomplète : %d lignes WZ, %d lignes TWZ", nWZ, len(lignes)-nWZ)
+		if nWZ < 200 || len(outRows)-nWZ < 100 {
+			return nil, fmt.Errorf("lecture incomplète : %d lignes WZ, %d lignes TWZ", nWZ, len(outRows)-nWZ)
 		}
 		tx, err := pool.Begin(ctx)
 		if err != nil {
@@ -161,7 +161,7 @@ func IngestTWZ(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_transfert_benefices_estimation"},
 			[]string{"pays", "annee", "indicateur", "valeur", "unite", "source_id", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(outRows)); err != nil {
 			return nil, err
 		}
 
@@ -185,9 +185,9 @@ func IngestTWZ(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		if err != nil {
 			return nil, fmt.Errorf("fusion transfert_benefices_estimation : %w", err)
 		}
-		touchees := ct.RowsAffected()
+		affected := ct.RowsAffected()
 
-		return map[string]any{"wz2022": nWZ, "twz2022": len(lignes) - nWZ, "doublons_ecartes": doublons,
-			"touchees": touchees}, tx.Commit(ctx)
+		return map[string]any{"wz2022": nWZ, "twz2022": len(outRows) - nWZ, "doublons_ecartes": duplicates,
+			"affected": affected}, tx.Commit(ctx)
 	})
 }

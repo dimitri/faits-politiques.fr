@@ -58,8 +58,8 @@ import (
 // (map/slice/pointeur nil) si le nœud demandé n'a pas tourné cette fois
 // (impossible en pratique : Registry.Levels refuse une cible dont une
 // dépendance n'a pas déjà été ajoutée au registre) ou n'a rien retourné.
-func dep[T any](deps pipeline.Results, nom string) T {
-	v, _ := deps[nom].(T)
+func dep[T any](deps pipeline.Results, name string) T {
+	v, _ := deps[name].(T)
 	return v
 }
 
@@ -67,10 +67,10 @@ func dep[T any](deps pipeline.Results, nom string) T {
 // tout le graphe passe par cet unique point pour éviter de répéter, à
 // chaque nœud, la conversion vers Results (map[string]any) que Run
 // exige.
-func addNode[T any](reg *pipeline.Registry, nom string, deps []string,
+func addNode[T any](region *pipeline.Registry, name string, deps []string,
 	fn func(ctx context.Context, d pipeline.Results) (T, error)) {
-	reg.Add(pipeline.Step{
-		Name: nom, Description: "loading " + nom, Dependencies: deps,
+	region.Add(pipeline.Step{
+		Name: name, Description: "loading " + name, Dependencies: deps,
 		Run: func(ctx context.Context, d pipeline.Results) (any, error) { return fn(ctx, d) },
 	})
 }
@@ -80,17 +80,17 @@ func addNode[T any](reg *pipeline.Registry, nom string, deps []string,
 // loadGroupes, loadPresidences, loadCoalitions et loadMedias produisaient
 // et s'entre-annotaient, dans le même ordre qu'avant.
 type identityBundle struct {
-	Persons     map[string]*Person
-	Candidats   []*Candidat
-	Refs        map[string]*Referentiel
-	Tags        map[string]Tag
-	Orgs        map[string]*Organisation
-	Groupes     map[string]*Groupe
-	Presidences []Presidence
-	Deputes     []*Person
-	OrgList     []*Organisation
-	GrpList     []*Groupe
-	AvecFiche   map[string]bool
+	Persons      map[string]*Person
+	Candidates   []*Candidate
+	Refs         map[string]*Reference
+	Tags         map[string]Tag
+	Orgs         map[string]*Organization
+	Groups       map[string]*Group
+	Presidencies []Presidency
+	Deputies     []*Person
+	OrgList      []*Organization
+	GrpList      []*Group
+	WithProfile  map[string]bool
 	// Cov porte les décomptes que seul ce nœud connaît (candidats, avec
 	// bilan, primaire, organisations) — fusionnés dans Layout par
 	// buildRegistry avant que la moindre page ne parte à l'écriture.
@@ -98,15 +98,15 @@ type identityBundle struct {
 }
 
 type localGovBundle struct {
-	Col      *StatsCollectivites
-	TableDep TableDepenses
-	Parts    []PartRecette
+	Col      *StatsAuthorities
+	TableDep TableExpenses
+	Shares   []ShareRevenue
 }
 
 type districtsBundle struct {
-	Circos     map[string]*PageCirco
+	Circos     map[string]*PageDistrict
 	PopFrance  int
-	CircosDept map[string][]Lieu
+	CircosDept map[string][]Place
 }
 
 // topicsReady : le marqueur d'exécution du gros nœud "sujets-data" — ses
@@ -128,16 +128,16 @@ type environment struct {
 	writeSection       func(section string, t *template.Template, path string, data any) error
 	writeAlways        func(t *template.Template, path string, data any) error
 	excluded           func(section string) bool
-	maxScrutins        int
-	previousCacheValue manifesteCache
+	maxElections       int
+	previousCacheValue manifestCache
 	currentSite        string
-	newCache           *manifesteCache
+	newCache           *manifestCache
 }
 
 // previousCache : accesseur pour graphe_sections.go — un simple champ
 // suffirait, mais nommer l'accès rend explicite qu'il ne s'agit jamais de
 // newCache (celui-ci muté par les nœuds, celui-là jamais).
-func (e *environment) previousCache() manifesteCache { return e.previousCacheValue }
+func (e *environment) previousCache() manifestCache { return e.previousCacheValue }
 
 // layoutWithIdentity : e.layout complété des décomptes que seul le nœud
 // identite calcule (candidats, avec bilan, primaire, organisations) — dans
@@ -149,51 +149,51 @@ func (e *environment) previousCache() manifesteCache { return e.previousCacheVal
 // lire e.layout nu, qui ne les porterait jamais.
 func (e *environment) layoutWithIdentity(id identityBundle) Layout {
 	l := e.layout
-	l.Cov.Candidats = id.Cov.Candidats
-	l.Cov.CandidatsAvecBilan = id.Cov.CandidatsAvecBilan
-	l.Cov.CandidatsPrimaire = id.Cov.CandidatsPrimaire
-	l.Cov.Organisations = id.Cov.Organisations
+	l.Cov.Candidates = id.Cov.Candidates
+	l.Cov.CandidatesWithSummary = id.Cov.CandidatesWithSummary
+	l.Cov.CandidatesPrimary = id.Cov.CandidatesPrimary
+	l.Cov.Organizations = id.Cov.Organizations
 	return l
 }
 
 func buildRegistry(env *environment) *pipeline.Registry {
-	reg := pipeline.NewRegistry(nil)
+	region := pipeline.NewRegistry(nil)
 	e := env
 	tcd := e.page("carte-detail.gohtml")
 
 	// --- identité : voir la note de tête de fichier.
-	addNode(reg, "identite", nil, func(ctx context.Context, _ pipeline.Results) (identityBundle, error) {
-		persons, err := loadPersons(ctx, e.pool, e.layout.Cov.Scrutins)
+	addNode(region, "identite", nil, func(ctx context.Context, _ pipeline.Results) (identityBundle, error) {
+		persons, err := loadPersons(ctx, e.pool, e.layout.Cov.Elections)
 		if err != nil {
 			return identityBundle{}, err
 		}
-		candidats, err := loadCandidats(filepath.Join(e.dataDir, "candidats.csv"), persons)
+		candidates, err := loadCandidates(filepath.Join(e.dataDir, "candidats.csv"), persons)
 		if err != nil {
 			return identityBundle{}, err
 		}
-		refs, tags, err := loadReferentiels(filepath.Join(e.dataDir, "referentiels.csv"))
+		refs, tags, err := loadReferences(filepath.Join(e.dataDir, "referentiels.csv"))
 		if err != nil {
 			return identityBundle{}, err
 		}
-		orgs, err := loadOrganisations(ctx, e.pool, filepath.Join(e.dataDir, "organisations.csv"), tags)
+		orgs, err := loadOrganizations(ctx, e.pool, filepath.Join(e.dataDir, "organisations.csv"), tags)
 		if err != nil {
 			return identityBundle{}, err
 		}
-		groupes, err := loadGroupes(ctx, e.pool)
+		groups, err := loadGroups(ctx, e.pool)
 		if err != nil {
 			return identityBundle{}, err
 		}
-		presidences, err := loadPresidences(filepath.Join(e.dataDir, "presidents.csv"))
+		presidencies, err := loadPresidencies(filepath.Join(e.dataDir, "presidents.csv"))
 		if err != nil {
 			return identityBundle{}, err
 		}
 		for _, p := range persons {
-			for i, m := range p.Mandats {
+			for i, m := range p.Terms {
 				if m.Type != "MINISTRE" {
 					continue
 				}
-				if noms := presidencesDe(presidences, m.DebutISO, m.FinISO); len(noms) > 0 {
-					p.Mandats[i].SousPresidence = strings.Join(noms, ", ")
+				if noms := presidenciesOf(presidencies, m.StartISO, m.EndISO); len(noms) > 0 {
+					p.Terms[i].SubPresidency = strings.Join(noms, ", ")
 				}
 			}
 		}
@@ -201,9 +201,9 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		if err != nil {
 			return identityBundle{}, err
 		}
-		for _, g := range groupes {
+		for _, g := range groups {
 			for _, c := range coalitions {
-				if strings.Contains(strings.ToLower(g.Nom), strings.ToLower(c.Libelle)) {
+				if strings.Contains(strings.ToLower(g.Name), strings.ToLower(c.Label)) {
 					g.Coalitions = append(g.Coalitions, c)
 				}
 			}
@@ -218,69 +218,69 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		if err := copyMedia("web/fonts", filepath.Join(e.out, "fonts")); err != nil {
 			return identityBundle{}, err
 		}
-		for _, c := range candidats {
+		for _, c := range candidates {
 			c.Portrait = portraits[c.Slug]
 		}
 		for _, o := range orgs {
-			if g, ok := groupes[o.GroupeANUID]; ok {
-				o.Groupe = g
-				g.Partis = append(g.Partis, o)
+			if g, ok := groups[o.GroupANUID]; ok {
+				o.Group = g
+				g.Parties = append(g.Parties, o)
 			}
 			if o.OrgID != 0 {
 				o.Logo = logos[o.OrgID]
 			}
 		}
-		for _, c := range candidats {
-			if o, ok := orgs[c.OrganisationSlug]; ok {
+		for _, c := range candidates {
+			if o, ok := orgs[c.OrganizationSlug]; ok {
 				c.Org = o
-				o.Candidats = append(o.Candidats, c)
+				o.Candidates = append(o.Candidates, c)
 			}
 		}
 		var cov Coverage
-		cov.Candidats = len(candidats)
-		for _, c := range candidats {
+		cov.Candidates = len(candidates)
+		for _, c := range candidates {
 			if c.Person != nil && c.Person.HasVotes {
-				cov.CandidatsAvecBilan++
+				cov.CandidatesWithSummary++
 			}
-			if c.Statut == "PRIMAIRE" {
-				cov.CandidatsPrimaire++
+			if c.Status == "PRIMAIRE" {
+				cov.CandidatesPrimary++
 			}
 		}
-		cov.Organisations = len(orgs)
+		cov.Organizations = len(orgs)
 
-		deputes := make([]*Person, 0, len(persons))
+		deputies := make([]*Person, 0, len(persons))
 		for _, p := range persons {
-			deputes = append(deputes, p)
+			deputies = append(deputies, p)
 		}
-		trierPersonnes(deputes)
-		orgList := make([]*Organisation, 0, len(orgs))
+		sortPeople(deputies)
+		orgList := make([]*Organization, 0, len(orgs))
 		for _, o := range orgs {
 			orgList = append(orgList, o)
 		}
-		sort.Slice(orgList, func(i, j int) bool { return CleTri(orgList[i].Libelle) < CleTri(orgList[j].Libelle) })
-		grpList := make([]*Groupe, 0, len(groupes))
-		for _, g := range groupes {
+		sort.Slice(orgList, func(i, j int) bool { return KeySort(orgList[i].Label) < KeySort(orgList[j].Label) })
+		grpList := make([]*Group, 0, len(groups))
+		for _, g := range groups {
 			grpList = append(grpList, g)
 		}
-		sort.Slice(grpList, func(i, j int) bool { return CleTri(grpList[i].Nom) < CleTri(grpList[j].Nom) })
-		avecFiche := map[string]bool{}
+		sort.Slice(grpList, func(i, j int) bool { return KeySort(grpList[i].Name) < KeySort(grpList[j].Name) })
+		withProfile := map[string]bool{}
 		for _, pp := range persons {
-			avecFiche[pp.Slug] = true
+			withProfile[pp.Slug] = true
 		}
-		return identityBundle{persons, candidats, refs, tags, orgs, groupes, presidences,
-			deputes, orgList, grpList, avecFiche, cov}, nil
+		return identityBundle{persons, candidates, refs, tags, orgs, groups, presidencies,
+			deputies, orgList, grpList, withProfile, cov}, nil
 	})
 
-	addNode(reg, "territoires", nil, func(ctx context.Context, _ pipeline.Results) (*StatsTerritoires, error) {
-		return loadTerritoires(ctx, e.pool)
+	addNode(region, "territoires", nil, func(ctx context.Context, _ pipeline.Results) (*StatsTerritories, error) {
+		return loadTerritories(ctx, e.pool)
 	})
-	addNode(reg, "derniers-scrutins", nil, func(ctx context.Context, _ pipeline.Results) ([]Vote, error) {
-		return derniersScrutins(ctx, e.pool, 60)
+	addNode(region, "derniers-scrutins", nil, func(ctx context.Context, _ pipeline.Results) ([]Vote, error) {
+		return lastElections(ctx, e.pool, 60)
 	})
-	addNode(reg, "seuils", nil, func(_ context.Context, _ pipeline.Results) (map[string]Seuil, error) {
-		return loadSeuils(filepath.Join(e.dataDir, "seuils.csv"))
+	addNode(region, "seuils", nil, func(_ context.Context, _ pipeline.Results) (map[string]Threshold, error) {
+		return loadThresholds(filepath.Join(e.dataDir, "seuils.csv"))
 	})
-	addNode(reg, "docs", nil, func(_ context.Context, _ pipeline.Results) ([]*Doc, error) {
+	addNode(region, "docs", nil, func(_ context.Context, _ pipeline.Results) ([]*Doc, error) {
 		return loadDocs("docs")
 	})
 
@@ -288,61 +288,61 @@ func buildRegistry(env *environment) *pipeline.Registry {
 	// Regroupées ici plutôt que dispersées dans l'ordre du fichier d'origine
 	// (perdu de toute façon : Levels ordonne par dépendance, pas par
 	// déclaration) — chacune une ligne, le même patron partout.
-	addPageNode(reg, e, "frise", nil, "La Ve République en chiffres", "frise.gohtml",
-		func(ctx context.Context, _ pipeline.Results) (*StatsFrise, error) {
-			return loadFrise(ctx, e.pool, e.dataDir)
+	addPageNode(region, e, "frise", nil, "La Ve République en chiffres", "frise.gohtml",
+		func(ctx context.Context, _ pipeline.Results) (*StatsTimeline, error) {
+			return loadTimeline(ctx, e.pool, e.dataDir)
 		},
-		func(l Layout, fr *StatsFrise) (string, any) {
+		func(l Layout, fr *StatsTimeline) (string, any) {
 			return filepath.Join(e.out, "frise", "index.html"), struct {
 				Layout
-				F *StatsFrise
+				F *StatsTimeline
 			}{l, fr}
 		})
-	addPageNode(reg, e, "dette", nil, "La dette publique", "dette.gohtml",
-		func(ctx context.Context, _ pipeline.Results) (*StatsDette, error) { return loadDette(ctx, e.pool) },
-		func(l Layout, d *StatsDette) (string, any) {
+	addPageNode(region, e, "dette", nil, "La dette publique", "dette.gohtml",
+		func(ctx context.Context, _ pipeline.Results) (*StatsDebt, error) { return loadDebt(ctx, e.pool) },
+		func(l Layout, d *StatsDebt) (string, any) {
 			return filepath.Join(e.out, "dette", "index.html"), struct {
 				Layout
-				D *StatsDette
+				D *StatsDebt
 			}{l, d}
 		})
-	addPageNode(reg, e, "chomage", nil, "Le taux de chômage", "chomage.gohtml",
-		func(ctx context.Context, _ pipeline.Results) (*StatsChomage, error) {
-			return loadChomage(ctx, e.pool)
+	addPageNode(region, e, "chomage", nil, "Le taux de chômage", "chomage.gohtml",
+		func(ctx context.Context, _ pipeline.Results) (*StatsUnemployment, error) {
+			return loadUnemployment(ctx, e.pool)
 		},
-		func(l Layout, c *StatsChomage) (string, any) {
+		func(l Layout, c *StatsUnemployment) (string, any) {
 			return filepath.Join(e.out, "chomage", "index.html"), struct {
 				Layout
-				C *StatsChomage
+				C *StatsUnemployment
 			}{l, c}
 		})
-	addNode(reg, "richesse-data", nil, func(ctx context.Context, _ pipeline.Results) (*StatsRichesse, error) {
-		return loadRichesse(ctx, e.pool)
+	addNode(region, "richesse-data", nil, func(ctx context.Context, _ pipeline.Results) (*StatsWealth, error) {
+		return loadWealth(ctx, e.pool)
 	})
-	addPageNode(reg, e, "richesse", []string{"richesse-data"}, "La répartition de la richesse en France", "richesse.gohtml",
-		func(_ context.Context, d pipeline.Results) (*StatsRichesse, error) {
-			return dep[*StatsRichesse](d, "richesse-data"), nil
+	addPageNode(region, e, "richesse", []string{"richesse-data"}, "La répartition de la richesse en France", "richesse.gohtml",
+		func(_ context.Context, d pipeline.Results) (*StatsWealth, error) {
+			return dep[*StatsWealth](d, "richesse-data"), nil
 		},
-		func(l Layout, r *StatsRichesse) (string, any) {
+		func(l Layout, r *StatsWealth) (string, any) {
 			return filepath.Join(e.out, "richesse", "index.html"), struct {
 				Layout
-				R *StatsRichesse
+				R *StatsWealth
 			}{l, r}
 		})
-	addPageNode(reg, e, "dividendes", nil, "Les dividendes versés", "dividendes.gohtml",
-		func(ctx context.Context, _ pipeline.Results) (*StatsDividendes, error) {
-			return loadDividendes(ctx, e.pool)
+	addPageNode(region, e, "dividendes", nil, "Les dividendes versés", "dividendes.gohtml",
+		func(ctx context.Context, _ pipeline.Results) (*StatsDividends, error) {
+			return loadDividends(ctx, e.pool)
 		},
-		func(l Layout, d *StatsDividendes) (string, any) {
+		func(l Layout, d *StatsDividends) (string, any) {
 			return filepath.Join(e.out, "dividendes", "index.html"), struct {
 				Layout
-				D *StatsDividendes
+				D *StatsDividends
 			}{l, d}
 		})
-	addNode(reg, "agriculture-data", nil, func(ctx context.Context, _ pipeline.Results) (*StatsAgri, error) {
+	addNode(region, "agriculture-data", nil, func(ctx context.Context, _ pipeline.Results) (*StatsAgri, error) {
 		return loadAgriculture(ctx, e.pool, e.dataDir)
 	})
-	addPageNode(reg, e, "agriculture", []string{"agriculture-data"}, "Agriculture et alimentation", "agriculture.gohtml",
+	addPageNode(region, e, "agriculture", []string{"agriculture-data"}, "Agriculture et alimentation", "agriculture.gohtml",
 		func(_ context.Context, d pipeline.Results) (*StatsAgri, error) {
 			return dep[*StatsAgri](d, "agriculture-data"), nil
 		},
@@ -352,14 +352,14 @@ func buildRegistry(env *environment) *pipeline.Registry {
 				A *StatsAgri
 			}{l, a}
 		})
-	addNode(reg, "social-data", nil, func(ctx context.Context, _ pipeline.Results) (*StatsSocial, error) {
+	addNode(region, "social-data", nil, func(ctx context.Context, _ pipeline.Results) (*StatsSocial, error) {
 		return loadSocial(ctx, e.pool)
 	})
 
-	addNode(reg, "europe", nil, func(ctx context.Context, _ pipeline.Results) (*StatsEurope, error) {
+	addNode(region, "europe", nil, func(ctx context.Context, _ pipeline.Results) (*StatsEurope, error) {
 		return loadEurope(ctx, e.pool)
 	})
-	reg.Add(pipeline.Step{Name: "europe-page", Description: "page Parlement européen", Dependencies: []string{"europe"},
+	region.Add(pipeline.Step{Name: "europe-page", Description: "page Parlement européen", Dependencies: []string{"europe"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			europe := dep[*StatsEurope](d, "europe")
 			l := e.layout
@@ -370,19 +370,19 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			}{l, europe})
 		}})
 
-	addNode(reg, "themes", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*StatsThemes, error) {
+	addNode(region, "themes", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*StatsThemes, error) {
 		id := dep[identityBundle](d, "identite")
 		var candSlugs []string
-		orgParSlug := map[string]string{}
-		for _, c := range id.Candidats {
+		orgPerSlug := map[string]string{}
+		for _, c := range id.Candidates {
 			if c.Person != nil {
 				candSlugs = append(candSlugs, c.Person.Slug)
-				orgParSlug[c.Person.Slug] = c.Organisation
+				orgPerSlug[c.Person.Slug] = c.Organization
 			}
 		}
-		return loadThemes(ctx, e.pool, 60, candSlugs, orgParSlug)
+		return loadThemes(ctx, e.pool, 60, candSlugs, orgPerSlug)
 	})
-	reg.Add(pipeline.Step{Name: "themes-page", Description: "page thèmes", Dependencies: []string{"themes"},
+	region.Add(pipeline.Step{Name: "themes-page", Description: "page thèmes", Dependencies: []string{"themes"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			themes := dep[*StatsThemes](d, "themes")
 			l := e.layout
@@ -396,7 +396,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			tth := e.page("theme.gohtml")
 			for _, th := range themes.Themes {
 				maxG := 0
-				for _, g := range th.Groupes {
+				for _, g := range th.Groups {
 					if g.Total > maxG {
 						maxG = g.Total
 					}
@@ -405,8 +405,8 @@ func buildRegistry(env *environment) *pipeline.Registry {
 				l.Title = th.Label
 				if err := e.writeSection("themes", tth, filepath.Join(e.out, "theme", th.Slug, "index.html"), struct {
 					Layout
-					Th        *Theme
-					MaxGroupe int
+					Th       *Theme
+					MaxGroup int
 				}{l, th, maxG}); err != nil {
 					return nil, err
 				}
@@ -414,106 +414,106 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			return nil, nil
 		}})
 
-	addNode(reg, "senat", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*StatsSenat, error) {
-		return loadSenat(ctx, e.pool, dep[identityBundle](d, "identite").Persons)
+	addNode(region, "senat", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*StatsSenate, error) {
+		return loadSenate(ctx, e.pool, dep[identityBundle](d, "identite").Persons)
 	})
-	reg.Add(pipeline.Step{Name: "senat-page", Description: "page Sénat", Dependencies: []string{"senat"},
+	region.Add(pipeline.Step{Name: "senat-page", Description: "page Sénat", Dependencies: []string{"senat"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			senat := dep[*StatsSenat](d, "senat")
+			senate := dep[*StatsSenate](d, "senat")
 			l := e.layout
 			l.Title = "Sénat"
 			return nil, e.writeSection("senat", e.page("senat.gohtml"), filepath.Join(e.out, "senat", "index.html"), struct {
 				Layout
-				Se *StatsSenat
-			}{l, senat})
+				Se *StatsSenate
+			}{l, senate})
 		}})
 
-	addPageNode(reg, e, "vieillesse", []string{"territoires"}, "La vieillesse : combien, qui paie, et la dépendance", "vieillesse.gohtml",
-		func(ctx context.Context, _ pipeline.Results) (*StatsVieillesse, error) {
-			return loadVieillesse(ctx, e.pool)
+	addPageNode(region, e, "vieillesse", []string{"territoires"}, "La vieillesse : combien, qui paie, et la dépendance", "vieillesse.gohtml",
+		func(ctx context.Context, _ pipeline.Results) (*StatsOldAge, error) {
+			return loadOldAge(ctx, e.pool)
 		},
-		func(l Layout, v *StatsVieillesse) (string, any) {
+		func(l Layout, v *StatsOldAge) (string, any) {
 			return filepath.Join(e.out, "vieillesse", "index.html"), struct {
 				Layout
-				V *StatsVieillesse
+				V *StatsOldAge
 			}{l, v}
 		})
-	reg.Add(pipeline.Step{Name: "vieillesse-carte", Description: "carte vieillesse", Dependencies: []string{"vieillesse"},
+	region.Add(pipeline.Step{Name: "vieillesse-carte", Description: "carte vieillesse", Dependencies: []string{"vieillesse"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			vieil := dep[*StatsVieillesse](d, "vieillesse")
+			old := dep[*StatsOldAge](d, "vieillesse")
 			// nil est un résultat légitime de l'étape dont celle-ci dépend :
 			// addPageNode (graphe_sections.go, rienAPublier) renvoie tel quel
 			// le zéro du chargeur quand il saute la page. loadVieillesse ne
 			// s'en sert pas aujourd'hui, mais loadRichesse si — ne pas faire
 			// de ce détail une condition de non-plantage d'ici.
-			if vieil == nil || vieil.CarteAPA.Slug == "" {
+			if old == nil || old.MapAPA.Slug == "" {
 				return nil, nil
 			}
 			l := e.layout
-			l.Title = vieil.CarteAPA.Titre
-			l.Description = vieil.CarteAPA.Question
-			imageCarte(&l, e.out, "vieillesse-"+vieil.CarteAPA.Slug, vieil.CarteAPA.Page.Carte.SVG)
-			return nil, e.writeSection("vieillesse", tcd, filepath.Join(e.out, "vieillesse", "carte", vieil.CarteAPA.Slug, "index.html"),
+			l.Title = old.MapAPA.Title
+			l.Description = old.MapAPA.Question
+			imageMap(&l, e.out, "vieillesse-"+old.MapAPA.Slug, old.MapAPA.Page.Map.SVG)
+			return nil, e.writeSection("vieillesse", tcd, filepath.Join(e.out, "vieillesse", "carte", old.MapAPA.Slug, "index.html"),
 				struct {
 					Layout
-					P PageCarte
-				}{l, vieil.CarteAPA.Page})
+					P PageMap
+				}{l, old.MapAPA.Page})
 		}})
 
-	addPageNode(reg, e, "jeunesse", nil, "La jeunesse : études supérieures, apprentissage, premiers emplois", "jeunesse.gohtml",
-		func(ctx context.Context, _ pipeline.Results) (*StatsJeunesse, error) {
-			return loadJeunesse(ctx, e.pool)
+	addPageNode(region, e, "jeunesse", nil, "La jeunesse : études supérieures, apprentissage, premiers emplois", "jeunesse.gohtml",
+		func(ctx context.Context, _ pipeline.Results) (*StatsYouth, error) {
+			return loadYouth(ctx, e.pool)
 		},
-		func(l Layout, j *StatsJeunesse) (string, any) {
+		func(l Layout, j *StatsYouth) (string, any) {
 			return filepath.Join(e.out, "jeunesse", "index.html"), struct {
 				Layout
-				J *StatsJeunesse
+				J *StatsYouth
 			}{l, j}
 		})
-	reg.Add(pipeline.Step{Name: "jeunesse-carte", Description: "carte jeunesse", Dependencies: []string{"jeunesse"},
+	region.Add(pipeline.Step{Name: "jeunesse-carte", Description: "carte jeunesse", Dependencies: []string{"jeunesse"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			jeun := dep[*StatsJeunesse](d, "jeunesse")
+			jeun := dep[*StatsYouth](d, "jeunesse")
 			// Même raison qu'au-dessus pour vieillesse-carte : le nil que
 			// rienAPublier reconnaît traverse addPageNode jusqu'ici.
-			if jeun == nil || jeun.CarteInsertion.Slug == "" {
+			if jeun == nil || jeun.MapInsertion.Slug == "" {
 				return nil, nil
 			}
 			l := e.layout
-			l.Title = jeun.CarteInsertion.Titre
-			l.Description = jeun.CarteInsertion.Question
-			imageCarte(&l, e.out, "jeunesse-"+jeun.CarteInsertion.Slug, jeun.CarteInsertion.Page.Carte.SVG)
-			return nil, e.writeSection("jeunesse", tcd, filepath.Join(e.out, "jeunesse", "carte", jeun.CarteInsertion.Slug, "index.html"),
+			l.Title = jeun.MapInsertion.Title
+			l.Description = jeun.MapInsertion.Question
+			imageMap(&l, e.out, "jeunesse-"+jeun.MapInsertion.Slug, jeun.MapInsertion.Page.Map.SVG)
+			return nil, e.writeSection("jeunesse", tcd, filepath.Join(e.out, "jeunesse", "carte", jeun.MapInsertion.Slug, "index.html"),
 				struct {
 					Layout
-					P PageCarte
-				}{l, jeun.CarteInsertion.Page})
+					P PageMap
+				}{l, jeun.MapInsertion.Page})
 		}})
 
-	addNode(reg, "securite", nil, func(ctx context.Context, _ pipeline.Results) (*StatsSecurite, error) {
-		return loadSecurite(ctx, e.pool)
+	addNode(region, "securite", nil, func(ctx context.Context, _ pipeline.Results) (*StatsSecurity, error) {
+		return loadSecurity(ctx, e.pool)
 	})
-	reg.Add(pipeline.Step{Name: "securite-page", Description: "page sécurité", Dependencies: []string{"securite"},
+	region.Add(pipeline.Step{Name: "securite-page", Description: "page sécurité", Dependencies: []string{"securite"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			sec := dep[*StatsSecurite](d, "securite")
+			sec := dep[*StatsSecurity](d, "securite")
 			l := e.layout
 			l.Title = "Sécurité"
-			if len(sec.Indicateurs) > 0 {
-				imageCarte(&l, e.out, "securite", sec.Indicateurs[0].Page.Carte.SVG)
+			if len(sec.Indicators) > 0 {
+				imageMap(&l, e.out, "securite", sec.Indicators[0].Page.Map.SVG)
 			}
 			if err := e.writeSection("securite", e.page("securite.gohtml"), filepath.Join(e.out, "securite", "index.html"), struct {
 				Layout
-				S *StatsSecurite
+				S *StatsSecurity
 			}{l, sec}); err != nil {
 				return nil, err
 			}
-			for _, ind := range sec.Indicateurs {
+			for _, ind := range sec.Indicators {
 				l := e.layout
-				l.Title = ind.Libelle
+				l.Title = ind.Label
 				l.Description = ind.Page.Question
-				imageCarte(&l, e.out, "securite-"+ind.Slug, ind.Page.Carte.SVG)
+				imageMap(&l, e.out, "securite-"+ind.Slug, ind.Page.Map.SVG)
 				if err := e.writeSection("securite", tcd, filepath.Join(e.out, "securite", ind.Slug, "index.html"), struct {
 					Layout
-					P PageCarte
+					P PageMap
 				}{l, ind.Page}); err != nil {
 					return nil, err
 				}
@@ -521,19 +521,19 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			return nil, nil
 		}})
 
-	addNode(reg, "accueil-data", []string{"territoires", "securite"},
-		func(ctx context.Context, d pipeline.Results) (*DonneesAccueil, error) {
-			return loadAccueil(ctx, e.pool, dep[*StatsTerritoires](d, "territoires"), dep[*StatsSecurite](d, "securite"))
+	addNode(region, "accueil-data", []string{"territoires", "securite"},
+		func(ctx context.Context, d pipeline.Results) (*DataHome, error) {
+			return loadHome(ctx, e.pool, dep[*StatsTerritories](d, "territoires"), dep[*StatsSecurity](d, "securite"))
 		})
-	addNode(reg, "fonctions", []string{"accueil-data"},
-		func(ctx context.Context, d pipeline.Results) (map[string]*PageFonction, error) {
-			return chargerFonctions(ctx, e.pool, dep[*DonneesAccueil](d, "accueil-data"))
+	addNode(region, "fonctions", []string{"accueil-data"},
+		func(ctx context.Context, d pipeline.Results) (map[string]*PageFunction, error) {
+			return loadFunctions(ctx, e.pool, dep[*DataHome](d, "accueil-data"))
 		})
 
-	addNode(reg, "election2027", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*Stats2027, error) {
-		return load2027(ctx, e.pool, dep[identityBundle](d, "identite").Candidats, e.dataDir)
+	addNode(region, "election2027", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*Stats2027, error) {
+		return load2027(ctx, e.pool, dep[identityBundle](d, "identite").Candidates, e.dataDir)
 	})
-	reg.Add(pipeline.Step{Name: "election2027-page", Description: "page présidentielle 2027", Dependencies: []string{"election2027"},
+	region.Add(pipeline.Step{Name: "election2027-page", Description: "page présidentielle 2027", Dependencies: []string{"election2027"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			e27 := dep[*Stats2027](d, "election2027")
 			l := e.layout
@@ -544,19 +544,19 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			}{l, e27}); err != nil {
 				return nil, err
 			}
-			vues := map[string]bool{}
-			for _, k := range e27.Candidats {
-				if k.Page == nil || vues[k.Page.Slug] {
+			views := map[string]bool{}
+			for _, k := range e27.Candidates {
+				if k.Page == nil || views[k.Page.Slug] {
 					continue
 				}
-				vues[k.Page.Slug] = true
+				views[k.Page.Slug] = true
 				l := e.layout
-				l.Title = k.Page.Titre
+				l.Title = k.Page.Title
 				l.Description = k.Page.Question
-				imageCarte(&l, e.out, "2027-"+k.Page.Slug, k.Page.Carte.SVG)
+				imageMap(&l, e.out, "2027-"+k.Page.Slug, k.Page.Map.SVG)
 				if err := e.writeSection("election2027", tcd, filepath.Join(e.out, "2027", k.Page.Slug, "index.html"), struct {
 					Layout
-					P PageCarte
+					P PageMap
 				}{l, *k.Page}); err != nil {
 					return nil, err
 				}
@@ -564,80 +564,80 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			return nil, nil
 		}})
 
-	addNode(reg, "gouvernement", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*StatsGouvernement, error) {
-		return loadGouvernement(ctx, e.pool, e.dataDir, dep[identityBundle](d, "identite").AvecFiche)
+	addNode(region, "gouvernement", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*StatsGovernment, error) {
+		return loadGovernment(ctx, e.pool, e.dataDir, dep[identityBundle](d, "identite").WithProfile)
 	})
-	reg.Add(pipeline.Step{Name: "gouvernement-page", Description: "page gouvernement", Dependencies: []string{"gouvernement"},
+	region.Add(pipeline.Step{Name: "gouvernement-page", Description: "page gouvernement", Dependencies: []string{"gouvernement"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			gouv := dep[*StatsGouvernement](d, "gouvernement")
+			gouv := dep[*StatsGovernment](d, "gouvernement")
 			l := e.layout
 			l.Title = "Gouvernement"
 			if err := e.writeSection("gouvernement", e.page("gouvernement.gohtml"), filepath.Join(e.out, "gouvernement", "index.html"),
 				struct {
 					Layout
-					G *StatsGouvernement
+					G *StatsGovernment
 				}{l, gouv}); err != nil {
 				return nil, err
 			}
 			l = e.layout
 			l.Title = "Tous les décrets de composition"
-			tousDecrets := *gouv
-			tousDecrets.Decrets = gouv.Tous
+			allDecrees := *gouv
+			allDecrees.Decrees = gouv.All
 			return nil, e.writeSection("gouvernement", e.page("decrets.gohtml"), filepath.Join(e.out, "gouvernement", "decrets", "index.html"),
 				struct {
 					Layout
-					G *StatsGouvernement
-				}{l, &tousDecrets})
+					G *StatsGovernment
+				}{l, &allDecrees})
 		}})
 
 	// --- collectivités, lieux, communes/EPCI, circonscriptions : une vraie
 	// chaîne de dépendances, contrairement à identite/sujets-data — chacune
 	// se sépare proprement de la suivante.
-	addNode(reg, "collectivites-data", []string{"identite"},
+	addNode(region, "collectivites-data", []string{"identite"},
 		func(ctx context.Context, d pipeline.Results) (localGovBundle, error) {
 			id := dep[identityBundle](d, "identite")
-			col, err := loadCollectivites(ctx, e.pool)
+			col, err := loadAuthorities(ctx, e.pool)
 			if err != nil {
 				return localGovBundle{}, err
 			}
-			relierFiches(col, id.AvecFiche)
-			if err := cartesCollectivites(ctx, e.pool, col, indicPopulation); err != nil {
+			linkProfiles(col, id.WithProfile)
+			if err := mapsAuthorities(ctx, e.pool, col, indicatorPopulation); err != nil {
 				return localGovBundle{}, err
 			}
-			return localGovBundle{col, tableDepenses(col.Poids, indicsCollectivite), partsRecettes(col.Poids)}, nil
+			return localGovBundle{col, tableExpenses(col.Weight, indicsAuthority), sharesRevenues(col.Weight)}, nil
 		})
-	reg.Add(pipeline.Step{Name: "collectivites-page", Description: "page collectivités",
+	region.Add(pipeline.Step{Name: "collectivites-page", Description: "page collectivités",
 		Dependencies: []string{"collectivites-data", "territoires"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			cb := dep[localGovBundle](d, "collectivites-data")
-			terr := dep[*StatsTerritoires](d, "territoires")
+			territory := dep[*StatsTerritories](d, "territoires")
 			l := e.layout
 			l.Title = "Collectivités"
-			imageCarte(&l, e.out, "collectivites", cb.Col.CarteDepts.SVG)
+			imageMap(&l, e.out, "collectivites", cb.Col.MapDepts.SVG)
 			return nil, e.writeSection("collectivites", e.page("collectivites.gohtml"), filepath.Join(e.out, "collectivites", "index.html"),
 				struct {
 					Layout
-					C            *StatsCollectivites
-					T            *StatsTerritoires
-					Ind          []IndicCollectivite
-					TableDep     TableDepenses
-					Parts        []PartRecette
-					IndicLibelle string
-				}{l, cb.Col, terr, indicsCollectivite, cb.TableDep, cb.Parts, "Population"})
+					C              *StatsAuthorities
+					T              *StatsTerritories
+					Ind            []IndicatorAuthority
+					TableDep       TableExpenses
+					Shares         []ShareRevenue
+					IndicatorLabel string
+				}{l, cb.Col, territory, indicsAuthority, cb.TableDep, cb.Shares, "Population"})
 		}})
-	reg.Add(pipeline.Step{Name: "collectivites-cartes", Description: "cartes départementales",
+	region.Add(pipeline.Step{Name: "collectivites-cartes", Description: "cartes départementales",
 		Dependencies: []string{"territoires"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			terr := dep[*StatsTerritoires](d, "territoires")
-			for _, c := range terr.Cartes {
+			territory := dep[*StatsTerritories](d, "territoires")
+			for _, c := range territory.Maps {
 				l := e.layout
-				l.Title = c.Titre
+				l.Title = c.Title
 				l.Description = c.Page.Question
-				imageCarte(&l, e.out, "carte-"+c.Slug, c.Page.Carte.SVG)
+				imageMap(&l, e.out, "carte-"+c.Slug, c.Page.Map.SVG)
 				if err := e.writeSection("collectivites", tcd, filepath.Join(e.out, "collectivites", "carte", c.Slug, "index.html"),
 					struct {
 						Layout
-						P PageCarte
+						P PageMap
 					}{l, c.Page}); err != nil {
 					return nil, err
 				}
@@ -650,81 +650,81 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			if err := e.writeAlways(e.page("deplace.gohtml"), filepath.Join(e.out, "territoires", "index.html"),
 				struct {
 					Layout
-					Vers, VersTitre string
+					Vers, VersTitle string
 				}{l, "/collectivites/", "Collectivités"}); err != nil {
 				return nil, err
 			}
-			for _, c := range terr.Cartes {
+			for _, c := range territory.Maps {
 				l := e.layout
 				l.Title = "Page déplacée"
 				if err := e.writeAlways(e.page("deplace.gohtml"), filepath.Join(e.out, "territoires", c.Slug, "index.html"),
 					struct {
 						Layout
-						Vers, VersTitre string
-					}{l, "/collectivites/carte/" + c.Slug + "/", c.Titre}); err != nil {
+						Vers, VersTitle string
+					}{l, "/collectivites/carte/" + c.Slug + "/", c.Title}); err != nil {
 					return nil, err
 				}
 			}
 			return nil, nil
 		}})
 
-	addNode(reg, "lieux", []string{"identite", "collectivites-data"},
-		func(ctx context.Context, d pipeline.Results) (*Resolveur, error) {
+	addNode(region, "lieux", []string{"identite", "collectivites-data"},
+		func(ctx context.Context, d pipeline.Results) (*Resolver, error) {
 			id := dep[identityBundle](d, "identite")
 			cb := dep[localGovBundle](d, "collectivites-data")
-			lieux, err := chargerResolveur(ctx, e.pool, e.root, cb.Col)
+			places, err := loadResolver(ctx, e.pool, e.root, cb.Col)
 			if err != nil {
 				return nil, err
 			}
 			for _, pp := range id.Persons {
-				lieux.situerMandats(pp)
+				places.locateTerms(pp)
 			}
-			return lieux, nil
+			return places, nil
 		})
-	addNode(reg, "fond-situation", []string{"lieux", "collectivites-data"},
-		func(ctx context.Context, d pipeline.Results) (*fondSituation, error) {
-			lieux := dep[*Resolveur](d, "lieux")
+	addNode(region, "fond-situation", []string{"lieux", "collectivites-data"},
+		func(ctx context.Context, d pipeline.Results) (*backgroundSituation, error) {
+			places := dep[*Resolver](d, "lieux")
 			cb := dep[localGovBundle](d, "collectivites-data")
-			lienDept := func(code string) string { return strings.TrimPrefix(lieux.urlDept(code), e.root+"/") }
-			return chargerFondSituation(ctx, e.pool, e.out, e.root, cb.Col.Exercice, lienDept)
+			linkDept := func(code string) string { return strings.TrimPrefix(places.urlDept(code), e.root+"/") }
+			return loadBackgroundSituation(ctx, e.pool, e.out, e.root, cb.Col.FiscalYear, linkDept)
 		})
 
-	reg.Add(pipeline.Step{Name: "communes", Description: "communes et intercommunalités",
+	region.Add(pipeline.Step{Name: "communes", Description: "communes et intercommunalités",
 		Dependencies: []string{"lieux", "fond-situation", "identite", "collectivites-data"},
 		Run: func(ctx context.Context, d pipeline.Results) (any, error) {
-			return nil, buildCommunesAndEPCI(ctx, e, d)
+			return nil, buildMunicipalitiesAndEPCI(ctx, e, d)
 		}})
 
-	addNode(reg, "circonscriptions-data", []string{"lieux", "identite", "fond-situation"},
+	addNode(region, "circonscriptions-data", []string{"lieux", "identite", "fond-situation"},
 		func(ctx context.Context, d pipeline.Results) (districtsBundle, error) {
-			lieux := dep[*Resolveur](d, "lieux")
+			places := dep[*Resolver](d, "lieux")
 			id := dep[identityBundle](d, "identite")
-			fond := dep[*fondSituation](d, "fond-situation")
-			circos, err := chargerCirconscriptions(ctx, e.pool, lieux, id.Persons)
+			background := dep[*backgroundSituation](d, "fond-situation")
+			circos, err := loadDistricts(ctx, e.pool, places, id.Persons)
 			if err != nil {
 				return districtsBundle{}, err
 			}
-			if err := fond.chargerCirconscriptions(ctx, e.pool); err != nil {
+			if err := background.loadDistricts(ctx, e.pool); err != nil {
 				return districtsBundle{}, err
 			}
 			popFrance := 0
 			for _, pc := range circos {
 				popFrance += pc.Population
 			}
-			circosDept := map[string][]Lieu{}
+			circosDept := map[string][]Place{}
 			tcirco := e.page("circonscription.gohtml")
 			for code, pc := range circos {
-				pc.Situation = fond.pourCirconscription(pc, popFrance)
+				pc.Situation = background.forDistrict(pc, popFrance)
 				l := e.layout
-				l.Title = pc.Titre
+				l.Title = pc.Title
 				if err := e.writeSection("circonscriptions", tcirco, filepath.Join(e.out, "circonscription", code, "index.html"), struct {
 					Layout
-					C *PageCirco
+					C *PageDistrict
 				}{l, pc}); err != nil {
 					return districtsBundle{}, err
 				}
-				circosDept[pc.Dept.Code] = append(circosDept[pc.Dept.Code], Lieu{Type: "CIRCONSCRIPTION",
-					Code: code, Nom: pc.Ordinal + " circonscription", URL: e.root + "/circonscription/" + code + "/"})
+				circosDept[pc.Dept.Code] = append(circosDept[pc.Dept.Code], Place{Type: "CIRCONSCRIPTION",
+					Code: code, Name: pc.Ordinal + " circonscription", URL: e.root + "/circonscription/" + code + "/"})
 			}
 			for _, ls := range circosDept {
 				sort.Slice(ls, func(i, j int) bool { return ls[i].Code < ls[j].Code })
@@ -733,33 +733,33 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			return districtsBundle{circos, popFrance, circosDept}, nil
 		})
 
-	reg.Add(pipeline.Step{Name: "collectivites-pages-locales", Description: "pages région/département",
+	region.Add(pipeline.Step{Name: "collectivites-pages-locales", Description: "pages région/département",
 		Dependencies: []string{"collectivites-data", "lieux", "fond-situation", "circonscriptions-data"},
 		Run: func(ctx context.Context, d pipeline.Results) (any, error) {
 			cb := dep[localGovBundle](d, "collectivites-data")
-			lieux := dep[*Resolveur](d, "lieux")
-			fond := dep[*fondSituation](d, "fond-situation")
+			places := dep[*Resolver](d, "lieux")
+			background := dep[*backgroundSituation](d, "fond-situation")
 			cd := dep[districtsBundle](d, "circonscriptions-data")
-			pagesCol, err := pagesCollectivites(ctx, e.pool, cb.Col, lieux)
+			pagesCol, err := pagesAuthorities(ctx, e.pool, cb.Col, places)
 			if err != nil {
 				return nil, err
 			}
 			tcol := e.page("collectivite.gohtml")
 			for _, pc := range pagesCol {
 				if pc.TypeURL == "departement" {
-					pc.Situation = fond.pourDepartement(pc.Code, pc.Nom, pc.Lignes)
-					for _, dcode := range codesCOGDe(pc.Code) {
-						pc.Circonscriptions = append(pc.Circonscriptions, cd.CircosDept[dcode]...)
+					pc.Situation = background.forDepartment(pc.Code, pc.Name, pc.Lines)
+					for _, dcode := range codesCOGOf(pc.Code) {
+						pc.Districts = append(pc.Districts, cd.CircosDept[dcode]...)
 					}
 				} else {
-					pc.Situation = fond.pourRegion(pc.Code, pc.Nom, pc.Lignes)
+					pc.Situation = background.forRegion(pc.Code, pc.Name, pc.Lines)
 				}
 				l := e.layout
-				l.Title = pc.Nom
+				l.Title = pc.Name
 				if err := e.writeSection("collectivites", tcol, filepath.Join(e.out, "collectivites", pc.TypeURL, pc.Slug, "index.html"),
 					struct {
 						Layout
-						K PageCollectivite
+						K PageAuthority
 					}{l, pc}); err != nil {
 					return nil, err
 				}
@@ -769,41 +769,41 @@ func buildRegistry(env *environment) *pipeline.Registry {
 
 	// --- budget : trois chargements partagés avec sujets-data (sect,
 	// circuit) plus un qui lui est propre (bud).
-	addNode(reg, "budget-data", nil, func(ctx context.Context, _ pipeline.Results) (*StatsBudget, error) {
+	addNode(region, "budget-data", nil, func(ctx context.Context, _ pipeline.Results) (*StatsBudget, error) {
 		return loadBudget(ctx, e.pool)
 	})
-	addNode(reg, "secteurs", nil, func(ctx context.Context, _ pipeline.Results) (*StatsSecteurs, error) {
-		return loadSecteurs(ctx, e.pool)
+	addNode(region, "secteurs", nil, func(ctx context.Context, _ pipeline.Results) (*StatsSectors, error) {
+		return loadSectors(ctx, e.pool)
 	})
-	addNode(reg, "circuit-canaux", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*CircuitCanaux, error) {
-		return loadCircuitCanaux(ctx, e.pool, dep[identityBundle](d, "identite").Presidences)
+	addNode(region, "circuit-canaux", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*CircuitChannels, error) {
+		return loadCircuitChannels(ctx, e.pool, dep[identityBundle](d, "identite").Presidencies)
 	})
-	reg.Add(pipeline.Step{Name: "budget", Description: "page budget",
+	region.Add(pipeline.Step{Name: "budget", Description: "page budget",
 		Dependencies: []string{"budget-data", "secteurs", "circuit-canaux"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			bud := dep[*StatsBudget](d, "budget-data")
-			sect := dep[*StatsSecteurs](d, "secteurs")
-			circuit := dep[*CircuitCanaux](d, "circuit-canaux")
+			section := dep[*StatsSectors](d, "secteurs")
+			circuit := dep[*CircuitChannels](d, "circuit-canaux")
 			if bud != nil {
 				l := e.layout
 				l.Title = "Budget de l'État"
 				if err := e.writeSection("budget", e.page("budget.gohtml"), filepath.Join(e.out, "budget", "index.html"), struct {
 					Layout
 					B *StatsBudget
-					X *StatsSecteurs
-					K *CircuitCanaux
-				}{l, bud, sect, circuit}); err != nil {
+					X *StatsSectors
+					K *CircuitChannels
+				}{l, bud, section, circuit}); err != nil {
 					return nil, err
 				}
 			}
 			if circuit != nil {
 				tdisp := e.page("dispositif.gohtml")
-				for _, m := range circuit.GrandesMesures {
+				for _, m := range circuit.LargeMeasures {
 					l := e.layout
-					l.Title = m.Libelle
+					l.Title = m.Label
 					if err := e.writeSection("budget", tdisp, filepath.Join(e.out, "budget", "dispositif", m.Code, "index.html"), struct {
 						Layout
-						M MesureExoneration
+						M MeasureExemption
 					}{l, m}); err != nil {
 						return nil, err
 					}
@@ -811,7 +811,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			}
 			return nil, nil
 		}})
-	reg.Add(pipeline.Step{Name: "social", Description: "page protection sociale", Dependencies: []string{"social-data"},
+	region.Add(pipeline.Step{Name: "social", Description: "page protection sociale", Dependencies: []string{"social-data"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			soc := dep[*StatsSocial](d, "social-data")
 			if soc == nil || soc.Total <= 0 {
@@ -828,7 +828,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 	// --- qui décide : aucune donnée propre, mais son gabarit lit
 	// Cov.Organisations/Cov.Candidats (partis, candidats 2027) — voir
 	// layoutWithIdentity.
-	reg.Add(pipeline.Step{Name: "qui-decide", Description: "page qui décide", Dependencies: []string{"identite"},
+	region.Add(pipeline.Step{Name: "qui-decide", Description: "page qui décide", Dependencies: []string{"identite"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			l := e.layoutWithIdentity(dep[identityBundle](d, "identite"))
 			l.Title = "Qui décide"
@@ -837,155 +837,155 @@ func buildRegistry(env *environment) *pipeline.Registry {
 
 	// --- sources et Assemblée nationale : dépendent d'identite pour la
 	// liste des députés/groupes/candidats affichée.
-	addNode(reg, "sources-page", nil, func(ctx context.Context, _ pipeline.Results) ([]SourceDetail, error) {
+	addNode(region, "sources-page", nil, func(ctx context.Context, _ pipeline.Results) ([]SourceDetail, error) {
 		return loadSources(ctx, e.pool)
 	})
-	addNode(reg, "sources-stats", nil, func(ctx context.Context, _ pipeline.Results) (*StatsGlobalesSources, error) {
-		return chargerStatsGlobalesSources(ctx, e.pool)
+	addNode(region, "sources-stats", nil, func(ctx context.Context, _ pipeline.Results) (*StatsGlobalSources, error) {
+		return loadStatsGlobalSources(ctx, e.pool)
 	})
-	reg.Add(pipeline.Step{Name: "sources", Description: "page sources",
+	region.Add(pipeline.Step{Name: "sources", Description: "page sources",
 		Dependencies: []string{"sources-page", "sources-stats"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			l := e.layout
 			l.Title = "Sources"
 			return nil, e.writeSection("sources", e.page("sources.gohtml"), filepath.Join(e.out, "sources", "index.html"), struct {
 				Layout
-				Flux  []SourceDetail
-				Stats *StatsGlobalesSources
-			}{l, dep[[]SourceDetail](d, "sources-page"), dep[*StatsGlobalesSources](d, "sources-stats")})
+				Flow  []SourceDetail
+				Stats *StatsGlobalSources
+			}{l, dep[[]SourceDetail](d, "sources-page"), dep[*StatsGlobalSources](d, "sources-stats")})
 		}})
-	reg.Add(pipeline.Step{Name: "candidats", Description: "page candidats", Dependencies: []string{"identite"},
+	region.Add(pipeline.Step{Name: "candidats", Description: "page candidats", Dependencies: []string{"identite"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			id := dep[identityBundle](d, "identite")
 			l := e.layout
 			l.Title = "Candidats 2027"
 			return nil, e.writeSection("candidats", e.page("candidats.gohtml"), filepath.Join(e.out, "candidats", "index.html"), struct {
 				Layout
-				Candidats []*Candidat
-			}{l, id.Candidats})
+				Candidates []*Candidate
+			}{l, id.Candidates})
 		}})
-	reg.Add(pipeline.Step{Name: "partis", Description: "page partis", Dependencies: []string{"identite"},
+	region.Add(pipeline.Step{Name: "partis", Description: "page partis", Dependencies: []string{"identite"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			id := dep[identityBundle](d, "identite")
 			l := e.layout
 			l.Title = "Partis"
 			return nil, e.writeSection("partis", e.page("partis.gohtml"), filepath.Join(e.out, "partis", "index.html"), struct {
 				Layout
-				Orgs []*Organisation
+				Orgs []*Organization
 			}{l, id.OrgList})
 		}})
-	reg.Add(pipeline.Step{Name: "assemblee", Description: "page Assemblée nationale",
+	region.Add(pipeline.Step{Name: "assemblee", Description: "page Assemblée nationale",
 		Dependencies: []string{"identite", "derniers-scrutins"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			id := dep[identityBundle](d, "identite")
-			derniers := dep[[]Vote](d, "derniers-scrutins")
+			last := dep[[]Vote](d, "derniers-scrutins")
 			l := e.layout
 			l.Title = "Assemblée nationale"
 			return nil, e.writeSection("assemblee", e.page("assemblee.gohtml"), filepath.Join(e.out, "assemblee", "index.html"), struct {
 				Layout
-				Groupes  []*Groupe
-				Deputes  []*Person
-				Scrutins []Vote
-			}{l, id.GrpList, id.Deputes, derniers})
+				Groups    []*Group
+				Deputies  []*Person
+				Elections []Vote
+			}{l, id.GrpList, id.Deputies, last})
 		}})
 
 	// --- la trentaine de schémas propres à sujets-data (voir la note de
 	// tête de fichier : sujets-data en dépend TOUS, sans sous-ensemble
 	// déduit à l'avance).
 	type htmlLoader = func(context.Context, *pgxpool.Pool) (template.HTML, error)
-	for nom, fn := range map[string]htmlLoader{
-		"taux-pauvrete-serie":        chargerTauxPauvreteSerie,
-		"depense-environnementale":   chargerDepenseEnvironnementale,
-		"emploi-total-salarie":       chargerEmploiTotalSalarie,
-		"depenses-fiscales-tendance": chargerTendanceDepensesFiscales,
-		"ports-francais":             chargerPortsFrancais,
-		"ports-europe":               chargerPortsEurope,
-		"report-modal-port":          chargerReportModal,
-		"report-modal-conteneurs":    chargerReportModalConteneurs,
-		"carte-semi-conducteurs":     chargerCarteSemiConducteurs,
-		"ecart-prix-dom":             chargerEcartPrixDOM,
-		"alimentaire-dom":            chargerAlimentaireDOM,
-		"sipri":                      chargerSIPRI,
-		"historique-immigration":     chargerHistoriqueImmigration,
-		"age-depart-retraite":        chargerAgeDepartRetraite,
-		"taux-remplacement":          chargerTauxRemplacement,
+	for name, fn := range map[string]htmlLoader{
+		"taux-pauvrete-serie":        loadRatePovertySeries,
+		"depense-environnementale":   loadExpenseEnvironmental,
+		"emploi-total-salarie":       loadEmploymentTotalEmployee,
+		"depenses-fiscales-tendance": loadTrendExpensesFiscal,
+		"ports-francais":             loadPortsFrench,
+		"ports-europe":               loadPortsEurope,
+		"report-modal-port":          loadReportModal,
+		"report-modal-conteneurs":    loadReportModalContainers,
+		"carte-semi-conducteurs":     loadMapSemiconductors,
+		"ecart-prix-dom":             loadGapPriceDOM,
+		"alimentaire-dom":            loadFoodDOM,
+		"sipri":                      loadSIPRI,
+		"historique-immigration":     loadHistoryImmigration,
+		"age-depart-retraite":        loadAgeStartPension,
+		"taux-remplacement":          loadRateReplacement,
 	} {
 		fn := fn
-		addNode(reg, nom, nil, func(ctx context.Context, _ pipeline.Results) (template.HTML, error) { return fn(ctx, e.pool) })
+		addNode(region, name, nil, func(ctx context.Context, _ pipeline.Results) (template.HTML, error) { return fn(ctx, e.pool) })
 	}
-	addNode(reg, "contributif-non-contributif", nil,
+	addNode(region, "contributif-non-contributif", nil,
 		func(_ context.Context, _ pipeline.Results) (template.HTML, error) {
-			return dessinerContributifNonContributif(), nil
+			return drawContributoryNonContributory(), nil
 		})
-	addNode(reg, "seuils-pauvrete", nil, func(ctx context.Context, _ pipeline.Results) (*SeuilsPauvrete, error) {
-		return chargerSeuilsPauvrete(ctx, e.pool)
+	addNode(region, "seuils-pauvrete", nil, func(ctx context.Context, _ pipeline.Results) (*ThresholdsPoverty, error) {
+		return loadThresholdsPoverty(ctx, e.pool)
 	})
-	addNode(reg, "climat-international", nil, func(ctx context.Context, _ pipeline.Results) (*StatsClimatInternational, error) {
-		return chargerClimatInternational(ctx, e.pool)
+	addNode(region, "climat-international", nil, func(ctx context.Context, _ pipeline.Results) (*StatsClimateInternational, error) {
+		return loadClimateInternational(ctx, e.pool)
 	})
-	addNode(reg, "union-europeenne", nil, func(ctx context.Context, _ pipeline.Results) (*StatsUnionEuropeenne, error) {
-		return chargerUnionEuropeenne(ctx, e.pool)
+	addNode(region, "union-europeenne", nil, func(ctx context.Context, _ pipeline.Results) (*StatsUnionEuropean, error) {
+		return loadUnionEuropean(ctx, e.pool)
 	})
-	addNode(reg, "carte-bassins", nil, func(ctx context.Context, _ pipeline.Results) (*CarteBassins, error) {
-		return chargerCarteBassins(ctx, e.pool)
+	addNode(region, "carte-bassins", nil, func(ctx context.Context, _ pipeline.Results) (*MapBasins, error) {
+		return loadMapBasins(ctx, e.pool)
 	})
-	addNode(reg, "carte-eptb-epage", nil, func(ctx context.Context, _ pipeline.Results) (*CarteEPTBEPAGE, error) {
-		return chargerCarteEPTBEPAGE(ctx, e.pool)
+	addNode(region, "carte-eptb-epage", nil, func(ctx context.Context, _ pipeline.Results) (*MapEPTBEPAGE, error) {
+		return loadMapEPTBEPAGE(ctx, e.pool)
 	})
-	addNode(reg, "depenses-fiscales-stats", nil, func(ctx context.Context, _ pipeline.Results) (*StatsDepensesFiscales, error) {
-		return chargerStatsDepensesFiscales(ctx, e.pool)
+	addNode(region, "depenses-fiscales-stats", nil, func(ctx context.Context, _ pipeline.Results) (*StatsExpensesFiscal, error) {
+		return loadStatsExpensesFiscal(ctx, e.pool)
 	})
-	addNode(reg, "carte-ifi", nil, func(ctx context.Context, _ pipeline.Results) (*CarteIFI, error) {
-		return chargerCarteIFI(ctx, e.pool)
+	addNode(region, "carte-ifi", nil, func(ctx context.Context, _ pipeline.Results) (*MapIFI, error) {
+		return loadMapIFI(ctx, e.pool)
 	})
-	addNode(reg, "appareil-productif", nil, func(ctx context.Context, _ pipeline.Results) (*StatsAppareilProductif, error) {
-		return chargerAppareilProductif(ctx, e.pool)
+	addNode(region, "appareil-productif", nil, func(ctx context.Context, _ pipeline.Results) (*StatsApparatusProductive, error) {
+		return loadApparatusProductive(ctx, e.pool)
 	})
-	addNode(reg, "francophonie", nil, func(ctx context.Context, _ pipeline.Results) (*StatsFrancophonie, error) {
-		return chargerFrancophonie(ctx, e.pool)
+	addNode(region, "francophonie", nil, func(ctx context.Context, _ pipeline.Results) (*StatsFrancophonie, error) {
+		return loadFrancophonie(ctx, e.pool)
 	})
-	addNode(reg, "empire-colonial", nil, func(ctx context.Context, _ pipeline.Results) (*StatsEmpireColonial, error) {
-		return chargerEmpireColonial(ctx, e.pool)
+	addNode(region, "empire-colonial", nil, func(ctx context.Context, _ pipeline.Results) (*StatsEmpireColonial, error) {
+		return loadEmpireColonial(ctx, e.pool)
 	})
-	addNode(reg, "seconde-guerre-mondiale", nil, func(ctx context.Context, _ pipeline.Results) (*StatsSecondeGuerreMondiale, error) {
-		return chargerSecondeGuerreMondiale(ctx, e.pool)
+	addNode(region, "seconde-guerre-mondiale", nil, func(ctx context.Context, _ pipeline.Results) (*StatsSecondWorldWar, error) {
+		return loadSecondWorldWar(ctx, e.pool)
 	})
-	addNode(reg, "population-guerres", nil, func(ctx context.Context, _ pipeline.Results) (*PopulationGuerres, error) {
-		return chargerPopulationGuerres(ctx, e.pool)
+	addNode(region, "population-guerres", nil, func(ctx context.Context, _ pipeline.Results) (*PopulationWars, error) {
+		return loadPopulationWars(ctx, e.pool)
 	})
-	addNode(reg, "controle-fiscal", nil, func(ctx context.Context, _ pipeline.Results) (*ControleFiscal, error) {
-		return chargerControleFiscal(ctx, e.pool)
+	addNode(region, "controle-fiscal", nil, func(ctx context.Context, _ pipeline.Results) (*ControlFiscal, error) {
+		return loadControlFiscal(ctx, e.pool)
 	})
-	addNode(reg, "carte-infrastructure-ports", nil, func(ctx context.Context, _ pipeline.Results) (*CarteInfrastructurePorts, error) {
-		return chargerCarteInfrastructurePorts(ctx, e.pool)
+	addNode(region, "carte-infrastructure-ports", nil, func(ctx context.Context, _ pipeline.Results) (*MapInfrastructurePorts, error) {
+		return loadMapInfrastructurePorts(ctx, e.pool)
 	})
-	addNode(reg, "justice", nil, func(ctx context.Context, _ pipeline.Results) (*StatsJustice, error) {
-		return chargerJustice(ctx, e.pool)
+	addNode(region, "justice", nil, func(ctx context.Context, _ pipeline.Results) (*StatsJustice, error) {
+		return loadJustice(ctx, e.pool)
 	})
-	addNode(reg, "carte-musees", nil, func(ctx context.Context, _ pipeline.Results) (*CarteMusees, error) {
-		return chargerCarteMusees(ctx, e.pool)
+	addNode(region, "carte-musees", nil, func(ctx context.Context, _ pipeline.Results) (*MapMuseums, error) {
+		return loadMapMuseums(ctx, e.pool)
 	})
-	addNode(reg, "carte-etudiants", nil, func(ctx context.Context, _ pipeline.Results) (*CarteEtudiants, error) {
-		return chargerCarteEtudiants(ctx, e.pool)
+	addNode(region, "carte-etudiants", nil, func(ctx context.Context, _ pipeline.Results) (*MapStudents, error) {
+		return loadMapStudents(ctx, e.pool)
 	})
-	addNode(reg, "carte-sru", nil, func(ctx context.Context, _ pipeline.Results) (*CarteSRU, error) {
-		return chargerCarteSRU(ctx, e.pool)
+	addNode(region, "carte-sru", nil, func(ctx context.Context, _ pipeline.Results) (*MapSRU, error) {
+		return loadMapSRU(ctx, e.pool)
 	})
-	addNode(reg, "sru-prelevement", nil, func(ctx context.Context, _ pipeline.Results) (*PrelevementSRU, error) {
-		return chargerPrelevementSRU(ctx, e.pool)
+	addNode(region, "sru-prelevement", nil, func(ctx context.Context, _ pipeline.Results) (*LevySRU, error) {
+		return loadLevySRU(ctx, e.pool)
 	})
-	addNode(reg, "effort-recherche", nil, func(ctx context.Context, _ pipeline.Results) (*EffortRecherche, error) {
-		return chargerEffortRecherche(ctx, e.pool)
+	addNode(region, "effort-recherche", nil, func(ctx context.Context, _ pipeline.Results) (*EffortSearch, error) {
+		return loadEffortSearch(ctx, e.pool)
 	})
-	addNode(reg, "indochine-partition", nil, func(ctx context.Context, _ pipeline.Results) (*StatsIndochinePartition, error) {
-		return chargerIndochinePartition(ctx, e.pool)
+	addNode(region, "indochine-partition", nil, func(ctx context.Context, _ pipeline.Results) (*StatsIndochinaPartition, error) {
+		return loadIndochinaPartition(ctx, e.pool)
 	})
-	addNode(reg, "medecins-evolution", nil, func(ctx context.Context, _ pipeline.Results) (template.HTML, error) {
-		return chargerSerieMedecins(ctx, e.pool)
+	addNode(region, "medecins-evolution", nil, func(ctx context.Context, _ pipeline.Results) (template.HTML, error) {
+		return loadSeriesDoctors(ctx, e.pool)
 	})
 
 	// --- sujets-data : voir la note de tête de fichier.
-	sujetsDeps := []string{"docs", "identite", "accueil-data", "territoires",
+	topicsDeps := []string{"docs", "identite", "accueil-data", "territoires",
 		"secteurs", "circuit-canaux", "seuils-pauvrete", "taux-pauvrete-serie", "depense-environnementale",
 		"emploi-total-salarie", "climat-international", "union-europeenne", "carte-bassins", "carte-eptb-epage",
 		"depenses-fiscales-tendance", "depenses-fiscales-stats", "carte-ifi", "appareil-productif", "francophonie",
@@ -995,7 +995,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		"carte-etudiants", "carte-sru", "sru-prelevement", "effort-recherche", "sipri", "historique-immigration",
 		"age-depart-retraite", "taux-remplacement", "indochine-partition", "medecins-evolution",
 	}
-	addNode(reg, "sujets-data", sujetsDeps, func(ctx context.Context, d pipeline.Results) (topicsReady, error) {
+	addNode(region, "sujets-data", topicsDeps, func(ctx context.Context, d pipeline.Results) (topicsReady, error) {
 		return topicsReady{}, buildTopicsData(ctx, e, d)
 	})
 
@@ -1004,47 +1004,47 @@ func buildRegistry(env *environment) *pipeline.Registry {
 	// dépendances DIRECTES d'un nœud dans deps, jamais toute la fermeture —
 	// accueil.gohtml lit Cov.Candidats/CandidatsPrimaire/CandidatsAvecBilan
 	// (voir layoutWithIdentity), qu'il faut donc nommer ici aussi.
-	reg.Add(pipeline.Step{Name: "accueil", Description: "page d'accueil",
+	region.Add(pipeline.Step{Name: "accueil", Description: "page d'accueil",
 		Dependencies: []string{"accueil-data", "sujets-data", "identite"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			acc := dep[*DonneesAccueil](d, "accueil-data")
+			acc := dep[*DataHome](d, "accueil-data")
 			l := e.layoutWithIdentity(dep[identityBundle](d, "identite"))
 			l.Hero = true
-			l.HeroTitre = "Le budget réel de la France, sujet par sujet de la campagne 2027"
+			l.HeroTitle = "Le budget réel de la France, sujet par sujet de la campagne 2027"
 			l.HeroLede = "Retraites, santé, école, sécurité, immigration, dette : ce que l'État dépense, " +
 				"d'où vient l'argent, qui décide et qui contrôle — sourcé document par document."
-			l.HeroVisuel = heroMille(acc, e.root)
+			l.HeroVisual = heroThousand(acc, e.root)
 			l.Title = "Le budget réel de la France, sujet par sujet de la campagne 2027"
 			return nil, e.writeSection("accueil", e.page("accueil.gohtml"), filepath.Join(e.out, "index.html"), struct {
 				Layout
-				A *DonneesAccueil
+				A *DataHome
 			}{l, acc})
 		}})
-	reg.Add(pipeline.Step{Name: "sujets", Description: "index des sujets",
+	region.Add(pipeline.Step{Name: "sujets", Description: "index des sujets",
 		Dependencies: []string{"accueil-data", "sujets-data"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			acc := dep[*DonneesAccueil](d, "accueil-data")
+			acc := dep[*DataHome](d, "accueil-data")
 			l := e.layout
 			l.Title = "Sujets de campagne"
 			return nil, e.writeSection("sujets", e.page("sujets.gohtml"), filepath.Join(e.out, "sujets", "index.html"), struct {
 				Layout
-				Familles []*Famille
-				Annee    int
-			}{l, acc.Familles, acc.Annee})
+				Families []*Family
+				Year     int
+			}{l, acc.Families, acc.Year})
 		}})
-	reg.Add(pipeline.Step{Name: "argent-public", Description: "argent public",
+	region.Add(pipeline.Step{Name: "argent-public", Description: "argent public",
 		Dependencies: []string{"accueil-data", "fonctions", "sujets-data"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			acc := dep[*DonneesAccueil](d, "accueil-data")
-			pagesFonctions := dep[map[string]*PageFonction](d, "fonctions")
+			acc := dep[*DataHome](d, "accueil-data")
+			pagesFunctions := dep[map[string]*PageFunction](d, "fonctions")
 			tf := e.page("fonction.gohtml")
-			for _, f := range acc.Fonctions {
-				pf := pagesFonctions[f.Code]
+			for _, f := range acc.Functions {
+				pf := pagesFunctions[f.Code]
 				l := e.layout
-				l.Title = pf.Nom
+				l.Title = pf.Name
 				if err := e.writeSection("argent-public", tf, filepath.Join(e.out, "fonction", f.Slug, "index.html"), struct {
 					Layout
-					F *PageFonction
+					F *PageFunction
 				}{l, pf}); err != nil {
 					return nil, err
 				}
@@ -1054,33 +1054,33 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			return nil, e.writeSection("argent-public", e.page("argent-public.gohtml"), filepath.Join(e.out, "argent-public", "index.html"),
 				struct {
 					Layout
-					A *DonneesAccueil
+					A *DataHome
 				}{l, acc})
 		}})
-	reg.Add(pipeline.Step{Name: "comprendre", Description: "documents de méthode et sujets",
+	region.Add(pipeline.Step{Name: "comprendre", Description: "documents de méthode et sujets",
 		Dependencies: []string{"sujets-data", "docs"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			return nil, buildGuidesAndTopics(e, dep[[]*Doc](d, "docs"))
 		}})
 
 	// --- fiches : personnes, candidats, organisations, référentiels, groupes.
-	addNode(reg, "mandats-locaux", []string{"lieux"},
-		func(ctx context.Context, d pipeline.Results) (map[string]*RapprochementRNE, error) {
-			locaux, err := loadMandatsLocaux(ctx, e.pool, e.dataDir+"/candidats-mandats-locaux.csv")
+	addNode(region, "mandats-locaux", []string{"lieux"},
+		func(ctx context.Context, d pipeline.Results) (map[string]*ReconciliationRNE, error) {
+			premises, err := loadTermsPremises(ctx, e.pool, e.dataDir+"/candidats-mandats-locaux.csv")
 			if err != nil {
 				return nil, err
 			}
-			situerMandatsLocaux(locaux, dep[*Resolveur](d, "lieux"))
-			return locaux, nil
+			locateTermsPremises(premises, dep[*Resolver](d, "lieux"))
+			return premises, nil
 		})
-	addNode(reg, "votes-bulk", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (bool, error) {
+	addNode(region, "votes-bulk", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (bool, error) {
 		id := dep[identityBundle](d, "identite")
 		if err := loadVotesBulk(ctx, e.pool, id.Persons, 60); err != nil {
 			return false, err
 		}
 		return true, nil
 	})
-	reg.Add(pipeline.Step{Name: "fiches", Description: "fiches personnes/candidats/organisations",
+	region.Add(pipeline.Step{Name: "fiches", Description: "fiches personnes/candidats/organisations",
 		Dependencies: []string{"identite", "election2027", "mandats-locaux", "votes-bulk"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			return nil, buildProfilePages(e, d)
@@ -1092,27 +1092,27 @@ func buildRegistry(env *environment) *pipeline.Registry {
 	// construction partielle sert déjà, documenté ailleurs, à l'itération
 	// locale, jamais à la publication (voir Run) — un index de recherche
 	// stale sur un chantier partiel n'aggrave pas ce que -only assume déjà.
-	reg.Add(pipeline.Step{Name: "recherche", Description: "index de recherche",
+	region.Add(pipeline.Step{Name: "recherche", Description: "index de recherche",
 		Dependencies: []string{"identite", "themes", "sujets-data", "docs", "senat"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			id := dep[identityBundle](d, "identite")
 			themes := dep[*StatsThemes](d, "themes")
 			docs := dep[[]*Doc](d, "docs")
-			senat := dep[*StatsSenat](d, "senat")
-			senateurs := map[string]bool{}
-			for _, p := range senat.Senateurs2 {
-				senateurs[p.Slug] = true
+			senate := dep[*StatsSenate](d, "senat")
+			senators := map[string]bool{}
+			for _, p := range senate.Senators2 {
+				senators[p.Slug] = true
 			}
-			return nil, ecrireIndex(e.out, id.Persons, id.Candidats, id.Orgs, id.Groupes, id.Refs,
-				themes.Themes, docs, senateurs)
+			return nil, writeIndex(e.out, id.Persons, id.Candidates, id.Orgs, id.Groups, id.Refs,
+				themes.Themes, docs, senators)
 		}})
 
 	// --- scrutin : garde son court-circuit par empreinte, verbatim.
-	reg.Add(pipeline.Step{Name: "scrutin", Description: "pages de scrutin", Dependencies: []string{"seuils"},
+	region.Add(pipeline.Step{Name: "scrutin", Description: "pages de scrutin", Dependencies: []string{"seuils"},
 		Run: func(ctx context.Context, d pipeline.Results) (any, error) {
-			seuils := dep[map[string]Seuil](d, "seuils")
-			return buildBallotSection(ctx, e, seuils)
+			thresholds := dep[map[string]Threshold](d, "seuils")
+			return buildBallotSection(ctx, e, thresholds)
 		}})
 
-	return reg
+	return region
 }

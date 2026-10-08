@@ -16,7 +16,7 @@ var SourceFaitsMultinationales = archive.Source{
 	Slug: "faits-multinationales", Label: "Contrats publics, règlements fiscaux et constats d'enquête concernant des multinationales",
 	Publisher:   "Sénat, Assemblée nationale, Conseil d'État, Agence française anticorruption, ministère de l'Économie ; presse et communiqués d'entreprise, signalés comme tels",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Documents publics des institutions, cités avec lien ; articles de presse cités sans reproduction",
+	License:     "Documents publics des institutions, cités avec lien ; articles de presse cités sans reproduction",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Sources citées fait par fait (colonne source_url)",
 	Cadence:     "au fil des faits",
@@ -27,7 +27,7 @@ var SourceFaitsMultinationales = archive.Source{
 		"portent leur nature : un plafond d'accord-cadre n'est pas une dépense.",
 }
 
-type fait struct {
+type fact struct {
 	id, groupe, typ, date, periode, cocontractant, acheteur, intitule string
 	montant, nature, qualite, constat, url                            string
 }
@@ -37,7 +37,7 @@ const (
 	urlSenat578 = "https://www.senat.fr/rap/r21-578-1/r21-578-11.pdf"
 )
 
-var faits = []fait{
+var facts = []fact{
 	{"microsoft-defense-ppr-2017", "Microsoft Corporation", "CONTRAT", "2017-10-16", "2009-2021", "Microsoft Ireland Operations Limited", "Ministère de la Défense",
 		"Accord-cadre de droits d'usage des logiciels Microsoft, dit « open bar »", "120000000", "ESTIME", "OFFICIEL",
 		"Selon la proposition de résolution de douze sénateurs, le contrat a été conclu avec la société irlandaise plutôt qu'avec la filiale française, par procédure négociée sans publicité ni mise en concurrence, et renouvelé en 2013 puis fin 2016 ; 120 M€ pour 2013-2017, montant repris des révélations de la presse. Les auteurs y voient un défaut d'exemplarité fiscale de l'État.",
@@ -169,7 +169,7 @@ var faits = []fait{
 }
 
 // Ce que chaque page officielle doit contenir pour fonder son fait.
-var attendusFaits = map[string][]string{
+var expectedFacts = map[string][]string{
 	"https://www.senat.fr/leg/ppr17-027.html":                                           {"Microsoft", "Irlande"},
 	"https://www.senat.fr/questions/base/2019/qSEQ191012547.html":                       {"Microsoft", "mise en concurrence"},
 	"https://www.assemblee-nationale.fr/dyn/17/questions/QANR5L17QE5312":                {"Microsoft", "152"},
@@ -180,11 +180,11 @@ var attendusFaits = map[string][]string{
 }
 
 func IngestFaits(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, arch, SourceFaitsMultinationales, func(srcID, runID int64) (map[string]any, error) {
+	return run(ctx, arch, SourceFaitsMultinationales, func(srcID, runID int64) (map[string]any, error) {
 		docs := map[string]any{}
-		archives, echecs := 0, 0
-		for _, f := range faits {
-			if _, fait := docs[f.url]; fait {
+		archived, failures := 0, 0
+		for _, f := range facts {
+			if _, already := docs[f.url]; already {
 				continue
 			}
 			if f.qualite == "PRESSE" {
@@ -201,11 +201,11 @@ func IngestFaits(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 					return nil, fmt.Errorf("%s : %w", f.id, err)
 				}
 				docs[f.url] = nil
-				echecs++
+				failures++
 				continue
 			}
-			if att, ok := attendusFaits[f.url]; ok {
-				t, err := texteHTML(d.Path)
+			if att, ok := expectedFacts[f.url]; ok {
+				t, err := htmlText(d.Path)
 				if err != nil {
 					return nil, err
 				}
@@ -216,7 +216,7 @@ func IngestFaits(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 				}
 			}
 			docs[f.url] = d.DocumentID
-			archives++
+			archived++
 		}
 		tx, err := pool.Begin(ctx)
 		if err != nil {
@@ -226,33 +226,33 @@ func IngestFaits(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 		if _, err := tx.Exec(ctx, `DELETE FROM ref.fait_multinationale`); err != nil {
 			return nil, err
 		}
-		for _, f := range faits {
+		for _, f := range facts {
 			if _, err := tx.Exec(ctx, `INSERT INTO ref.fait_multinationale
 				(id, groupe, type, date_fait, periode, cocontractant, acheteur, intitule, montant_eur, nature_montant,
 				 qualite, constat, source_url, source_id, document_id)
 				VALUES ($1,$2,$3,$4::date,$5,$6,$7,$8,$9::numeric,$10,$11,$12,$13,$14,$15)`,
-				f.id, f.groupe, f.typ, nul(f.date), nul(f.periode), nul(f.cocontractant), nul(f.acheteur), f.intitule,
-				nul(f.montant), nul(f.nature), f.qualite, f.constat, f.url, srcID, docs[f.url]); err != nil {
+				f.id, f.groupe, f.typ, nullable(f.date), nullable(f.periode), nullable(f.cocontractant), nullable(f.acheteur), f.intitule,
+				nullable(f.montant), nullable(f.nature), f.qualite, f.constat, f.url, srcID, docs[f.url]); err != nil {
 				return nil, fmt.Errorf("%s : %w", f.id, err)
 			}
 		}
-		return map[string]any{"faits": len(faits), "pages_archivees": archives, "echecs_non_officiels": echecs}, tx.Commit(ctx)
+		return map[string]any{"faits": len(facts), "pages_archivees": archived, "echecs_non_officiels": failures}, tx.Commit(ctx)
 	})
 }
 
 var (
-	reBalisesHTML = regexp.MustCompile(`(?s)<script.*?</script>|<style.*?</style>|<[^>]+>`)
-	reBlancsHTML  = regexp.MustCompile(`\s+`)
+	reHTMLTags   = regexp.MustCompile(`(?s)<script.*?</script>|<style.*?</style>|<[^>]+>`)
+	reWhitespace = regexp.MustCompile(`\s+`)
 )
 
-// texteHTML rend le texte lisible d'une page scellée, pour vérifier qu'elle dit
+// htmlText rend le texte lisible d'une page scellée, pour vérifier qu'elle dit
 // encore ce qu'on lui fait dire.
-func texteHTML(path string) (string, error) {
+func htmlText(path string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
-	t := html.UnescapeString(reBalisesHTML.ReplaceAllString(string(b), " "))
+	t := html.UnescapeString(reHTMLTags.ReplaceAllString(string(b), " "))
 	t = strings.NewReplacer("\u00a0", " ", "\u202f", " ").Replace(t)
-	return reBlancsHTML.ReplaceAllString(t, " "), nil
+	return reWhitespace.ReplaceAllString(t, " "), nil
 }

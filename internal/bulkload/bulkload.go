@@ -1,6 +1,6 @@
 // Package bulkload porte une seule technique : retirer les contraintes de
 // clé étrangère d'une table le temps d'un gros chargement, pour les
-// réinstaller ensuite — voir SansContraintesFK.
+// réinstaller ensuite — voir WithoutFKConstraints.
 package bulkload
 
 import (
@@ -10,7 +10,7 @@ import (
 	"github.com/jackc/pgx/v5"
 )
 
-// SansContraintesFK exécute fn après avoir retiré, puis réinstallé, toutes
+// WithoutFKConstraints exécute fn après avoir retiré, puis réinstallé, toutes
 // les contraintes de clé étrangère de table — DANS tx, la même transaction
 // que fn utilise pour son chargement.
 //
@@ -35,7 +35,7 @@ import (
 // temps de CE chargement précis — un compromis correct au vu du gain
 // mesuré, et limité à la durée du chargement, pas à celle du connecteur
 // entier.
-func SansContraintesFK(ctx context.Context, tx pgx.Tx, table string, fn func() error) error {
+func WithoutFKConstraints(ctx context.Context, tx pgx.Tx, table string, fn func() error) error {
 	rows, err := tx.Query(ctx, `
 		SELECT conname, pg_get_constraintdef(oid)
 		  FROM pg_constraint
@@ -43,25 +43,25 @@ func SansContraintesFK(ctx context.Context, tx pgx.Tx, table string, fn func() e
 	if err != nil {
 		return fmt.Errorf("contraintes FK de %s : %w", table, err)
 	}
-	type contrainte struct{ nom, def string }
-	var contraintes []contrainte
+	type constraint struct{ name, def string }
+	var constraints []constraint
 	for rows.Next() {
-		var c contrainte
-		if err := rows.Scan(&c.nom, &c.def); err != nil {
+		var c constraint
+		if err := rows.Scan(&c.name, &c.def); err != nil {
 			rows.Close()
 			return err
 		}
-		contraintes = append(contraintes, c)
+		constraints = append(constraints, c)
 	}
 	if err := rows.Err(); err != nil {
 		return err
 	}
 	rows.Close()
 
-	for _, c := range contraintes {
-		stmt := fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", table, pgx.Identifier{c.nom}.Sanitize())
+	for _, c := range constraints {
+		stmt := fmt.Sprintf("ALTER TABLE %s DROP CONSTRAINT %s", table, pgx.Identifier{c.name}.Sanitize())
 		if _, err := tx.Exec(ctx, stmt); err != nil {
-			return fmt.Errorf("suppression de %s sur %s : %w", c.nom, table, err)
+			return fmt.Errorf("suppression de %s sur %s : %w", c.name, table, err)
 		}
 	}
 
@@ -69,10 +69,10 @@ func SansContraintesFK(ctx context.Context, tx pgx.Tx, table string, fn func() e
 		return err
 	}
 
-	for _, c := range contraintes {
-		stmt := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s %s", table, pgx.Identifier{c.nom}.Sanitize(), c.def)
+	for _, c := range constraints {
+		stmt := fmt.Sprintf("ALTER TABLE %s ADD CONSTRAINT %s %s", table, pgx.Identifier{c.name}.Sanitize(), c.def)
 		if _, err := tx.Exec(ctx, stmt); err != nil {
-			return fmt.Errorf("réinstallation de %s sur %s : %w", c.nom, table, err)
+			return fmt.Errorf("réinstallation de %s sur %s : %w", c.name, table, err)
 		}
 	}
 	return nil

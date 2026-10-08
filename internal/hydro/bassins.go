@@ -19,11 +19,11 @@ import (
 
 const ConnectorVersion = "hydro-v1"
 
-var SourceBassins = archive.Source{
+var SourceBasins = archive.Source{
 	Slug: "sandre-bassins-hydrographiques", Label: "Sandre/IGN — bassins hydrographiques (BD Topage)",
 	Publisher: "Service d'administration nationale des données et référentiels sur l'eau (Sandre)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Sandre, BD Topage (IGN/OFB)",
 	Cadence:     "irrégulière (révision du référentiel hydrographique)",
 	Notes: "Millésime 2025. France métropolitaine (suffixe FXX, Lambert-93/EPSG:2154) plus " +
@@ -34,18 +34,18 @@ var SourceBassins = archive.Source{
 		"directe sur le catalogue, 404 pour les trois) — absents, pas oubliés.",
 }
 
-type territoireBassin struct {
-	Code, SuffixeURL string
-	SRIDSource       int
+type basinTerritory struct {
+	Code, URLSuffix string
+	SRIDSource      int
 }
 
-var territoiresBassins = []territoireBassin{
-	{Code: "metropole", SuffixeURL: "FXX", SRIDSource: 2154},
-	{Code: "outremer", SuffixeURL: "MTQ", SRIDSource: 5490},
-	{Code: "outremer", SuffixeURL: "MYT", SRIDSource: 4471},
+var basinTerritories = []basinTerritory{
+	{Code: "metropole", URLSuffix: "FXX", SRIDSource: 2154},
+	{Code: "outremer", URLSuffix: "MTQ", SRIDSource: 5490},
+	{Code: "outremer", URLSuffix: "MYT", SRIDSource: 4471},
 }
 
-const bassinsURLBase = "https://services.sandre.eaufrance.fr/telechargement/geo/ETH/BDTopage/2025/" +
+const basinsURLBase = "https://services.sandre.eaufrance.fr/telechargement/geo/ETH/BDTopage/2025/" +
 	"BassinHydrographique/BassinHydrographique_"
 
 type featureCollection struct {
@@ -58,8 +58,8 @@ type featureCollection struct {
 	} `json:"features"`
 }
 
-func IngestBassins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceBassins)
+func IngestBasins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceBasins)
 	if err != nil {
 		return err
 	}
@@ -81,33 +81,33 @@ func IngestBassins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	if _, err := tx.Exec(ctx, `DELETE FROM geo.contour_bassin`); err != nil {
 		return fail(err)
 	}
-	for _, terr := range territoiresBassins {
-		url := bassinsURLBase + terr.SuffixeURL + "-geojson.zip"
+	for _, territory := range basinTerritories {
+		url := basinsURLBase + territory.URLSuffix + "-geojson.zip"
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".zip")
 		if err != nil {
-			return fail(fmt.Errorf("%s : %w", terr.SuffixeURL, err))
+			return fail(fmt.Errorf("%s : %w", territory.URLSuffix, err))
 		}
-		gj, err := lireGeoJSONDuZip(f.Path)
+		gj, err := readGeoJSONFromZip(f.Path)
 		if err != nil {
-			return fail(fmt.Errorf("%s : %w", terr.SuffixeURL, err))
+			return fail(fmt.Errorf("%s : %w", territory.URLSuffix, err))
 		}
 		var fc featureCollection
 		if err := json.Unmarshal(gj, &fc); err != nil {
-			return fail(fmt.Errorf("%s : %w", terr.SuffixeURL, err))
+			return fail(fmt.Errorf("%s : %w", territory.URLSuffix, err))
 		}
 		if len(fc.Features) == 0 {
-			return fail(fmt.Errorf("%s : aucune entité dans le GeoJSON", terr.SuffixeURL))
+			return fail(fmt.Errorf("%s : aucune entité dans le GeoJSON", territory.URLSuffix))
 		}
 		for _, feat := range fc.Features {
 			if _, err := tx.Exec(ctx, `
 				INSERT INTO geo.contour_bassin (code, nom, geom, srid_source, territoire, source_id)
 				VALUES ($1, $2, ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON($3), $4), 4326)), $4, $5, $6)`,
 				feat.Properties.CdBH, feat.Properties.LbBH, string(feat.Geometry),
-				terr.SRIDSource, terr.Code, srcID); err != nil {
-				return fail(fmt.Errorf("%s, bassin %s (%s) : %w", terr.SuffixeURL, feat.Properties.CdBH, feat.Properties.LbBH, err))
+				territory.SRIDSource, territory.Code, srcID); err != nil {
+				return fail(fmt.Errorf("%s, bassin %s (%s) : %w", territory.URLSuffix, feat.Properties.CdBH, feat.Properties.LbBH, err))
 			}
 		}
-		total[terr.Code] += len(fc.Features)
+		total[territory.Code] += len(fc.Features)
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
@@ -117,11 +117,11 @@ func IngestBassins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	return nil
 }
 
-// lireGeoJSONDuZip : le fichier Sandre est distribué en .zip contenant un
+// readGeoJSONFromZip : le fichier Sandre est distribué en .zip contenant un
 // unique .geojson — extrait en mémoire, jamais désarchivé sur disque, pour ne
 // pas laisser un second exemplaire non scellé à côté de l'archive.
-func lireGeoJSONDuZip(cheminZip string) ([]byte, error) {
-	b, err := os.ReadFile(cheminZip)
+func readGeoJSONFromZip(zipPath string) ([]byte, error) {
+	b, err := os.ReadFile(zipPath)
 	if err != nil {
 		return nil, err
 	}
@@ -139,9 +139,9 @@ func lireGeoJSONDuZip(cheminZip string) ([]byte, error) {
 			return io.ReadAll(rc)
 		}
 	}
-	return nil, fmt.Errorf("aucun .geojson trouvé dans %s", cheminZip)
+	return nil, fmt.Errorf("aucun .geojson trouvé dans %s", zipPath)
 }
 
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return IngestBassins(ctx, pool, arch)
+	return IngestBasins(ctx, pool, arch)
 }

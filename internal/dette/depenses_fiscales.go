@@ -30,7 +30,7 @@ import (
 var SourceVoiesEtMoyens = archive.Source{
 	Slug: "voies-et-moyens-t2", Label: "PLF 2020 à 2023 — Évaluation des voies et moyens, tome II (dépenses fiscales)",
 	Publisher: "Direction du budget", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : annexes aux PLF 2020 à 2023, Évaluation des voies et moyens, tome II",
 	Cadence:     "annuelle (octobre) ; quatre millésimes en données ouvertes",
@@ -44,7 +44,7 @@ var SourceVoiesEtMoyens = archive.Source{
 var SourceBudgetVert = archive.Source{
 	Slug: "budget-vert-depenses-fiscales", Label: "Budget vert (PLF 2024 à 2026) — chiffrage des dépenses fiscales",
 	Publisher: "Direction du budget", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : rapport sur l'impact environnemental du budget de l'État (budget vert), PLF 2024, 2025 et 2026",
 	Cadence:     "annuelle (octobre)",
@@ -58,7 +58,7 @@ const odsEconomie = "https://data.economie.gouv.fr/api/explore/v2.1/catalog/data
 
 // Les classeurs, un par millésime : des pièces jointes aux jeux de la Direction
 // du budget, dont les noms ne suivent aucune règle.
-var classeursVMT = []struct {
+var vmtWorkbooks = []struct {
 	millesime int
 	url       string
 }{
@@ -68,7 +68,7 @@ var classeursVMT = []struct {
 	{2023, "https://data.economie.gouv.fr/api/v2/catalog/datasets/plf2023_voies_et_moyens_t2_liste_des_depenses_fiscales/attachments/plf2023_voies_et_moyens_t2_liste_des_depenses_fiscales_xlsx"},
 }
 
-type ligneDF struct {
+type dfLine struct {
 	millesime, annee int
 	numero, libelle  string
 	impot, stade     string
@@ -92,17 +92,17 @@ var budgetsVerts = []struct {
 }
 
 func IngestDepensesFiscales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := chargerDF(ctx, pool, arch, SourceVoiesEtMoyens, lireVoiesEtMoyens); err != nil {
+	if err := loadDF(ctx, pool, arch, SourceVoiesEtMoyens, readVoiesEtMoyens); err != nil {
 		return err
 	}
-	return chargerDF(ctx, pool, arch, SourceBudgetVert, lireBudgetsVerts)
+	return loadDF(ctx, pool, arch, SourceBudgetVert, readBudgetsVerts)
 }
 
-type lecteurDF func(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([]ligneDF, [][]any, error)
+type dfReader func(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([]dfLine, [][]any, error)
 
-// chargerDF remplace toutes les lignes d'une source. Les bénéficiaires, quand
+// loadDF remplace toutes les lignes d'une source. Les bénéficiaires, quand
 // la source en publie, sont remplacés dans la même transaction.
-func chargerDF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src archive.Source, lire lecteurDF) error {
+func loadDF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src archive.Source, read dfReader) error {
 	srcID, err := arch.EnsureSource(ctx, src)
 	if err != nil {
 		return err
@@ -116,11 +116,11 @@ func chargerDF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, s
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 		return err
 	}
-	lignes, beneficiaires, err := lire(ctx, arch, srcID, runID)
+	lines, beneficiaries, err := read(ctx, arch, srcID, runID)
 	if err != nil {
 		return fail(err)
 	}
-	if len(lignes) == 0 {
+	if len(lines) == 0 {
 		return fail(fmt.Errorf("aucune dépense fiscale lue"))
 	}
 	tx, err := pool.Begin(ctx)
@@ -140,13 +140,13 @@ func chargerDF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, s
 		WITH LOCAL CHECK OPTION`, srcID)); err != nil {
 		return fail(err)
 	}
-	rows := make([][]any, 0, len(lignes))
-	for _, l := range lignes {
+	rows := make([][]any, 0, len(lines))
+	for _, l := range lines {
 		var m any
 		if l.montant != nil {
 			m = *l.montant
 		}
-		rows = append(rows, []any{l.millesime, l.numero, l.libelle, nul(l.impot), l.annee, l.stade, m, nul(l.mention), srcID, l.document})
+		rows = append(rows, []any{l.millesime, l.numero, l.libelle, nullable(l.impot), l.annee, l.stade, m, nullable(l.mention), srcID, l.document})
 	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_depense_fiscale (
@@ -186,7 +186,7 @@ func chargerDF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, s
 	}
 	nChiffrages := ctDF.RowsAffected()
 	var nBeneficiaires int64
-	if beneficiaires != nil {
+	if beneficiaries != nil {
 		if _, err := tx.Exec(ctx, fmt.Sprintf(`
 			CREATE OR REPLACE TEMPORARY VIEW depense_fiscale_beneficiaire_scope AS
 			SELECT * FROM ref.depense_fiscale_beneficiaire WHERE source_id = %d
@@ -206,7 +206,7 @@ func chargerDF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, s
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_depense_fiscale_beneficiaire"},
 			[]string{"numero", "nature", "nombre", "millesime", "source_id", "document_id"},
-			pgx.CopyFromRows(beneficiaires)); err != nil {
+			pgx.CopyFromRows(beneficiaries)); err != nil {
 			return fail(err)
 		}
 		ctBen, err := tx.Exec(ctx, `
@@ -233,35 +233,35 @@ func chargerDF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, s
 	return nil
 }
 
-// numeroDF normalise un numéro de dépense fiscale : les cellules numériques
+// dfNumber normalise un numéro de dépense fiscale : les cellules numériques
 // d'un classeur arrivent parfois en « 40101.0 ».
-func numeroDF(s string) string {
+func dfNumber(s string) string {
 	s = strings.TrimSpace(s)
 	s = strings.TrimSuffix(s, ".0")
 	return s
 }
 
-func lireVoiesEtMoyens(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([]ligneDF, [][]any, error) {
-	var lignes []ligneDF
+func readVoiesEtMoyens(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([]dfLine, [][]any, error) {
+	var lines []dfLine
 	var bens [][]any
-	for _, c := range classeursVMT {
-		l, b, err := lireClasseurVMT(ctx, arch, srcID, runID, c.millesime, c.url)
+	for _, c := range vmtWorkbooks {
+		l, b, err := readVMTWorkbook(ctx, arch, srcID, runID, c.millesime, c.url)
 		if err != nil {
 			return nil, nil, fmt.Errorf("PLF %d : %w", c.millesime, err)
 		}
-		lignes = append(lignes, l...)
+		lines = append(lines, l...)
 		bens = append(bens, b...)
 	}
-	return lignes, bens, nil
+	return lines, bens, nil
 }
 
-// mentionVMT normalise une cellule de chiffrage : « ε », « nc », « - » sont
+// normalizeVMTMention normalise une cellule de chiffrage : « ε », « nc », « - » sont
 // des mentions ; une cellule vide ou réduite à une espace n'est rien.
-func mentionVMT(v string) string {
+func normalizeVMTMention(v string) string {
 	return strings.TrimSpace(strings.ReplaceAll(v, "\u00a0", " "))
 }
 
-func lireClasseurVMT(ctx context.Context, arch *archive.Archive, srcID, runID int64, millesime int, u string) ([]ligneDF, [][]any, error) {
+func readVMTWorkbook(ctx context.Context, arch *archive.Archive, srcID, runID int64, millesime int, u string) ([]dfLine, [][]any, error) {
 	f, err := arch.Fetch(ctx, srcID, runID, u, ".xlsx")
 	if err != nil {
 		return nil, nil, err
@@ -293,17 +293,17 @@ func lireClasseurVMT(ctx context.Context, arch *archive.Archive, srcID, runID in
 		return nil, nil, fmt.Errorf("en-tête des chiffrages introuvable")
 	}
 	type col struct {
-		lettre, stade string
-		annee         int
+		letter, stade string
+		year          int
 	}
 	var cols []col
-	debut := iStade + 1
+	start := iStade + 1
 	for i, c := range []string{"F", "G", "H"} {
 		a, err := strconv.Atoi(chiffrages[iStade+1][c])
 		if err != nil {
 			a = millesime - 2 + i
 		} else {
-			debut = iStade + 2
+			start = iStade + 2
 		}
 		st := "PREVISION"
 		if chiffrages[iStade][c] == "Réalisation" {
@@ -311,24 +311,24 @@ func lireClasseurVMT(ctx context.Context, arch *archive.Archive, srcID, runID in
 		}
 		cols = append(cols, col{c, st, a})
 	}
-	if cols[0].annee != millesime-2 || cols[2].annee != millesime {
-		return nil, nil, fmt.Errorf("années %d-%d inattendues pour le PLF %d", cols[0].annee, cols[2].annee, millesime)
+	if cols[0].year != millesime-2 || cols[2].year != millesime {
+		return nil, nil, fmt.Errorf("années %d-%d inattendues pour le PLF %d", cols[0].year, cols[2].year, millesime)
 	}
-	var lignes []ligneDF
-	vus := map[string]bool{}
-	for _, r := range chiffrages[debut:] {
-		num := numeroDF(r["D"])
-		if !reNumeroDF.MatchString(num) {
+	var lines []dfLine
+	seen := map[string]bool{}
+	for _, r := range chiffrages[start:] {
+		num := dfNumber(r["D"])
+		if !reDFNumber.MatchString(num) {
 			continue
 		}
-		if vus[num] {
+		if seen[num] {
 			return nil, nil, fmt.Errorf("dépense fiscale %s en double dans les chiffrages", num)
 		}
-		vus[num] = true
+		seen[num] = true
 		for _, c := range cols {
-			l := ligneDF{millesime: millesime, annee: c.annee, numero: num, libelle: r["E"], impot: r["A"],
+			l := dfLine{millesime: millesime, annee: c.year, numero: num, libelle: r["E"], impot: r["A"],
 				stade: c.stade, document: f.DocumentID}
-			switch v := mentionVMT(r[c.lettre]); v {
+			switch v := normalizeVMTMention(r[c.letter]); v {
 			case "":
 				continue // cellule vide : rien de déclaré
 			case "ε", "nc", "-":
@@ -336,12 +336,12 @@ func lireClasseurVMT(ctx context.Context, arch *archive.Archive, srcID, runID in
 			default:
 				m, err := strconv.ParseFloat(strings.ReplaceAll(v, ",", "."), 64)
 				if err != nil {
-					return nil, nil, fmt.Errorf("%s/%d : montant illisible %q", num, c.annee, v)
+					return nil, nil, fmt.Errorf("%s/%d : montant illisible %q", num, c.year, v)
 				}
 				m *= 1e6
 				l.montant = &m
 			}
-			lignes = append(lignes, l)
+			lines = append(lines, l)
 		}
 	}
 
@@ -355,35 +355,35 @@ func lireClasseurVMT(ctx context.Context, arch *archive.Archive, srcID, runID in
 		"locaux": "LOCAUX", "parcelles": "PARCELLES",
 	}
 	var bens [][]any
-	vusB := map[string]bool{}
+	seenB := map[string]bool{}
 	for _, r := range benef {
-		num := numeroDF(r["D"])
-		if !vus[num] || vusB[num] {
+		num := dfNumber(r["D"])
+		if !seen[num] || seenB[num] {
 			continue // en-têtes, mesure absente des chiffrages, ou doublon
 		}
-		brut := strings.ToLower(strings.Join(strings.Fields(strings.ReplaceAll(r["F"], "\u00a0", " ")), " "))
-		brut = strings.ReplaceAll(brut, "é", "e")
-		if brut == "" {
+		raw := strings.ToLower(strings.Join(strings.Fields(strings.ReplaceAll(r["F"], "\u00a0", " ")), " "))
+		raw = strings.ReplaceAll(raw, "é", "e")
+		if raw == "" {
 			continue
 		}
-		nat, ok := natures[brut]
+		nat, ok := natures[raw]
 		if !ok {
 			return nil, nil, fmt.Errorf("%s : nature de bénéficiaire inattendue %q", num, r["F"])
 		}
-		vusB[num] = true
+		seenB[num] = true
 		var nombre any
 		if n, err := strconv.ParseFloat(r["G"], 64); err == nil {
 			nombre = int64(n)
 		}
 		bens = append(bens, []any{num, nat, nombre, millesime, srcID, f.DocumentID})
 	}
-	return lignes, bens, nil
+	return lines, bens, nil
 }
 
-var reNumeroDF = regexp.MustCompile(`^[0-9]{5,6}$`)
+var reDFNumber = regexp.MustCompile(`^[0-9]{5,6}$`)
 
-func lireBudgetsVerts(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([]ligneDF, [][]any, error) {
-	var lignes []ligneDF
+func readBudgetsVerts(ctx context.Context, arch *archive.Archive, srcID, runID int64) ([]dfLine, [][]any, error) {
+	var lines []dfLine
 	for _, bv := range budgetsVerts {
 		q := url.Values{"where": {`type_depense="Dépenses fiscales"`}, "order_by": {"code_depense"}}
 		u := odsEconomie + bv.jeu + "/exports/json?" + q.Encode()
@@ -392,37 +392,37 @@ func lireBudgetsVerts(ctx context.Context, arch *archive.Archive, srcID, runID i
 			return nil, nil, err
 		}
 		var recs []map[string]any
-		if err := lireJSON(f.Path, &recs); err != nil {
+		if err := readJSON(f.Path, &recs); err != nil {
 			return nil, nil, fmt.Errorf("%s : %w", bv.jeu, err)
 		}
 		if len(recs) == 0 {
 			return nil, nil, fmt.Errorf("%s : aucune dépense fiscale", bv.jeu)
 		}
-		type cumul struct {
+		type accumulator struct {
 			libelle, impot string
-			somme          [3]float64
-			renseigne      [3]bool
+			sum            [3]float64
+			filled         [3]bool
 			mentionN       string
 		}
-		parNumero := map[string]*cumul{}
-		var ordre []string
+		byNumber := map[string]*accumulator{}
+		var order []string
 		for _, r := range recs {
-			num := numeroDF(fmt.Sprint(r["code_depense"]))
-			c, ok := parNumero[num]
+			num := dfNumber(fmt.Sprint(r["code_depense"]))
+			c, ok := byNumber[num]
 			if !ok {
 				lib, _ := r["libelle"].(string)
 				imp, _ := r["impot_si_depense_fiscale"].(string)
-				c = &cumul{libelle: lib, impot: imp}
-				parNumero[num] = c
-				ordre = append(ordre, num)
+				c = &accumulator{libelle: lib, impot: imp}
+				byNumber[num] = c
+				order = append(order, num)
 			}
-			for i, colonne := range bv.colonnes {
-				if _, existe := r[colonne]; !existe {
-					return nil, nil, fmt.Errorf("%s : colonne %s absente", bv.jeu, colonne)
+			for i, column := range bv.colonnes {
+				if _, exists := r[column]; !exists {
+					return nil, nil, fmt.Errorf("%s : colonne %s absente", bv.jeu, column)
 				}
-				if v, ok := r[colonne].(float64); ok {
-					c.somme[i] += v
-					c.renseigne[i] = true
+				if v, ok := r[column].(float64); ok {
+					c.sum[i] += v
+					c.filled[i] = true
 				}
 			}
 			if bv.mentionN != "" {
@@ -431,26 +431,26 @@ func lireBudgetsVerts(ctx context.Context, arch *archive.Archive, srcID, runID i
 				}
 			}
 		}
-		for _, num := range ordre {
-			c := parNumero[num]
+		for _, num := range order {
+			c := byNumber[num]
 			for i := 0; i < 3; i++ {
-				l := ligneDF{millesime: bv.millesime, annee: bv.millesime - 2 + i, numero: num,
+				l := dfLine{millesime: bv.millesime, annee: bv.millesime - 2 + i, numero: num,
 					libelle: c.libelle, impot: c.impot, stade: "PREVISION", document: f.DocumentID}
 				if i == 0 {
 					l.stade = "EXECUTION"
 				}
 				switch {
-				case c.renseigne[i]:
-					m := c.somme[i]
+				case c.filled[i]:
+					m := c.sum[i]
 					l.montant = &m
 				case i == 2 && (c.mentionN == "ε" || c.mentionN == "nc"):
 					l.mention = c.mentionN
 				default:
 					continue
 				}
-				lignes = append(lignes, l)
+				lines = append(lines, l)
 			}
 		}
 	}
-	return lignes, nil, nil
+	return lines, nil, nil
 }

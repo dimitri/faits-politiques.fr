@@ -1,34 +1,34 @@
 {{define "content"}}
 <p class="small muted">Organisation politique</p>
 {{if .O.Logo}}<div class="entete-portrait">
-  <img src="{{.Root}}/media/{{.O.Logo.Fichier}}" alt="Logo de {{.O.Libelle}}" width="120" loading="lazy">
+  <img src="{{.Root}}/media/{{.O.Logo.File}}" alt="Logo de {{.O.Label}}" width="120" loading="lazy">
   <div>
-    <h1 style="margin-top:0">{{.O.Libelle}}</h1>
-    <p class="small muted" style="margin:0">Logo&nbsp;: {{.O.Logo.Licence}}{{if .O.Logo.Auteur}}, {{.O.Logo.Auteur}}{{end}}
+    <h1 style="margin-top:0">{{.O.Label}}</h1>
+    <p class="small muted" style="margin:0">Logo&nbsp;: {{.O.Logo.License}}{{if .O.Logo.Author}}, {{.O.Logo.Author}}{{end}}
       — <a href="{{.O.Logo.SourceURL}}" target="_blank" rel="noopener">Wikimedia Commons</a></p>
   </div>
-</div>{{else}}<h1>{{.O.Libelle}}</h1>
+</div>{{else}}<h1>{{.O.Label}}</h1>
 <p class="small muted">Aucun logo librement réutilisable n'est disponible pour cette
 organisation. La plupart des logos de partis sont protégés par le droit d'auteur&nbsp;: les
 reproduire ici serait une contrefaçon.</p>{{end}}
 
-{{if .O.Candidats}}
-<p class="lede">Candidat{{if gt (len .O.Candidats) 1}}s{{end}} déclaré{{if gt (len .O.Candidats) 1}}s{{end}} à l'élection présidentielle de 2027&nbsp;:
-{{range $i, $c := .O.Candidats}}{{if $i}}, {{end}}<a href="{{$.Root}}/candidat/{{$c.Slug}}/">{{$c.Prenom}} {{$c.Nom}}</a>{{end}}.</p>
+{{if .O.Candidates}}
+<p class="lede">Candidat{{if gt (len .O.Candidates) 1}}s{{end}} déclaré{{if gt (len .O.Candidates) 1}}s{{end}} à l'élection présidentielle de 2027&nbsp;:
+{{range $i, $c := .O.Candidates}}{{if $i}}, {{end}}<a href="{{$.Root}}/candidat/{{$c.Slug}}/">{{$c.FirstName}} {{$c.Name}}</a>{{end}}.</p>
 {{end}}
 
 <h2>Comptes déposés à la CNCCFP</h2>
-{{if .O.Exercices}}
+{{if .O.FiscalYears}}
 <p class="small muted">Comptes d'ensemble déposés au titre de la loi du 11 mars 1988 sur la
 transparence financière de la vie politique. Identifiant CNCCFP&nbsp;: <code>{{.O.CodeCNCCFP}}</code>.
 Montants en euros.</p>
 <div class="scroll"><table>
-<thead><tr><th>Poste</th>{{range .O.Exercices}}<th style="text-align:right">{{.}}</th>{{end}}</tr></thead>
+<thead><tr><th>Poste</th>{{range .O.FiscalYears}}<th style="text-align:right">{{.}}</th>{{end}}</tr></thead>
 <tbody>
-{{range .O.Postes}}
-<tr{{if eq .Categorie "SOLDE"}} style="font-weight:600"{{end}}>
+{{range .O.Positions}}
+<tr{{if eq .Category "SOLDE"}} style="font-weight:600"{{end}}>
   <td>{{.Label}}{{if .Caveat}}<div class="small muted" style="font-weight:400">{{.Caveat}}</div>{{end}}</td>
-  {{range .Montants}}<td style="text-align:right;white-space:nowrap">{{.}}</td>{{end}}
+  {{range .Amounts}}<td style="text-align:right;white-space:nowrap">{{.}}</td>{{end}}
 </tr>
 {{end}}
 </tbody></table></div>
@@ -47,13 +47,13 @@ registre CNCCFP peut simplement ne pas avoir été jugé défendable — voir
 <div class="scroll"><table class="pile">
 <thead><tr><th>Référentiel</th><th>Catégorie ou dimension</th><th>Valeur</th><th>Période</th></tr></thead><tbody>
 {{range .O.Classifications}}<tr>
-  <td>{{.Referentiel}}</td>
-  <td data-l="Catégorie"><a href="{{$.Root}}/referentiel/{{.SetSlug}}/#{{.Categorie}}" target="_blank" rel="noopener"><code>{{.Categorie}}</code></a>
-      {{if .LibelleFr}}<div class="small muted">{{.LibelleFr}}</div>{{end}}</td>
-  <td data-l="Valeur">{{if .Valeur}}{{jauge .Categorie .Valeur}}
-      <div class="small muted poles"><span>{{poleG .Categorie}}</span><span>{{poleD .Categorie}}</span></div>
+  <td>{{.Reference}}</td>
+  <td data-l="Catégorie"><a href="{{$.Root}}/referentiel/{{.SetSlug}}/#{{.Category}}" target="_blank" rel="noopener"><code>{{.Category}}</code></a>
+      {{if .LabelFr}}<div class="small muted">{{.LabelFr}}</div>{{end}}</td>
+  <td data-l="Valeur">{{if .Value}}{{jauge .Category .Value}}
+      <div class="small muted poles"><span>{{poleG .Category}}</span><span>{{poleD .Category}}</span></div>
       {{else}}<span class="muted">—</span>{{end}}</td>
-  <td class="small z" data-l="Période">{{.Periode}}</td>
+  <td class="small z" data-l="Période">{{.Period}}</td>
 </tr>{{end}}
 </tbody></table></div>
 <div class="warn">

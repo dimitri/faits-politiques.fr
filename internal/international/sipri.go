@@ -25,7 +25,7 @@ import (
 var SourceSIPRIMilex = archive.Source{
 	Slug: "sipri-milex", Label: "SIPRI — dépense militaire, part du PIB",
 	Publisher: "Stockholm International Peace Research Institute (SIPRI)", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Usage non commercial avec attribution (conditions SIPRI) — ce site n'a pas de vocation commerciale",
+	License:     "Usage non commercial avec attribution (conditions SIPRI) — ce site n'a pas de vocation commerciale",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : SIPRI Military Expenditure Database",
 	Cadence:     "annuelle",

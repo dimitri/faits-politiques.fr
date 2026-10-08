@@ -27,7 +27,7 @@ import (
 var Source = archive.Source{
 	Slug: "wikimedia-commons", Label: "Wikimedia Commons — portraits et logos libres",
 	Publisher: "Wikimedia Commons", Tier: "DECLARATIVE",
-	Licence:     "variable, par fichier ; seules les licences libres sont retenues",
+	License:     "variable, par fichier ; seules les licences libres sont retenues",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Portraits et logos : Wikimedia Commons, licence et auteur indiqués sur chaque image",
 	Cadence:     "à la demande",
@@ -37,14 +37,14 @@ var Source = archive.Source{
 
 // Préfixes de licences acceptées. Tout le reste est refusé — y compris les
 // « fair use » et les logos sous droit d'auteur tolérés sur Wikipédia.
-var licencesLibres = []string{"cc0", "cc-by", "pd", "publicdomain", "attribution"}
+var freeLicenses = []string{"cc0", "cc-by", "pd", "publicdomain", "attribution"}
 
-func libre(code string) bool {
+func isFreeLicense(code string) bool {
 	c := strings.ToLower(strings.TrimSpace(code))
 	if c == "" || strings.Contains(c, "fair") || strings.Contains(c, "nonfree") {
 		return false
 	}
-	for _, p := range licencesLibres {
+	for _, p := range freeLicenses {
 		if strings.HasPrefix(c, p) {
 			return true
 		}
@@ -56,24 +56,24 @@ func libre(code string) bool {
 // requêtes et on réessaie : marteler un service public gratuit serait à la fois
 // inefficace et malpoli.
 type client struct {
-	http    *http.Client
-	dernier time.Time
+	http *http.Client
+	last time.Time
 }
 
-const intervalle = 1200 * time.Millisecond
+const interval = 1200 * time.Millisecond
 
 func (c *client) getJSON(ctx context.Context, endpoint string, params url.Values, out any) error {
 	u := endpoint + "?" + params.Encode()
 	var last error
-	for essai := 1; essai <= 4; essai++ {
-		if d := intervalle - time.Since(c.dernier); d > 0 {
+	for attempt := 1; attempt <= 4; attempt++ {
+		if d := interval - time.Since(c.last); d > 0 {
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
 			case <-time.After(d):
 			}
 		}
-		c.dernier = time.Now()
+		c.last = time.Now()
 
 		req, _ := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
 		req.Header.Set("User-Agent", "faits-politiques.fr (ingestion média, contact via le dépôt)")
@@ -88,7 +88,7 @@ func (c *client) getJSON(ctx context.Context, endpoint string, params url.Values
 			select {
 			case <-ctx.Done():
 				return ctx.Err()
-			case <-time.After(time.Duration(essai*essai) * 2 * time.Second):
+			case <-time.After(time.Duration(attempt*attempt) * 2 * time.Second):
 			}
 			continue
 		}
@@ -101,16 +101,16 @@ func (c *client) getJSON(ctx context.Context, endpoint string, params url.Values
 	return last
 }
 
-// Fichier décrit un média retenu.
-type Fichier struct {
-	Nom, SourceURL, Licence, LicenceCode, Auteur string
-	URL                                          string
-	Largeur, Hauteur                             int
+// File décrit un média retenu.
+type File struct {
+	Name, SourceURL, Licence, LicenceCode, Author string
+	URL                                           string
+	Width, Height                                 int
 }
 
 // Resolve retrouve l'image principale d'une page Wikipédia et n'en retourne les
 // métadonnées que si sa licence est libre.
-func (c *client) Resolve(ctx context.Context, pageFR string, taille int) (*Fichier, string, error) {
+func (c *client) Resolve(ctx context.Context, pageFR string, size int) (*File, string, error) {
 	var wp struct {
 		Query struct {
 			Pages map[string]struct {
@@ -124,11 +124,11 @@ func (c *client) Resolve(ctx context.Context, pageFR string, taille int) (*Fichi
 	}, &wp); err != nil {
 		return nil, "", err
 	}
-	var fichier string
+	var fileName string
 	for _, p := range wp.Query.Pages {
-		fichier = p.PageImage
+		fileName = p.PageImage
 	}
-	if fichier == "" {
+	if fileName == "" {
 		return nil, "aucune image sur la page Wikipédia", nil
 	}
 
@@ -149,8 +149,8 @@ func (c *client) Resolve(ctx context.Context, pageFR string, taille int) (*Fichi
 	}
 	if err := c.getJSON(ctx, "https://commons.wikimedia.org/w/api.php", url.Values{
 		"action": {"query"}, "prop": {"imageinfo"},
-		"iiprop": {"extmetadata|url"}, "iiurlwidth": {fmt.Sprint(taille)},
-		"titles": {"File:" + fichier}, "format": {"json"}, "formatversion": {"1"},
+		"iiprop": {"extmetadata|url"}, "iiurlwidth": {fmt.Sprint(size)},
+		"titles": {"File:" + fileName}, "format": {"json"}, "formatversion": {"1"},
 	}, &cm); err != nil {
 		return nil, "", err
 	}
@@ -168,18 +168,18 @@ func (c *client) Resolve(ctx context.Context, pageFR string, taille int) (*Fichi
 			return ""
 		}
 		code := meta("License")
-		if !libre(code) {
+		if !isFreeLicense(code) {
 			return nil, "licence non libre : " + firstNonEmpty(meta("LicenseShortName"), code, "inconnue"), nil
 		}
-		return &Fichier{
-			Nom:         fichier,
+		return &File{
+			Name:        fileName,
 			SourceURL:   ii.DescriptionURL,
 			Licence:     firstNonEmpty(meta("LicenseShortName"), code),
 			LicenceCode: code,
-			Auteur:      stripHTML(meta("Artist")),
+			Author:      stripHTML(meta("Artist")),
 			URL:         ii.ThumbURL,
-			Largeur:     ii.ThumbWidth,
-			Hauteur:     ii.ThumbHeight,
+			Width:       ii.ThumbWidth,
+			Height:      ii.ThumbHeight,
 		}, "", nil
 	}
 	return nil, "fichier introuvable", nil
@@ -210,10 +210,10 @@ func stripHTML(s string) string {
 	return strings.TrimSpace(b.String())
 }
 
-// Cible désigne le sujet d'un média.
-type Cible struct {
+// Target désigne le sujet d'un média.
+type Target struct {
 	PersonID, OrganizationID *int64
-	Kind, PageFR, Libelle    string
+	Kind, PageFR, Label      string
 }
 
 // Ingest récupère les médias des cibles fournies et les dépose dans mediaDir.
@@ -221,7 +221,7 @@ type Cible struct {
 // relues puis réécrites à chaque run, pour ne réinterroger Wikimédia que pour
 // une cible nouvelle ou dont le fichier local a disparu.
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
-	mediaDir, cachePath string, cibles []Cible) error {
+	mediaDir, cachePath string, targets []Target) error {
 
 	srcID, err := arch.EnsureSource(ctx, Source)
 	if err != nil {
@@ -234,32 +234,32 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	if err := os.MkdirAll(mediaDir, 0o755); err != nil {
 		return err
 	}
-	cch, err := chargerCache(cachePath)
+	cch, err := loadCache(cachePath)
 	if err != nil {
 		return fmt.Errorf("cache média %s : %w", cachePath, err)
 	}
 	c := &client{http: &http.Client{Timeout: 60 * time.Second}}
 
-	retenus, refuses, depuisCache := 0, 0, 0
-	for _, cible := range cibles {
-		if cible.PageFR == "" {
+	kept, rejected, fromCache := 0, 0, 0
+	for _, target := range targets {
+		if target.PageFR == "" {
 			continue
 		}
-		cle := cleCache(cible.PageFR, cible.Kind)
+		key := cacheKey(target.PageFR, target.Kind)
 
-		if e, ok := cch.Entries[cle]; ok {
-			if e.Rejete {
-				refuses++
-				depuisCache++
+		if e, ok := cch.Entries[key]; ok {
+			if e.Rejected {
+				rejected++
+				fromCache++
 				continue
 			}
 			if _, err := os.Stat(filepath.Join(mediaDir, e.Local)); err == nil {
-				if err := inserer(ctx, pool, cible, e.Local, e.SourceURL,
-					e.Licence, e.LicenceCode, e.Auteur, e.Largeur, e.Hauteur); err != nil {
+				if err := insert(ctx, pool, target, e.Local, e.SourceURL,
+					e.Licence, e.LicenceCode, e.Author, e.Width, e.Height); err != nil {
 					return err
 				}
-				retenus++
-				depuisCache++
+				kept++
+				fromCache++
 				continue
 			}
 			// Le fichier a disparu de mediaDir (nettoyage manuel, clone
@@ -267,61 +267,61 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 			// comme une cible nouvelle.
 		}
 
-		taille := 400
-		if cible.Kind == "LOGO" {
-			taille = 300
+		size := 400
+		if target.Kind == "LOGO" {
+			size = 300
 		}
-		f, raison, err := c.Resolve(ctx, cible.PageFR, taille)
+		f, reason, err := c.Resolve(ctx, target.PageFR, size)
 		if err != nil {
-			fmt.Printf("    %-34s erreur : %v\n", cible.Libelle, err)
+			fmt.Printf("    %-34s erreur : %v\n", target.Label, err)
 			continue
 		}
 		if f == nil {
-			fmt.Printf("    %-34s écarté — %s\n", cible.Libelle, raison)
-			refuses++
-			cch.Entries[cle] = entreeCache{Rejete: true, Raison: raison}
+			fmt.Printf("    %-34s écarté — %s\n", target.Label, reason)
+			rejected++
+			cch.Entries[key] = cacheEntry{Rejected: true, Reason: reason}
 			continue
 		}
-		ext := filepath.Ext(f.Nom)
+		ext := filepath.Ext(f.Name)
 		if strings.EqualFold(ext, ".svg") {
 			ext = ".png" // la vignette Commons d'un SVG est rendue en PNG
 		}
-		local := slug(cible.Libelle) + "-" + strings.ToLower(cible.Kind) + ext
+		local := slug(target.Label) + "-" + strings.ToLower(target.Kind) + ext
 		if err := download(ctx, c.http, f.URL, filepath.Join(mediaDir, local)); err != nil {
-			fmt.Printf("    %-34s erreur de téléchargement : %v\n", cible.Libelle, err)
+			fmt.Printf("    %-34s erreur de téléchargement : %v\n", target.Label, err)
 			continue
 		}
-		if err := inserer(ctx, pool, cible, local, f.SourceURL,
-			f.Licence, f.LicenceCode, f.Auteur, f.Largeur, f.Hauteur); err != nil {
+		if err := insert(ctx, pool, target, local, f.SourceURL,
+			f.Licence, f.LicenceCode, f.Author, f.Width, f.Height); err != nil {
 			return err
 		}
-		cch.Entries[cle] = entreeCache{
-			Nom: f.Nom, SourceURL: f.SourceURL, Licence: f.Licence, LicenceCode: f.LicenceCode,
-			Auteur: f.Auteur, URL: f.URL, Largeur: f.Largeur, Hauteur: f.Hauteur, Local: local,
+		cch.Entries[key] = cacheEntry{
+			Name: f.Name, SourceURL: f.SourceURL, Licence: f.Licence, LicenceCode: f.LicenceCode,
+			Author: f.Author, URL: f.URL, Width: f.Width, Height: f.Height, Local: local,
 		}
-		retenus++
+		kept++
 	}
-	if err := cch.sauvegarder(cachePath); err != nil {
+	if err := cch.save(cachePath); err != nil {
 		return fmt.Errorf("cache média %s : %w", cachePath, err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"retenus": retenus, "ecartes": refuses, "depuis_cache": depuisCache}, "")
+		map[string]any{"retenus": kept, "ecartes": rejected, "depuis_cache": fromCache}, "")
 	fmt.Printf("  médias        %d retenus, %d écartés faute de licence libre (%d depuis le cache)\n",
-		retenus, refuses, depuisCache)
+		kept, rejected, fromCache)
 	return nil
 }
 
-// inserer : reconstruit plutôt que compléter, comme partout ailleurs —
+// insert : reconstruit plutôt que compléter, comme partout ailleurs —
 // factorisé parce que le chemin cache et le chemin résolution en direct
 // écrivent tous deux la même ligne, jamais deux copies divergentes de ce SQL.
-func inserer(ctx context.Context, pool *pgxpool.Pool, cible Cible,
-	local, sourceURL, licence, licenceCode, auteur string, largeur, hauteur int) error {
+func insert(ctx context.Context, pool *pgxpool.Pool, target Target,
+	local, sourceURL, licence, licenceCode, author string, width, height int) error {
 	if _, err := pool.Exec(ctx, `
 		DELETE FROM core.media
 		 WHERE kind = $3
 		   AND (person_id IS NOT DISTINCT FROM $1)
 		   AND (organization_id IS NOT DISTINCT FROM $2)`,
-		cible.PersonID, cible.OrganizationID, cible.Kind); err != nil {
+		target.PersonID, target.OrganizationID, target.Kind); err != nil {
 		return err
 	}
 	_, err := pool.Exec(ctx, `
@@ -329,8 +329,8 @@ func inserer(ctx context.Context, pool *pgxpool.Pool, cible Cible,
 		  (person_id, organization_id, kind, fichier, source_url,
 		   licence, licence_code, auteur, largeur, hauteur)
 		VALUES ($1,$2,$3,$4,$5,$6,$7,NULLIF($8,''),$9,$10)`,
-		cible.PersonID, cible.OrganizationID, cible.Kind, local, sourceURL,
-		licence, licenceCode, auteur, largeur, hauteur)
+		target.PersonID, target.OrganizationID, target.Kind, local, sourceURL,
+		licence, licenceCode, author, width, height)
 	return err
 }
 

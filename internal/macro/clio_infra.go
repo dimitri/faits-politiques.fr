@@ -21,7 +21,7 @@ import (
 var SourceCLIOInfraPopulation = archive.Source{
 	Slug: "clio-infra-population", Label: "CLIO-INFRA — Total Population",
 	Publisher: "IISH Amsterdam (CLIO-INFRA)", Tier: "SECONDARY_PRESS",
-	Licence: "CC0-1.0", ReuseClass: "OPEN",
+	License: "CC0-1.0", ReuseClass: "OPEN",
 	Attribution: "Source : CLIO-INFRA, Total Population (clio-infra.eu)",
 	Cadence:     "ponctuelle (série historique figée, non révisée)",
 	Notes: "Séries par pays aux frontières ACTUELLES, pas aux frontières coloniales : la " +
@@ -32,7 +32,7 @@ var SourceCLIOInfraPopulation = archive.Source{
 
 const clioInfraPopulationURL = "https://clio-infra.eu/data/TotalPopulation_Compact.xlsx"
 
-var clioInfraPaysIndochine = map[string]string{
+var clioInfraIndochinaCountries = map[string]string{
 	"Vietnam":  "Vietnam",
 	"Cambodia": "Cambodge",
 	"Laos":     "Laos",
@@ -65,7 +65,7 @@ func IngestCLIOInfraPopulation(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	// « Data Long Format » : une ligne par (pays, année), pas un classeur
 	// large avec une colonne par année — jamais besoin de repérer un en-tête
 	// d'années comme pour internal/macro/pauvrete.go.
-	lignes, err := x.rows("Data Long Format")
+	sheetRows, err := x.rows("Data Long Format")
 	if err != nil {
 		return fail(err)
 	}
@@ -84,24 +84,24 @@ func IngestCLIOInfraPopulation(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	}
 
 	var rows [][]any
-	for i, l := range lignes {
+	for i, l := range sheetRows {
 		if i == 0 {
 			continue // en-tête : ccode, country.name, year, value
 		}
-		nomSource := strings.TrimSpace(l["B"])
-		pays, ok := clioInfraPaysIndochine[nomSource]
+		sourceName := strings.TrimSpace(l["B"])
+		country, ok := clioInfraIndochinaCountries[sourceName]
 		if !ok {
 			continue
 		}
-		anneeF, err := strconv.ParseFloat(l["C"], 64)
+		yearF, err := strconv.ParseFloat(l["C"], 64)
 		if err != nil {
 			continue
 		}
-		valeur, err := strconv.ParseFloat(l["D"], 64)
-		if err != nil || valeur <= 0 {
+		value, err := strconv.ParseFloat(l["D"], 64)
+		if err != nil || value <= 0 {
 			continue
 		}
-		rows = append(rows, []any{pays, int(anneeF), valeur, srcID})
+		rows = append(rows, []any{country, int(yearF), value, srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("aucune ligne extraite pour le Viêt Nam, le Cambodge ou le Laos"))

@@ -24,7 +24,7 @@ import (
 var SourceCHES = archive.Source{
 	Slug: "ches-2024", Label: "Chapel Hill Expert Survey 2024",
 	Publisher: "Chapel Hill Expert Survey", Tier: "SECONDARY_PRESS",
-	Licence:     "Aucune licence explicite publiée ; citation exigée",
+	License:     "Aucune licence explicite publiée ; citation exigée",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : 2024 Chapel Hill Expert Survey (Jolly, Bakker, Hooghe, Marks, Polk, Rovny, Steenbergen, Vachudova)",
 	Cadence:     "par vague, environ tous les quatre ans",
@@ -38,7 +38,7 @@ const CHESURL = "https://github.com/chesdata/chesdata.github.io/releases/downloa
 // récupérer — voir DownloadTargets, qui les réunit avec celles des deux
 // autres connecteurs du paquet.
 func CHESDownloadTargets() []archive.DownloadTarget {
-	return []archive.DownloadTarget{{Nom: "ches", Source: SourceCHES, URL: CHESURL, Ext: ".csv"}}
+	return []archive.DownloadTarget{{Name: "ches", Source: SourceCHES, URL: CHESURL, Ext: ".csv"}}
 }
 
 // DownloadTargets liste toutes les URL que ingestPartis récupère (comptes de
@@ -123,11 +123,11 @@ func IngestCHES(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		if get(rec, "country") != chesFrance {
 			continue
 		}
-		abrev := get(rec, "party")
-		if abrev == "" {
+		abbr := get(rec, "party")
+		if abbr == "" {
 			continue
 		}
-		orgID, err := upsertCHESParty(ctx, pool, abrev, get(rec, "party_id"))
+		orgID, err := upsertCHESParty(ctx, pool, abbr, get(rec, "party_id"))
 		if err != nil {
 			return err
 		}
@@ -161,13 +161,13 @@ func IngestCHES(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 // CHES ne publie que l'abréviation du parti. Le rapprochement avec une
 // organisation française est une DÉCISION, prise dans data/organisations.csv ;
 // ici on ne crée que l'entrée du référentiel, nommée comme lui la nomme.
-func upsertCHESParty(ctx context.Context, pool *pgxpool.Pool, abrev, chesID string) (int64, error) {
+func upsertCHESParty(ctx context.Context, pool *pgxpool.Pool, abbr, chesID string) (int64, error) {
 	var orgID int64
 	err := pool.QueryRow(ctx, `
 		INSERT INTO core.organization (slug, kind, name, short_name)
 		VALUES ($1,'PARTY',$2,$2)
 		ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-		RETURNING id`, "ches-"+Slugify(abrev), abrev).Scan(&orgID)
+		RETURNING id`, "ches-"+Slugify(abbr), abbr).Scan(&orgID)
 	if err != nil {
 		return 0, err
 	}

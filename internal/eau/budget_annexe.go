@@ -27,7 +27,7 @@ var SourceBudgetAnnexeEau = archive.Source{
 	Slug: "ofgl-budget-annexe-eau", Label: "OFGL — budgets annexes M49 (eau et assainissement), communes et EPCI",
 	Publisher: "Observatoire des finances et de la gestion publique locales",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : OFGL (Observatoire des finances et de la gestion publique locales), " +
 		"d'après les comptes de gestion de la DGFiP",
 	Cadence: "annuelle",
@@ -57,7 +57,7 @@ func urlBudgetAnnexe(dataset, selectCols string) string {
 var urlBudgetAnnexeCommunes = urlBudgetAnnexe("ofgl-base-communes", "com_code,com_name,dep_code,nomen,agregat,exer,montant,lbudg")
 var urlBudgetAnnexeGFP = urlBudgetAnnexe("ofgl-base-gfp", "epci_code,epci_name,nomen,agregat,exer,montant,lbudg")
 
-func agregatBudgetAnnexe(s string) (string, bool) {
+func aggregateBudgetAnnexe(s string) (string, bool) {
 	switch s {
 	case "Dépenses totales":
 		return "DEPENSES_TOTALES", true
@@ -67,7 +67,7 @@ func agregatBudgetAnnexe(s string) (string, bool) {
 	return "", false
 }
 
-func lireCSVBudgetAnnexe(path string) ([]map[string]string, error) {
+func readCSVBudgetAnnexe(path string) ([]map[string]string, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -101,56 +101,56 @@ func lireCSVBudgetAnnexe(path string) ([]map[string]string, error) {
 	return out, nil
 }
 
-type ligneBudgetAnnexe struct {
-	TypeCollectivite string
+type budgetAnnexeRow struct {
+	CollectivityType string
 	Code             string
-	NomCollectivite  string
-	NomBudget        string
+	CollectivityName string
+	BudgetName       string
 	Nomenclature     string
-	Annee            int
-	Agregat          string
-	MontantEUR       float64
+	Year             int
+	Aggregate        string
+	AmountEUR        float64
 }
 
-func chargerBudgetAnnexe(path, typeCollectivite, colCode, colNom string) ([]ligneBudgetAnnexe, error) {
-	recs, err := lireCSVBudgetAnnexe(path)
+func loadBudgetAnnexe(path, collectivityType, colCode, colName string) ([]budgetAnnexeRow, error) {
+	recs, err := readCSVBudgetAnnexe(path)
 	if err != nil {
 		return nil, err
 	}
-	var lignes []ligneBudgetAnnexe
+	var entries []budgetAnnexeRow
 	for n, r := range recs {
 		code := r[colCode]
 		nomenclature := r["nomen"]
 		if code == "" || (nomenclature != "M49" && nomenclature != "M49A") {
 			continue
 		}
-		agregat, ok := agregatBudgetAnnexe(r["agregat"])
+		aggregate, ok := aggregateBudgetAnnexe(r["agregat"])
 		if !ok {
 			continue
 		}
-		annee, err := strconv.Atoi(r["exer"])
+		year, err := strconv.Atoi(r["exer"])
 		if err != nil {
 			return nil, fmt.Errorf("ligne %d, année illisible %q : %w", n+2, r["exer"], err)
 		}
-		montant, err := strconv.ParseFloat(r["montant"], 64)
+		amount, err := strconv.ParseFloat(r["montant"], 64)
 		if err != nil {
 			return nil, fmt.Errorf("ligne %d, montant illisible %q : %w", n+2, r["montant"], err)
 		}
-		lignes = append(lignes, ligneBudgetAnnexe{
-			TypeCollectivite: typeCollectivite,
+		entries = append(entries, budgetAnnexeRow{
+			CollectivityType: collectivityType,
 			Code:             code,
-			NomCollectivite:  r[colNom],
-			NomBudget:        r["lbudg"],
+			CollectivityName: r[colName],
+			BudgetName:       r["lbudg"],
 			Nomenclature:     nomenclature,
-			Annee:            annee,
-			Agregat:          agregat,
-			MontantEUR:       montant,
+			Year:             year,
+			Aggregate:        aggregate,
+			AmountEUR:        amount,
 		})
 	}
-	if lignes == nil {
+	if entries == nil {
 		return nil, fmt.Errorf("aucune ligne lue")
 	}
-	return lignes, nil
+	return entries, nil
 }
 
 // IngestBudgetAnnexeEau charge les budgets annexes M49/M49A (eau et
@@ -174,7 +174,7 @@ func IngestBudgetAnnexeEau(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	if err != nil {
 		return fail(fmt.Errorf("communes : %w", err))
 	}
-	lignesCom, err := chargerBudgetAnnexe(fCom.Path, "COMMUNE", "com_code", "com_name")
+	entriesCom, err := loadBudgetAnnexe(fCom.Path, "COMMUNE", "com_code", "com_name")
 	if err != nil {
 		return fail(fmt.Errorf("communes : %w", err))
 	}
@@ -183,17 +183,17 @@ func IngestBudgetAnnexeEau(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	if err != nil {
 		return fail(fmt.Errorf("EPCI : %w", err))
 	}
-	lignesGFP, err := chargerBudgetAnnexe(fGFP.Path, "EPCI", "epci_code", "epci_name")
+	entriesGFP, err := loadBudgetAnnexe(fGFP.Path, "EPCI", "epci_code", "epci_name")
 	if err != nil {
 		return fail(fmt.Errorf("EPCI : %w", err))
 	}
 
-	toutes := append(lignesCom, lignesGFP...)
-	rows := make([][]any, 0, len(toutes))
-	for _, l := range toutes {
+	all := append(entriesCom, entriesGFP...)
+	rows := make([][]any, 0, len(all))
+	for _, l := range all {
 		rows = append(rows, []any{
-			l.TypeCollectivite, l.Code, l.NomCollectivite, l.NomBudget,
-			l.Nomenclature, l.Annee, l.Agregat, l.MontantEUR, srcID,
+			l.CollectivityType, l.Code, l.CollectivityName, l.BudgetName,
+			l.Nomenclature, l.Year, l.Aggregate, l.AmountEUR, srcID,
 		})
 	}
 
@@ -223,7 +223,7 @@ func IngestBudgetAnnexeEau(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		pgx.CopyFromRows(rows)); err != nil {
 		return fail(fmt.Errorf("budget_annexe_eau : %w", err))
 	}
-	err = bulkload.SansContraintesFK(ctx, tx, "core.budget_annexe_eau", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.budget_annexe_eau", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO core.budget_annexe_eau AS tgt
 			USING tmp_budget_annexe_eau AS src
@@ -249,7 +249,7 @@ func IngestBudgetAnnexeEau(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"communes": len(lignesCom), "epci": len(lignesGFP)}, "")
-	fmt.Printf("  budget annexe eau (M49/M49A) : %d lignes communes, %d lignes EPCI\n", len(lignesCom), len(lignesGFP))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"communes": len(entriesCom), "epci": len(entriesGFP)}, "")
+	fmt.Printf("  budget annexe eau (M49/M49A) : %d lignes communes, %d lignes EPCI\n", len(entriesCom), len(entriesGFP))
 	return nil
 }

@@ -13,7 +13,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// SourcePersonnelCategorie : le second degré (core.education_personnel_etablissement,
+// SourceStaffCategory : le second degré (core.education_personnel_etablissement,
 // effectifs.go) ne publie qu'un résidu « ETP autre » qui mélange direction,
 // administratif et technique — voir docs/education-donnees.md § 3. La Depp
 // publie la vraie décomposition, par catégorie précise, dans son Panorama
@@ -23,11 +23,11 @@ import (
 // précisément (le site education.gouv.fr rejette les requêtes automatisées
 // par un défi Cloudflare qui exige l'exécution de JavaScript, contrairement
 // au chemin statique du PDF lui-même, atteignable sans contournement).
-var SourcePersonnelCategorie = archive.Source{
+var SourceStaffCategory = archive.Source{
 	Slug: "depp-panorama-personnels-categorie", Label: "Depp — personnels non enseignants par catégorie précise (Panorama)",
 	Publisher: "Direction de l'évaluation, de la prospective et de la performance (Depp)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de l'Éducation nationale (Depp), Panorama statistique des personnels de l'enseignement scolaire",
 	Cadence:     "annuelle (édition d'octobre)",
 	Notes: "Rentrée 2024 seulement (édition 2024-2025 du Panorama). Extrait de deux tableaux du " +
@@ -39,67 +39,67 @@ var SourcePersonnelCategorie = archive.Source{
 		"séparées. Chaque sous-total est revérifié à l'ingestion contre la somme de ses composantes.",
 }
 
-const urlPersonnelCategorie = "https://www.education.gouv.fr/sites/default/files/document/" +
+const urlStaffCategory = "https://www.education.gouv.fr/sites/default/files/document/" +
 	"panorama-statistique-des-personnels-de-l-enseignement-scolaire-2024-2025-475342.pdf"
 
-const anneePersonnelCategorie = 2024
+const staffCategoryYear = 2024
 
-// ligneEnsemble : une ligne « Ensemble » d'un tableau du Panorama — effectif
+// totalRow : une ligne « Ensemble » d'un tableau du Panorama — effectif
 // et ETP, les deux seules colonnes retenues (pas les pourcentages d'âge, de
 // temps partiel, etc., hors du besoin de ce chargement).
-type ligneEnsemble struct {
-	Effectif int
-	ETP      float64
+type totalRow struct {
+	Headcount int
+	ETP       float64
 }
 
-var reEnsemble = regexp.MustCompile(`Ensemble\s+(\d{1,3}(?:\s\d{3})*)\s.*?(\d{1,3}(?:\s\d{3})*)\s*$`)
+var reTotalLine = regexp.MustCompile(`Ensemble\s+(\d{1,3}(?:\s\d{3})*)\s.*?(\d{1,3}(?:\s\d{3})*)\s*$`)
 
-func parseNombreEspace(s string) (int, error) {
+func parseSpacedNumber(s string) (int, error) {
 	return strconv.Atoi(strings.ReplaceAll(s, " ", ""))
 }
 
-// lignesEnsembleEntre extrait, dans l'ordre d'apparition, toutes les lignes
+// totalRowsBetween extrait, dans l'ordre d'apparition, toutes les lignes
 // « Ensemble » entre deux bornes textuelles (bornes incluses pour le début,
 // exclues pour la fin) — une région correspondant à un seul tableau du PDF.
-func lignesEnsembleEntre(lignes []string, debut, fin string) ([]ligneEnsemble, error) {
-	iDebut := -1
-	for i, l := range lignes {
-		if strings.Contains(l, debut) {
-			iDebut = i
+func totalRowsBetween(lines []string, start, end string) ([]totalRow, error) {
+	startIdx := -1
+	for i, l := range lines {
+		if strings.Contains(l, start) {
+			startIdx = i
 			break
 		}
 	}
-	if iDebut < 0 {
-		return nil, fmt.Errorf("repère de début %q introuvable — le format du PDF a peut-être changé", debut)
+	if startIdx < 0 {
+		return nil, fmt.Errorf("repère de début %q introuvable — le format du PDF a peut-être changé", start)
 	}
-	iFin := len(lignes)
-	for i := iDebut + 1; i < len(lignes); i++ {
-		if strings.Contains(lignes[i], fin) {
-			iFin = i
+	endIdx := len(lines)
+	for i := startIdx + 1; i < len(lines); i++ {
+		if strings.Contains(lines[i], end) {
+			endIdx = i
 			break
 		}
 	}
-	var out []ligneEnsemble
-	for _, l := range lignes[iDebut:iFin] {
-		m := reEnsemble.FindStringSubmatch(l)
+	var out []totalRow
+	for _, l := range lines[startIdx:endIdx] {
+		m := reTotalLine.FindStringSubmatch(l)
 		if m == nil {
 			continue
 		}
-		effectif, err := parseNombreEspace(m[1])
+		headcount, err := parseSpacedNumber(m[1])
 		if err != nil {
 			return nil, fmt.Errorf("effectif illisible dans %q : %w", l, err)
 		}
-		etpInt, err := parseNombreEspace(m[2])
+		etpInt, err := parseSpacedNumber(m[2])
 		if err != nil {
 			return nil, fmt.Errorf("ETP illisible dans %q : %w", l, err)
 		}
-		out = append(out, ligneEnsemble{Effectif: effectif, ETP: float64(etpInt)})
+		out = append(out, totalRow{Headcount: headcount, ETP: float64(etpInt)})
 	}
 	return out, nil
 }
 
-func IngestPersonnelCategorie(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourcePersonnelCategorie)
+func IngestStaffCategory(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceStaffCategory)
 	if err != nil {
 		return err
 	}
@@ -115,7 +115,7 @@ func IngestPersonnelCategorie(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	if _, err := exec.LookPath("pdftotext"); err != nil {
 		return fail(fmt.Errorf("binaire pdftotext (paquet poppler-utils) introuvable sur le PATH : %w", err))
 	}
-	f, err := arch.Fetch(ctx, srcID, runID, urlPersonnelCategorie, ".pdf")
+	f, err := arch.Fetch(ctx, srcID, runID, urlStaffCategory, ".pdf")
 	if err != nil {
 		return fail(err)
 	}
@@ -123,7 +123,7 @@ func IngestPersonnelCategorie(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	if err != nil {
 		return fail(fmt.Errorf("pdftotext : %w", err))
 	}
-	lignes := strings.Split(string(out), "\n")
+	lines := strings.Split(string(out), "\n")
 
 	// Figure 3.1 : répartition des personnels non enseignants par filière —
 	// 15 lignes « Ensemble » dans cet ordre exact (vérifié à la main sur
@@ -131,19 +131,19 @@ func IngestPersonnelCategorie(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	// [total encadrement], éducation, assistance éducative, [total vie
 	// scolaire], administrative, santé et sociale, technique, [total ASS],
 	// ITRF, [total titulaires], [total non-titulaires], [total général].
-	fig31, err := lignesEnsembleEntre(lignes, "Figure 3.1 –", "Figure 3.2 –")
+	fig31, err := totalRowsBetween(lines, "Figure 3.1 –", "Figure 3.2 –")
 	if err != nil {
 		return fail(fmt.Errorf("Figure 3.1 : %w", err))
 	}
 	if len(fig31) != 15 {
 		return fail(fmt.Errorf("Figure 3.1 : 15 lignes « Ensemble » attendues, %d trouvées — le format a peut-être changé", len(fig31)))
 	}
-	direction, inspection, encadrementSup := fig31[0], fig31[1], fig31[2]
-	encadrementTotal, educationTotal := fig31[3], fig31[4]
-	assistanceEducativeTotal, vieScolaireTotal := fig31[5], fig31[6]
-	administrative, santeSociale, technique := fig31[7], fig31[8], fig31[9]
+	management, inspection, seniorManagement := fig31[0], fig31[1], fig31[2]
+	managementTotal, educationTotal := fig31[3], fig31[4]
+	educationalAssistanceTotal, schoolLifeTotal := fig31[5], fig31[6]
+	administrative, healthSocial, technical := fig31[7], fig31[8], fig31[9]
 	assTotal, itrf := fig31[10], fig31[11]
-	nonEnseignantsTotal := fig31[14]
+	nonTeachingTotal := fig31[14]
 
 	// Figure 3.10 : détail des personnels de vie scolaire — 10 lignes
 	// « Ensemble » dans cet ordre : CPE, PsyEN/orientation, éducation non
@@ -151,37 +151,37 @@ func IngestPersonnelCategorie(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	// éducative, ETP amputé par une mise en page collée — ignoré], [total
 	// titulaires], [total non-titulaires], [total vie scolaire, même
 	// défaut — ignoré].
-	fig310, err := lignesEnsembleEntre(lignes, "Figure 3.10 –", "LES PERSONNELS ASS ET LES ITRF")
+	fig310, err := totalRowsBetween(lines, "Figure 3.10 –", "LES PERSONNELS ASS ET LES ITRF")
 	if err != nil {
 		return fail(fmt.Errorf("Figure 3.10 : %w", err))
 	}
 	if len(fig310) != 10 {
 		return fail(fmt.Errorf("Figure 3.10 : 10 lignes « Ensemble » attendues, %d trouvées — le format a peut-être changé", len(fig310)))
 	}
-	cpe, psyen, educationNonTitulaires := fig310[0], fig310[1], fig310[2]
+	cpe, psyen, educationNonTenured := fig310[0], fig310[1], fig310[2]
 	aesh, aed := fig310[4], fig310[5]
 
 	// Vérifications croisées : chaque sous-total doit être la somme de ses
 	// composantes, à l'arrondi près (comme le compte de résultat des
 	// hôpitaux publics, § 1.9 du dossier santé) — sinon le repérage
 	// positionnel s'est décalé.
-	verifier := func(nom string, total int, composantes ...int) error {
-		somme := 0
-		for _, c := range composantes {
-			somme += c
+	verify := func(name string, total int, components ...int) error {
+		sum := 0
+		for _, c := range components {
+			sum += c
 		}
-		if total != somme {
-			return fmt.Errorf("%s : total %d ≠ somme des composantes %d — le repérage des lignes s'est probablement décalé", nom, total, somme)
+		if total != sum {
+			return fmt.Errorf("%s : total %d ≠ somme des composantes %d — le repérage des lignes s'est probablement décalé", name, total, sum)
 		}
 		return nil
 	}
 	for _, chk := range []error{
-		verifier("encadrement", encadrementTotal.Effectif, direction.Effectif, inspection.Effectif, encadrementSup.Effectif),
-		verifier("éducation", educationTotal.Effectif, cpe.Effectif, psyen.Effectif, educationNonTitulaires.Effectif),
-		verifier("assistance éducative", assistanceEducativeTotal.Effectif, aesh.Effectif, aed.Effectif),
-		verifier("vie scolaire", vieScolaireTotal.Effectif, educationTotal.Effectif, assistanceEducativeTotal.Effectif),
-		verifier("ASS", assTotal.Effectif, administrative.Effectif, santeSociale.Effectif, technique.Effectif),
-		verifier("non-enseignants", nonEnseignantsTotal.Effectif, encadrementTotal.Effectif, vieScolaireTotal.Effectif, assTotal.Effectif, itrf.Effectif),
+		verify("encadrement", managementTotal.Headcount, management.Headcount, inspection.Headcount, seniorManagement.Headcount),
+		verify("éducation", educationTotal.Headcount, cpe.Headcount, psyen.Headcount, educationNonTenured.Headcount),
+		verify("assistance éducative", educationalAssistanceTotal.Headcount, aesh.Headcount, aed.Headcount),
+		verify("vie scolaire", schoolLifeTotal.Headcount, educationTotal.Headcount, educationalAssistanceTotal.Headcount),
+		verify("ASS", assTotal.Headcount, administrative.Headcount, healthSocial.Headcount, technical.Headcount),
+		verify("non-enseignants", nonTeachingTotal.Headcount, managementTotal.Headcount, schoolLifeTotal.Headcount, assTotal.Headcount, itrf.Headcount),
 	} {
 		if chk != nil {
 			return fail(chk)
@@ -189,24 +189,24 @@ func IngestPersonnelCategorie(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	}
 
 	rows := [][]any{
-		{anneePersonnelCategorie, "PERSONNELS_DIRECTION", direction.Effectif, direction.ETP, srcID},
-		{anneePersonnelCategorie, "PERSONNELS_INSPECTION", inspection.Effectif, inspection.ETP, srcID},
-		{anneePersonnelCategorie, "ENCADREMENT_SUPERIEUR", encadrementSup.Effectif, encadrementSup.ETP, srcID},
-		{anneePersonnelCategorie, "ENCADREMENT_TOTAL", encadrementTotal.Effectif, encadrementTotal.ETP, srcID},
-		{anneePersonnelCategorie, "CPE", cpe.Effectif, cpe.ETP, srcID},
-		{anneePersonnelCategorie, "PSYEN_ORIENTATION", psyen.Effectif, psyen.ETP, srcID},
-		{anneePersonnelCategorie, "EDUCATION_NON_TITULAIRES", educationNonTitulaires.Effectif, educationNonTitulaires.ETP, srcID},
-		{anneePersonnelCategorie, "EDUCATION_TOTAL", educationTotal.Effectif, educationTotal.ETP, srcID},
-		{anneePersonnelCategorie, "AESH", aesh.Effectif, aesh.ETP, srcID},
-		{anneePersonnelCategorie, "AED", aed.Effectif, aed.ETP, srcID},
-		{anneePersonnelCategorie, "ASSISTANCE_EDUCATIVE_TOTAL", assistanceEducativeTotal.Effectif, assistanceEducativeTotal.ETP, srcID},
-		{anneePersonnelCategorie, "VIE_SCOLAIRE_TOTAL", vieScolaireTotal.Effectif, vieScolaireTotal.ETP, srcID},
-		{anneePersonnelCategorie, "ADMINISTRATIVE", administrative.Effectif, administrative.ETP, srcID},
-		{anneePersonnelCategorie, "SANTE_SOCIALE", santeSociale.Effectif, santeSociale.ETP, srcID},
-		{anneePersonnelCategorie, "TECHNIQUE", technique.Effectif, technique.ETP, srcID},
-		{anneePersonnelCategorie, "ASS_TOTAL", assTotal.Effectif, assTotal.ETP, srcID},
-		{anneePersonnelCategorie, "ITRF", itrf.Effectif, itrf.ETP, srcID},
-		{anneePersonnelCategorie, "NON_ENSEIGNANTS_TOTAL", nonEnseignantsTotal.Effectif, nonEnseignantsTotal.ETP, srcID},
+		{staffCategoryYear, "PERSONNELS_DIRECTION", management.Headcount, management.ETP, srcID},
+		{staffCategoryYear, "PERSONNELS_INSPECTION", inspection.Headcount, inspection.ETP, srcID},
+		{staffCategoryYear, "ENCADREMENT_SUPERIEUR", seniorManagement.Headcount, seniorManagement.ETP, srcID},
+		{staffCategoryYear, "ENCADREMENT_TOTAL", managementTotal.Headcount, managementTotal.ETP, srcID},
+		{staffCategoryYear, "CPE", cpe.Headcount, cpe.ETP, srcID},
+		{staffCategoryYear, "PSYEN_ORIENTATION", psyen.Headcount, psyen.ETP, srcID},
+		{staffCategoryYear, "EDUCATION_NON_TITULAIRES", educationNonTenured.Headcount, educationNonTenured.ETP, srcID},
+		{staffCategoryYear, "EDUCATION_TOTAL", educationTotal.Headcount, educationTotal.ETP, srcID},
+		{staffCategoryYear, "AESH", aesh.Headcount, aesh.ETP, srcID},
+		{staffCategoryYear, "AED", aed.Headcount, aed.ETP, srcID},
+		{staffCategoryYear, "ASSISTANCE_EDUCATIVE_TOTAL", educationalAssistanceTotal.Headcount, educationalAssistanceTotal.ETP, srcID},
+		{staffCategoryYear, "VIE_SCOLAIRE_TOTAL", schoolLifeTotal.Headcount, schoolLifeTotal.ETP, srcID},
+		{staffCategoryYear, "ADMINISTRATIVE", administrative.Headcount, administrative.ETP, srcID},
+		{staffCategoryYear, "SANTE_SOCIALE", healthSocial.Headcount, healthSocial.ETP, srcID},
+		{staffCategoryYear, "TECHNIQUE", technical.Headcount, technical.ETP, srcID},
+		{staffCategoryYear, "ASS_TOTAL", assTotal.Headcount, assTotal.ETP, srcID},
+		{staffCategoryYear, "ITRF", itrf.Headcount, itrf.ETP, srcID},
+		{staffCategoryYear, "NON_ENSEIGNANTS_TOTAL", nonTeachingTotal.Headcount, nonTeachingTotal.ETP, srcID},
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -215,12 +215,12 @@ func IngestPersonnelCategorie(ctx context.Context, pool *pgxpool.Pool, arch *arc
 	}
 	defer tx.Rollback(ctx)
 
-	// Seule la rentrée anneePersonnelCategorie est chargée par ce connecteur ;
+	// Seule la rentrée staffCategoryYear est chargée par ce connecteur ;
 	// une année future, une fois chargée, ne doit pas être touchée ici.
 	if _, err := tx.Exec(ctx, fmt.Sprintf(`
 		CREATE OR REPLACE TEMPORARY VIEW education_personnel_categorie_scope AS
 		SELECT * FROM core.education_personnel_categorie WHERE annee = %d
-		WITH LOCAL CHECK OPTION`, anneePersonnelCategorie)); err != nil {
+		WITH LOCAL CHECK OPTION`, staffCategoryYear)); err != nil {
 		return fail(err)
 	}
 	if _, err := tx.Exec(ctx, `

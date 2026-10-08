@@ -13,20 +13,20 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var SourceMuseesFrance = archive.Source{
+var SourceMuseums = archive.Source{
 	Slug: "museofile", Label: "Répertoire des Musées de France (Muséofile)",
 	Publisher: "Ministère de la Culture", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de la Culture, data.culture.gouv.fr",
 	Cadence:     "hebdomadaire",
 }
 
 const urlMuseofile = "https://ministere-culture.s3.sbg.io.cloud.ovh.net/POP/museofile.csv"
 
-// IngestMuseesFrance charge le répertoire des musées labellisés « Musée de
+// IngestMuseums charge le répertoire des musées labellisés « Musée de
 // France » (Muséofile). Voir docs/culture-donnees.md.
-func IngestMuseesFrance(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceMuseesFrance)
+func IngestMuseums(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceMuseums)
 	if err != nil {
 		return err
 	}
@@ -66,13 +66,13 @@ func IngestMuseesFrance(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		}
 	}
 
-	type ligne struct {
-		identifiant, nom, ville, codePostal, departement, region, domaine string
-		lon, lat                                                          float64
-		aCoord                                                            bool
+	type museumRow struct {
+		id, name, city, postalCode, department, region, domain string
+		lon, lat                                               float64
+		hasCoord                                               bool
 	}
-	var lignes []ligne
-	var sansCoord int
+	var rows []museumRow
+	var noCoord int
 	for {
 		rec, err := r.Read()
 		if err == io.EOF {
@@ -81,10 +81,10 @@ func IngestMuseesFrance(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		if err != nil {
 			return fail(fmt.Errorf("ligne illisible : %w", err))
 		}
-		l := ligne{
-			identifiant: rec[col["Identifiant"]], nom: rec[col["Nom_officiel"]], ville: rec[col["Ville"]],
-			codePostal: rec[col["Code_postal"]], departement: rec[col["Departement"]], region: rec[col["Region"]],
-			domaine: rec[col["Domaine_thematique"]],
+		row := museumRow{
+			id: rec[col["Identifiant"]], name: rec[col["Nom_officiel"]], city: rec[col["Ville"]],
+			postalCode: rec[col["Code_postal"]], department: rec[col["Departement"]], region: rec[col["Region"]],
+			domain: rec[col["Domaine_thematique"]],
 		}
 		coord := strings.TrimSpace(rec[col["Coordonnees"]])
 		if coord != "" {
@@ -93,17 +93,17 @@ func IngestMuseesFrance(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 				lat, errLat := strconv.ParseFloat(strings.TrimSpace(parts[0]), 64)
 				lon, errLon := strconv.ParseFloat(strings.TrimSpace(parts[1]), 64)
 				if errLat == nil && errLon == nil {
-					l.lat, l.lon, l.aCoord = lat, lon, true
+					row.lat, row.lon, row.hasCoord = lat, lon, true
 				}
 			}
 		}
-		if !l.aCoord {
-			sansCoord++
+		if !row.hasCoord {
+			noCoord++
 		}
-		lignes = append(lignes, l)
+		rows = append(rows, row)
 	}
-	if len(lignes) < 1000 {
-		return fail(fmt.Errorf("seulement %d lignes lues, attendu au moins 1000", len(lignes)))
+	if len(rows) < 1000 {
+		return fail(fmt.Errorf("seulement %d lignes lues, attendu au moins 1000", len(rows)))
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -114,24 +114,24 @@ func IngestMuseesFrance(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	if _, err := tx.Exec(ctx, `DELETE FROM core.musee_france`); err != nil {
 		return fail(err)
 	}
-	for _, l := range lignes {
+	for _, row := range rows {
 		var geomExpr any
-		if l.aCoord {
-			geomExpr = fmt.Sprintf("SRID=4326;POINT(%f %f)", l.lon, l.lat)
+		if row.hasCoord {
+			geomExpr = fmt.Sprintf("SRID=4326;POINT(%f %f)", row.lon, row.lat)
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO core.musee_france (identifiant, nom, ville, code_postal, departement, region, domaine_thematique, geom, source_id)
 			VALUES ($1,$2,$3,$4,$5,$6,$7,ST_GeomFromEWKT($8),$9)`,
-			l.identifiant, l.nom, l.ville, nullifEmpty(l.codePostal), l.departement, l.region,
-			nullifEmpty(l.domaine), geomExpr, srcID); err != nil {
-			return fail(fmt.Errorf("%s : insertion : %w", l.identifiant, err))
+			row.id, row.name, row.city, nullifEmpty(row.postalCode), row.department, row.region,
+			nullifEmpty(row.domain), geomExpr, srcID); err != nil {
+			return fail(fmt.Errorf("%s : insertion : %w", row.id, err))
 		}
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(lignes), "sans_coordonnees": sansCoord}, "")
-	fmt.Printf("  Musées de France (Muséofile) : %d musées, %d sans coordonnées\n", len(lignes), sansCoord)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": len(rows), "sans_coordonnees": noCoord}, "")
+	fmt.Printf("  Musées de France (Muséofile) : %d musées, %d sans coordonnées\n", len(rows), noCoord)
 	return nil
 }

@@ -19,11 +19,11 @@ import (
 // macro-économiques (BDM), même mécanique que
 // internal/macro/chomage_insee.go (API SDMX, pas de fichier téléchargé : la
 // réponse EST la donnée).
-var SourceInseeBacReussite = archive.Source{
+var SourceInseeBacPassRate = archive.Source{
 	Slug: "insee-bac-reussite", Label: "INSEE — taux de réussite au baccalauréat, France",
 	Publisher: "INSEE (série Depp republiée en BDM)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : INSEE, taux de réussite au baccalauréat, série 001769473",
 	Cadence:     "annuelle",
 	Notes: "Tous baccalauréats confondus (général, technologique, professionnel) — l'INSEE publie " +
@@ -34,7 +34,7 @@ var SourceInseeBacReussite = archive.Source{
 		"réponse SDMX brute, pas un filtrage de ce connecteur.",
 }
 
-const inseeBacReussiteURL = "https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/001769473"
+const inseeBacPassRateURL = "https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/001769473"
 
 type sdmxDataSetBac struct {
 	Series struct {
@@ -44,12 +44,12 @@ type sdmxDataSetBac struct {
 }
 
 type sdmxObsBac struct {
-	Periode string `xml:"TIME_PERIOD,attr"`
-	Valeur  string `xml:"OBS_VALUE,attr"`
+	Period string `xml:"TIME_PERIOD,attr"`
+	Value  string `xml:"OBS_VALUE,attr"`
 }
 
-func IngestBacReussite(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceInseeBacReussite)
+func IngestBacPassRate(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceInseeBacPassRate)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func IngestBacReussite(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, inseeBacReussiteURL, ".xml")
+	f, err := arch.Fetch(ctx, srcID, runID, inseeBacPassRateURL, ".xml")
 	if err != nil {
 		return fail(err)
 	}
@@ -80,15 +80,15 @@ func IngestBacReussite(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 
 	var rows [][]any
 	for _, o := range ds.Series.Obs {
-		annee, err := strconv.Atoi(o.Periode)
+		year, err := strconv.Atoi(o.Period)
 		if err != nil {
 			continue // une ligne mal formée n'invalide pas les autres
 		}
-		v, err := strconv.ParseFloat(o.Valeur, 64)
+		v, err := strconv.ParseFloat(o.Value, 64)
 		if err != nil {
 			continue
 		}
-		rows = append(rows, []any{annee, v, srcID})
+		rows = append(rows, []any{year, v, srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("%d observations lues, aucune exploitable", len(ds.Series.Obs)))

@@ -91,9 +91,9 @@ func NormalizeDeports(ctx context.Context, pool *pgxpool.Pool) error {
 			        nullif($10,'')::timestamptz, nullif($11,'')::timestamptz)
 			ON CONFLICT (source_uid) DO NOTHING`,
 			d.UID, pid, nul(d.Legislature), nul(d.Cible.Type.Libelle),
-			nul(texteBrut(d.Cible.ReferenceTextuelle)), nul(d.Portee.Code),
+			nul(plainText(d.Cible.ReferenceTextuelle)), nul(d.Portee.Code),
 			nul(d.Portee.Libelle), nul(d.Instance.Libelle),
-			nul(texteBrut(d.Explication)), d.DateCreation, d.DatePublication,
+			nul(plainText(d.Explication)), d.DateCreation, d.DatePublication,
 		); err != nil {
 			return fmt.Errorf("déport %s : %w", d.UID, err)
 		}
@@ -107,13 +107,13 @@ func NormalizeDeports(ctx context.Context, pool *pgxpool.Pool) error {
 	return nil
 }
 
-// texteBrut retire le balisage HTML que l'Assemblée met dans les explications,
+// plainText retire le balisage HTML que l'Assemblée met dans les explications,
 // et rend les entités. Le découpage passe par un analyseur lexical et non par
 // une expression régulière (internal/balisage) : le motif retiré était
 // `<[^>]+>`, qui ne survit pas à un chevron dans un attribut. Le texte reste
 // celui du député, mot pour mot.
-func texteBrut(s string) string {
-	return balisage.Ligne(s)
+func plainText(s string) string {
+	return balisage.Line(s)
 }
 
 func nul(s string) any {

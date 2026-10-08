@@ -10,16 +10,16 @@ les réservait à qui sait le cloner.</p>
 Markdown du dépôt, à chaque construction. Elles ne sont ni résumées ni réécrites&nbsp;: ce que
 vous lisez ici est le texte que relit un contributeur.</p>
 
-{{range .Groupes}}
-<h2>{{.Famille}}</h2>
+{{range .Groups}}
+<h2>{{.Family}}</h2>
 {{if .Intro}}<p class="q">{{.Intro}}</p>{{end}}
 <div class="cartes trois">
 {{range .Docs}}
   <a class="carte" href="{{$.Root}}/comprendre/{{.Slug}}/">
-    <span class="t">{{.Titre}}</span>
-    <span class="d">{{if .Sections}}{{range $i, $s := .Sections}}{{if $i}} · {{end}}{{$s.Titre}}{{end}}{{else}}Document de méthode.{{end}}</span>
+    <span class="t">{{.Title}}</span>
+    <span class="d">{{if .Sections}}{{range $i, $s := .Sections}}{{if $i}} · {{end}}{{$s.Title}}{{end}}{{else}}Document de méthode.{{end}}</span>
     <span class="d" style="margin-top:.6rem;font:400 .74rem/1 var(--mono);color:var(--attenue)">
-      {{nb .Mots}} mots · <code>docs/{{.Fichier}}</code></span>
+      {{nb .Words}} mots · <code>docs/{{.File}}</code></span>
   </a>
 {{end}}
 </div>

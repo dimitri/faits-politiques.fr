@@ -20,13 +20,13 @@ import (
 
 const ConnectorVersion = "paie-v1"
 
-const Millesime = "2026-01-01"
+const ReferenceDate = "2026-01-01"
 
 var SourceBaremes = archive.Source{
 	Slug: "bareme-paie-2026", Label: "Barème de paie au 1er janvier 2026 : taux, plafond, réduction générale, destinataires",
 	Publisher:  "DILA (service-public.fr) ; INSEE (comptes de la Nation)",
 	Tier:       "PRIMARY_OFFICIAL",
-	Licence:    "Pages publiques de l'administration, citées avec lien ; les taux sont des éléments de droit",
+	License:    "Pages publiques de l'administration, citées avec lien ; les taux sont des éléments de droit",
 	ReuseClass: "ATTRIBUTION",
 	Attribution: "Sources : service-public.fr (Entreprendre), fiches F24542, A17906, A15386 ; " +
 		"Insee, Administrations publiques en 2025 (périmètre des administrations de sécurité sociale)",
@@ -40,8 +40,8 @@ var SourceBaremes = archive.Source{
 
 // pages archivées, et ce que chacune doit contenir pour être retenue.
 var pages = []struct {
-	cle, url string
-	attendu  []string
+	key, url string
+	expected []string
 }{
 	{"rgdu", "https://entreprendre.service-public.gouv.fr/vosdroits/F24542",
 		[]string{"T min = 0,0200", "T delta = 0,3781", "T delta = 0,3821", "21 876,40", "1,75", "6,01 %", "0,49 %", "arrondi à quatre décimales"}},
@@ -52,27 +52,27 @@ var pages = []struct {
 }
 
 var (
-	reBalises = regexp.MustCompile(`(?s)<script.*?</script>|<style.*?</style>|<[^>]+>`)
-	reBlancs  = regexp.MustCompile(`\s+`)
+	reTags       = regexp.MustCompile(`(?s)<script.*?</script>|<style.*?</style>|<[^>]+>`)
+	reWhitespace = regexp.MustCompile(`\s+`)
 )
 
-func texte(path string) (string, error) {
+func text(path string) (string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return "", err
 	}
-	t := html.UnescapeString(reBalises.ReplaceAllString(string(b), " "))
+	t := html.UnescapeString(reTags.ReplaceAllString(string(b), " "))
 	t = strings.NewReplacer(" ", " ", " ", " ", "’", "'").Replace(t)
-	return reBlancs.ReplaceAllString(t, " "), nil
+	return reWhitespace.ReplaceAllString(t, " "), nil
 }
 
-type organisme struct {
-	code, nom, statut, budget, sousSecteur, texteBudget, fondement, joTitre, doc string
+type recipient struct {
+	code, name, status, budget, subSector, budgetText, legalBasis, joTitle, doc string
 }
 
 // Le classement budgétaire de chaque destinataire. Sous-secteur de
 // comptabilité nationale : renseigné quand une source le dit.
-var organismes = []organisme{
+var recipients = []recipient{
 	{"DGFIP", "Direction générale des finances publiques", "administration de l'État", "ETAT", "S1311",
 		"loi de finances (budget général de l'État)",
 		"L'impôt sur le revenu, prélevé à la source par l'employeur et reversé à la DGFiP, est une recette du budget général de l'État.", "", ""},
@@ -124,13 +124,13 @@ var organismes = []organisme{
 		"Versement mobilité dû par les employeurs d'au moins onze salariés dans le ressort d'une AOM qui l'a institué (code général des collectivités territoriales, art. L. 2333-64). Absent du bulletin d'exemple.", "", ""},
 }
 
-type parametre struct {
-	code, libelle         string
-	valeur                string
-	unite, fondement, doc string
+type parameter struct {
+	code, label           string
+	value                 string
+	unit, legalBasis, doc string
 }
 
-var parametres = []parametre{
+var parameters = []parameter{
 	{"PMSS", "Plafond mensuel de la sécurité sociale", "4005", "EUR", "Arrêté fixant le plafond de la sécurité sociale pour 2026", "pass"},
 	{"PASS", "Plafond annuel de la sécurité sociale", "48060", "EUR", "Arrêté fixant le plafond de la sécurité sociale pour 2026", "pass"},
 	{"SMIC_HORAIRE", "Smic horaire brut", "12.02", "EUR", "Décret de revalorisation du Smic au 1er janvier 2026 ; repris par la fiche F24542", "rgdu"},
@@ -148,28 +148,28 @@ var parametres = []parametre{
 	{"AGIRC_ARRCO_VALEUR_SERVICE", "Agirc-Arrco : valeur de service du point", "1.4386", "EUR", "Agirc-Arrco, valeur fixée au 1er novembre 2024, non revalorisée au 1er novembre 2025", ""},
 }
 
-type taux struct {
-	code, part, libelle, rubrique string
-	ordre                         int
-	assiette, taux                string // taux vide : variable
-	effMin                        int
-	effMax                        int // 0 : sans limite
-	organisme, nature             string
-	deductible                    bool
-	rgduGroupe, rgduTaux          string
-	fondement, doc                string
+type contributionRate struct {
+	code, share, label, category string
+	order                        int
+	base, rate                   string // rate vide : variable
+	staffMin                     int
+	staffMax                     int // 0 : sans limite
+	recipient, nature            string
+	deductible                   bool
+	rgduGroup, rgduRate          string
+	legalBasis, doc              string
 }
 
-const baremeURSSAF = "barème URSSAF des taux de cotisations au 1er janvier 2026"
+const urssafSchedule = "barème URSSAF des taux de cotisations au 1er janvier 2026"
 
-var baremes = []taux{
+var rates = []contributionRate{
 	{"MALADIE", "EMPLOYEUR", "Sécurité sociale – maladie, maternité, invalidité, décès", "Santé", 10, "BRUT", "13.00", 0, 0, "CNAM", "MIXTE", true, "URSSAF", "13.00",
-		"Taux unique depuis le 1er janvier 2026 : le taux réduit est intégré à la réduction générale ; " + baremeURSSAF, "rgdu"},
+		"Taux unique depuis le 1er janvier 2026 : le taux réduit est intégré à la réduction générale ; " + urssafSchedule, "rgdu"},
 	{"ATMP", "EMPLOYEUR", "Accidents du travail – maladies professionnelles", "Accidents du travail – maladies professionnelles", 20, "BRUT", "", 0, 0, "ATMP", "DIFFERE", true, "URSSAF", "0.49",
 		"Taux notifié à chaque établissement par la Carsat (CSS, art. D. 242-6-1 et suivants)", ""},
-	{"VIEILLESSE_PLAFONNEE", "SALARIE", "Sécurité sociale – vieillesse plafonnée", "Retraite", 30, "TRANCHE_1", "6.90", 0, 0, "CNAV", "DIFFERE", true, "", "", baremeURSSAF, ""},
-	{"VIEILLESSE_PLAFONNEE", "EMPLOYEUR", "Sécurité sociale – vieillesse plafonnée", "Retraite", 30, "TRANCHE_1", "8.55", 0, 0, "CNAV", "DIFFERE", true, "URSSAF", "8.55", baremeURSSAF, ""},
-	{"VIEILLESSE_DEPLAFONNEE", "SALARIE", "Sécurité sociale – vieillesse déplafonnée", "Retraite", 31, "BRUT", "0.40", 0, 0, "CNAV", "DIFFERE", true, "", "", baremeURSSAF, ""},
+	{"VIEILLESSE_PLAFONNEE", "SALARIE", "Sécurité sociale – vieillesse plafonnée", "Retraite", 30, "TRANCHE_1", "6.90", 0, 0, "CNAV", "DIFFERE", true, "", "", urssafSchedule, ""},
+	{"VIEILLESSE_PLAFONNEE", "EMPLOYEUR", "Sécurité sociale – vieillesse plafonnée", "Retraite", 30, "TRANCHE_1", "8.55", 0, 0, "CNAV", "DIFFERE", true, "URSSAF", "8.55", urssafSchedule, ""},
+	{"VIEILLESSE_DEPLAFONNEE", "SALARIE", "Sécurité sociale – vieillesse déplafonnée", "Retraite", 31, "BRUT", "0.40", 0, 0, "CNAV", "DIFFERE", true, "", "", urssafSchedule, ""},
 	{"VIEILLESSE_DEPLAFONNEE", "EMPLOYEUR", "Sécurité sociale – vieillesse déplafonnée", "Retraite", 31, "BRUT", "2.11", 0, 0, "CNAV", "DIFFERE", true, "URSSAF", "2.11",
 		"Décret n° 2025-1446 du 31 décembre 2025, art. 1er : 2,02 % → 2,11 %, en échange d'une baisse du taux AT-MP", ""},
 	{"AGIRC_ARRCO_T1", "SALARIE", "Retraite complémentaire Agirc-Arrco – tranche 1", "Retraite", 32, "TRANCHE_1", "3.15", 0, 0, "AGIRC_ARRCO", "DIFFERE", true, "", "",
@@ -181,7 +181,7 @@ var baremes = []taux{
 	{"CEG_T1", "EMPLOYEUR", "Contribution d'équilibre général – tranche 1", "Retraite", 33, "TRANCHE_1", "1.29", 0, 0, "AGIRC_ARRCO", "DIFFERE", true, "IRC", "1.29",
 		"ANI du 17 novembre 2017", ""},
 	{"FAMILLE", "EMPLOYEUR", "Allocations familiales", "Famille", 40, "BRUT", "5.25", 0, 0, "CNAF", "SOLIDARITE", true, "URSSAF", "5.25",
-		"Taux unique depuis le 1er janvier 2026 (taux réduit intégré à la réduction générale) ; " + baremeURSSAF, "rgdu"},
+		"Taux unique depuis le 1er janvier 2026 (taux réduit intégré à la réduction générale) ; " + urssafSchedule, "rgdu"},
 	{"CHOMAGE", "EMPLOYEUR", "Assurance chômage", "Assurance chômage", 50, "BRUT", "4.00", 0, 0, "UNEDIC", "DIFFERE", true, "URSSAF", "4.00",
 		"4,00 % depuis le 1er mai 2025, hors bonus-malus ; fiche F24542", "rgdu"},
 	{"AGS", "EMPLOYEUR", "Garantie des salaires (AGS)", "Assurance chômage", 51, "BRUT", "0.25", 0, 0, "AGS", "DIFFERE", true, "", "",
@@ -211,10 +211,10 @@ var baremes = []taux{
 }
 
 // Le bulletin d'exemple de la note. Personnes et entreprise factices.
-var cas = []struct {
-	cas, brut          string
-	effectif           int
-	atmp, pas, descrip string
+var scenarios = []struct {
+	scenario, gross        string
+	staff                  int
+	atmp, pas, description string
 }{
 	{"technicienne-2500", "2500.00", 20, "1.50", "2.6",
 		"Technicienne d'atelier non-cadre, CDI temps plein (151,67 h), 2 500 € brut, entreprise de 20 salariés de métropole hors Alsace-Moselle ; " +
@@ -222,7 +222,7 @@ var cas = []struct {
 			"taux AT-MP notifié 1,50 % et taux d'impôt personnalisé 2,6 % : hypothèses."},
 }
 
-func nul(s string) any {
+func nilIfEmpty(s string) any {
 	if s == "" {
 		return nil
 	}
@@ -238,7 +238,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err != nil {
 		return err
 	}
-	stats, err := charger(ctx, pool, arch, srcID, runID)
+	stats, err := load(ctx, pool, arch, srcID, runID)
 	if err != nil {
 		err = fmt.Errorf("%s : %w", SourceBaremes.Slug, err)
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
@@ -249,24 +249,24 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	return nil
 }
 
-func charger(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, srcID, runID int64) (map[string]any, error) {
+func load(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, srcID, runID int64) (map[string]any, error) {
 	docs := map[string]any{"": nil}
 	for _, p := range pages {
 		f, err := arch.Fetch(ctx, srcID, runID, p.url, ".html")
 		if err != nil {
 			return nil, err
 		}
-		t, err := texte(f.Path)
+		t, err := text(f.Path)
 		if err != nil {
 			return nil, err
 		}
 		// Une page qui ne dit plus ce qu'on lui fait dire ne peut pas fonder une ligne.
-		for _, a := range p.attendu {
+		for _, a := range p.expected {
 			if !strings.Contains(t, a) {
 				return nil, fmt.Errorf("%s : « %s » absent de la page", p.url, a)
 			}
 		}
-		docs[p.cle] = f.DocumentID
+		docs[p.key] = f.DocumentID
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -281,12 +281,12 @@ func charger(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src
 	// (converti plus bas en MERGE, donc plus jamais vidé) porte une FK sur son
 	// code, et un DELETE de la table entière échouerait tant que des taux la
 	// référencent encore.
-	for _, o := range organismes {
+	for _, o := range recipients {
 		var jo any
-		if o.joTitre != "" {
+		if o.joTitle != "" {
 			var id string
-			if err := tx.QueryRow(ctx, `SELECT id FROM jo.texte WHERE titre_complet ILIKE $1 ORDER BY date_texte DESC LIMIT 1`, o.joTitre).Scan(&id); err != nil {
-				return nil, fmt.Errorf("%s : texte du JO introuvable (%s) : %w", o.code, o.joTitre, err)
+			if err := tx.QueryRow(ctx, `SELECT id FROM jo.texte WHERE titre_complet ILIKE $1 ORDER BY date_texte DESC LIMIT 1`, o.joTitle).Scan(&id); err != nil {
+				return nil, fmt.Errorf("%s : texte du JO introuvable (%s) : %w", o.code, o.joTitle, err)
 			}
 			jo = id
 		}
@@ -296,7 +296,7 @@ func charger(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src
 			ON CONFLICT (code) DO UPDATE SET nom = EXCLUDED.nom, statut = EXCLUDED.statut, budget = EXCLUDED.budget,
 			  sous_secteur = EXCLUDED.sous_secteur, texte_budget = EXCLUDED.texte_budget, fondement = EXCLUDED.fondement,
 			  jo_texte_id = EXCLUDED.jo_texte_id, source_id = EXCLUDED.source_id, document_id = EXCLUDED.document_id`,
-			o.code, o.nom, o.statut, o.budget, nul(o.sousSecteur), o.texteBudget, o.fondement, jo, srcID, docs[o.doc]); err != nil {
+			o.code, o.name, o.status, o.budget, nilIfEmpty(o.subSector), o.budgetText, o.legalBasis, jo, srcID, docs[o.doc]); err != nil {
 			return nil, fmt.Errorf("organisme %s : %w", o.code, err)
 		}
 	}
@@ -304,8 +304,8 @@ func charger(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src
 	// l'unique propriétaire, et l'ancien DELETE (table entière) payait le prix
 	// des triggers RI à chaque republication du barème, changement ou non.
 	rows := [][]any{}
-	for _, p := range parametres {
-		rows = append(rows, []any{Millesime, p.code, p.libelle, p.valeur, p.unite, p.fondement, srcID, docs[p.doc]})
+	for _, p := range parameters {
+		rows = append(rows, []any{ReferenceDate, p.code, p.label, p.value, p.unit, p.legalBasis, srcID, docs[p.doc]})
 	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_parametre_social (
@@ -336,13 +336,13 @@ func charger(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src
 	}
 
 	rows = rows[:0]
-	for _, t := range baremes {
-		var effMax any
-		if t.effMax > 0 {
-			effMax = t.effMax
+	for _, t := range rates {
+		var staffMax any
+		if t.staffMax > 0 {
+			staffMax = t.staffMax
 		}
-		rows = append(rows, []any{Millesime, t.code, t.part, t.libelle, t.rubrique, t.ordre, t.assiette, nul(t.taux), t.taux == "",
-			t.effMin, effMax, t.organisme, t.nature, t.deductible, nul(t.rgduGroupe), nul(t.rgduTaux), t.fondement, srcID, docs[t.doc]})
+		rows = append(rows, []any{ReferenceDate, t.code, t.share, t.label, t.category, t.order, t.base, nilIfEmpty(t.rate), t.rate == "",
+			t.staffMin, staffMax, t.recipient, t.nature, t.deductible, nilIfEmpty(t.rgduGroup), nilIfEmpty(t.rgduRate), t.legalBasis, srcID, docs[t.doc]})
 	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_taux_cotisation (
@@ -388,12 +388,12 @@ func charger(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, src
 		return nil, err
 	}
 
-	for _, c := range cas {
+	for _, c := range scenarios {
 		if _, err := tx.Exec(ctx, `INSERT INTO ref.bulletin_cas (cas, millesime, brut, effectif, taux_atmp, taux_pas, description)
-			VALUES ($1,$2,$3,$4,$5,$6,$7)`, c.cas, Millesime, c.brut, c.effectif, c.atmp, c.pas, c.descrip); err != nil {
+			VALUES ($1,$2,$3,$4,$5,$6,$7)`, c.scenario, ReferenceDate, c.gross, c.staff, c.atmp, c.pas, c.description); err != nil {
 			return nil, err
 		}
 	}
-	return map[string]any{"organismes": len(organismes), "parametres": len(parametres), "taux": len(baremes), "cas": len(cas)},
+	return map[string]any{"organismes": len(recipients), "parametres": len(parameters), "taux": len(rates), "cas": len(scenarios)},
 		tx.Commit(ctx)
 }

@@ -19,12 +19,12 @@ import (
 // les chiffres peuvent aussi bien confirmer qu'infirmer une thèse donnée en
 // amont ; seule la mesure compte. Voir docs/investissement-entreprises-donnees.md.
 
-const ConnectorVersionInvestissement = "entreprises-investissement-v1"
+const ConnectorVersionInvestment = "entreprises-investissement-v1"
 
-var SourceComptesSNF = archive.Source{
+var SourceSNFAccounts = archive.Source{
 	Slug: "insee-bdm-comptes-snf", Label: "Insee — comptes des sociétés non financières (BDM)",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Insee, comptes nationaux trimestriels, sociétés non financières",
 	Cadence:     "trimestrielle",
@@ -35,10 +35,10 @@ var SourceComptesSNF = archive.Source{
 		"comparables terme à terme.",
 }
 
-var SourceEsaneCategorie = archive.Source{
+var SourceEsaneCategory = archive.Source{
 	Slug: "insee-esane-categorie-entreprise", Label: "Insee — Ésane, le tissu productif par catégorie d'entreprise",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Insee, Ésane, Insee Focus « Le tissu productif français par catégorie d'entreprises »",
 	Cadence:     "annuelle",
@@ -51,11 +51,11 @@ var SourceEsaneCategorie = archive.Source{
 }
 
 const (
-	bdmDividendesIdbank = "011794592"
-	bdmFBCFIdbank       = "011794792"
-	bdmURL              = "https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/"
-	esaneFocus343URL    = "https://www.insee.fr/fr/statistiques/fichier/8290682/IF343.xlsx"
-	esaneMillesime      = 2022
+	bdmDividendsIdbank = "011794592"
+	bdmFBCFIdbank      = "011794792"
+	bdmURL             = "https://www.bdm.insee.fr/series/sdmx/data/SERIES_BDM/"
+	esaneFocus343URL   = "https://www.insee.fr/fr/statistiques/fichier/8290682/IF343.xlsx"
+	esaneVintage       = 2022
 )
 
 type sdmxDataSet struct {
@@ -66,20 +66,20 @@ type sdmxDataSet struct {
 }
 
 type sdmxObs struct {
-	Periode string `xml:"TIME_PERIOD,attr"`
-	Valeur  string `xml:"OBS_VALUE,attr"`
+	Period string `xml:"TIME_PERIOD,attr"`
+	Value  string `xml:"OBS_VALUE,attr"`
 }
 
-// IngestFluxFinancierSNF charge les deux séries trimestrielles BDM
+// IngestFinancialFlowsSNF charge les deux séries trimestrielles BDM
 // (dividendes versés, formation brute de capital fixe) des sociétés non
 // financières. Les deux idbank partagent le même champ et la même unité :
 // aucun retraitement n'est nécessaire pour les comparer terme à terme.
-func IngestFluxFinancierSNF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceComptesSNF)
+func IngestFinancialFlowsSNF(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceSNFAccounts)
 	if err != nil {
 		return err
 	}
-	runID, err := arch.StartRun(ctx, srcID, ConnectorVersionInvestissement)
+	runID, err := arch.StartRun(ctx, srcID, ConnectorVersionInvestment)
 	if err != nil {
 		return err
 	}
@@ -88,16 +88,16 @@ func IngestFluxFinancierSNF(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return err
 	}
 
-	series := []struct{ nom, idbank string }{
-		{"dividendes", bdmDividendesIdbank},
+	series := []struct{ name, idbank string }{
+		{"dividendes", bdmDividendsIdbank},
 		{"fbcf", bdmFBCFIdbank},
 	}
 	var rows [][]any
-	compte := map[string]int{}
+	counts := map[string]int{}
 	for _, s := range series {
 		f, err := arch.Fetch(ctx, srcID, runID, bdmURL+s.idbank, ".xml")
 		if err != nil {
-			return fail(fmt.Errorf("%s (idbank %s) : %w", s.nom, s.idbank, err))
+			return fail(fmt.Errorf("%s (idbank %s) : %w", s.name, s.idbank, err))
 		}
 		raw, err := os.ReadFile(f.Path)
 		if err != nil {
@@ -105,22 +105,22 @@ func IngestFluxFinancierSNF(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		}
 		var ds sdmxDataSet
 		if err := xml.Unmarshal(raw, &ds); err != nil {
-			return fail(fmt.Errorf("%s : réponse SDMX illisible : %w", s.nom, err))
+			return fail(fmt.Errorf("%s : réponse SDMX illisible : %w", s.name, err))
 		}
 		if len(ds.Series.Obs) == 0 {
-			return fail(fmt.Errorf("%s (idbank %s) : aucune observation", s.nom, s.idbank))
+			return fail(fmt.Errorf("%s (idbank %s) : aucune observation", s.name, s.idbank))
 		}
 		for _, o := range ds.Series.Obs {
-			v, err := strconv.ParseFloat(o.Valeur, 64)
+			v, err := strconv.ParseFloat(o.Value, 64)
 			if err != nil {
 				continue // une observation manquante ('OBS_VALUE=""') n'invalide pas les autres
 			}
-			rows = append(rows, []any{s.nom, o.Periode, v, srcID})
-			compte[s.nom]++
+			rows = append(rows, []any{s.name, o.Period, v, srcID})
+			counts[s.name]++
 		}
 	}
-	if compte["dividendes"] == 0 || compte["fbcf"] == 0 {
-		return fail(fmt.Errorf("série incomplète : %d dividendes, %d fbcf", compte["dividendes"], compte["fbcf"]))
+	if counts["dividendes"] == 0 || counts["fbcf"] == 0 {
+		return fail(fmt.Errorf("série incomplète : %d dividendes, %d fbcf", counts["dividendes"], counts["fbcf"]))
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -153,21 +153,21 @@ func IngestFluxFinancierSNF(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"trimestres_dividendes": compte["dividendes"], "trimestres_fbcf": compte["fbcf"]}, "")
+		map[string]any{"trimestres_dividendes": counts["dividendes"], "trimestres_fbcf": counts["fbcf"]}, "")
 	fmt.Printf("  flux financiers des sociétés non financières : %d trimestres de dividendes, %d de FBCF\n",
-		compte["dividendes"], compte["fbcf"])
+		counts["dividendes"], counts["fbcf"])
 	return nil
 }
 
-// IngestEntrepriseCategorie charge la photographie 2022 du tissu productif
+// IngestCompanyCategory charge la photographie 2022 du tissu productif
 // par catégorie d'entreprise (Ésane, via le fichier de données de l'Insee
 // Focus n°343), feuille « Figure 1 ».
-func IngestEntrepriseCategorie(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceEsaneCategorie)
+func IngestCompanyCategory(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceEsaneCategory)
 	if err != nil {
 		return err
 	}
-	runID, err := arch.StartRun(ctx, srcID, ConnectorVersionInvestissement)
+	runID, err := arch.StartRun(ctx, srcID, ConnectorVersionInvestment)
 	if err != nil {
 		return err
 	}
@@ -180,12 +180,12 @@ func IngestEntrepriseCategorie(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	if err != nil {
 		return fail(err)
 	}
-	x, err := openXLSXEnt(f.Path)
+	x, err := openCompanyXLSX(f.Path)
 	if err != nil {
 		return fail(err)
 	}
 	defer x.Close()
-	lignes, err := x.rows("Figure 1")
+	sheetRows, err := x.rows("Figure 1")
 	if err != nil {
 		return fail(err)
 	}
@@ -196,19 +196,19 @@ func IngestEntrepriseCategorie(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	// bloc, celui que documente le texte de la publication et qui porte le
 	// taux d'investissement.
 	categories := []string{"MIC", "PME", "ETI", "GE"}
-	champs := map[string]int{} // libellé de ligne -> index de ligne (dernière occurrence)
-	for i, l := range lignes {
-		lib := l["A"]
-		if lib != "" {
-			champs[lib] = i
+	labelIndex := map[string]int{} // libellé de ligne -> index de ligne (dernière occurrence)
+	for i, l := range sheetRows {
+		label := l["A"]
+		if label != "" {
+			labelIndex[label] = i
 		}
 	}
-	get := func(libelle string, col string) (float64, bool) {
-		i, ok := champs[libelle]
+	get := func(label string, col string) (float64, bool) {
+		i, ok := labelIndex[label]
 		if !ok {
 			return 0, false
 		}
-		v, err := strconv.ParseFloat(lignes[i][col], 64)
+		v, err := strconv.ParseFloat(sheetRows[i][col], 64)
 		return v, err == nil
 	}
 	cols := map[string]string{"MIC": "B", "PME": "C", "ETI": "D", "GE": "E"}
@@ -216,7 +216,7 @@ func IngestEntrepriseCategorie(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	var rows [][]any
 	for _, cat := range categories {
 		col := cols[cat]
-		row := []any{esaneMillesime, cat, nil, nil, nil, nil, nil, nil, srcID}
+		row := []any{esaneVintage, cat, nil, nil, nil, nil, nil, nil, srcID}
 		if v, ok := get("Nombre d'entreprises", col); ok {
 			n := int(v)
 			row[2] = n
@@ -248,12 +248,12 @@ func IngestEntrepriseCategorie(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	}
 	defer tx.Rollback(ctx)
 
-	// Seul le millésime esaneMillesime est chargé par ce connecteur ; un
+	// Seul le millésime esaneVintage est chargé par ce connecteur ; un
 	// autre millésime, une fois chargé, ne doit pas être touché ici.
 	if _, err := tx.Exec(ctx, fmt.Sprintf(`
 		CREATE OR REPLACE TEMPORARY VIEW entreprise_categorie_scope AS
 		SELECT * FROM core.entreprise_categorie WHERE annee = %d
-		WITH LOCAL CHECK OPTION`, esaneMillesime)); err != nil {
+		WITH LOCAL CHECK OPTION`, esaneVintage)); err != nil {
 		return fail(err)
 	}
 	if _, err := tx.Exec(ctx, `
@@ -296,14 +296,14 @@ func IngestEntrepriseCategorie(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"categories": len(rows), "millesime": esaneMillesime}, "")
-	fmt.Printf("  entreprises par catégorie (Ésane %d) : %d catégories\n", esaneMillesime, len(rows))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"categories": len(rows), "millesime": esaneVintage}, "")
+	fmt.Printf("  entreprises par catégorie (Ésane %d) : %d catégories\n", esaneVintage, len(rows))
 	return nil
 }
 
-func IngestInvestissement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := IngestFluxFinancierSNF(ctx, pool, arch); err != nil {
+func IngestInvestment(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	if err := IngestFinancialFlowsSNF(ctx, pool, arch); err != nil {
 		return err
 	}
-	return IngestEntrepriseCategorie(ctx, pool, arch)
+	return IngestCompanyCategory(ctx, pool, arch)
 }

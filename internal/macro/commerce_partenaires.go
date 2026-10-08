@@ -15,7 +15,7 @@ import (
 var SourceComtradeFrance = archive.Source{
 	Slug: "un-comtrade-france-partenaires", Label: "UN Comtrade — importations françaises par partenaire commercial",
 	Publisher: "Division statistique des Nations unies (UN Comtrade)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "UN Comtrade — réutilisation libre avec attribution", ReuseClass: "ATTRIBUTION",
+	License: "UN Comtrade — réutilisation libre avec attribution", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : UN Comtrade, reporterCode 251 (France)",
 	Cadence:     "ponctuelle",
 	Notes: "Miroir onusien des déclarations douanières nationales, PAS les douanes françaises elles-mêmes " +
@@ -26,41 +26,41 @@ var SourceComtradeFrance = archive.Source{
 		"à l'affichage, sur la donnée complète, pas au chargement.",
 }
 
-// secteursCommerce : un secteur peut regrouper plusieurs codes HS (le
+// tradeSectors : un secteur peut regrouper plusieurs codes HS (le
 // textile-habillement additionne bonneterie et habillement classique) —
 // chaque code est chargé et stocké séparément, sommé seulement à
 // l'affichage (internal/sitegen), pour ne jamais masquer la composition.
-var secteursCommerce = []struct {
-	Secteur string
-	CodesHS []string
+var tradeSectors = []struct {
+	Sector  string
+	HSCodes []string
 }{
 	{"automobile", []string{"8703"}},
 	{"textile-habillement", []string{"61", "62"}},
 	{"electronique-tv", []string{"8528"}},
 }
 
-// anneesCommerce : 2013 (avant l'essentiel du mouvement observé vers
+// tradeYears : 2013 (avant l'essentiel du mouvement observé vers
 // l'Europe de l'Est et le Maghreb) et la dernière année complète disponible
 // dans Comtrade au moment du chargement — à vérifier et bumper à la main
 // lors d'une prochaine mise à jour, pas recalculé automatiquement.
-var anneesCommerce = []int{2013, 2024}
+var tradeYears = []int{2013, 2024}
 
-type ligneComtrade struct {
+type comtradeRow struct {
 	PartnerCode int     `json:"partnerCode"`
 	PartnerDesc string  `json:"partnerDesc"`
 	PrimaryVal  float64 `json:"primaryValue"`
 }
 
-type reponseComtrade struct {
-	Count int             `json:"count"`
-	Data  []ligneComtrade `json:"data"`
-	Error string          `json:"error"`
+type comtradeResponse struct {
+	Count int           `json:"count"`
+	Data  []comtradeRow `json:"data"`
+	Error string        `json:"error"`
 }
 
-// IngestCommercePartenaires charge, pour chaque secteur et chaque année
+// IngestTradePartners charge, pour chaque secteur et chaque année
 // retenue, les importations françaises par partenaire commercial (UN
 // Comtrade, HS6/H6, flux M = importations).
-func IngestCommercePartenaires(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+func IngestTradePartners(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceComtradeFrance)
 	if err != nil {
 		return err
@@ -74,45 +74,45 @@ func IngestCommercePartenaires(ctx context.Context, pool *pgxpool.Pool, arch *ar
 		return err
 	}
 
-	var toutesLignes [][]any
-	compte := map[string]int{}
-	premier := true
-	for _, sec := range secteursCommerce {
-		for _, code := range sec.CodesHS {
-			for _, annee := range anneesCommerce {
-				if !premier {
+	var allRows [][]any
+	counts := map[string]int{}
+	first := true
+	for _, sector := range tradeSectors {
+		for _, code := range sector.HSCodes {
+			for _, year := range tradeYears {
+				if !first {
 					time.Sleep(3 * time.Second) // service public gratuit, sans clé : ne pas le solliciter trop vite
 				}
-				premier = false
+				first = false
 
 				url := fmt.Sprintf("https://comtradeapi.un.org/public/v1/preview/C/A/HS?"+
 					"reporterCode=251&period=%d&flowCode=M&cmdCode=%s&motCode=0&partner2Code=0&includeDesc=true",
-					annee, code)
+					year, code)
 				f, err := arch.Fetch(ctx, srcID, runID, url, ".json")
 				if err != nil {
-					return fail(fmt.Errorf("%s %d : %w", code, annee, err))
+					return fail(fmt.Errorf("%s %d : %w", code, year, err))
 				}
 				raw, err := os.ReadFile(f.Path)
 				if err != nil {
 					return fail(err)
 				}
-				var rep reponseComtrade
-				if err := json.Unmarshal(raw, &rep); err != nil {
-					return fail(fmt.Errorf("%s %d : réponse illisible : %w", code, annee, err))
+				var resp comtradeResponse
+				if err := json.Unmarshal(raw, &resp); err != nil {
+					return fail(fmt.Errorf("%s %d : réponse illisible : %w", code, year, err))
 				}
-				if rep.Error != "" {
-					return fail(fmt.Errorf("%s %d : Comtrade : %s", code, annee, rep.Error))
+				if resp.Error != "" {
+					return fail(fmt.Errorf("%s %d : Comtrade : %s", code, year, resp.Error))
 				}
-				if rep.Count == 0 {
-					return fail(fmt.Errorf("%s %d : aucune ligne — code HS ou année invalide", code, annee))
+				if resp.Count == 0 {
+					return fail(fmt.Errorf("%s %d : aucune ligne — code HS ou année invalide", code, year))
 				}
-				for _, l := range rep.Data {
-					if l.PartnerDesc == "" {
-						return fail(fmt.Errorf("%s %d : partenaire %d sans nom", code, annee, l.PartnerCode))
+				for _, row := range resp.Data {
+					if row.PartnerDesc == "" {
+						return fail(fmt.Errorf("%s %d : partenaire %d sans nom", code, year, row.PartnerCode))
 					}
-					toutesLignes = append(toutesLignes, []any{sec.Secteur, code, annee, l.PartnerCode, l.PartnerDesc, l.PrimaryVal, srcID})
+					allRows = append(allRows, []any{sector.Sector, code, year, row.PartnerCode, row.PartnerDesc, row.PrimaryVal, srcID})
 				}
-				compte[fmt.Sprintf("%s-%d", code, annee)] = rep.Count
+				counts[fmt.Sprintf("%s-%d", code, year)] = resp.Count
 			}
 		}
 	}
@@ -136,7 +136,7 @@ func IngestCommercePartenaires(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_commerce_partenaire_secteur"},
 		[]string{"secteur", "code_hs", "annee", "code_partenaire", "nom_partenaire", "valeur_usd", "source_id"},
-		pgx.CopyFromRows(toutesLignes)); err != nil {
+		pgx.CopyFromRows(allRows)); err != nil {
 		return fail(fmt.Errorf("core.commerce_partenaire_secteur : %w", err))
 	}
 	ct, err := tx.Exec(ctx, `
@@ -161,8 +161,8 @@ func IngestCommercePartenaires(ctx context.Context, pool *pgxpool.Pool, arch *ar
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"lignes": len(toutesLignes), "requetes": compte, "touchees": touchees}, "")
+		map[string]any{"lignes": len(allRows), "requetes": counts, "touchees": touchees}, "")
 	fmt.Printf("  Commerce par partenaire (UN Comtrade) : %d lignes (%d touchées par la fusion)\n",
-		len(toutesLignes), touchees)
+		len(allRows), touchees)
 	return nil
 }

@@ -26,7 +26,7 @@ const ConnectorVersion = "international-v1"
 var SourceSalaireMinimum = archive.Source{
 	Slug: "eurostat-salaire-minimum", Label: "Eurostat — salaire minimum légal mensuel (earn_mw_cur)",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat (earn_mw_cur)",
 	Cadence:     "semestrielle",
 	Notes: "Couvre les pays européens et les États-Unis, mais ni le Japon ni le Canada (minimum " +

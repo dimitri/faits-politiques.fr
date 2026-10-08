@@ -31,7 +31,7 @@ const bom = "\ufeff"
 var Source = archive.Source{
 	Slug: "prefets-archives-nationales", Label: "Préfets et préfètes français depuis 1800",
 	Publisher: "Ministère de la Culture / Archives nationales", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Archives nationales, préfets et préfètes français depuis 1800",
 	Cadence:     "irrégulière",
@@ -53,7 +53,7 @@ var reSegment = regexp.MustCompile(`^(\d{4})\s*-\s*(\d{4}|\[\d{4}\]|[.…]+)\s*:
 // « 90 - Territoire de Belfort » : le code du département précède son nom dans
 // la colonne des postes, mais pas dans celle des dates. On construit la
 // correspondance ligne par ligne.
-var rePoste = regexp.MustCompile(`^\s*(\w+)\s*-\s*(.+?)\s*$`)
+var rePosition = regexp.MustCompile(`^\s*(\w+)\s*-\s*(.+?)\s*$`)
 
 func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, Source)
@@ -87,36 +87,36 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if len(recs) < 2 {
 		return fail(fmt.Errorf("fichier des préfets vide"))
 	}
-	col := map[string]int{}
+	columns := map[string]int{}
 	for i, h := range recs[0] {
-		col[strings.TrimSpace(strings.TrimPrefix(h, bom))] = i
+		columns[strings.TrimSpace(strings.TrimPrefix(h, bom))] = i
 	}
-	champ := func(rec []string, nom string) string {
-		if i, ok := col[nom]; ok && i < len(rec) {
+	field := func(rec []string, name string) string {
+		if i, ok := columns[name]; ok && i < len(rec) {
 			return strings.TrimSpace(rec[i])
 		}
 		return ""
 	}
 
 	var rows [][]any
-	var recus, rejetSansDate, rejetIllisible, rejetBornesInversees int
+	var received, rejectedNoDate, rejectedUnreadable, rejectedInvertedBounds int
 	for _, rec := range recs[1:] {
-		nom := champ(rec, "Nom de famille")
-		prenom := champ(rec, "Prénom(s)")
-		wikidata := champ(rec, "Wikidata")
-		naiss := anneeOuNil(champ(rec, "Année de naissance"))
-		deces := anneeOuNil(champ(rec, "Année de mort"))
+		lastName := field(rec, "Nom de famille")
+		firstName := field(rec, "Prénom(s)")
+		wikidata := field(rec, "Wikidata")
+		birthYear := yearOrNil(field(rec, "Année de naissance"))
+		deathYear := yearOrNil(field(rec, "Année de mort"))
 
 		codes := map[string]string{}
-		for _, p := range strings.Split(champ(rec, "Poste en département"), "|") {
-			if m := rePoste.FindStringSubmatch(p); m != nil {
+		for _, p := range strings.Split(field(rec, "Poste en département"), "|") {
+			if m := rePosition.FindStringSubmatch(p); m != nil {
 				codes[m[2]] = m[1]
 			}
 		}
 
-		dates := champ(rec, "Poste en département (dates)")
+		dates := field(rec, "Poste en département (dates)")
 		if dates == "" {
-			rejetSansDate++
+			rejectedNoDate++
 			continue
 		}
 		for _, s := range strings.Split(dates, "|") {
@@ -124,14 +124,14 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			if s == "" {
 				continue
 			}
-			recus++
+			received++
 			m := reSegment.FindStringSubmatch(s)
 			if m == nil {
-				rejetIllisible++
+				rejectedUnreadable++
 				continue
 			}
-			debut, _ := strconv.Atoi(m[1])
-			poste := strings.TrimSpace(m[3])
+			start, _ := strconv.Atoi(m[1])
+			position := strings.TrimSpace(m[3])
 			// daterange semi-ouvert : la fin exclusive est le 1er janvier de
 			// l'année SUIVANT la dernière année d'exercice, faute de quoi un
 			// préfet parti en 1929 n'aurait pas exercé en 1929.
@@ -139,29 +139,29 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			// fichier contient « 1810-1015 : Mont-Blanc ». On la rejette sous
 			// un motif nommé plutôt que de deviner l'année réelle — corriger
 			// 1015 en 1815 serait plausible, et ce serait inventé.
-			var fin any
+			var end any
 			switch {
 			case regexp.MustCompile(`^\d{4}$`).MatchString(m[2]):
-				a, _ := strconv.Atoi(m[2])
-				fin = fmt.Sprintf("%04d-01-01", a+1)
+				year, _ := strconv.Atoi(m[2])
+				end = fmt.Sprintf("%04d-01-01", year+1)
 			case strings.HasPrefix(m[2], "["):
-				a, _ := strconv.Atoi(strings.Trim(m[2], "[]"))
-				fin = fmt.Sprintf("%04d-01-01", a+1)
+				year, _ := strconv.Atoi(strings.Trim(m[2], "[]"))
+				end = fmt.Sprintf("%04d-01-01", year+1)
 			default:
-				fin = nil // poste ouvert
+				end = nil // poste ouvert
 			}
-			if s, ok := fin.(string); ok && s <= fmt.Sprintf("%04d-01-01", debut) {
-				rejetBornesInversees++
+			if s, ok := end.(string); ok && s <= fmt.Sprintf("%04d-01-01", start) {
+				rejectedInvertedBounds++
 				continue
 			}
 			var code any
-			if c, ok := codes[poste]; ok {
+			if c, ok := codes[position]; ok {
 				code = c
 			}
 			rows = append(rows, []any{
-				nom, nilSiVide(prenom), poste, code,
-				fmt.Sprintf("%04d-01-01", debut), fin,
-				naiss, deces, nilSiVide(wikidata), srcID,
+				lastName, nilIfEmpty(firstName), position, code,
+				fmt.Sprintf("%04d-01-01", start), end,
+				birthYear, deathYear, nilIfEmpty(wikidata), srcID,
 			})
 		}
 	}
@@ -201,29 +201,29 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"lignes_recues":           recus,
+		"lignes_recues":           received,
 		"lignes_chargees":         len(rows),
-		"rejet_segment_illisible": rejetIllisible,
-		"rejet_bornes_inversees":  rejetBornesInversees,
+		"rejet_segment_illisible": rejectedUnreadable,
+		"rejet_bornes_inversees":  rejectedInvertedBounds,
 		// Hors du décompte `rejet_*` À DESSEIN : ce compteur est en PERSONNES,
 		// les autres en segments. Une personne sans dates n'apporte aucun
 		// segment reçu, donc l'ajouter à la somme fausserait l'invariant —
 		// c'est exactement ce que la sonde de cmd/verify a détecté ici.
 		"personnes":            len(recs) - 1,
-		"personnes_sans_dates": rejetSansDate,
+		"personnes_sans_dates": rejectedNoDate,
 	}, "")
 	fmt.Printf("  préfets : %d personnes, %d périodes d'exercice\n", len(recs)-1, len(rows))
 	return nil
 }
 
-func anneeOuNil(s string) any {
+func yearOrNil(s string) any {
 	if n, err := strconv.Atoi(strings.TrimSpace(s)); err == nil && n > 1600 && n < 2200 {
 		return int16(n)
 	}
 	return nil
 }
 
-func nilSiVide(s string) any {
+func nilIfEmpty(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
 	}

@@ -27,7 +27,7 @@ import (
 var SourceBANATIC = archive.Source{
 	Slug: "banatic", Label: "BANATIC — intercommunalités et compétences",
 	Publisher: "Direction générale des collectivités locales", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : BANATIC, Direction générale des collectivités locales",
 	Cadence:     "en continu, arrêtés préfectoraux",
@@ -43,31 +43,31 @@ const (
 // Colonnes du tableau national, en numérotation 1. Elles sont repérées par
 // position et non par titre : le titre sert à vérifier qu'on lit la bonne.
 const (
-	colDepartement  = 1
-	colSiren        = 4
-	colNom          = 5
-	colNature       = 6
-	colDateCreation = 10
-	colPopulation   = 40
-	colPresCivilite = 42
-	colPresNom      = 43
-	colPresPrenom   = 44
-	colNbMembres    = 45
-	colNbDelegues   = 46
-	colSirenMembre  = 47
-	colNomMembre    = 48
-	colCategorie    = 49
-	colPremiereComp = 53
-	colDerniereComp = 177
+	colDepartment      = 1
+	colSiren           = 4
+	colName            = 5
+	colNature          = 6
+	colCreationDate    = 10
+	colPopulation      = 40
+	colChairTitle      = 42
+	colChairName       = 43
+	colChairFirstName  = 44
+	colMemberCount     = 45
+	colDelegateCount   = 46
+	colMemberSiren     = 47
+	colMemberName      = 48
+	colCategory        = 49
+	colFirstCompetency = 53
+	colLastCompetency  = 177
 )
 
-type competence struct {
-	Code      string `json:"code"`
-	Libelle   string `json:"libelle"`
-	Ordre     int    `json:"ordre"`
-	Categorie struct {
-		Code    string `json:"code"`
-		Libelle string `json:"libelle"`
+type competency struct {
+	Code     string `json:"code"`
+	Label    string `json:"libelle"`
+	Order    int    `json:"ordre"`
+	Category struct {
+		Code  string `json:"code"`
+		Label string `json:"libelle"`
 	} `json:"categorie"`
 }
 
@@ -90,7 +90,7 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	if err != nil {
 		return fail(err)
 	}
-	nomenclature, comps, err := lireCompetences(fComp.Path)
+	nomenclature, competencyIndex, err := loadCompetencies(fComp.Path)
 	if err != nil {
 		return fail(err)
 	}
@@ -106,44 +106,44 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	//    leur SIREN ; tout le reste de la base par leur code INSEE. L'OFGL
 	//    publie les deux sur la même ligne : c'est un appariement d'identifiants,
 	//    pas de noms.
-	sirenVersInsee, err := correspondanceSiren(ctx, arch, srcID, runID)
+	sirenToInsee, err := sirenToInseeMapping(ctx, arch, srcID, runID)
 	if err != nil {
 		return fail(err)
 	}
 
-	connues, err := communesConnues(ctx, pool)
+	connues, err := knownCommunes(ctx, pool)
 	if err != nil {
 		return fail(err)
 	}
 
 	type epci struct {
-		nom, nature, dep, creation string
-		presCiv, presNom, presPre  string
-		population, membres        int
-		delegues                   int
-		comps                      []string
+		name, nature, dep, creation           string
+		chairTitle, chairName, chairFirstName string
+		population, memberCount               int
+		delegateCount                         int
+		competencies                          []string
 	}
 	epcis := map[string]*epci{}
-	type membre struct{ siren, commune, categorie string }
-	var membres []membre
-	sansInsee := map[string]bool{}
-	communesSirenInconnu := map[string]bool{}
-	communesHorsCOG := map[string]bool{}
-	var lignesMembre, rejetCommune, rejetNonCommune int
+	type member struct{ siren, commune, category string }
+	var members []member
+	withoutInsee := map[string]bool{}
+	unknownSirenCommunes := map[string]bool{}
+	communesOutsideCOG := map[string]bool{}
+	var memberRows, rejectedCommune, rejectedNonCommune int
 
-	var entetes []string
-	err = parcourirXLSX(fExp.Path, func(n int, row map[int]string) error {
+	var headers []string
+	err = iterateXLSX(fExp.Path, func(n int, row map[int]string) error {
 		if n == 0 {
-			entetes = make([]string, colDerniereComp+1)
-			for i := 1; i <= colDerniereComp; i++ {
-				entetes[i] = row[i]
+			headers = make([]string, colLastCompetency+1)
+			for i := 1; i <= colLastCompetency; i++ {
+				headers[i] = row[i]
 			}
 			// Le tableau est lu par position : si les colonnes bougeaient sans
 			// qu'on s'en aperçoive, on chargerait des compétences fausses sous
 			// des codes justes. Ce contrôle rend la dérive impossible.
-			if entetes[colSiren] != "N° SIREN" || entetes[colSirenMembre] != "Siren membre" {
+			if headers[colSiren] != "N° SIREN" || headers[colMemberSiren] != "Siren membre" {
 				return fmt.Errorf("colonnes inattendues : %q en %d, %q en %d",
-					entetes[colSiren], colSiren, entetes[colSirenMembre], colSirenMembre)
+					headers[colSiren], colSiren, headers[colMemberSiren], colMemberSiren)
 			}
 			return nil
 		}
@@ -154,36 +154,36 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		e, ok := epcis[siren]
 		if !ok {
 			e = &epci{
-				nom:      strings.TrimSpace(row[colNom]),
+				name:     strings.TrimSpace(row[colName]),
 				nature:   strings.TrimSpace(row[colNature]),
-				dep:      codeDepartement(row[colDepartement]),
-				creation: strings.TrimSpace(row[colDateCreation]),
+				dep:      departmentCode(row[colDepartment]),
+				creation: strings.TrimSpace(row[colCreationDate]),
 			}
-			e.population = atoiSouple(row[colPopulation])
-			e.membres = atoiSouple(row[colNbMembres])
-			e.delegues = atoiSouple(row[colNbDelegues])
+			e.population = looseAtoi(row[colPopulation])
+			e.memberCount = looseAtoi(row[colMemberCount])
+			e.delegateCount = looseAtoi(row[colDelegateCount])
 			// Le président du groupement. C'est la réponse à « qui décide, si
 			// ce n'est le maire » : il arbitre des budgets souvent supérieurs à
 			// ceux de ses communes membres, et n'est élu par personne
 			// directement — seulement par les conseillers communautaires.
-			e.presCiv = strings.TrimSpace(row[colPresCivilite])
-			e.presNom = strings.TrimSpace(row[colPresNom])
-			e.presPre = strings.TrimSpace(row[colPresPrenom])
-			for c := colPremiereComp; c <= colDerniereComp; c++ {
+			e.chairTitle = strings.TrimSpace(row[colChairTitle])
+			e.chairName = strings.TrimSpace(row[colChairName])
+			e.chairFirstName = strings.TrimSpace(row[colChairFirstName])
+			for c := colFirstCompetency; c <= colLastCompetency; c++ {
 				if strings.EqualFold(strings.TrimSpace(row[c]), "OUI") {
-					if code, ok := comps[entetes[c]]; ok {
-						e.comps = append(e.comps, code)
+					if code, ok := competencyIndex[headers[c]]; ok {
+						e.competencies = append(e.competencies, code)
 					}
 				}
 			}
 			epcis[siren] = e
 		}
-		ms := strings.TrimSpace(row[colSirenMembre])
-		if ms == "" {
+		memberSiren := strings.TrimSpace(row[colMemberSiren])
+		if memberSiren == "" {
 			return nil
 		}
-		lignesMembre++
-		insee, ok := sirenVersInsee[ms]
+		memberRows++
+		insee, ok := sirenToInsee[memberSiren]
 		if !ok || !connues[insee] {
 			// Deux situations que l'ancien code confondait. Un membre qui
 			// n'est pas une commune — autre groupement, département — est
@@ -191,20 +191,20 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			// est une perte : c'est ce qui vidait 97 communes de leur
 			// intercommunalité sans lever la moindre erreur. BANATIC dit
 			// lui-même quelle nature a le membre.
-			if strings.EqualFold(strings.TrimSpace(row[colCategorie]), "commune") {
+			if strings.EqualFold(strings.TrimSpace(row[colCategory]), "commune") {
 				if !ok {
-					communesSirenInconnu[ms] = true
+					unknownSirenCommunes[memberSiren] = true
 				} else {
-					communesHorsCOG[ms] = true
+					communesOutsideCOG[memberSiren] = true
 				}
-				rejetCommune++
+				rejectedCommune++
 			} else {
-				sansInsee[ms] = true
-				rejetNonCommune++
+				withoutInsee[memberSiren] = true
+				rejectedNonCommune++
 			}
 			return nil
 		}
-		membres = append(membres, membre{siren, insee, strings.TrimSpace(row[colCategorie])})
+		members = append(members, member{siren, insee, strings.TrimSpace(row[colCategory])})
 		return nil
 	})
 	if err != nil {
@@ -223,7 +223,7 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			VALUES ($1,$2,$3,$4,$5)
 			ON CONFLICT (code) DO UPDATE SET libelle = EXCLUDED.libelle,
 			  categorie_code = EXCLUDED.categorie_code, categorie = EXCLUDED.categorie`,
-			c.Code, c.Libelle, c.Categorie.Code, c.Categorie.Libelle, c.Ordre); err != nil {
+			c.Code, c.Label, c.Category.Code, c.Category.Label, c.Order); err != nil {
 			return fail(err)
 		}
 	}
@@ -242,10 +242,10 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		if t, err := time.Parse("02/01/2006", e.creation); err == nil {
 			creation = t
 		}
-		lignesE = append(lignesE, []any{siren, e.nom, e.nature, nul(e.dep), creation,
-			nulZero(e.population), nulZero(e.membres), srcID,
-			nul(e.presCiv), nul(e.presNom), nul(e.presPre), nulZero(e.delegues)})
-		for _, c := range e.comps {
+		lignesE = append(lignesE, []any{siren, e.name, e.nature, nullIfEmpty(e.dep), creation,
+			nullIfZero(e.population), nullIfZero(e.memberCount), srcID,
+			nullIfEmpty(e.chairTitle), nullIfEmpty(e.chairName), nullIfEmpty(e.chairFirstName), nullIfZero(e.delegateCount)})
+		for _, c := range e.competencies {
 			lignesC = append(lignesC, []any{siren, c})
 		}
 	}
@@ -297,14 +297,14 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	vus := map[string]bool{}
 	var lignesM [][]any
 	var rejetDoublon int
-	for _, m := range membres {
+	for _, m := range members {
 		k := m.siren + "|" + m.commune
 		if vus[k] {
 			rejetDoublon++
 			continue
 		}
 		vus[k] = true
-		lignesM = append(lignesM, []any{m.siren, m.commune, COGMillesime, m.siren, nul(m.categorie)})
+		lignesM = append(lignesM, []any{m.siren, m.commune, COGVintage, m.siren, nullIfEmpty(m.category)})
 	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_epci_membre (
@@ -317,7 +317,7 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		pgx.CopyFromRows(lignesM)); err != nil {
 		return fail(fmt.Errorf("copie des membres : %w", err))
 	}
-	err = bulkload.SansContraintesFK(ctx, tx, "core.epci_membre", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.epci_membre", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO core.epci_membre AS tgt
 			USING tmp_epci_membre AS src
@@ -344,7 +344,7 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		[]string{"epci_siren", "competence_code"}, pgx.CopyFromRows(lignesC)); err != nil {
 		return fail(fmt.Errorf("copie des compétences : %w", err))
 	}
-	err = bulkload.SansContraintesFK(ctx, tx, "core.epci_competence", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.epci_competence", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO core.epci_competence AS tgt
 			USING tmp_epci_competence AS src
@@ -364,39 +364,39 @@ func IngestBANATIC(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	// Convention de complétude lue par cmd/verify : toute ligne d'adhésion lue
 	// est chargée ou rejetée sous un motif nommé.
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"lignes_recues":             lignesMembre,
+		"lignes_recues":             memberRows,
 		"lignes_chargees":           len(lignesM),
-		"rejet_membre_non_commune":  rejetNonCommune,
-		"rejet_commune_non_resolue": rejetCommune,
+		"rejet_membre_non_commune":  rejectedNonCommune,
+		"rejet_commune_non_resolue": rejectedCommune,
 		"rejet_doublon":             rejetDoublon,
 		"groupements":               len(lignesE),
 		"competences_exercees":      len(lignesC),
-		"communes_siren_inconnu":    len(communesSirenInconnu),
-		"communes_hors_cog":         len(communesHorsCOG),
+		"communes_siren_inconnu":    len(unknownSirenCommunes),
+		"communes_hors_cog":         len(communesOutsideCOG),
 	}, "")
 	fmt.Printf("  BANATIC : %d groupements, %d adhésions de communes, %d compétences exercées\n",
 		len(lignesE), len(lignesM), len(lignesC))
 	fmt.Printf("  %d membres qui ne sont pas des communes (autres groupements, départements) : ignorés\n",
-		len(sansInsee))
-	if n := len(communesSirenInconnu) + len(communesHorsCOG); n > 0 {
+		len(withoutInsee))
+	if n := len(unknownSirenCommunes) + len(communesOutsideCOG); n > 0 {
 		fmt.Printf("  ATTENTION : %d communes membres non résolues (%d SIREN inconnus, %d hors COG %d)\n",
-			n, len(communesSirenInconnu), len(communesHorsCOG), COGMillesime)
+			n, len(unknownSirenCommunes), len(communesOutsideCOG), COGVintage)
 	}
 	return nil
 }
 
-// banaticCorrespondanceSirenURL : seule source de vérité pour
-// correspondanceSiren et pour DownloadTargets, pour que les deux ne puissent
+// banaticSirenMappingURL : seule source de vérité pour
+// sirenToInseeMapping et pour DownloadTargets, pour que les deux ne puissent
 // pas diverger.
-func banaticCorrespondanceSirenURL() string {
+func banaticSirenMappingURL() string {
 	return "https://data.ofgl.fr/api/explore/v2.1/catalog/datasets/" + ofglDataset +
 		"/exports/csv?delimiter=%3B&select=com_code,siren,exer&where=" +
 		"agregat%3D%22Encours%20de%20dette%22"
 }
 
-// correspondanceSiren construit SIREN -> code INSEE à partir de l'OFGL, qui
+// sirenToInseeMapping construit SIREN -> code INSEE à partir de l'OFGL, qui
 // publie les deux identifiants sur la même ligne.
-func correspondanceSiren(ctx context.Context, arch *archive.Archive, srcID, runID int64) (map[string]string, error) {
+func sirenToInseeMapping(ctx context.Context, arch *archive.Archive, srcID, runID int64) (map[string]string, error) {
 	// Tous les exercices, pas le seul dernier. La correspondance lisait
 	// autrefois l'exercice 2025 seul : or les comptes d'une année ne sont
 	// complets que tard l'année suivante, et en septembre 2026 environ deux
@@ -404,11 +404,11 @@ func correspondanceSiren(ctx context.Context, arch *archive.Archive, srcID, runI
 	// n'avaient donc pas de SIREN, et disparaissaient en silence de leur
 	// intercommunalité — 97 des 101 communes « sans EPCI » venaient de là.
 	// L'agrégat ne sert qu'à obtenir une ligne par commune et par exercice.
-	f, err := arch.Fetch(ctx, srcID, runID, banaticCorrespondanceSirenURL(), ".csv")
+	f, err := arch.Fetch(ctx, srcID, runID, banaticSirenMappingURL(), ".csv")
 	if err != nil {
 		return nil, err
 	}
-	recs, err := lireCSV(f.Path, ';')
+	recs, err := readCSV(f.Path, ';')
 	if err != nil {
 		return nil, err
 	}
@@ -429,17 +429,17 @@ func correspondanceSiren(ctx context.Context, arch *archive.Archive, srcID, runI
 	return out, nil
 }
 
-// lireCompetences renvoie la nomenclature et l'index libellé -> code. Le
+// loadCompetencies renvoie la nomenclature et l'index libellé -> code. Le
 // tableau national ne nomme ses colonnes que par le libellé ; c'est le même
 // producteur qui publie les deux, l'égalité est donc exacte et vérifiée (125
 // libellés sur 125 s'apparient).
-func lireCompetences(path string) ([]competence, map[string]string, error) {
+func loadCompetencies(path string) ([]competency, map[string]string, error) {
 	b, err := readFile(path)
 	if err != nil {
 		return nil, nil, err
 	}
 	var doc struct {
-		Data []competence `json:"data"`
+		Data []competency `json:"data"`
 	}
 	if err := json.Unmarshal(b, &doc); err != nil {
 		return nil, nil, err
@@ -449,12 +449,12 @@ func lireCompetences(path string) ([]competence, map[string]string, error) {
 	}
 	index := make(map[string]string, len(doc.Data))
 	for _, c := range doc.Data {
-		index[c.Libelle] = c.Code
+		index[c.Label] = c.Code
 	}
 	return doc.Data, index, nil
 }
 
-// parcourirXLSX lit la première feuille d'un classeur en flux et appelle fn une
+// iterateXLSX lit la première feuille d'un classeur en flux et appelle fn une
 // fois par ligne, avec les cellules indexées en numérotation 1.
 //
 // Écrit à la main plutôt que par une bibliothèque : le fichier fait 1,4 Go une
@@ -462,7 +462,7 @@ func lireCompetences(path string) ([]competence, map[string]string, error) {
 // entier en mémoire. Un flux de jetons n'en garde qu'une ligne. Le classeur
 // n'utilise pas de table de chaînes partagées — toutes les valeurs sont en
 // ligne — ce qui rend la lecture d'autant plus directe.
-func parcourirXLSX(path string, fn func(n int, row map[int]string) error) error {
+func iterateXLSX(path string, fn func(n int, row map[int]string) error) error {
 	zr, err := zip.OpenReader(path)
 	if err != nil {
 		return err
@@ -510,7 +510,7 @@ func parcourirXLSX(path string, fn func(n int, row map[int]string) error) error 
 				col = 0
 				for _, a := range t.Attr {
 					if a.Name.Local == "r" {
-						col = colonneDepuisRef(a.Value)
+						col = columnFromRef(a.Value)
 					}
 				}
 				dansCel = true
@@ -540,8 +540,8 @@ func parcourirXLSX(path string, fn func(n int, row map[int]string) error) error 
 	}
 }
 
-// colonneDepuisRef traduit « BC1234 » en 55.
-func colonneDepuisRef(ref string) int {
+// columnFromRef traduit « BC1234 » en 55.
+func columnFromRef(ref string) int {
 	n := 0
 	for _, c := range ref {
 		if c < 'A' || c > 'Z' {
@@ -552,7 +552,7 @@ func colonneDepuisRef(ref string) int {
 	return n
 }
 
-func codeDepartement(s string) string {
+func departmentCode(s string) string {
 	// « 01 - Ain » -> « 01 »
 	if i := strings.Index(s, " - "); i > 0 {
 		return strings.TrimSpace(s[:i])
@@ -560,7 +560,7 @@ func codeDepartement(s string) string {
 	return strings.TrimSpace(s)
 }
 
-func atoiSouple(s string) int {
+func looseAtoi(s string) int {
 	s = strings.TrimSpace(strings.ReplaceAll(s, " ", ""))
 	s = strings.ReplaceAll(s, " ", "")
 	if i := strings.IndexAny(s, ",."); i >= 0 {
@@ -570,7 +570,7 @@ func atoiSouple(s string) int {
 	return n
 }
 
-func nulZero(n int) any {
+func nullIfZero(n int) any {
 	if n == 0 {
 		return nil
 	}

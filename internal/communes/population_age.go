@@ -20,7 +20,7 @@ import (
 var SourcePopulationAgeDepartement = archive.Source{
 	Slug: "insee-population-age-departement", Label: "INSEE — population par département, sexe et grande classe d'âge",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : INSEE, estimations de population",
 	Cadence:     "annuelle",
@@ -31,16 +31,16 @@ var SourcePopulationAgeDepartement = archive.Source{
 
 const populationAgeDepartementURL = "https://www.insee.fr/fr/statistiques/fichier/8331297/estim-pop-dep-sexe-gca-1975-2025.xlsx"
 
-// reCodeDepartement : un département (deux chiffres, ou 2A/2B pour la Corse)
+// reDepartmentCode : un département (deux chiffres, ou 2A/2B pour la Corse)
 // ou un DROM (trois chiffres) — jamais une ligne d'agrégat, dont la première
 // colonne commence par un nom en toutes lettres.
-var reCodeDepartement = regexp.MustCompile(`^(2[AB]|\d{2}|9\d{2})$`)
+var reDepartmentCode = regexp.MustCompile(`^(2[AB]|\d{2}|9\d{2})$`)
 
-// trancheEnsemble : les colonnes 2 à 6 (0-indexées) du bloc « Ensemble » de
+// ageBrackets : les colonnes 2 à 6 (0-indexées) du bloc « Ensemble » de
 // chaque feuille — la colonne 0 est le code du département, la colonne 1
 // son nom, la colonne 7 le total (reconstruit par somme, jamais stocké),
 // les colonnes 8+ les blocs Hommes et Femmes, non chargés.
-var trancheEnsemble = []struct {
+var ageBrackets = []struct {
 	col  int
 	code string
 }{
@@ -72,40 +72,40 @@ func IngestPopulationAgeDepartement(ctx context.Context, pool *pgxpool.Pool, arc
 	defer wb.Close()
 
 	var rows [][]any
-	var nAnnees int
-	for _, feuille := range wb.GetSheetList() {
-		annee, err := strconv.Atoi(feuille)
+	var yearCount int
+	for _, sheet := range wb.GetSheetList() {
+		year, err := strconv.Atoi(sheet)
 		if err != nil {
 			continue // "À savoir" et toute feuille qui n'est pas un millésime
 		}
-		lignes, err := wb.GetRows(feuille)
+		sheetRows, err := wb.GetRows(sheet)
 		if err != nil {
-			return fail(fmt.Errorf("feuille %q : %w", feuille, err))
+			return fail(fmt.Errorf("feuille %q : %w", sheet, err))
 		}
-		if len(lignes) < 6 {
-			return fail(fmt.Errorf("feuille %q trop courte (%d lignes) — format changé", feuille, len(lignes)))
+		if len(sheetRows) < 6 {
+			return fail(fmt.Errorf("feuille %q trop courte (%d lignes) — format changé", sheet, len(sheetRows)))
 		}
-		nAnnees++
-		for _, l := range lignes[5:] {
+		yearCount++
+		for _, l := range sheetRows[5:] {
 			if len(l) < 7 {
 				continue
 			}
-			champs := strings.Fields(l[0])
-			if len(champs) == 0 || !reCodeDepartement.MatchString(champs[0]) {
+			fields := strings.Fields(l[0])
+			if len(fields) == 0 || !reDepartmentCode.MatchString(fields[0]) {
 				continue // ligne vide, ou agrégat France/DOM
 			}
-			dep := champs[0]
-			for _, t := range trancheEnsemble {
-				brut := strings.ReplaceAll(strings.TrimSpace(l[t.col]), ",", "")
-				pop, err := strconv.Atoi(brut)
+			dep := fields[0]
+			for _, t := range ageBrackets {
+				raw := strings.ReplaceAll(strings.TrimSpace(l[t.col]), ",", "")
+				pop, err := strconv.Atoi(raw)
 				if err != nil {
-					return fail(fmt.Errorf("%s %d, tranche %s : %q illisible : %w", dep, annee, t.code, l[t.col], err))
+					return fail(fmt.Errorf("%s %d, tranche %s : %q illisible : %w", dep, year, t.code, l[t.col], err))
 				}
-				rows = append(rows, []any{dep, annee, t.code, pop, srcID})
+				rows = append(rows, []any{dep, year, t.code, pop, srcID})
 			}
 		}
 	}
-	if nAnnees == 0 {
+	if yearCount == 0 {
 		return fail(fmt.Errorf("aucune feuille de millésime trouvée — format du classeur changé"))
 	}
 
@@ -126,7 +126,7 @@ func IngestPopulationAgeDepartement(ctx context.Context, pool *pgxpool.Pool, arc
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "millesimes": nAnnees}, "")
-	fmt.Printf("  population par département et âge (Insee) : %d lignes, %d millésimes\n", n, nAnnees)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "millesimes": yearCount}, "")
+	fmt.Printf("  population par département et âge (Insee) : %d lignes, %d millésimes\n", n, yearCount)
 	return nil
 }

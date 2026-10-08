@@ -60,7 +60,7 @@ func syncTo(ctx context.Context, defaultBucket, defaultRoot string, args []strin
 		return err
 	}
 
-	c, err := objectstore.Client(objectstore.DepuisEnv())
+	c, err := objectstore.Client(objectstore.FromEnv())
 	if err != nil {
 		return err
 	}

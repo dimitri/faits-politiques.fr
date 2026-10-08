@@ -19,7 +19,7 @@ var SourcePensionsEIR = archive.Source{
 	Slug: "drees-eir-distribution-pensions", Label: "DREES — distribution des pensions (EIR)",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees, Échantillon interrégimes de retraités 2020",
 	Cadence:     "quadriennale",
 	Notes: "Champ : bénéficiaires d'un avantage principal de droit direct d'un régime " +
@@ -30,8 +30,8 @@ var SourcePensionsEIR = archive.Source{
 const eirXLSXURL = "https://data.drees.solidarites-sante.gouv.fr/api/explore/v2.1/catalog/datasets/" +
 	"4178_distribution-des-pensions-mensuelles/attachments/eir2020_distribution_des_pensions_mensuelles_xlsx"
 
-var reTranche = regexp.MustCompile(`^De (\d+) à (\d+) euros`)
-var reTrancheOuverte = regexp.MustCompile(`^Supérieur à (\d+) euros`)
+var reBracket = regexp.MustCompile(`^De (\d+) à (\d+) euros`)
+var reOpenBracket = regexp.MustCompile(`^Supérieur à (\d+) euros`)
 
 func IngestPensionsEIR(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourcePensionsEIR)
@@ -57,31 +57,31 @@ func IngestPensionsEIR(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	}
 	defer x.Close()
 
-	lignes, err := x.rows("pension brute de droit direct")
+	sheetRows, err := x.rows("pension brute de droit direct")
 	if err != nil {
 		return fail(err)
 	}
 
-	const annee = 2020
+	const year = 2020
 	var rows [][]any
 	var total float64
-	for _, l := range lignes {
-		lib := l["A"]
-		femmes, ok1 := valeurNumerique(l, "B")
-		hommes, ok2 := valeurNumerique(l, "C")
-		ens, ok3 := valeurNumerique(l, "D")
+	for _, row := range sheetRows {
+		label := row["A"]
+		women, ok1 := numericValue(row, "B")
+		men, ok2 := numericValue(row, "C")
+		all, ok3 := numericValue(row, "D")
 		if !ok1 || !ok2 || !ok3 {
 			continue
 		}
-		if m := reTranche.FindStringSubmatch(lib); m != nil {
+		if m := reBracket.FindStringSubmatch(label); m != nil {
 			min, _ := strconv.Atoi(m[1])
 			max, _ := strconv.Atoi(m[2])
-			rows = append(rows, []any{annee, min, max, femmes, hommes, ens, srcID})
-			total += ens
-		} else if m := reTrancheOuverte.FindStringSubmatch(lib); m != nil {
+			rows = append(rows, []any{year, min, max, women, men, all, srcID})
+			total += all
+		} else if m := reOpenBracket.FindStringSubmatch(label); m != nil {
 			min, _ := strconv.Atoi(m[1])
-			rows = append(rows, []any{annee, min, nil, femmes, hommes, ens, srcID})
-			total += ens
+			rows = append(rows, []any{year, min, nil, women, men, all, srcID})
+			total += all
 		}
 	}
 	if len(rows) == 0 {
@@ -138,6 +138,6 @@ func IngestPensionsEIR(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"tranches": len(rows), "total_pct": total, "touchees": touchees}, "")
 	fmt.Printf("  distribution des pensions (EIR %d) : %d tranches, total %.1f %%, %d touchées par la fusion\n",
-		annee, len(rows), total, touchees)
+		year, len(rows), total, touchees)
 	return nil
 }

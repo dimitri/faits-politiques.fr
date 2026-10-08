@@ -18,7 +18,7 @@ var SourceFrancophonie = archive.Source{
 	Slug: "odsef-francoscope", Label: "ODSEF/OIF — Francoscope, population et francophones par entité",
 	Publisher: "Observatoire démographique et statistique de l'espace francophone (ODSEF, Université Laval) " +
 		"et Observatoire de la langue française de l'OIF",
-	Tier: "PRIMARY_OFFICIAL", Licence: "Réutilisation libre avec attribution (ODSEF)", ReuseClass: "ATTRIBUTION",
+	Tier: "PRIMARY_OFFICIAL", License: "Réutilisation libre avec attribution (ODSEF)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : ODSEF (Université Laval) / Observatoire de la langue française de l'OIF, Francoscope",
 	Cadence:     "ponctuelle",
 	Notes: "Le fichier mélange, dans une même liste à plat, des pays souverains, des territoires " +
@@ -33,11 +33,11 @@ var SourceFrancophonie = archive.Source{
 
 const urlFrancoscope = "https://outils-odsef-fss.ulaval.ca/francoscope/tab/ODSEF_Francoscope_20250320.ods"
 
-// typeEntiteFrancophonie classe chaque ligne du fichier — la seule partie de
+// francophonieEntityType classe chaque ligne du fichier — la seule partie de
 // ce connecteur qui demande un jugement plutôt qu'une lecture directe,
 // documentée ligne par ligne pour rester vérifiable.
-func typeEntiteFrancophonie(entite string) string {
-	switch entite {
+func francophonieEntityType(entity string) string {
+	switch entity {
 	case "France Outre-mer", "France (ensemble)":
 		return "agregat"
 	case "Alberta", "Colombie-Britannique", "Île-du-Prince-Édouard", "Manitoba", "Nouveau-Brunswick",
@@ -124,34 +124,34 @@ func IngestFrancophonie(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		return fail(fmt.Errorf("content.xml illisible : %w", err))
 	}
 
-	var feuille *odsTable
+	var sheet *odsTable
 	for i, t := range doc.Tables {
 		if strings.HasPrefix(t.Name, "FRANCOSCOPE") {
-			feuille = &doc.Tables[i]
+			sheet = &doc.Tables[i]
 			break
 		}
 	}
-	if feuille == nil {
+	if sheet == nil {
 		return fail(fmt.Errorf("aucune feuille FRANCOSCOPE-* trouvée"))
 	}
-	if len(feuille.Rows) < 2 {
-		return fail(fmt.Errorf("feuille %s : moins de 2 lignes", feuille.Name))
+	if len(sheet.Rows) < 2 {
+		return fail(fmt.Errorf("feuille %s : moins de 2 lignes", sheet.Name))
 	}
-	entete := feuille.Rows[0].Cells
-	attendu := []string{"Entité", "Population 2025", "Francophone (%)", "Francophone (n)"}
+	header := sheet.Rows[0].Cells
+	expected := []string{"Entité", "Population 2025", "Francophone (%)", "Francophone (n)"}
 	idx := map[string]int{}
-	for i, c := range entete {
+	for i, c := range header {
 		if len(c.P) > 0 {
 			idx[strings.Join(c.P, "")] = i
 		}
 	}
-	for _, col := range attendu {
+	for _, col := range expected {
 		if _, ok := idx[col]; !ok {
 			return fail(fmt.Errorf("colonne %q absente — le format a peut-être changé", col))
 		}
 	}
 
-	nombre := func(c odsCell) (*float64, error) {
+	parseCellFloat := func(c odsCell) (*float64, error) {
 		if c.ValueType != "float" {
 			return nil, nil
 		}
@@ -163,27 +163,27 @@ func IngestFrancophonie(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	}
 
 	var rows [][]any
-	for i, r := range feuille.Rows[1:] {
+	for i, r := range sheet.Rows[1:] {
 		if len(r.Cells) <= idx["Entité"] {
 			continue
 		}
-		entite := strings.Join(r.Cells[idx["Entité"]].P, "")
-		if entite == "" {
+		entity := strings.Join(r.Cells[idx["Entité"]].P, "")
+		if entity == "" {
 			continue // lignes vides en fin de feuille
 		}
-		pop, err := nombre(r.Cells[idx["Population 2025"]])
+		pop, err := parseCellFloat(r.Cells[idx["Population 2025"]])
 		if err != nil {
-			return fail(fmt.Errorf("%s (ligne %d) : population : %w", entite, i+2, err))
+			return fail(fmt.Errorf("%s (ligne %d) : population : %w", entity, i+2, err))
 		}
-		pct, err := nombre(r.Cells[idx["Francophone (%)"]])
+		pct, err := parseCellFloat(r.Cells[idx["Francophone (%)"]])
 		if err != nil {
-			return fail(fmt.Errorf("%s (ligne %d) : pourcentage : %w", entite, i+2, err))
+			return fail(fmt.Errorf("%s (ligne %d) : pourcentage : %w", entity, i+2, err))
 		}
-		n, err := nombre(r.Cells[idx["Francophone (n)"]])
+		n, err := parseCellFloat(r.Cells[idx["Francophone (n)"]])
 		if err != nil {
-			return fail(fmt.Errorf("%s (ligne %d) : nombre de francophones : %w", entite, i+2, err))
+			return fail(fmt.Errorf("%s (ligne %d) : nombre de francophones : %w", entity, i+2, err))
 		}
-		rows = append(rows, []any{entite, typeEntiteFrancophonie(entite), pop, pct, n, srcID})
+		rows = append(rows, []any{entity, francophonieEntityType(entity), pop, pct, n, srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("aucune ligne lue"))

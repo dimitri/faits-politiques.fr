@@ -18,7 +18,7 @@ const ConnectorVersion = "immigration-v1"
 var SourceMelodiImmigration = archive.Source{
 	Slug: "insee-rp-immigration-nationalite", Label: "Insee — recensement, immigration et nationalité",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, recensement de la population, diffusion Melodi",
 	Cadence:     "annuelle",
 	Notes: "Immigré (né étranger à l'étranger, quelle que soit la nationalité actuelle) et " +
@@ -36,15 +36,15 @@ type melodiObs struct {
 	} `json:"measures"`
 }
 
-type melodiReponse struct {
+type melodiResponse struct {
 	Observations []melodiObs `json:"observations"`
 }
 
-// melodiLire télécharge et parse une réponse Melodi. Partagé avec le paquet
+// melodiRead télécharge et parse une réponse Melodi. Partagé avec le paquet
 // macro (internal/macro/menages_effectif.go) sans dépendance croisée : deux
 // implémentations d'une trentaine de lignes valent mieux qu'un paquet utilitaire
 // pour ce seul appel HTTP.
-func melodiLire(ctx context.Context, arch *archive.Archive, srcID, runID int64, url string) ([]melodiObs, error) {
+func melodiRead(ctx context.Context, arch *archive.Archive, srcID, runID int64, url string) ([]melodiObs, error) {
 	f, err := arch.Fetch(ctx, srcID, runID, url, ".json")
 	if err != nil {
 		return nil, err
@@ -53,7 +53,7 @@ func melodiLire(ctx context.Context, arch *archive.Archive, srcID, runID int64, 
 	if err != nil {
 		return nil, err
 	}
-	var r melodiReponse
+	var r melodiResponse
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return nil, fmt.Errorf("réponse Melodi illisible : %w", err)
 	}
@@ -63,14 +63,14 @@ func melodiLire(ctx context.Context, arch *archive.Archive, srcID, runID int64, 
 	return r.Observations, nil
 }
 
-var sexeLib = map[string]string{"F": "FEMME", "M": "HOMME", "_T": "TOTAL"}
+var sexLabels = map[string]string{"F": "FEMME", "M": "HOMME", "_T": "TOTAL"}
 
-var empstaLib = map[string]string{
+var empstaLabels = map[string]string{
 	"1": "ACTIF_OCCUPE", "2": "CHOMEUR", "31": "RETRAITE", "33": "ETUDIANT",
 	"35": "AU_FOYER", "36": "AUTRE_INACTIF", "_T": "TOTAL",
 }
 
-var ageLib = map[string]string{
+var ageLabels = map[string]string{
 	"Y_LT15": "MOINS_15", "Y15T24": "15_24", "Y25T54": "25_54", "Y_GE55": "55_PLUS",
 	"Y_GE15": "15_PLUS", "_T": "TOUS_AGES",
 }

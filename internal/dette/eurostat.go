@@ -20,7 +20,7 @@ import (
 var SourceEurostatDette = archive.Source{
 	Slug: "eurostat-dette", Label: "Eurostat — dette, déficit, intérêts et taux longs des États européens",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat (gov_10dd_edpt1, gov_10a_main, gov_10dd_ggd, irt_lt_mcby)",
 	Cadence:     "annuelle (notifications d'avril et octobre), mensuelle pour les taux",
 	Notes: "Échéances de gov_10dd_ggd en durée RÉSIDUELLE, à ne pas rapprocher du court/long " +
@@ -35,41 +35,41 @@ const eurostatBase = "https://ec.europa.eu/eurostat/api/dissemination/statistics
 // « frugaux » souvent cités en contre-exemple, les pays du Sud exposés à la
 // crise de 2010-2012, et deux agrégats. Pas les 27 : ce projet ne synthétise
 // pas un inventaire pays par pays.
-var paysComparaison = []string{
+var comparisonCountries = []string{
 	"FR", "DE", "IT", "ES", "NL", "BE", "AT", "PT", "EL", "IE", "FI", "SE", "DK", "PL",
 }
 
-type requeteEurostat struct {
-	jeu    string
-	params string
-	geo    []string
-	qualif func(dims map[string]string) (*Serie, error)
+type eurostatRequest struct {
+	jeu      string
+	params   string
+	geo      []string
+	classify func(dims map[string]string) (*Series, error)
 }
 
-func requetesEurostat() []requeteEurostat {
-	agregats := append(append([]string{}, paysComparaison...), "EU27_2020", "EA20")
-	return []requeteEurostat{
+func eurostatRequests() []eurostatRequest {
+	aggregates := append(append([]string{}, comparisonCountries...), "EU27_2020", "EA20")
+	return []eurostatRequest{
 		{
 			jeu:    "gov_10dd_edpt1",
 			params: "na_item=GD&sector=S13&sector=S1311&sector=S1312&sector=S1313&sector=S1314&unit=MIO_EUR&unit=PC_GDP",
-			geo:    agregats,
-			qualif: func(d map[string]string) (*Serie, error) {
-				return &Serie{Concept: "DETTE_MAASTRICHT", Mesure: "ENCOURS", SecteurEmetteur: d["sector"]}, nil
+			geo:    aggregates,
+			classify: func(d map[string]string) (*Series, error) {
+				return &Series{Concept: "DETTE_MAASTRICHT", Mesure: "ENCOURS", SecteurEmetteur: d["sector"]}, nil
 			},
 		},
 		{
-			jeu:    "gov_10a_main",
-			params: "na_item=D41PAY&na_item=B9&na_item=TR&na_item=TE&sector=S13&unit=MIO_EUR&unit=PC_GDP",
-			geo:    append(append([]string{}, agregats...), "CH"),
-			qualif: qualifierComptes,
+			jeu:      "gov_10a_main",
+			params:   "na_item=D41PAY&na_item=B9&na_item=TR&na_item=TE&sector=S13&unit=MIO_EUR&unit=PC_GDP",
+			geo:      append(append([]string{}, aggregates...), "CH"),
+			classify: classifyAccounts,
 		},
 		{
 			// Les montants de la Suisse en francs : convertis en euros par
 			// Eurostat, ils varieraient avec le change autant qu'avec la dette.
-			jeu:    "gov_10a_main",
-			params: "na_item=D41PAY&na_item=B9&na_item=TR&na_item=TE&sector=S13&unit=MIO_NAC",
-			geo:    []string{"CH"},
-			qualif: qualifierComptes,
+			jeu:      "gov_10a_main",
+			params:   "na_item=D41PAY&na_item=B9&na_item=TR&na_item=TE&sector=S13&unit=MIO_NAC",
+			geo:      []string{"CH"},
+			classify: classifyAccounts,
 		},
 		// Le compte des administrations françaises, opération par opération :
 		// la dépense par nature (dont la somme redonne TE au million près) et
@@ -78,31 +78,31 @@ func requetesEurostat() []requeteEurostat {
 		// B9, TE, TR et D41PAY du secteur S13 sont déjà dans la requête
 		// précédente : les redemander chargerait deux fois les mêmes séries.
 		{
-			jeu:    "gov_10a_main",
-			params: "sector=S13&unit=MIO_EUR&unit=PC_GDP" + parametres("na_item", operationsAPU),
-			geo:    []string{"FR"},
-			qualif: qualifierOperation,
+			jeu:      "gov_10a_main",
+			params:   "sector=S13&unit=MIO_EUR&unit=PC_GDP" + queryParams("na_item", operationsAPU),
+			geo:      []string{"FR"},
+			classify: classifyOperation,
 		},
 		{
 			jeu: "gov_10a_main",
 			params: "sector=S1311&sector=S1313&sector=S1314&unit=MIO_EUR&unit=PC_GDP" +
-				parametres("na_item", append([]string{"B9", "TE", "TR", "D41PAY"}, operationsAPU...)),
-			geo:    []string{"FR"},
-			qualif: qualifierOperation,
+				queryParams("na_item", append([]string{"B9", "TE", "TR", "D41PAY"}, operationsAPU...)),
+			geo:      []string{"FR"},
+			classify: classifyOperation,
 		},
 		// Pour comparer la « règle d'or » d'un pays à l'autre : le compte de
 		// capital seul, au niveau de l'ensemble des administrations.
 		{
-			jeu:    "gov_10a_main",
-			params: "sector=S13&unit=MIO_EUR&unit=PC_GDP" + parametres("na_item", compteCapital),
-			geo:    append(sauf(agregats, "FR"), "CH"),
-			qualif: qualifierOperation,
+			jeu:      "gov_10a_main",
+			params:   "sector=S13&unit=MIO_EUR&unit=PC_GDP" + queryParams("na_item", compteCapital),
+			geo:      append(without(aggregates, "FR"), "CH"),
+			classify: classifyOperation,
 		},
 		{
-			jeu:    "gov_10dd_ggd",
-			params: "na_item=GD&sector=S13&maturity=TOTAL&unit=MIO_EUR&unit=PC_GDP",
-			geo:    paysComparaison,
-			qualif: qualifierDetention,
+			jeu:      "gov_10dd_ggd",
+			params:   "na_item=GD&sector=S13&maturity=TOTAL&unit=MIO_EUR&unit=PC_GDP",
+			geo:      comparisonCountries,
+			classify: classifyHolding,
 		},
 		{
 			jeu: "gov_10dd_ggd",
@@ -110,20 +110,20 @@ func requetesEurostat() []requeteEurostat {
 			// redemander chargerait deux fois les mêmes séries.
 			params: "na_item=GD&sector=S13&sector2=S1_S2&maturity=Y_LE1&maturity=Y1-5&maturity=Y_GT1" +
 				"&maturity=Y5-10&maturity=Y10-30&maturity=Y_GT30&unit=MIO_EUR&unit=PC_GDP",
-			geo:    paysComparaison,
-			qualif: qualifierDetention,
+			geo:      comparisonCountries,
+			classify: classifyHolding,
 		},
 		{
-			jeu:    "irt_lt_mcby_a",
-			params: "int_rt=MCBY",
-			geo:    append(append([]string{}, paysComparaison...), "EU27_2020"),
-			qualif: qualifierTaux,
+			jeu:      "irt_lt_mcby_a",
+			params:   "int_rt=MCBY",
+			geo:      append(append([]string{}, comparisonCountries...), "EU27_2020"),
+			classify: classifyRate,
 		},
 		{
-			jeu:    "irt_lt_mcby_m",
-			params: "int_rt=MCBY",
-			geo:    append(append([]string{}, paysComparaison...), "EU27_2020"),
-			qualif: qualifierTaux,
+			jeu:      "irt_lt_mcby_m",
+			params:   "int_rt=MCBY",
+			geo:      append(append([]string{}, comparisonCountries...), "EU27_2020"),
+			classify: classifyRate,
 		},
 	}
 }
@@ -141,40 +141,40 @@ var compteCapital = []string{"B8G", "P5", "NP", "D9PAY", "D9REC", "P51G", "P51C"
 var operationsAPU = append([]string{"B8N", "D92PAY", "P2", "D1PAY", "D29PAY", "D3PAY", "D4PAY",
 	"D5PAY", "D62PAY", "D632PAY", "D7PAY", "D8", "PTC"}, compteCapital...)
 
-func parametres(nom string, valeurs []string) string {
+func queryParams(name string, values []string) string {
 	var b strings.Builder
-	for _, v := range valeurs {
-		b.WriteString("&" + nom + "=" + v)
+	for _, v := range values {
+		b.WriteString("&" + name + "=" + v)
 	}
 	return b.String()
 }
 
-func sauf(liste []string, exclu string) []string {
+func without(list []string, excluded string) []string {
 	var out []string
-	for _, x := range liste {
-		if x != exclu {
+	for _, x := range list {
+		if x != excluded {
 			out = append(out, x)
 		}
 	}
 	return out
 }
 
-// qualifierOperation range les opérations qui ont déjà un concept (solde,
+// classifyOperation range les opérations qui ont déjà un concept (solde,
 // recettes, dépenses, intérêts) sous ce concept, et les autres sous
 // OPERATION_APU, le code de l'opération dans instrument.
-func qualifierOperation(d map[string]string) (*Serie, error) {
-	if s, err := qualifierComptes(d); err == nil {
+func classifyOperation(d map[string]string) (*Series, error) {
+	if s, err := classifyAccounts(d); err == nil {
 		return s, nil
 	}
 	for _, op := range operationsAPU {
 		if d["na_item"] == op {
-			return &Serie{Concept: "OPERATION_APU", Mesure: "FLUX", SecteurEmetteur: d["sector"], Instrument: op}, nil
+			return &Series{Concept: "OPERATION_APU", Mesure: "FLUX", SecteurEmetteur: d["sector"], Instrument: op}, nil
 		}
 	}
 	return nil, fmt.Errorf("na_item %q inattendu", d["na_item"])
 }
 
-func qualifierComptes(d map[string]string) (*Serie, error) {
+func classifyAccounts(d map[string]string) (*Series, error) {
 	concepts := map[string]string{
 		"D41PAY": "INTERETS_VERSES", "B9": "SOLDE_PUBLIC", "TR": "RECETTES_PUBLIQUES", "TE": "DEPENSES_PUBLIQUES",
 	}
@@ -182,13 +182,13 @@ func qualifierComptes(d map[string]string) (*Serie, error) {
 	if !ok {
 		return nil, fmt.Errorf("na_item %q inattendu", d["na_item"])
 	}
-	return &Serie{Concept: c, Mesure: "FLUX", SecteurEmetteur: d["sector"]}, nil
+	return &Series{Concept: c, Mesure: "FLUX", SecteurEmetteur: d["sector"]}, nil
 }
 
-// qualifierDetention range la contrepartie (sector2) de gov_10dd_ggd dans
+// classifyHolding range la contrepartie (sector2) de gov_10dd_ggd dans
 // les dimensions zone et secteur détenteur du modèle.
-func qualifierDetention(d map[string]string) (*Serie, error) {
-	s := &Serie{Concept: "DETTE_MAASTRICHT", Mesure: "ENCOURS", SecteurEmetteur: d["sector"]}
+func classifyHolding(d map[string]string) (*Series, error) {
+	s := &Series{Concept: "DETTE_MAASTRICHT", Mesure: "ENCOURS", SecteurEmetteur: d["sector"]}
 	switch c := d["sector2"]; c {
 	case "S1_S2":
 		s.ZoneDetenteur, s.SecteurDetenteur = "W0", "_T"
@@ -212,8 +212,8 @@ func qualifierDetention(d map[string]string) (*Serie, error) {
 	return s, nil
 }
 
-func qualifierTaux(d map[string]string) (*Serie, error) {
-	return &Serie{Concept: "TAUX_LONG_TERME", Mesure: "TAUX", SecteurEmetteur: "S1311", Unite: "PCT"}, nil
+func classifyRate(d map[string]string) (*Series, error) {
+	return &Series{Concept: "TAUX_LONG_TERME", Mesure: "TAUX", SecteurEmetteur: "S1311", Unite: "PCT"}, nil
 }
 
 // jsonStat est la réponse JSON-stat 2.0 d'Eurostat. Les valeurs sont rangées
@@ -240,14 +240,14 @@ type jsonStatDimension struct {
 	} `json:"category"`
 }
 
-type cellule struct {
+type cell struct {
 	dims   map[string]string
-	valeur float64
-	statut string
+	value  float64
+	status string
 }
 
-// cellules déplie le tableau à plat en combinaisons de dimensions nommées.
-func (js *jsonStat) cellules() ([]cellule, error) {
+// cells déplie le tableau à plat en combinaisons de dimensions nommées.
+func (js *jsonStat) cells() ([]cell, error) {
 	if len(js.ID) != len(js.Size) {
 		return nil, fmt.Errorf("JSON-stat : %d dimensions pour %d tailles", len(js.ID), len(js.Size))
 	}
@@ -265,36 +265,36 @@ func (js *jsonStat) cellules() ([]cellule, error) {
 			codes[i][pos] = code
 		}
 	}
-	out := make([]cellule, 0, len(js.Value))
-	for cle, v := range js.Value {
+	out := make([]cell, 0, len(js.Value))
+	for key, v := range js.Value {
 		// Un null décodé dans un float64 donnerait 0 : une valeur absente
 		// deviendrait une valeur nulle. On l'écarte explicitement.
 		if v == nil {
 			continue
 		}
-		n, err := strconv.Atoi(cle)
+		n, err := strconv.Atoi(key)
 		if err != nil {
-			return nil, fmt.Errorf("JSON-stat : index %q", cle)
+			return nil, fmt.Errorf("JSON-stat : index %q", key)
 		}
 		dims := make(map[string]string, len(js.ID))
-		reste := n
+		remainder := n
 		for i := len(js.ID) - 1; i >= 0; i-- {
-			dims[js.ID[i]] = codes[i][reste%js.Size[i]]
-			reste /= js.Size[i]
+			dims[js.ID[i]] = codes[i][remainder%js.Size[i]]
+			remainder /= js.Size[i]
 		}
-		if reste != 0 {
+		if remainder != 0 {
 			return nil, fmt.Errorf("JSON-stat : index %d hors du cube", n)
 		}
-		out = append(out, cellule{dims: dims, valeur: *v, statut: js.Status[cle]})
+		out = append(out, cell{dims: dims, value: *v, status: js.Status[key]})
 	}
 	return out, nil
 }
 
 func IngestEurostat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, pool, arch, SourceEurostatDette, func(srcID, runID int64) (*lot, error) {
-		l := nouveauLot()
-		series := map[string]*Serie{}
-		for _, r := range requetesEurostat() {
+	return run(ctx, pool, arch, SourceEurostatDette, func(srcID, runID int64) (*batch, error) {
+		l := newBatch()
+		series := map[string]*Series{}
+		for _, r := range eurostatRequests() {
 			url := eurostatBase + r.jeu + "?format=JSON&lang=FR&" + r.params
 			for _, g := range r.geo {
 				url += "&geo=" + g
@@ -304,13 +304,13 @@ func IngestEurostat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 				return nil, err
 			}
 			var js jsonStat
-			if err := lireJSON(f.Path, &js); err != nil {
+			if err := readJSON(f.Path, &js); err != nil {
 				return nil, fmt.Errorf("%s : %w", r.jeu, err)
 			}
 			if len(js.Error) > 0 {
 				return nil, fmt.Errorf("%s : Eurostat : %s", r.jeu, js.Error[0].Label)
 			}
-			cells, err := js.cellules()
+			cells, err := js.cells()
 			if err != nil {
 				return nil, fmt.Errorf("%s : %w", r.jeu, err)
 			}
@@ -320,16 +320,16 @@ func IngestEurostat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 			// Un ordre stable des séries et des observations, pour des
 			// chargements comparables d'une exécution à l'autre.
 			sort.Slice(cells, func(i, j int) bool { return cells[i].dims["time"] < cells[j].dims["time"] })
-			obsParSerie := map[string][]Obs{}
-			var ordre []string
+			obsBySeries := map[string][]Obs{}
+			var order []string
 			for _, c := range cells {
-				code, libelle := codeEurostat(r.jeu, &js, c.dims)
-				mult, err := facteurEurostat(c.dims)
+				code, libelle := eurostatCode(r.jeu, &js, c.dims)
+				mult, err := eurostatFactor(c.dims)
 				if err != nil {
 					return nil, fmt.Errorf("%s : %w", code, err)
 				}
 				if _, ok := series[code]; !ok {
-					s, err := r.qualif(c.dims)
+					s, err := r.classify(c.dims)
 					if err != nil {
 						return nil, fmt.Errorf("%s : %w", r.jeu, err)
 					}
@@ -337,43 +337,43 @@ func IngestEurostat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 					s.Pays = c.dims["geo"]
 					s.Frequence = c.dims["freq"]
 					s.URL = url
-					if err := uniteEurostat(s, c.dims); err != nil {
+					if err := eurostatUnit(s, c.dims); err != nil {
 						return nil, fmt.Errorf("%s : %w", code, err)
 					}
 					series[code] = s
-					ordre = append(ordre, code)
+					order = append(order, code)
 				}
-				periode := periodeEurostat(c.dims["time"])
-				obsParSerie[code] = append(obsParSerie[code],
-					Obs{Periode: periode, Valeur: c.valeur * mult, Statut: c.statut, DocumentID: f.DocumentID})
+				periode := eurostatPeriod(c.dims["time"])
+				obsBySeries[code] = append(obsBySeries[code],
+					Obs{Periode: periode, Valeur: c.value * mult, Statut: c.status, DocumentID: f.DocumentID})
 			}
-			sort.Strings(ordre)
-			for _, code := range ordre {
-				l.ajouter(series[code], obsParSerie[code])
+			sort.Strings(order)
+			for _, code := range order {
+				l.add(series[code], obsBySeries[code])
 			}
 		}
 		return l, nil
 	})
 }
 
-// codeEurostat nomme une série par son jeu, son pays et ses autres
+// eurostatCode nomme une série par son jeu, son pays et ses autres
 // dimensions dans l'ordre de la réponse : 'eurostat:gov_10a_main:FR:MIO_EUR:S13:D41PAY'.
-func codeEurostat(jeu string, js *jsonStat, dims map[string]string) (string, string) {
+func eurostatCode(jeu string, js *jsonStat, dims map[string]string) (string, string) {
 	parts := []string{"eurostat", jeu, dims["geo"]}
-	var lib []string
+	var labels []string
 	for _, id := range js.ID {
 		if id == "freq" || id == "geo" || id == "time" {
 			continue
 		}
 		parts = append(parts, dims[id])
 		if l := js.Dimension[id].Category.Label[dims[id]]; l != "" {
-			lib = append(lib, l)
+			labels = append(labels, l)
 		}
 	}
-	return strings.Join(parts, ":"), js.Label + " — " + strings.Join(lib, " — ")
+	return strings.Join(parts, ":"), js.Label + " — " + strings.Join(labels, " — ")
 }
 
-func uniteEurostat(s *Serie, dims map[string]string) error {
+func eurostatUnit(s *Series, dims map[string]string) error {
 	u, ok := dims["unit"]
 	if !ok {
 		if s.Unite == "" {
@@ -398,8 +398,8 @@ func uniteEurostat(s *Serie, dims map[string]string) error {
 	return nil
 }
 
-// facteurEurostat : les montants sont publiés en millions.
-func facteurEurostat(dims map[string]string) (float64, error) {
+// eurostatFactor : les montants sont publiés en millions.
+func eurostatFactor(dims map[string]string) (float64, error) {
 	switch dims["unit"] {
 	case "MIO_EUR", "MIO_NAC":
 		return 1e6, nil
@@ -409,8 +409,8 @@ func facteurEurostat(dims map[string]string) (float64, error) {
 	return 0, fmt.Errorf("unité %q inattendue", dims["unit"])
 }
 
-// periodeEurostat ramène '2025M01' ou '2025-01' à '2025-01', '2025Q1' à '2025-Q1'.
-func periodeEurostat(t string) string {
+// eurostatPeriod ramène '2025M01' ou '2025-01' à '2025-01', '2025Q1' à '2025-Q1'.
+func eurostatPeriod(t string) string {
 	switch {
 	case len(t) == 7 && t[4] == 'M':
 		return t[:4] + "-" + t[5:]

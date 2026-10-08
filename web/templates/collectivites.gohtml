@@ -1,10 +1,10 @@
 {{define "content"}}
 {{$c := .C}}
 <p class="fil"><a href="{{.Root}}/">Accueil</a> › <span>Collectivités</span></p>
-<span class="sur">Régions, départements, intercommunalités · exercice {{$c.Exercice}}</span>
+<span class="sur">Régions, départements, intercommunalités · exercice {{$c.FiscalYear}}</span>
 <h1>Qui dirige le budget, entre la commune et l'État</h1>
 <p class="lede">Régions, départements et intercommunalités ont dépensé <strong>137&nbsp;Md€ de
-fonctionnement en {{$c.Exercice}}, contre 84&nbsp;Md€ pour les 34&nbsp;772 communes</strong> — et
+fonctionnement en {{$c.FiscalYear}}, contre 84&nbsp;Md€ pour les 34&nbsp;772 communes</strong> — et
 pourtant, aucun de leurs exécutifs n'est élu par personne <em>directement</em>.</p>
 
 <p class="note proc"><strong>Aucun de ces présidents n'a été élu à cette fonction au suffrage
@@ -15,12 +15,12 @@ des listes municipales. C'est le droit, pas un reproche&nbsp;: ce site le rappel
 donnée le montre et qu'on l'oublie souvent, en confondant ce budget avec celui de la commune ou de
 son maire.</p>
 
-{{if $c.CarteInteractive}}
+{{if $c.MapInteractive}}
 <h2>La carte&nbsp;: la France, une région, un département</h2>
-<p class="q">{{.IndicLibelle}}, en {{$c.Exercice}}. Cliquez une région pour voir ses
+<p class="q">{{.IndicatorLabel}}, en {{$c.FiscalYear}}. Cliquez une région pour voir ses
 départements, un département pour ouvrir sa page&nbsp;; un chiffre par défaut, celui de la France
 entière, s'affine à chaque clic.</p>
-<div id="carte-interactive">{{$c.CarteInteractive}}</div>
+<div id="carte-interactive">{{$c.MapInteractive}}</div>
 <p class="attr-osm">Contours&nbsp;: © les contributeurs OpenStreetMap, sous ODbL&nbsp;1.0.</p>
 <p class="note">Sans JavaScript, la carte reste utilisable comme repère visuel&nbsp;: le détail par
 région, département et intercommunalité est de toute façon dans les trois cartes et les tableaux
@@ -28,89 +28,89 @@ ci-dessous.</p>
 {{end}}
 
 <h2>Trois niveaux, trois cartes</h2>
-<p class="q">{{.IndicLibelle}}, en {{$c.Exercice}}. Les trois cartes couvrent le même
+<p class="q">{{.IndicatorLabel}}, en {{$c.FiscalYear}}. Les trois cartes couvrent le même
 territoire dans le même repère&nbsp;: elles se superposent exactement. L'intercommunalité —
 la « CC », l'agglo, la métropole — est l'échelon où cette gouvernance indirecte se joue tous
 les jours&nbsp;: c'est son conseil communautaire, pas un vote direct, qui décide le budget montré
 ici.</p>
 <div class="cartes-empilees">
   <div class="bloc-carte ligne" id="carte-epci">
-    {{if $c.CarteEPCI.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+    {{if $c.MapEPCI.Empty}}<p class="nodata">Aucune donnée.</p>{{else}}
     <div>
-      {{$c.CarteEPCI.SVG}}
-      {{if gt (len $c.CarteEPCI.Cartons) 8}}
+      {{$c.MapEPCI.SVG}}
+      {{if gt (len $c.MapEPCI.Tiles) 8}}
       <details class="plus">
-        <summary>Outre-mer&nbsp;: {{len $c.CarteEPCI.Cartons}} intercommunalités</summary>
-        <div class="dedans">{{template "cartons" $c.CarteEPCI.Cartons}}</div>
+        <summary>Outre-mer&nbsp;: {{len $c.MapEPCI.Tiles}} intercommunalités</summary>
+        <div class="dedans">{{template "cartons" $c.MapEPCI.Tiles}}</div>
       </details>
-      {{else}}{{template "cartons" $c.CarteEPCI.Cartons}}{{end}}
+      {{else}}{{template "cartons" $c.MapEPCI.Tiles}}{{end}}
     </div>
     <div>
       <h3>Par intercommunalité à fiscalité propre</h3>
-      {{$t := $c.CarteEPCI.Teintes}}<div class="echelle"><span class="u">{{$c.CarteEPCI.Unite}}</span>
-        {{range $i, $b := $c.CarteEPCI.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
-      {{with $c.ResumeEPCIBudget}}<dl class="legende-situation">
-        <div><dt>Intercommunalités à fiscalité propre</dt><dd><b>{{nb .Nombre}}</b></dd></div>
-        <div><dt>Budget de fonctionnement cumulé</dt><dd><b>{{dec .Fonctionnement 1}}&nbsp;Md€</b></dd></div>
-        <div><dt>Budget d'investissement cumulé</dt><dd><b>{{dec .Investissement 1}}&nbsp;Md€</b></dd></div>
-        <div><dt>Part du bloc communal</dt><dd><b>{{dec .PartBlocCommunal 0}}&nbsp;%</b><span>du fonctionnement communes + intercommunalités passe par l'échelon indirect</span></dd></div>
-        <div><dt>Conseillers communautaires</dt><dd><b>{{nb .Elus}}</b><span>élus indirects, en mandat</span></dd></div>
+      {{$t := $c.MapEPCI.Shades}}<div class="echelle"><span class="u">{{$c.MapEPCI.Unit}}</span>
+        {{range $i, $b := $c.MapEPCI.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+      {{with $c.SummaryEPCIBudget}}<dl class="legende-situation">
+        <div><dt>Intercommunalités à fiscalité propre</dt><dd><b>{{nb .Count}}</b></dd></div>
+        <div><dt>Budget de fonctionnement cumulé</dt><dd><b>{{dec .Operating 1}}&nbsp;Md€</b></dd></div>
+        <div><dt>Budget d'investissement cumulé</dt><dd><b>{{dec .Investment 1}}&nbsp;Md€</b></dd></div>
+        <div><dt>Part du bloc communal</dt><dd><b>{{dec .ShareBlockCommunal 0}}&nbsp;%</b><span>du fonctionnement communes + intercommunalités passe par l'échelon indirect</span></dd></div>
+        <div><dt>Conseillers communautaires</dt><dd><b>{{nb .Elected}}</b><span>élus indirects, en mandat</span></dd></div>
         <div><dt>Population couverte</dt><dd><b>{{nb (int .Population)}}</b> habitants</dd></div>
       </dl>{{end}}
     </div>
     {{end}}
   </div>
   <div class="bloc-carte ligne">
-    {{if $c.CarteRegions.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+    {{if $c.MapRegions.Empty}}<p class="nodata">Aucune donnée.</p>{{else}}
     <div>
-      {{$c.CarteRegions.SVG}}
-      {{template "cartons" $c.CarteRegions.Cartons}}
+      {{$c.MapRegions.SVG}}
+      {{template "cartons" $c.MapRegions.Tiles}}
     </div>
     <div>
       <h3>Par région</h3>
-      {{$t := $c.CarteRegions.Teintes}}<div class="echelle"><span class="u">{{$c.CarteRegions.Unite}}</span>
-        {{range $i, $b := $c.CarteRegions.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
-      {{with $c.ResumeRegions}}<dl class="legende-situation">
-        <div><dt>Régions</dt><dd><b>{{nb .Nombre}}</b></dd></div>
-        <div><dt>Population totale</dt><dd><b>{{nb (int .Total)}}</b> {{$c.CarteRegions.Unite}}</dd></div>
-        <div><dt>Médiane</dt><dd><b>{{nb (int .Mediane)}}</b> {{$c.CarteRegions.Unite}}</dd></div>
-        <div><dt>Maximum</dt><dd><b>{{nb (int .MaxValeur)}}</b> {{$c.CarteRegions.Unite}}<span>{{.MaxNom}}</span></dd></div>
-        <div><dt>Minimum</dt><dd><b>{{nb (int .MinValeur)}}</b> {{$c.CarteRegions.Unite}}<span>{{.MinNom}}</span></dd></div>
+      {{$t := $c.MapRegions.Shades}}<div class="echelle"><span class="u">{{$c.MapRegions.Unit}}</span>
+        {{range $i, $b := $c.MapRegions.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+      {{with $c.SummaryRegions}}<dl class="legende-situation">
+        <div><dt>Régions</dt><dd><b>{{nb .Count}}</b></dd></div>
+        <div><dt>Population totale</dt><dd><b>{{nb (int .Total)}}</b> {{$c.MapRegions.Unit}}</dd></div>
+        <div><dt>Médiane</dt><dd><b>{{nb (int .Median)}}</b> {{$c.MapRegions.Unit}}</dd></div>
+        <div><dt>Maximum</dt><dd><b>{{nb (int .MaxValue)}}</b> {{$c.MapRegions.Unit}}<span>{{.MaxName}}</span></dd></div>
+        <div><dt>Minimum</dt><dd><b>{{nb (int .MinValue)}}</b> {{$c.MapRegions.Unit}}<span>{{.MinName}}</span></dd></div>
       </dl>{{end}}
     </div>
     {{end}}
   </div>
   <div class="bloc-carte ligne">
-    {{if $c.CarteDepts.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}
+    {{if $c.MapDepts.Empty}}<p class="nodata">Aucune donnée.</p>{{else}}
     <div>
-      {{$c.CarteDepts.SVG}}
-      {{template "cartons" $c.CarteDepts.Cartons}}
+      {{$c.MapDepts.SVG}}
+      {{template "cartons" $c.MapDepts.Tiles}}
     </div>
     <div>
       <h3>Par département</h3>
-      {{$t := $c.CarteDepts.Teintes}}<div class="echelle"><span class="u">{{$c.CarteDepts.Unite}}</span>
-        {{range $i, $b := $c.CarteDepts.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
-      {{with $c.ResumeDepts}}<dl class="legende-situation">
-        <div><dt>Départements</dt><dd><b>{{nb .Nombre}}</b></dd></div>
-        <div><dt>Population totale</dt><dd><b>{{nb (int .Total)}}</b> {{$c.CarteDepts.Unite}}</dd></div>
-        <div><dt>Médiane</dt><dd><b>{{nb (int .Mediane)}}</b> {{$c.CarteDepts.Unite}}</dd></div>
-        <div><dt>Maximum</dt><dd><b>{{nb (int .MaxValeur)}}</b> {{$c.CarteDepts.Unite}}<span>{{.MaxNom}}</span></dd></div>
-        <div><dt>Minimum</dt><dd><b>{{nb (int .MinValeur)}}</b> {{$c.CarteDepts.Unite}}<span>{{.MinNom}}</span></dd></div>
+      {{$t := $c.MapDepts.Shades}}<div class="echelle"><span class="u">{{$c.MapDepts.Unit}}</span>
+        {{range $i, $b := $c.MapDepts.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</div>
+      {{with $c.SummaryDepts}}<dl class="legende-situation">
+        <div><dt>Départements</dt><dd><b>{{nb .Count}}</b></dd></div>
+        <div><dt>Population totale</dt><dd><b>{{nb (int .Total)}}</b> {{$c.MapDepts.Unit}}</dd></div>
+        <div><dt>Médiane</dt><dd><b>{{nb (int .Median)}}</b> {{$c.MapDepts.Unit}}</dd></div>
+        <div><dt>Maximum</dt><dd><b>{{nb (int .MaxValue)}}</b> {{$c.MapDepts.Unit}}<span>{{.MaxName}}</span></dd></div>
+        <div><dt>Minimum</dt><dd><b>{{nb (int .MinValue)}}</b> {{$c.MapDepts.Unit}}<span>{{.MinName}}</span></dd></div>
       </dl>{{end}}
     </div>
     {{end}}
   </div>
 </div>
 <p class="attr-osm">Contours régions/départements&nbsp;: © les contributeurs OpenStreetMap, sous
-ODbL&nbsp;1.0. Contours des {{nb $c.NbEPCISurCarte}} intercommunalités&nbsp;: IGN Admin Express COG
-CARTO, millésime {{$c.MillesimeEPCI}}, Licence Ouverte&nbsp;— un tracé par groupement, union de ses
+ODbL&nbsp;1.0. Contours des {{nb $c.CountEPCIOnMap}} intercommunalités&nbsp;: IGN Admin Express COG
+CARTO, millésime {{$c.VintageEPCI}}, Licence Ouverte&nbsp;— un tracé par groupement, union de ses
 communes membres publiée directement par l'IGN, jamais recalculée ici.
-{{if $c.HorsCarte}}Absents de la carte départementale, parce qu'ils n'ont pas de contour propre à ce
-niveau&nbsp;: {{range $i, $h := $c.HorsCarte}}{{if $i}}, {{end}}{{$h}}{{end}}. Leurs chiffres sont
+{{if $c.OutsideMap}}Absents de la carte départementale, parce qu'ils n'ont pas de contour propre à ce
+niveau&nbsp;: {{range $i, $h := $c.OutsideMap}}{{if $i}}, {{end}}{{$h}}{{end}}. Leurs chiffres sont
 dans le tableau.{{end}}</p>
 
 <h2>Les communes, département par département</h2>
-<p class="q">{{len .T.Cartes}} cartes, {{nb .T.Communes}} communes, {{.T.Departements}} départements
+<p class="q">{{len .T.Maps}} cartes, {{nb .T.Municipalities}} communes, {{.T.Departments}} départements
 métropolitains — la donnée la mieux couverte du site, très loin devant la donnée politique. Ces
 cartes agrègent des données <strong>communales</strong>, pas les budgets régionaux/départementaux/
 EPCI ci-dessus.</p>
@@ -119,19 +119,19 @@ contours en Lambert-93 et écrit le tracé, la page l'affiche&nbsp;: aucune bibl
 cartographie, aucun serveur de tuiles, <strong>aucune requête vers un tiers</strong>. Passez la
 souris sur un département pour lire sa valeur.</p>
 <div class="cartes-lignes">
-{{range .T.Cartes}}
+{{range .T.Maps}}
   <a class="bloc-carte ligne" href="{{$.Root}}/collectivites/carte/{{.Slug}}/">
-    {{if .Apercu.Vide}}<p class="nodata">Aucune donnée.</p>{{else}}{{.Apercu.SVG}}{{end}}
+    {{if .Overview.Empty}}<p class="nodata">Aucune donnée.</p>{{else}}{{.Overview.SVG}}{{end}}
     <div>
-      <h3>{{.Titre}}</h3>
+      <h3>{{.Title}}</h3>
       <p class="q">{{.Question}}</p>
-      {{if not .Apercu.Vide}}
-      {{$t := .Apercu.Teintes}}<span class="echelle"><span class="u">{{.Apercu.Unite}}</span>
-        {{range $i, $b := .Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
+      {{if not .Overview.Empty}}
+      {{$t := .Overview.Shades}}<span class="echelle"><span class="u">{{.Overview.Unit}}</span>
+        {{range $i, $b := .Overview.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}
       </span>
       {{end}}
-      {{template "cartons" .Apercu.Cartons}}
-      <span class="src">{{.Source}}{{if .Apercu.NbAbsents}} · {{.Apercu.NbAbsents}} départements sans donnée{{end}}</span>
+      {{template "cartons" .Overview.Tiles}}
+      <span class="src">{{.Source}}{{if .Overview.CountAbsents}} · {{.Overview.CountAbsents}} départements sans donnée{{end}}</span>
       <span class="voir">Voir la carte, le classement et la méthode →</span>
     </div>
   </a>
@@ -142,7 +142,7 @@ souris sur un département pour lire sa valeur.</p>
 Les vignettes sont simplifiées à environ quatre kilomètres&nbsp;; chaque page de détail porte le
 tracé fin.</p>
 
-<h2>Qui dépense quoi, en {{$c.Exercice}}</h2>
+<h2>Qui dépense quoi, en {{$c.FiscalYear}}</h2>
 <p class="q">Totaux par niveau, en milliards d'euros, avec le nombre de collectivités concernées.
 Le plus élevé de chaque colonne est en gras&nbsp;: comparez une colonne (qui dépense le plus pour ce
 poste) ou une ligne (le profil d'un niveau) d'un coup d'œil.</p>
@@ -152,10 +152,10 @@ l'attribution de compensation qu'une intercommunalité reverse à ses communes �
 celui qui verse <em>et</em> chez celui qui dépense. La somme des quatre niveaux dépasse donc la
 dépense réelle des collectivités.</p>
 <div class="scroll"><table class="donnees">
-<thead><tr><th>Niveau</th>{{range .TableDep.Indicateurs}}<th class="n">{{.Court}}</th>{{end}}</tr></thead>
-<tbody>{{range .TableDep.Lignes}}<tr>
-  <td>{{.Niveau}} <span class="z small">{{nb .Collectivites}}</span></td>
-  {{range .Cellules}}<td class="n">{{if ge .Pct 99.95}}<strong>{{dec .Valeur 1}}&nbsp;Md€</strong>{{else}}{{dec .Valeur 1}}&nbsp;Md€{{end}}</td>{{end}}
+<thead><tr><th>Niveau</th>{{range .TableDep.Indicators}}<th class="n">{{.Short}}</th>{{end}}</tr></thead>
+<tbody>{{range .TableDep.Lines}}<tr>
+  <td>{{.Level}} <span class="z small">{{nb .Authorities}}</span></td>
+  {{range .Cells}}<td class="n">{{if ge .Pct 99.95}}<strong>{{dec .Value 1}}&nbsp;Md€</strong>{{else}}{{dec .Value 1}}&nbsp;Md€{{end}}</td>{{end}}
 </tr>{{end}}</tbody></table></div>
 <p class="note"><strong>Les 34 772 communes ne dépensent pas le plus.</strong> En fonctionnement
 elles restent devant, mais en investissement les trois autres niveaux réunis font plus qu'elles, et
@@ -172,11 +172,11 @@ dotations — n'est pas détaillé par cette seule agrégation.</p>
 <div class="scroll"><table>
 <thead><tr><th>Niveau</th><th class="n">Recettes totales</th><th class="n">dont DGF</th>
   <th class="n">dont impôts et taxes</th></tr></thead>
-<tbody>{{range .Parts}}<tr>
-  <td>{{.Libelle}}</td>
-  <td class="n">{{dec .Recettes 1}}&nbsp;Md€</td>
+<tbody>{{range .Shares}}<tr>
+  <td>{{.Label}}</td>
+  <td class="n">{{dec .Revenues 1}}&nbsp;Md€</td>
   <td class="n">{{dec .DGFPct 0}}&nbsp;%</td>
-  <td class="n">{{dec .ImpotsPct 0}}&nbsp;%</td>
+  <td class="n">{{dec .TaxesPct 0}}&nbsp;%</td>
 </tr>{{end}}</tbody></table></div>
 <p class="note"><strong>La DGF quasi nulle des régions ne signifie pas qu'elles reçoivent peu de
 l'État.</strong> Depuis la loi de finances 2018, la DGF des régions a été remplacée par une fraction
@@ -185,28 +185,28 @@ niveaux&nbsp;: cette recette de substitution semble comptée dans cette catégor
 la région n'en vote pas le taux — une hypothèse de lecture cohérente avec les chiffres, que cette
 note ne peut pas confirmer faute d'avoir ouvert la méthodologie détaillée de l'OFGL.</p>
 
-{{with $c.FiscaliteLocale}}
+{{with $c.TaxationLocal}}
 <h3>Qui paie, via quel mécanisme</h3>
-<p class="q">Quatre impôts locaux réels, {{.Annee}}, pour les seules communes et intercommunalités
+<p class="q">Quatre impôts locaux réels, {{.Year}}, pour les seules communes et intercommunalités
 (pas département ni région, qui n'en reçoivent plus depuis les réformes 2020-2021) — pas des noms
 abstraits de niveaux de collectivité, mais des mécanismes fiscaux nommés et qui les paie.</p>
-<div class="repartition-barre" role="img" aria-label="Ménages {{dec .MenagesPct 0}} %, entreprises {{dec .EntreprisesPct 0}} %">
-  <i style="width:{{printf "%.1f" .MenagesPct}}%;background:#1E5C69" title="Ménages — {{dec .MenagesPct 0}} %"></i>
-  <i style="width:{{printf "%.1f" .EntreprisesPct}}%;background:#8C4B3A" title="Entreprises — {{dec .EntreprisesPct 0}} %"></i>
+<div class="repartition-barre" role="img" aria-label="Ménages {{dec .HouseholdsPct 0}} %, entreprises {{dec .CompaniesPct 0}} %">
+  <i style="width:{{printf "%.1f" .HouseholdsPct}}%;background:#1E5C69" title="Ménages — {{dec .HouseholdsPct 0}} %"></i>
+  <i style="width:{{printf "%.1f" .CompaniesPct}}%;background:#8C4B3A" title="Entreprises — {{dec .CompaniesPct 0}} %"></i>
 </div>
 <div class="repartition-legende">
-  <div><i style="background:#1E5C69"></i><span><strong>Ménages</strong> — {{dec .Menages 1}}&nbsp;Md€
-    ({{dec .MenagesPct 0}}&nbsp;%), via le foncier bâti et non bâti</span></div>
-  <div><i style="background:#8C4B3A"></i><span><strong>Entreprises</strong> — {{dec .Entreprises 1}}&nbsp;Md€
-    ({{dec .EntreprisesPct 0}}&nbsp;%), via la CFE et la TASCOM</span></div>
+  <div><i style="background:#1E5C69"></i><span><strong>Ménages</strong> — {{dec .Households 1}}&nbsp;Md€
+    ({{dec .HouseholdsPct 0}}&nbsp;%), via le foncier bâti et non bâti</span></div>
+  <div><i style="background:#8C4B3A"></i><span><strong>Entreprises</strong> — {{dec .Companies 1}}&nbsp;Md€
+    ({{dec .CompaniesPct 0}}&nbsp;%), via la CFE et la TASCOM</span></div>
 </div>
 <div class="scroll"><table class="donnees">
 <thead><tr><th>Qui paie</th><th>Mécanisme</th><th class="n">Montant, bloc communal</th></tr></thead>
 <tbody>
-{{range $i, $l := .DetailMenages}}<tr>{{if eq $i 0}}<td rowspan="{{len $c.FiscaliteLocale.DetailMenages}}">Ménages</td>{{end}}
-  <td>{{$l.Libelle}}</td><td class="n">{{dec $l.Montant 1}}&nbsp;Md€</td></tr>{{end}}
-{{range $i, $l := .DetailEntreprises}}<tr>{{if eq $i 0}}<td rowspan="{{len $c.FiscaliteLocale.DetailEntreprises}}">Entreprises</td>{{end}}
-  <td>{{$l.Libelle}}</td><td class="n">{{dec $l.Montant 1}}&nbsp;Md€</td></tr>{{end}}
+{{range $i, $l := .DetailHouseholds}}<tr>{{if eq $i 0}}<td rowspan="{{len $c.TaxationLocal.DetailHouseholds}}">Ménages</td>{{end}}
+  <td>{{$l.Label}}</td><td class="n">{{dec $l.Amount 1}}&nbsp;Md€</td></tr>{{end}}
+{{range $i, $l := .DetailCompanies}}<tr>{{if eq $i 0}}<td rowspan="{{len $c.TaxationLocal.DetailCompanies}}">Entreprises</td>{{end}}
+  <td>{{$l.Label}}</td><td class="n">{{dec $l.Amount 1}}&nbsp;Md€</td></tr>{{end}}
 </tbody></table></div>
 <p class="note abs"><strong>Quatre impôts sur beaucoup d'autres.</strong> Non chargés ici&nbsp;:
 l'IFER (impôt forfaitaire sur les entreprises de réseau — la source répète la même valeur
@@ -223,40 +223,40 @@ Source&nbsp;: DGFiP (Registre des éléments d'imposition), diffusion OFGL.</p>
 <div class="scroll"><table>
 <thead><tr><th>Région</th><th>Président du conseil régional</th><th class="n">Habitants</th>
   <th class="n">Conseillers</th>
-  {{range .Ind}}<th class="n">{{.Court}}</th>{{end}}</tr></thead>
+  {{range .Ind}}<th class="n">{{.Short}}</th>{{end}}</tr></thead>
 <tbody>{{range $c.Regions}}<tr>
-  <td><a href="{{$.Root}}/collectivites/region/{{.Slug}}/">{{.Nom}}</a></td>
-  <td class="small">{{if .President}}{{if .President.Fiche}}<a href="{{$.Root}}/depute/{{.President.Slug}}/">{{.President.Nom}}</a>{{else}}{{.President.Nom}}{{end}}
+  <td><a href="{{$.Root}}/collectivites/region/{{.Slug}}/">{{.Name}}</a></td>
+  <td class="small">{{if .President}}{{if .President.Profile}}<a href="{{$.Root}}/depute/{{.President.Slug}}/">{{.President.Name}}</a>{{else}}{{.President.Name}}{{end}}
     <span class="z">depuis le {{.President.Depuis}}</span>{{else}}<span class="z">non publié</span>{{end}}</td>
   <td class="n">{{nb .Population}}</td>
-  <td class="n z">{{if .Conseillers}}{{.Conseillers}}{{else}}—{{end}}</td>
-  {{$r := .}}{{range $.Ind}}<td class="n">{{eurHab (index $r.ParHab .Code)}}</td>{{end}}
+  <td class="n z">{{if .Councillors}}{{.Councillors}}{{else}}—{{end}}</td>
+  {{$r := .}}{{range $.Ind}}<td class="n">{{eurHab (index $r.PerInhabitants .Code)}}</td>{{end}}
 </tr>{{end}}</tbody></table></div>
 
-<h2>Les {{len $c.Departements}} départements</h2>
-<p class="q">{{sub (len $c.Departements) 6}} ont leur propre budget départemental. Six territoires
+<h2>Les {{len $c.Departments}} départements</h2>
+<p class="q">{{sub (len $c.Departments) 6}} ont leur propre budget départemental. Six territoires
 réels — Corse, Alsace, Martinique, Guyane — n'en ont plus depuis une fusion de collectivités&nbsp;;
 ils restent dans le tableau, avec où regarder à la place.</p>
 <div class="scroll"><table>
 <thead><tr><th>N°</th><th>Département</th><th>Président du conseil départemental</th><th class="n">Habitants</th>
   <th class="n">Conseillers</th>
-  {{range .Ind}}<th class="n">{{.Court}}</th>{{end}}</tr></thead>
-<tbody>{{range $c.Departements}}<tr{{if .SansBudgetPropre}} class="fusion"{{end}}>
+  {{range .Ind}}<th class="n">{{.Short}}</th>{{end}}</tr></thead>
+<tbody>{{range $c.Departments}}<tr{{if .WithoutBudgetClean}} class="fusion"{{end}}>
   <td class="code">{{.Code}}</td>
-  {{if .SansBudgetPropre}}
-  <td>{{.Nom}}</td>
+  {{if .WithoutBudgetClean}}
+  <td>{{.Name}}</td>
   <td class="small z" colspan="{{add 2 (len $.Ind)}}">Pas de budget départemental propre depuis la
-    fusion en <a href="{{$.Root}}/collectivites/{{if eq .FusionNiveau "REGION"}}region/{{.FusionSlug}}{{else}}departement/{{.FusionCode}}{{end}}/">{{.FusionLibelle}}</a>.</td>
+    fusion en <a href="{{$.Root}}/collectivites/{{if eq .FusionLevel "REGION"}}region/{{.FusionSlug}}{{else}}departement/{{.FusionCode}}{{end}}/">{{.FusionLabel}}</a>.</td>
   {{else}}
-  <td><a href="{{$.Root}}/collectivites/departement/{{.Code}}/">{{.Nom}}</a></td>
-  <td class="small">{{if .President}}{{if .President.Fiche}}<a href="{{$.Root}}/depute/{{.President.Slug}}/">{{.President.Nom}}</a>{{else}}{{.President.Nom}}{{end}}{{else}}<span class="z">non publié</span>{{end}}</td>
+  <td><a href="{{$.Root}}/collectivites/departement/{{.Code}}/">{{.Name}}</a></td>
+  <td class="small">{{if .President}}{{if .President.Profile}}<a href="{{$.Root}}/depute/{{.President.Slug}}/">{{.President.Name}}</a>{{else}}{{.President.Name}}{{end}}{{else}}<span class="z">non publié</span>{{end}}</td>
   <td class="n">{{nb .Population}}</td>
-  <td class="n z">{{if .Conseillers}}{{.Conseillers}}{{else}}—{{end}}</td>
-  {{$d := .}}{{range $.Ind}}<td class="n">{{eurHab (index $d.ParHab .Code)}}</td>{{end}}
+  <td class="n z">{{if .Councillors}}{{.Councillors}}{{else}}—{{end}}</td>
+  {{$d := .}}{{range $.Ind}}<td class="n">{{eurHab (index $d.PerInhabitants .Code)}}</td>{{end}}
   {{end}}
 </tr>{{end}}</tbody></table></div>
 
-<h2>Les {{nb $c.NbEPCI}} groupements de communes</h2>
+<h2>Les {{nb $c.CountEPCI}} groupements de communes</h2>
 <p class="q">Toutes formes confondues, syndicats techniques compris. Seules les six premières lignes
 lèvent l'impôt et exercent des compétences en propre&nbsp;; les syndicats sont des outils financés
 par leurs membres.</p>
@@ -264,11 +264,11 @@ par leurs membres.</p>
 <thead><tr><th>Forme juridique</th><th class="n">Nombre</th><th class="n">Habitants couverts</th>
   <th class="n">Président connu</th><th>Fiscalité propre</th></tr></thead>
 <tbody>{{range $c.Natures}}<tr>
-  <td>{{.Libelle}} <code class="small">{{.Code}}</code></td>
-  <td class="n">{{nb .Nombre}}</td>
+  <td>{{.Label}} <code class="small">{{.Code}}</code></td>
+  <td class="n">{{nb .Count}}</td>
   <td class="n z">{{nb64 .Population}}</td>
-  <td class="n z">{{nb .AvecPresident}}</td>
-  <td class="small">{{if .Fiscalite}}oui{{else}}<span class="z">non — syndicat</span>{{end}}</td>
+  <td class="n z">{{nb .WithPresident}}</td>
+  <td class="small">{{if .Taxation}}oui{{else}}<span class="z">non — syndicat</span>{{end}}</td>
 </tr>{{end}}</tbody></table></div>
 <p class="note abs"><strong>La somme des habitants couverts dépasse largement la population
 française</strong>, et ce n'est pas une erreur&nbsp;: une même commune adhère à plusieurs syndicats
@@ -280,8 +280,8 @@ habitants autant de fois qu'ils sont couverts.</p>
 déclarent.</p>
 <div class="scroll"><table>
 <thead><tr><th>Compétence</th><th class="n">Groupements</th></tr></thead>
-<tbody>{{range $c.Competences}}<tr><td class="small">{{.Libelle}}</td>
-  <td class="n">{{nb .Nombre}}</td></tr>{{end}}</tbody></table></div>
+<tbody>{{range $c.Responsibilities}}<tr><td class="small">{{.Label}}</td>
+  <td class="n">{{nb .Count}}</td></tr>{{end}}</tbody></table></div>
 
 <details class="plus" open>
   <summary>Ce que cette page ne dit pas</summary>

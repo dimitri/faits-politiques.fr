@@ -16,7 +16,7 @@ var SourceANSSI = archive.Source{
 	Slug: "anssi-catalogue-qualifications", Label: "ANSSI — catalogue des produits et services certifiés, qualifiés et agréés",
 	Publisher:   "Agence nationale de la sécurité des systèmes d'information",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Document public de l'ANSSI, cité avec lien",
+	License:     "Document public de l'ANSSI, cité avec lien",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : ANSSI, catalogue des produits et services qualifiés",
 	Cadence:     "mise à jour continue (date imprimée sur le catalogue)",
@@ -31,7 +31,7 @@ const urlCatalogueANSSI = "https://messervices.cyber.gouv.fr/visas/catalogue-pro
 // dénomination Sirene (unité active) la désigne sans ambiguïté. « Cegedim »
 // reste sans SIREN : le catalogue ne dit pas s'il s'agit de la société de tête
 // ou de sa filiale Cegedim.cloud.
-var sirenFournisseurs = map[string]string{
+var sirenProviders = map[string]string{
 	"Cloud Solutions":          "528893522", // éditeur de Wimi
 	"Cloud Temple":             "825400336",
 	"Index Education":          "384351599",
@@ -53,12 +53,12 @@ var (
 )
 
 func IngestQualifications(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, arch, SourceANSSI, func(srcID, runID int64) (map[string]any, error) {
+	return run(ctx, arch, SourceANSSI, func(srcID, runID int64) (map[string]any, error) {
 		f, err := arch.Fetch(ctx, srcID, runID, urlCatalogueANSSI, ".pdf")
 		if err != nil {
 			return nil, err
 		}
-		t, err := textePDF(ctx, f.Path, true)
+		t, err := pdfText(ctx, f.Path, true)
 		if err != nil {
 			return nil, err
 		}
@@ -66,27 +66,27 @@ func IngestQualifications(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		if m == nil {
 			return nil, fmt.Errorf("date de mise à jour du catalogue introuvable")
 		}
-		catalogueDu, _ := time.Parse("02/01/2006", m[1])
-		qs, err := lireSecNumCloud(t)
+		catalogDate, _ := time.Parse("02/01/2006", m[1])
+		qualifications, err := readSecNumCloud(t)
 		if err != nil {
 			return nil, err
 		}
 		// Une vingtaine de services en 2025-2026 : moins de 15 trahirait une
 		// mise en page que la lecture ne suit plus.
-		if len(qs) < 15 {
-			return nil, fmt.Errorf("%d services qualifiés lus seulement", len(qs))
+		if len(qualifications) < 15 {
+			return nil, fmt.Errorf("%d services qualifiés lus seulement", len(qualifications))
 		}
-		var lignes [][]any
-		for _, q := range qs {
-			var tierce any
+		var rows [][]any
+		for _, q := range qualifications {
+			var thirdParty any
 			switch {
 			case strings.Contains(strings.ToLower(q.service), "s3ns"):
-				tierce = "Google Cloud (Alphabet, États-Unis)"
+				thirdParty = "Google Cloud (Alphabet, États-Unis)"
 			case strings.Contains(strings.ToLower(q.service), "vmware"):
-				tierce = "VMware (Broadcom, États-Unis)"
+				thirdParty = "VMware (Broadcom, États-Unis)"
 			}
-			lignes = append(lignes, []any{q.fournisseur, q.service, q.types[0], q.types[1], q.types[2], q.types[3],
-				q.debut, q.fin, nul(q.decision), catalogueDu, nul(sirenFournisseurs[q.fournisseur]), tierce, f.DocumentID})
+			rows = append(rows, []any{q.provider, q.service, q.types[0], q.types[1], q.types[2], q.types[3],
+				q.start, q.end, nilIfEmpty(q.decision), catalogDate, nilIfEmpty(sirenProviders[q.provider]), thirdParty, f.DocumentID})
 		}
 		tx, err := pool.Begin(ctx)
 		if err != nil {
@@ -106,12 +106,12 @@ func IngestQualifications(ctx context.Context, pool *pgxpool.Pool, arch *archive
 			) ON COMMIT DROP;
 			CREATE OR REPLACE TEMPORARY VIEW qualification_secnumcloud_scope AS
 			  SELECT * FROM core.qualification_secnumcloud WHERE catalogue_du = %s
-			  WITH LOCAL CHECK OPTION`, "'"+catalogueDu.Format("2006-01-02")+"'::date")); err != nil {
+			  WITH LOCAL CHECK OPTION`, "'"+catalogDate.Format("2006-01-02")+"'::date")); err != nil {
 			return nil, err
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_qualification_secnumcloud"},
 			[]string{"fournisseur", "service", "saas", "paas", "caas", "iaas", "date_debut", "date_fin", "decision",
-				"catalogue_du", "siren", "technologie_tierce", "document_id"}, pgx.CopyFromRows(lignes)); err != nil {
+				"catalogue_du", "siren", "technologie_tierce", "document_id"}, pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 		ct, err := tx.Exec(ctx, `
@@ -137,92 +137,92 @@ func IngestQualifications(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		if err != nil {
 			return nil, err
 		}
-		return map[string]any{"catalogue_du": m[1], "services": len(qs), "touchees": ct.RowsAffected()}, tx.Commit(ctx)
+		return map[string]any{"catalogue_du": m[1], "services": len(qualifications), "touchees": ct.RowsAffected()}, tx.Commit(ctx)
 	})
 }
 
 type qualification struct {
-	fournisseur, service, decision string
-	types                          [4]bool // SaaS, PaaS, CaaS, IaaS
-	debut, fin                     time.Time
+	provider, service, decision string
+	types                       [4]bool // SaaS, PaaS, CaaS, IaaS
+	start, end                  time.Time
 }
 
-// lireSecNumCloud lit le tableau de la section 3.3.1 dans la sortie
+// readSecNumCloud lit le tableau de la section 3.3.1 dans la sortie
 // « -layout » de pdftotext. Le tableau est en colonnes à largeur fixe, dont les
 // positions changent d'une page à l'autre : elles sont relues sur chaque ligne
 // d'en-tête. Un service occupe un bloc de lignes séparé des autres par une
 // ligne vide ; son nom peut déborder au-dessus et au-dessous de la ligne qui
 // porte le fournisseur, les coches et les dates.
-func lireSecNumCloud(t string) ([]qualification, error) {
-	lignes := strings.Split(t, "\n")
-	debut, fin := -1, -1
-	for i, l := range lignes {
+func readSecNumCloud(t string) ([]qualification, error) {
+	lines := strings.Split(t, "\n")
+	start, end := -1, -1
+	for i, l := range lines {
 		s := strings.TrimSpace(l)
-		if debut < 0 && strings.HasPrefix(s, "3.3.1") && strings.Contains(s, "services qualifiés") && !strings.Contains(s, "...") {
-			debut = i
+		if start < 0 && strings.HasPrefix(s, "3.3.1") && strings.Contains(s, "services qualifiés") && !strings.Contains(s, "...") {
+			start = i
 		}
-		if debut >= 0 && strings.HasPrefix(s, "3.3.2") {
-			fin = i
+		if start >= 0 && strings.HasPrefix(s, "3.3.2") {
+			end = i
 			break
 		}
 	}
-	if debut < 0 || fin < 0 {
+	if start < 0 || end < 0 {
 		return nil, fmt.Errorf("section 3.3.1 introuvable dans le catalogue")
 	}
 	var (
-		out       []qualification
-		colTypes  [4]int
-		bloc      [][]rune
-		enteteLue bool
+		out         []qualification
+		typeColumns [4]int
+		block       [][]rune
+		headerRead  bool
 	)
-	traiter := func() error {
-		defer func() { bloc = nil }()
-		datee := -1
-		for i, l := range bloc {
+	process := func() error {
+		defer func() { block = nil }()
+		datedLine := -1
+		for i, l := range block {
 			if len(reDate.FindAllString(string(l), -1)) >= 2 {
-				if datee >= 0 {
+				if datedLine >= 0 {
 					return fmt.Errorf("deux lignes datées dans un même bloc : %q", string(l))
 				}
-				datee = i
+				datedLine = i
 			}
 		}
-		if datee < 0 {
+		if datedLine < 0 {
 			return nil
 		}
-		if !enteteLue {
-			return fmt.Errorf("ligne de service avant tout en-tête : %q", string(bloc[datee]))
+		if !headerRead {
+			return fmt.Errorf("ligne de service avant tout en-tête : %q", string(block[datedLine]))
 		}
-		l := bloc[datee]
+		l := block[datedLine]
 		// Le fournisseur est en tête de la ligne datée, séparé du reste par au
 		// moins deux espaces ; les en-têtes ne donnent pas la colonne du service
 		// (son intitulé est centré, pas aligné sur les noms).
-		ligne := string(l)
-		coupe := reDeuxBlancs.FindStringIndex(ligne)
-		if coupe == nil {
-			return fmt.Errorf("ligne de service sans colonnes : %q", ligne)
+		lineText := string(l)
+		cut := reDeuxBlancs.FindStringIndex(lineText)
+		if cut == nil {
+			return fmt.Errorf("ligne de service sans colonnes : %q", lineText)
 		}
-		q := qualification{fournisseur: strings.TrimSpace(ligne[:coupe[0]])}
-		var morceaux []string
-		for i, b := range bloc {
-			if i == datee {
+		q := qualification{provider: strings.TrimSpace(lineText[:cut[0]])}
+		var pieces []string
+		for i, b := range block {
+			if i == datedLine {
 				// Sur la ligne datée, le nom du service s'arrête avant la
 				// première coche.
-				reste := []rune(ligne[coupe[1]:])
-				debutReste := len([]rune(ligne[:coupe[1]]))
-				if debutReste < colTypes[0]-2 {
-					fin := min(len(reste), colTypes[0]-2-debutReste)
-					if s := strings.TrimSpace(string(reste[:fin])); s != "" {
-						morceaux = append(morceaux, s)
+				rest := []rune(lineText[cut[1]:])
+				restStart := len([]rune(lineText[:cut[1]]))
+				if restStart < typeColumns[0]-2 {
+					cutEnd := min(len(rest), typeColumns[0]-2-restStart)
+					if s := strings.TrimSpace(string(rest[:cutEnd])); s != "" {
+						pieces = append(pieces, s)
 					}
 				}
 				continue
 			}
 			// Les lignes de débordement ne portent que le nom du service.
 			if s := strings.TrimSpace(string(b)); s != "" {
-				morceaux = append(morceaux, s)
+				pieces = append(pieces, s)
 			}
 		}
-		for i, s := range morceaux {
+		for i, s := range pieces {
 			// « co-» + « edition » se recolle ; « Services -» + « Secured » garde
 			// son espace.
 			if i > 0 && strings.HasSuffix(q.service, "-") && !strings.HasSuffix(q.service, " -") {
@@ -234,14 +234,14 @@ func lireSecNumCloud(t string) ([]qualification, error) {
 			}
 		}
 		// Les coches sont entre la colonne SaaS et la première date.
-		posDate := strings.Index(string(l), reDate.FindString(string(l)))
-		limite := len([]rune(string(l)[:posDate]))
-		for i := colTypes[0] - 2; i < limite && i < len(l); i++ {
+		datePos := strings.Index(string(l), reDate.FindString(string(l)))
+		limit := len([]rune(string(l)[:datePos]))
+		for i := typeColumns[0] - 2; i < limit && i < len(l); i++ {
 			if l[i] != 'X' {
 				continue
 			}
 			k, d := 0, 1<<30
-			for j, c := range colTypes {
+			for j, c := range typeColumns {
 				if e := abs(i - (c + 2)); e < d {
 					k, d = j, e
 				}
@@ -249,40 +249,40 @@ func lireSecNumCloud(t string) ([]qualification, error) {
 			q.types[k] = true
 		}
 		dates := reDate.FindAllString(string(l), 2)
-		q.debut, _ = time.Parse("02/01/2006", dates[0])
-		q.fin, _ = time.Parse("02/01/2006", dates[1])
+		q.start, _ = time.Parse("02/01/2006", dates[0])
+		q.end, _ = time.Parse("02/01/2006", dates[1])
 		if m := reDecision.FindStringSubmatch(string(l)); m != nil {
 			q.decision = m[1]
 		}
-		if q.fournisseur == "" || q.service == "" || !(q.types[0] || q.types[1] || q.types[2] || q.types[3]) {
+		if q.provider == "" || q.service == "" || !(q.types[0] || q.types[1] || q.types[2] || q.types[3]) {
 			return fmt.Errorf("ligne de service incomplète : %q", string(l))
 		}
 		out = append(out, q)
 		return nil
 	}
-	for _, brute := range lignes[debut+1 : fin] {
-		brute = strings.TrimLeft(brute, "\f")
-		r := []rune(brute)
+	for _, raw := range lines[start+1 : end] {
+		raw = strings.TrimLeft(raw, "\f")
+		r := []rune(raw)
 		s := string(r)
 		if strings.Contains(s, "Nom du service") && strings.Contains(s, "SaaS") && strings.Contains(s, "IaaS") {
-			if err := traiter(); err != nil {
+			if err := process(); err != nil {
 				return nil, err
 			}
-			for k, nom := range []string{"SaaS", "PaaS", "CaaS", "IaaS"} {
-				colTypes[k] = runeIndex(s, nom)
+			for k, name := range []string{"SaaS", "PaaS", "CaaS", "IaaS"} {
+				typeColumns[k] = runeIndex(s, name)
 			}
-			enteteLue = true
+			headerRead = true
 			continue
 		}
 		if strings.TrimSpace(s) == "" {
-			if err := traiter(); err != nil {
+			if err := process(); err != nil {
 				return nil, err
 			}
 			continue
 		}
-		bloc = append(bloc, r)
+		block = append(block, r)
 	}
-	if err := traiter(); err != nil {
+	if err := process(); err != nil {
 		return nil, err
 	}
 	return out, nil

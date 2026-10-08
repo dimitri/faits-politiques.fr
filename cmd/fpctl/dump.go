@@ -156,7 +156,7 @@ func runDumpCI(ctx context.Context, args []string) error {
 // construction n'a encore tourné) : rien à comparer, pas une raison de
 // faire échouer l'export.
 func verifyCIPerimeter(ctx context.Context, pool *pgxpool.Pool) error {
-	byNode, err := sitegen.TablesPubliees(ctx, pool)
+	byNode, err := sitegen.TablesPublished(ctx, pool)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			return nil
@@ -225,7 +225,7 @@ func uploadDumpFile(ctx context.Context, path, bucket, key string) error {
 		return err
 	}
 
-	c, err := objectstore.Client(objectstore.DepuisEnv())
+	c, err := objectstore.Client(objectstore.FromEnv())
 	if err != nil {
 		return err
 	}
@@ -252,7 +252,7 @@ func runRestoreCI(ctx context.Context, args []string) error {
 	}
 
 	if *download {
-		c, err := objectstore.Client(objectstore.DepuisEnv())
+		c, err := objectstore.Client(objectstore.FromEnv())
 		if err != nil {
 			return err
 		}

@@ -32,7 +32,7 @@ var Source = archive.Source{
 	Slug: "faostat", Label: "FAOSTAT — bilans alimentaires et usage des terres",
 	Publisher:   "Organisation des Nations unies pour l'alimentation et l'agriculture",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "CC BY 4.0",
+	License:     "CC BY 4.0",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : FAOSTAT, Organisation des Nations unies pour l'alimentation et l'agriculture",
 	Cadence:     "annuelle",
@@ -42,17 +42,17 @@ var Source = archive.Source{
 }
 
 const (
-	bilanURL  = "https://bulks-faostat.fao.org/production/FoodBalanceSheets_E_Europe.zip"
-	terresURL = "https://bulks-faostat.fao.org/production/Inputs_LandUse_E_Europe.zip"
-	emploiURL = "https://bulks-faostat.fao.org/production/Employment_Indicators_Agriculture_E_Europe.zip"
+	foodBalanceURL = "https://bulks-faostat.fao.org/production/FoodBalanceSheets_E_Europe.zip"
+	landURL        = "https://bulks-faostat.fao.org/production/Inputs_LandUse_E_Europe.zip"
+	employmentURL  = "https://bulks-faostat.fao.org/production/Employment_Indicators_Agriculture_E_Europe.zip"
 
-	pays = "France"
+	country = "France"
 )
 
 // Les éléments du bilan qui portent la réponse. Les autres — variations de
 // stock, résidus, apports en protéines et lipides — sont ignorés : les charger
 // tous multiplierait le volume sans éclairer la question posée.
-var elementsRetenus = map[string]bool{
+var retainedElements = map[string]bool{
 	"Production":                          true,
 	"Import quantity":                     true,
 	"Export quantity":                     true,
@@ -68,14 +68,14 @@ var elementsRetenus = map[string]bool{
 
 // Les agrégats de la FAO. Ils contiennent déjà leurs composants : les
 // additionner à ceux-ci compterait deux fois.
-var agregats = map[string]bool{
+var aggregates = map[string]bool{
 	"Grand Total": true, "Animal Products": true, "Vegetal Products": true,
 	"Population": true,
 }
 
 // Les postes d'usage des terres et d'emploi qui décrivent l'appareil de
 // production, avec le code sous lequel ils entrent en base.
-var indicateurs = map[string]string{
+var indicators = map[string]string{
 	"Agricultural land":              "terres.agricoles",
 	"Cropland":                       "terres.cultivees",
 	"Arable land":                    "terres.arables",
@@ -100,15 +100,15 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return err
 	}
 
-	fBilan, err := arch.Fetch(ctx, srcID, runID, bilanURL, ".zip")
+	fFoodBalance, err := arch.Fetch(ctx, srcID, runID, foodBalanceURL, ".zip")
 	if err != nil {
 		return fail(err)
 	}
-	fTerres, err := arch.Fetch(ctx, srcID, runID, terresURL, ".zip")
+	fLand, err := arch.Fetch(ctx, srcID, runID, landURL, ".zip")
 	if err != nil {
 		return fail(err)
 	}
-	fEmploi, err := arch.Fetch(ctx, srcID, runID, emploiURL, ".zip")
+	fEmployment, err := arch.Fetch(ctx, srcID, runID, employmentURL, ".zip")
 	if err != nil {
 		return fail(err)
 	}
@@ -126,55 +126,55 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	// contrainte.
 
 	// 1. Les bilans alimentaires.
-	produits := map[string]string{}
-	var lignes [][]any
-	err = parcourir(fBilan.Path, func(r map[string]string, annees map[int]string) error {
-		if r["Area"] != pays {
+	products := map[string]string{}
+	var rows [][]any
+	err = walkFAOSTATCSV(fFoodBalance.Path, func(r map[string]string, years map[int]string) error {
+		if r["Area"] != country {
 			return nil
 		}
 		el := r["Element"]
-		if !elementsRetenus[el] {
+		if !retainedElements[el] {
 			return nil
 		}
 		item := r["Item"]
-		code := codeProduit(item)
-		produits[code] = item
-		for annee, brut := range annees {
-			v, ok := nombre(brut)
+		code := productCode(item)
+		products[code] = item
+		for year, raw := range years {
+			v, ok := parseNumber(raw)
 			if !ok {
 				continue
 			}
-			lignes = append(lignes, []any{code, el, annee, v, r["Unit"], srcID})
+			rows = append(rows, []any{code, el, year, v, r["Unit"], srcID})
 		}
 		return nil
 	})
 	if err != nil {
 		return fail(err)
 	}
-	if len(lignes) == 0 {
-		return fail(fmt.Errorf("aucun bilan pour %s : le format de la FAO a changé", pays))
+	if len(rows) == 0 {
+		return fail(fmt.Errorf("aucun bilan pour %s : le format de la FAO a changé", country))
 	}
 
-	for code, libelle := range produits {
+	for code, label := range products {
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO ref.produit_alimentaire (code, libelle, agregat)
 			VALUES ($1,$2,$3) ON CONFLICT (code) DO UPDATE SET libelle = EXCLUDED.libelle`,
-			code, libelle, agregats[libelle]); err != nil {
+			code, label, aggregates[label]); err != nil {
 			return fail(err)
 		}
 	}
 	// DISTINCT ON en amont : la FAO publie parfois deux lignes pour un même
 	// triplet quand une série est révisée. On garde la première rencontrée
 	// plutôt que de laisser la clé primaire faire échouer le chargement.
-	vus := map[string]bool{}
-	var propres [][]any
-	for _, l := range lignes {
+	seen := map[string]bool{}
+	var deduped [][]any
+	for _, l := range rows {
 		k := fmt.Sprintf("%v|%v|%v", l[0], l[1], l[2])
-		if vus[k] {
+		if seen[k] {
 			continue
 		}
-		vus[k] = true
-		propres = append(propres, l)
+		seen[k] = true
+		deduped = append(deduped, l)
 	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_bilan_alimentaire (
@@ -189,10 +189,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_bilan_alimentaire"},
 		[]string{"produit_code", "element", "annee", "valeur", "unite", "source_id"},
-		pgx.CopyFromRows(propres)); err != nil {
+		pgx.CopyFromRows(deduped)); err != nil {
 		return fail(fmt.Errorf("copie des bilans : %w", err))
 	}
-	ctBilan, err := tx.Exec(ctx, `
+	ctBalance, err := tx.Exec(ctx, `
 		MERGE INTO core.bilan_alimentaire AS tgt
 		USING tmp_bilan_alimentaire AS src
 		ON tgt.produit_code = src.produit_code AND tgt.element = src.element AND tgt.annee = src.annee
@@ -206,38 +206,38 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err != nil {
 		return fail(fmt.Errorf("fusion des bilans : %w", err))
 	}
-	nBilan := ctBilan.RowsAffected()
+	nBalance := ctBalance.RowsAffected()
 
 	// 2. L'appareil de production : terres et emploi.
-	var indRows [][]any
-	for _, chemin := range []string{fTerres.Path, fEmploi.Path} {
-		vus := map[string]bool{}
-		err = parcourir(chemin, func(r map[string]string, annees map[int]string) error {
-			if r["Area"] != pays {
+	var indicatorRows [][]any
+	for _, path := range []string{fLand.Path, fEmployment.Path} {
+		seen := map[string]bool{}
+		err = walkFAOSTATCSV(path, func(r map[string]string, years map[int]string) error {
+			if r["Area"] != country {
 				return nil
 			}
 			// « Item » dans les fichiers de production, « Indicator » dans ceux
 			// d'emploi : la FAO ne nomme pas sa colonne de la même façon d'un
 			// jeu à l'autre.
-			libelle := r["Item"]
-			if libelle == "" {
-				libelle = r["Indicator"]
+			label := r["Item"]
+			if label == "" {
+				label = r["Indicator"]
 			}
-			code, ok := indicateurs[libelle]
+			code, ok := indicators[label]
 			if !ok {
 				return nil
 			}
-			for annee, brut := range annees {
-				v, ok := nombre(brut)
+			for year, raw := range years {
+				v, ok := parseNumber(raw)
 				if !ok {
 					continue
 				}
-				k := fmt.Sprintf("%s|%d", code, annee)
-				if vus[k] {
+				k := fmt.Sprintf("%s|%d", code, year)
+				if seen[k] {
 					continue
 				}
-				vus[k] = true
-				indRows = append(indRows, []any{code, annee, v, r["Unit"], srcID})
+				seen[k] = true
+				indicatorRows = append(indicatorRows, []any{code, year, v, r["Unit"], srcID})
 			}
 			return nil
 		})
@@ -257,10 +257,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_agriculture_indicateur"},
 		[]string{"code", "annee", "valeur", "unite", "source_id"},
-		pgx.CopyFromRows(indRows)); err != nil {
+		pgx.CopyFromRows(indicatorRows)); err != nil {
 		return fail(fmt.Errorf("copie des indicateurs : %w", err))
 	}
-	ctInd, err := tx.Exec(ctx, `
+	ctIndicator, err := tx.Exec(ctx, `
 		MERGE INTO core.agriculture_indicateur AS tgt
 		USING tmp_agriculture_indicateur AS src
 		ON tgt.code = src.code AND tgt.annee = src.annee
@@ -274,23 +274,23 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err != nil {
 		return fail(fmt.Errorf("fusion des indicateurs : %w", err))
 	}
-	nInd := ctInd.RowsAffected()
+	nIndicator := ctIndicator.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"bilan": nBilan, "indicateurs": nInd, "produits": len(produits)}, "")
+		map[string]any{"bilan": nBalance, "indicateurs": nIndicator, "produits": len(products)}, "")
 	fmt.Printf("  FAOSTAT : %d valeurs de bilan touchées sur %d produits, %d indicateurs de production touchés\n",
-		nBilan, len(produits), nInd)
+		nBalance, len(products), nIndicator)
 	return nil
 }
 
-// parcourir lit le CSV « NOFLAG » d'une archive FAOSTAT et appelle fn par ligne,
-// avec les colonnes descriptives d'un côté et les colonnes annuelles de l'autre.
-// Le fichier est en ISO-8859-1 et ses colonnes d'années s'appellent « Y1961 »,
-// « Y1962 », etc.
-func parcourir(path string, fn func(r map[string]string, annees map[int]string) error) error {
+// walkFAOSTATCSV lit le CSV « NOFLAG » d'une archive FAOSTAT et appelle fn par
+// ligne, avec les colonnes descriptives d'un côté et les colonnes annuelles de
+// l'autre. Le fichier est en ISO-8859-1 et ses colonnes d'années s'appellent
+// « Y1961 », « Y1962 », etc.
+func walkFAOSTATCSV(path string, fn func(r map[string]string, years map[int]string) error) error {
 	zr, err := zip.OpenReader(path)
 	if err != nil {
 		return err
@@ -326,12 +326,12 @@ func parcourir(path string, fn func(r map[string]string, annees map[int]string) 
 		return err
 	}
 	desc := map[string]int{}
-	ans := map[int]int{}
+	yearCols := map[int]int{}
 	for i, h := range head {
 		h = strings.TrimSpace(h)
 		if len(h) == 5 && h[0] == 'Y' {
 			if n, err := strconv.Atoi(h[1:]); err == nil {
-				ans[n] = i
+				yearCols[n] = i
 				continue
 			}
 		}
@@ -349,21 +349,21 @@ func parcourir(path string, fn func(r map[string]string, annees map[int]string) 
 				m[k] = strings.TrimSpace(rec[i])
 			}
 		}
-		a := make(map[int]string, len(ans))
-		for annee, i := range ans {
+		years := make(map[int]string, len(yearCols))
+		for year, i := range yearCols {
 			if i < len(rec) && strings.TrimSpace(rec[i]) != "" {
-				a[annee] = rec[i]
+				years[year] = rec[i]
 			}
 		}
-		if err := fn(m, a); err != nil {
+		if err := fn(m, years); err != nil {
 			return err
 		}
 	}
 }
 
-// codeProduit fabrique un code stable à partir du libellé de la FAO, qui ne
+// productCode fabrique un code stable à partir du libellé de la FAO, qui ne
 // publie pas de code court lisible. Le libellé d'origine est conservé à côté.
-func codeProduit(item string) string {
+func productCode(item string) string {
 	s := strings.ToLower(item)
 	var b strings.Builder
 	for _, c := range s {
@@ -377,7 +377,7 @@ func codeProduit(item string) string {
 	return strings.Trim(b.String(), "_")
 }
 
-func nombre(s string) (float64, bool) {
+func parseNumber(s string) (float64, bool) {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return 0, false

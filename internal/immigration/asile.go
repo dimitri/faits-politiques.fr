@@ -18,7 +18,7 @@ import (
 var SourceAsileOFPRA = archive.Source{
 	Slug: "ofpra-demandes-asile", Label: "Ofpra — demandes d'asile et de statut d'apatride",
 	Publisher: "Office français de protection des réfugiés et apatrides", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Ofpra",
 	Cadence:     "annuelle",
 	Notes: "Les demandes comptées par l'Ofpra ne correspondent PAS au total des demandes " +
@@ -31,9 +31,9 @@ var SourceAsileOFPRA = archive.Source{
 // annuelle, comme pour les millésimes du COG (internal/communes/cog.go) : les
 // URL sont donc écrites en clair, une par année. 2020 est absent : la
 // ressource correspondante renvoie une 404 au moment de l'écriture.
-var anneesOFPRA = []struct {
-	Annee int
-	URL   string
+var yearsOFPRA = []struct {
+	Year int
+	URL  string
 }{
 	{2021, "https://static.data.gouv.fr/resources/demandes-dasile-et-de-statut-dapatride-deposees-devant-lofpra/20230720-083712/ofpra-demandes-nat-2021.csv"},
 	{2022, "https://static.data.gouv.fr/resources/demandes-dasile-et-de-statut-dapatride-deposees-devant-lofpra/20230720-084246/ofpra-demandes-nat-2022.csv"},
@@ -75,10 +75,10 @@ func IngestAsile(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 	}
 
 	var total int
-	for _, a := range anneesOFPRA {
-		n, err := chargerAsileAnnee(ctx, arch, tx, srcID, runID, a.Annee, a.URL)
+	for _, a := range yearsOFPRA {
+		n, err := loadAsileYear(ctx, arch, tx, srcID, runID, a.Year, a.URL)
 		if err != nil {
-			return fail(fmt.Errorf("%d : %w", a.Annee, err))
+			return fail(fmt.Errorf("%d : %w", a.Year, err))
 		}
 		total += n
 	}
@@ -88,7 +88,7 @@ func IngestAsile(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 	// l'intégralité des cinq millésimes à chaque republication, changement ou
 	// non. Clé naturelle = celle de l'index unique existant, avec les mêmes
 	// COALESCE que lui pour traiter les colonnes nullables.
-	var touchees int64
+	var affected int64
 	ct, err := tx.Exec(ctx, `
 		MERGE INTO core.demande_asile_ofpra AS tgt
 		USING tmp_demande_asile_ofpra AS src
@@ -130,19 +130,19 @@ func IngestAsile(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 	if err != nil {
 		return fail(fmt.Errorf("fusion : %w", err))
 	}
-	touchees = ct.RowsAffected()
+	affected = ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"lignes_chargees": total, "annees": len(anneesOFPRA), "touchees": touchees}, "")
+		map[string]any{"lignes_chargees": total, "annees": len(yearsOFPRA), "touchees": affected}, "")
 	fmt.Printf("  demandes d'asile (Ofpra) : %d lignes, %d millésimes (%d touchées par la fusion)\n",
-		total, len(anneesOFPRA), touchees)
+		total, len(yearsOFPRA), affected)
 	return nil
 }
 
-func chargerAsileAnnee(ctx context.Context, arch *archive.Archive, tx pgx.Tx, srcID, runID int64, annee int, url string) (int, error) {
+func loadAsileYear(ctx context.Context, arch *archive.Archive, tx pgx.Tx, srcID, runID int64, year int, url string) (int, error) {
 	f, err := arch.Fetch(ctx, srcID, runID, url, ".csv")
 	if err != nil {
 		return 0, err
@@ -170,8 +170,8 @@ func chargerAsileAnnee(ctx context.Context, arch *archive.Archive, tx pgx.Tx, sr
 	for i, h := range head {
 		idx[h] = i
 	}
-	col := func(rec []string, nom string) *int {
-		i, ok := idx[nom]
+	column := func(rec []string, name string) *int {
+		i, ok := idx[name]
 		if !ok || i >= len(rec) || rec[i] == "" {
 			return nil
 		}
@@ -181,8 +181,8 @@ func chargerAsileAnnee(ctx context.Context, arch *archive.Archive, tx pgx.Tx, sr
 		}
 		return &v
 	}
-	texte := func(rec []string, nom string) any {
-		i, ok := idx[nom]
+	text := func(rec []string, name string) any {
+		i, ok := idx[name]
 		if !ok || i >= len(rec) || rec[i] == "" {
 			return nil
 		}
@@ -194,12 +194,12 @@ func chargerAsileAnnee(ctx context.Context, arch *archive.Archive, tx pgx.Tx, sr
 		if len(rec) == 0 {
 			continue
 		}
-		niveauLib, ok := idx["niveau"]
-		if !ok || niveauLib >= len(rec) {
+		levelIdx, ok := idx["niveau"]
+		if !ok || levelIdx >= len(rec) {
 			continue
 		}
 		var niveau string
-		switch rec[niveauLib] {
+		switch rec[levelIdx] {
 		case "Total":
 			niveau = "TOTAL"
 		case "Continent":
@@ -210,10 +210,10 @@ func chargerAsileAnnee(ctx context.Context, arch *archive.Archive, tx pgx.Tx, sr
 			continue
 		}
 		rows = append(rows, []any{
-			annee, niveau, texte(rec, "continent"), texte(rec, "norme_iso_3166"), texte(rec, "nationalite"),
-			col(rec, "premiere_demande"), col(rec, "reexamen"), col(rec, "reouverture"),
-			col(rec, "maj_premiere_demande"), col(rec, "maj_reexamen"), col(rec, "maj_reouverture"),
-			col(rec, "f_premiere_demande"), col(rec, "f_reexamen"), col(rec, "f_reouverture"),
+			year, niveau, text(rec, "continent"), text(rec, "norme_iso_3166"), text(rec, "nationalite"),
+			column(rec, "premiere_demande"), column(rec, "reexamen"), column(rec, "reouverture"),
+			column(rec, "maj_premiere_demande"), column(rec, "maj_reexamen"), column(rec, "maj_reouverture"),
+			column(rec, "f_premiere_demande"), column(rec, "f_reexamen"), column(rec, "f_reouverture"),
 			srcID,
 		})
 	}

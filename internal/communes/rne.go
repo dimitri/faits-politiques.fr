@@ -18,7 +18,7 @@ import (
 var SourceRNE = archive.Source{
 	Slug: "rne", Label: "Répertoire national des élus",
 	Publisher: "Ministère de l'Intérieur / DILA", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : Répertoire national des élus, ministère de l'Intérieur",
 	Cadence:     "trimestrielle",
@@ -32,15 +32,15 @@ const rneBase = "https://static.data.gouv.fr/resources/repertoire-national-des-e
 // colonne qui situe le mandat dans l'espace. Les URL portent l'horodatage de
 // la publication : c'est cette version-là qui est scellée, pas « la dernière ».
 //
-// colonneLibelle nomme la colonne du libellé quand elle ne se déduit pas de
+// labelColumn nomme la colonne du libellé quand elle ne se déduit pas de
 // celle du code en remplaçant « Code » par « Libellé ». C'est le cas du fichier
 // des conseillers communautaires, dont l'identifiant est « N° SIREN » et le
 // libellé « Libellé de l'EPCI ». La version précédente y cherchait une colonne
 // « Code de la commune » qui n'existe pas dans ce fichier : les 62 123 mandats
 // communautaires arrivaient en base SANS aucune localisation, et aucune page ne
 // pouvait dire de quelle intercommunalité un élu était conseiller.
-var rneFichiers = []struct {
-	url, mandateType, colonneCommune, colonneCirco, colonneLibelle string
+var rneFiles = []struct {
+	url, mandateType, communeColumn, constituencyColumn, labelColumn string
 }{
 	{rneBase + "20260811-155100/elus-maire-mai.csv", "MAIRE", "Code de la commune", "", ""},
 	{rneBase + "20260811-154802/elus-conseiller-municipal-cm.csv", "CONSEILLER_MUNICIPAL", "Code de la commune", "", ""},
@@ -72,42 +72,42 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	// des lignes brutes dans une table temporaire, puis des requêtes
 	// ensemblistes qui ne touchent la base qu'une fois chacune.
 	var lignes [][]any
-	for _, f := range rneFichiers {
+	for _, f := range rneFiles {
 		fetched, err := arch.Fetch(ctx, srcID, runID, f.url, ".csv")
 		if err != nil {
 			return fail(err)
 		}
-		recs, err := lireCSV(fetched.Path, ';')
+		recs, err := readCSV(fetched.Path, ';')
 		if err != nil {
 			return fail(err)
 		}
 		for _, r := range recs {
 			nom, prenom := r["Nom de l'élu"], r["Prénom de l'élu"]
-			debut := premierNonVide(r["Date de début de la fonction"], r["Date de début du mandat"])
+			debut := firstNonEmpty(r["Date de début de la fonction"], r["Date de début du mandat"])
 			if nom == "" || prenom == "" || debut == "" {
 				continue
 			}
 			var commune, circo any
-			if f.colonneCommune != "" {
-				if c := r[f.colonneCommune]; c != "" {
+			if f.communeColumn != "" {
+				if c := r[f.communeColumn]; c != "" {
 					commune = c
 				}
 			}
-			if f.colonneCirco != "" {
-				colLib := f.colonneLibelle
-				if colLib == "" {
-					colLib = strings.Replace(f.colonneCirco, "Code", "Libellé", 1)
+			if f.constituencyColumn != "" {
+				labelCol := f.labelColumn
+				if labelCol == "" {
+					labelCol = strings.Replace(f.constituencyColumn, "Code", "Libellé", 1)
 				}
-				libelle := r[colLib]
-				if v := strings.TrimSpace(r[f.colonneCirco] + " " + libelle); v != "" {
+				libelle := r[labelCol]
+				if v := strings.TrimSpace(r[f.constituencyColumn] + " " + libelle); v != "" {
 					circo = v
 				}
 			}
 			lignes = append(lignes, []any{
 				f.mandateType, commune, circo, nom, prenom,
-				nul(r["Date de naissance"]), debut, nul(r["Libellé de la fonction"]),
-				nul(r["Code de la catégorie socio-professionnelle"]),
-				nul(r["Libellé de la catégorie socio-professionnelle"]),
+				nullIfEmpty(r["Date de naissance"]), debut, nullIfEmpty(r["Libellé de la fonction"]),
+				nullIfEmpty(r["Code de la catégorie socio-professionnelle"]),
+				nullIfEmpty(r["Libellé de la catégorie socio-professionnelle"]),
 			})
 		}
 		fmt.Printf("    %-26s %6d lignes\n", f.mandateType, len(recs))
@@ -135,7 +135,7 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	}
 
 	// Les élus de communes absentes du COG sont écartés, pas rattachés de force.
-	var horsCOG int64
+	var outsideCOG int64
 	if err := tx.QueryRow(ctx, `
 		WITH d AS (
 		  DELETE FROM rne_in r
@@ -144,7 +144,7 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		                     WHERE c.code_insee = r.commune_code
 		                       AND c.cog_millesime = $1)
 		  RETURNING 1)
-		SELECT count(*) FROM d`, COGMillesime).Scan(&horsCOG); err != nil {
+		SELECT count(*) FROM d`, COGVintage).Scan(&outsideCOG); err != nil {
 		return fail(err)
 	}
 
@@ -208,9 +208,9 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		   AND core.f_unaccent(lower(p.given_name))  = core.f_unaccent(lower(r.prenom))`); err != nil {
 		return fail(err)
 	}
-	var reconciliees int64
+	var reconciled int64
 	if err := tx.QueryRow(ctx,
-		`SELECT count(*) FROM rne_pers WHERE person_id IS NOT NULL`).Scan(&reconciliees); err != nil {
+		`SELECT count(*) FROM rne_pers WHERE person_id IS NOT NULL`).Scan(&reconciled); err != nil {
 		return fail(err)
 	}
 
@@ -250,7 +250,7 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 
 	// rne_in couvre HUIT types de mandat, pas seulement les cinq locaux : les
 	// fichiers sénateur/député/eurodéputé y versent aussi leurs lignes (voir
-	// rneFichiers). Les deux groupes suivent des règles OPPOSÉES, donc deux
+	// rneFiles). Les deux groupes suivent des règles OPPOSÉES, donc deux
 	// requêtes distinctes plutôt qu'une seule :
 	//
 	//  - les CINQ TYPES LOCAUX (MAIRE, CONSEILLER_*) : le RNE en est la seule
@@ -263,7 +263,7 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	//    règle reste « le RNE complète, il n'écrase pas » : un INSERT qui ne
 	//    comble que les trous (NOT EXISTS sur un chevauchement de validité),
 	//    jamais un MERGE, qui matcherait sans distinguer la source.
-	ctNationaux, err := tx.Exec(ctx, `
+	nationalCount, err := tx.Exec(ctx, `
 		INSERT INTO core.mandate
 		  (person_id, mandate_type, commune_code, constituency, validity, role)
 		SELECT DISTINCT ON (p.person_id, r.mandate_type)
@@ -340,16 +340,16 @@ func IngestRNE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	mandats := res.RowsAffected() + ctNationaux.RowsAffected()
+	mandates := res.RowsAffected() + nationalCount.RowsAffected()
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"mandats": mandats, "reconciliees": reconciliees, "hors_cog": horsCOG}, "")
+		"mandats": mandates, "reconciliees": reconciled, "hors_cog": outsideCOG}, "")
 	fmt.Printf("  RNE : %d mandats touchés (locaux fusionnés + nationaux comblés), "+
 		"%d personnes déjà connues reconnues, %d élus hors COG écartés\n",
-		mandats, reconciliees, horsCOG)
+		mandates, reconciled, outsideCOG)
 	return nil
 }
 
-func premierNonVide(vals ...string) string {
+func firstNonEmpty(vals ...string) string {
 	for _, v := range vals {
 		if strings.TrimSpace(v) != "" {
 			return strings.TrimSpace(v)

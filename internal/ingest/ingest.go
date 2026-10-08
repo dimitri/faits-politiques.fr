@@ -124,7 +124,7 @@ func registreParlement(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		// serait une course. Root/Pool restent partagés (immuables après
 		// construction), seul Etape diffère par copie.
 		archEtape := *arch
-		archEtape.Etape = source.Nom
+		archEtape.Step = source.Nom
 		reg.Add(pipeline.Step{
 			Name: source.Nom, Description: source.Description, Dependencies: source.Dependances,
 			Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
@@ -185,7 +185,7 @@ func registreDe(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, 
 			}
 		}
 		archEtape := *arch
-		archEtape.Etape = source.Nom
+		archEtape.Step = source.Nom
 		reg.Add(pipeline.Step{
 			Name: source.Nom, Description: source.Description, Dependencies: source.Dependances,
 			Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
@@ -617,7 +617,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 			return fmt.Errorf("registreComplet : source inconnue : %s", nom)
 		}
 		archEtape := *arch
-		archEtape.Etape = source.Nom
+		archEtape.Step = source.Nom
 		deps := append(append([]string{}, source.Dependances...), extraDeps...)
 		reg.Add(pipeline.Step{
 			Name: source.Nom, Description: source.Description, Dependencies: deps,
@@ -654,7 +654,7 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		Name: "geo-courant", Description: "IGN boundaries by vintage",
 		Dependencies: []string{"communes-cog"},
 		Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
-			return nil, geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGMillesime)
+			return nil, geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGVintage)
 		},
 	})
 	if err := ajouter("checksums", reg.Names()); err != nil {
@@ -738,7 +738,7 @@ func telechargerAssemblee(ctx context.Context, pool *pgxpool.Pool, arch *archive
 }
 
 func ingestPartis(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := partis.IngestComptes(ctx, pool, arch); err != nil {
+	if err := partis.IngestAccounts(ctx, pool, arch); err != nil {
 		return err
 	}
 	if err := partis.IngestPopuList(ctx, pool, arch); err != nil {
@@ -770,10 +770,10 @@ func ingestSenat(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	// existe en deux fiches, chacune amputée de la moitié de sa vie publique.
 	// Elle vient avant les mandats et les commissions pour qu'ils se
 	// rattachent à la fiche unique.
-	if err := senat.Fusionner(ctx, pool); err != nil {
+	if err := senat.MergePersons(ctx, pool); err != nil {
 		return err
 	}
-	if err := senat.NormalizeMandats(ctx, pool); err != nil {
+	if err := senat.NormalizeMandates(ctx, pool); err != nil {
 		return err
 	}
 	if err := senat.IngestCommissions(ctx, pool, arch); err != nil {
@@ -861,5 +861,5 @@ func cartographie(ctx context.Context, pool *pgxpool.Pool) error {
 // le reste du catalogue — internal/pipeline les chronomètre individuellement
 // (afficherDurees) sans qu'il soit besoin d'un helper dédié ici. Voir le
 // commentaire au-dessus de ces entrées dans catalogue.go pour le pourquoi de
-// la chaîne stricte (verrou ACCESS EXCLUSIVE de bulkload.SansContraintesFK)
+// la chaîne stricte (verrou ACCESS EXCLUSIVE de bulkload.WithoutFKConstraints)
 // et pour l'alias "communes" qui les regroupe.

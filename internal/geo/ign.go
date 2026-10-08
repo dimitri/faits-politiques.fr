@@ -24,7 +24,7 @@ const ConnectorVersion = "geo-ign-v1"
 var SourceIGN = archive.Source{
 	Slug: "ign-admin-express-cog-carto", Label: "IGN — Admin Express COG CARTO, petite échelle",
 	Publisher: "Institut national de l'information géographique et forestière", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : IGN, Admin Express COG CARTO",
 	Cadence:     "annuelle, un millésime par COG",
@@ -44,39 +44,39 @@ const wfs = "https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=Get
 // mais autant ne pas le provoquer.
 const pageWFS = 5000
 
-// Millésimes chargés. Ils suivent ceux de ref.commune (communes.MillesimesCOG).
-var Millesimes = []int{2025, 2026}
+// Millésimes chargés. Ils suivent ceux de ref.commune (communes.COGVintages).
+var Vintages = []int{2025, 2026}
 
-type entite struct {
+type feature struct {
 	Properties struct {
 		CodeInsee  string   `json:"code_insee"`
-		Nom        string   `json:"nom_officiel"`
+		Name       string   `json:"nom_officiel"`
 		Dep        string   `json:"code_insee_du_departement"`
 		Reg        string   `json:"code_insee_de_la_region"`
-		Superficie *float64 `json:"superficie_cadastrale"`
+		Area       *float64 `json:"superficie_cadastrale"`
 		Population *float64 `json:"population"`
 		SirenEPCI  string   `json:"codes_siren_des_epci"`
 	} `json:"properties"`
 	Geometry json.RawMessage `json:"geometry"`
 }
 
-// courant est le millésime de référence de la base (communes.COGMillesime) : pour
+// current est le millésime de référence de la base (communes.COGVintage) : pour
 // lui, l'appartenance aux intercommunalités vient de BANATIC ; pour les millésimes
 // antérieurs, de l'IGN, seule source datée disponible.
-func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, projectionsCSV string, courant int) error {
-	srids, err := lireProjections(projectionsCSV)
+func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, projectionsCSV string, current int) error {
+	srids, err := loadProjections(projectionsCSV)
 	if err != nil {
 		return err
 	}
-	for _, an := range Millesimes {
-		if err := chargerMillesime(ctx, pool, arch, an, srids, courant); err != nil {
-			return fmt.Errorf("contours %d : %w", an, err)
+	for _, year := range Vintages {
+		if err := loadVintage(ctx, pool, arch, year, srids, current); err != nil {
+			return fmt.Errorf("contours %d : %w", year, err)
 		}
 	}
 	return nil
 }
 
-func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, an int, srids map[string]int, courant int) error {
+func loadVintage(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, year int, srids map[string]int, current int) error {
 	srcID, err := arch.EnsureSource(ctx, SourceIGN)
 	if err != nil {
 		return err
@@ -89,13 +89,13 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 		return err
 	}
-	couche := fmt.Sprintf("ADMINEXPRESS-COG-CARTO-PE.%d:commune", an)
+	layer := fmt.Sprintf("ADMINEXPRESS-COG-CARTO-PE.%d:commune", year)
 
 	var rows [][]any
-	var recues, rejetSansCode, rejetSansGeom, rejetDoublon int
-	vus := map[string]bool{}
-	for debut := 0; ; debut += pageWFS {
-		url := fmt.Sprintf("%s&TYPENAMES=%s&COUNT=%d&STARTINDEX=%d", wfs, couche, pageWFS, debut)
+	var received, rejectedNoCode, rejectedNoGeom, rejectedDuplicate int
+	seen := map[string]bool{}
+	for offset := 0; ; offset += pageWFS {
+		url := fmt.Sprintf("%s&TYPENAMES=%s&COUNT=%d&STARTINDEX=%d", wfs, layer, pageWFS, offset)
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".geojson")
 		if err != nil {
 			return fail(err)
@@ -105,27 +105,27 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			return fail(err)
 		}
 		var page struct {
-			Features []entite `json:"features"`
+			Features []feature `json:"features"`
 		}
 		if err := json.Unmarshal(raw, &page); err != nil {
-			return fail(fmt.Errorf("page %d illisible : %w", debut, err))
+			return fail(fmt.Errorf("page %d illisible : %w", offset, err))
 		}
 		for _, e := range page.Features {
-			recues++
+			received++
 			p := e.Properties
 			if strings.TrimSpace(p.CodeInsee) == "" {
-				rejetSansCode++
+				rejectedNoCode++
 				continue
 			}
 			if len(e.Geometry) == 0 || string(e.Geometry) == "null" {
-				rejetSansGeom++
+				rejectedNoGeom++
 				continue
 			}
-			if vus[p.CodeInsee] {
-				rejetDoublon++
+			if seen[p.CodeInsee] {
+				rejectedDuplicate++
 				continue
 			}
-			vus[p.CodeInsee] = true
+			seen[p.CodeInsee] = true
 			// « 200054781/200057974 » pour une commune du Grand Paris (Métropole
 			// et EPT), « NR » pour les quatre îles dispensées d'intercommunalité.
 			// Seul un SIREN de neuf chiffres est un SIREN : « NR » pris pour un
@@ -133,13 +133,13 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			// Ouessant et l'Île-d'Yeu.
 			var sirens []string
 			for _, s := range strings.Split(p.SirenEPCI, "/") {
-				if s = strings.TrimSpace(s); estSiren(s) {
+				if s = strings.TrimSpace(s); isSiren(s) {
 					sirens = append(sirens, s)
 				}
 			}
 			rows = append(rows, []any{
-				p.CodeInsee, an, p.Nom, string(e.Geometry), sridPour(p.Dep, p.CodeInsee, srids),
-				nul(p.Dep), nul(p.Reg), p.Superficie, entierOuNil(p.Population), sirens, srcID,
+				p.CodeInsee, year, p.Name, string(e.Geometry), sridFor(p.Dep, p.CodeInsee, srids),
+				nullIfEmpty(p.Dep), nullIfEmpty(p.Reg), p.Area, intOrNil(p.Population), sirens, srcID,
 			})
 		}
 		if len(page.Features) < pageWFS {
@@ -153,7 +153,7 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	}
 	defer tx.Rollback(ctx)
 
-	if _, err := tx.Exec(ctx, `DELETE FROM geo.contour_cog WHERE cog_millesime = $1`, an); err != nil {
+	if _, err := tx.Exec(ctx, `DELETE FROM geo.contour_cog WHERE cog_millesime = $1`, year); err != nil {
 		return fail(err)
 	}
 	// La géométrie arrive en GeoJSON : c'est PostGIS qui la lit, pas le Go. Une
@@ -201,9 +201,9 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	//   - millésime antérieur : l'IGN, commune par commune et couche « epci »,
 	//     puisque BANATIC n'est chargé qu'à la date courante.
 	// La géométrie, elle, vient toujours des contours communaux IGN du millésime.
-	var membres string
-	if an == courant {
-		membres = `
+	var members string
+	if year == current {
+		members = `
 		  SELECT m.epci_siren AS siren, m.commune_code AS code,
 		         e.nom, CASE WHEN e.nature_juridique = 'EPT' THEN 'EPT' ELSE 'EPCI' END AS niveau
 		    FROM core.epci_membre m
@@ -211,7 +211,7 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		   WHERE m.cog_millesime = $1
 		     AND e.nature_juridique IN ('CC','CA','CU','METRO','MET69','EPT')`
 	} else {
-		ref, err := referentielEPCI(ctx, arch, srcID, runID, an)
+		ref, err := epciReference(ctx, arch, srcID, runID, year)
 		if err != nil {
 			return fail(err)
 		}
@@ -222,7 +222,7 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			pgx.CopyFromRows(ref)); err != nil {
 			return fail(err)
 		}
-		membres = `
+		members = `
 		  SELECT s.siren, c.code, i.nom,
 		         CASE WHEN i.nature ILIKE 'Etablissement public territorial' THEN 'EPT' ELSE 'EPCI' END AS niveau
 		    FROM geo.contour_cog c
@@ -239,9 +239,9 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 		       mode() WITHIN GROUP (ORDER BY c.code_departement),
 		       mode() WITHIN GROUP (ORDER BY c.code_region),
 		       min(c.source_id)
-		  FROM (`+membres+`) mb
+		  FROM (`+members+`) mb
 		  JOIN geo.contour_cog c ON c.niveau = 'COMMUNE' AND c.cog_millesime = $1 AND c.code = mb.code
-		 GROUP BY mb.niveau, mb.siren, mb.nom`, an); err != nil {
+		 GROUP BY mb.niveau, mb.siren, mb.nom`, year); err != nil {
 		return fail(fmt.Errorf("union des intercommunalités : %w", err))
 	}
 
@@ -249,7 +249,7 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	// communes n'ont pas le même EPCI à fiscalité propre selon les deux sources.
 	// Non nulle quand l'IGN retarde sur une fusion ; consignée, pas masquée.
 	var divergence int
-	if an == courant {
+	if year == current {
 		if err := tx.QueryRow(ctx, `
 			SELECT count(*) FROM geo.contour_cog c
 			 WHERE c.niveau = 'COMMUNE' AND c.cog_millesime = $1
@@ -259,7 +259,7 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 			                    AND e.nature_juridique IN ('CC','CA','CU','METRO','MET69')), '{}')
 			       <> coalesce((SELECT array_agg(s ORDER BY s) FROM unnest(c.codes_siren_epci) s
 			                     WHERE s NOT IN (SELECT siren FROM core.epci WHERE nature_juridique = 'EPT')), '{}')`,
-			an).Scan(&divergence); err != nil {
+			year).Scan(&divergence); err != nil {
 			return fail(err)
 		}
 	}
@@ -267,7 +267,7 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	var nEPCI, nEPT int
 	if err := tx.QueryRow(ctx, `
 		SELECT count(*) FILTER (WHERE niveau = 'EPCI'), count(*) FILTER (WHERE niveau = 'EPT')
-		  FROM geo.contour_cog WHERE niveau IN ('EPCI','EPT') AND cog_millesime = $1`, an).Scan(&nEPCI, &nEPT); err != nil {
+		  FROM geo.contour_cog WHERE niveau IN ('EPCI','EPT') AND cog_millesime = $1`, year).Scan(&nEPCI, &nEPT); err != nil {
 		return fail(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -275,49 +275,49 @@ func chargerMillesime(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arc
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"lignes_recues":                   recues,
+		"lignes_recues":                   received,
 		"lignes_chargees":                 len(rows),
-		"rejet_sans_code":                 rejetSansCode,
-		"rejet_sans_geometrie":            rejetSansGeom,
-		"rejet_doublon":                   rejetDoublon,
-		"millesime":                       an,
+		"rejet_sans_code":                 rejectedNoCode,
+		"rejet_sans_geometrie":            rejectedNoGeom,
+		"rejet_doublon":                   rejectedDuplicate,
+		"millesime":                       year,
 		"epci_construits":                 nEPCI,
 		"ept_construits":                  nEPT,
 		"divergence_ign_banatic_communes": divergence,
 	}, "")
-	fmt.Printf("  contours %d : %d communes, %d intercommunalités, %d EPT\n", an, len(rows), nEPCI, nEPT)
+	fmt.Printf("  contours %d : %d communes, %d intercommunalités, %d EPT\n", year, len(rows), nEPCI, nEPT)
 	if divergence > 0 {
 		fmt.Printf("  %d communes n'ont pas le même EPCI selon l'IGN et BANATIC (retard de l'IGN sur les fusions)\n", divergence)
 	}
 	return nil
 }
 
-// sridPour : la projection de rendu d'une commune se lit sur son territoire.
+// sridFor : la projection de rendu d'une commune se lit sur son territoire.
 // Les codes d'outre-mer ont trois caractères (971, 974…), ceux de la métropole
 // deux (01, 2A). Et les communes des collectivités d'outre-mer n'ont pas de
 // département : l'IGN écrit « NR » pour Saint-Pierre et Miquelon-Langlade. Le
 // premier chargement les dessinait donc en Lambert-93, dans le repère de
 // l'hexagone. On retombe alors sur le préfixe du code commune (975…).
-func sridPour(dep, codeCommune string, srids map[string]int) int {
-	for _, cle := range []string{dep, prefixe(dep, 3), prefixe(codeCommune, 3)} {
-		if cle == "" || cle == "NR" {
+func sridFor(dep, codeCommune string, srids map[string]int) int {
+	for _, key := range []string{dep, prefix(dep, 3), prefix(codeCommune, 3)} {
+		if key == "" || key == "NR" {
 			continue
 		}
-		if s, ok := srids[cle]; ok {
+		if s, ok := srids[key]; ok {
 			return s
 		}
 	}
 	return srids["DEFAUT"]
 }
 
-func prefixe(s string, n int) string {
+func prefix(s string, n int) string {
 	if len(s) < n {
 		return ""
 	}
 	return s[:n]
 }
 
-func lireProjections(path string) (map[string]int, error) {
+func loadProjections(path string) (map[string]int, error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return nil, err
@@ -342,12 +342,12 @@ func lireProjections(path string) (map[string]int, error) {
 	return out, nil
 }
 
-// referentielEPCI lit la couche « epci » de l'IGN pour un millésime : SIREN, nom
+// epciReference lit la couche « epci » de l'IGN pour un millésime : SIREN, nom
 // et nature. Une seule page suffit, il y en a environ 1 300.
-func referentielEPCI(ctx context.Context, arch *archive.Archive, srcID, runID int64, an int) ([][]any, error) {
+func epciReference(ctx context.Context, arch *archive.Archive, srcID, runID int64, year int) ([][]any, error) {
 	url := fmt.Sprintf("https://data.geopf.fr/wfs/ows?SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature"+
 		"&OUTPUTFORMAT=application/json&SORTBY=code_siren&PROPERTYNAME=code_siren,nom_officiel,nature"+
-		"&COUNT=%d&TYPENAMES=ADMINEXPRESS-COG-CARTO-PE.%d:epci", pageWFS, an)
+		"&COUNT=%d&TYPENAMES=ADMINEXPRESS-COG-CARTO-PE.%d:epci", pageWFS, year)
 	f, err := arch.Fetch(ctx, srcID, runID, url, ".geojson")
 	if err != nil {
 		return nil, err
@@ -360,27 +360,27 @@ func referentielEPCI(ctx context.Context, arch *archive.Archive, srcID, runID in
 		Features []struct {
 			Properties struct {
 				Siren  string `json:"code_siren"`
-				Nom    string `json:"nom_officiel"`
+				Name   string `json:"nom_officiel"`
 				Nature string `json:"nature"`
 			} `json:"properties"`
 		} `json:"features"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
-		return nil, fmt.Errorf("référentiel EPCI %d illisible : %w", an, err)
+		return nil, fmt.Errorf("référentiel EPCI %d illisible : %w", year, err)
 	}
 	if len(doc.Features) == 0 || len(doc.Features) >= pageWFS {
-		return nil, fmt.Errorf("référentiel EPCI %d : %d entités, pagination à revoir", an, len(doc.Features))
+		return nil, fmt.Errorf("référentiel EPCI %d : %d entités, pagination à revoir", year, len(doc.Features))
 	}
 	out := make([][]any, 0, len(doc.Features))
 	for _, e := range doc.Features {
-		if estSiren(e.Properties.Siren) {
-			out = append(out, []any{e.Properties.Siren, e.Properties.Nom, e.Properties.Nature})
+		if isSiren(e.Properties.Siren) {
+			out = append(out, []any{e.Properties.Siren, e.Properties.Name, e.Properties.Nature})
 		}
 	}
 	return out, nil
 }
 
-func estSiren(s string) bool {
+func isSiren(s string) bool {
 	if len(s) != 9 {
 		return false
 	}
@@ -392,14 +392,14 @@ func estSiren(s string) bool {
 	return true
 }
 
-func nul(s string) any {
+func nullIfEmpty(s string) any {
 	if strings.TrimSpace(s) == "" {
 		return nil
 	}
 	return s
 }
 
-func entierOuNil(f *float64) any {
+func intOrNil(f *float64) any {
 	if f == nil {
 		return nil
 	}

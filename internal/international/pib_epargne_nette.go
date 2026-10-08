@@ -22,7 +22,7 @@ import (
 var SourcePIBEpargneNette = archive.Source{
 	Slug: "banque-mondiale-pib-epargne-nette", Label: "Banque mondiale — PIB, commerce extérieur et structure sectorielle des économies",
 	Publisher: "Banque mondiale", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Banque mondiale, World Development Indicators",
 	Cadence:     "annuelle",
 	Notes: "Dix pays de comparaison (G8 historique, Chine, Arabie saoudite) plus l'Union " +

@@ -1,24 +1,24 @@
 {{define "content"}}
 {{$f := .F}}
-<p class="fil"><a href="{{.Root}}/">Accueil</a> › <a href="{{.Root}}/sujets/">Sujets</a> › <span>{{$f.Nom}}</span></p>
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <a href="{{.Root}}/sujets/">Sujets</a> › <span>{{$f.Name}}</span></p>
 <span class="sur">Sujets de campagne</span>
-<h1>{{$f.Nom}}</h1>
-<p class="lede">{{$f.Intro}}{{if $f.ParMille}} {{$f.ParMille}}&nbsp;€ sur 1&nbsp;000 de dépense publique
-en {{.Annee}}, toutes fonctions COFOG de la famille confondues.{{end}}</p>
+<h1>{{$f.Name}}</h1>
+<p class="lede">{{$f.Intro}}{{if $f.PerThousand}} {{$f.PerThousand}}&nbsp;€ sur 1&nbsp;000 de dépense publique
+en {{.Year}}, toutes fonctions COFOG de la famille confondues.{{end}}</p>
 
-{{with .Carte}}{{if .SVG}}
+{{with .Map}}{{if .SVG}}
 <figure class="schema"><div class="carte-pleine">{{.SVG}}</div>
-<figcaption>{{.Legende}}{{if .Lien}} <a href="{{$.Root}}/{{.Lien}}">{{.LienTexte}} →</a>{{end}}</figcaption></figure>
+<figcaption>{{.Legend}}{{if .Link}} <a href="{{$.Root}}/{{.Link}}">{{.LinkText}} →</a>{{end}}</figcaption></figure>
 {{end}}{{end}}
 
 <div class="sujets-cartes">
-  {{range $f.Sujets}}<a class="sujet-carte" href="{{$.Root}}/{{.Lien}}">
-    {{if .EnBref}}{{$c := index .EnBref 0}}
-    <span class="n">{{$c.Valeur}}</span>
-    <span class="d">{{$c.Libelle}}</span>
+  {{range $f.Topics}}<a class="sujet-carte" href="{{$.Root}}/{{.Link}}">
+    {{if .InBrief}}{{$c := index .InBrief 0}}
+    <span class="n">{{$c.Value}}</span>
+    <span class="d">{{$c.Label}}</span>
     {{end}}
-    <h2>{{.Nom}}</h2>
-    {{if .D}}<p class="q">{{.D.Titre}}</p>{{else if .Pages}}<p class="q">{{(index .Pages 0).Titre}}</p>{{end}}
+    <h2>{{.Name}}</h2>
+    {{if .D}}<p class="q">{{.D.Title}}</p>{{else if .Pages}}<p class="q">{{(index .Pages 0).Title}}</p>{{end}}
   </a>{{end}}
 </div>
 <p class="src-bloc">Chaque sujet se lit avec sa propre page&nbsp;: le contexte, les débats, les chiffres

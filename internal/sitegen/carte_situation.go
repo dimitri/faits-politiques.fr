@@ -26,20 +26,20 @@ import (
 // sont de petits cartons en ligne, chacun dans sa projection légale ; celui du
 // territoire affiché porte le calque.
 
-const tolSituation = 0.005 // ≈ 500 m : à l'échelle de la France, un pixel couvre près de 2 km
+const toleranceSituation = 0.005 // ≈ 500 m : à l'échelle de la France, un pixel couvre près de 2 km
 
-type CartonSituation struct {
-	Nom, Fond string
-	URL       string        // page du département d'outre-mer, vide s'il n'en a pas
-	SVG       template.HTML // calque du carton actif, vide sinon
-	Actif     bool
+type TileSituation struct {
+	Name, Background string
+	URL              string        // page du département d'outre-mer, vide s'il n'en a pas
+	SVG              template.HTML // calque du carton actif, vide sinon
+	Actif            bool
 }
 
-type LigneLegende struct{ Libelle, Valeur, Detail, URL string }
+type LineLegend struct{ Label, Value, Detail, URL string }
 
-// ligneLegende : une ligne de légende, avec un lien facultatif sur la valeur.
-func ligneLegende(libelle, valeur, detail string, url ...string) LigneLegende {
-	l := LigneLegende{Libelle: libelle, Valeur: valeur, Detail: detail}
+// lineLegend : une ligne de légende, avec un lien facultatif sur la valeur.
+func lineLegend(label, value, detail string, url ...string) LineLegend {
+	l := LineLegend{Label: label, Value: value, Detail: detail}
 	if len(url) > 0 {
 		l.URL = url[0]
 	}
@@ -47,63 +47,63 @@ func ligneLegende(libelle, valeur, detail string, url ...string) LigneLegende {
 }
 
 type Situation struct {
-	Fond, ViewBox    string
-	Largeur, Hauteur string
-	Calque           template.HTML // vide quand le territoire est en outre-mer
-	Cartons          []CartonSituation
-	Legende          []LigneLegende
-	Note             string
+	Background, ViewBox string
+	Width, Height       string
+	Layer               template.HTML // vide quand le territoire est en outre-mer
+	Tiles               []TileSituation
+	Legend              []LineLegend
+	Note                string
 }
 
 type geomSituation struct {
-	d, dept, region, nom string
-	srid                 int
-	superficieKm2        float64
-	population           int
-	x, y                 float64 // point intérieur, pour repérer une petite commune
-	epcis                []string
+	d, dept, region, name string
+	srid                  int
+	areaKm2               float64
+	population            int
+	x, y                  float64 // point intérieur, pour repérer une petite commune
+	epcis                 []string
 }
 
-type fondSituation struct {
-	url, vb     string
-	racine      string
-	lienDept    func(code string) string
-	deps, regs  *JeuContours
-	communes    map[string]*geomSituation
-	epci        map[string]*geomSituation
-	circos      map[string]*geomSituation // circonscriptions législatives (circonscriptions.go)
-	natureEPCI  map[string]string
-	domDept     map[string]contourSeul // code département d'outre-mer → carton
-	domOrdre    []string
-	totalKm2    float64
-	totalPop    int
-	budgetCom   map[string][2]float64 // département → fonctionnement, investissement des communes
-	budgetEPCI  map[string][2]float64 // département du siège → idem, groupements à fiscalité propre
-	anneeBudget int
+type backgroundSituation struct {
+	url, vb        string
+	root           string
+	linkDept       func(code string) string
+	deps, regs     *SetOutlines
+	municipalities map[string]*geomSituation
+	epci           map[string]*geomSituation
+	circos         map[string]*geomSituation // circonscriptions législatives (circonscriptions.go)
+	natureEPCI     map[string]string
+	domDept        map[string]outlineOnly // code département d'outre-mer → carton
+	domOrder       []string
+	totalKm2       float64
+	totalPop       int
+	budgetCom      map[string][2]float64 // département → fonctionnement, investissement des communes
+	budgetEPCI     map[string][2]float64 // département du siège → idem, groupements à fiscalité propre
+	yearBudget     int
 }
 
 var regionDOM = map[string]string{"01": "971", "02": "972", "03": "973", "04": "974", "06": "976"}
 
 // lienDept donne, pour un code de département, le chemin de sa page depuis la
 // racine du site (« collectivites/departement/29/ »), vide s'il n'en a pas.
-func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root string, exercice int,
-	lienDept func(code string) string) (*fondSituation, error) {
-	f := &fondSituation{url: root + "/media/situation-france.svg", racine: root, lienDept: lienDept, communes: map[string]*geomSituation{},
-		epci: map[string]*geomSituation{}, natureEPCI: map[string]string{}, domDept: map[string]contourSeul{},
-		budgetCom: map[string][2]float64{}, budgetEPCI: map[string][2]float64{}, anneeBudget: exercice}
+func loadBackgroundSituation(ctx context.Context, pool *pgxpool.Pool, out, root string, fiscalYear int,
+	linkDept func(code string) string) (*backgroundSituation, error) {
+	f := &backgroundSituation{url: root + "/media/situation-france.svg", root: root, linkDept: linkDept, municipalities: map[string]*geomSituation{},
+		epci: map[string]*geomSituation{}, natureEPCI: map[string]string{}, domDept: map[string]outlineOnly{},
+		budgetCom: map[string][2]float64{}, budgetEPCI: map[string][2]float64{}, yearBudget: fiscalYear}
 	var err error
-	if f.deps, err = jeuContours(ctx, pool, "DEPARTEMENT", tolPleine); err != nil {
+	if f.deps, err = setOutlines(ctx, pool, "DEPARTEMENT", toleranceFull); err != nil {
 		return nil, err
 	}
-	if f.regs, err = jeuContours(ctx, pool, "REGION", tolPleine); err != nil {
+	if f.regs, err = setOutlines(ctx, pool, "REGION", toleranceFull); err != nil {
 		return nil, err
 	}
 	f.vb = f.deps.ViewBox
-	for _, o := range f.deps.outremer {
+	for _, o := range f.deps.overseas {
 		f.domDept[o.Code] = o
-		f.domOrdre = append(f.domOrdre, o.Code)
+		f.domOrder = append(f.domOrder, o.Code)
 	}
-	sort.Strings(f.domOrdre)
+	sort.Strings(f.domOrder)
 
 	// Le fond partagé. Couleurs fixes et translucides : le document ne lit pas
 	// les variables CSS du thème, il doit tenir sur papier clair comme sombre.
@@ -116,7 +116,7 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	b.WriteString(`<style>a path{cursor:pointer}a:hover path,a:focus path{fill:#2A8A96;fill-opacity:.38}a:focus{outline:none}</style>`)
 	b.WriteString(`<g fill="#8C877D" fill-opacity=".16" stroke="#8C877D" stroke-opacity=".45" stroke-width="700" stroke-linejoin="round">`)
 	for _, c := range f.deps.Codes {
-		if u := lienDept(c); u != "" {
+		if u := linkDept(c); u != "" {
 			fmt.Fprintf(&b, `<a href="../%s" target="_top"><title>%s</title><path d="%s"/></a>`,
 				u, template.HTMLEscapeString(f.deps.Noms[c]), f.deps.traces[c])
 		} else {
@@ -135,7 +135,7 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	// pour toute la France), le bleu discret de var(--eau) à 700 devenait
 	// invisible — repéré sur les pages région et département.
 	b.WriteString(`</g><g fill="none" stroke="#2C74A6" stroke-opacity=".85" stroke-width="1600" stroke-linejoin="round" pointer-events="none">`)
-	b.WriteString(f.deps.fleuves)
+	b.WriteString(f.deps.rivers)
 	b.WriteString(`</g></svg>`)
 	if err := os.MkdirAll(filepath.Join(out, "media"), 0o755); err != nil {
 		return nil, err
@@ -143,7 +143,7 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	if err := os.WriteFile(filepath.Join(out, "media", "situation-france.svg"), []byte(b.String()), 0o644); err != nil {
 		return nil, err
 	}
-	for _, code := range f.domOrdre {
+	for _, code := range f.domOrder {
 		o := f.domDept[code]
 		svg := `<svg xmlns="http://www.w3.org/2000/svg" viewBox="` + o.ViewBox + `"><path d="` + o.Trace +
 			`" fill="#8C877D" fill-opacity=".16" stroke="#8C877D" stroke-opacity=".5" stroke-width=".8" vector-effect="non-scaling-stroke" stroke-linejoin="round"/></svg>`
@@ -165,21 +165,21 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 		       coalesce(superficie_cadastrale_ha,0)::float8/100, coalesce(population,0),
 		       st_x(st_transform(st_pointonsurface(geom),srid_rendu)), -st_y(st_transform(st_pointonsurface(geom),srid_rendu)),
 		       coalesce(codes_siren_epci, '{}')
-		FROM geo.contour_cog WHERE niveau IN ('COMMUNE','EPCI') AND cog_millesime=$1`, mill, tolSituation)
+		FROM geo.contour_cog WHERE niveau IN ('COMMUNE','EPCI') AND cog_millesime=$1`, mill, toleranceSituation)
 	if err != nil {
 		return nil, err
 	}
 	for rows.Next() {
-		var niveau, code string
+		var level, code string
 		g := &geomSituation{}
-		if err := rows.Scan(&niveau, &code, &g.nom, &g.dept, &g.region, &g.srid, &g.d,
-			&g.superficieKm2, &g.population, &g.x, &g.y, &g.epcis); err != nil {
+		if err := rows.Scan(&level, &code, &g.name, &g.dept, &g.region, &g.srid, &g.d,
+			&g.areaKm2, &g.population, &g.x, &g.y, &g.epcis); err != nil {
 			rows.Close()
 			return nil, err
 		}
-		if niveau == "COMMUNE" {
-			f.communes[code] = g
-			f.totalKm2 += g.superficieKm2
+		if level == "COMMUNE" {
+			f.municipalities[code] = g
+			f.totalKm2 += g.areaKm2
 			f.totalPop += g.population
 		} else {
 			f.epci[code] = g
@@ -190,10 +190,10 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 		return nil, err
 	}
 	// Superficie et population d'un groupement : celles de ses communes membres.
-	for _, c := range f.communes {
+	for _, c := range f.municipalities {
 		for _, s := range c.epcis {
 			if e := f.epci[s]; e != nil {
-				e.superficieKm2 += c.superficieKm2
+				e.areaKm2 += c.areaKm2
 			}
 		}
 	}
@@ -216,7 +216,7 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	// le calcul.
 	crows, err := pool.Query(ctx, `
 		SELECT code_departement, fonctionnement, investissement
-		FROM mv.dept_budget_commune WHERE period_year=$1`, exercice)
+		FROM mv.dept_budget_commune WHERE period_year=$1`, fiscalYear)
 	if err != nil {
 		return nil, err
 	}
@@ -230,7 +230,7 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 	crows.Close()
 	erows, err := pool.Query(ctx, `
 		SELECT code_departement, fonctionnement, investissement
-		FROM mv.dept_budget_epci WHERE exercice=$1`, exercice)
+		FROM mv.dept_budget_epci WHERE exercice=$1`, fiscalYear)
 	if err != nil {
 		return nil, err
 	}
@@ -247,46 +247,46 @@ func chargerFondSituation(ctx context.Context, pool *pgxpool.Pool, out, root str
 
 // ── Dessin ──────────────────────────────────────────────────────────────
 
-// calque : le territoire mis en évidence, dans une boîte donnée. Les traits
+// layer : le territoire mis en évidence, dans une boîte donnée. Les traits
 // ne changent pas d'épaisseur avec l'échelle (vector-effect).
-type calque struct {
+type layer struct {
 	b strings.Builder
 }
 
-func (c *calque) groupe(classe string, traces []string) {
+func (c *layer) group(class string, traces []string) {
 	if len(traces) == 0 {
 		return
 	}
-	fmt.Fprintf(&c.b, `<g class="%s">`, classe)
+	fmt.Fprintf(&c.b, `<g class="%s">`, class)
 	for _, d := range traces {
 		fmt.Fprintf(&c.b, `<path d="%s"/>`, d)
 	}
 	c.b.WriteString(`</g>`)
 }
 
-func (c *calque) repere(x, y float64, rayon float64) {
-	fmt.Fprintf(&c.b, `<circle class="repere" cx="%.0f" cy="%.0f" r="%.0f"/>`, x, y, rayon)
+func (c *layer) marker(x, y float64, radius float64) {
+	fmt.Fprintf(&c.b, `<circle class="repere" cx="%.0f" cy="%.0f" r="%.0f"/>`, x, y, radius)
 }
 
-func (c *calque) svg(vb, aria string) template.HTML {
+func (c *layer) svg(vb, aria string) template.HTML {
 	return template.HTML(`<svg viewBox="` + vb + `" class="calque" role="img" aria-label="` +
 		template.HTMLEscapeString(aria) + `">` + c.b.String() + `</svg>`)
 }
 
-// cartons : les cinq départements d'outre-mer. Leur fond est une image
+// tiles : les cinq départements d'outre-mer. Leur fond est une image
 // partagée (media/situation-<code>.svg) ; seul le carton du territoire porte
 // un calque, ce qui garde les 35 000 pages de communes légères.
-func (f *fondSituation) cartons(actif string, calqueDOM func(*calque)) []CartonSituation {
-	var out []CartonSituation
-	for _, code := range f.domOrdre {
+func (f *backgroundSituation) tiles(actif string, layerDOM func(*layer)) []TileSituation {
+	var out []TileSituation
+	for _, code := range f.domOrder {
 		o := f.domDept[code]
-		k := CartonSituation{Nom: o.Nom, Fond: f.urlDOM(code), Actif: code == actif}
-		if u := f.lienDept(code); u != "" {
-			k.URL = f.racine + "/" + u
+		k := TileSituation{Name: o.Name, Background: f.urlDOM(code), Actif: code == actif}
+		if u := f.linkDept(code); u != "" {
+			k.URL = f.root + "/" + u
 		}
-		if k.Actif && calqueDOM != nil {
-			var c calque
-			calqueDOM(&c)
+		if k.Actif && layerDOM != nil {
+			var c layer
+			layerDOM(&c)
 			k.SVG = template.HTML(`<svg viewBox="` + o.ViewBox + `" class="calque" aria-hidden="true">` + c.b.String() + `</svg>`)
 		}
 		out = append(out, k)
@@ -294,29 +294,29 @@ func (f *fondSituation) cartons(actif string, calqueDOM func(*calque)) []CartonS
 	return out
 }
 
-func (f *fondSituation) urlDOM(code string) string {
-	return f.racine + "/media/situation-" + code + ".svg"
+func (f *backgroundSituation) urlDOM(code string) string {
+	return f.root + "/media/situation-" + code + ".svg"
 }
 
-func (f *fondSituation) envelopper(s *Situation, deptTerritoire string, dessiner func(*calque, bool), aria string) {
-	s.Fond, s.ViewBox = f.url, f.vb
+func (f *backgroundSituation) envelopper(s *Situation, deptTerritory string, draw func(*layer, bool), aria string) {
+	s.Background, s.ViewBox = f.url, f.vb
 	if v := strings.Fields(f.vb); len(v) == 4 {
-		s.Largeur, s.Hauteur = v[2], v[3]
+		s.Width, s.Height = v[2], v[3]
 	}
-	_, dom := f.domDept[deptTerritoire]
+	_, dom := f.domDept[deptTerritory]
 	if !dom {
-		var c calque
-		dessiner(&c, false)
-		s.Calque = c.svg(f.vb, aria)
+		var c layer
+		draw(&c, false)
+		s.Layer = c.svg(f.vb, aria)
 	}
-	s.Cartons = f.cartons(deptTerritoire, func(c *calque) { dessiner(c, true) })
+	s.Tiles = f.tiles(deptTerritory, func(c *layer) { draw(c, true) })
 }
 
 // ── Légende ─────────────────────────────────────────────────────────────
 
-func km2(v float64) string { return Nombre(int(v+0.5)) + " km²" }
+func km2(v float64) string { return Count(int(v+0.5)) + " km²" }
 
-func partFrance(v, total float64) string {
+func shareFrance(v, total float64) string {
 	if total <= 0 {
 		return ""
 	}
@@ -331,31 +331,31 @@ func meur(v float64) string {
 	if v >= 1e9 {
 		return Decimal(v/1e9, 2) + " Md€"
 	}
-	return Nombre(int(v/1e6+0.5)) + " M€"
+	return Count(int(v/1e6+0.5)) + " M€"
 }
 
-func (f *fondSituation) legendeTerritoire(pop int, km float64) []LigneLegende {
-	var l []LigneLegende
+func (f *backgroundSituation) legendTerritory(pop int, km float64) []LineLegend {
+	var l []LineLegend
 	if pop > 0 {
-		l = append(l, ligneLegende("Population", Nombre(pop)+" habitants", "population municipale · "+partFrance(float64(pop), float64(f.totalPop))))
+		l = append(l, lineLegend("Population", Count(pop)+" habitants", "population municipale · "+shareFrance(float64(pop), float64(f.totalPop))))
 	}
 	if km > 0 {
-		det := partFrance(km, f.totalKm2)
+		det := shareFrance(km, f.totalKm2)
 		if pop > 0 {
-			det += " · " + Nombre(int(float64(pop)/km+0.5)) + " hab./km²"
+			det += " · " + Count(int(float64(pop)/km+0.5)) + " hab./km²"
 		}
-		l = append(l, ligneLegende("Superficie", km2(km), det))
+		l = append(l, lineLegend("Superficie", km2(km), det))
 	}
 	return l
 }
 
-// groupementsParNature : « 12 communautés de communes · 2 d'agglomération ».
-func (f *fondSituation) groupementsParNature(sirens map[string]bool) string {
+// groupingsPerNature : « 12 communautés de communes · 2 d'agglomération ».
+func (f *backgroundSituation) groupingsPerNature(sirens map[string]bool) string {
 	n := map[string]int{}
 	for s := range sirens {
 		n[f.natureEPCI[s]]++
 	}
-	var parts []string
+	var shares []string
 	for _, k := range []struct{ code, sing, plur string }{
 		{"CC", "communauté de communes", "communautés de communes"},
 		{"CA", "communauté d'agglomération", "communautés d'agglomération"},
@@ -369,16 +369,16 @@ func (f *fondSituation) groupementsParNature(sirens map[string]bool) string {
 			if v == 1 {
 				lib = k.sing
 			}
-			parts = append(parts, Nombre(v)+" "+lib)
+			shares = append(shares, Count(v)+" "+lib)
 		}
 	}
-	return strings.Join(parts, " · ")
+	return strings.Join(shares, " · ")
 }
 
-func (f *fondSituation) budgets(l []LigneLegende, conseil string, lignes []LigneFinance, depts map[string]bool) []LigneLegende {
+func (f *backgroundSituation) budgets(l []LineLegend, conseil string, lines []LineFinance, depts map[string]bool) []LineLegend {
 	var fo, in float64
-	for _, lf := range lignes {
-		switch lf.Libelle {
+	for _, lf := range lines {
+		switch lf.Label {
 		case "Dépenses de fonctionnement":
 			fo = lf.Total
 		case "Dépenses d'investissement":
@@ -386,8 +386,8 @@ func (f *fondSituation) budgets(l []LigneLegende, conseil string, lignes []Ligne
 		}
 	}
 	if fo+in > 0 {
-		l = append(l, ligneLegende("Budget du "+conseil, meur(fo+in)+" dépensés",
-			meur(fo)+" de fonctionnement, "+meur(in)+" d'investissement ("+fmt.Sprint(f.anneeBudget)+")"))
+		l = append(l, lineLegend("Budget du "+conseil, meur(fo+in)+" dépensés",
+			meur(fo)+" de fonctionnement, "+meur(in)+" d'investissement ("+fmt.Sprint(f.yearBudget)+")"))
 	}
 	var cf, ci, ef, ei float64
 	for d := range depts {
@@ -397,18 +397,18 @@ func (f *fondSituation) budgets(l []LigneLegende, conseil string, lignes []Ligne
 		ei += f.budgetEPCI[d][1]
 	}
 	if cf+ci > 0 {
-		l = append(l, ligneLegende("Budget des communes", meur(cf+ci)+" dépensés", meur(cf)+" de fonctionnement, "+meur(ci)+" d'investissement"))
+		l = append(l, lineLegend("Budget des communes", meur(cf+ci)+" dépensés", meur(cf)+" de fonctionnement, "+meur(ci)+" d'investissement"))
 	}
 	if ef+ei > 0 {
-		l = append(l, ligneLegende("Budget des intercommunalités", meur(ef+ei)+" dépensés", meur(ef)+" de fonctionnement, "+meur(ei)+" d'investissement"))
+		l = append(l, lineLegend("Budget des intercommunalités", meur(ef+ei)+" dépensés", meur(ef)+" de fonctionnement, "+meur(ei)+" d'investissement"))
 	}
 	return l
 }
 
 // ── Les quatre niveaux ──────────────────────────────────────────────────
 
-func (f *fondSituation) pourDepartement(codeBudget, nom string, lignes []LigneFinance) *Situation {
-	codes := codesCOGDe(codeBudget)
+func (f *backgroundSituation) forDepartment(codeBudget, name string, lines []LineFinance) *Situation {
+	codes := codesCOGOf(codeBudget)
 	depts := map[string]bool{}
 	for _, c := range codes {
 		depts[c] = true
@@ -417,13 +417,13 @@ func (f *fondSituation) pourDepartement(codeBudget, nom string, lignes []LigneFi
 	epcis := map[string]bool{}
 	pop, km := 0, 0.0
 	nCom := 0
-	for _, c := range f.communes {
+	for _, c := range f.municipalities {
 		if !depts[c.dept] {
 			continue
 		}
 		comTraces = append(comTraces, c.d)
 		pop += c.population
-		km += c.superficieKm2
+		km += c.areaKm2
 		nCom++
 		for _, s := range c.epcis {
 			epcis[s] = true
@@ -435,41 +435,41 @@ func (f *fondSituation) pourDepartement(codeBudget, nom string, lignes []LigneFi
 			epciTraces = append(epciTraces, e.d)
 		}
 	}
-	var contour []string
+	var outline []string
 	for _, c := range codes {
 		if d := f.deps.traces[c]; d != "" {
-			contour = append(contour, d)
+			outline = append(outline, d)
 		}
 	}
 	s := &Situation{}
-	f.envelopper(s, codes[0], func(c *calque, dom bool) {
-		c.groupe("communes", comTraces)
-		c.groupe("groupements", epciTraces)
+	f.envelopper(s, codes[0], func(c *layer, dom bool) {
+		c.group("communes", comTraces)
+		c.group("groupements", epciTraces)
 		if !dom {
-			c.groupe("contour", contour)
+			c.group("contour", outline)
 		}
-	}, "Situation de "+nom+" dans la France entière")
-	s.Legende = f.legendeTerritoire(pop, km)
-	s.Legende = append(s.Legende, ligneLegende("Communes", Nombre(nCom), ""))
-	if g := f.groupementsParNature(epcis); g != "" {
-		s.Legende = append(s.Legende, ligneLegende("Intercommunalités", Nombre(len(epcis)), g))
+	}, "Situation de "+name+" dans la France entière")
+	s.Legend = f.legendTerritory(pop, km)
+	s.Legend = append(s.Legend, lineLegend("Communes", Count(nCom), ""))
+	if g := f.groupingsPerNature(epcis); g != "" {
+		s.Legend = append(s.Legend, lineLegend("Intercommunalités", Count(len(epcis)), g))
 	}
-	s.Legende = f.budgets(s.Legende, "conseil départemental", lignes, depts)
+	s.Legend = f.budgets(s.Legend, "conseil départemental", lines, depts)
 	s.Note = "Communes en clair, intercommunalités en trait moyen, limite du département en trait épais. Les budgets ne s'additionnent pas : les transferts entre collectivités sont comptés chez chacune."
 	return s
 }
 
-func (f *fondSituation) pourRegion(code, nom string, lignes []LigneFinance) *Situation {
+func (f *backgroundSituation) forRegion(code, name string, lines []LineFinance) *Situation {
 	depts := map[string]bool{}
 	epcis := map[string]bool{}
 	pop, km, nCom := 0, 0.0, 0
-	for _, c := range f.communes {
+	for _, c := range f.municipalities {
 		if c.region != code {
 			continue
 		}
 		depts[c.dept] = true
 		pop += c.population
-		km += c.superficieKm2
+		km += c.areaKm2
 		nCom++
 		for _, s := range c.epcis {
 			epcis[s] = true
@@ -488,44 +488,44 @@ func (f *fondSituation) pourRegion(code, nom string, lignes []LigneFinance) *Sit
 	}
 	dom := regionDOM[code]
 	s := &Situation{}
-	f.envelopper(s, dom, func(c *calque, enDOM bool) {
-		if enDOM {
+	f.envelopper(s, dom, func(c *layer, inDOM bool) {
+		if inDOM {
 			var com []string
-			for _, cm := range f.communes {
+			for _, cm := range f.municipalities {
 				if cm.region == code {
 					com = append(com, cm.d)
 				}
 			}
-			c.groupe("communes", com)
-			c.groupe("groupements", epciTraces)
+			c.group("communes", com)
+			c.group("groupements", epciTraces)
 			return
 		}
-		c.groupe("territoire", depTraces)
-		c.groupe("groupements", epciTraces)
-		c.groupe("departements", depTraces)
+		c.group("territoire", depTraces)
+		c.group("groupements", epciTraces)
+		c.group("departements", depTraces)
 		if t := f.regs.traces[code]; t != "" {
-			c.groupe("contour", []string{t})
+			c.group("contour", []string{t})
 		}
-	}, "Situation de la région "+nom+" dans la France entière")
-	s.Legende = f.legendeTerritoire(pop, km)
-	s.Legende = append(s.Legende, ligneLegende("Départements", Nombre(len(depts)), ""),
-		ligneLegende("Communes", Nombre(nCom), ""))
-	if g := f.groupementsParNature(epcis); g != "" {
-		s.Legende = append(s.Legende, ligneLegende("Intercommunalités", Nombre(len(epcis)), g))
+	}, "Situation de la région "+name+" dans la France entière")
+	s.Legend = f.legendTerritory(pop, km)
+	s.Legend = append(s.Legend, lineLegend("Départements", Count(len(depts)), ""),
+		lineLegend("Communes", Count(nCom), ""))
+	if g := f.groupingsPerNature(epcis); g != "" {
+		s.Legend = append(s.Legend, lineLegend("Intercommunalités", Count(len(epcis)), g))
 	}
-	s.Legende = f.budgets(s.Legende, "conseil régional", lignes, depts)
+	s.Legend = f.budgets(s.Legend, "conseil régional", lines, depts)
 	s.Note = "Départements de la région en clair, intercommunalités en trait fin, limite de la région en trait épais. Les budgets ne s'additionnent pas : les transferts entre collectivités sont comptés chez chacune."
 	return s
 }
 
-func (f *fondSituation) pourEPCI(siren, nom string, lignes []LigneFinance) *Situation {
+func (f *backgroundSituation) forEPCI(siren, name string, lines []LineFinance) *Situation {
 	e := f.epci[siren]
 	if e == nil {
 		return nil
 	}
 	var com []string
 	pop, nCom := 0, 0
-	for _, c := range f.communes {
+	for _, c := range f.municipalities {
 		for _, s := range c.epcis {
 			if s == siren {
 				com = append(com, c.d)
@@ -535,21 +535,21 @@ func (f *fondSituation) pourEPCI(siren, nom string, lignes []LigneFinance) *Situ
 		}
 	}
 	s := &Situation{}
-	f.envelopper(s, e.dept, func(c *calque, dom bool) {
-		c.groupe("communes", com)
-		c.groupe("contour", []string{e.d})
+	f.envelopper(s, e.dept, func(c *layer, dom bool) {
+		c.group("communes", com)
+		c.group("contour", []string{e.d})
 		if !dom {
 			if t := f.deps.traces[e.dept]; t != "" {
-				c.groupe("departements", []string{t})
+				c.group("departements", []string{t})
 			}
-			c.repere(e.x, e.y, 16000)
+			c.marker(e.x, e.y, 16000)
 		}
-	}, "Situation de "+nom+" dans la France entière")
-	s.Legende = f.legendeTerritoire(pop, e.superficieKm2)
-	s.Legende = append(s.Legende, ligneLegende("Communes membres", Nombre(nCom), ""))
+	}, "Situation de "+name+" dans la France entière")
+	s.Legend = f.legendTerritory(pop, e.areaKm2)
+	s.Legend = append(s.Legend, lineLegend("Communes membres", Count(nCom), ""))
 	var fo, in float64
-	for _, lf := range lignes {
-		switch lf.Libelle {
+	for _, lf := range lines {
+		switch lf.Label {
 		case "Dépenses de fonctionnement":
 			fo = lf.Total
 		case "Dépenses d'investissement":
@@ -557,28 +557,28 @@ func (f *fondSituation) pourEPCI(siren, nom string, lignes []LigneFinance) *Situ
 		}
 	}
 	if fo+in > 0 {
-		s.Legende = append(s.Legende, ligneLegende("Budget du groupement", meur(fo+in)+" dépensés", meur(fo)+" de fonctionnement, "+meur(in)+" d'investissement"))
+		s.Legend = append(s.Legend, lineLegend("Budget du groupement", meur(fo+in)+" dépensés", meur(fo)+" de fonctionnement, "+meur(in)+" d'investissement"))
 	}
 	s.Note = "Le groupement en évidence, ses communes en trait fin, son département de siège en trait moyen ; le cercle aide à le trouver à l'échelle de la France."
 	return s
 }
 
-func (f *fondSituation) pourCommune(code, nom string) *Situation {
-	c := f.communes[code]
+func (f *backgroundSituation) forMunicipality(code, name string) *Situation {
+	c := f.municipalities[code]
 	if c == nil {
 		return nil
 	}
 	s := &Situation{}
-	f.envelopper(s, c.dept, func(k *calque, dom bool) {
-		k.groupe("commune", []string{c.d})
+	f.envelopper(s, c.dept, func(k *layer, dom bool) {
+		k.group("commune", []string{c.d})
 		if !dom {
 			if t := f.deps.traces[c.dept]; t != "" {
-				k.groupe("departements", []string{t})
+				k.group("departements", []string{t})
 			}
-			k.repere(c.x, c.y, 14000)
+			k.marker(c.x, c.y, 14000)
 		}
-	}, "Situation de "+nom+" dans la France entière")
-	s.Legende = f.legendeTerritoire(c.population, c.superficieKm2)
+	}, "Situation de "+name+" dans la France entière")
+	s.Legend = f.legendTerritory(c.population, c.areaKm2)
 	s.Note = "La commune en évidence, son département en trait moyen ; le cercle aide à la trouver à l'échelle de la France."
 	return s
 }

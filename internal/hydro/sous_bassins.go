@@ -9,13 +9,13 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-const ConnectorVersionSousBassins = "sous-bassins-v1"
+const ConnectorVersionSubBasins = "sous-bassins-v1"
 
-var SourceSousBassins = archive.Source{
+var SourceSubBasins = archive.Source{
 	Slug: "sandre-sous-bassins-versants", Label: "Sandre/IGN — sous-bassins versants topographiques (BD Topage)",
 	Publisher: "Service d'administration nationale des données et référentiels sur l'eau (Sandre)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Sandre, BD Topage (IGN/OFB)",
 	Cadence:     "irrégulière (révision du référentiel hydrographique)",
 	Notes: "Millésime 2025, France métropolitaine uniquement (suffixe FXX). Résolution bien " +
@@ -24,10 +24,10 @@ var SourceSousBassins = archive.Source{
 		"associé, pas un nom de sous-bassin standardisé — laissé tel quel, jamais reconstruit.",
 }
 
-const urlSousBassinsFXX = "https://services.sandre.eaufrance.fr/telechargement/geo/ETH/BDTopage/2025/" +
+const subBasinsURLFXX = "https://services.sandre.eaufrance.fr/telechargement/geo/ETH/BDTopage/2025/" +
 	"BassinVersantTopographique/BassinVersantTopographique_FXX-geojson.zip"
 
-type featureSousBassin struct {
+type subBasinFeature struct {
 	Properties struct {
 		CdBH   string `json:"CdBH"`
 		TopoOH string `json:"TopoOH"`
@@ -35,14 +35,14 @@ type featureSousBassin struct {
 	Geometry json.RawMessage `json:"geometry"`
 }
 
-// IngestSousBassins charge les sous-bassins versants topographiques
+// IngestSubBasins charge les sous-bassins versants topographiques
 // (BD Topage). Voir docs/bassins-versants-donnees.md.
-func IngestSousBassins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceSousBassins)
+func IngestSubBasins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceSubBasins)
 	if err != nil {
 		return err
 	}
-	runID, err := arch.StartRun(ctx, srcID, ConnectorVersionSousBassins)
+	runID, err := arch.StartRun(ctx, srcID, ConnectorVersionSubBasins)
 	if err != nil {
 		return err
 	}
@@ -51,16 +51,16 @@ func IngestSousBassins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, urlSousBassinsFXX, ".zip")
+	f, err := arch.Fetch(ctx, srcID, runID, subBasinsURLFXX, ".zip")
 	if err != nil {
 		return fail(err)
 	}
-	gj, err := lireGeoJSONDuZip(f.Path)
+	gj, err := readGeoJSONFromZip(f.Path)
 	if err != nil {
 		return fail(err)
 	}
 	var fc struct {
-		Features []featureSousBassin `json:"features"`
+		Features []subBasinFeature `json:"features"`
 	}
 	if err := json.Unmarshal(gj, &fc); err != nil {
 		return fail(err)
@@ -82,15 +82,15 @@ func IngestSousBassins(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	// classique par ligne plutôt qu'un CopyFrom — 6 190 lignes reste rapide,
 	// pas besoin d'optimiser davantage.
 	for i, feat := range fc.Features {
-		var nom *string
+		var name *string
 		if feat.Properties.TopoOH != "" {
 			v := feat.Properties.TopoOH
-			nom = &v
+			name = &v
 		}
 		if _, err := tx.Exec(ctx, `
 			INSERT INTO geo.contour_sous_bassin (code_bassin, nom, geom, source_id)
 			VALUES ($1, $2, ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON($3), 2154), 4326)), $4)`,
-			feat.Properties.CdBH, nom, string(feat.Geometry), srcID); err != nil {
+			feat.Properties.CdBH, name, string(feat.Geometry), srcID); err != nil {
 			return fail(fmt.Errorf("entité %d (CdBH=%s) : insertion : %w", i, feat.Properties.CdBH, err))
 		}
 	}

@@ -20,7 +20,7 @@ import (
 var SourceINSEE = archive.Source{
 	Slug: "insee-dette", Label: "INSEE — dette négociable de l'État (AFT) et dette trimestrielle des APU",
 	Publisher: "INSEE, d'après l'Agence France Trésor", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : INSEE, BDM ; Agence France Trésor pour la dette négociable de l'État",
 	Cadence:     "mensuelle (dette négociable), trimestrielle (dette Maastricht)",
@@ -35,7 +35,7 @@ const inseeBDM = "https://bdm.insee.fr/series/sdmx/data/"
 // échouer le chargement : l'INSEE change de base (2014, puis 2020) en créant
 // de nouveaux identifiants, et une série qu'on ne sait pas qualifier ne doit
 // pas entrer silencieusement dans des sommes.
-var inseeNegociable = map[string]Serie{
+var inseeNegociable = map[string]Series{
 	"001739081": {Mesure: "ENCOURS"},
 	"001711531": {Mesure: "ENCOURS", MonnaieEmission: "EUR"},
 	"001711532": {Mesure: "ENCOURS", MonnaieEmission: "EUR", Echeance: "CT", BaseEcheance: "INITIALE"},
@@ -60,7 +60,7 @@ var inseeNegociable = map[string]Serie{
 // compté nulle part, si bien que les quatre sous-secteurs se somment au total.
 // Les instruments suivent la nomenclature SEC 2010 : F2 dépôts, F3 titres,
 // F4 crédits, F6 réserves d'assurance, F8 autres comptes à payer, F12 DTS.
-var inseeTrimestrielle = map[string]Serie{
+var inseeTrimestrielle = map[string]Series{
 	"010777616": {Concept: "DETTE_MAASTRICHT", SecteurEmetteur: "S13"},
 	"010777608": {Concept: "DETTE_MAASTRICHT", SecteurEmetteur: "S13", Unite: "PCT_PIB"},
 	"010777606": {Concept: "DETTE_MAASTRICHT", SecteurEmetteur: "S13", Instrument: "F2"},
@@ -87,32 +87,32 @@ var inseeTrimestrielle = map[string]Serie{
 type inseeMessage struct {
 	Series []struct {
 		IDBank   string `xml:"IDBANK,attr"`
-		Titre    string `xml:"TITLE_FR,attr"`
+		Title    string `xml:"TITLE_FR,attr"`
 		Freq     string `xml:"FREQ,attr"`
 		UnitMult string `xml:"UNIT_MULT,attr"`
-		Unite    string `xml:"UNIT_MEASURE,attr"`
+		Unit     string `xml:"UNIT_MEASURE,attr"`
 		Obs      []struct {
-			Periode string `xml:"TIME_PERIOD,attr"`
-			Valeur  string `xml:"OBS_VALUE,attr"`
-			Statut  string `xml:"OBS_STATUS,attr"`
+			Period string `xml:"TIME_PERIOD,attr"`
+			Value  string `xml:"OBS_VALUE,attr"`
+			Status string `xml:"OBS_STATUS,attr"`
 		} `xml:"Obs"`
 	} `xml:"DataSet>Series"`
 }
 
 func IngestINSEE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, pool, arch, SourceINSEE, func(srcID, runID int64) (*lot, error) {
-		l := nouveauLot()
-		jeux := []struct {
-			flux    string
-			attendu map[string]Serie
-			base    Serie
+	return run(ctx, pool, arch, SourceINSEE, func(srcID, runID int64) (*batch, error) {
+		l := newBatch()
+		datasets := []struct {
+			dataset  string
+			expected map[string]Series
+			base     Series
 		}{
 			{"DETTE-NEGOCIABLE-ETAT", inseeNegociable,
-				Serie{Concept: "DETTE_NEGOCIABLE_ETAT", SecteurEmetteur: "S13111"}},
-			{"DETTE-TRIM-APU-2020", inseeTrimestrielle, Serie{Mesure: "ENCOURS"}},
+				Series{Concept: "DETTE_NEGOCIABLE_ETAT", SecteurEmetteur: "S13111"}},
+			{"DETTE-TRIM-APU-2020", inseeTrimestrielle, Series{Mesure: "ENCOURS"}},
 		}
-		for _, j := range jeux {
-			url := inseeBDM + j.flux
+		for _, j := range datasets {
+			url := inseeBDM + j.dataset
 			f, err := arch.Fetch(ctx, srcID, runID, url, ".xml")
 			if err != nil {
 				return nil, err
@@ -123,62 +123,62 @@ func IngestINSEE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive)
 			}
 			var m inseeMessage
 			if err := xml.Unmarshal(b, &m); err != nil {
-				return nil, fmt.Errorf("%s : réponse SDMX illisible : %w", j.flux, err)
+				return nil, fmt.Errorf("%s : réponse SDMX illisible : %w", j.dataset, err)
 			}
-			vues := map[string]bool{}
+			seen := map[string]bool{}
 			for _, s := range m.Series {
-				d, ok := j.attendu[s.IDBank]
+				d, ok := j.expected[s.IDBank]
 				if !ok {
 					return nil, fmt.Errorf("%s : série %s inconnue (%s) — à qualifier avant chargement",
-						j.flux, s.IDBank, s.Titre)
+						j.dataset, s.IDBank, s.Title)
 				}
-				vues[s.IDBank] = true
-				mult, err := multiplicateur(s.UnitMult)
+				seen[s.IDBank] = true
+				mult, err := multiplier(s.UnitMult)
 				if err != nil {
 					return nil, fmt.Errorf("%s : %w", s.IDBank, err)
 				}
-				serie := d
-				serie.Code = "insee:" + s.IDBank
-				serie.CodeSource = s.IDBank
-				serie.Libelle = s.Titre
-				serie.Pays = "FR"
+				series := d
+				series.Code = "insee:" + s.IDBank
+				series.CodeSource = s.IDBank
+				series.Libelle = s.Title
+				series.Pays = "FR"
 				// L'INSEE code le trimestre « T », SDMX et le reste du modèle « Q ».
 				switch s.Freq {
 				case "M", "A":
-					serie.Frequence = s.Freq
+					series.Frequence = s.Freq
 				case "T":
-					serie.Frequence = "Q"
+					series.Frequence = "Q"
 				default:
 					return nil, fmt.Errorf("%s : fréquence %q inattendue", s.IDBank, s.Freq)
 				}
-				serie.URL = url
-				serie.Concept = defaut(serie.Concept, j.base.Concept)
-				serie.Mesure = defaut(serie.Mesure, j.base.Mesure)
-				serie.SecteurEmetteur = defaut(serie.SecteurEmetteur, j.base.SecteurEmetteur)
+				series.URL = url
+				series.Concept = orDefault(series.Concept, j.base.Concept)
+				series.Mesure = orDefault(series.Mesure, j.base.Mesure)
+				series.SecteurEmetteur = orDefault(series.SecteurEmetteur, j.base.SecteurEmetteur)
 				switch {
-				case serie.Unite == "PCT_PIB":
-					if s.Unite != "POURCENT" {
-						return nil, fmt.Errorf("%s : unité %q, attendu POURCENT", s.IDBank, s.Unite)
+				case series.Unite == "PCT_PIB":
+					if s.Unit != "POURCENT" {
+						return nil, fmt.Errorf("%s : unité %q, attendu POURCENT", s.IDBank, s.Unit)
 					}
 					mult = 1
-				case s.Unite == "EUROS":
-					serie.Unite = "EUR"
+				case s.Unit == "EUROS":
+					series.Unite = "EUR"
 				default:
-					return nil, fmt.Errorf("%s : unité %q inattendue", s.IDBank, s.Unite)
+					return nil, fmt.Errorf("%s : unité %q inattendue", s.IDBank, s.Unit)
 				}
 				var obs []Obs
 				for _, o := range s.Obs {
-					v, err := strconv.ParseFloat(o.Valeur, 64)
+					v, err := strconv.ParseFloat(o.Value, 64)
 					if err != nil {
 						continue // valeur non publiée (NaN) : la période reste absente
 					}
-					obs = append(obs, Obs{Periode: o.Periode, Valeur: v * mult, Statut: o.Statut, DocumentID: f.DocumentID})
+					obs = append(obs, Obs{Periode: o.Period, Valeur: v * mult, Statut: o.Status, DocumentID: f.DocumentID})
 				}
-				l.ajouter(&serie, obs)
+				l.add(&series, obs)
 			}
-			for id := range j.attendu {
-				if !vues[id] {
-					return nil, fmt.Errorf("%s : série %s attendue mais absente", j.flux, id)
+			for id := range j.expected {
+				if !seen[id] {
+					return nil, fmt.Errorf("%s : série %s attendue mais absente", j.dataset, id)
 				}
 			}
 		}

@@ -12,10 +12,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var SourceEmploiSecteurNACE = archive.Source{
+var SourceSectorEmploymentNACE = archive.Source{
 	Slug: "eurostat-emploi-secteur-nace", Label: "Eurostat — emploi intérieur total par branche d'activité (NACE Rév. 2)",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat, nama_10_a10_e",
 	Cadence:     "annuelle",
 	Notes: "Nomenclature A10 : la branche C (industrie manufacturière) est une SOUS-catégorie " +
@@ -23,9 +23,9 @@ var SourceEmploiSecteurNACE = archive.Source{
 		"additionner B-E et C. Série continue 1975-2025 selon Eurostat, aucune rupture documentée.",
 }
 
-// libelleNACE : les libellés officiels de la nomenclature A10 (NAF Rév. 2),
+// naceLabel : les libellés officiels de la nomenclature A10 (NAF Rév. 2),
 // tels qu'utilisés par l'Insee et Eurostat.
-var libelleNACE = map[string]string{
+var naceLabel = map[string]string{
 	"TOTAL": "Ensemble",
 	"A":     "Agriculture, sylviculture et pêche",
 	"B-E":   "Industrie (y compris énergie)",
@@ -40,13 +40,13 @@ var libelleNACE = map[string]string{
 	"R-U":   "Arts, spectacles et activités récréatives ; autres activités de services",
 }
 
-const urlEmploiSecteurNACE = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10_a10_e?" +
+const sectorEmploymentNACEURL = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/nama_10_a10_e?" +
 	"format=JSON&lang=EN&geo=FR&na_item=EMP_DC&unit=THS_PER"
 
-// IngestEmploiSecteurNACE charge l'emploi intérieur total par branche
+// IngestSectorEmploymentNACE charge l'emploi intérieur total par branche
 // (niveau A10), France, 1975 à aujourd'hui.
-func IngestEmploiSecteurNACE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceEmploiSecteurNACE)
+func IngestSectorEmploymentNACE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceSectorEmploymentNACE)
 	if err != nil {
 		return err
 	}
@@ -59,7 +59,7 @@ func IngestEmploiSecteurNACE(ctx context.Context, pool *pgxpool.Pool, arch *arch
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, urlEmploiSecteurNACE, ".json")
+	f, err := arch.Fetch(ctx, srcID, runID, sectorEmploymentNACEURL, ".json")
 	if err != nil {
 		return fail(err)
 	}
@@ -84,27 +84,27 @@ func IngestEmploiSecteurNACE(ctx context.Context, pool *pgxpool.Pool, arch *arch
 	}
 	naceIdx := doc.Dimension["nace_r2"].Category.Index
 	timeIdx := doc.Dimension["time"].Category.Index
-	nTemps := len(timeIdx)
-	if nTemps == 0 || len(naceIdx) == 0 {
+	timeCount := len(timeIdx)
+	if timeCount == 0 || len(naceIdx) == 0 {
 		return fail(fmt.Errorf("dimensions nace_r2 ou time absentes"))
 	}
 
 	var rows [][]any
 	for code, ci := range naceIdx {
-		lib, ok := libelleNACE[code]
+		label, ok := naceLabel[code]
 		if !ok {
 			continue // branches non retenues pour ce dossier (agrégats intermédiaires non listés ci-dessus)
 		}
-		for anneeStr, ti := range timeIdx {
-			v, ok := doc.Value[strconv.Itoa(ci*nTemps+ti)]
+		for yearStr, ti := range timeIdx {
+			v, ok := doc.Value[strconv.Itoa(ci*timeCount+ti)]
 			if !ok {
 				continue
 			}
-			annee, err := strconv.Atoi(anneeStr)
+			year, err := strconv.Atoi(yearStr)
 			if err != nil {
 				continue
 			}
-			rows = append(rows, []any{annee, code, lib, v, srcID})
+			rows = append(rows, []any{year, code, label, v, srcID})
 		}
 	}
 	if len(rows) == 0 {

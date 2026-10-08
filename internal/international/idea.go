@@ -24,7 +24,7 @@ var SourceIDEA = archive.Source{
 	Slug: "idea-participation-electorale", Label: "International IDEA — participation électorale",
 	Publisher:   "International Institute for Democracy and Electoral Assistance (International IDEA)",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Usage non commercial avec attribution (conditions IDEA) — ce site n'a pas de vocation commerciale",
+	License:     "Usage non commercial avec attribution (conditions IDEA) — ce site n'a pas de vocation commerciale",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : International IDEA, Voter Turnout Database",
 	Cadence:     "mise à jour continue, au fil des élections",

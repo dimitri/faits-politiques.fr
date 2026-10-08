@@ -25,7 +25,7 @@ var Source = archive.Source{
 	Slug: "cedh-hudoc", Label: "CEDH — HUDOC, arrêts concernant la France",
 	Publisher:   "Cour européenne des droits de l'homme / Conseil de l'Europe",
 	Tier:        "PRIMARY_OFFICIAL",
-	Licence:     "Conditions HUDOC, à vérifier ; aucune licence ouverte explicite",
+	License:     "Conditions HUDOC, à vérifier ; aucune licence ouverte explicite",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : Cour européenne des droits de l'homme, base HUDOC",
 	Cadence:     "continue",
@@ -37,11 +37,11 @@ var Source = archive.Source{
 const endpoint = "https://hudoc.echr.coe.int/app/query/results"
 
 // Requête HUDOC : arrêts (JUDGMENTS) dont l'État défendeur est la France.
-const requete = `contentsitename:ECHR AND ` +
+const query = `contentsitename:ECHR AND ` +
 	`(NOT (doctype=PR OR doctype=HFCOMOLD OR doctype=HECOMOLD)) AND ` +
 	`((documentcollectionid2="JUDGMENTS")) AND (respondent="FRA")`
 
-type ligne struct {
+type row struct {
 	Columns struct {
 		ItemID        string `json:"itemid"`
 		AppNo         string `json:"appno"`
@@ -59,26 +59,26 @@ type ligne struct {
 // violation sur un article et une non-violation sur un autre.
 var reViolation = regexp.MustCompile(`(?i)(^|[;,]\s*)violation\b`)
 
-func aRetenuUneViolation(conclusion string) bool {
+func hasViolation(conclusion string) bool {
 	for _, seg := range strings.Split(conclusion, ";") {
 		s := strings.TrimSpace(seg)
 		if s == "" {
 			continue
 		}
-		bas := strings.ToLower(s)
-		if strings.HasPrefix(bas, "non-violation") || strings.HasPrefix(bas, "no violation") {
+		lower := strings.ToLower(s)
+		if strings.HasPrefix(lower, "non-violation") || strings.HasPrefix(lower, "no violation") {
 			continue
 		}
-		if strings.HasPrefix(bas, "violation") || reViolation.MatchString(s) {
+		if strings.HasPrefix(lower, "violation") || reViolation.MatchString(s) {
 			return true
 		}
 	}
 	return false
 }
 
-// estFrancais distingue la version française de sa jumelle anglaise : les deux
+// isFrench distingue la version française de sa jumelle anglaise : les deux
 // existent sous des identifiants différents pour le même numéro de requête.
-func estFrancais(docname string) bool {
+func isFrench(docname string) bool {
 	return strings.HasPrefix(strings.ToUpper(docname), "AFFAIRE")
 }
 
@@ -94,10 +94,10 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 
 	hc := &http.Client{Timeout: 90 * time.Second}
 	const page = 500
-	var toutes []ligne
+	var allRows []row
 	for start := 0; ; start += page {
 		v := url.Values{
-			"query":  {requete},
+			"query":  {query},
 			"select": {"itemid,appno,docname,doctypebranch,kpdate,article,conclusion,importance"},
 			"sort":   {"kpdate Ascending"},
 			"start":  {fmt.Sprint(start)},
@@ -112,8 +112,8 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			return err
 		}
 		var out struct {
-			ResultCount int     `json:"resultcount"`
-			Results     []ligne `json:"results"`
+			ResultCount int   `json:"resultcount"`
+			Results     []row `json:"results"`
 		}
 		err = json.NewDecoder(resp.Body).Decode(&out)
 		resp.Body.Close()
@@ -121,24 +121,24 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 			return err
 		}
-		toutes = append(toutes, out.Results...)
-		if len(out.Results) < page || len(toutes) >= out.ResultCount {
+		allRows = append(allRows, out.Results...)
+		if len(out.Results) < page || len(allRows) >= out.ResultCount {
 			break
 		}
 		time.Sleep(600 * time.Millisecond) // ne pas marteler un service public
 	}
 
 	// Dédoublonnage par numéro de requête, version française préférée.
-	parAppNo := map[string]ligne{}
-	for _, l := range toutes {
+	byAppNo := map[string]row{}
+	for _, l := range allRows {
 		c := l.Columns
 		if c.ItemID == "" || c.AppNo == "" {
 			continue
 		}
-		cle := c.AppNo + "|" + c.KPDate
-		prev, existe := parAppNo[cle]
-		if !existe || (estFrancais(c.DocName) && !estFrancais(prev.Columns.DocName)) {
-			parAppNo[cle] = l
+		key := c.AppNo + "|" + c.KPDate
+		prev, exists := byAppNo[key]
+		if !exists || (isFrench(c.DocName) && !isFrench(prev.Columns.DocName)) {
+			byAppNo[key] = l
 		}
 	}
 
@@ -146,9 +146,9 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return err
 	}
 
-	nTotal, nViol := 0, 0
+	nTotal, nViolations := 0, 0
 	seen := map[string]bool{}
-	for _, l := range parAppNo {
+	for _, l := range byAppNo {
 		c := l.Columns
 		if len(c.KPDate) < 10 {
 			continue
@@ -161,7 +161,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 				articles = append(articles, a)
 			}
 		}
-		viol := aRetenuUneViolation(c.Conclusion)
+		violation := hasViolation(c.Conclusion)
 		slug := slugify(c.AppNo + "-" + c.KPDate[:10])
 		for i := 2; seen[slug]; i++ {
 			slug = fmt.Sprintf("%s-%d", slugify(c.AppNo+"-"+c.KPDate[:10]), i)
@@ -176,18 +176,18 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			ON CONFLICT (itemid) DO NOTHING`,
 			c.ItemID, c.AppNo, slug, c.DocName, c.KPDate[:10],
 			nullifEmpty(c.DocTypeBranch), nullifEmpty(c.Importance),
-			articles, c.Conclusion, viol,
+			articles, c.Conclusion, violation,
 			"https://hudoc.echr.coe.int/fre?i="+c.ItemID, srcID); err != nil {
 			return fmt.Errorf("arrêt %s : %w", c.ItemID, err)
 		}
 		nTotal++
-		if viol {
-			nViol++
+		if violation {
+			nViolations++
 		}
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"arrets": nTotal, "avec_violation": nViol}, "")
-	fmt.Printf("  CEDH          %d arrêts, dont %d retenant au moins une violation\n", nTotal, nViol)
+		map[string]any{"arrets": nTotal, "avec_violation": nViolations}, "")
+	fmt.Printf("  CEDH          %d arrêts, dont %d retenant au moins une violation\n", nTotal, nViolations)
 	return nil
 }
 

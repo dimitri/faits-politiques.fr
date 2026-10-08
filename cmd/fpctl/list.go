@@ -468,7 +468,7 @@ func showDeps(ctx context.Context, name string, jsonOutput, pagesOnly bool) erro
 		// commande d'affichage) si la migration qui introduit
 		// core.sitegen_table_usage n'est pas encore passée — addPageNode
 		// se contente alors de ne rien afficher pour Tables.
-		if t, err := sitegen.TablesPubliees(ctx, pool); err == nil {
+		if t, err := sitegen.TablesPublished(ctx, pool); err == nil {
 			tablesByNode = t
 		}
 	}
@@ -660,26 +660,26 @@ func printTree(pool *pgxpool.Pool, nodes map[string]node, name, prefix string, l
 }
 
 func listConnectors() error {
-	cs, err := sources.ListerConnecteurs(".")
+	cs, err := sources.ListConnectors(".")
 	if err != nil {
 		return err
 	}
 	pkg := ""
 	for _, c := range cs {
-		if c.Paquet != pkg {
-			pkg = c.Paquet
+		if c.Package != pkg {
+			pkg = c.Package
 			fmt.Printf("%s\n", pkg)
 		}
-		fmt.Printf("  %s\n", c.Fonction)
+		fmt.Printf("  %s\n", c.Function)
 	}
 	fmt.Printf("\n%d connecteurs, %d paquets\n", len(cs), packageCount(cs))
 	return nil
 }
 
-func packageCount(cs []sources.Connecteur) int {
+func packageCount(cs []sources.Connector) int {
 	seen := map[string]bool{}
 	for _, c := range cs {
-		seen[c.Paquet] = true
+		seen[c.Package] = true
 	}
 	return len(seen)
 }
@@ -691,26 +691,26 @@ func showStats(ctx context.Context) error {
 	}
 	defer pool.Close()
 
-	schemas, err := stats.Resume(ctx, pool)
+	schemas, err := stats.Summary(ctx, pool)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("%-12s %8s %14s %10s\n", "schéma", "tables", "lignes (est.)", "taille")
 	var totalBytes, totalRows int64
 	for _, s := range schemas {
-		fmt.Printf("%-12s %8d %14d %10s\n", s.Nom, s.Tables, s.LignesEstimee, humanSize(s.Octets))
-		totalBytes += s.Octets
-		totalRows += s.LignesEstimee
+		fmt.Printf("%-12s %8d %14d %10s\n", s.Name, s.Tables, s.EstimatedRows, humanSize(s.Bytes))
+		totalBytes += s.Bytes
+		totalRows += s.EstimatedRows
 	}
 	fmt.Printf("%-12s %8s %14d %10s\n", "total", "", totalRows, humanSize(totalBytes))
 
-	largest, err := stats.PlusGrossesTables(ctx, pool, 10)
+	largest, err := stats.LargestTables(ctx, pool, 10)
 	if err != nil {
 		return err
 	}
 	fmt.Printf("\nplus grosses tables :\n")
 	for _, t := range largest {
-		fmt.Printf("  %-10s %-40s %12d lignes  %10s\n", t.Schema, t.Nom, t.LignesEstimee, humanSize(t.Octets))
+		fmt.Printf("  %-10s %-40s %12d lignes  %10s\n", t.Schema, t.Name, t.EstimatedRows, humanSize(t.Bytes))
 	}
 	return nil
 }

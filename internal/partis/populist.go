@@ -23,7 +23,7 @@ import (
 var SourcePopuList = archive.Source{
 	Slug: "populist-v4", Label: "The PopuList 4.0",
 	Publisher: "The PopuList", Tier: "SECONDARY_PRESS",
-	Licence: "CC BY 4.0", ReuseClass: "ATTRIBUTION",
+	License: "CC BY 4.0", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : The PopuList 4.0 (Rooduijn et al.), CC BY 4.0",
 	Cadence:     "par version",
 	Notes: "Classification qualitative informée par experts. Les catégories sont DATÉES : " +
@@ -36,7 +36,7 @@ const PopuListURL = "https://popu-list.github.io/Data/The%20PopuList%204.0.csv"
 // la récupérer — voir DownloadTargets, qui les réunit avec celles des deux
 // autres connecteurs du paquet.
 func PopuListDownloadTargets() []archive.DownloadTarget {
-	return []archive.DownloadTarget{{Nom: "populist", Source: SourcePopuList, URL: PopuListURL, Ext: ".csv"}}
+	return []archive.DownloadTarget{{Name: "populist", Source: SourcePopuList, URL: PopuListURL, Ext: ".csv"}}
 }
 
 var popuListCategories = []string{"populist", "farright", "farleft", "eurosceptic"}
@@ -109,11 +109,11 @@ func IngestPopuList(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 		if get(rec, "country_name") != "France" {
 			continue
 		}
-		nom := get(rec, "party_name")
-		if nom == "" {
+		name := get(rec, "party_name")
+		if name == "" {
 			continue
 		}
-		orgID, err := upsertClassifiedParty(ctx, pool, nom, get(rec, "party_name_short"),
+		orgID, err := upsertClassifiedParty(ctx, pool, name, get(rec, "party_name_short"),
 			get(rec, "partyfacts_id"))
 		if err != nil {
 			return err
@@ -145,14 +145,14 @@ func IngestPopuList(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 // upsertClassifiedParty crée l'organisation portant le nom publié par le
 // référentiel. Elle est distincte d'une éventuelle entrée CNCCFP : les
 // rapprocher est une décision, prise dans data/organisations.csv.
-func upsertClassifiedParty(ctx context.Context, pool *pgxpool.Pool, nom, abrev, pf string) (int64, error) {
+func upsertClassifiedParty(ctx context.Context, pool *pgxpool.Pool, name, abbr, pf string) (int64, error) {
 	var orgID int64
-	slug := "populist-" + Slugify(nom)
+	slug := "populist-" + Slugify(name)
 	err := pool.QueryRow(ctx, `
 		INSERT INTO core.organization (slug, kind, name, short_name)
 		VALUES ($1,'PARTY',$2,NULLIF($3,''))
 		ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name
-		RETURNING id`, slug, nom, abrev).Scan(&orgID)
+		RETURNING id`, slug, name, abbr).Scan(&orgID)
 	if err != nil {
 		return 0, err
 	}

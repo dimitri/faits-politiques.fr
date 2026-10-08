@@ -12,11 +12,11 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-var SourceAgeDepartRetraite = archive.Source{
+var SourceRetirementAge = archive.Source{
 	Slug: "drees-age-depart-retraite", Label: "Drees — âge conjoncturel moyen de départ à la retraite",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees",
 	Cadence:     "annuelle",
 	Notes: "Indicateur CONJONCTUREL, calculé sur les départs d'une seule année (comme un " +
@@ -25,18 +25,18 @@ var SourceAgeDepartRetraite = archive.Source{
 		"retraitée.",
 }
 
-const ageDepartURL = "https://data.drees.solidarites-sante.gouv.fr/api/explore/v2.1/catalog/datasets/" +
+const retirementAgeURL = "https://data.drees.solidarites-sante.gouv.fr/api/explore/v2.1/catalog/datasets/" +
 	"retraite_graphique-1-age-conjoncturel-moyen-de-depart-a-la-retraite-selon-le-se0/exports/json"
 
-type ligneAgeDepart struct {
-	Annee    string  `json:"annee"`
-	Femmes   float64 `json:"femmes"`
-	Hommes   float64 `json:"hommes"`
-	Ensemble float64 `json:"ensemble"`
+type retirementAgeRow struct {
+	Year  string  `json:"annee"`
+	Women float64 `json:"femmes"`
+	Men   float64 `json:"hommes"`
+	Total float64 `json:"ensemble"`
 }
 
-func IngestAgeDepartRetraite(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceAgeDepartRetraite)
+func IngestRetirementAge(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceRetirementAge)
 	if err != nil {
 		return err
 	}
@@ -49,7 +49,7 @@ func IngestAgeDepartRetraite(ctx context.Context, pool *pgxpool.Pool, arch *arch
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, ageDepartURL, ".json")
+	f, err := arch.Fetch(ctx, srcID, runID, retirementAgeURL, ".json")
 	if err != nil {
 		return fail(err)
 	}
@@ -57,21 +57,21 @@ func IngestAgeDepartRetraite(ctx context.Context, pool *pgxpool.Pool, arch *arch
 	if err != nil {
 		return fail(err)
 	}
-	var lignes []ligneAgeDepart
-	if err := json.Unmarshal(raw, &lignes); err != nil {
+	var records []retirementAgeRow
+	if err := json.Unmarshal(raw, &records); err != nil {
 		return fail(fmt.Errorf("export illisible : %w", err))
 	}
-	if len(lignes) == 0 {
+	if len(records) == 0 {
 		return fail(fmt.Errorf("export vide"))
 	}
 
 	var rows [][]any
-	for _, l := range lignes {
-		annee, err := strconv.Atoi(l.Annee)
+	for _, rec := range records {
+		year, err := strconv.Atoi(rec.Year)
 		if err != nil {
 			continue
 		}
-		rows = append(rows, []any{annee, l.Femmes, l.Hommes, l.Ensemble, srcID})
+		rows = append(rows, []any{year, rec.Women, rec.Men, rec.Total, srcID})
 	}
 
 	tx, err := pool.Begin(ctx)

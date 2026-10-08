@@ -58,12 +58,12 @@ func init() {
 	}
 }
 
-// dansChaine : c ne porte sur aucune source hors de chaine — vrai
+// inChain : c ne porte sur aucune source hors de chain — vrai
 // trivialement pour un contrôle sans sources déclarées (données du socle ou
 // de runAllSupplement, toujours chargées par « fpctl ingest default »).
-func dansChaine(c check, chaine map[string]bool) bool {
+func inChain(c check, chain map[string]bool) bool {
 	for _, s := range c.sources {
-		if !chaine[s] {
+		if !chain[s] {
 			return false
 		}
 	}
@@ -2666,24 +2666,24 @@ var ErrAnomalies = errors.New("des anomalies ont été trouvées")
 // premier signal — un Ctrl-C pendant les contrôles interrompt la requête en
 // cours plutôt que d'attendre qu'elle se termine.
 func Run(ctx context.Context, args []string) error {
-	toutLeCatalogue := false
+	fullCatalog := false
 	switch {
 	case len(args) == 0:
 	case len(args) == 1 && args[0] == "default":
 	case len(args) == 1 && args[0] == "full":
-		toutLeCatalogue = true
+		fullCatalog = true
 	default:
 		return fmt.Errorf("verify data ne prend qu'une option, « default » ou « full » (%q inattendu)", args[0])
 	}
 
-	var retenus []check
-	if toutLeCatalogue {
-		retenus = checks
+	var selected []check
+	if fullCatalog {
+		selected = checks
 	} else {
-		chaine := ingest.ChaineParDefaut()
+		chain := ingest.ChaineParDefaut()
 		for _, c := range checks {
-			if dansChaine(c, chaine) {
-				retenus = append(retenus, c)
+			if inChain(c, chain) {
+				selected = append(selected, c)
 			}
 		}
 	}
@@ -2694,14 +2694,14 @@ func Run(ctx context.Context, args []string) error {
 	}
 	defer pool.Close()
 
-	porte := "scope par défaut (fpctl ingest default)"
-	if toutLeCatalogue {
-		porte = "catalogue complet"
+	scopeLabel := "scope par défaut (fpctl ingest default)"
+	if fullCatalog {
+		scopeLabel = "catalogue complet"
 	}
 	logs.Notice(fmt.Sprintf("running %s (%s, sur %s au total)",
-		logs.Plural(len(retenus), "consistency check"), porte, logs.Plural(len(checks), "contrôle connu")))
+		logs.Plural(len(selected), "consistency check"), scopeLabel, logs.Plural(len(checks), "contrôle connu")))
 	failed := false
-	for _, c := range retenus {
+	for _, c := range selected {
 		var n int
 		if err := pool.QueryRow(ctx, c.query).Scan(&n); err != nil {
 			slog.Error("contrôle en échec", "controle", c.name, "erreur", err)
@@ -2726,6 +2726,6 @@ func Run(ctx context.Context, args []string) error {
 		slog.Error("publication bloquée : les données chargées ne concordent pas")
 		return ErrAnomalies
 	}
-	logs.Notice(logs.Plural(len(retenus), "consistency check") + " passed")
+	logs.Notice(logs.Plural(len(selected), "consistency check") + " passed")
 	return nil
 }

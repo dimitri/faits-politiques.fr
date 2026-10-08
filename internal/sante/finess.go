@@ -30,7 +30,7 @@ var SourceFiness = archive.Source{
 	Slug: "finess-etablissements", Label: "FINESS — référentiel des établissements sanitaires et sociaux",
 	Publisher: "Agence du numérique en santé (ANS), via data.gouv.fr",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : ANS, FINESS (data.gouv.fr)",
 	Cadence:     "annoncée mensuelle ; en pratique irrégulière",
 	Notes: "Le jeu data.gouv.fr historique (etalab_cs1100502) est signalé « remplacé » par de " +
@@ -90,43 +90,43 @@ func IngestFiness(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 		return fail(err)
 	}
 
-	fichier, err := os.Open(f.Path)
+	file, err := os.Open(f.Path)
 	if err != nil {
 		return fail(err)
 	}
-	defer fichier.Close()
+	defer file.Close()
 
-	scanner := bufio.NewScanner(fichier)
+	scanner := bufio.NewScanner(file)
 	scanner.Buffer(make([]byte, 0, 64*1024), 1024*1024)
-	ligneNum := 0
+	lineNum := 0
 	var rows [][]any
-	var ignorees int
+	var skipped int
 	for scanner.Scan() {
-		ligneNum++
-		if ligneNum == 1 {
+		lineNum++
+		if lineNum == 1 {
 			continue // ligne de commentaire ("finess;etalab;111;date")
 		}
-		champs := strings.Split(scanner.Text(), ";")
-		if len(champs) < nbChamps || champs[0] != "structureet" {
-			ignorees++
+		fields := strings.Split(scanner.Text(), ";")
+		if len(fields) < nbChamps || fields[0] != "structureet" {
+			skipped++
 			continue
 		}
-		codeDept := champs[fDept]
-		codeCommune := champs[fCommune]
+		codeDept := fields[fDept]
+		codeCommune := fields[fCommune]
 		var codeInsee *string
 		if codeDept != "" && codeCommune != "" {
 			s := codeDept + codeCommune
 			codeInsee = &s
 		}
 		rows = append(rows, []any{
-			champs[fNofinesset], champs[fNofinessej], champs[fRs], nilSiVide(champs[fRsLongue]),
-			nilSiVide(codeCommune), codeInsee, nilSiVide(codeDept), nilSiVide(champs[fLibDept]),
-			nilSiVide(champs[fLigneAch]),
-			champs[fCategetab], nilSiVide(champs[fLibCateg]),
-			champs[fCategagr], nilSiVide(champs[fLibCategagr]),
-			nilSiVide(champs[fSiret]), nilSiVide(champs[fCodeMft]), nilSiVide(champs[fLibMft]),
-			nilSiVide(champs[fCodeSph]), nilSiVide(champs[fLibSph]),
-			dateOuNil(champs[fDateOuv]), dateOuNil(champs[fDateMaj]),
+			fields[fNofinesset], fields[fNofinessej], fields[fRs], nilIfEmpty(fields[fRsLongue]),
+			nilIfEmpty(codeCommune), codeInsee, nilIfEmpty(codeDept), nilIfEmpty(fields[fLibDept]),
+			nilIfEmpty(fields[fLigneAch]),
+			fields[fCategetab], nilIfEmpty(fields[fLibCateg]),
+			fields[fCategagr], nilIfEmpty(fields[fLibCategagr]),
+			nilIfEmpty(fields[fSiret]), nilIfEmpty(fields[fCodeMft]), nilIfEmpty(fields[fLibMft]),
+			nilIfEmpty(fields[fCodeSph]), nilIfEmpty(fields[fLibSph]),
+			dateOrNil(fields[fDateOuv]), dateOrNil(fields[fDateMaj]),
 			srcID,
 		})
 	}
@@ -166,7 +166,7 @@ func IngestFiness(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 	// pour l'intégralité des 100 000+ établissements à chaque republication,
 	// changement ou non.
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "ref.finess_etablissement", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "ref.finess_etablissement", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO ref.finess_etablissement AS tgt
 			USING tmp_finess_etablissement AS src
@@ -216,22 +216,22 @@ func IngestFiness(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "ignorees": ignorees}, "")
-	fmt.Printf("  FINESS établissements : %d lignes (%d lignes non « structureet » ignorées)\n", n, ignorees)
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes": n, "ignorees": skipped}, "")
+	fmt.Printf("  FINESS établissements : %d lignes (%d lignes non « structureet » ignorées)\n", n, skipped)
 	return nil
 }
 
-func nilSiVide(s string) *string {
+func nilIfEmpty(s string) *string {
 	if s == "" {
 		return nil
 	}
 	return &s
 }
 
-// dateOuNil : le fichier publie 1900-01-01 par défaut pour une date absente
+// dateOrNil : le fichier publie 1900-01-01 par défaut pour une date absente
 // (la spécification le dit explicitement) — traité comme une vraie absence,
 // pas comme une date réelle.
-func dateOuNil(s string) *time.Time {
+func dateOrNil(s string) *time.Time {
 	if s == "" || s == "1900-01-01" {
 		return nil
 	}

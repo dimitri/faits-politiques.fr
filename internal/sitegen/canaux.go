@@ -30,46 +30,46 @@ import (
 // d'exonérer des cotisations dues à la Sécurité sociale ; la loi du 25 juillet
 // 1994 dite loi Veil lui impose de compenser cette perte ; une loi de
 // financement peut y déroger, et une partie reste ainsi non compensée.
-type CircuitCanaux struct {
+type CircuitChannels struct {
 	SVG            template.HTML
-	AnneeExo       int
-	Exonerations   float64
-	ExoDebut       float64
-	AnneeDebut     int
-	AllegementsGen float64
-	NonCompense    float64 // Md€, source : jaune budgétaire 2026
-	NonCompenseTxt string
-	AnneeNonComp   int
-	PartTVA        string
+	YearExemption  int
+	Exemptions     float64
+	ExemptionStart float64
+	YearStart      int
+	ReliefsGen     float64
+	NonOffset      float64 // Md€, source : jaune budgétaire 2026
+	NonOffsetTxt   string
+	YearNonComp    int
+	ShareVat       string
 	// CompensationTVA + CompensationCiblees, à AnneeCompensation — voir leur
 	// commentaire à l'initialisation ci-dessous pour la source exacte de
 	// chacun. AnneeCompensation est délibérément 2022, l'année de
 	// AnneeCotisationsURSSAF : c'est ce qui permet de dessiner la compensation
 	// à la même échelle que les deux bandes déjà proportionnelles.
-	CompensationTVA, CompensationCiblees float64
-	AnneeCompensation                    int
-	SerieExo                             template.HTML
+	CompensationVat, CompensationTargeted float64
+	YearCompensation                      int
+	SeriesExemption                       template.HTML
 	// Categories : les quatre catégories d'exonération de l'année LA PLUS
 	// RÉCENTE (AnneeExo) — sert le tableau et le graphe « année par année »,
 	// jamais le schéma lui-même : y dessiner une largeur demanderait un
 	// montant comparable pour l'autre bout du flux, que cette année-là n'a pas.
-	Categories []CategorieExoneration
+	Categories []CategoryExemption
 	// CategoriesRef : les mêmes quatre catégories, mais pour AnneeCotisationsURSSAF
 	// — la seule année où un montant de cotisations EFFECTIVEMENT versées existe
 	// à la même source. C'est cette version, plus ancienne, qui est dessinée en
 	// largeurs proportionnelles dans le schéma : elle seule a un dénominateur.
-	CategoriesRef []CategorieExoneration
+	CategoriesRef []CategoryExemption
 	// EmpileesCategories : les mêmes catégories que Categories, empilées sur
 	// toute la série 2004-2025 — la dominance des allégements généraux, tracée
 	// dans le temps plutôt qu'affirmée pour une seule année.
-	EmpileesCategories template.HTML
+	StackedCategories template.HTML
 	// GrandesMesures : les dispositifs eux-mêmes, avec la présidence en
 	// exercice à leur création et à leur fin — un REPÈRE CHRONOLOGIQUE, pas une
 	// imputation. La base (core.exoneration_cotisation) ne relie aucune mesure
 	// à un texte de loi précis : ce lien, quand il existe (loisExonerations),
 	// vient d'une recherche à part, vérifiée article par article dans le texte
 	// même du Journal officiel — jamais d'un rapprochement de dates ou de noms.
-	GrandesMesures []MesureExoneration
+	LargeMeasures []MeasureExemption
 
 	// Ordres de grandeur : trois montants qu'on aimerait mettre sur les trois
 	// flèches du circuit, et qui ne peuvent PAS l'être honnêtement — trois
@@ -78,8 +78,8 @@ type CircuitCanaux struct {
 	// écrites sur chaque ligne : c'est la réponse à « peut-on chiffrer les deux
 	// autres flèches ? » — oui, approximativement, mais pas sur la même règle
 	// que le faisceau proportionnel ci-dessus.
-	CotisationsVersees float64
-	AnneeCotisations   int
+	ContributionsPaid float64
+	YearContributions int
 	// Depuis le chargement de core.encaissement_urssaf (0068_urssaf_
 	// encaissements.sql), une DEUXIÈME comparaison existe, cette fois sur la
 	// MÊME source, le MÊME champ et la MÊME unité que le faisceau des
@@ -87,39 +87,39 @@ type CircuitCanaux struct {
 	// jour ses encaissements depuis juillet 2023. C'est la réponse la plus
 	// précise que la base puisse donner à « combien les entreprises versent-
 	// elles, exactement, à la Sécurité sociale ? ».
-	CotisationsVerseesURSSAF float64
-	AnneeCotisationsURSSAF   int
-	ExonerationsMemeAnnee    float64
-	RatioCotisationsExo      string
-	BarresOrdreGrandeur      template.HTML
+	ContributionsPaidURSSAF     float64
+	YearContributionsURSSAF     int
+	ExemptionsSameYear          float64
+	RatioContributionsExemption string
+	BarsOrderMagnitude          template.HTML
 	// RatioMasseSalariale : les exonérations rapportées à la masse salariale
 	// du secteur privé (URSSAF), année par année — la lecture insensible à
 	// l'inflation que le montant en euros courants, seul, ne permet pas.
-	RatioMasseSalariale                template.HTML
-	AnneeRatioMSDebut, AnneeRatioMSFin int
-	PctRatioMSDebut, PctRatioMSFin     float64
+	RatioMassWage                    template.HTML
+	YearRatioMSStart, YearRatioMSEnd int
+	PctRatioMSStart, PctRatioMSEnd   float64
 }
 
-type CategorieExoneration struct {
-	Libelle string
-	Montant float64
-	Part    float64
+type CategoryExemption struct {
+	Label  string
+	Amount float64
+	Share  float64
 }
 
-// categoriesExoneration : les grandes catégories d'exonération d'une année,
+// categoriesExemption : les grandes catégories d'exonération d'une année,
 // et leur part du total DE CETTE ANNÉE — jamais d'une autre. Factorisé parce
 // que le schéma en a besoin pour deux années différentes : la plus récente
 // (le tableau, le graphe annuel) et celle qui a un vrai comparant côté
 // cotisations versées (le faisceau proportionnel du schéma lui-même).
-func categoriesExoneration(ctx context.Context, pool *pgxpool.Pool, annee int) ([]CategorieExoneration, error) {
+func categoriesExemption(ctx context.Context, pool *pgxpool.Pool, year int) ([]CategoryExemption, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT grande_categorie, sum(montant_eur) FROM core.exoneration_cotisation
-		WHERE annee=$1 GROUP BY grande_categorie ORDER BY sum(montant_eur) DESC`, annee)
+		WHERE annee=$1 GROUP BY grande_categorie ORDER BY sum(montant_eur) DESC`, year)
 	if err != nil {
 		return nil, err
 	}
 	defer rows.Close()
-	var out []CategorieExoneration
+	var out []CategoryExemption
 	var total float64
 	for rows.Next() {
 		var lib string
@@ -130,7 +130,7 @@ func categoriesExoneration(ctx context.Context, pool *pgxpool.Pool, annee int) (
 		if i := strings.IndexByte(lib, '_'); i >= 0 {
 			lib = lib[i+1:]
 		}
-		out = append(out, CategorieExoneration{Libelle: lib, Montant: m})
+		out = append(out, CategoryExemption{Label: lib, Amount: m})
 		total += m
 	}
 	if err := rows.Err(); err != nil {
@@ -138,39 +138,39 @@ func categoriesExoneration(ctx context.Context, pool *pgxpool.Pool, annee int) (
 	}
 	for i := range out {
 		if total > 0 {
-			out[i].Part = 100 * out[i].Montant / total
+			out[i].Share = 100 * out[i].Amount / total
 		}
 	}
 	return out, nil
 }
 
-type MesureExoneration struct {
-	Code, Libelle, Categorie string
-	Debut, Fin               int
-	EnCours                  bool
-	MontantMax               float64
-	AnneeMontantMax          int
-	Presidents               []string
+type MeasureExemption struct {
+	Code, Label, Category string
+	Start, End            int
+	Ongoing               bool
+	AmountMax             float64
+	YearAmountMax         int
+	Presidents            []string
 	// Serie : le montant annuel du dispositif seul, sur toute sa durée
 	// publiée — la « conséquence chiffrée » que la base peut effectivement
 	// donner à elle seule, sans le texte de loi.
-	Serie template.HTML
+	Series template.HTML
 	// Loi : le texte qui a créé ce dispositif, quand une recherche dans le
 	// corpus du Journal officiel l'a confirmé — voir loisExonerations. Nil
 	// pour toute mesure qui n'a pas (encore) été vérifiée ainsi : l'absence
 	// ne veut jamais dire « aucune loi », seulement « non recherché ici ».
-	Loi *LoiExoneration
+	Law *LawExemption
 }
 
-// LoiExoneration : la loi d'origine d'un dispositif, telle que vérifiée par
+// LawExemption : la loi d'origine d'un dispositif, telle que vérifiée par
 // lecture directe de son article dans jo.bloc — jamais déduite de la
 // proximité d'une date ou du nom du dispositif. TexteURL n'est renseigné que
 // si jo.texte confirme, AU MOMENT DE CETTE CONSTRUCTION, que le texte est
 // encore dans le corpus chargé : un identifiant écrit en dur ne doit jamais
 // pointer vers une page qui n'existe pas.
-type LoiExoneration struct {
-	Numero, Date, Article string
-	TexteURL              string
+type LawExemption struct {
+	Number, Date, Article string
+	TextURL               string
 }
 
 // loisExonerations : recherche menée en dehors de la base, en remontant du nom
@@ -184,25 +184,25 @@ type LoiExoneration struct {
 // Couvre les sept mesures des « allégements généraux » qui franchissent le
 // seuil d'affichage (500 M€ de pic) ; les autres catégories n'ont pas été
 // recherchées et n'ont donc pas d'entrée ici.
-var loisExonerations = map[string]LoiExoneration{
-	"111": {Numero: "2003-47", Date: "17 janvier 2003", Article: "9",
-		TexteURL: "JORFTEXT000000594652"},
-	"112": {Numero: "2018-1203", Date: "22 décembre 2018", Article: "8",
-		TexteURL: "JORFTEXT000037847585"},
-	"131": {Numero: "2007-1223", Date: "21 août 2007", Article: "1er",
-		TexteURL: "JORFTEXT000000278649"},
-	"132": {Numero: "2007-1223", Date: "21 août 2007", Article: "1er",
-		TexteURL: "JORFTEXT000000278649"},
-	"141": {Numero: "2012-1510", Date: "29 décembre 2012", Article: "66",
-		TexteURL: "JORFTEXT000026857857"},
-	"151": {Numero: "2014-892", Date: "8 août 2014", Article: "2",
-		TexteURL: "JORFTEXT000029349687"},
-	"161": {Numero: "2017-1836", Date: "30 décembre 2017", Article: "9",
-		TexteURL: "JORFTEXT000036339090"},
+var lawsExemptions = map[string]LawExemption{
+	"111": {Number: "2003-47", Date: "17 janvier 2003", Article: "9",
+		TextURL: "JORFTEXT000000594652"},
+	"112": {Number: "2018-1203", Date: "22 décembre 2018", Article: "8",
+		TextURL: "JORFTEXT000037847585"},
+	"131": {Number: "2007-1223", Date: "21 août 2007", Article: "1er",
+		TextURL: "JORFTEXT000000278649"},
+	"132": {Number: "2007-1223", Date: "21 août 2007", Article: "1er",
+		TextURL: "JORFTEXT000000278649"},
+	"141": {Number: "2012-1510", Date: "29 décembre 2012", Article: "66",
+		TextURL: "JORFTEXT000026857857"},
+	"151": {Number: "2014-892", Date: "8 août 2014", Article: "2",
+		TextURL: "JORFTEXT000029349687"},
+	"161": {Number: "2017-1836", Date: "30 décembre 2017", Article: "9",
+		TextURL: "JORFTEXT000036339090"},
 }
 
-func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Presidence) (*CircuitCanaux, error) {
-	c := &CircuitCanaux{
+func loadCircuitChannels(ctx context.Context, pool *pgxpool.Pool, presidencies []Presidency) (*CircuitChannels, error) {
+	c := &CircuitChannels{
 		// Ces deux chiffres ne sont PAS dans la base : NonCompense vient du
 		// jaune budgétaire « Bilan des relations financières entre l'État et
 		// la protection sociale » annexé au PLF 2026. PartTVA (8,10 % à
@@ -212,7 +212,7 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 		// deux s'accordent sur 27,36 % pour 2026, en BAISSE de 1,06 point par
 		// rapport à 2025 (28,42 %), jamais en hausse. Cités tels quels dans
 		// docs/budget-donnees.md § 1.3, avec leur source.
-		NonCompense: 2.63e9, AnneeNonComp: 2026, PartTVA: "27,36 %",
+		NonOffset: 2.63e9, YearNonComp: 2026, ShareVat: "27,36 %",
 		// La compensation, pour 2022 — la seule année où elle peut se comparer
 		// honnêtement aux deux bandes déjà proportionnelles (cotisations et
 		// exonérations URSSAF, elles-mêmes datées 2022 faute de mise à jour
@@ -234,24 +234,24 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 		// AnneeNonComp : le seul chiffre de non-compensation publié est celui
 		// de 2026, une mesure différente — les mesures nouvelles décidées
 		// cette année-là, pas un solde cumulé).
-		CompensationTVA: 56.972e9, CompensationCiblees: 7.702e9, AnneeCompensation: 2022,
+		CompensationVat: 56.972e9, CompensationTargeted: 7.702e9, YearCompensation: 2022,
 	}
 	// max/min sont des agrégations : la ligne existe même sans exonération
 	// encore ingérée, avec des bornes NULL.
-	var anneeExoN, anneeDebutN sql.NullInt64
+	var yearExemptionN, yearStartN sql.NullInt64
 	err := pool.QueryRow(ctx, `
 		SELECT max(annee), min(annee) FROM core.exoneration_cotisation`).
-		Scan(&anneeExoN, &anneeDebutN)
+		Scan(&yearExemptionN, &yearStartN)
 	if err != nil {
 		return nil, err
 	}
-	c.AnneeExo, c.AnneeDebut = int(anneeExoN.Int64), int(anneeDebutN.Int64)
+	c.YearExemption, c.YearStart = int(yearExemptionN.Int64), int(yearStartN.Int64)
 	_ = pool.QueryRow(ctx, `
 		SELECT sum(montant_eur) FILTER (WHERE annee=$1),
 		       sum(montant_eur) FILTER (WHERE annee=$2),
 		       sum(montant_eur) FILTER (WHERE annee=$1 AND grande_categorie LIKE '1_%')
-		FROM core.exoneration_cotisation`, c.AnneeExo, c.AnneeDebut).
-		Scan(&c.Exonerations, &c.ExoDebut, &c.AllegementsGen)
+		FROM core.exoneration_cotisation`, c.YearExemption, c.YearStart).
+		Scan(&c.Exemptions, &c.ExemptionStart, &c.ReliefsGen)
 
 	rows, err := pool.Query(ctx, `
 		SELECT annee, sum(montant_eur) FROM core.exoneration_cotisation
@@ -259,19 +259,19 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	if err != nil {
 		return nil, err
 	}
-	var pts []PointAnnee
+	var pts []PointYear
 	for rows.Next() {
-		var p PointAnnee
-		if err := rows.Scan(&p.Annee, &p.Valeur); err != nil {
+		var p PointYear
+		if err := rows.Scan(&p.Year, &p.Value); err != nil {
 			break
 		}
 		pts = append(pts, p)
 	}
 	rows.Close()
-	c.SerieExo = courbe(pts, mdEur)
-	c.NonCompenseTxt = Decimal(c.NonCompense/1e9, 2) + "\u202fMd€"
+	c.SeriesExemption = curve(pts, mdEur)
+	c.NonOffsetTxt = Decimal(c.NonOffset/1e9, 2) + "\u202fMd€"
 
-	c.Categories, err = categoriesExoneration(ctx, pool, c.AnneeExo)
+	c.Categories, err = categoriesExemption(ctx, pool, c.YearExemption)
 	if err != nil {
 		return nil, err
 	}
@@ -287,9 +287,9 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	if err != nil {
 		return nil, err
 	}
-	valeursCat := map[string]map[int]float64{}
-	var anneesCat []int
-	vuAnnee := map[int]bool{}
+	valuesCat := map[string]map[int]float64{}
+	var yearsCat []int
+	seenYear := map[int]bool{}
 	for catrows.Next() {
 		var an int
 		var cat string
@@ -298,31 +298,31 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 			catrows.Close()
 			return nil, err
 		}
-		if valeursCat[cat] == nil {
-			valeursCat[cat] = map[int]float64{}
+		if valuesCat[cat] == nil {
+			valuesCat[cat] = map[int]float64{}
 		}
-		valeursCat[cat][an] = m
-		if !vuAnnee[an] {
-			vuAnnee[an] = true
-			anneesCat = append(anneesCat, an)
+		valuesCat[cat][an] = m
+		if !seenYear[an] {
+			seenYear[an] = true
+			yearsCat = append(yearsCat, an)
 		}
 	}
 	catrows.Close()
 	if err := catrows.Err(); err != nil {
 		return nil, err
 	}
-	var seriesCat []SerieEmpilee
+	var seriesCat []SeriesStacked
 	for i, cat := range c.Categories {
 		// Categories porte déjà le libellé sans préfixe ; retrouver la clé
 		// brute (avec préfixe) suffit à indexer valeursCat construit ci-dessus.
-		for code, vals := range valeursCat {
+		for code, vals := range valuesCat {
 			lib := code
 			if j := strings.IndexByte(lib, '_'); j >= 0 {
 				lib = lib[j+1:]
 			}
-			if lib == cat.Libelle {
-				seriesCat = append(seriesCat, SerieEmpilee{
-					Libelle: cat.Libelle, Couleur: fmt.Sprintf("r%d", i%6), Valeurs: vals,
+			if lib == cat.Label {
+				seriesCat = append(seriesCat, SeriesStacked{
+					Label: cat.Label, Color: fmt.Sprintf("r%d", i%6), Values: vals,
 				})
 				break
 			}
@@ -330,11 +330,11 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	}
 	// La couleur inline attend un code CSS, pas une classe : on la remplace
 	// par la vraie teinte, dans le même ordre que la légende du circuit.
-	teintesRuban := []string{"#1E5C69", "#B0763A", "#6B5CA5", "#A34F86", "#3D6FA0", "#4A8894"}
+	shadesRibbon := []string{"#1E5C69", "#B0763A", "#6B5CA5", "#A34F86", "#3D6FA0", "#4A8894"}
 	for i := range seriesCat {
-		seriesCat[i].Couleur = teintesRuban[i%6]
+		seriesCat[i].Color = shadesRibbon[i%6]
 	}
-	c.EmpileesCategories = barresEmpileesAnnuelles(anneesCat, seriesCat, mdEur)
+	c.StackedCategories = barsStackedAnnual(yearsCat, seriesCat, mdEur)
 
 	// Les grandes mesures elles-mêmes, chronologiquement, avec la présidence en
 	// exercice. Seuil à 500 M€ de pic : en-deçà, une mesure ne pèse pas assez
@@ -352,27 +352,27 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	}
 	for mrows.Next() {
 		var lib string
-		var m MesureExoneration
-		if err := mrows.Scan(&m.Code, &lib, &m.Debut, &m.Fin, &m.MontantMax, &m.AnneeMontantMax,
-			&m.Categorie); err != nil {
+		var m MeasureExemption
+		if err := mrows.Scan(&m.Code, &lib, &m.Start, &m.End, &m.AmountMax, &m.YearAmountMax,
+			&m.Category); err != nil {
 			mrows.Close()
 			return nil, err
 		}
 		if i := strings.IndexByte(lib, '_'); i >= 0 {
 			lib = lib[i+1:]
 		}
-		m.Libelle = lib
-		if i := strings.IndexByte(m.Categorie, '_'); i >= 0 {
-			m.Categorie = m.Categorie[i+1:]
+		m.Label = lib
+		if i := strings.IndexByte(m.Category, '_'); i >= 0 {
+			m.Category = m.Category[i+1:]
 		}
-		m.EnCours = m.Fin == c.AnneeExo
-		debutISO := fmt.Sprintf("%d-01-01", m.Debut)
-		finISO := ""
-		if !m.EnCours {
-			finISO = fmt.Sprintf("%d-12-31", m.Fin)
+		m.Ongoing = m.End == c.YearExemption
+		startISO := fmt.Sprintf("%d-01-01", m.Start)
+		endISO := ""
+		if !m.Ongoing {
+			endISO = fmt.Sprintf("%d-12-31", m.End)
 		}
-		m.Presidents = presidencesDe(presidences, debutISO, finISO)
-		c.GrandesMesures = append(c.GrandesMesures, m)
+		m.Presidents = presidenciesOf(presidencies, startISO, endISO)
+		c.LargeMeasures = append(c.LargeMeasures, m)
 	}
 	mrows.Close()
 	if err := mrows.Err(); err != nil {
@@ -388,28 +388,28 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	if err != nil {
 		return nil, err
 	}
-	ptsParCode := map[string][]PointAnnee{}
+	ptsPerCode := map[string][]PointYear{}
 	for sAll.Next() {
 		var code string
-		var p PointAnnee
-		if err := sAll.Scan(&code, &p.Annee, &p.Valeur); err != nil {
+		var p PointYear
+		if err := sAll.Scan(&code, &p.Year, &p.Value); err != nil {
 			sAll.Close()
 			return nil, err
 		}
-		ptsParCode[code] = append(ptsParCode[code], p)
+		ptsPerCode[code] = append(ptsPerCode[code], p)
 	}
 	sAll.Close()
 	if err := sAll.Err(); err != nil {
 		return nil, err
 	}
 
-	var idsTextes []string
-	for _, loi := range loisExonerations {
-		idsTextes = append(idsTextes, loi.TexteURL)
+	var idsTexts []string
+	for _, law := range lawsExemptions {
+		idsTexts = append(idsTexts, law.TextURL)
 	}
-	texteExiste := map[string]bool{}
-	if len(idsTextes) > 0 {
-		trows, err := pool.Query(ctx, `SELECT id FROM mv.jo_texte_id WHERE id = ANY($1)`, idsTextes)
+	textExists := map[string]bool{}
+	if len(idsTexts) > 0 {
+		trows, err := pool.Query(ctx, `SELECT id FROM mv.jo_texte_id WHERE id = ANY($1)`, idsTexts)
 		if err != nil {
 			return nil, err
 		}
@@ -419,7 +419,7 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 				trows.Close()
 				return nil, err
 			}
-			texteExiste[id] = true
+			textExists[id] = true
 		}
 		trows.Close()
 		if err := trows.Err(); err != nil {
@@ -427,12 +427,12 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 		}
 	}
 
-	for i := range c.GrandesMesures {
-		m := &c.GrandesMesures[i]
-		m.Serie = courbe(ptsParCode[m.Code], mdEur)
-		if loi, ok := loisExonerations[m.Code]; ok && texteExiste[loi.TexteURL] {
-			loi.TexteURL = "https://www.legifrance.gouv.fr/jorf/id/" + loi.TexteURL
-			m.Loi = &loi
+	for i := range c.LargeMeasures {
+		m := &c.LargeMeasures[i]
+		m.Series = curve(ptsPerCode[m.Code], mdEur)
+		if law, ok := lawsExemptions[m.Code]; ok && textExists[law.TextURL] {
+			law.TextURL = "https://www.legifrance.gouv.fr/jorf/id/" + law.TextURL
+			m.Law = &law
 		}
 	}
 
@@ -444,13 +444,13 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	// sens strict ne couvre pas).
 	_ = pool.QueryRow(ctx, `
 		SELECT max(annee) FILTER (WHERE serie_code='protection.financement.cotisations.employeurs')
-		FROM core.macro_value`).Scan(&c.AnneeCotisations)
+		FROM core.macro_value`).Scan(&c.YearContributions)
 	var cotEmpl, cotProt float64
 	_ = pool.QueryRow(ctx, `
 		SELECT sum(valeur) FILTER (WHERE serie_code='protection.financement.cotisations.employeurs'),
 		       sum(valeur) FILTER (WHERE serie_code='protection.financement.cotisations.protegees')
-		FROM core.macro_value WHERE annee=$1`, c.AnneeCotisations).Scan(&cotEmpl, &cotProt)
-	c.CotisationsVersees = (cotEmpl + cotProt) * 1e6
+		FROM core.macro_value WHERE annee=$1`, c.YearContributions).Scan(&cotEmpl, &cotProt)
+	c.ContributionsPaid = (cotEmpl + cotProt) * 1e6
 	// La comparaison à la même source : encaissements URSSAF des entreprises
 	// (secteur privé hors GEN + GEN) contre exonérations URSSAF, TOUTES DEUX
 	// pour la dernière année où les encaissements existent — 2022 au moment de
@@ -458,42 +458,42 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	// années différentes serait aussi trompeur que de mélanger les sources.
 	// max(...) est une agrégation : la ligne existe même sans encaissement
 	// encore ingéré, avec une année NULL.
-	var anneeCotisationsURSSAFN sql.NullInt64
+	var yearContributionsURSSAFN sql.NullInt64
 	if err := pool.QueryRow(ctx, `
-		SELECT max(annee) FROM core.encaissement_urssaf`).Scan(&anneeCotisationsURSSAFN); err != nil {
+		SELECT max(annee) FROM core.encaissement_urssaf`).Scan(&yearContributionsURSSAFN); err != nil {
 		return nil, err
 	}
-	c.AnneeCotisationsURSSAF = int(anneeCotisationsURSSAFN.Int64)
+	c.YearContributionsURSSAF = int(yearContributionsURSSAFN.Int64)
 	if err := pool.QueryRow(ctx, `
 		SELECT coalesce(sum(montant_eur) FILTER (WHERE categorie_entreprise), 0)
-		  FROM core.encaissement_urssaf WHERE annee = $1`, c.AnneeCotisationsURSSAF).
-		Scan(&c.CotisationsVerseesURSSAF); err != nil {
+		  FROM core.encaissement_urssaf WHERE annee = $1`, c.YearContributionsURSSAF).
+		Scan(&c.ContributionsPaidURSSAF); err != nil {
 		return nil, err
 	}
 	if err := pool.QueryRow(ctx, `
 		SELECT coalesce(sum(montant_eur), 0) FROM core.exoneration_cotisation
-		 WHERE annee = $1`, c.AnneeCotisationsURSSAF).Scan(&c.ExonerationsMemeAnnee); err != nil {
+		 WHERE annee = $1`, c.YearContributionsURSSAF).Scan(&c.ExemptionsSameYear); err != nil {
 		return nil, err
 	}
-	if c.ExonerationsMemeAnnee > 0 {
-		c.RatioCotisationsExo = Decimal(c.CotisationsVerseesURSSAF/c.ExonerationsMemeAnnee, 1)
+	if c.ExemptionsSameYear > 0 {
+		c.RatioContributionsExemption = Decimal(c.ContributionsPaidURSSAF/c.ExemptionsSameYear, 1)
 	}
-	c.CategoriesRef, err = categoriesExoneration(ctx, pool, c.AnneeCotisationsURSSAF)
+	c.CategoriesRef, err = categoriesExemption(ctx, pool, c.YearContributionsURSSAF)
 	if err != nil {
 		return nil, err
 	}
 
-	c.BarresOrdreGrandeur = barresOrdreGrandeur([]ligneOrdreGrandeur{
-		{"Cotisations versées par les entreprises", c.CotisationsVerseesURSSAF,
-			fmt.Sprintf("URSSAF, encaissements %d — même source et même champ que les exonérations ci-dessous", c.AnneeCotisationsURSSAF)},
-		{fmt.Sprintf("Exonérations décidées par l'État (%d)", c.AnneeCotisationsURSSAF), c.ExonerationsMemeAnnee,
-			fmt.Sprintf("URSSAF, %d — champ secteur privé", c.AnneeCotisationsURSSAF)},
-		{"Cotisations versées (employeurs + assurés, tous régimes)", c.CotisationsVersees,
-			fmt.Sprintf("ESSPROS/Eurostat, %d — champ protection sociale, plus large et plus récent", c.AnneeCotisations)},
-		{"Exonérations décidées par l'État", c.Exonerations,
-			fmt.Sprintf("URSSAF, %d — champ secteur privé", c.AnneeExo)},
-		{"dont non compensé", c.NonCompense,
-			fmt.Sprintf("jaune budgétaire, %d", c.AnneeNonComp)},
+	c.BarsOrderMagnitude = barsOrderMagnitude([]lineOrderMagnitude{
+		{"Cotisations versées par les entreprises", c.ContributionsPaidURSSAF,
+			fmt.Sprintf("URSSAF, encaissements %d — même source et même champ que les exonérations ci-dessous", c.YearContributionsURSSAF)},
+		{fmt.Sprintf("Exonérations décidées par l'État (%d)", c.YearContributionsURSSAF), c.ExemptionsSameYear,
+			fmt.Sprintf("URSSAF, %d — champ secteur privé", c.YearContributionsURSSAF)},
+		{"Cotisations versées (employeurs + assurés, tous régimes)", c.ContributionsPaid,
+			fmt.Sprintf("ESSPROS/Eurostat, %d — champ protection sociale, plus large et plus récent", c.YearContributions)},
+		{"Exonérations décidées par l'État", c.Exemptions,
+			fmt.Sprintf("URSSAF, %d — champ secteur privé", c.YearExemption)},
+		{"dont non compensé", c.NonOffset,
+			fmt.Sprintf("jaune budgétaire, %d", c.YearNonComp)},
 	})
 
 	// Les exonérations rapportées à la masse salariale du secteur privé
@@ -511,16 +511,16 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 	if err != nil {
 		return nil, err
 	}
-	var ratioMS []PointAnnee
+	var ratioMS []PointYear
 	for rmrows.Next() {
 		var an int
-		var exo, brut float64
-		if err := rmrows.Scan(&an, &exo, &brut); err != nil {
+		var exemption, gross float64
+		if err := rmrows.Scan(&an, &exemption, &gross); err != nil {
 			rmrows.Close()
 			return nil, err
 		}
-		if brut > 0 {
-			ratioMS = append(ratioMS, PointAnnee{Annee: an, Valeur: 100 * exo / brut})
+		if gross > 0 {
+			ratioMS = append(ratioMS, PointYear{Year: an, Value: 100 * exemption / gross})
 		}
 	}
 	rmrows.Close()
@@ -528,30 +528,30 @@ func loadCircuitCanaux(ctx context.Context, pool *pgxpool.Pool, presidences []Pr
 		return nil, err
 	}
 	if n := len(ratioMS); n > 0 {
-		c.AnneeRatioMSDebut, c.AnneeRatioMSFin = ratioMS[0].Annee, ratioMS[n-1].Annee
-		c.PctRatioMSDebut, c.PctRatioMSFin = ratioMS[0].Valeur, ratioMS[n-1].Valeur
-		c.RatioMasseSalariale = courbe(ratioMS, func(v float64) string { return Decimal(v, 1) + " %" })
+		c.YearRatioMSStart, c.YearRatioMSEnd = ratioMS[0].Year, ratioMS[n-1].Year
+		c.PctRatioMSStart, c.PctRatioMSEnd = ratioMS[0].Value, ratioMS[n-1].Value
+		c.RatioMassWage = curve(ratioMS, func(v float64) string { return Decimal(v, 1) + " %" })
 	}
 
-	c.SVG = c.dessiner()
+	c.SVG = c.draw()
 	return c, nil
 }
 
-type ligneOrdreGrandeur struct {
-	Libelle string
-	Valeur  float64
-	Source  string
+type lineOrderMagnitude struct {
+	Label  string
+	Value  float64
+	Source string
 }
 
-// barresOrdreGrandeur : des barres à échelle commune, mais dont les montants
+// barsOrderMagnitude : des barres à échelle commune, mais dont les montants
 // viennent de trois sources et de trois années qui ne coïncident pas — chaque
 // ligne écrit la sienne, pour que personne ne les prenne pour trois mesures
 // d'une même chose.
-func barresOrdreGrandeur(lignes []ligneOrdreGrandeur) template.HTML {
+func barsOrderMagnitude(lines []lineOrderMagnitude) template.HTML {
 	var max float64
-	for _, l := range lignes {
-		if l.Valeur > max {
-			max = l.Valeur
+	for _, l := range lines {
+		if l.Value > max {
+			max = l.Value
 		}
 	}
 	if max <= 0 {
@@ -559,25 +559,25 @@ func barresOrdreGrandeur(lignes []ligneOrdreGrandeur) template.HTML {
 	}
 	var b strings.Builder
 	b.WriteString(`<div class="barres barres-og">`)
-	for _, l := range lignes {
+	for _, l := range lines {
 		fmt.Fprintf(&b, `<div class="ligne"><span class="n">%s<span class="src-ligne">%s</span></span>`+
 			`<span class="piste"><i style="width:%.1f%%"></i></span>`+
 			`<span class="v">%s</span></div>`,
-			template.HTMLEscapeString(l.Libelle), template.HTMLEscapeString(l.Source),
-			100*l.Valeur/max, mdEur(l.Valeur))
+			template.HTMLEscapeString(l.Label), template.HTMLEscapeString(l.Source),
+			100*l.Value/max, mdEur(l.Value))
 	}
 	b.WriteString(`</div>`)
 	return template.HTML(b.String())
 }
 
-func (c *CircuitCanaux) dessiner() template.HTML {
+func (c *CircuitChannels) draw() template.HTML {
 	var b strings.Builder
 	w := func(format string, a ...any) { fmt.Fprintf(&b, format, a...) }
 
-	totalDu := c.CotisationsVerseesURSSAF + c.ExonerationsMemeAnnee
+	totalDu := c.ContributionsPaidURSSAF + c.ExemptionsSameYear
 	w(`<svg class="circuit" viewBox="0 0 760 430" role="img" aria-labelledby="circuit-t circuit-d">`)
 	w(`<title id="circuit-t">Le circuit des exonérations de cotisations</title>`)
-	compensationTotale := c.CompensationTVA + c.CompensationCiblees
+	compensationTotal := c.CompensationVat + c.CompensationTargeted
 	w(`<desc id="circuit-d">Les employeurs doivent des cotisations à la Sécurité sociale. En %d, `+
 		`%s de cotisations dues se répartissent, à l'échelle, en %s effectivement versés et %s `+
 		`exonérés par l'État — ces derniers détaillés en quatre catégories. La loi Veil de 1994 `+
@@ -585,36 +585,36 @@ func (c *CircuitCanaux) dessiner() template.HTML {
 		`fraction de TVA — à la même échelle que les deux bandes précédentes. %s restent `+
 		`officiellement non compensés, mais en %d, une année différente et une mesure différente `+
 		`(les mesures nouvelles décidées cette année-là, pas un solde).</desc>`,
-		c.AnneeCotisationsURSSAF, mdEur(totalDu), mdEur(c.CotisationsVerseesURSSAF),
-		mdEur(c.ExonerationsMemeAnnee), c.AnneeCompensation, mdEur(compensationTotale),
-		Decimal(c.NonCompense/1e9, 2)+" Md€", c.AnneeNonComp)
+		c.YearContributionsURSSAF, mdEur(totalDu), mdEur(c.ContributionsPaidURSSAF),
+		mdEur(c.ExemptionsSameYear), c.YearCompensation, mdEur(compensationTotal),
+		Decimal(c.NonOffset/1e9, 2)+" Md€", c.YearNonComp)
 	w(`<defs><marker id="fl" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">` +
 		`<path d="M0 0L10 5L0 10z" class="pointe"/></marker></defs>`)
 
-	boite := func(x, y, wd, h float64, cl, titre, sous string) {
+	box := func(x, y, wd, h float64, cl, title, sub string) {
 		w(`<rect class="noeud %s" x="%.0f" y="%.0f" width="%.0f" height="%.0f" rx="8"/>`, cl, x, y, wd, h)
 		w(`<text class="nt" x="%.0f" y="%.0f" text-anchor="middle">%s</text>`,
 			x+wd/2, y+h/2-(func() float64 {
-				if sous != "" {
+				if sub != "" {
 					return 4
 				}
 				return -4
-			}()), template.HTMLEscapeString(titre))
-		if sous != "" {
+			}()), template.HTMLEscapeString(title))
+		if sub != "" {
 			w(`<text class="ns" x="%.0f" y="%.0f" text-anchor="middle">%s</text>`,
-				x+wd/2, y+h/2+13, template.HTMLEscapeString(sous))
+				x+wd/2, y+h/2+13, template.HTMLEscapeString(sub))
 		}
 	}
-	fleche := func(d, cl string) { w(`<path class="flux %s" d="%s" marker-end="url(#fl)"/>`, cl, d) }
-	etiq := func(x, y float64, anchor, cl, txt string) {
+	arrow := func(d, cl string) { w(`<path class="flux %s" d="%s" marker-end="url(#fl)"/>`, cl, d) }
+	label := func(x, y float64, anchor, cl, txt string) {
 		w(`<text class="et %s" x="%.0f" y="%.0f" text-anchor="%s">%s</text>`,
 			cl, x, y, anchor, template.HTMLEscapeString(txt))
 	}
 
 	// Les trois acteurs
-	boite(20, 170, 170, 70, "", "Employeurs", "cotisations dues")
-	boite(570, 170, 170, 70, "secu", "Sécurité sociale", "caisses et régimes")
-	boite(295, 20, 170, 70, "etat", "État", "décide les exonérations")
+	box(20, 170, 170, 70, "", "Employeurs", "cotisations dues")
+	box(570, 170, 170, 70, "secu", "Sécurité sociale", "caisses et régimes")
+	box(295, 20, 170, 70, "etat", "État", "décide les exonérations")
 
 	// Le nœud Employeurs se scinde en DEUX flux proportionnels l'un à l'autre —
 	// ce qu'un vrai flux exige, et que le schéma n'avait pas avant l'arrivée de
@@ -623,21 +623,21 @@ func (c *CircuitCanaux) dessiner() template.HTML {
 	// AnneeCotisationsURSSAF est la seule année où les deux existent, à la même
 	// source (URSSAF), au même champ (categorie_entreprise), dans la même unité
 	// — donc la seule où une largeur commune est honnête.
-	hExo := 0.0
+	hExemption := 0.0
 	if totalDu > 0 {
-		hExo = 70.0 * c.ExonerationsMemeAnnee / totalDu
+		hExemption = 70.0 * c.ExemptionsSameYear / totalDu
 	}
 
 	// 1. Cotisations effectivement versées — bande pleine, proportionnelle,
 	// occupant le bas du bord droit d'Employeurs jusqu'à Sécurité sociale.
 	{
-		y0, y1 := 170.0+hExo, 240.0
+		y0, y1 := 170.0+hExemption, 240.0
 		fmt.Fprintf(&b, `<path class="ruban versee" d="M190,%.1f L566,%.1f L566,%.1f L190,%.1f Z" `+
 			`marker-end="url(#fl)"><title>cotisations effectivement versées — %s (%d)</title></path>`,
-			y0, y0, y1, y1, mdEur(c.CotisationsVerseesURSSAF), c.AnneeCotisationsURSSAF)
+			y0, y0, y1, y1, mdEur(c.ContributionsPaidURSSAF), c.YearContributionsURSSAF)
 		my := (y0 + y1) / 2
-		etiq(378, my-4, "middle", "fort", "cotisations versées "+mdEur(c.CotisationsVerseesURSSAF))
-		etiq(378, my+13, "middle", "", fmt.Sprintf("URSSAF, encaissements %d", c.AnneeCotisationsURSSAF))
+		label(378, my-4, "middle", "fort", "cotisations versées "+mdEur(c.ContributionsPaidURSSAF))
+		label(378, my+13, "middle", "", fmt.Sprintf("URSSAF, encaissements %d", c.YearContributionsURSSAF))
 	}
 
 	// 2. L'exonération — la bande complémentaire, À LA MÊME ÉCHELLE que celle
@@ -645,25 +645,25 @@ func (c *CircuitCanaux) dessiner() template.HTML {
 	// catégories (CategoriesRef, calculées pour la même année).
 	{
 		const x0, x1 = 190.0, 295.0 // Employeurs (bord droit) → État (bord gauche)
-		y0Base, y1Base := 170.0+hExo, 90.0
+		y0Base, y1Base := 170.0+hExemption, 90.0
 		xm := (x0 + x1) / 2
 		cum := 0.0
 		for i, cat := range c.CategoriesRef {
-			h := hExo * cat.Part / 100
+			h := hExemption * cat.Share / 100
 			y0t, y0b := y0Base-cum-h, y0Base-cum
 			y1t, y1b := y1Base-cum-h, y1Base-cum
 			fmt.Fprintf(&b, `<path class="ruban r%d" d="M%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f `+
 				`L%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f Z"><title>%s — %s (%s %% des exonérations)</title></path>`,
 				i%6, x0, y0t, xm, y0t, xm, y1t, x1, y1t,
 				x1, y1b, xm, y1b, xm, y0b, x0, y0b,
-				template.HTMLEscapeString(cat.Libelle), template.HTMLEscapeString(mdEur(cat.Montant)),
-				Decimal(cat.Part, 1))
+				template.HTMLEscapeString(cat.Label), template.HTMLEscapeString(mdEur(cat.Amount)),
+				Decimal(cat.Share, 1))
 			cum += h
 		}
 	}
-	etiq(135, 108, "end", "fort", "exonérations "+mdEur(c.ExonerationsMemeAnnee))
-	etiq(135, 126, "end", "", fmt.Sprintf("décidées par la loi — URSSAF, %d", c.AnneeCotisationsURSSAF))
-	etiq(135, 143, "end", "", "quatre catégories, largeurs proportionnelles")
+	label(135, 108, "end", "fort", "exonérations "+mdEur(c.ExemptionsSameYear))
+	label(135, 126, "end", "", fmt.Sprintf("décidées par la loi — URSSAF, %d", c.YearContributionsURSSAF))
+	label(135, 143, "end", "", "quatre catégories, largeurs proportionnelles")
 
 	// 3. La compensation, obligation de la loi Veil — à la MÊME ÉCHELLE que les
 	// deux bandes ci-dessus depuis que le jaune budgétaire annexé au PLF 2024
@@ -681,37 +681,37 @@ func (c *CircuitCanaux) dessiner() template.HTML {
 	// bande, empilée sans interstice sur le haut de la première, montre la
 	// confluence au lieu de l'illustrer par une collision.
 	{
-		compensationTotale := c.CompensationTVA + c.CompensationCiblees
+		compensationTotal := c.CompensationVat + c.CompensationTargeted
 		hComp := 0.0
 		if totalDu > 0 {
-			hComp = 70.0 * compensationTotale / totalDu
+			hComp = 70.0 * compensationTotal / totalDu
 		}
 		const x0, x1 = 465.0, 570.0 // État (bord droit) → Sécurité sociale (bord gauche)
 		xm := (x0 + x1) / 2
 		y0t, y0b := 90.0-hComp, 90.0
-		y1b := 170.0 + hExo // exactement le haut de la bande « versée » : aucun interstice
+		y1b := 170.0 + hExemption // exactement le haut de la bande « versée » : aucun interstice
 		y1t := y1b - hComp
 		fmt.Fprintf(&b, `<path class="ruban comp" d="M%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f `+
 			`L%.1f,%.1f C%.1f,%.1f %.1f,%.1f %.1f,%.1f Z"><title>compensation par l'État — %s (%d)</title></path>`,
 			x0, y0t, xm, y0t, xm, y1t, x1, y1t,
 			x1, y1b, xm, y1b, xm, y0b, x0, y0b,
-			mdEur(compensationTotale), c.AnneeCompensation)
+			mdEur(compensationTotal), c.YearCompensation)
 	}
-	etiq(490, 30, "start", "fort", "compensation par l'État "+mdEur(c.CompensationTVA+c.CompensationCiblees))
-	etiq(490, 47, "start", "", fmt.Sprintf("loi Veil (1994) — jaune budgétaire, %d", c.AnneeCompensation))
-	etiq(490, 64, "start", "", "TVA affectée + exonérations ciblées")
+	label(490, 30, "start", "fort", "compensation par l'État "+mdEur(c.CompensationVat+c.CompensationTargeted))
+	label(490, 47, "start", "", fmt.Sprintf("loi Veil (1994) — jaune budgétaire, %d", c.YearCompensation))
+	label(490, 64, "start", "", "TVA affectée + exonérations ciblées")
 
 	// 4. Le reste non compensé : la ligne qu'on doit voir
 	w(`<rect class="noeud manque" x="275" y="300" width="210" height="104" rx="8"/>`)
 	w(`<text class="nt manque-t" x="380" y="336" text-anchor="middle">%s</text>`,
-		template.HTMLEscapeString(Decimal(c.NonCompense/1e9, 2)+"\u202fMd€"))
-	w(`<text class="ns" x="380" y="358" text-anchor="middle">non compensés en %d</text>`, c.AnneeNonComp)
+		template.HTMLEscapeString(Decimal(c.NonOffset/1e9, 2)+"\u202fMd€"))
+	w(`<text class="ns" x="380" y="358" text-anchor="middle">non compensés en %d</text>`, c.YearNonComp)
 	w(`<text class="ns" x="380" y="376" text-anchor="middle">perte définitive</text>`)
 	w(`<text class="ns" x="380" y="392" text-anchor="middle">pour la Sécurité sociale</text>`)
-	fleche("M380 90 L380 296", "manque-f")
-	etiq(390, 250, "start", "", "une loi de financement")
-	etiq(390, 266, "start", "", "peut déroger à la")
-	etiq(390, 282, "start", "", "compensation")
+	arrow("M380 90 L380 296", "manque-f")
+	label(390, 250, "start", "", "une loi de financement")
+	label(390, 266, "start", "", "peut déroger à la")
+	label(390, 282, "start", "", "compensation")
 
 	w(`</svg>`)
 	return template.HTML(b.String())

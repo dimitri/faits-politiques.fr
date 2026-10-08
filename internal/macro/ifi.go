@@ -21,7 +21,7 @@ import (
 var SourceIFICOM = archive.Source{
 	Slug: "dgfip-ificom", Label: "DGFiP — Impôt sur la fortune immobilière (IFI), répartition par commune",
 	Publisher: "Direction générale des finances publiques (DGFiP)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : DGFiP (IFICOM)",
 	Cadence:     "annuelle",
 	Notes: "Publié pour les seules communes de plus de 20 000 habitants comptant plus de 50 redevables à " +
@@ -40,7 +40,7 @@ var urlsIFICOM = map[int]string{
 	2025: "https://static.data.gouv.fr/resources/impot-de-solidarite-sur-la-fortune-impot-sur-la-fortune-immobiliere-par-collectivite-territoriale/20260414-080108/ificom2025.xlsx",
 }
 
-func nombreIFICOM(s string) (float64, error) {
+func parseIFICOMNumber(s string) (float64, error) {
 	s = strings.TrimSpace(strings.ReplaceAll(s, ",", ""))
 	if s == "" {
 		return 0, fmt.Errorf("valeur vide")
@@ -48,7 +48,7 @@ func nombreIFICOM(s string) (float64, error) {
 	return strconv.ParseFloat(s, 64)
 }
 
-func ligneIFICOM(annee int, srcID int64, r []string, idx map[string]int) ([]any, error) {
+func buildIFICOMRow(year int, srcID int64, r []string, idx map[string]int) ([]any, error) {
 	get := func(col string) string {
 		i, ok := idx[col]
 		if !ok || i >= len(r) {
@@ -60,21 +60,21 @@ func ligneIFICOM(annee int, srcID int64, r []string, idx map[string]int) ([]any,
 	if codeInsee == "" {
 		return nil, fmt.Errorf("code commune vide")
 	}
-	nom := get("Commune")
-	if nom == "" {
+	name := get("Commune")
+	if name == "" {
 		return nil, fmt.Errorf("nom de commune vide pour %q", codeInsee)
 	}
-	nb, err := nombreIFICOM(get("nombre de redevables"))
+	count, err := parseIFICOMNumber(get("nombre de redevables"))
 	if err != nil {
-		return nil, fmt.Errorf("%s (%s) : nombre de redevables illisible : %w", nom, codeInsee, err)
+		return nil, fmt.Errorf("%s (%s) : nombre de redevables illisible : %w", name, codeInsee, err)
 	}
-	patrimoine, err := nombreIFICOM(get("patrimoine moyen en €"))
+	wealth, err := parseIFICOMNumber(get("patrimoine moyen en €"))
 	if err != nil {
-		return nil, fmt.Errorf("%s (%s) : patrimoine moyen illisible : %w", nom, codeInsee, err)
+		return nil, fmt.Errorf("%s (%s) : patrimoine moyen illisible : %w", name, codeInsee, err)
 	}
-	impot, err := nombreIFICOM(get("impôt moyen en €"))
+	tax, err := parseIFICOMNumber(get("impôt moyen en €"))
 	if err != nil {
-		return nil, fmt.Errorf("%s (%s) : impôt moyen illisible : %w", nom, codeInsee, err)
+		return nil, fmt.Errorf("%s (%s) : impôt moyen illisible : %w", name, codeInsee, err)
 	}
 	var dept, region *string
 	if d := get("Départements"); d != "" {
@@ -83,7 +83,7 @@ func ligneIFICOM(annee int, srcID int64, r []string, idx map[string]int) ([]any,
 	if rg := get("Région"); rg != "" {
 		region = &rg
 	}
-	return []any{annee, codeInsee, nom, dept, region, int(nb), patrimoine, impot, srcID}, nil
+	return []any{year, codeInsee, name, dept, region, int(count), wealth, tax, srcID}, nil
 }
 
 // IngestIFICOM charge les millésimes 2021 à 2025 de la répartition
@@ -102,56 +102,56 @@ func IngestIFICOM(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 		return err
 	}
 
-	requis := []string{"Code commune (INSEE)", "Commune", "nombre de redevables", "patrimoine moyen en €", "impôt moyen en €"}
+	required := []string{"Code commune (INSEE)", "Commune", "nombre de redevables", "patrimoine moyen en €", "impôt moyen en €"}
 
-	var toutesLignes [][]any
-	compteParAnnee := map[int]int{}
-	for annee := 2021; annee <= 2025; annee++ {
-		url := urlsIFICOM[annee]
+	var allRows [][]any
+	countByYear := map[int]int{}
+	for year := 2021; year <= 2025; year++ {
+		url := urlsIFICOM[year]
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".xlsx")
 		if err != nil {
-			return fail(fmt.Errorf("%d : %w", annee, err))
+			return fail(fmt.Errorf("%d : %w", year, err))
 		}
 		wb, err := excelize.OpenFile(f.Path)
 		if err != nil {
-			return fail(fmt.Errorf("%d : classeur illisible : %w", annee, err))
+			return fail(fmt.Errorf("%d : classeur illisible : %w", year, err))
 		}
 		sheets := wb.GetSheetList()
 		if len(sheets) == 0 {
 			wb.Close()
-			return fail(fmt.Errorf("%d : classeur sans feuille", annee))
+			return fail(fmt.Errorf("%d : classeur sans feuille", year))
 		}
 		rows, err := wb.GetRows(sheets[0])
 		wb.Close()
 		if err != nil {
-			return fail(fmt.Errorf("%d : %w", annee, err))
+			return fail(fmt.Errorf("%d : %w", year, err))
 		}
 		if len(rows) < 3 {
-			return fail(fmt.Errorf("%d : moins de 3 lignes (titre + en-tête + données attendues)", annee))
+			return fail(fmt.Errorf("%d : moins de 3 lignes (titre + en-tête + données attendues)", year))
 		}
 		header := rows[1]
 		idx := map[string]int{}
 		for i, h := range header {
 			idx[strings.TrimSpace(h)] = i
 		}
-		for _, col := range requis {
+		for _, col := range required {
 			if _, ok := idx[col]; !ok {
-				return fail(fmt.Errorf("%d : colonne %q absente — le format a peut-être changé", annee, col))
+				return fail(fmt.Errorf("%d : colonne %q absente — le format a peut-être changé", year, col))
 			}
 		}
 		n := 0
 		for i, r := range rows[2:] {
-			ligne, err := ligneIFICOM(annee, srcID, r, idx)
+			row, err := buildIFICOMRow(year, srcID, r, idx)
 			if err != nil {
-				return fail(fmt.Errorf("%d, ligne %d : %w", annee, i+3, err))
+				return fail(fmt.Errorf("%d, ligne %d : %w", year, i+3, err))
 			}
-			toutesLignes = append(toutesLignes, ligne)
+			allRows = append(allRows, row)
 			n++
 		}
 		if n == 0 {
-			return fail(fmt.Errorf("%d : aucune ligne lue", annee))
+			return fail(fmt.Errorf("%d : aucune ligne lue", year))
 		}
-		compteParAnnee[annee] = n
+		countByYear[year] = n
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -168,7 +168,7 @@ func IngestIFICOM(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_ifi_commune"},
 		[]string{"annee", "code_insee", "nom_commune", "code_departement", "region", "nombre_redevables", "patrimoine_moyen_eur", "impot_moyen_eur", "source_id"},
-		pgx.CopyFromRows(toutesLignes)); err != nil {
+		pgx.CopyFromRows(allRows)); err != nil {
 		return fail(fmt.Errorf("core.ifi_commune : %w", err))
 	}
 	// MERGE plutôt que DELETE+COPY : ce connecteur est l'unique propriétaire de
@@ -203,8 +203,8 @@ func IngestIFICOM(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"communes_par_annee": compteParAnnee, "touchees": touchees}, "")
+		map[string]any{"communes_par_annee": countByYear, "touchees": touchees}, "")
 	fmt.Printf("  IFICOM : %d communes×années chargées (2021-2025), %d touchées par la fusion\n",
-		len(toutesLignes), touchees)
+		len(allRows), touchees)
 	return nil
 }

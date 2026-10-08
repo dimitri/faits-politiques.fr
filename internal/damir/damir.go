@@ -29,7 +29,7 @@ const ConnectorVersion = "damir-v1"
 var SourceDamir = archive.Source{
 	Slug: "open-damir", Label: "Open Damir — dépenses d'assurance maladie interrégimes (SNDS)",
 	Publisher: "Caisse nationale de l'Assurance Maladie (CNAM)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte", ReuseClass: "OPEN",
+	License: "Licence Ouverte", ReuseClass: "OPEN",
 	Attribution: "Source : CNAM, Open Damir",
 	Cadence:     "mensuelle",
 	Notes: "Chaque fichier mensuel (~970 Mo compressés, 36,6 millions de lignes en janvier " +
@@ -42,8 +42,8 @@ var SourceDamir = archive.Source{
 }
 
 const (
-	pageURL    = "https://open-data-assurance-maladie.ameli.fr/depenses/download.php?Dir_Rep=Open_DAMIR&Annee=%d"
-	fichierURL = "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=%s&file=Open_DAMIR/A%d%02d.csv.gz"
+	pageURL = "https://open-data-assurance-maladie.ameli.fr/depenses/download.php?Dir_Rep=Open_DAMIR&Annee=%d"
+	fileURL = "https://open-data-assurance-maladie.ameli.fr/depenses/download_file.php?token=%s&file=Open_DAMIR/A%d%02d.csv.gz"
 )
 
 var reToken = regexp.MustCompile(`token=([a-f0-9]+)`)
@@ -59,13 +59,13 @@ const (
 	colPrsRemTyp = 42
 )
 
-// agregat accumule un (montant, actes) par (année, mois, région, nature de prestation).
-type agregat struct {
-	montant float64
-	actes   int64
+// aggregate accumule un (montant, actes) par (année, mois, région, nature de prestation).
+type aggregate struct {
+	amount float64
+	acts   int64
 }
 
-func IngestDamir(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, annees []int) error {
+func IngestDamir(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, years []int) error {
 	srcID, err := arch.EnsureSource(ctx, SourceDamir)
 	if err != nil {
 		return err
@@ -79,46 +79,46 @@ func IngestDamir(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 		return err
 	}
 
-	type ligneNationale struct {
-		annee, mois   int
-		montant, base float64
-		actes         int64
+	type nationalRow struct {
+		year, month  int
+		amount, base float64
+		acts         int64
 	}
-	var national []ligneNationale
-	// region_prestation : (annee, mois, region, prsNat) -> agrégat. Purgée
+	var national []nationalRow
+	// regionService : (year, month, region, prsNat) -> aggregate. Purgée
 	// et réécrite en entier à chaque exécution (mêmes années rechargées).
-	regionPrestation := map[[4]any]*agregat{}
+	regionService := map[[4]any]*aggregate{}
 
 	client := &http.Client{Timeout: 60 * time.Second}
 
-	for _, annee := range annees {
-		page, err := client.Get(fmt.Sprintf(pageURL, annee))
+	for _, year := range years {
+		page, err := client.Get(fmt.Sprintf(pageURL, year))
 		if err != nil {
-			return fail(fmt.Errorf("%d : page de téléchargement : %w", annee, err))
+			return fail(fmt.Errorf("%d : page de téléchargement : %w", year, err))
 		}
-		corps, err := io.ReadAll(page.Body)
+		body, err := io.ReadAll(page.Body)
 		page.Body.Close()
 		if err != nil {
-			return fail(fmt.Errorf("%d : lecture de la page : %w", annee, err))
+			return fail(fmt.Errorf("%d : lecture de la page : %w", year, err))
 		}
-		m := reToken.FindStringSubmatch(string(corps))
+		m := reToken.FindStringSubmatch(string(body))
 		if m == nil {
-			return fail(fmt.Errorf("%d : jeton de téléchargement introuvable — la page a peut-être changé", annee))
+			return fail(fmt.Errorf("%d : jeton de téléchargement introuvable — la page a peut-être changé", year))
 		}
 		token := m[1]
 
-		for mois := 1; mois <= 12; mois++ {
-			url := fmt.Sprintf(fichierURL, token, annee, mois)
+		for month := 1; month <= 12; month++ {
+			url := fmt.Sprintf(fileURL, token, year, month)
 			f, err := arch.Fetch(ctx, srcID, runID, url, ".csv.gz")
 			if err != nil {
-				return fail(fmt.Errorf("%04d-%02d : %w", annee, mois, err))
+				return fail(fmt.Errorf("%04d-%02d : %w", year, month, err))
 			}
-			montant, base, actes, err := agregerFichier(f.Path, regionPrestation, annee, mois)
+			amount, base, acts, err := aggregateFile(f.Path, regionService, year, month)
 			if err != nil {
-				return fail(fmt.Errorf("%04d-%02d : %w", annee, mois, err))
+				return fail(fmt.Errorf("%04d-%02d : %w", year, month, err))
 			}
-			national = append(national, ligneNationale{annee, mois, montant, base, actes})
-			fmt.Printf("  Open Damir %04d-%02d : %.1f M€ remboursés, %d actes\n", annee, mois, montant/1e6, actes)
+			national = append(national, nationalRow{year, month, amount, base, acts})
+			fmt.Printf("  Open Damir %04d-%02d : %.1f M€ remboursés, %d actes\n", year, month, amount/1e6, acts)
 		}
 	}
 
@@ -133,13 +133,13 @@ func IngestDamir(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	if _, err := tx.Exec(ctx, `TRUNCATE core.remboursement_national`); err != nil {
 		return fail(err)
 	}
-	var lotNat [][]any
+	var nationalBatch [][]any
 	for _, l := range national {
-		lotNat = append(lotNat, []any{l.annee, l.mois, l.montant, l.base, l.actes, srcID})
+		nationalBatch = append(nationalBatch, []any{l.year, l.month, l.amount, l.base, l.acts, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "remboursement_national"},
 		[]string{"annee", "mois", "montant_rembourse", "base_remboursement", "nb_actes", "source_id"},
-		pgx.CopyFromRows(lotNat)); err != nil {
+		pgx.CopyFromRows(nationalBatch)); err != nil {
 		return fail(fmt.Errorf("remboursement_national : %w", err))
 	}
 
@@ -157,13 +157,13 @@ func IngestDamir(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	if _, err := tx.Exec(ctx, `TRUNCATE core.remboursement_region_prestation`); err != nil {
 		return fail(err)
 	}
-	var lotReg [][]any
-	for cle, ag := range regionPrestation {
-		lotReg = append(lotReg, []any{cle[0], cle[1], cle[2], cle[3], ag.montant, ag.actes, srcID})
+	var regionBatch [][]any
+	for key, agg := range regionService {
+		regionBatch = append(regionBatch, []any{key[0], key[1], key[2], key[3], agg.amount, agg.acts, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "remboursement_region_prestation"},
 		[]string{"annee", "mois", "region_code", "prs_nat_code", "montant_rembourse", "nb_actes", "source_id"},
-		pgx.CopyFromRows(lotReg)); err != nil {
+		pgx.CopyFromRows(regionBatch)); err != nil {
 		return fail(fmt.Errorf("remboursement_region_prestation : %w", err))
 	}
 	if _, err := tx.Exec(ctx, `
@@ -176,16 +176,16 @@ func IngestDamir(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"mois_charges": len(national), "lignes_region_prestation": len(lotReg)}, "")
-	fmt.Printf("  Open Damir : %d mois chargés, %d lignes région×prestation\n", len(national), len(lotReg))
+		map[string]any{"mois_charges": len(national), "lignes_region_prestation": len(regionBatch)}, "")
+	fmt.Printf("  Open Damir : %d mois chargés, %d lignes région×prestation\n", len(national), len(regionBatch))
 	return nil
 }
 
-// agregerFichier lit un fichier .csv.gz en flux (jamais chargé entier en
+// aggregateFile lit un fichier .csv.gz en flux (jamais chargé entier en
 // mémoire) et accumule les montants/actes filtrés sur PRS_REM_TYP=0 —
-// national (retourné) et région×prestation (accumulé dans regionPrestation,
+// national (retourné) et région×prestation (accumulé dans regionService,
 // partagé entre tous les mois chargés).
-func agregerFichier(path string, regionPrestation map[[4]any]*agregat, annee, mois int) (montantTotal, baseTotal float64, actesTotal int64, err error) {
+func aggregateFile(path string, regionService map[[4]any]*aggregate, year, month int) (amountTotal, baseTotal float64, actsTotal int64, err error) {
 	f, err := os.Open(path)
 	if err != nil {
 		return 0, 0, 0, err
@@ -202,39 +202,39 @@ func agregerFichier(path string, regionPrestation map[[4]any]*agregat, annee, mo
 	if !sc.Scan() {
 		return 0, 0, 0, fmt.Errorf("fichier vide")
 	}
-	nColonnes := len(strings.Split(sc.Text(), ";"))
+	nColumns := len(strings.Split(sc.Text(), ";"))
 
 	for sc.Scan() {
 		l := strings.Split(sc.Text(), ";")
-		if len(l) < nColonnes {
+		if len(l) < nColumns {
 			continue // ligne tronquée en fin de fichier
 		}
 		if l[colPrsRemTyp] != "0" {
 			continue // voir le commentaire de core.remboursement_national : filtre CNAM obligatoire
 		}
-		montant, e1 := strconv.ParseFloat(l[colPrsRemMnt], 64)
+		amount, e1 := strconv.ParseFloat(l[colPrsRemMnt], 64)
 		base, e2 := strconv.ParseFloat(l[colPrsRemBse], 64)
-		actes, e3 := strconv.ParseFloat(l[colPrsActNbr], 64)
+		acts, e3 := strconv.ParseFloat(l[colPrsActNbr], 64)
 		if e1 != nil || e2 != nil || e3 != nil {
 			continue
 		}
-		montantTotal += montant
+		amountTotal += amount
 		baseTotal += base
-		actesTotal += int64(actes)
+		actsTotal += int64(acts)
 
-		cle := [4]any{annee, mois, l[colBenResReg], l[colPrsNat]}
-		a := regionPrestation[cle]
-		if a == nil {
-			a = &agregat{}
-			regionPrestation[cle] = a
+		key := [4]any{year, month, l[colBenResReg], l[colPrsNat]}
+		agg := regionService[key]
+		if agg == nil {
+			agg = &aggregate{}
+			regionService[key] = agg
 		}
-		a.montant += montant
-		a.actes += int64(actes)
+		agg.amount += amount
+		agg.acts += int64(acts)
 	}
 	if err := sc.Err(); err != nil {
 		return 0, 0, 0, fmt.Errorf("lecture : %w", err)
 	}
-	return montantTotal, baseTotal, actesTotal, nil
+	return amountTotal, baseTotal, actsTotal, nil
 }
 
 // Ingest charge l'année la plus récente complète au moment de l'écriture.

@@ -14,7 +14,7 @@ import (
 var SourceContourPays = archive.Source{
 	Slug: "natural-earth-admin0", Label: "Natural Earth — pays du monde (admin-0), 1:50m",
 	Publisher: "Natural Earth", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Domaine public (Natural Earth)", ReuseClass: "OPEN",
+	License: "Domaine public (Natural Earth)", ReuseClass: "OPEN",
 	Attribution: "Source : Natural Earth, naturalearthdata.com",
 	Cadence:     "ponctuelle",
 	Notes: "Échelle 1:50 000 000, un repère mondial, pas un cadastre. Les départements " +
@@ -24,7 +24,7 @@ var SourceContourPays = archive.Source{
 
 const urlContourPays = "https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/ne_50m_admin_0_countries.geojson"
 
-type paysFeature struct {
+type countryFeature struct {
 	Properties struct {
 		NameFR     string `json:"NAME_FR"`
 		Name       string `json:"NAME"`
@@ -60,7 +60,7 @@ func IngestContourPays(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return fail(err)
 	}
 	var doc struct {
-		Features []paysFeature `json:"features"`
+		Features []countryFeature `json:"features"`
 	}
 	if err := json.Unmarshal(raw, &doc); err != nil {
 		return fail(fmt.Errorf("GeoJSON illisible : %w", err))

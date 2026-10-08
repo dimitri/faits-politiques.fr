@@ -33,7 +33,7 @@ import (
 var SourceExposes = archive.Source{
 	Slug: "an-exposes", Label: "Assemblée nationale — exposés des motifs",
 	Publisher: "Assemblée nationale", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte",
+	License:     "Licence Ouverte",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Assemblée nationale, textes déposés",
 	Cadence:     "au fil des dépôts",
@@ -50,13 +50,13 @@ const exposeBase = "https://www.assemblee-nationale.fr/dyn/opendata/"
 // documents des législatures antérieures y répondent 404. Le connecteur a
 // d'abord parcouru la 13e, obtenu 190 refus et extrait zéro exposé — sans
 // erreur, puisqu'un texte sans exposé est un cas normal.
-var uidDepose = regexp.MustCompile(`^(PION|PRJL)ANR5L17B`)
+var uidFiled = regexp.MustCompile(`^(PION|PRJL)ANR5L17B`)
 
 var (
-	reEspaceAvant = regexp.MustCompile(`\s+([,.;:!?])`)
+	reSpaceBefore = regexp.MustCompile(`\s+([,.;:!?])`)
 	// L'exposé commence à l'un de ces marqueurs et court jusqu'au dispositif.
-	reDebut = regexp.MustCompile(`(?i)(EXPOSÉ DES MOTIFS|EXPOSE DES MOTIFS|Mesdames, Messieurs)`)
-	reFin   = regexp.MustCompile(`(?i)(PROPOSITION DE LOI|PROJET DE LOI|Article 1er|Article unique)`)
+	reStart = regexp.MustCompile(`(?i)(EXPOSÉ DES MOTIFS|EXPOSE DES MOTIFS|Mesdames, Messieurs)`)
+	reEnd   = regexp.MustCompile(`(?i)(PROPOSITION DE LOI|PROJET DE LOI|Article 1er|Article unique)`)
 )
 
 // IngestExposes récupère les exposés des textes déposés à l'Assemblée. Le débit
@@ -85,28 +85,28 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	if err != nil {
 		return fail(err)
 	}
-	type cible struct {
+	type target struct {
 		id  int64
 		uid string
 	}
-	var cibles []cible
+	var targets []target
 	for rows.Next() {
-		var c cible
+		var c target
 		if err := rows.Scan(&c.id, &c.uid); err != nil {
 			rows.Close()
 			return fail(err)
 		}
-		if uidDepose.MatchString(c.uid) {
-			cibles = append(cibles, c)
+		if uidFiled.MatchString(c.uid) {
+			targets = append(targets, c)
 		}
 	}
 	rows.Close()
 
-	var trouves, sansExpose, echecs, traites int64
-	// verifie note qu'un texte a été VÉRIFIÉ, trouvé ou non — voir la
-	// migration 0177 : sans elle, sansExpose/echecs redemandaient la même
+	var found, missingExpose, failures, processed int64
+	// verify note qu'un texte a été VÉRIFIÉ, trouvé ou non — voir la
+	// migration 0177 : sans elle, missingExpose/failures redemandaient la même
 	// absence à chaque passage, indéfiniment.
-	verifie := func(id int64, trouve bool, raison string) error {
+	verify := func(id int64, trouve bool, raison string) error {
 		_, err := pool.Exec(ctx, `
 			INSERT INTO core.texte_expose_verification (texte_id, trouve, raison)
 			VALUES ($1,$2,$3)
@@ -114,7 +114,7 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		return err
 	}
 
-	// concurrenceExposes : mesuré sur le passif complet de la 17e législature
+	// exposeConcurrency : mesuré sur le passif complet de la 17e législature
 	// (~2 500 textes) — une seule connexion à 400 ms d'intervalle (voir le
 	// Sleep plus bas, inchangé PAR connexion) y passait près d'une heure,
 	// très au-dessus du reste d'un ingest complet (fpctl ingest default tourne
@@ -122,10 +122,10 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	// connexions de front restent une cadence raisonnable pour un site
 	// public (12,5 req/s au total, chacune espacée des siennes par le même
 	// Sleep qu'avant) sans dépendre d'une API que ce site n'offre pas.
-	const concurrenceExposes = 5
+	const exposeConcurrency = 5
 	g, gctx := errgroup.WithContext(ctx)
-	g.SetLimit(concurrenceExposes)
-	for _, c := range cibles {
+	g.SetLimit(exposeConcurrency)
+	for _, c := range targets {
 		c := c
 		g.Go(func() error {
 			defer time.Sleep(400 * time.Millisecond)
@@ -134,13 +134,13 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			if err != nil {
 				// Un texte absent du site n'est pas une erreur fatale : il est
 				// compté et signalé, le chargement continue.
-				atomic.AddInt64(&echecs, 1)
-				if err := verifie(c.id, false, "page inaccessible"); err != nil {
+				atomic.AddInt64(&failures, 1)
+				if err := verify(c.id, false, "page inaccessible"); err != nil {
 					return fmt.Errorf("%s : %w", c.uid, err)
 				}
-			} else if texte, ok := extraireExpose(f.Path); !ok {
-				atomic.AddInt64(&sansExpose, 1)
-				if err := verifie(c.id, false, "aucun exposé identifié dans la page"); err != nil {
+			} else if texte, ok := extractExpose(f.Path); !ok {
+				atomic.AddInt64(&missingExpose, 1)
+				if err := verify(c.id, false, "aucun exposé identifié dans la page"); err != nil {
 					return fmt.Errorf("%s : %w", c.uid, err)
 				}
 			} else {
@@ -152,14 +152,14 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 					c.id, c.uid, url, texte, chapeau(texte), len([]rune(texte)), srcID); err != nil {
 					return fmt.Errorf("%s : %w", c.uid, err)
 				}
-				if err := verifie(c.id, true, ""); err != nil {
+				if err := verify(c.id, true, ""); err != nil {
 					return fmt.Errorf("%s : %w", c.uid, err)
 				}
-				atomic.AddInt64(&trouves, 1)
+				atomic.AddInt64(&found, 1)
 			}
-			if n := atomic.AddInt64(&traites, 1); n%200 == 0 {
+			if n := atomic.AddInt64(&processed, 1); n%200 == 0 {
 				logs.Notice(fmt.Sprintf("statements of reasons: %d/%d processed, %d found",
-					n, len(cibles), atomic.LoadInt64(&trouves)))
+					n, len(targets), atomic.LoadInt64(&found)))
 			}
 			return nil
 		})
@@ -169,15 +169,15 @@ func IngestExposes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"exposes": trouves, "sans_expose": sansExpose, "echecs": echecs}, "")
+		map[string]any{"exposes": found, "sans_expose": missingExpose, "echecs": failures}, "")
 	logs.Notice(fmt.Sprintf("statements of reasons: %d/%d found (%d without one, %d unreachable)",
-		trouves, len(cibles), sansExpose, echecs))
+		found, len(targets), missingExpose, failures))
 	return nil
 }
 
-// extraireExpose isole l'exposé entre son titre et le début du dispositif.
-func extraireExpose(path string) (string, bool) {
-	b, err := lireFichier(path)
+// extractExpose isole l'exposé entre son titre et le début du dispositif.
+func extractExpose(path string) (string, bool) {
+	b, err := readFile(path)
 	if err != nil {
 		return "", false
 	}
@@ -187,33 +187,33 @@ func extraireExpose(path string) (string, bool) {
 	// les remplacer toutes par un séparateur coupait les mots au milieu :
 	// « <span>M</span>esdames » donnait « M esdames », et l'artefact s'est lu
 	// dans le texte publié.
-	t := balisage.Texte(string(b))
+	t := balisage.Text(string(b))
 	// L'espace insécable avant une ponctuation double est correct en français ;
 	// l'espace ordinaire avant une virgule ou un point ne l'est pas.
-	t = reEspaceAvant.ReplaceAllString(t, "$1")
-	lignes := strings.Split(t, "\n")
+	t = reSpaceBefore.ReplaceAllString(t, "$1")
+	lines := strings.Split(t, "\n")
 	// Le marqueur est cherché sur une version APLATIE. Le titre est souvent
 	// balisé mot par mot — <b>EXPOSÉ</b> DES MOTIFS — et le découpage en
 	// lignes le coupait en deux : la recherche échouait sur les 131 premiers
 	// textes sans que rien ne le signale, un texte sans exposé étant un cas
 	// normal et non une erreur.
-	plat := strings.Join(lignes, " ")
+	flat := strings.Join(lines, " ")
 
-	d := reDebut.FindStringIndex(plat)
+	d := reStart.FindStringIndex(flat)
 	if d == nil {
 		return "", false
 	}
-	reste := plat[d[1]:]
-	if f := reFin.FindStringIndex(reste); f != nil && f[0] > 200 {
-		reste = reste[:f[0]]
+	rest := flat[d[1]:]
+	if f := reEnd.FindStringIndex(rest); f != nil && f[0] > 200 {
+		rest = rest[:f[0]]
 	}
-	reste = strings.TrimSpace(reste)
+	rest = strings.TrimSpace(rest)
 	// Un exposé de moins de 200 caractères n'en est pas un : c'est une amorce
 	// tronquée, et la stocker donnerait l'illusion d'une présentation.
-	if len([]rune(reste)) < 200 {
+	if len([]rune(rest)) < 200 {
 		return "", false
 	}
-	return reste, true
+	return rest, true
 }
 
 // chapeau prend les premiers paragraphes jusqu'à une fin de phrase. C'est un
@@ -234,7 +234,7 @@ func chapeau(texte string) string {
 	return strings.TrimSpace(string(r[:coupe])) + " […]"
 }
 
-func lireFichier(path string) ([]byte, error) {
+func readFile(path string) ([]byte, error) {
 	return os.ReadFile(path)
 }
 
@@ -252,28 +252,28 @@ func ReparseExposes(ctx context.Context, pool *pgxpool.Pool, racine string) erro
 	if err != nil {
 		return err
 	}
-	type cible struct {
+	type target struct {
 		id  int64
 		key string
 	}
-	var cibles []cible
+	var targets []target
 	for rows.Next() {
-		var c cible
+		var c target
 		if err := rows.Scan(&c.id, &c.key); err != nil {
 			rows.Close()
 			return err
 		}
-		cibles = append(cibles, c)
+		targets = append(targets, c)
 	}
 	rows.Close()
 
-	var lignes [][]any
-	for _, c := range cibles {
-		texte, ok := extraireExpose(filepath.Join(racine, c.key))
+	var batch [][]any
+	for _, c := range targets {
+		texte, ok := extractExpose(filepath.Join(racine, c.key))
 		if !ok {
 			continue
 		}
-		lignes = append(lignes, []any{c.id, texte, chapeau(texte), len([]rune(texte))})
+		batch = append(batch, []any{c.id, texte, chapeau(texte), len([]rune(texte))})
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -288,7 +288,7 @@ func ReparseExposes(ctx context.Context, pool *pgxpool.Pool, racine string) erro
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_expose"},
 		[]string{"texte_id", "integral", "chapeau", "n_caracteres"},
-		pgx.CopyFromRows(lignes)); err != nil {
+		pgx.CopyFromRows(batch)); err != nil {
 		return err
 	}
 	if _, err := tx.Exec(ctx, `
@@ -301,6 +301,6 @@ func ReparseExposes(ctx context.Context, pool *pgxpool.Pool, racine string) erro
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
-	logs.Notice(fmt.Sprintf("%d statements of reasons re-extracted", len(lignes)))
+	logs.Notice(fmt.Sprintf("%d statements of reasons re-extracted", len(batch)))
 	return nil
 }

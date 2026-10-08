@@ -14,10 +14,10 @@ import (
 // simulation de docs/revenu-universel-microsimulation.md qui s'en sert comme
 // unité de socle. C'est l'Insee Première le plus lu de l'année, et sa série
 // longue (1996-2023) ne demandait qu'à être chargée une fois disponible.
-var SourcePauvreteINSEE = archive.Source{
+var SourcePovertyINSEE = archive.Source{
 	Slug: "insee-pauvrete-niveau-de-vie", Label: "Insee — Niveau de vie et pauvreté",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, enquêtes Revenus fiscaux et sociaux",
 	Cadence:     "annuelle",
 	Notes: "Refonte de l'enquête ERFS en 2021 : les niveaux publiés depuis ne sont " +
@@ -25,10 +25,10 @@ var SourcePauvreteINSEE = archive.Source{
 		"signalée fragile par l'Insee (difficultés de collecte pendant le confinement).",
 }
 
-const pauvreteXLSXURL = "https://www.insee.fr/fr/statistiques/fichier/8600989/ip2063.xlsx"
+const povertyXLSXURL = "https://www.insee.fr/fr/statistiques/fichier/8600989/ip2063.xlsx"
 
-func IngestPauvrete(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourcePauvreteINSEE)
+func IngestPoverty(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourcePovertyINSEE)
 	if err != nil {
 		return err
 	}
@@ -41,7 +41,7 @@ func IngestPauvrete(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, pauvreteXLSXURL, ".xlsx")
+	f, err := arch.Fetch(ctx, srcID, runID, povertyXLSXURL, ".xlsx")
 	if err != nil {
 		return fail(err)
 	}
@@ -57,11 +57,11 @@ func IngestPauvrete(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 	// en ligne 3) : on repère chaque ligne par le début de son libellé en
 	// colonne A, méthode déjà utilisée par internal/presidentielle pour les
 	// mêmes classeurs Insee.
-	lignes, err := x.rows("Tableau complémentaire 3")
+	sheetRows, err := x.rows("Tableau complémentaire 3")
 	if err != nil {
 		return fail(err)
 	}
-	annees, err := anneesEnTete(lignes)
+	yearByCol, err := headerYears(sheetRows)
 	if err != nil {
 		return fail(err)
 	}
@@ -81,36 +81,36 @@ func IngestPauvrete(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 	}
 
 	var rows [][]any
-	var relatifCourant float64
-	acc := map[float64]map[int]map[string]float64{0.6: {}, 0.5: {}}
-	for _, l := range lignes {
-		lib := l["A"]
-		switch lib {
+	var currentRelative float64
+	byThreshold := map[float64]map[int]map[string]float64{0.6: {}, 0.5: {}}
+	for _, row := range sheetRows {
+		label := row["A"]
+		switch label {
 		case "Seuil à 60 % de la médiane":
-			relatifCourant = 0.6
+			currentRelative = 0.6
 			continue
 		case "Seuil à 50 % de la médiane":
-			relatifCourant = 0.5
+			currentRelative = 0.5
 			continue
 		}
-		if relatifCourant == 0 || lib == "" {
+		if currentRelative == 0 || label == "" {
 			continue
 		}
-		var champ string
+		var field string
 		switch {
-		case lib == "Nombre de personnes pauvres (en milliers)":
-			champ = "nb"
-		case lib == "Taux de pauvreté (en %)":
-			champ = "taux"
-		case lib == "Seuil de pauvreté (en euros constants de 2023 par mois)":
-			champ = "seuil"
-		case lib == "Intensité de la pauvreté (en %)":
-			champ = "intensite"
+		case label == "Nombre de personnes pauvres (en milliers)":
+			field = "nb"
+		case label == "Taux de pauvreté (en %)":
+			field = "taux"
+		case label == "Seuil de pauvreté (en euros constants de 2023 par mois)":
+			field = "seuil"
+		case label == "Intensité de la pauvreté (en %)":
+			field = "intensite"
 		default:
 			continue
 		}
-		for col, an := range annees {
-			v, ok := l[col]
+		for col, year := range yearByCol {
+			v, ok := row[col]
 			if !ok {
 				continue
 			}
@@ -118,28 +118,28 @@ func IngestPauvrete(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 			if err != nil {
 				continue
 			}
-			if acc[relatifCourant][an] == nil {
-				acc[relatifCourant][an] = map[string]float64{}
+			if byThreshold[currentRelative][year] == nil {
+				byThreshold[currentRelative][year] = map[string]float64{}
 			}
-			acc[relatifCourant][an][champ] = f
+			byThreshold[currentRelative][year][field] = f
 		}
 	}
 
-	var manquants int
-	for relatif, parAnnee := range acc {
-		for an, champs := range parAnnee {
-			seuil, okS := champs["seuil"]
-			nb, okN := champs["nb"]
-			taux, okT := champs["taux"]
-			intensite, okI := champs["intensite"]
+	var missing int
+	for threshold, byYear := range byThreshold {
+		for year, fields := range byYear {
+			thresholdEUR, okS := fields["seuil"]
+			count, okN := fields["nb"]
+			rate, okT := fields["taux"]
+			intensity, okI := fields["intensite"]
 			if !okS || !okN || !okT || !okI {
-				manquants++
+				missing++
 				continue
 			}
 			// La source publie ce nombre en milliers (ex. 9792 = 9 792 000
 			// personnes) : la colonne porte l'unité dans son nom, la valeur
 			// n'est pas reconvertie.
-			rows = append(rows, []any{an, relatif, seuil, int64(nb), taux, intensite, srcID})
+			rows = append(rows, []any{year, threshold, thresholdEUR, int64(count), rate, intensity, srcID})
 		}
 	}
 	if len(rows) == 0 {
@@ -183,19 +183,19 @@ func IngestPauvrete(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archi
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"lignes_chargees": len(rows), "rejet_annee_incomplete": manquants, "touchees": touchees}, "")
+		map[string]any{"lignes_chargees": len(rows), "rejet_annee_incomplete": missing, "touchees": touchees}, "")
 	fmt.Printf("  seuil de pauvreté : %d lignes (60%% et 50%% de la médiane, 1996-2023), %d touchées par la fusion\n",
 		len(rows), touchees)
 	return nil
 }
 
-// anneesEnTete repère, dans une feuille où les années forment une ligne
+// headerYears repère, dans une feuille où les années forment une ligne
 // (pas la première : les classeurs Insee font précéder les données d'un titre
 // et d'une sous-légende), la correspondance colonne -> année à quatre chiffres.
-func anneesEnTete(lignes []map[string]string) (map[string]int, error) {
-	for _, l := range lignes {
+func headerYears(rows []map[string]string) (map[string]int, error) {
+	for _, row := range rows {
 		out := map[string]int{}
-		for col, v := range l {
+		for col, v := range row {
 			if col == "A" {
 				continue
 			}

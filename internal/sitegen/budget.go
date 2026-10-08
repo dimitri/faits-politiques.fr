@@ -27,42 +27,42 @@ import (
 //  2. une situation mensuelle n'est pas la loi de règlement. Elle est
 //     provisoire, en comptabilité budgétaire (encaissements-décaissements),
 //     et le chiffre définitif de l'exercice sera différent.
-type LigneBudget struct {
-	Niveau                          int
-	Categorie, SousCategorie, Ligne string
-	Montant, Precedent              float64
-	Ecart                           float64
-	AvecPrecedent                   bool
+type LineBudget struct {
+	Level                       int
+	Category, SubCategory, Line string
+	Amount, Previous            float64
+	Gap                         float64
+	WithPrevious                bool
 }
 
-type CourbeExercice struct {
-	Exercice  int
-	Path      template.HTML
-	Dernier   string
-	MoisFin   int
-	X, Y      float64
-	Incomplet bool
+type CurveFiscalYear struct {
+	FiscalYear int
+	Path       template.HTML
+	Last       string
+	MonthEnd   int
+	X, Y       float64
+	Incomplete bool
 }
 
 type StatsBudget struct {
-	Arrete, MoisNom           string
-	Mois, Exercice            int
-	Recettes, Depenses, Solde float64
-	Lignes                    []LigneBudget
-	Courbes                   []CourbeExercice
-	Grille                    template.HTML
-	Exercices                 []int
+	Arrete, MonthName           string
+	Month, FiscalYear           int
+	Revenues, Expenses, Balance float64
+	Lines                       []LineBudget
+	Curves                      []CurveFiscalYear
+	Grid                        template.HTML
+	FiscalYears                 []int
 	// RecettesDetail / DepensesDetail : les lignes NOMMÉES de la situation
 	// mensuelle (TVA, IR, IS, TICPE… ; personnel, intervention, dette…), en
 	// dehors du tableau hiérarchique complet — la réponse à « où passe l'argent »
 	// sans avoir à dérouler les 26 lignes de la source.
-	RecettesDetail []SousSecteur
-	DepensesDetail []SousSecteur
-	BarresRecettes template.HTML
-	BarresDepenses template.HTML
+	RevenuesDetail []SubSector
+	ExpensesDetail []SubSector
+	BarsRevenues   template.HTML
+	BarsExpenses   template.HTML
 }
 
-var moisFr = [...]string{"", "janvier", "février", "mars", "avril", "mai", "juin",
+var monthFr = [...]string{"", "janvier", "février", "mars", "avril", "mai", "juin",
 	"juillet", "août", "septembre", "octobre", "novembre", "décembre"}
 
 // mdEur : un montant en euros, écrit en milliards. Les budgets se lisent en
@@ -75,36 +75,36 @@ func loadBudget(ctx context.Context, pool *pgxpool.Pool) (*StatsBudget, error) {
 	// max(...) est une agrégation : la ligne existe même sans exécution
 	// budgétaire encore ingérée, avec des valeurs NULL.
 	var arreteN sql.NullString
-	var moisN, exerciceN sql.NullInt64
+	var monthN, fiscalYearN sql.NullInt64
 	err := pool.QueryRow(ctx, `
 		SELECT to_char(max(date_arrete),'YYYY-MM-DD'),
 		       extract(month FROM max(date_arrete))::int,
 		       max(exercice)::int
-		FROM core.execution_etat`).Scan(&arreteN, &moisN, &exerciceN)
+		FROM core.execution_etat`).Scan(&arreteN, &monthN, &fiscalYearN)
 	if err != nil || !arreteN.Valid {
 		return nil, err
 	}
 	arrete := arreteN.String
-	st.Mois, st.Exercice = int(moisN.Int64), int(exerciceN.Int64)
-	st.MoisNom = moisFr[st.Mois]
-	st.Arrete = st.MoisNom + " " + fmt.Sprint(st.Exercice)
+	st.Month, st.FiscalYear = int(monthN.Int64), int(fiscalYearN.Int64)
+	st.MonthName = monthFr[st.Month]
+	st.Arrete = st.MonthName + " " + fmt.Sprint(st.FiscalYear)
 
 	// Les trois nombres de tête. Ils viennent de lignes nommées, jamais d'une
 	// somme faite ici : additionner des lignes hiérarchisées double-compterait.
-	tete := func(cat, ligne string) float64 {
+	head := func(cat, line string) float64 {
 		var v *float64
 		_ = pool.QueryRow(ctx, `
 			SELECT montant_eur FROM core.execution_etat
 			WHERE date_arrete=$1::date AND categorie=$2 AND ligne=$3`,
-			arrete, cat, ligne).Scan(&v)
+			arrete, cat, line).Scan(&v)
 		if v == nil {
 			return 0
 		}
 		return *v
 	}
-	st.Recettes = tete("Recettes", "Total recettes nettes du budget général")
-	st.Depenses = tete("Dépenses", "Total dépenses nettes du budget général")
-	st.Solde = tete("Solde budgétaire", "Solde budgétaire")
+	st.Revenues = head("Recettes", "Total recettes nettes du budget général")
+	st.Expenses = head("Dépenses", "Total dépenses nettes du budget général")
+	st.Balance = head("Solde budgétaire", "Solde budgétaire")
 
 	// Le même mois de l'exercice précédent : c'est la seule comparaison qui ait
 	// un sens sur un cumul. Comparer juillet à l'année pleine d'avant serait
@@ -122,20 +122,20 @@ func loadBudget(ctx context.Context, pool *pgxpool.Pool) (*StatsBudget, error) {
 		return nil, err
 	}
 	for rows.Next() {
-		var l LigneBudget
+		var l LineBudget
 		var m, p *float64
-		if err := rows.Scan(&l.Niveau, &l.Categorie, &l.SousCategorie, &l.Ligne, &m, &p); err != nil {
+		if err := rows.Scan(&l.Level, &l.Category, &l.SubCategory, &l.Line, &m, &p); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		if m != nil {
-			l.Montant = *m
+			l.Amount = *m
 		}
 		if p != nil && *p != 0 {
-			l.Precedent, l.AvecPrecedent = *p, true
-			l.Ecart = 100 * (l.Montant - *p) / abs(*p)
+			l.Previous, l.WithPrevious = *p, true
+			l.Gap = 100 * (l.Amount - *p) / abs(*p)
 		}
-		st.Lignes = append(st.Lignes, l)
+		st.Lines = append(st.Lines, l)
 	}
 	rows.Close()
 	if err := rows.Err(); err != nil {
@@ -155,8 +155,8 @@ func loadBudget(ctx context.Context, pool *pgxpool.Pool) (*StatsBudget, error) {
 	if err != nil {
 		return nil, err
 	}
-	par := map[int]map[int]float64{}
-	var bas, haut float64
+	per := map[int]map[int]float64{}
+	var bottom, top float64
 	for srows.Next() {
 		var e, m int
 		var v *float64
@@ -166,64 +166,64 @@ func loadBudget(ctx context.Context, pool *pgxpool.Pool) (*StatsBudget, error) {
 		if v == nil {
 			continue
 		}
-		if par[e] == nil {
-			par[e] = map[int]float64{}
+		if per[e] == nil {
+			per[e] = map[int]float64{}
 		}
-		par[e][m] = *v
-		if *v < bas {
-			bas = *v
+		per[e][m] = *v
+		if *v < bottom {
+			bottom = *v
 		}
-		if *v > haut {
-			haut = *v
+		if *v > top {
+			top = *v
 		}
 	}
 	srows.Close()
-	for e := range par {
-		st.Exercices = append(st.Exercices, e)
+	for e := range per {
+		st.FiscalYears = append(st.FiscalYears, e)
 	}
-	sort.Ints(st.Exercices)
+	sort.Ints(st.FiscalYears)
 
 	const gw, gh, gl, gt, gb, gr = 720.0, 260.0, 96.0, 16.0, 30.0, 10.0
-	if haut < 0 {
-		haut = 0
+	if top < 0 {
+		top = 0
 	}
-	if bas == haut {
-		bas = haut - 1
+	if bottom == top {
+		bottom = top - 1
 	}
-	y := func(v float64) float64 { return gt + (gh-gt-gb)*(haut-v)/(haut-bas) }
-	pas := (gw - gl - gr) / 12
-	n := len(st.Exercices)
+	y := func(v float64) float64 { return gt + (gh-gt-gb)*(top-v)/(top-bottom) }
+	step := (gw - gl - gr) / 12
+	n := len(st.FiscalYears)
 	if n == 0 {
 		n = 1
 	}
-	larg := (pas - 6) / float64(n)
+	larg := (step - 6) / float64(n)
 
 	var g strings.Builder
 	// Zéro n'est pas une graduation comme les autres sur un solde : c'est la
 	// frontière entre déficit et excédent, donc un trait plein.
 	fmt.Fprintf(&g, `<line class="zero" x1="%.1f" y1="%.1f" x2="%.1f" y2="%.1f"/>`,
 		gl-4, y(0), gw-gr, y(0))
-	for _, v := range []float64{bas, bas / 2} {
+	for _, v := range []float64{bottom, bottom / 2} {
 		fmt.Fprintf(&g, `<text class="an" x="%.1f" y="%.1f" text-anchor="end">%s</text>`,
 			gl-8, y(v)+3, mdEur(v))
 	}
 	fmt.Fprintf(&g, `<text class="an" x="%.1f" y="%.1f" text-anchor="end">0</text>`, gl-8, y(0)+3)
-	mois := []string{"", "J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"}
+	month := []string{"", "J", "F", "M", "A", "M", "J", "J", "A", "S", "O", "N", "D"}
 	for m := 1; m <= 12; m++ {
 		fmt.Fprintf(&g, `<text class="an" x="%.1f" y="%.1f" text-anchor="middle">%s</text>`,
-			gl+pas*(float64(m)-0.5), gh-10, mois[m])
+			gl+step*(float64(m)-0.5), gh-10, month[m])
 	}
-	st.Grille = template.HTML(g.String())
+	st.Grid = template.HTML(g.String())
 
-	for i, e := range st.Exercices {
+	for i, e := range st.FiscalYears {
 		var b strings.Builder
-		c := CourbeExercice{Exercice: e}
+		c := CurveFiscalYear{FiscalYear: e}
 		for m := 1; m <= 12; m++ {
-			v, ok := par[e][m]
+			v, ok := per[e][m]
 			if !ok {
 				continue
 			}
-			x := gl + pas*float64(m-1) + 3 + larg*float64(i)
+			x := gl + step*float64(m-1) + 3 + larg*float64(i)
 			y0, y1 := y(0), y(v)
 			if y1 < y0 {
 				y0, y1 = y1, y0
@@ -234,48 +234,48 @@ func loadBudget(ctx context.Context, pool *pgxpool.Pool) (*StatsBudget, error) {
 			}
 			fmt.Fprintf(&b, `<rect class="b e%d" x="%.1f" y="%.1f" width="%.1f" height="%.1f">`+
 				`<title>%d, cumul à fin %s : %s</title></rect>`,
-				i, x, y0, larg-1, h, e, moisFr[m], mdEur(v))
-			c.Dernier, c.MoisFin = mdEur(v), m
+				i, x, y0, larg-1, h, e, monthFr[m], mdEur(v))
+			c.Last, c.MonthEnd = mdEur(v), m
 		}
-		c.Incomplet = c.MoisFin < 12
+		c.Incomplete = c.MonthEnd < 12
 		c.Path = template.HTML(b.String())
-		st.Courbes = append(st.Courbes, c)
+		st.Curves = append(st.Curves, c)
 	}
 
 	// Les lignes nommées de la situation mensuelle, niveau par niveau : les
 	// quatre grandes recettes fiscales, puis les natures de dépense. Ce sont
 	// des lignes RÉELLES de la source (categorie/niveau), pas une somme faite
 	// ici — une case de la même table, jamais recalculée.
-	detail := func(categorie string, niveau int) ([]SousSecteur, float64) {
+	detail := func(category string, level int) ([]SubSector, float64) {
 		drows, err := pool.Query(ctx, `
 			SELECT ligne, montant_eur FROM core.execution_etat
 			WHERE date_arrete=$1::date AND categorie=$2 AND niveau=$3
-			ORDER BY montant_eur DESC`, arrete, categorie, niveau)
+			ORDER BY montant_eur DESC`, arrete, category, level)
 		if err != nil {
 			return nil, 0
 		}
 		defer drows.Close()
-		var out []SousSecteur
+		var out []SubSector
 		var total float64
 		for drows.Next() {
-			var s SousSecteur
-			if err := drows.Scan(&s.Libelle, &s.Depenses); err != nil {
+			var s SubSector
+			if err := drows.Scan(&s.Label, &s.Expenses); err != nil {
 				break
 			}
 			out = append(out, s)
-			total += s.Depenses
+			total += s.Expenses
 		}
 		for i := range out {
 			if total > 0 {
-				out[i].PartDepenses = 100 * out[i].Depenses / total
+				out[i].ShareExpenses = 100 * out[i].Expenses / total
 			}
 		}
 		return out, total
 	}
-	st.RecettesDetail, _ = detail("Recettes", 3)
-	st.DepensesDetail, _ = detail("Dépenses", 2)
-	st.BarresRecettes = barresSecteurs(st.RecettesDetail)
-	st.BarresDepenses = barresSecteurs(st.DepensesDetail)
+	st.RevenuesDetail, _ = detail("Recettes", 3)
+	st.ExpensesDetail, _ = detail("Dépenses", 2)
+	st.BarsRevenues = barsSectors(st.RevenuesDetail)
+	st.BarsExpenses = barsSectors(st.ExpensesDetail)
 	return st, nil
 }
 
@@ -298,31 +298,31 @@ func abs(v float64) float64 {
 
 // ── Protection sociale ────────────────────────────────────────────────
 
-type RisqueSocial struct {
-	Code, Libelle string
-	Montant       float64
-	Part          float64
+type RiskSocial struct {
+	Code, Label string
+	Amount      float64
+	Share       float64
 }
 
 type StatsSocial struct {
-	Annee, Debut  int
-	Total         float64
-	Risques       []RisqueSocial
-	Serie         []PointAnnee
-	Courbe        template.HTML
-	SousRisques   []RisqueSocial
-	NbRegimes     int
-	PartSecuStric float64
-	Rupture       int
-	Population    []PointAnnee
-	CourbeAvecPop template.HTML
-	Donut         template.HTML
+	Year, Start               int
+	Total                     float64
+	Risks                     []RiskSocial
+	Series                    []PointYear
+	Curve                     template.HTML
+	SubRisks                  []RiskSocial
+	CountRegimes              int
+	ShareSocialSecurityStrict float64
+	Break                     int
+	Population                []PointYear
+	CurveWithPop              template.HTML
+	Donut                     template.HTML
 	// Part65, Part20 : la structure par âge que la courbe de population totale
 	// ne montre pas (voir la note abs de la page) — deux parts de la MÊME
 	// population, sur le MÊME axe 0-100, donc comparables directement.
-	Part65, Part20  []PointAnnee
-	CourbeAges      template.HTML
-	AnneeCroisement int
+	Share65, Share20 []PointYear
+	CurveAges        template.HTML
+	YearIntersection int
 }
 
 func loadSocial(ctx context.Context, pool *pgxpool.Pool) (*StatsSocial, error) {
@@ -332,45 +332,45 @@ func loadSocial(ctx context.Context, pool *pgxpool.Pool) (*StatsSocial, error) {
 	// 1981. Titrer « depuis 1959 » sur une courbe qui part de 1981 serait faux.
 	// max(...) est une agrégation : la ligne existe même sans protection
 	// sociale encore ingérée, avec une année NULL.
-	var anneeN sql.NullInt64
+	var yearN sql.NullInt64
 	err := pool.QueryRow(ctx, `
 		SELECT max(annee)::int, count(DISTINCT regime) FROM core.protection_sociale`).
-		Scan(&anneeN, &st.NbRegimes)
+		Scan(&yearN, &st.CountRegimes)
 	if err != nil {
 		return nil, err
 	}
-	st.Annee = int(anneeN.Int64)
+	st.Year = int(yearN.Int64)
 
 	// « Tous régimes » et le niveau 1 : six risques qui se somment exactement au
 	// total. Descendre plus bas ou mélanger les niveaux double-compterait.
-	const filtre = `si_code='S1' AND regime='Total tous régimes'`
+	const filter = `si_code='S1' AND regime='Total tous régimes'`
 	_ = pool.QueryRow(ctx, `SELECT valeur_meur*1e6 FROM core.protection_sociale
-		WHERE annee=$1 AND ps_niveau=0 AND `+filtre, st.Annee).Scan(&st.Total)
+		WHERE annee=$1 AND ps_niveau=0 AND `+filter, st.Year).Scan(&st.Total)
 
 	for _, niv := range []int{1, 2} {
 		rows, err := pool.Query(ctx, `
 			SELECT ps_code, ps_libelle, valeur_meur*1e6 FROM core.protection_sociale
-			WHERE annee=$1 AND ps_niveau=$2 AND `+filtre+` ORDER BY 3 DESC`, st.Annee, niv)
+			WHERE annee=$1 AND ps_niveau=$2 AND `+filter+` ORDER BY 3 DESC`, st.Year, niv)
 		if err != nil {
 			return nil, err
 		}
 		for rows.Next() {
-			var r RisqueSocial
-			if err := rows.Scan(&r.Code, &r.Libelle, &r.Montant); err != nil {
+			var r RiskSocial
+			if err := rows.Scan(&r.Code, &r.Label, &r.Amount); err != nil {
 				break
 			}
 			if st.Total > 0 {
-				r.Part = 100 * r.Montant / st.Total
+				r.Share = 100 * r.Amount / st.Total
 			}
 			if niv == 1 {
-				st.Risques = append(st.Risques, r)
+				st.Risks = append(st.Risks, r)
 			} else {
-				st.SousRisques = append(st.SousRisques, r)
+				st.SubRisks = append(st.SubRisks, r)
 			}
 		}
 		rows.Close()
 	}
-	st.Donut = donutRisques(st.Risques, st.Total, mdEur(st.Total))
+	st.Donut = donutRisks(st.Risks, st.Total, mdEur(st.Total))
 
 	// La série longue vient de la vue derived.protection_sociale_total, somme
 	// des six risques : elle rejoint EXACTEMENT le total « tous régimes » à
@@ -385,20 +385,20 @@ func loadSocial(ctx context.Context, pool *pgxpool.Pool) (*StatsSocial, error) {
 		return nil, err
 	}
 	for srows.Next() {
-		var p PointAnnee
-		if err := srows.Scan(&p.Annee, &p.Valeur); err != nil {
+		var p PointYear
+		if err := srows.Scan(&p.Year, &p.Value); err != nil {
 			break
 		}
-		st.Serie = append(st.Serie, p)
+		st.Series = append(st.Series, p)
 	}
 	srows.Close()
 	_ = pool.QueryRow(ctx, `
 		SELECT min(annee) FROM core.protection_sociale
-		WHERE ps_niveau=0 AND si_code='S1' AND regime='Total tous régimes'`).Scan(&st.Rupture)
-	if len(st.Serie) > 0 {
-		st.Debut = st.Serie[0].Annee
+		WHERE ps_niveau=0 AND si_code='S1' AND regime='Total tous régimes'`).Scan(&st.Break)
+	if len(st.Series) > 0 {
+		st.Start = st.Series[0].Year
 	}
-	st.Courbe = courbe(st.Serie, mdEur)
+	st.Curve = curve(st.Series, mdEur)
 
 	// La population totale, en superposition : la même hausse des prestations
 	// se lit très différemment selon qu'elle vient de plus de bénéficiaires ou
@@ -412,15 +412,15 @@ func loadSocial(ctx context.Context, pool *pgxpool.Pool) (*StatsSocial, error) {
 		return nil, err
 	}
 	for prows.Next() {
-		var p PointAnnee
-		if err := prows.Scan(&p.Annee, &p.Valeur); err != nil {
+		var p PointYear
+		if err := prows.Scan(&p.Year, &p.Value); err != nil {
 			break
 		}
 		st.Population = append(st.Population, p)
 	}
 	prows.Close()
 	millions := func(v float64) string { return Decimal(v/1e6, 1) + "\u202fM" }
-	st.CourbeAvecPop = courbeAvecLigne(st.Serie, st.Population, mdEur, millions,
+	st.CurveWithPop = curveWithLine(st.Series, st.Population, mdEur, millions,
 		"avec la population sur une échelle séparée")
 
 	// La structure par \u00e2ge : \u00ab la population a aussi vieilli \u00bb, affirm\u00e9 dans
@@ -438,16 +438,16 @@ func loadSocial(ctx context.Context, pool *pgxpool.Pool) (*StatsSocial, error) {
 	pct := "%"
 	for arows.Next() {
 		var an int
-		var p20, p65, tot float64
-		if err := arows.Scan(&an, &p20, &p65, &tot); err != nil {
+		var p20, p65, total float64
+		if err := arows.Scan(&an, &p20, &p65, &total); err != nil {
 			arows.Close()
 			return nil, err
 		}
-		if tot <= 0 {
+		if total <= 0 {
 			continue
 		}
-		st.Part20 = append(st.Part20, PointAnnee{Annee: an, Valeur: 100 * p20 / tot})
-		st.Part65 = append(st.Part65, PointAnnee{Annee: an, Valeur: 100 * p65 / tot})
+		st.Share20 = append(st.Share20, PointYear{Year: an, Value: 100 * p20 / total})
+		st.Share65 = append(st.Share65, PointYear{Year: an, Value: 100 * p65 / total})
 	}
 	arows.Close()
 	if err := arows.Err(); err != nil {
@@ -455,13 +455,13 @@ func loadSocial(ctx context.Context, pool *pgxpool.Pool) (*StatsSocial, error) {
 	}
 	// L'ann\u00e9e de croisement : la premi\u00e8re o\u00f9 les 65 ans et plus d\u00e9passent les
 	// moins de 20 ans \u2014 un fait dat\u00e9, pas une tendance qu'on affirme \u00e0 l'\u0153il.
-	for i, p := range st.Part65 {
-		if p.Valeur > st.Part20[i].Valeur {
-			st.AnneeCroisement = p.Annee
+	for i, p := range st.Share65 {
+		if p.Value > st.Share20[i].Value {
+			st.YearIntersection = p.Year
 			break
 		}
 	}
-	st.CourbeAges = deuxCourbes(st.Part65, st.Part20,
+	st.CurveAges = twoCurves(st.Share65, st.Share20,
 		"65 ans et plus", "Moins de 20 ans", func(v float64) string { return Decimal(v, 1) + pct })
 	return st, nil
 }
@@ -472,67 +472,67 @@ func loadSocial(ctx context.Context, pool *pgxpool.Pool) (*StatsSocial, error) {
 // sociale en fait presque la moitié, et les collectivités un cinquième. Les
 // trois sont votés par des assemblées différentes, tenus dans des comptabilités
 // différentes, et le déficit dont on parle au journal est la somme des trois.
-type SousSecteur struct {
-	Code, Libelle             string
-	Depenses, Recettes, Solde float64
-	PartDepenses              float64
+type SubSector struct {
+	Code, Label                 string
+	Expenses, Revenues, Balance float64
+	ShareExpenses               float64
 }
 
-type SerieSecteur struct {
-	Annee                     int
-	Depenses, Recettes, Solde float64
+type SeriesSector struct {
+	Year                        int
+	Expenses, Revenues, Balance float64
 }
 
-type StatsSecteurs struct {
+type StatsSectors struct {
 	// Consolidation : la somme des dépenses des trois sous-secteurs dépasse le
 	// total consolidé, parce qu'un transfert de l'État à une collectivité est
 	// une dépense de l'un ET finance une dépense de l'autre. Les soldes, eux,
 	// s'additionnent exactement.
-	SommeDepenses      float64
-	EcartConsolidation float64
+	SumExpenses      float64
+	GapConsolidation float64
 	// DepRec : dépenses et recettes des administrations publiques, année par
 	// année, en barres appariées. Le solde se lit dans l'écart entre les deux.
-	DepRec    template.HTML
-	Annee     int
-	Debut     int
-	Secteurs  []SousSecteur
-	Total     SousSecteur
-	Series    map[string][]SerieSecteur
-	Barres    template.HTML
-	Financem  []LigneFinancement
-	AnnFin    int
-	DebutFin  int
-	BarresFin template.HTML
+	DepRec   template.HTML
+	Year     int
+	Start    int
+	Sectors  []SubSector
+	Total    SubSector
+	Series   map[string][]SeriesSector
+	Bars     template.HTML
+	Financem []LineFinancing
+	AnnEnd   int
+	StartEnd int
+	BarsEnd  template.HTML
 	// CourbeS1311S1314 : les dépenses de l'administration centrale contre
 	// celles de la Sécurité sociale, sur toute la série — le fait que la
 	// seconde dépense plus que la première n'est montré nulle part ailleurs
 	// qu'en un instantané d'une seule année (Secteurs, ci-dessus).
-	CourbeS1311S1314    template.HTML
-	AnneeCroisement1314 int
+	CurveS1311S1314      template.HTML
+	YearIntersection1314 int
 	// EmpileesFinancement : les quatre postes de financement de la protection
 	// sociale, empilés à 100 % sur TOUTE la série (1990–2023) — barresFin,
 	// ci-dessus, ne montre que deux dates.
-	EmpileesFinancement template.HTML
+	StackedFinancing template.HTML
 }
 
-type LigneFinancement struct {
-	Code, Libelle string
-	Montant       float64
-	Part          float64
-	PartDebut     float64
+type LineFinancing struct {
+	Code, Label string
+	Amount      float64
+	Share       float64
+	ShareStart  float64
 }
 
-func loadSecteurs(ctx context.Context, pool *pgxpool.Pool) (*StatsSecteurs, error) {
-	st := &StatsSecteurs{Series: map[string][]SerieSecteur{}}
+func loadSectors(ctx context.Context, pool *pgxpool.Pool) (*StatsSectors, error) {
+	st := &StatsSectors{Series: map[string][]SeriesSector{}}
 	// max/min sont des agrégations : la ligne existe même sans ce dérivé
 	// encore calculé, avec des bornes NULL.
-	var anneeN, debutN sql.NullInt64
+	var yearN, startN sql.NullInt64
 	if err := pool.QueryRow(ctx,
 		`SELECT max(annee), min(annee) FROM derived.budget_sous_secteur`).
-		Scan(&anneeN, &debutN); err != nil {
+		Scan(&yearN, &startN); err != nil {
 		return nil, err
 	}
-	st.Annee, st.Debut = int(anneeN.Int64), int(debutN.Int64)
+	st.Year, st.Start = int(yearN.Int64), int(startN.Int64)
 	rows, err := pool.Query(ctx, `
 		SELECT annee, secteur, perimetre_label,
 		       depenses_meur::float8*1e6, recettes_meur::float8*1e6, solde_meur::float8*1e6
@@ -547,61 +547,61 @@ func loadSecteurs(ctx context.Context, pool *pgxpool.Pool) (*StatsSecteurs, erro
 		if err := rows.Scan(&an, &code, &lib, &d, &r, &so); err != nil {
 			break
 		}
-		st.Series[code] = append(st.Series[code], SerieSecteur{an, d, r, so})
-		if an == st.Annee {
-			s := SousSecteur{Code: code, Libelle: lib, Depenses: d, Recettes: r, Solde: so}
+		st.Series[code] = append(st.Series[code], SeriesSector{an, d, r, so})
+		if an == st.Year {
+			s := SubSector{Code: code, Label: lib, Expenses: d, Revenues: r, Balance: so}
 			if code == "S13" {
 				st.Total = s
 			} else {
-				st.Secteurs = append(st.Secteurs, s)
+				st.Sectors = append(st.Sectors, s)
 			}
 		}
 	}
 	rows.Close()
-	for _, x := range st.Secteurs {
-		st.SommeDepenses += x.Depenses
+	for _, x := range st.Sectors {
+		st.SumExpenses += x.Expenses
 	}
-	st.EcartConsolidation = st.SommeDepenses - st.Total.Depenses
-	for i := range st.Secteurs {
-		if st.Total.Depenses > 0 {
-			st.Secteurs[i].PartDepenses = 100 * st.Secteurs[i].Depenses / st.Total.Depenses
+	st.GapConsolidation = st.SumExpenses - st.Total.Expenses
+	for i := range st.Sectors {
+		if st.Total.Expenses > 0 {
+			st.Sectors[i].ShareExpenses = 100 * st.Sectors[i].Expenses / st.Total.Expenses
 		}
 	}
-	sort.Slice(st.Secteurs, func(i, j int) bool {
-		return st.Secteurs[i].Depenses > st.Secteurs[j].Depenses
+	sort.Slice(st.Sectors, func(i, j int) bool {
+		return st.Sectors[i].Expenses > st.Sectors[j].Expenses
 	})
-	st.Barres = barresSecteurs(st.Secteurs)
-	var paires []PaireAnnee
+	st.Bars = barsSectors(st.Sectors)
+	var pairs []PairYear
 	for _, x := range st.Series["S13"] {
-		paires = append(paires, PaireAnnee{x.Annee, x.Depenses, x.Recettes})
+		pairs = append(pairs, PairYear{x.Year, x.Expenses, x.Revenues})
 	}
-	st.DepRec = barresAppariees(paires, "Dépenses", "Recettes", mdEur, 5)
+	st.DepRec = barsMatched(pairs, "Dépenses", "Recettes", mdEur, 5)
 
 	// Administration centrale contre Sécurité sociale, dépenses, toute la
 	// série : « c'est la Sécurité sociale qui dépense le plus » (la note plus
 	// bas) devient une forme, pas seulement un chiffre pour la dernière année.
-	var s1311, s1314 []PointAnnee
+	var s1311, s1314 []PointYear
 	for _, x := range st.Series["S1311"] {
-		s1311 = append(s1311, PointAnnee{Annee: x.Annee, Valeur: x.Depenses})
+		s1311 = append(s1311, PointYear{Year: x.Year, Value: x.Expenses})
 	}
 	for _, x := range st.Series["S1314"] {
-		s1314 = append(s1314, PointAnnee{Annee: x.Annee, Valeur: x.Depenses})
+		s1314 = append(s1314, PointYear{Year: x.Year, Value: x.Expenses})
 	}
 	if len(s1311) == len(s1314) {
 		for i, p := range s1314 {
-			if p.Valeur > s1311[i].Valeur {
-				st.AnneeCroisement1314 = p.Annee
+			if p.Value > s1311[i].Value {
+				st.YearIntersection1314 = p.Year
 				break
 			}
 		}
-		st.CourbeS1311S1314 = deuxCourbes(s1314, s1311,
+		st.CurveS1311S1314 = twoCurves(s1314, s1311,
 			"Sécurité sociale (S1314)", "Administration centrale (S1311)", mdEur)
 	}
 
 	// Le financement de la protection sociale : la bascule cotisations → impôt.
 	// C'est le fait le plus mal connu du budget social, et il est publié tel
 	// quel par la DREES — aucune interprétation n'est nécessaire pour le voir.
-	postes := []struct{ code, lib string }{
+	positions := []struct{ code, lib string }{
 		{"protection.financement.cotisations.employeurs", "Cotisations des employeurs"},
 		{"protection.financement.cotisations.protegees", "Cotisations des assurés"},
 		{"protection.financement.impot.affecte", "Recettes fiscales affectées"},
@@ -609,34 +609,34 @@ func loadSecteurs(ctx context.Context, pool *pgxpool.Pool) (*StatsSecteurs, erro
 	}
 	_ = pool.QueryRow(ctx, `
 		SELECT max(annee), min(annee) FROM core.macro_value
-		WHERE serie_code='protection.financement.total'`).Scan(&st.AnnFin, &st.DebutFin)
-	var totFin, totDeb float64
+		WHERE serie_code='protection.financement.total'`).Scan(&st.AnnEnd, &st.StartEnd)
+	var totalEnd, totalDeb float64
 	_ = pool.QueryRow(ctx, `
 		SELECT valeur::float8 FROM core.macro_value
-		WHERE serie_code='protection.financement.total' AND annee=$1`, st.AnnFin).Scan(&totFin)
+		WHERE serie_code='protection.financement.total' AND annee=$1`, st.AnnEnd).Scan(&totalEnd)
 	_ = pool.QueryRow(ctx, `
 		SELECT valeur::float8 FROM core.macro_value
-		WHERE serie_code='protection.financement.total' AND annee=$1`, st.DebutFin).Scan(&totDeb)
-	for _, p := range postes {
-		var fin, deb *float64
+		WHERE serie_code='protection.financement.total' AND annee=$1`, st.StartEnd).Scan(&totalDeb)
+	for _, p := range positions {
+		var end, deb *float64
 		_ = pool.QueryRow(ctx, `
 			SELECT max(valeur) FILTER (WHERE annee=$2)::float8,
 			       max(valeur) FILTER (WHERE annee=$3)::float8
-			FROM core.macro_value WHERE serie_code=$1`, p.code, st.AnnFin, st.DebutFin).
-			Scan(&fin, &deb)
-		l := LigneFinancement{Code: p.code, Libelle: p.lib}
-		if fin != nil {
-			l.Montant = *fin * 1e6
-			if totFin > 0 {
-				l.Part = 100 * *fin / totFin
+			FROM core.macro_value WHERE serie_code=$1`, p.code, st.AnnEnd, st.StartEnd).
+			Scan(&end, &deb)
+		l := LineFinancing{Code: p.code, Label: p.lib}
+		if end != nil {
+			l.Amount = *end * 1e6
+			if totalEnd > 0 {
+				l.Share = 100 * *end / totalEnd
 			}
 		}
-		if deb != nil && totDeb > 0 {
-			l.PartDebut = 100 * *deb / totDeb
+		if deb != nil && totalDeb > 0 {
+			l.ShareStart = 100 * *deb / totalDeb
 		}
 		st.Financem = append(st.Financem, l)
 	}
-	st.BarresFin = barresFinancement(st.Financem, st.DebutFin, st.AnnFin)
+	st.BarsEnd = barsFinancing(st.Financem, st.StartEnd, st.AnnEnd)
 
 	// La même bascule, sur les 34 années, en 100 % empilé — barresFinancement
 	// ne compare que deux dates parce qu'un empilement en série devient un mur
@@ -651,9 +651,9 @@ func loadSecteurs(ctx context.Context, pool *pgxpool.Pool) (*StatsSecteurs, erro
 	if err != nil {
 		return nil, err
 	}
-	valeursFin := map[string]map[int]float64{}
-	var anneesFin []int
-	vuAnneeFin := map[int]bool{}
+	valuesEnd := map[string]map[int]float64{}
+	var yearsEnd []int
+	seenYearEnd := map[int]bool{}
 	for frows.Next() {
 		var an int
 		var code string
@@ -662,54 +662,54 @@ func loadSecteurs(ctx context.Context, pool *pgxpool.Pool) (*StatsSecteurs, erro
 			frows.Close()
 			return nil, err
 		}
-		if valeursFin[code] == nil {
-			valeursFin[code] = map[int]float64{}
+		if valuesEnd[code] == nil {
+			valuesEnd[code] = map[int]float64{}
 		}
-		valeursFin[code][an] = v
-		if !vuAnneeFin[an] {
-			vuAnneeFin[an] = true
-			anneesFin = append(anneesFin, an)
+		valuesEnd[code][an] = v
+		if !seenYearEnd[an] {
+			seenYearEnd[an] = true
+			yearsEnd = append(yearsEnd, an)
 		}
 	}
 	frows.Close()
 	if err := frows.Err(); err != nil {
 		return nil, err
 	}
-	sort.Ints(anneesFin)
+	sort.Ints(yearsEnd)
 	// 100 % empilé : chaque poste en PART de l'année, pas en montant — sinon
 	// l'inflation ferait grossir la barre entière, et le propos est la
 	// COMPOSITION, pas le total.
-	totAnnee := map[int]float64{}
+	totalYear := map[int]float64{}
 	for _, code := range []string{"protection.financement.cotisations.employeurs",
 		"protection.financement.cotisations.protegees", "protection.financement.impot.affecte",
 		"protection.financement.impot.general"} {
-		for an, v := range valeursFin[code] {
-			totAnnee[an] += v
+		for an, v := range valuesEnd[code] {
+			totalYear[an] += v
 		}
 	}
-	pctFin := map[string]map[int]float64{}
-	for _, p := range postes {
-		pctFin[p.code] = map[int]float64{}
-		for an, v := range valeursFin[p.code] {
-			if totAnnee[an] > 0 {
-				pctFin[p.code][an] = 100 * v / totAnnee[an]
+	pctEnd := map[string]map[int]float64{}
+	for _, p := range positions {
+		pctEnd[p.code] = map[int]float64{}
+		for an, v := range valuesEnd[p.code] {
+			if totalYear[an] > 0 {
+				pctEnd[p.code][an] = 100 * v / totalYear[an]
 			}
 		}
 	}
-	st.EmpileesFinancement = barresEmpileesAnnuelles(anneesFin, []SerieEmpilee{
-		{Libelle: postes[0].lib, Couleur: "#1E5C69", Valeurs: pctFin[postes[0].code]},
-		{Libelle: postes[1].lib, Couleur: "#4A8894", Valeurs: pctFin[postes[1].code]},
-		{Libelle: postes[2].lib, Couleur: "#B0CFD5", Valeurs: pctFin[postes[2].code]},
-		{Libelle: postes[3].lib, Couleur: "#DCE9EC", Valeurs: pctFin[postes[3].code]},
+	st.StackedFinancing = barsStackedAnnual(yearsEnd, []SeriesStacked{
+		{Label: positions[0].lib, Color: "#1E5C69", Values: pctEnd[positions[0].code]},
+		{Label: positions[1].lib, Color: "#4A8894", Values: pctEnd[positions[1].code]},
+		{Label: positions[2].lib, Color: "#B0CFD5", Values: pctEnd[positions[2].code]},
+		{Label: positions[3].lib, Color: "#DCE9EC", Values: pctEnd[positions[3].code]},
 	}, func(v float64) string { return Decimal(v, 1) + " %" })
 	return st, nil
 }
 
-func barresSecteurs(ss []SousSecteur) template.HTML {
+func barsSectors(ss []SubSector) template.HTML {
 	var max float64
 	for _, s := range ss {
-		if s.Depenses > max {
-			max = s.Depenses
+		if s.Expenses > max {
+			max = s.Expenses
 		}
 	}
 	if max <= 0 {
@@ -721,38 +721,38 @@ func barresSecteurs(ss []SousSecteur) template.HTML {
 		fmt.Fprintf(&b, `<div class="ligne"><span class="n">%s</span>`+
 			`<span class="piste"><i style="width:%.1f%%"></i></span>`+
 			`<span class="v">%s</span><span class="c">%s</span></div>`,
-			template.HTMLEscapeString(s.Libelle), 100*s.Depenses/max,
-			mdEur(s.Depenses), Decimal(s.PartDepenses, 0)+" %")
+			template.HTMLEscapeString(s.Label), 100*s.Expenses/max,
+			mdEur(s.Expenses), Decimal(s.ShareExpenses, 0)+" %")
 	}
 	b.WriteString(`</div>`)
 	return template.HTML(b.String())
 }
 
-// barresFinancement : deux barres empilées à 100 %, la première année et la
+// barsFinancing : deux barres empilées à 100 %, la première année et la
 // dernière. Un empilement en pourcentage ne se lit bien qu'à deux ou trois
 // dates ; en série annuelle il devient un mur de couleurs.
-func barresFinancement(ls []LigneFinancement, debut, fin int) template.HTML {
+func barsFinancing(ls []LineFinancing, start, end int) template.HTML {
 	if len(ls) == 0 {
 		return ""
 	}
 	var b strings.Builder
 	for _, cas := range []struct {
-		an   int
-		part func(LigneFinancement) float64
-	}{{debut, func(l LigneFinancement) float64 { return l.PartDebut }},
-		{fin, func(l LigneFinancement) float64 { return l.Part }}} {
+		an    int
+		share func(LineFinancing) float64
+	}{{start, func(l LineFinancing) float64 { return l.ShareStart }},
+		{end, func(l LineFinancing) float64 { return l.Share }}} {
 		fmt.Fprintf(&b, `<div class="empil"><span class="an">%d</span><span class="pile">`, cas.an)
 		for i, l := range ls {
 			fmt.Fprintf(&b, `<i class="f%d" style="width:%.2f%%" title="%s : %s"></i>`,
-				i, cas.part(l), template.HTMLEscapeString(l.Libelle),
-				Decimal(cas.part(l), 1)+" %")
+				i, cas.share(l), template.HTMLEscapeString(l.Label),
+				Decimal(cas.share(l), 1)+" %")
 		}
 		b.WriteString(`</span></div>`)
 	}
 	b.WriteString(`<div class="legende">`)
 	for i, l := range ls {
 		fmt.Fprintf(&b, `<span><i class="f%d"></i>%s</span>`, i,
-			template.HTMLEscapeString(l.Libelle))
+			template.HTMLEscapeString(l.Label))
 	}
 	b.WriteString(`</div>`)
 	return template.HTML(`<div class="empils">` + b.String() + `</div>`)

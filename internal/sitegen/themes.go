@@ -21,35 +21,35 @@ import (
 // scrutins du Sénat, faute de référence de texte dans le dump Dosleg.
 type Theme struct {
 	Code, Slug, Label string
-	Scrutins          int
-	Groupes           []GroupeLigne
-	Derniers          []FluxLigne
+	Elections         int
+	Groups            []GroupLine
+	Last              []FlowLine
 	// Ce que le thème dit des candidats de 2027 : leur vote personnel sur les
 	// scrutins qui s'y rattachent. C'est un décompte, pas une position — un
 	// vote contre peut viser le véhicule, le calendrier ou un texte concurrent.
-	Candidats []VoteThemeCandidat
+	Candidates []VoteThemeCandidate
 }
 
-type VoteThemeCandidat struct {
-	Slug, Nom, Organisation          string
-	Pour, Contre, Abstention, Absent int
-	Exprimes                         int
+type VoteThemeCandidate struct {
+	Slug, Name, Organization         string
+	For, Against, Abstention, Absent int
+	Expressed                        int
 }
 
 type StatsThemes struct {
-	Themes          []*Theme
-	TotalSenat      int
-	MaxScrutins     int
-	ScrutinsAN      int
-	ScrutinsPE      int
-	TotalConcepts   int
-	CHESPartis      int
-	CHESGroupesLies int
-	CHESJoignables  int
+	Themes           []*Theme
+	TotalSenate      int
+	MaxElections     int
+	ElectionsAN      int
+	ElectionsPE      int
+	TotalConcepts    int
+	CHESParties      int
+	CHESGroupsLinked int
+	CHESReachable    int
 }
 
-func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
-	candidatSlugs []string, orgParSlug map[string]string) (*StatsThemes, error) {
+func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxPerTheme int,
+	candidateSlugs []string, orgPerSlug map[string]string) (*StatsThemes, error) {
 	st := &StatsThemes{}
 	byCode := map[string]*Theme{}
 
@@ -64,15 +64,15 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 	}
 	for rows.Next() {
 		t := &Theme{}
-		if err := rows.Scan(&t.Code, &t.Label, &t.Scrutins); err != nil {
+		if err := rows.Scan(&t.Code, &t.Label, &t.Elections); err != nil {
 			rows.Close()
 			return nil, err
 		}
 		t.Slug = partis.Slugify(t.Label)
 		byCode[t.Code] = t
 		st.Themes = append(st.Themes, t)
-		if t.Scrutins > st.MaxScrutins {
-			st.MaxScrutins = t.Scrutins
+		if t.Elections > st.MaxElections {
+			st.MaxElections = t.Elections
 		}
 	}
 	rows.Close()
@@ -104,14 +104,14 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 	}
 	for grows.Next() {
 		var code string
-		var g GroupeLigne
-		if err := grows.Scan(&code, &g.Nom, &g.Slug, &g.Pour, &g.Contre, &g.Abstention, &g.Absent); err != nil {
+		var g GroupLine
+		if err := grows.Scan(&code, &g.Name, &g.Slug, &g.For, &g.Against, &g.Abstention, &g.Absent); err != nil {
 			grows.Close()
 			return nil, err
 		}
-		g.Total = g.Pour + g.Contre + g.Abstention + g.Absent
+		g.Total = g.For + g.Against + g.Abstention + g.Absent
 		if t := byCode[code]; t != nil {
-			t.Groupes = append(t.Groupes, g)
+			t.Groups = append(t.Groups, g)
 		}
 	}
 	grows.Close()
@@ -133,20 +133,20 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 	defer srows.Close()
 	for srows.Next() {
 		var code string
-		var f FluxLigne
-		if err := srows.Scan(&code, &f.Slug, &f.Objet, &f.Date, &f.Resultat,
-			&f.Pour, &f.Contre, &f.Abstentions); err != nil {
+		var f FlowLine
+		if err := srows.Scan(&code, &f.Slug, &f.Object, &f.Date, &f.Result,
+			&f.For, &f.Against, &f.Abstentions); err != nil {
 			return nil, err
 		}
 		t := byCode[code]
-		if t == nil || len(t.Derniers) >= maxParTheme {
+		if t == nil || len(t.Last) >= maxPerTheme {
 			continue
 		}
-		f.Objet, _ = TitreCourt(f.Objet)
-		f.Exprimes = f.Pour + f.Contre + f.Abstentions
-		f.Resultat = ResultatLong(
-			map[string]string{"ADOPTE": "adopté", "REJETE": "rejeté", "": ""}[f.Resultat], "")
-		t.Derniers = append(t.Derniers, f)
+		f.Object, _ = TitleShort(f.Object)
+		f.Expressed = f.For + f.Against + f.Abstentions
+		f.Result = ResultLong(
+			map[string]string{"ADOPTE": "adopté", "REJETE": "rejeté", "": ""}[f.Result], "")
+		t.Last = append(t.Last, f)
 	}
 
 	// Vote des candidats déclarés à 2027, thème par thème — mv.
@@ -162,35 +162,35 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 		JOIN ref.topic r ON r.code=t.topic_code AND r.taxonomy_version='senat'
 		JOIN mv.scrutin_vote_nominal mv ON mv.scrutin_id=t.scrutin_id
 		WHERE mv.person_slug = ANY($1)
-		GROUP BY 1,2,3`, candidatSlugs)
+		GROUP BY 1,2,3`, candidateSlugs)
 	if err != nil {
 		return nil, err
 	}
 	for crows.Next() {
 		var code string
-		var v VoteThemeCandidat
-		if err := crows.Scan(&code, &v.Slug, &v.Nom, &v.Pour, &v.Contre,
+		var v VoteThemeCandidate
+		if err := crows.Scan(&code, &v.Slug, &v.Name, &v.For, &v.Against,
 			&v.Abstention, &v.Absent); err != nil {
 			crows.Close()
 			return nil, err
 		}
-		v.Exprimes = v.Pour + v.Contre + v.Abstention
-		if t := byCode[code]; t != nil && v.Exprimes > 0 {
-			v.Organisation = orgParSlug[v.Slug]
-			t.Candidats = append(t.Candidats, v)
+		v.Expressed = v.For + v.Against + v.Abstention
+		if t := byCode[code]; t != nil && v.Expressed > 0 {
+			v.Organization = orgPerSlug[v.Slug]
+			t.Candidates = append(t.Candidates, v)
 		}
 	}
 	crows.Close()
 
 	for _, t := range st.Themes {
-		sort.Slice(t.Candidats, func(i, j int) bool {
-			return CleTri(t.Candidats[i].Nom) < CleTri(t.Candidats[j].Nom)
+		sort.Slice(t.Candidates, func(i, j int) bool {
+			return KeySort(t.Candidates[i].Name) < KeySort(t.Candidates[j].Name)
 		})
-		sort.Slice(t.Groupes, func(i, j int) bool {
-			if t.Groupes[i].Total != t.Groupes[j].Total {
-				return t.Groupes[i].Total > t.Groupes[j].Total
+		sort.Slice(t.Groups, func(i, j int) bool {
+			if t.Groups[i].Total != t.Groups[j].Total {
+				return t.Groups[i].Total > t.Groups[j].Total
 			}
-			return t.Groupes[i].Nom < t.Groupes[j].Nom
+			return t.Groups[i].Name < t.Groups[j].Name
 		})
 	}
 
@@ -200,12 +200,12 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 		       (SELECT count(*) FROM core.party_group_link),
 		       (SELECT count(*) FROM (SELECT party_id FROM core.party_classification
 		          INTERSECT SELECT party_id FROM core.party_group_link) x)`).
-		Scan(&st.CHESPartis, &st.CHESGroupesLies, &st.CHESJoignables)
+		Scan(&st.CHESParties, &st.CHESGroupsLinked, &st.CHESReachable)
 
 	// 30 thèmes existent au Sénat ; tous n'atteignent pas un scrutin de
 	// l'Assemblée. Afficher « les 28 thèmes du Sénat » serait faux.
 	_ = pool.QueryRow(ctx, `SELECT count(*) FROM ref.topic WHERE taxonomy_version='senat'`).
-		Scan(&st.TotalSenat)
+		Scan(&st.TotalSenate)
 
 	_ = pool.QueryRow(ctx, `
 		SELECT (SELECT count(DISTINCT t.scrutin_id) FROM derived.scrutin_topic t
@@ -215,7 +215,7 @@ func loadThemes(ctx context.Context, pool *pgxpool.Pool, maxParTheme int,
 		         JOIN core.scrutin s ON s.id=t.scrutin_id
 		         WHERE s.institution='PARLEMENT_EUROPEEN'),
 		       (SELECT count(*) FROM ref.topic WHERE taxonomy_version='eurovoc')`).
-		Scan(&st.ScrutinsAN, &st.ScrutinsPE, &st.TotalConcepts)
+		Scan(&st.ElectionsAN, &st.ElectionsPE, &st.TotalConcepts)
 
 	return st, nil
 }

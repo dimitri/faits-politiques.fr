@@ -5,10 +5,10 @@ import (
 	"testing"
 )
 
-func TestCacheChargerAbsent(t *testing.T) {
-	c, err := chargerCache(filepath.Join(t.TempDir(), "n-existe-pas.json"))
+func TestCacheLoadAbsent(t *testing.T) {
+	c, err := loadCache(filepath.Join(t.TempDir(), "n-existe-pas.json"))
 	if err != nil {
-		t.Fatalf("chargerCache sur un fichier absent : %v", err)
+		t.Fatalf("loadCache sur un fichier absent : %v", err)
 	}
 	if c.Entries == nil || len(c.Entries) != 0 {
 		t.Fatalf("attendu un cache vide, obtenu %#v", c)
@@ -17,39 +17,39 @@ func TestCacheChargerAbsent(t *testing.T) {
 
 func TestCacheRoundTrip(t *testing.T) {
 	path := filepath.Join(t.TempDir(), "media-cache.json")
-	c := cache{Entries: map[string]entreeCache{
-		cleCache("Jean Dupont", "PORTRAIT"): {
-			Nom: "Jean_Dupont.jpg", Licence: "CC BY-SA 4.0", Local: "jean-dupont-portrait.jpg",
-			Largeur: 400, Hauteur: 533,
+	c := cache{Entries: map[string]cacheEntry{
+		cacheKey("Jean Dupont", "PORTRAIT"): {
+			Name: "Jean_Dupont.jpg", Licence: "CC BY-SA 4.0", Local: "jean-dupont-portrait.jpg",
+			Width: 400, Height: 533,
 		},
-		cleCache("Parti Imaginaire", "LOGO"): {
-			Rejete: true, Raison: "licence non libre : fair use",
+		cacheKey("Parti Imaginaire", "LOGO"): {
+			Rejected: true, Reason: "licence non libre : fair use",
 		},
 	}}
-	if err := c.sauvegarder(path); err != nil {
-		t.Fatalf("sauvegarder : %v", err)
+	if err := c.save(path); err != nil {
+		t.Fatalf("save : %v", err)
 	}
-	relu, err := chargerCache(path)
+	reread, err := loadCache(path)
 	if err != nil {
-		t.Fatalf("chargerCache : %v", err)
+		t.Fatalf("loadCache : %v", err)
 	}
-	if len(relu.Entries) != 2 {
-		t.Fatalf("attendu 2 entrées, obtenu %d", len(relu.Entries))
+	if len(reread.Entries) != 2 {
+		t.Fatalf("attendu 2 entrées, obtenu %d", len(reread.Entries))
 	}
-	pos, ok := relu.Entries[cleCache("Jean Dupont", "PORTRAIT")]
-	if !ok || pos.Local != "jean-dupont-portrait.jpg" || pos.Rejete {
+	pos, ok := reread.Entries[cacheKey("Jean Dupont", "PORTRAIT")]
+	if !ok || pos.Local != "jean-dupont-portrait.jpg" || pos.Rejected {
 		t.Fatalf("entrée positive mal relue : %#v", pos)
 	}
-	neg, ok := relu.Entries[cleCache("Parti Imaginaire", "LOGO")]
-	if !ok || !neg.Rejete || neg.Raison == "" {
+	neg, ok := reread.Entries[cacheKey("Parti Imaginaire", "LOGO")]
+	if !ok || !neg.Rejected || neg.Reason == "" {
 		t.Fatalf("entrée négative mal relue : %#v", neg)
 	}
 }
 
-func TestCleCacheDistingueLeKind(t *testing.T) {
+func TestCacheKeyDistinguishesKind(t *testing.T) {
 	// Même PageFR, kinds différents : deux clés distinctes, jamais la même
 	// entrée de cache utilisée pour un portrait et un logo.
-	if cleCache("Même Page", "PORTRAIT") == cleCache("Même Page", "LOGO") {
-		t.Fatal("cleCache ne distingue pas PORTRAIT de LOGO pour la même page")
+	if cacheKey("Même Page", "PORTRAIT") == cacheKey("Même Page", "LOGO") {
+		t.Fatal("cacheKey ne distingue pas PORTRAIT de LOGO pour la même page")
 	}
 }

@@ -12,7 +12,7 @@ import (
 var SourceFluxMigratoire = archive.Source{
 	Slug: "eurostat-flux-migratoire", Label: "Eurostat — flux annuels d'immigration et de naturalisation",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat, migr_imm1ctz et migr_acq",
 	Cadence:     "annuelle",
 	Notes: "Flux, pas des stocks : combien de personnes immigrent ou acquièrent la " +
@@ -49,10 +49,10 @@ func IngestFlux(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 
 	var rows [][]any
 	for _, t := range imm {
-		rows = append(rows, []any{"IMMIGRATION", "FR", t.Annee, t.Valeur, srcID})
+		rows = append(rows, []any{"IMMIGRATION", "FR", t.Year, t.Value, srcID})
 	}
 	for _, t := range acq {
-		rows = append(rows, []any{"NATURALISATION", "FR", t.Annee, t.Valeur, srcID})
+		rows = append(rows, []any{"NATURALISATION", "FR", t.Year, t.Value, srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("aucune valeur décodée"))
@@ -91,13 +91,13 @@ func IngestFlux(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	if err != nil {
 		return fail(fmt.Errorf("fusion flux_migratoire : %w", err))
 	}
-	touchees := ct.RowsAffected()
+	affected := ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": touchees}, "")
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"lignes_chargees": affected}, "")
 	fmt.Printf("  flux migratoires (immigration %d ans, naturalisation %d ans, %d touchées)\n",
-		len(imm), len(acq), touchees)
+		len(imm), len(acq), affected)
 	return nil
 }

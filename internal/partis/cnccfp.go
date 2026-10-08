@@ -25,7 +25,7 @@ const ConnectorVersion = "partis/1"
 var SourceCNCCFP = archive.Source{
 	Slug: "cnccfp-comptes", Label: "CNCCFP — Comptes des partis et groupements politiques",
 	Publisher: "Commission nationale des comptes de campagne et des financements politiques",
-	Tier:      "PRIMARY_OFFICIAL", Licence: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
+	Tier:      "PRIMARY_OFFICIAL", License: "Licence Ouverte", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : CNCCFP, comptes des partis et groupements politiques",
 	Cadence:     "annuelle",
 	Notes: "CSV à séparateur point-virgule, BOM UTF-8, 166 colonnes. " +
@@ -34,28 +34,28 @@ var SourceCNCCFP = archive.Source{
 
 // Exercices disponibles au format CSV sur data.gouv.fr. Les exercices
 // antérieurs ne sont publiés qu'en tableur ou en PDF et ne sont pas ingérés.
-var ComptesURLs = map[int]string{
+var AccountURLs = map[int]string{
 	2024: "https://static.data.gouv.fr/resources/comptes-des-partis-et-groupements-politiques/20260210-110641/comptes-partis-exercice-2024.csv",
 	2023: "https://static.data.gouv.fr/resources/comptes-des-partis-et-groupements-politiques/20260210-120352/comptes-partis-exercice-2023.csv",
 	2022: "https://static.data.gouv.fr/resources/comptes-des-partis-et-groupements-politiques/20260210-121141/comptes-partis-exercice-2022.csv",
 	2021: "https://static.data.gouv.fr/resources/comptes-des-partis-et-groupements-politiques/20260210-151846/comptes-partis-exercice-2021.csv",
 }
 
-// CNCCFPDownloadTargets liste les URL qu'IngestComptes récupère, sans les
+// CNCCFPDownloadTargets liste les URL qu'IngestAccounts récupère, sans les
 // récupérer — voir DownloadTargets, qui les réunit avec celles des deux
 // autres connecteurs du paquet.
 func CNCCFPDownloadTargets() []archive.DownloadTarget {
-	out := make([]archive.DownloadTarget, 0, len(ComptesURLs))
-	for exercice, url := range ComptesURLs {
+	out := make([]archive.DownloadTarget, 0, len(AccountURLs))
+	for exercice, url := range AccountURLs {
 		out = append(out, archive.DownloadTarget{
-			Nom: fmt.Sprintf("cnccfp-comptes-%d", exercice), Source: SourceCNCCFP, URL: url, Ext: ".csv",
+			Name: fmt.Sprintf("cnccfp-comptes-%d", exercice), Source: SourceCNCCFP, URL: url, Ext: ".csv",
 		})
 	}
 	return out
 }
 
-// IngestComptes télécharge, scelle et charge les comptes de chaque exercice.
-func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+// IngestAccounts télécharge, scelle et charge les comptes de chaque exercice.
+func IngestAccounts(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceCNCCFP)
 	if err != nil {
 		return err
@@ -63,7 +63,7 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 
 	// Le catalogue dit quelle colonne CNCCFP alimente quel poste : la
 	// sélection de 15 postes parmi 166 est un choix, il est donc explicite.
-	postes := map[string]string{} // colonne source -> code de poste
+	items := map[string]string{} // colonne source -> code de poste
 	rows, err := pool.Query(ctx, `SELECT code, colonne_source FROM ref.party_account_poste`)
 	if err != nil {
 		return err
@@ -73,11 +73,11 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		if err := rows.Scan(&code, &col); err != nil {
 			return err
 		}
-		postes[col] = code
+		items[col] = code
 	}
 	rows.Close()
 
-	for exercice, url := range ComptesURLs {
+	for exercice, url := range AccountURLs {
 		runID, err := arch.StartRun(ctx, srcID, ConnectorVersion)
 		if err != nil {
 			return err
@@ -87,7 +87,7 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 			return fmt.Errorf("comptes %d : %w", exercice, err)
 		}
-		n, err := loadComptes(ctx, pool, f.Path, exercice, srcID, postes)
+		n, err := loadAccounts(ctx, pool, f.Path, exercice, srcID, items)
 		if err != nil {
 			arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 			return fmt.Errorf("comptes %d : %w", exercice, err)
@@ -98,8 +98,8 @@ func IngestComptes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	return nil
 }
 
-func loadComptes(ctx context.Context, pool *pgxpool.Pool, path string, exercice int,
-	srcID int64, postes map[string]string) (int, error) {
+func loadAccounts(ctx context.Context, pool *pgxpool.Pool, path string, exercice int,
+	srcID int64, items map[string]string) (int, error) {
 
 	fh, err := os.Open(path)
 	if err != nil {
@@ -119,32 +119,32 @@ func loadComptes(ctx context.Context, pool *pgxpool.Pool, path string, exercice 
 	for i, h := range head {
 		idx[strings.TrimSpace(h)] = i
 	}
-	iCode, iNom := idx["Code_CNCCFP"], idx["Nom_du_parti"]
+	iCode, iName := idx["Code_CNCCFP"], idx["Nom_du_parti"]
 	if iCode == 0 && head[0] != "Code_CNCCFP" {
 		return 0, fmt.Errorf("colonne Code_CNCCFP absente")
 	}
 
 	n := 0
-	var lignes [][]any
+	var rows [][]any
 	for {
 		rec, err := r.Read()
 		if err != nil {
 			break
 		}
-		if len(rec) <= iNom {
+		if len(rec) <= iName {
 			continue
 		}
 		code := strings.TrimSpace(rec[iCode])
-		nom := strings.TrimSpace(rec[iNom])
-		if code == "" || nom == "" {
+		name := strings.TrimSpace(rec[iName])
+		if code == "" || name == "" {
 			continue
 		}
 
-		orgID, err := upsertParti(ctx, pool, code, nom)
+		orgID, err := upsertParty(ctx, pool, code, name)
 		if err != nil {
 			return 0, err
 		}
-		for col, poste := range postes {
+		for col, poste := range items {
 			i, ok := idx[col]
 			if !ok || i >= len(rec) {
 				continue
@@ -157,7 +157,7 @@ func loadComptes(ctx context.Context, pool *pgxpool.Pool, path string, exercice 
 			if err != nil {
 				continue
 			}
-			lignes = append(lignes, []any{orgID, exercice, poste, montant})
+			rows = append(rows, []any{orgID, exercice, poste, montant})
 		}
 		n++
 	}
@@ -175,7 +175,7 @@ func loadComptes(ctx context.Context, pool *pgxpool.Pool, path string, exercice 
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_account_line"},
 		[]string{"organization_id", "exercice", "poste", "montant"},
-		pgx.CopyFromRows(lignes)); err != nil {
+		pgx.CopyFromRows(rows)); err != nil {
 		return 0, err
 	}
 	if _, err := tx.Exec(ctx, `
@@ -191,9 +191,9 @@ func loadComptes(ctx context.Context, pool *pgxpool.Pool, path string, exercice 
 	return n, nil
 }
 
-// upsertParti retrouve l'organisation par son identifiant CNCCFP, qui est
+// upsertParty retrouve l'organisation par son identifiant CNCCFP, qui est
 // stable, plutôt que par son nom, qui change.
-func upsertParti(ctx context.Context, pool *pgxpool.Pool, code, nom string) (int64, error) {
+func upsertParty(ctx context.Context, pool *pgxpool.Pool, code, name string) (int64, error) {
 	var orgID int64
 	err := pool.QueryRow(ctx, `
 		SELECT organization_id FROM core.organization_identifier
@@ -202,7 +202,7 @@ func upsertParti(ctx context.Context, pool *pgxpool.Pool, code, nom string) (int
 		return orgID, nil
 	}
 
-	slug := "parti-" + Slugify(nom)
+	slug := "parti-" + Slugify(name)
 	for i := 0; ; i++ {
 		s := slug
 		if i > 0 {
@@ -212,12 +212,12 @@ func upsertParti(ctx context.Context, pool *pgxpool.Pool, code, nom string) (int
 			INSERT INTO core.organization (slug, kind, name)
 			VALUES ($1,'PARTY',$2)
 			ON CONFLICT (slug) DO NOTHING
-			RETURNING id`, s, nom).Scan(&orgID)
+			RETURNING id`, s, name).Scan(&orgID)
 		if err == nil {
 			break
 		}
 		if i > 0 {
-			return 0, fmt.Errorf("parti %s (%s) : %w", nom, code, err)
+			return 0, fmt.Errorf("parti %s (%s) : %w", name, code, err)
 		}
 	}
 	_, err = pool.Exec(ctx, `

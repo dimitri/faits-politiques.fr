@@ -20,13 +20,13 @@ parrainages par le Conseil constitutionnel, le 12 mars 2027.</p>
 
 <h2>Quatre angles, quatre couvertures très inégales</h2>
 <div class="angles">
-  <div class="angle"><div class="t">Votes</div><div class="v">{{.E.AvecVotes}} / {{len .E.Candidats}}</div>
+  <div class="angle"><div class="t">Votes</div><div class="v">{{.E.WithVotes}} / {{len .E.Candidates}}</div>
     <div class="d">ont siégé dans une assemblée couverte</div></div>
-  <div class="angle"><div class="t">Comptes du parti</div><div class="v">{{.E.AvecComptes}} / {{len .E.Candidats}}</div>
+  <div class="angle"><div class="t">Comptes du parti</div><div class="v">{{.E.WithAccounts}} / {{len .E.Candidates}}</div>
     <div class="d">ont une organisation aux comptes CNCCFP</div></div>
-  <div class="angle"><div class="t">Terrain</div><div class="v">{{.E.AvecTerrain}} / {{len .E.Candidats}}</div>
+  <div class="angle"><div class="t">Terrain</div><div class="v">{{.E.WithTerrain}} / {{len .E.Candidates}}</div>
     <div class="d">ont un parti que l'Intérieur nuance</div></div>
-  <div class="angle"><div class="t">Intérêts</div><div class="v">{{.E.AvecInterets}} / {{len .E.Candidats}}</div>
+  <div class="angle"><div class="t">Intérêts</div><div class="v">{{.E.WithInterest}} / {{len .E.Candidates}}</div>
     <div class="d">ont une déclaration HATVP</div></div>
 </div>
 <p class="note"><strong>C'est le résultat le plus important de cette page.</strong> Un candidat sur
@@ -34,18 +34,18 @@ lequel le site n'a rien n'est pas un candidat sans passé&nbsp;: c'est un candid
 s'est déroulée hors du périmètre couvert — mairie, région, entreprise, société civile. Une case
 vide décrit <em>ce site</em>, pas la personne.</p>
 
-{{range .E.Candidats}}
+{{range .E.Candidates}}
 <section class="bloc cliquable">
   <div class="tete">
     <div class="qui">
-      {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.Fichier}}" alt=""
+      {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.File}}" alt=""
         width="72" height="72" loading="lazy" class="portrait">
       {{else}}<div class="portrait vide" style="width:72px;height:72px"></div>{{end}}
       <div>
-        <span class="sur">{{if .Organisation}}{{.Organisation}}{{else}}sans organisation rattachée{{end}}{{if eq .Statut "PRIMAIRE"}} · candidature à une primaire{{end}}{{if .DateDeclaration}} · annoncée {{.DateDeclaration}}{{end}}</span>
-        <h2 class="h2" style="margin:0">{{.Prenom}} {{.Nom}}</h2>
-        {{if .Portrait}}<span class="credit">Portrait&nbsp;: {{.Portrait.Licence}}{{if .Portrait.Auteur}},
-          {{.Portrait.Auteur}}{{end}} — Wikimedia Commons</span>{{end}}
+        <span class="sur">{{if .Organization}}{{.Organization}}{{else}}sans organisation rattachée{{end}}{{if eq .Status "PRIMAIRE"}} · candidature à une primaire{{end}}{{if .DateDeclaration}} · annoncée {{.DateDeclaration}}{{end}}</span>
+        <h2 class="h2" style="margin:0">{{.FirstName}} {{.Name}}</h2>
+        {{if .Portrait}}<span class="credit">Portrait&nbsp;: {{.Portrait.License}}{{if .Portrait.Author}},
+          {{.Portrait.Author}}{{end}} — Wikimedia Commons</span>{{end}}
       </div>
     </div>
     {{/* Le lien s'étire sur tout le bloc : la ligne entière est cliquable, et
@@ -55,49 +55,49 @@ vide décrit <em>ce site</em>, pas la personne.</p>
   <div class="angles">
     {{if .Votes.Present}}
     <div class="angle"><div class="t">A voté</div>
-      <div class="v">{{nb .Exprimes}}</div>
-      <div class="d"><span class="pos FOR">{{nb .Pour}} pour</span> ·
-        <span class="pos AGAINST">{{nb .Contre}} contre</span> ·
+      <div class="v">{{nb .Expressed}}</div>
+      <div class="d"><span class="pos FOR">{{nb .For}} pour</span> ·
+        <span class="pos AGAINST">{{nb .Against}} contre</span> ·
         <span class="pos ABSTAIN">{{nb .Abstention}} abst.</span></div></div>
     {{else}}<div class="angle vide"><div class="t">Votes</div>
-      <div class="v">{{.Votes.Raison}}</div></div>{{end}}
+      <div class="v">{{.Votes.Reason}}</div></div>{{end}}
 
-    {{if .Comptes.Present}}
+    {{if .Accounts.Present}}
     <div class="angle"><div class="t">Comptes du parti</div>
-      <div class="v">{{.Exercices}}</div>
+      <div class="v">{{.FiscalYears}}</div>
       <div class="d">exercices déposés à la CNCCFP</div></div>
     {{else}}<div class="angle vide"><div class="t">Comptes du parti</div>
-      <div class="v">{{.Comptes.Raison}}</div></div>{{end}}
+      <div class="v">{{.Accounts.Reason}}</div></div>{{end}}
 
     {{if .Terrain.Present}}
     <div class="angle"><div class="t">Municipales 2026</div>
-      <div class="v">{{nb .CommunesListes}}</div>
+      <div class="v">{{nb .MunicipalitiesLists}}</div>
       <div class="d">communes avec une liste <code>{{.NuanceCode}}</code> ·
-        {{nb .SiegesCM}} sièges · {{nb64 .VoixMunicipales}} voix</div></div>
+        {{nb .SeatsCM}} sièges · {{nb64 .VotesMunicipal}} voix</div></div>
     {{else}}<div class="angle vide"><div class="t">Municipales 2026</div>
-      <div class="v">{{.Terrain.Raison}}</div></div>{{end}}
+      <div class="v">{{.Terrain.Reason}}</div></div>{{end}}
 
-    {{if .Interets.Present}}
+    {{if .Interest.Present}}
     <div class="angle"><div class="t">Intérêts déclarés</div>
-      <div class="v">{{nb .NbInterets}}</div>
+      <div class="v">{{nb .CountInterest}}</div>
       <div class="d">lignes de déclaration HATVP</div></div>
     {{else}}<div class="angle vide"><div class="t">Intérêts déclarés</div>
-      <div class="v">{{.Interets.Raison}}</div></div>{{end}}
+      <div class="v">{{.Interest.Reason}}</div></div>{{end}}
   </div>
 
-  {{if and .Terrain.Present (not .Apercu.Vide)}}
+  {{if and .Terrain.Present (not .Overview.Empty)}}
   {{/* Affichage « en ligne », comme les cartes départementales : vignette à
        gauche, légende, cartons d'outre-mer et source à droite. */}}
   <div class="cartes-lignes" style="margin-top:1rem">
     {{if .Page}}<a class="bloc-carte ligne" href="{{$.Root}}/2027/{{.Page.Slug}}/">{{else}}<div class="bloc-carte ligne">{{end}}
-      {{.Apercu.SVG}}
+      {{.Overview.SVG}}
       <div>
         <h3>Municipales 2026&nbsp;: part des voix des listes <code>{{.NuanceCode}}</code></h3>
         <p class="q">Premier tour, rapportée aux seules listes nuancées — 64,6&nbsp;% des voix exprimées.
         Le gris signale les départements sans liste de cette nuance&nbsp;: ce n'est pas un score de zéro.</p>
-        {{$t := .Apercu.Teintes}}<span class="echelle"><span class="u">part des voix</span>
-          {{range $i, $b := .Apercu.Bornes}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</span>
-        {{template "cartons" .Apercu.Cartons}}
+        {{$t := .Overview.Shades}}<span class="echelle"><span class="u">part des voix</span>
+          {{range $i, $b := .Overview.Bounds}}<span><i style="background:{{index $t $i}}"></i>{{$b}}</span>{{end}}</span>
+        {{template "cartons" .Overview.Tiles}}
         <span class="src">Ministère de l'Intérieur, résultats des municipales 2026 ; rattachement nuance → parti&nbsp;: <code>data/nuance-partis.csv</code></span>
         {{if .Page}}<span class="voir">Carte en grand et classement des départements →</span>{{end}}
       </div>

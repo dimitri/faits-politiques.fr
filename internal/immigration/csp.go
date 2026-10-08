@@ -17,10 +17,10 @@ const (
 		"?GEO=FRANCE-FM&maxResult=10000"
 )
 
-// pcsLib : la nomenclature à un chiffre que ces deux jeux Melodi utilisent —
+// pcsLabels : la nomenclature à un chiffre que ces deux jeux Melodi utilisent —
 // plus grossière que les vingt-huit postes de la PCS complète, mais c'est le
 // seul niveau que l'Insee croise avec le statut migratoire en open data.
-var pcsLib = map[string]string{
+var pcsLabels = map[string]string{
 	"1": "Agriculteurs", "2": "Artisans, commerçants et chefs d'entreprise",
 	"3": "Cadres et professions intellectuelles supérieures", "4": "Professions intermédiaires",
 	"5": "Employés", "6": "Ouvriers", "7": "Retraités", "9": "Autres inactifs", "_T": "Total",
@@ -40,49 +40,49 @@ func IngestCSP(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 		return err
 	}
 
-	immi, err := melodiLire(ctx, arch, srcID, runID, melodiImmiCSPURL)
+	immi, err := melodiRead(ctx, arch, srcID, runID, melodiImmiCSPURL)
 	if err != nil {
 		return fail(fmt.Errorf("immigration × CSP : %w", err))
 	}
-	nat, err := melodiLire(ctx, arch, srcID, runID, melodiNatCSPURL)
+	nat, err := melodiRead(ctx, arch, srcID, runID, melodiNatCSPURL)
 	if err != nil {
 		return fail(fmt.Errorf("nationalité × CSP : %w", err))
 	}
 
 	var rows [][]any
-	var rejets int
+	var rejected int
 	for _, o := range immi {
-		annee, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
+		year, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
 		if err != nil {
-			rejets++
+			rejected++
 			continue
 		}
 		cat, ok := map[string]string{"0": "NON_IMMIGRE", "1": "IMMIGRE", "_T": "TOTAL"}[o.Dimensions["IMMI"]]
-		sexe, okS := sexeLib[o.Dimensions["SEX"]]
+		sexe, okS := sexLabels[o.Dimensions["SEX"]]
 		pcs := o.Dimensions["PCS"]
-		lib, okP := pcsLib[pcs]
+		lib, okP := pcsLabels[pcs]
 		if !ok || !okS || !okP {
-			rejets++
+			rejected++
 			continue
 		}
-		rows = append(rows, []any{"IMMIGRATION", cat, annee, sexe, pcs, lib,
+		rows = append(rows, []any{"IMMIGRATION", cat, year, sexe, pcs, lib,
 			o.Measures.OBSVALUENIVEAU.Value, srcID})
 	}
 	for _, o := range nat {
-		annee, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
+		year, err := strconv.Atoi(o.Dimensions["TIME_PERIOD"])
 		if err != nil {
-			rejets++
+			rejected++
 			continue
 		}
 		cat, ok := map[string]string{"100": "ETRANGER", "250": "FRANCAIS", "_T": "TOTAL"}[o.Dimensions["NATIONALITY_TYPE"]]
-		sexe, okS := sexeLib[o.Dimensions["SEX"]]
+		sexe, okS := sexLabels[o.Dimensions["SEX"]]
 		pcs := o.Dimensions["PCS"]
-		lib, okP := pcsLib[pcs]
+		lib, okP := pcsLabels[pcs]
 		if !ok || !okS || !okP {
-			rejets++
+			rejected++
 			continue
 		}
-		rows = append(rows, []any{"NATIONALITE", cat, annee, sexe, pcs, lib,
+		rows = append(rows, []any{"NATIONALITE", cat, year, sexe, pcs, lib,
 			o.Measures.OBSVALUENIVEAU.Value, srcID})
 	}
 	if len(rows) == 0 {
@@ -128,14 +128,14 @@ func IngestCSP(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) e
 	if err != nil {
 		return fail(fmt.Errorf("fusion population_statut_migratoire_csp : %w", err))
 	}
-	touchees := ct.RowsAffected()
+	affected := ct.RowsAffected()
 
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"lignes_chargees": touchees, "rejet_dimension_inconnue": rejets}, "")
+		map[string]any{"lignes_chargees": affected, "rejet_dimension_inconnue": rejected}, "")
 	fmt.Printf("  population par catégorie socioprofessionnelle : %d lignes touchées (%d rejetées)\n",
-		touchees, rejets)
+		affected, rejected)
 	return nil
 }

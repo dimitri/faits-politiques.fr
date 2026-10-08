@@ -13,10 +13,10 @@ import (
 // Le rapport démographique cotisants/retraités — la mesure la plus directe de
 // la pression sur un système de retraite par répartition. Voir
 // docs/retraite-donnees.md.
-var SourceCotisantsRetraites = archive.Source{
+var SourcePensionContributorsRatio = archive.Source{
 	Slug: "insee-cotisants-retraites-ratio", Label: "Insee — cotisants, retraités et rapport démographique",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees (EACR, EIR, modèle ANCETRE) ; Insee, comptes nationaux",
 	Cadence:     "annuelle",
 	Notes: "Rupture de série en 2020 : les effectifs de retraités résidant à l'étranger " +
@@ -24,10 +24,10 @@ var SourceCotisantsRetraites = archive.Source{
 		"cours de l'année, résidant en France ou à l'étranger, vivants au 31 décembre.",
 }
 
-const cotisantsRetraitesURL = "https://www.insee.fr/fr/statistiques/fichier/2415121/reve-protec-cotisant-retraite.xlsx"
+const pensionContributorsRatioURL = "https://www.insee.fr/fr/statistiques/fichier/2415121/reve-protec-cotisant-retraite.xlsx"
 
-func IngestCotisantsRetraites(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceCotisantsRetraites)
+func IngestPensionContributorsRatio(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourcePensionContributorsRatio)
 	if err != nil {
 		return err
 	}
@@ -40,7 +40,7 @@ func IngestCotisantsRetraites(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, cotisantsRetraitesURL, ".xlsx")
+	f, err := arch.Fetch(ctx, srcID, runID, pensionContributorsRatioURL, ".xlsx")
 	if err != nil {
 		return fail(err)
 	}
@@ -49,34 +49,34 @@ func IngestCotisantsRetraites(ctx context.Context, pool *pgxpool.Pool, arch *arc
 		return fail(err)
 	}
 	defer x.Close()
-	lignes, err := x.rows("Données")
+	sheetRows, err := x.rows("Données")
 	if err != nil {
 		return fail(err)
 	}
 
 	var rows [][]any
-	for _, l := range lignes {
-		lib, ok := l["A"]
+	for _, l := range sheetRows {
+		label, ok := l["A"]
 		if !ok {
 			continue
 		}
 		// L'année de rupture de série porte une note en exposant collée au
 		// nombre : "20203" pour 2020, note 3. Les quatre premiers caractères
 		// sont toujours l'année ; le reste, s'il y en a, est le numéro de note.
-		if len(lib) < 4 {
+		if len(label) < 4 {
 			continue
 		}
-		annee, err := strconv.Atoi(lib[:4])
-		if err != nil || annee < 1990 || annee > 2100 {
+		year, err := strconv.Atoi(label[:4])
+		if err != nil || year < 1990 || year > 2100 {
 			continue
 		}
-		cot, e1 := strconv.ParseFloat(l["B"], 64)
-		ret, e2 := strconv.ParseFloat(l["C"], 64)
-		rap, e3 := strconv.ParseFloat(l["D"], 64)
+		contributors, e1 := strconv.ParseFloat(l["B"], 64)
+		retirees, e2 := strconv.ParseFloat(l["C"], 64)
+		ratio, e3 := strconv.ParseFloat(l["D"], 64)
 		if e1 != nil || e2 != nil || e3 != nil {
 			continue
 		}
-		rows = append(rows, []any{annee, cot, ret, rap, srcID})
+		rows = append(rows, []any{year, contributors, retirees, ratio, srcID})
 	}
 	if len(rows) == 0 {
 		return fail(fmt.Errorf("aucune ligne reconnue"))

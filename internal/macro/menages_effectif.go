@@ -14,10 +14,10 @@ import (
 // Le nombre de ménages par grand type, recensement de la population, via
 // l'API Melodi de l'Insee — pour pondérer core.menage_type_drees, qui ne porte
 // que des montants moyens. Voir docs/revenu-universel-microsimulation.md.
-var SourceMenagesEffectif = archive.Source{
+var SourceHouseholdCount = archive.Source{
 	Slug: "insee-rp-menages-familles", Label: "Insee — recensement, ménages et familles détaillés",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, recensement de la population 2023, diffusion Melodi",
 	Cadence:     "annuelle",
 	Notes: "Univers du recensement (tous les ménages), pas celui de l'enquête ERFS " +
@@ -32,7 +32,7 @@ const (
 		"?GEO=FRANCE-FM&AGE=_T&RP_MEASURE=DWELLINGS&maxResult=10000"
 )
 
-type melodiReponse struct {
+type melodiResponse struct {
 	Observations []struct {
 		Dimensions map[string]string `json:"dimensions"`
 		Measures   struct {
@@ -43,8 +43,8 @@ type melodiReponse struct {
 	} `json:"observations"`
 }
 
-func IngestMenagesEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceMenagesEffectif)
+func IngestHouseholdCount(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceHouseholdCount)
 	if err != nil {
 		return err
 	}
@@ -57,11 +57,11 @@ func IngestMenagesEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return err
 	}
 
-	familles, err := melodiLire(ctx, arch, srcID, runID, melodiFamillesURL)
+	families, err := readMelodi(ctx, arch, srcID, runID, melodiFamillesURL)
 	if err != nil {
 		return fail(fmt.Errorf("familles par nombre d'enfants : %w", err))
 	}
-	menages, err := melodiLire(ctx, arch, srcID, runID, melodiMenagesURL)
+	households, err := readMelodi(ctx, arch, srcID, runID, melodiMenagesURL)
 	if err != nil {
 		return fail(fmt.Errorf("ménages selon le type : %w", err))
 	}
@@ -73,46 +73,46 @@ func IngestMenagesEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	// mixte) sont trois branches disjointes d'un même total (TFN 2) — voir
 	// data/geo-projections... non, voir directement le codes-list Melodi
 	// (DS_RP_TD_FAMILLE_NBENF_COMP, dimension TFN).
-	nb := map[string]float64{}
-	for _, o := range familles.Observations {
-		tfn, nch, annee := o.Dimensions["TFN"], o.Dimensions["NCH"], o.Dimensions["TIME_PERIOD"]
-		if annee != "2023" {
+	counts := map[string]float64{}
+	for _, o := range families.Observations {
+		tfn, nch, year := o.Dimensions["TFN"], o.Dimensions["NCH"], o.Dimensions["TIME_PERIOD"]
+		if year != "2023" {
 			continue
 		}
 		v := o.Measures.OBSVALUENIVEAU.Value
 		switch {
 		case (tfn == "11" || tfn == "12") && nch == "CH1_Y_LT25":
-			nb["monoparentale_1_enfant"] += v
+			counts["monoparentale_1_enfant"] += v
 		case (tfn == "11" || tfn == "12") && (nch == "CH2_Y_LT25" || nch == "CH3_Y_LT25" || nch == "CH_GE4_Y_LT25"):
-			nb["monoparentale_2p_enfants"] += v
+			counts["monoparentale_2p_enfants"] += v
 		case tfn == "21" && nch == "CH0_Y_LT25":
-			nb["couple_sans_enfant"] += v
+			counts["couple_sans_enfant"] += v
 		case (tfn == "221" || tfn == "222") && nch == "CH1_Y_LT25":
-			nb["couple_1_enfant"] += v
+			counts["couple_1_enfant"] += v
 		case (tfn == "221" || tfn == "222") && nch == "CH2_Y_LT25":
-			nb["couple_2_enfants"] += v
+			counts["couple_2_enfants"] += v
 		case (tfn == "221" || tfn == "222") && nch == "CH3_Y_LT25":
-			nb["couple_3_enfants"] += v
+			counts["couple_3_enfants"] += v
 		case (tfn == "221" || tfn == "222") && nch == "CH_GE4_Y_LT25":
-			nb["couple_4p_enfants"] += v
+			counts["couple_4p_enfants"] += v
 		}
 	}
-	for _, o := range menages.Observations {
-		tph, annee, ocs := o.Dimensions["TPH"], o.Dimensions["TIME_PERIOD"], o.Dimensions["OCS"]
-		if annee != "2023" || ocs != "DW_MAIN" {
+	for _, o := range households.Observations {
+		tph, year, ocs := o.Dimensions["TPH"], o.Dimensions["TIME_PERIOD"], o.Dimensions["OCS"]
+		if year != "2023" || ocs != "DW_MAIN" {
 			continue
 		}
 		v := o.Measures.OBSVALUENIVEAU.Value
 		switch tph {
 		case "11":
-			nb["personne_seule"] += v
+			counts["personne_seule"] += v
 		case "12":
-			nb["complexe_sans_enfant"] += v
+			counts["complexe_sans_enfant"] += v
 		}
 	}
 
-	if len(nb) < 9 {
-		return fail(fmt.Errorf("effectifs incomplets : %d types sur 9 attendus", len(nb)))
+	if len(counts) < 9 {
+		return fail(fmt.Errorf("effectifs incomplets : %d types sur 9 attendus", len(counts)))
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -121,7 +121,7 @@ func IngestMenagesEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	}
 	defer tx.Rollback(ctx)
 
-	const annee = 2023
+	const year = 2023
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_menage_type_effectif (
 			type_menage text, annee int, nb_menages bigint, source_id bigint
@@ -129,8 +129,8 @@ func IngestMenagesEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(err)
 	}
 	var rows [][]any
-	for typ, v := range nb {
-		rows = append(rows, []any{typ, annee, int64(v), srcID})
+	for houseType, v := range counts {
+		rows = append(rows, []any{houseType, year, int64(v), srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_menage_type_effectif"},
 		[]string{"type_menage", "annee", "nb_menages", "source_id"}, pgx.CopyFromRows(rows)); err != nil {
@@ -163,7 +163,7 @@ func IngestMenagesEffectif(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	return nil
 }
 
-func melodiLire(ctx context.Context, arch *archive.Archive, srcID, runID int64, url string) (*melodiReponse, error) {
+func readMelodi(ctx context.Context, arch *archive.Archive, srcID, runID int64, url string) (*melodiResponse, error) {
 	f, err := arch.Fetch(ctx, srcID, runID, url, ".json")
 	if err != nil {
 		return nil, err
@@ -172,7 +172,7 @@ func melodiLire(ctx context.Context, arch *archive.Archive, srcID, runID int64, 
 	if err != nil {
 		return nil, err
 	}
-	var r melodiReponse
+	var r melodiResponse
 	if err := json.Unmarshal(raw, &r); err != nil {
 		return nil, fmt.Errorf("réponse Melodi illisible : %w", err)
 	}

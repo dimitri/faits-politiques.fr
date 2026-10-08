@@ -20,7 +20,7 @@ import (
 var SourceBanqueDeFrance = archive.Source{
 	Slug: "bdf-webstat-det2", Label: "Banque de France — détention des titres négociables de l'État (DET2)",
 	Publisher: "Banque de France", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Conditions d'utilisation Webstat : réutilisation libre avec mention de la source",
+	License:     "Conditions d'utilisation Webstat : réutilisation libre avec mention de la source",
 	ReuseClass:  "ATTRIBUTION",
 	Attribution: "Source : Banque de France, Webstat, détention des titres de l'État (DET2)",
 	Cadence:     "trimestrielle",
@@ -52,7 +52,7 @@ var det2Secteurs = map[string]bool{
 	"S12Q": true, "S13": true, "S14": true, "S15": true, "S1M": true, "_Z": true,
 }
 
-type webstatSerie struct {
+type webstatSeries struct {
 	SeriesKey string          `json:"series_key"`
 	Info      json.RawMessage `json:"series_info"`
 }
@@ -66,23 +66,23 @@ type webstatObs struct {
 }
 
 func IngestBanqueDeFrance(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	cle := os.Getenv("WEBSTAT_API_KEY")
-	if cle == "" {
+	key := os.Getenv("WEBSTAT_API_KEY")
+	if key == "" {
 		fmt.Println("  bdf-webstat-det2 : WEBSTAT_API_KEY absente, détention non chargée")
 		return nil
 	}
-	entetes := http.Header{"Authorization": {"Apikey " + cle}}
+	headers := http.Header{"Authorization": {"Apikey " + key}}
 
-	return executer(ctx, pool, arch, SourceBanqueDeFrance, func(srcID, runID int64) (*lot, error) {
+	return run(ctx, pool, arch, SourceBanqueDeFrance, func(srcID, runID int64) (*batch, error) {
 		// Un export trié : à données inchangées, mêmes octets, même document.
 		q := url.Values{"where": {`dataset_id="DET2"`}, "order_by": {"series_key"}}
 		urlSeries := webstatBase + "series/exports/json?" + q.Encode()
-		f, err := arch.FetchEntetes(ctx, srcID, runID, urlSeries, ".json", entetes)
+		f, err := arch.FetchEntetes(ctx, srcID, runID, urlSeries, ".json", headers)
 		if err != nil {
 			return nil, err
 		}
-		var series []webstatSerie
-		if err := lireJSON(f.Path, &series); err != nil {
+		var series []webstatSeries
+		if err := readJSON(f.Path, &series); err != nil {
 			return nil, fmt.Errorf("séries : %w", err)
 		}
 
@@ -92,54 +92,54 @@ func IngestBanqueDeFrance(ctx context.Context, pool *pgxpool.Pool, arch *archive
 			"order_by": {"series_key,time_period"},
 		}
 		urlObs := webstatBase + "observations/exports/json?" + q.Encode()
-		fo, err := arch.FetchEntetes(ctx, srcID, runID, urlObs, ".json", entetes)
+		fo, err := arch.FetchEntetes(ctx, srcID, runID, urlObs, ".json", headers)
 		if err != nil {
 			return nil, err
 		}
 		var observations []webstatObs
-		if err := lireJSON(fo.Path, &observations); err != nil {
+		if err := readJSON(fo.Path, &observations); err != nil {
 			return nil, fmt.Errorf("observations : %w", err)
 		}
-		parSerie := map[string][]Obs{}
+		bySeries := map[string][]Obs{}
 		for _, o := range observations {
 			if o.Valeur == nil || o.Supprime != nil {
 				continue
 			}
-			parSerie[o.SeriesKey] = append(parSerie[o.SeriesKey],
+			bySeries[o.SeriesKey] = append(bySeries[o.SeriesKey],
 				Obs{Periode: o.Periode, Valeur: *o.Valeur, Statut: o.Statut, DocumentID: fo.DocumentID})
 		}
 
-		l := nouveauLot()
+		l := newBatch()
 		for _, ws := range series {
 			var info map[string]string
-			if err := decoderInfo(ws.Info, &info); err != nil {
+			if err := decodeInfo(ws.Info, &info); err != nil {
 				return nil, fmt.Errorf("%s : %w", ws.SeriesKey, err)
 			}
-			s, mult, garder, err := qualifierDET2(ws.SeriesKey, info)
+			s, mult, keep, err := classifyDET2(ws.SeriesKey, info)
 			if err != nil {
 				return nil, err
 			}
-			if !garder {
+			if !keep {
 				continue
 			}
 			s.URL = urlObs
-			obs := parSerie[ws.SeriesKey]
+			obs := bySeries[ws.SeriesKey]
 			for i := range obs {
 				obs[i].Valeur *= mult
 			}
-			l.ajouter(s, obs)
+			l.add(s, obs)
 		}
 		return l, nil
 	})
 }
 
-// qualifierDET2 traduit une clé SDMX en dimensions du modèle. Toute valeur
+// classifyDET2 traduit une clé SDMX en dimensions du modèle. Toute valeur
 // de dimension non prévue fait échouer : mieux vaut un chargement en échec
 // qu'une série mal rangée qui fausse une part.
-func qualifierDET2(cle string, info map[string]string) (*Serie, float64, bool, error) {
-	p := strings.Split(cle, ".")
+func classifyDET2(key string, info map[string]string) (*Series, float64, bool, error) {
+	p := strings.Split(key, ".")
 	if len(p) != 19 || p[0] != "DET2" {
-		return nil, 0, false, fmt.Errorf("clé DET2 inattendue : %s", cle)
+		return nil, 0, false, fmt.Errorf("clé DET2 inattendue : %s", key)
 	}
 	// Une seule série hors sujet dans le jeu : la part du capital du CAC 40
 	// détenue par les non-résidents. Rien à voir avec la dette.
@@ -147,10 +147,10 @@ func qualifierDET2(cle string, info map[string]string) (*Serie, float64, bool, e
 		return nil, 0, false, nil
 	}
 	if p[det2Freq] != "Q" || p[det2Emetteur] != "S13111" || p[det2Instr] != "F3" {
-		return nil, 0, false, fmt.Errorf("%s : fréquence, émetteur ou instrument inattendu", cle)
+		return nil, 0, false, fmt.Errorf("%s : fréquence, émetteur ou instrument inattendu", key)
 	}
-	s := &Serie{
-		Code: "bdf:" + strings.TrimPrefix(cle, "DET2."), CodeSource: cle,
+	s := &Series{
+		Code: "bdf:" + strings.TrimPrefix(key, "DET2."), CodeSource: key,
 		Libelle: info["TITLE"], Pays: "FR", Frequence: "Q",
 		Concept: "DETENTION_TITRES_ETAT", SecteurEmetteur: "S13111",
 	}
@@ -159,18 +159,18 @@ func qualifierDET2(cle string, info map[string]string) (*Serie, float64, bool, e
 	case "W0", "W1", "W2":
 		s.ZoneDetenteur = zone
 	default:
-		return nil, 0, false, fmt.Errorf("%s : zone %q inattendue", cle, zone)
+		return nil, 0, false, fmt.Errorf("%s : zone %q inattendue", key, zone)
 	}
-	sect := p[det2Detenteur]
-	if !det2Secteurs[sect] {
-		return nil, 0, false, fmt.Errorf("%s : secteur détenteur %q inattendu", cle, sect)
+	sector := p[det2Detenteur]
+	if !det2Secteurs[sector] {
+		return nil, 0, false, fmt.Errorf("%s : secteur détenteur %q inattendu", key, sector)
 	}
 	// S1 est ici « tous secteurs » de la zone : on le ramène à la convention
 	// du modèle, où le total d'une dimension vaut '_T'.
-	if sect == "S1" {
-		sect = "_T"
+	if sector == "S1" {
+		sector = "_T"
 	}
-	s.SecteurDetenteur = sect
+	s.SecteurDetenteur = sector
 
 	switch p[det2Maturite] {
 	case "T":
@@ -182,7 +182,7 @@ func qualifierDET2(cle string, info map[string]string) (*Serie, float64, bool, e
 		// Les BTAN (2 à 5 ans), émis jusqu'en 2013 puis fondus dans les OAT.
 		s.Echeance, s.BaseEcheance = "2A5", "INITIALE"
 	default:
-		return nil, 0, false, fmt.Errorf("%s : maturité %q inattendue", cle, p[det2Maturite])
+		return nil, 0, false, fmt.Errorf("%s : maturité %q inattendue", key, p[det2Maturite])
 	}
 	switch p[det2Ventilation] {
 	case "_T":
@@ -199,30 +199,30 @@ func qualifierDET2(cle string, info map[string]string) (*Serie, float64, bool, e
 			s.Instrument = "BTF"
 		}
 	default:
-		return nil, 0, false, fmt.Errorf("%s : ventilation %q inattendue", cle, p[det2Ventilation])
+		return nil, 0, false, fmt.Errorf("%s : ventilation %q inattendue", key, p[det2Ventilation])
 	}
 	mult := 1.0
 	switch p[det2Unite] {
 	case "XDC":
 		if info["UNIT"] != "EUR" {
-			return nil, 0, false, fmt.Errorf("%s : unité %q, attendu EUR", cle, info["UNIT"])
+			return nil, 0, false, fmt.Errorf("%s : unité %q, attendu EUR", key, info["UNIT"])
 		}
-		m, err := multiplicateur(info["UNIT_MULT"])
+		m, err := multiplier(info["UNIT_MULT"])
 		if err != nil {
-			return nil, 0, false, fmt.Errorf("%s : %w", cle, err)
+			return nil, 0, false, fmt.Errorf("%s : %w", key, err)
 		}
 		s.Unite, s.Mesure, mult = "EUR", "ENCOURS", m
 	case "PT":
 		s.Unite, s.Mesure = "PCT", "PART"
 	default:
-		return nil, 0, false, fmt.Errorf("%s : unité %q inattendue", cle, p[det2Unite])
+		return nil, 0, false, fmt.Errorf("%s : unité %q inattendue", key, p[det2Unite])
 	}
 	return s, mult, true, nil
 }
 
-// decoderInfo accepte series_info sous forme d'objet ou de chaîne JSON :
+// decodeInfo accepte series_info sous forme d'objet ou de chaîne JSON :
 // l'API renvoie l'un ou l'autre selon le point d'accès.
-func decoderInfo(raw json.RawMessage, dst *map[string]string) error {
+func decodeInfo(raw json.RawMessage, dst *map[string]string) error {
 	var s string
 	if err := json.Unmarshal(raw, &s); err == nil {
 		return json.Unmarshal([]byte(s), dst)
@@ -230,7 +230,7 @@ func decoderInfo(raw json.RawMessage, dst *map[string]string) error {
 	return json.Unmarshal(raw, dst)
 }
 
-func lireJSON(path string, dst any) error {
+func readJSON(path string, dst any) error {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return err

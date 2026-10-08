@@ -22,7 +22,7 @@ import (
 var SourceParametresIS = archive.Source{
 	Slug: "parametres-impot-societes", Label: "Impôt sur les sociétés : taux normal, contribution sociale, contribution exceptionnelle 2025",
 	Publisher: "Direction générale des finances publiques (BOFiP)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Contenu public de l'administration fiscale, cité avec lien", ReuseClass: "ATTRIBUTION",
+	License: "Contenu public de l'administration fiscale, cité avec lien", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : BOFiP-Impôts ; code général des impôts, art. 219 et 235 ter ZC ; loi de finances pour 2025, art. 48",
 	Cadence:     "à chaque loi de finances",
 	Notes: "Taux du droit commun, sans régimes particuliers (PME, plus-values à long terme, régime " +
@@ -34,7 +34,7 @@ var SourceParametresIS = archive.Source{
 var SourceCbCRPublics = archive.Source{
 	Slug: "cbcr-publics-groupes", Label: "Déclarations pays par pays publiées par les groupes (directive (UE) 2021/2101)",
 	Publisher: "Les groupes concernés", Tier: "DECLARATIVE",
-	Licence: "Publication légale obligatoire, reprise avec attribution", ReuseClass: "ATTRIBUTION",
+	License: "Publication légale obligatoire, reprise avec attribution", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : rapports publics sur les informations relatives à l'impôt sur les revenus des sociétés, publiés par chaque groupe",
 	Cadence:     "annuelle, dans les 12 mois suivant la clôture",
 	Notes: "Premiers rapports pour les exercices ouverts à compter du 22 juin 2024 : publiés à partir de " +
@@ -47,7 +47,7 @@ var SourceCbCRPublics = archive.Source{
 var SourceSEC = archive.Source{
 	Slug: "sec-xbrl-companyfacts", Label: "SEC EDGAR — données XBRL des rapports annuels (10-K) des groupes cotés aux États-Unis",
 	Publisher: "U.S. Securities and Exchange Commission", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Domaine public (données du gouvernement fédéral américain)", ReuseClass: "OPEN",
+	License: "Domaine public (données du gouvernement fédéral américain)", ReuseClass: "OPEN",
 	Attribution: "Source : SEC EDGAR, API XBRL « companyfacts »",
 	Cadence:     "à chaque dépôt",
 	Notes: "Les rapports annuels américains ne ventilent pas l'impôt par pays : ils séparent le bénéfice " +
@@ -55,15 +55,15 @@ var SourceSEC = archive.Source{
 		"limité à dix requêtes par seconde.",
 }
 
-type rapportCbCR struct {
-	groupe, url, debut, fin, devise string
-	lignes                          [][7]string // juridiction, CA, bénéfice, impôt payé, impôt dû, bénéfices non distribués, salariés
+type cbcrReport struct {
+	groupe, url, start, end, devise string
+	rows                            [][7]string // juridiction, CA, bénéfice, impôt payé, impôt dû, bénéfices non distribués, salariés
 }
 
 // Transcrits de la section 2 de chaque rapport. Contrôle : la somme des
 // bénéfices des juridictions retrouve, à 0,5 % près, le bénéfice avant impôt du
 // groupe déposé à la SEC (cmd/verify).
-var rapportsCbCR = []rapportCbCR{
+var cbcrReports = []cbcrReport{
 	{"Microsoft Corporation",
 		"https://cdn-dynmedia-1.microsoft.com/is/content/microsoftcorp/microsoft/msc/documents/presentations/CSR/FY25-Microsoft-EU-Directive-2021-2101-Report.pdf",
 		"2024-07-01", "2025-06-30", "USD",
@@ -105,7 +105,7 @@ var rapportsCbCR = []rapportCbCR{
 }
 
 // Les groupes cotés aux États-Unis dont les filiales françaises sont suivies.
-var groupesSEC = []struct{ groupe, cik string }{
+var secGroups = []struct{ groupe, cik string }{
 	{"Microsoft Corporation", "789019"}, {"Alphabet Inc.", "1652044"}, {"Amazon.com Inc.", "1018724"},
 	{"Apple Inc.", "320193"}, {"Meta Platforms Inc.", "1326801"}, {"Oracle Corporation", "1341439"},
 	{"IBM", "51143"}, {"Palantir Technologies Inc.", "1321655"}, {"Accenture plc", "1467373"},
@@ -118,7 +118,7 @@ var groupesSEC = []struct{ groupe, cik string }{
 }
 
 // Concept normalisé → éléments us-gaap acceptés, par ordre de préférence.
-var conceptsSEC = []struct {
+var secConcepts = []struct {
 	code     string
 	elements []string
 }{
@@ -133,7 +133,7 @@ var conceptsSEC = []struct {
 
 // Le statut établi de chaque groupe. Sans fait officiel, AUCUN_CONSTAT_PUBLIC :
 // avoir des marchés publics ou une filiale peu rentable n'est pas un constat.
-var statutsFiscaux = []struct {
+var taxStatuses = []struct {
 	groupe, statut, resume string
 	faits                  []string
 }{
@@ -154,13 +154,13 @@ var statutsFiscaux = []struct {
 }
 
 func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := executer(ctx, arch, SourceParametresIS, func(srcID, runID int64) (map[string]any, error) {
+	if err := run(ctx, arch, SourceParametresIS, func(srcID, runID int64) (map[string]any, error) {
 		const bofip = "https://bofip.impots.gouv.fr/bofip/14609-PGP.html/ACTU-2025-00035"
 		d, err := arch.Fetch(ctx, srcID, runID, bofip, ".html")
 		if err != nil {
 			return nil, err
 		}
-		t, err := texteHTML(d.Path)
+		t, err := htmlText(d.Path)
 		if err != nil {
 			return nil, err
 		}
@@ -197,24 +197,24 @@ func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		return err
 	}
 
-	if err := executer(ctx, arch, SourceCbCRPublics, func(srcID, runID int64) (map[string]any, error) {
-		var lignes [][]any
-		for _, r := range rapportsCbCR {
+	if err := run(ctx, arch, SourceCbCRPublics, func(srcID, runID int64) (map[string]any, error) {
+		var rows [][]any
+		for _, r := range cbcrReports {
 			d, err := arch.Fetch(ctx, srcID, runID, r.url, ".pdf")
 			if err != nil {
 				return nil, err
 			}
-			debut, _ := time.Parse("2006-01-02", r.debut)
-			fin, _ := time.Parse("2006-01-02", r.fin)
-			vus := map[string]bool{}
-			for _, l := range r.lignes {
-				if vus[l[0]] {
+			start, _ := time.Parse("2006-01-02", r.start)
+			end, _ := time.Parse("2006-01-02", r.end)
+			seen := map[string]bool{}
+			for _, l := range r.rows {
+				if seen[l[0]] {
 					return nil, fmt.Errorf("%s : juridiction %s en double", r.groupe, l[0])
 				}
-				vus[l[0]] = true
-				lignes = append(lignes, []any{r.groupe, debut, fin, r.devise, l[0], l[1], l[2], l[3], l[4], l[5], l[6], srcID, d.DocumentID})
+				seen[l[0]] = true
+				rows = append(rows, []any{r.groupe, start, end, r.devise, l[0], l[1], l[2], l[3], l[4], l[5], l[6], srcID, d.DocumentID})
 			}
-			if !vus["FR"] {
+			if !seen["FR"] {
 				return nil, fmt.Errorf("%s : pas de ligne France", r.groupe)
 			}
 		}
@@ -236,7 +236,7 @@ func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_cbcr_public"},
 			[]string{"groupe", "exercice_debut", "exercice_fin", "devise", "juridiction", "chiffre_affaires", "benefice_avant_impot",
 				"impot_paye", "impot_du", "benefices_non_distribues", "salaries", "source_id", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 
@@ -270,25 +270,25 @@ func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		if err != nil {
 			return nil, fmt.Errorf("fusion cbcr_public : %w", err)
 		}
-		touchees := ct.RowsAffected()
-		return map[string]any{"rapports": len(rapportsCbCR), "lignes": len(lignes), "touchees": touchees}, tx.Commit(ctx)
+		affected := ct.RowsAffected()
+		return map[string]any{"rapports": len(cbcrReports), "lignes": len(rows), "touchees": affected}, tx.Commit(ctx)
 	}); err != nil {
 		return err
 	}
 
-	if err := executer(ctx, arch, SourceSEC, func(srcID, runID int64) (map[string]any, error) {
-		var lignes [][]any
-		for _, g := range groupesSEC {
+	if err := run(ctx, arch, SourceSEC, func(srcID, runID int64) (map[string]any, error) {
+		var rows [][]any
+		for _, g := range secGroups {
 			url := "https://data.sec.gov/api/xbrl/companyfacts/CIK" + strings.Repeat("0", 10-len(g.cik)) + g.cik + ".json"
 			d, err := arch.Fetch(ctx, srcID, runID, url, ".json")
 			if err != nil {
 				return nil, fmt.Errorf("%s : %w", g.groupe, err)
 			}
-			l, err := lireCompanyFacts(d.Path, g.groupe, g.cik, d.DocumentID)
+			l, err := readCompanyFacts(d.Path, g.groupe, g.cik, d.DocumentID)
 			if err != nil {
 				return nil, fmt.Errorf("%s : %w", g.groupe, err)
 			}
-			lignes = append(lignes, l...)
+			rows = append(rows, l...)
 			time.Sleep(200 * time.Millisecond) // politique d'accès de la SEC : 10 requêtes par seconde au plus
 		}
 		tx, err := pool.Begin(ctx)
@@ -306,7 +306,7 @@ func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_groupe_resultat_sec"},
 			[]string{"groupe", "cik", "exercice_fin", "concept", "element_xbrl", "valeur", "unite", "formulaire", "depot", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(rows)); err != nil {
 			return nil, err
 		}
 
@@ -333,8 +333,8 @@ func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 		if err != nil {
 			return nil, fmt.Errorf("fusion groupe_resultat_sec : %w", err)
 		}
-		touchees := ct.RowsAffected()
-		return map[string]any{"groupes": len(groupesSEC), "valeurs": len(lignes), "touchees": touchees}, tx.Commit(ctx)
+		affected := ct.RowsAffected()
+		return map[string]any{"groupes": len(secGroups), "valeurs": len(rows), "touchees": affected}, tx.Commit(ctx)
 	}); err != nil {
 		return err
 	}
@@ -348,7 +348,7 @@ func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	if _, err := tx.Exec(ctx, `DELETE FROM ref.groupe_statut_fiscal`); err != nil {
 		return err
 	}
-	for _, s := range statutsFiscaux {
+	for _, s := range taxStatuses {
 		faits := s.faits
 		if faits == nil {
 			faits = []string{}
@@ -375,14 +375,14 @@ func IngestTransparence(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	if err != nil {
 		return err
 	}
-	fmt.Printf("  %-34s %v\n", "statuts fiscaux", map[string]any{"etablis": len(statutsFiscaux), "sans_constat": tag.RowsAffected()})
+	fmt.Printf("  %-34s %v\n", "statuts fiscaux", map[string]any{"etablis": len(taxStatuses), "sans_constat": tag.RowsAffected()})
 	return tx.Commit(ctx)
 }
 
-// lireCompanyFacts retient, pour chaque concept, les valeurs annuelles des
+// readCompanyFacts retient, pour chaque concept, les valeurs annuelles des
 // rapports 10-K (ou 20-F) : durée d'environ un an, dernier dépôt pour chaque
 // date de clôture, exercices clos depuis 2020.
-func lireCompanyFacts(path, groupe, cik string, doc int64) ([][]any, error) {
+func readCompanyFacts(path, groupe, cik string, doc int64) ([][]any, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
@@ -400,12 +400,12 @@ func lireCompanyFacts(path, groupe, cik string, doc int64) ([][]any, error) {
 	}
 	gaap := cf.Facts["us-gaap"]
 	var out [][]any
-	for _, c := range conceptsSEC {
+	for _, c := range secConcepts {
 		type val struct {
 			element, accn, form, filed string
 			v                          float64
 		}
-		parFin := map[string]val{}
+		byEnd := map[string]val{}
 		for _, el := range c.elements {
 			f, ok := gaap[el]
 			if !ok {
@@ -420,24 +420,24 @@ func lireCompanyFacts(path, groupe, cik string, doc int64) ([][]any, error) {
 				if e1 != nil || e2 != nil || e.Year() < 2020 {
 					continue
 				}
-				if jours := e.Sub(s).Hours() / 24; jours < 350 || jours > 380 {
+				if days := e.Sub(s).Hours() / 24; days < 350 || days > 380 {
 					continue
 				}
-				if cur, ok := parFin[x.End]; ok && (cur.element != el || cur.filed >= x.Filed) {
+				if cur, ok := byEnd[x.End]; ok && (cur.element != el || cur.filed >= x.Filed) {
 					continue // un élément préféré déjà retenu, ou un dépôt plus récent
 				}
-				parFin[x.End] = val{el, x.Accn, x.Form, x.Filed, x.Val}
+				byEnd[x.End] = val{el, x.Accn, x.Form, x.Filed, x.Val}
 			}
 		}
-		fins := make([]string, 0, len(parFin))
-		for f := range parFin {
-			fins = append(fins, f)
+		ends := make([]string, 0, len(byEnd))
+		for f := range byEnd {
+			ends = append(ends, f)
 		}
-		sort.Strings(fins)
-		for _, f := range fins {
-			v := parFin[f]
-			fin, _ := time.Parse("2006-01-02", f)
-			out = append(out, []any{groupe, cik, fin, c.code, v.element, v.v, "USD", v.form, v.accn, doc})
+		sort.Strings(ends)
+		for _, f := range ends {
+			v := byEnd[f]
+			end, _ := time.Parse("2006-01-02", f)
+			out = append(out, []any{groupe, cik, end, c.code, v.element, v.v, "USD", v.form, v.accn, doc})
 		}
 	}
 	if len(out) == 0 {

@@ -17,7 +17,7 @@ type xlsxFile struct {
 	sheets map[string]string // nom de feuille -> chemin dans l'archive
 }
 
-func openXLSXEnt(path string) (*xlsxFile, error) {
+func openCompanyXLSX(path string) (*xlsxFile, error) {
 	zr, err := zip.OpenReader(path)
 	if err != nil {
 		return nil, err

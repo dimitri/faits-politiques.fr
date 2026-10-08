@@ -30,7 +30,7 @@ const ConnectorVersionEPTBEPAGE = "eau-eptb-epage-v1"
 var SourceBanaticEPTBEPAGE = archive.Source{
 	Slug: "banatic-eptb-epage", Label: "BANATIC — établissements publics territoriaux de bassin (EPTB) et d'aménagement et de gestion des eaux (EPAGE)",
 	Publisher: "Direction générale des collectivités locales (DGCL)", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : BANATIC (DGCL)",
 	Cadence:     "continue",
 	Notes: "Registre déclaratif : le nombre de structures reconnues ici (colonnes EPAGE/EPTB) peut " +
@@ -59,40 +59,40 @@ const (
 	colBanaticColonneMini = colMembrePopulation + 1
 )
 
-type groupementEPTBEPAGE struct {
-	Nom              string
-	Type             string
-	NatureJuridique  *string
-	CodeDepartement  *string
-	PopulationTotale *int
-	NbMembres        *int
+type eptbEpageGroup struct {
+	Name            string
+	Type            string
+	LegalNature     *string
+	DepartmentCode  *string
+	TotalPopulation *int
+	MemberCount     *int
 }
 
-type membreEPTBEPAGE struct {
+type eptbEpageMember struct {
 	EPTBSiren        string
-	MembreSiren      string
-	MembreNom        *string
-	Categorie        *string
+	MemberSiren      string
+	MemberName       *string
+	Category         *string
 	CommuneCode      *string
-	PopulationMembre *int
+	MemberPopulation *int
 }
 
-// chargerCorrespondanceCommuneSIREN lit la table de passage BANATIC entre
+// loadCommuneSIRENMapping lit la table de passage BANATIC entre
 // SIREN de commune et code INSEE, nécessaire car « Siren membre » désigne la
 // commune par son SIREN de collectivité, pas par son code INSEE.
-func chargerCorrespondanceCommuneSIREN(chemin string) (map[string]string, error) {
-	brut, err := os.ReadFile(chemin)
+func loadCommuneSIRENMapping(path string) (map[string]string, error) {
+	raw, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	cr := csv.NewReader(strings.NewReader(latin1VersUTF8(brut)))
+	cr := csv.NewReader(strings.NewReader(latin1ToUTF8(raw)))
 	cr.Comma = ';'
-	entete, err := cr.Read()
+	header, err := cr.Read()
 	if err != nil {
 		return nil, fmt.Errorf("en-tête illisible : %w", err)
 	}
 	idx := map[string]int{}
-	for i, c := range entete {
+	for i, c := range header {
 		idx[strings.TrimSpace(c)] = i
 	}
 	for _, c := range []string{"Code INSEE de la commune", "Siren"} {
@@ -121,10 +121,10 @@ func chargerCorrespondanceCommuneSIREN(chemin string) (map[string]string, error)
 	return m, nil
 }
 
-// latin1VersUTF8 convertit de l'ISO-8859-1 vers UTF-8, écrit à la main plutôt
+// latin1ToUTF8 convertit de l'ISO-8859-1 vers UTF-8, écrit à la main plutôt
 // que par une dépendance : la correspondance commune/SIREN de BANATIC est le
 // seul fichier de ce connecteur à ne pas être déjà en UTF-8.
-func latin1VersUTF8(b []byte) string {
+func latin1ToUTF8(b []byte) string {
 	if utf8.Valid(b) {
 		return string(b)
 	}
@@ -135,7 +135,7 @@ func latin1VersUTF8(b []byte) string {
 	return string(r)
 }
 
-func entierOuNil(s string) *int {
+func intOrNil(s string) *int {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil
@@ -147,7 +147,7 @@ func entierOuNil(s string) *int {
 	return &v
 }
 
-func texteOuNil(s string) *string {
+func stringOrNil(s string) *string {
 	s = strings.TrimSpace(s)
 	if s == "" {
 		return nil
@@ -178,7 +178,7 @@ func IngestEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	if err != nil {
 		return fail(err)
 	}
-	correspondance, err := chargerCorrespondanceCommuneSIREN(fCorr.Path)
+	correspondence, err := loadCommuneSIRENMapping(fCorr.Path)
 	if err != nil {
 		return fail(fmt.Errorf("correspondance commune/SIREN : %w", err))
 	}
@@ -209,7 +209,7 @@ func IngestEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	if err != nil {
 		return fail(err)
 	}
-	attendues := map[int]string{
+	expectedHeaders := map[int]string{
 		colGroupementSiren: "N° SIREN", colGroupementNom: "Nom du groupement",
 		colNatureJuridique: "Nature juridique", colEPAGE: "EPAGE", colEPTB: "EPTB",
 		colPopulationTotale: "Population totale", colNbMembres: "Nombre de membres",
@@ -217,14 +217,14 @@ func IngestEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		colMembreCategorie:  "Catégorie des membres du groupement",
 		colMembrePopulation: "Population totale du membre du groupement",
 	}
-	for i, attendu := range attendues {
-		if i >= len(header) || strings.TrimSpace(header[i]) != attendu {
-			return fail(fmt.Errorf("colonne %d attendue %q, le format BANATIC a peut-être changé", i, attendu))
+	for i, want := range expectedHeaders {
+		if i >= len(header) || strings.TrimSpace(header[i]) != want {
+			return fail(fmt.Errorf("colonne %d attendue %q, le format BANATIC a peut-être changé", i, want))
 		}
 	}
 
-	groupements := map[string]*groupementEPTBEPAGE{}
-	var membres []membreEPTBEPAGE
+	groups := map[string]*eptbEpageGroup{}
+	var members []eptbEpageMember
 	n := 0
 	for rows.Next() {
 		n++
@@ -244,44 +244,44 @@ func IngestEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		if siren == "" {
 			return fail(fmt.Errorf("ligne %d : SIREN de groupement vide", n+1))
 		}
-		if _, ok := groupements[siren]; !ok {
-			typ := "EPTB"
+		if _, ok := groups[siren]; !ok {
+			kind := "EPTB"
 			switch {
 			case eptb == "OUI" && epage == "OUI":
-				typ = "EPTB_EPAGE"
+				kind = "EPTB_EPAGE"
 			case epage == "OUI":
-				typ = "EPAGE"
+				kind = "EPAGE"
 			}
-			var dept *string
+			var department *string
 			if dep := strings.TrimSpace(r[0]); dep != "" {
 				if i := strings.Index(dep, " - "); i > 0 {
 					d := dep[:i]
-					dept = &d
+					department = &d
 				}
 			}
-			groupements[siren] = &groupementEPTBEPAGE{
-				Nom: strings.TrimSpace(r[colGroupementNom]), Type: typ,
-				NatureJuridique: texteOuNil(r[colNatureJuridique]), CodeDepartement: dept,
-				PopulationTotale: entierOuNil(r[colPopulationTotale]), NbMembres: entierOuNil(r[colNbMembres]),
+			groups[siren] = &eptbEpageGroup{
+				Name: strings.TrimSpace(r[colGroupementNom]), Type: kind,
+				LegalNature: stringOrNil(r[colNatureJuridique]), DepartmentCode: department,
+				TotalPopulation: intOrNil(r[colPopulationTotale]), MemberCount: intOrNil(r[colNbMembres]),
 			}
 		}
-		membreSiren := strings.TrimSpace(r[colMembreSiren])
-		if membreSiren == "" {
+		memberSiren := strings.TrimSpace(r[colMembreSiren])
+		if memberSiren == "" {
 			continue
 		}
-		categorie := texteOuNil(r[colMembreCategorie])
+		category := stringOrNil(r[colMembreCategorie])
 		var communeCode *string
-		if categorie != nil && *categorie == "commune" {
-			if code, ok := correspondance[membreSiren]; ok {
+		if category != nil && *category == "commune" {
+			if code, ok := correspondence[memberSiren]; ok {
 				communeCode = &code
 			}
 		}
-		membres = append(membres, membreEPTBEPAGE{
-			EPTBSiren: siren, MembreSiren: membreSiren, MembreNom: texteOuNil(r[colMembreNom]),
-			Categorie: categorie, CommuneCode: communeCode, PopulationMembre: entierOuNil(r[colMembrePopulation]),
+		members = append(members, eptbEpageMember{
+			EPTBSiren: siren, MemberSiren: memberSiren, MemberName: stringOrNil(r[colMembreNom]),
+			Category: category, CommuneCode: communeCode, MemberPopulation: intOrNil(r[colMembrePopulation]),
 		})
 	}
-	if len(groupements) == 0 {
+	if len(groups) == 0 {
 		return fail(fmt.Errorf("aucun EPTB/EPAGE trouvé — le format BANATIC a peut-être changé"))
 	}
 
@@ -302,15 +302,15 @@ func IngestEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	groupementRows := make([][]any, 0, len(groupements))
-	for siren, g := range groupements {
-		groupementRows = append(groupementRows, []any{
-			siren, g.Nom, g.Type, g.NatureJuridique, g.CodeDepartement, g.PopulationTotale, g.NbMembres, srcID,
+	groupRows := make([][]any, 0, len(groups))
+	for siren, g := range groups {
+		groupRows = append(groupRows, []any{
+			siren, g.Name, g.Type, g.LegalNature, g.DepartmentCode, g.TotalPopulation, g.MemberCount, srcID,
 		})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_eptb_epage"},
 		[]string{"siren", "nom", "type", "nature_juridique", "code_departement", "population_totale", "nb_membres", "source_id"},
-		pgx.CopyFromRows(groupementRows)); err != nil {
+		pgx.CopyFromRows(groupRows)); err != nil {
 		return fail(fmt.Errorf("core.eptb_epage : %w", err))
 	}
 	if _, err := tx.Exec(ctx, `
@@ -338,15 +338,15 @@ func IngestEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 		) ON COMMIT DROP`); err != nil {
 		return fail(err)
 	}
-	membreRows := make([][]any, 0, len(membres))
-	for _, m := range membres {
-		membreRows = append(membreRows, []any{
-			m.EPTBSiren, m.MembreSiren, m.MembreNom, m.Categorie, m.CommuneCode, m.PopulationMembre,
+	memberRows := make([][]any, 0, len(members))
+	for _, m := range members {
+		memberRows = append(memberRows, []any{
+			m.EPTBSiren, m.MemberSiren, m.MemberName, m.Category, m.CommuneCode, m.MemberPopulation,
 		})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_eptb_epage_membre"},
 		[]string{"eptb_siren", "membre_siren", "membre_nom", "categorie", "commune_code", "population_membre"},
-		pgx.CopyFromRows(membreRows)); err != nil {
+		pgx.CopyFromRows(memberRows)); err != nil {
 		return fail(fmt.Errorf("core.eptb_epage_membre : %w", err))
 	}
 	if _, err := tx.Exec(ctx, `
@@ -386,7 +386,7 @@ func IngestEPTBEPAGE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	if err := tx.Commit(ctx); err != nil {
 		return fail(err)
 	}
-	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"structures": len(groupements), "membres": len(membres)}, "")
-	fmt.Printf("  EPTB/EPAGE (BANATIC) : %d structures, %d membres\n", len(groupements), len(membres))
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"structures": len(groups), "membres": len(members)}, "")
+	fmt.Printf("  EPTB/EPAGE (BANATIC) : %d structures, %d membres\n", len(groups), len(members))
 	return nil
 }

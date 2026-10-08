@@ -31,7 +31,7 @@ const Version = "europe/1"
 var Source = archive.Source{
 	Slug: "howtheyvote", Label: "HowTheyVote.eu — scrutins nominatifs du Parlement européen",
 	Publisher: "HowTheyVote.eu", Tier: "SECONDARY_PRESS",
-	Licence: "ODbL", ReuseClass: "ATTRIBUTION",
+	License: "ODbL", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : HowTheyVote.eu, données sous licence ODbL",
 	Cadence:     "hebdomadaire",
 	Notes: "Collecte et republie les scrutins publiés par le Parlement européen. " +
@@ -41,7 +41,7 @@ var Source = archive.Source{
 
 const base = "https://github.com/HowTheyVote/data/releases/download/2026-09-05/"
 
-var fichiers = []string{
+var files = []string{
 	"members", "groups", "group_memberships", "votes",
 	"eurovoc_concepts", "eurovoc_concept_votes", "member_votes",
 }
@@ -50,10 +50,10 @@ var fichiers = []string{
 // la récupération concurrente inter-connecteurs (voir
 // internal/ingest.PrefetchAll, utilisée par fpctl build).
 func DownloadTargets() []archive.DownloadTarget {
-	out := make([]archive.DownloadTarget, len(fichiers))
-	for i, f := range fichiers {
+	out := make([]archive.DownloadTarget, len(files))
+	for i, f := range files {
 		out[i] = archive.DownloadTarget{
-			Nom: "europe-" + f, Source: Source, URL: base + f + ".csv.gz", Ext: ".csv.gz",
+			Name: "europe-" + f, Source: Source, URL: base + f + ".csv.gz", Ext: ".csv.gz",
 		}
 	}
 	return out
@@ -75,31 +75,31 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		return err
 	}
 
-	chemins := map[string]string{}
+	paths := map[string]string{}
 	var hashVotes string
-	for _, f := range fichiers {
+	for _, f := range files {
 		fetched, err := arch.Fetch(ctx, srcID, runID, base+f+".csv.gz", ".csv.gz")
 		if err != nil {
 			arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
 			return fmt.Errorf("%s : %w", f, err)
 		}
-		chemins[f] = fetched.Path
+		paths[f] = fetched.Path
 		if f == "member_votes" {
 			hashVotes = fetched.SHA256
 		}
 	}
 
 	// member_votes.csv.gz est le seul fichier assez gros pour valoir un
-	// cache (17,6M lignes — voir chargerVotesNominatifs) : sauter sa
+	// cache (17,6M lignes — voir loadNominalVotes) : sauter sa
 	// reconstruction saute aussi la remise à zéro de core.ballot ET de
-	// core.scrutin ensemble, jamais l'un sans l'autre — chargerVotes
+	// core.scrutin ensemble, jamais l'un sans l'autre — loadVotes
 	// réinsère les scrutins avec un NOUVEL id à chaque passage (upsert sur
 	// une table déjà vidée par la remise à zéro, donc jamais un vrai
 	// conflit), donc garder les ballots sans garder les scrutins qui les
 	// portent romprait la FK dès la remise à zéro suivante. Même gotcha que
 	// core.organization pour l'Assemblée (internal/an/normalize.go).
 	const scopeBallots = "europe-member-votes"
-	skipBallots, raison, err := watermark.FileDiff(ctx, pool, scopeBallots, hashVotes)
+	skipBallots, reason, err := watermark.FileDiff(ctx, pool, scopeBallots, hashVotes)
 	if err != nil {
 		return err
 	}
@@ -112,31 +112,31 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		}
 		if n == 0 {
 			skipBallots = false
-			raison = "watermark says unchanged but core.ballot looks empty for PARLEMENT_EUROPEEN"
+			reason = "watermark says unchanged but core.ballot looks empty for PARLEMENT_EUROPEEN"
 		}
 	}
 
 	// topic_assignment se reconstruit à part (eurovoc_concepts/
 	// eurovoc_concept_votes, deux fichiers indépendants de member_votes) :
-	// sa fusion (voir chargerEuroVoc) reste inconditionnelle sur son
+	// sa fusion (voir loadEuroVoc) reste inconditionnelle sur son
 	// périmètre (les scrutins du Parlement européen), seules ballot/scrutin
 	// suivent le cache ci-dessus.
-	// Ni core.ballot ni core.scrutin ne sont plus wipés ici : chargerVotesNominatifs
+	// Ni core.ballot ni core.scrutin ne sont plus wipés ici : loadNominalVotes
 	// fait maintenant un MERGE sur core.ballot (voir son commentaire), et ça
-	// suppose des scrutin_id STABLES d'un passage à l'autre — chargerVotes
+	// suppose des scrutin_id STABLES d'un passage à l'autre — loadVotes
 	// upserte déjà sur (institution, source_uid), un DELETE préalable ne
 	// faisait que garantir que cet upsert ne rencontre jamais de conflit,
 	// donc réattribuait un id neuf à chaque scrutin à chaque passage.
 
-	groupes, err := chargerGroupes(ctx, pool, chemins["groups"])
+	groups, err := loadGroups(ctx, pool, paths["groups"])
 	if err != nil {
 		return err
 	}
-	membres, err := chargerMembres(ctx, pool, chemins["members"])
+	members, err := loadMembers(ctx, pool, paths["members"])
 	if err != nil {
 		return err
 	}
-	appartenances, err := chargerAppartenances(ctx, pool, chemins["group_memberships"], membres, groupes)
+	affiliations, err := loadAffiliations(ctx, pool, paths["group_memberships"], members, groups)
 	if err != nil {
 		return err
 	}
@@ -144,7 +144,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	var scrutins map[string]int64
 	var nBallots int
 	if skipBallots {
-		scrutins, err = scrutinsExistants(ctx, pool)
+		scrutins, err = existingScrutins(ctx, pool)
 		if err != nil {
 			return err
 		}
@@ -154,12 +154,12 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			return err
 		}
 	} else {
-		logs.Notice("cache invalidated: " + raison)
-		scrutins, err = chargerVotes(ctx, pool, chemins["votes"])
+		logs.Notice("cache invalidated: " + reason)
+		scrutins, err = loadVotes(ctx, pool, paths["votes"])
 		if err != nil {
 			return err
 		}
-		nBallots, err = chargerVotesNominatifs(ctx, pool, chemins["member_votes"], membres, scrutins, appartenances)
+		nBallots, err = loadNominalVotes(ctx, pool, paths["member_votes"], members, scrutins, affiliations)
 		if err != nil {
 			return err
 		}
@@ -167,23 +167,23 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 			return err
 		}
 	}
-	nThemes, err := chargerEuroVoc(ctx, pool, chemins["eurovoc_concepts"], chemins["eurovoc_concept_votes"], scrutins)
+	nThemes, err := loadEuroVoc(ctx, pool, paths["eurovoc_concepts"], paths["eurovoc_concept_votes"], scrutins)
 	if err != nil {
 		return err
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{
-		"groupes": len(groupes), "membres_fr": len(membres),
+		"groups": len(groups), "membres_fr": len(members),
 		"scrutins": len(scrutins), "votes": nBallots, "themes": nThemes}, "")
 	logs.Notice(fmt.Sprintf("European Parliament: %s, %s, %s, %s, %s",
-		logs.Plural(len(groupes), "group"), logs.Plural(len(membres), "French MEP"),
+		logs.Plural(len(groups), "group"), logs.Plural(len(members), "French MEP"),
 		logs.Plural(len(scrutins), "roll-call vote"), logs.Plural(nBallots, "individual ballot"),
 		logs.Plural(nThemes, "EuroVoc assignment")))
 	return nil
 }
 
-// lire ouvre un CSV éventuellement compressé et appelle fn sur chaque ligne.
-func lire(path string, fn func(map[string]string) error) error {
+// read ouvre un CSV éventuellement compressé et appelle fn sur chaque ligne.
+func read(path string, fn func(map[string]string) error) error {
 	f, err := os.Open(path)
 	if err != nil {
 		return err
@@ -261,9 +261,9 @@ func slugify(s string) string {
 
 // ---------------------------------------------------------------- chargement
 
-func chargerGroupes(ctx context.Context, pool *pgxpool.Pool, path string) (map[string]int64, error) {
+func loadGroups(ctx context.Context, pool *pgxpool.Pool, path string) (map[string]int64, error) {
 	out := map[string]int64{}
-	err := lire(path, func(m map[string]string) error {
+	err := read(path, func(m map[string]string) error {
 		code := m["code"]
 		if code == "" {
 			return nil
@@ -291,12 +291,12 @@ func chargerGroupes(ctx context.Context, pool *pgxpool.Pool, path string) (map[s
 	return out, err
 }
 
-// chargerMembres ne charge que les eurodéputés FRANÇAIS : ce site est français,
+// loadMembers ne charge que les eurodéputés FRANÇAIS : ce site est français,
 // et le fichier complet des votes nominatifs pèse 67 Mo compressés.
-func chargerMembres(ctx context.Context, pool *pgxpool.Pool, path string) (map[string]int64, error) {
+func loadMembers(ctx context.Context, pool *pgxpool.Pool, path string) (map[string]int64, error) {
 	type m struct{ id, prenom, nom, naissance string }
 	var fr []m
-	if err := lire(path, func(r map[string]string) error {
+	if err := read(path, func(r map[string]string) error {
 		if r["country_code"] != "FRA" || r["id"] == "" {
 			return nil
 		}
@@ -308,26 +308,26 @@ func chargerMembres(ctx context.Context, pool *pgxpool.Pool, path string) (map[s
 
 	// HowTheyVote publie le nom en capitales : on le remet en casse normale,
 	// sans quoi les fiches jureraient à côté de celles de l'Assemblée.
-	casse := func(s string) string {
-		mots := strings.Fields(strings.ToLower(s))
-		for i, w := range mots {
+	titleCase := func(s string) string {
+		words := strings.Fields(strings.ToLower(s))
+		for i, w := range words {
 			r := []rune(w)
 			r[0] = []rune(strings.ToUpper(string(r[0])))[0]
-			mots[i] = string(r)
+			words[i] = string(r)
 		}
-		return strings.Join(mots, " ")
+		return strings.Join(words, " ")
 	}
 
-	homonymes := map[string]int{}
+	homonyms := map[string]int{}
 	for _, x := range fr {
-		homonymes[slugify(x.prenom+" "+x.nom)]++
+		homonyms[slugify(x.prenom+" "+x.nom)]++
 	}
 
 	out := map[string]int64{}
 	for _, x := range fr {
 		base := slugify(x.prenom + " " + x.nom)
 		slug := base
-		if homonymes[base] > 1 {
+		if homonyms[base] > 1 {
 			slug = base + "-" + x.id
 		}
 		var pid int64
@@ -335,7 +335,7 @@ func chargerMembres(ctx context.Context, pool *pgxpool.Pool, path string) (map[s
 			INSERT INTO core.person (slug, family_name, given_name, birth_date)
 			VALUES ($1,$2,$3,NULLIF($4,'')::date)
 			ON CONFLICT (slug) DO UPDATE SET family_name = EXCLUDED.family_name
-			RETURNING id`, slug, casse(x.nom), casse(x.prenom), x.naissance).Scan(&pid); err != nil {
+			RETURNING id`, slug, titleCase(x.nom), titleCase(x.prenom), x.naissance).Scan(&pid); err != nil {
 			return nil, fmt.Errorf("eurodéputé %s : %w", x.id, err)
 		}
 		if _, err := pool.Exec(ctx, `
@@ -348,10 +348,10 @@ func chargerMembres(ctx context.Context, pool *pgxpool.Pool, path string) (map[s
 	return out, nil
 }
 
-// chargerAppartenances crée les mandats d'eurodéputé et les appartenances de
+// loadAffiliations crée les mandats d'eurodéputé et les affiliations de
 // groupe, et retourne le groupe de chaque membre pour ventiler les votes.
-func chargerAppartenances(ctx context.Context, pool *pgxpool.Pool, path string,
-	membres, groupes map[string]int64) (map[string]int64, error) {
+func loadAffiliations(ctx context.Context, pool *pgxpool.Pool, path string,
+	members, groups map[string]int64) (map[string]int64, error) {
 
 	if _, err := pool.Exec(ctx, `
 		DELETE FROM core.mandate WHERE institution = 'PARLEMENT_EUROPEEN'`); err != nil {
@@ -362,13 +362,13 @@ func chargerAppartenances(ctx context.Context, pool *pgxpool.Pool, path string,
 		return nil, err
 	}
 
-	dernier := map[string]int64{}
-	err := lire(path, func(m map[string]string) error {
-		pid, ok := membres[m["member_id"]]
+	groupOf := map[string]int64{}
+	err := read(path, func(m map[string]string) error {
+		pid, ok := members[m["member_id"]]
 		if !ok {
 			return nil
 		}
-		gid, ok := groupes[m["group_code"]]
+		gid, ok := groups[m["group_code"]]
 		if !ok {
 			return nil
 		}
@@ -395,16 +395,16 @@ func chargerAppartenances(ctx context.Context, pool *pgxpool.Pool, path string,
 			!strings.Contains(err.Error(), "23P01") {
 			return err
 		}
-		dernier[m["member_id"]] = gid
+		groupOf[m["member_id"]] = gid
 		return nil
 	})
-	return dernier, err
+	return groupOf, err
 }
 
-// scrutinsExistants relit source_uid -> id depuis core.scrutin, quand le
-// cache du bulletin (voir Ingest, scopeBallots) permet de sauter chargerVotes
+// existingScrutins relit source_uid -> id depuis core.scrutin, quand le
+// cache du bulletin (voir Ingest, scopeBallots) permet de sauter loadVotes
 // : les ids restent ceux d'un run précédent, jamais recalculés.
-func scrutinsExistants(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
+func existingScrutins(ctx context.Context, pool *pgxpool.Pool) (map[string]int64, error) {
 	rows, err := pool.Query(ctx, `
 		SELECT source_uid, id FROM core.scrutin WHERE institution = 'PARLEMENT_EUROPEEN'`)
 	if err != nil {
@@ -423,7 +423,7 @@ func scrutinsExistants(ctx context.Context, pool *pgxpool.Pool) (map[string]int6
 	return out, rows.Err()
 }
 
-func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[string]int64, error) {
+func loadVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[string]int64, error) {
 	if _, err := pool.Exec(ctx, `
 		INSERT INTO core.legislature (institution, numero, validity)
 		VALUES ('PARLEMENT_EUROPEEN', 9, daterange('2019-07-02','2024-07-15'))
@@ -431,12 +431,12 @@ func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[str
 		return nil, err
 	}
 
-	type ligne struct {
+	type scrutinRow struct {
 		slug, uid, numero, date, objet, typeVote string
 		pour, contre, abstentions                int
 	}
-	var lignes []ligne
-	if err := lire(path, func(m map[string]string) error {
+	var rows2 []scrutinRow
+	if err := read(path, func(m map[string]string) error {
 		id := m["id"]
 		if id == "" || len(m["timestamp"]) < 10 {
 			return nil
@@ -449,7 +449,7 @@ func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[str
 			objet = "Scrutin " + id // core.scrutin exige un objet non vide
 		}
 		atoi := func(k string) int { n, _ := strconv.Atoi(m[k]); return n }
-		lignes = append(lignes, ligne{"pe-" + id, id, id, m["timestamp"][:10], objet,
+		rows2 = append(rows2, scrutinRow{"pe-" + id, id, id, m["timestamp"][:10], objet,
 			m["description"], atoi("count_for"), atoi("count_against"), atoi("count_abstention")})
 		return nil
 	}); err != nil {
@@ -468,8 +468,8 @@ func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[str
 		) ON COMMIT DROP`); err != nil {
 		return nil, err
 	}
-	rows := make([][]any, len(lignes))
-	for i, l := range lignes {
+	rows := make([][]any, len(rows2))
+	for i, l := range rows2 {
 		rows[i] = []any{l.slug, l.uid, l.numero, l.date, l.objet, l.typeVote,
 			l.pour, l.contre, l.abstentions}
 	}
@@ -515,7 +515,7 @@ func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[str
 	return out, nil
 }
 
-// chargerVotesNominatifs charge member_votes.csv.gz DIRECTEMENT dans
+// loadNominalVotes charge member_votes.csv.gz DIRECTEMENT dans
 // Postgres — le flux décompressé va tel quel, via le protocole COPY, dans une
 // table temporaire à colonnes texte ; aucun décodage CSV ne se fait plus côté
 // Go. Le fichier porte le vote de chaque eurodéputé (~700, toutes
@@ -526,12 +526,12 @@ func chargerVotes(ctx context.Context, pool *pgxpool.Pool, path string) (map[str
 //
 // Le gain n'est pas seulement la table de destination (déjà en COPY) : c'est
 // le PARSING lui-même. encoding/csv + une map[string]string par ligne, même
-// optimisée (voir lire()), reste des dizaines de millions d'allocations et de
+// optimisée (voir read()), reste des dizaines de millions d'allocations et de
 // comparaisons de chaînes en Go pour un travail que le COPY natif de Postgres
 // fait en C, et que la seule requête SQL qui suit exprime plus court que la
 // boucle qu'elle remplace.
-func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string,
-	membres, scrutins, groupeDe map[string]int64) (int, error) {
+func loadNominalVotes(ctx context.Context, pool *pgxpool.Pool, path string,
+	members, scrutins, groupOf map[string]int64) (int, error) {
 
 	logs.Notice("loading member_votes.csv.gz (17.6M rows, streamed straight into Postgres)")
 
@@ -575,7 +575,7 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 		return 0, err
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_membres"}, []string{"member_id", "person_id"},
-		pgx.CopyFromSlice(len(membres), mapCopySource(membres))); err != nil {
+		pgx.CopyFromSlice(len(members), mapCopySource(members))); err != nil {
 		return 0, err
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_scrutins"}, []string{"vote_id", "scrutin_id"},
@@ -583,7 +583,7 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 		return 0, err
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_groupe_de"}, []string{"member_id", "organization_id"},
-		pgx.CopyFromSlice(len(groupeDe), mapCopySource(groupeDe))); err != nil {
+		pgx.CopyFromSlice(len(groupOf), mapCopySource(groupOf))); err != nil {
 		return 0, err
 	}
 
@@ -621,8 +621,8 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 		  WITH LOCAL CHECK OPTION`); err != nil {
 		return 0, err
 	}
-	var nLignes int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
+	var nBallots int64
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.ballot", func() error {
 		_, err := tx.Exec(ctx, `
 			WITH resolues AS (
 				SELECT t.rn, s.scrutin_id, m.person_id, g.organization_id,
@@ -658,13 +658,13 @@ func chargerVotesNominatifs(ctx context.Context, pool *pgxpool.Pool, path string
 	}
 	if err := tx.QueryRow(ctx, `
 		SELECT count(*) FROM core.ballot b JOIN core.scrutin s ON s.id = b.scrutin_id
-		 WHERE s.institution = 'PARLEMENT_EUROPEEN'`).Scan(&nLignes); err != nil {
+		 WHERE s.institution = 'PARLEMENT_EUROPEEN'`).Scan(&nBallots); err != nil {
 		return 0, err
 	}
 	if err := tx.Commit(ctx); err != nil {
 		return 0, err
 	}
-	return int(nLignes), nil
+	return int(nBallots), nil
 }
 
 // mapCopySource adapte une map[string]int64 en source pour pgx.CopyFromSlice
@@ -680,11 +680,11 @@ func mapCopySource(m map[string]int64) func(int) ([]any, error) {
 	}
 }
 
-// chargerEuroVoc transcrit la classification thématique OFFICIELLE de l'Union :
+// loadEuroVoc transcrit la classification thématique OFFICIELLE de l'Union :
 // EuroVoc est le thésaurus multilingue des institutions européennes, et les
 // concepts sont attachés aux votes par la source. Ce n'est donc pas notre
 // classement — c'est celui du producteur, repris tel quel.
-func chargerEuroVoc(ctx context.Context, pool *pgxpool.Pool,
+func loadEuroVoc(ctx context.Context, pool *pgxpool.Pool,
 	pathConcepts, pathLiens string, scrutins map[string]int64) (int, error) {
 
 	if _, err := pool.Exec(ctx, `
@@ -696,7 +696,7 @@ func chargerEuroVoc(ctx context.Context, pool *pgxpool.Pool,
 	}
 
 	concepts := map[string]string{}
-	if err := lire(pathConcepts, func(m map[string]string) error {
+	if err := read(pathConcepts, func(m map[string]string) error {
 		id, label := m["id"], m["label"]
 		if id == "" || label == "" {
 			return nil
@@ -718,7 +718,7 @@ func chargerEuroVoc(ctx context.Context, pool *pgxpool.Pool,
 	}
 
 	var rows [][]any
-	if err := lire(pathLiens, func(m map[string]string) error {
+	if err := read(pathLiens, func(m map[string]string) error {
 		sid, ok := scrutins[m["vote_id"]]
 		if !ok {
 			return nil

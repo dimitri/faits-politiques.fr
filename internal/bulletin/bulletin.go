@@ -21,10 +21,10 @@ import (
 )
 
 const (
-	doc   = "docs/cotisations-et-droits.md"
-	debut = "<!-- figure-bulletin:debut — généré par cmd/figure-bulletin, ne pas modifier à la main -->"
-	fin   = "<!-- figure-bulletin:fin -->"
-	cas   = "technicienne-2500"
+	doc      = "docs/cotisations-et-droits.md"
+	start    = "<!-- figure-bulletin:debut — généré par cmd/figure-bulletin, ne pas modifier à la main -->"
+	end      = "<!-- figure-bulletin:fin -->"
+	scenario = "technicienne-2500"
 )
 
 var budgets = map[string]string{
@@ -33,9 +33,9 @@ var budgets = map[string]string{
 	"PRIVE": "Organisme privé", "AUTRE": "Affectation choisie par l'employeur",
 }
 
-var ordreBudget = []string{"ETAT", "SECU_LFSS", "SECU_PARITAIRE", "OPERATEUR_ETAT", "FONDS_ETAT", "PRIVE", "AUTRE"}
+var budgetOrder = []string{"ETAT", "SECU_LFSS", "SECU_PARITAIRE", "OPERATEUR_ETAT", "FONDS_ETAT", "PRIVE", "AUTRE"}
 
-var natures = []struct{ code, nom string }{
+var natures = []struct{ code, name string }{
 	{"SALAIRE", "Salaire versé"},
 	{"IMPOT", "Impôts et taxes, sans droit individuel"},
 	{"DIFFERE", "Salaire différé : droits proportionnels à ce qui est versé"},
@@ -43,7 +43,7 @@ var natures = []struct{ code, nom string }{
 	{"SOLIDARITE", "Solidarité : droits sans lien avec ce salaire"},
 }
 
-var courts = map[string]string{
+var shortLabels = map[string]string{
 	"SALARIE": "Salaire net versé", "DGFIP": "Impôt sur le revenu", "CSG": "CSG", "CADES": "CRDS",
 	"FRANCE_COMPETENCES": "Formation, apprentissage", "SOLDE_TA": "Solde de la taxe d'apprentissage", "AGFPN": "Dialogue social",
 	"CNAV": "Retraite de base", "AGIRC_ARRCO": "Retraite complémentaire", "UNEDIC": "Assurance chômage",
@@ -53,7 +53,7 @@ var courts = map[string]string{
 
 // Ce que ce mois ouvre pour la salariée. Le texte de la retraite complémentaire
 // est complété par le calcul des points.
-var ouvre = map[string]string{
+var opens = map[string]string{
 	"DGFIP":              "Aucun droit individuel : recette du budget de l'État.",
 	"CSG":                "Aucun droit individuel : impôt réparti par la loi entre les caisses de sécurité sociale.",
 	"CADES":              "Aucun : rembourse la dette sociale accumulée.",
@@ -92,22 +92,22 @@ func eur(x float64) string {
 
 func eur0(x float64) string { v := eur(math.Round(x)); return strings.TrimSuffix(v, ",00") }
 
-func taux(x float64) string {
+func rate(x float64) string {
 	s := fmt.Sprintf("%.3f", x)
 	s = strings.TrimSuffix(s, "0")
 	return strings.ReplaceAll(s, ".", ",")
 }
 
-type flux struct {
-	org, nom, budget, sousSecteur, nature string
-	salarie, employeur, reduction, verse  float64
-	texteBudget                           string
+type flow struct {
+	org, name, budget, subSector, nature string
+	employee, employer, reduction, paid  float64
+	budgetText                           string
 }
 
-type ligne struct {
-	code, part, libelle, rubrique string
-	ordre                         int
-	base, taux, montant           float64
+type line struct {
+	code, part, label, heading string
+	order                      int
+	base, rate, amount         float64
 }
 
 // Run exécute la commande bulletin. Ne prend aucune option ; args n'existe
@@ -130,12 +130,12 @@ func Run(ctx context.Context, args []string) error {
 	if err != nil {
 		return err
 	}
-	i, j := bytes.Index(src, []byte(debut)), bytes.Index(src, []byte(fin))
+	i, j := bytes.Index(src, []byte(start)), bytes.Index(src, []byte(end))
 	if i < 0 || j < i {
 		return fmt.Errorf("%s : marqueurs de la figure introuvables", doc)
 	}
 	var out bytes.Buffer
-	out.Write(src[:i+len(debut)])
+	out.Write(src[:i+len(start)])
 	out.WriteString("\n")
 	out.WriteString(frag)
 	out.Write(src[j:])
@@ -147,68 +147,68 @@ func Run(ctx context.Context, args []string) error {
 }
 
 func figure(ctx context.Context, pool *pgxpool.Pool) (string, error) {
-	var brut, cotSal, cotEmpDu, coef, red, cotEmp, netAvant, netImp, pas, net, cout float64
-	var descr string
-	var effectif int
-	var tauxPas, pmss float64
+	var gross, employeeContrib, employerContribDue, coef, reduction, employerContrib, netBeforeTax, netTaxable, withholding, net, cost float64
+	var description string
+	var headcount int
+	var withholdingRate, pmss float64
 	if err := pool.QueryRow(ctx, `SELECT s.brut, s.cotisations_salarie, s.cotisations_employeur_dues, s.coefficient,
 		s.reduction_generale, s.cotisations_employeur, s.net_avant_impot, s.net_imposable, s.impot_source, s.net_paye,
 		s.cout_employeur, b.description, b.effectif, b.taux_pas,
 		(SELECT valeur FROM ref.parametre_social p WHERE p.millesime = b.millesime AND p.code = 'PMSS')
-		FROM derived.bulletin_synthese s JOIN ref.bulletin_cas b USING (cas) WHERE cas = $1`, cas).
-		Scan(&brut, &cotSal, &cotEmpDu, &coef, &red, &cotEmp, &netAvant, &netImp, &pas, &net, &cout, &descr, &effectif, &tauxPas, &pmss); err != nil {
+		FROM derived.bulletin_synthese s JOIN ref.bulletin_cas b USING (cas) WHERE cas = $1`, scenario).
+		Scan(&gross, &employeeContrib, &employerContribDue, &coef, &reduction, &employerContrib, &netBeforeTax, &netTaxable, &withholding, &net, &cost, &description, &headcount, &withholdingRate, &pmss); err != nil {
 		return "", fmt.Errorf("synthèse : %w", err)
 	}
-	var calcul, prixPoint, valeurPoint float64
+	var calcRate, pointPrice, pointValue float64
 	if err := pool.QueryRow(ctx, `SELECT
 		max(valeur) FILTER (WHERE code = 'AGIRC_ARRCO_TAUX_CALCUL_T1'),
 		max(valeur) FILTER (WHERE code = 'AGIRC_ARRCO_PRIX_ACHAT'),
 		max(valeur) FILTER (WHERE code = 'AGIRC_ARRCO_VALEUR_SERVICE')
-		FROM ref.parametre_social p JOIN ref.bulletin_cas b ON b.millesime = p.millesime WHERE b.cas = $1`, cas).
-		Scan(&calcul, &prixPoint, &valeurPoint); err != nil {
+		FROM ref.parametre_social p JOIN ref.bulletin_cas b ON b.millesime = p.millesime WHERE b.cas = $1`, scenario).
+		Scan(&calcRate, &pointPrice, &pointValue); err != nil {
 		return "", err
 	}
-	points := math.Min(brut, pmss) * calcul / 100 / prixPoint
+	points := math.Min(gross, pmss) * calcRate / 100 / pointPrice
 
 	rows, err := pool.Query(ctx, `SELECT code, part, libelle, rubrique, ordre, base, taux, montant
-		FROM derived.bulletin_ligne WHERE cas = $1 ORDER BY ordre, part DESC`, cas)
+		FROM derived.bulletin_ligne WHERE cas = $1 ORDER BY ordre, part DESC`, scenario)
 	if err != nil {
 		return "", err
 	}
-	var lignes []ligne
+	var lines []line
 	for rows.Next() {
-		var l ligne
-		if err := rows.Scan(&l.code, &l.part, &l.libelle, &l.rubrique, &l.ordre, &l.base, &l.taux, &l.montant); err != nil {
+		var l line
+		if err := rows.Scan(&l.code, &l.part, &l.label, &l.heading, &l.order, &l.base, &l.rate, &l.amount); err != nil {
 			return "", err
 		}
-		lignes = append(lignes, l)
+		lines = append(lines, l)
 	}
 	rows.Close()
 
 	rows, err = pool.Query(ctx, `SELECT f.organisme, f.nom, coalesce(f.budget, ''), coalesce(f.sous_secteur, ''), f.nature_droit,
 		f.salarie, f.employeur_du, f.reduction, f.verse, coalesce(o.texte_budget, '')
-		FROM derived.bulletin_flux f LEFT JOIN ref.organisme_social o ON o.code = f.organisme WHERE f.cas = $1`, cas)
+		FROM derived.bulletin_flux f LEFT JOIN ref.organisme_social o ON o.code = f.organisme WHERE f.cas = $1`, scenario)
 	if err != nil {
 		return "", err
 	}
-	var fl []flux
+	var flows []flow
 	for rows.Next() {
-		var f flux
-		if err := rows.Scan(&f.org, &f.nom, &f.budget, &f.sousSecteur, &f.nature, &f.salarie, &f.employeur, &f.reduction, &f.verse, &f.texteBudget); err != nil {
+		var f flow
+		if err := rows.Scan(&f.org, &f.name, &f.budget, &f.subSector, &f.nature, &f.employee, &f.employer, &f.reduction, &f.paid, &f.budgetText); err != nil {
 			return "", err
 		}
-		fl = append(fl, f)
+		flows = append(flows, f)
 	}
 	rows.Close()
-	rang := map[string]int{}
+	rank := map[string]int{}
 	for i, n := range natures {
-		rang[n.code] = i
+		rank[n.code] = i
 	}
-	sort.SliceStable(fl, func(a, b int) bool {
-		if rang[fl[a].nature] != rang[fl[b].nature] {
-			return rang[fl[a].nature] < rang[fl[b].nature]
+	sort.SliceStable(flows, func(a, b int) bool {
+		if rank[flows[a].nature] != rank[flows[b].nature] {
+			return rank[flows[a].nature] < rank[flows[b].nature]
 		}
-		return fl[a].verse > fl[b].verse
+		return flows[a].paid > flows[b].paid
 	})
 
 	var w strings.Builder
@@ -264,68 +264,68 @@ func figure(ctx context.Context, pool *pgxpool.Pool) (string, error) {
 </style>
 `)
 	p(`<div class="bp">`)
-	p(`<p><strong>Hypothèses.</strong> %s</p>`, e(descr))
+	p(`<p><strong>Hypothèses.</strong> %s</p>`, e(description))
 
 	// Le bulletin.
 	p(`<div class="bp-bulletin" role="region" aria-label="Bulletin de paie factice, janvier 2026">`)
-	p(`<div class="bp-tete"><div><p class="bp-lab">Employeur</p><p><strong>Atelier Durand SAS</strong> (factice)<br>%d salariés · métallurgie</p></div>`, effectif)
+	p(`<div class="bp-tete"><div><p class="bp-lab">Employeur</p><p><strong>Atelier Durand SAS</strong> (factice)<br>%d salariés · métallurgie</p></div>`, headcount)
 	p(`<div><p class="bp-lab">Salariée</p><p><strong>Camille Martin</strong> (factice)<br>technicienne d'atelier, non-cadre, CDI, 151,67 h</p></div>`)
 	p(`<div><p class="bp-lab">Période</p><p><strong>Janvier 2026</strong><br>plafond mensuel : %s €</p></div></div>`, eur0(pmss))
 	p(`<div class="bp-defil"><table><thead><tr><th>Rubrique</th><th class="n">Base</th><th class="n">Taux salarié %%</th><th class="n">Part salarié €</th><th class="n">Taux employeur %%</th><th class="n">Part employeur €</th></tr></thead><tbody>`)
-	p(`<tr class="bp-tot"><td>Salaire brut</td><td></td><td></td><td class="n">%s</td><td></td><td></td></tr>`, eur(brut))
-	vus := map[string]bool{}
-	rub := ""
-	for _, l := range lignes {
-		if vus[l.code] {
+	p(`<tr class="bp-tot"><td>Salaire brut</td><td></td><td></td><td class="n">%s</td><td></td><td></td></tr>`, eur(gross))
+	seen := map[string]bool{}
+	currentHeading := ""
+	for _, l := range lines {
+		if seen[l.code] {
 			continue
 		}
-		vus[l.code] = true
-		if l.rubrique != rub {
-			rub = l.rubrique
-			p(`<tr class="bp-rub"><th colspan="6">%s</th></tr>`, e(rub))
+		seen[l.code] = true
+		if l.heading != currentHeading {
+			currentHeading = l.heading
+			p(`<tr class="bp-rub"><th colspan="6">%s</th></tr>`, e(currentHeading))
 		}
 		var ts, ms, te, me string
-		for _, m := range lignes {
+		for _, m := range lines {
 			if m.code != l.code {
 				continue
 			}
 			if m.part == "SALARIE" {
-				ts, ms = taux(m.taux), eur(m.montant)
+				ts, ms = rate(m.rate), eur(m.amount)
 			} else {
-				te, me = taux(m.taux), eur(m.montant)
+				te, me = rate(m.rate), eur(m.amount)
 			}
 		}
 		p(`<tr><td>%s</td><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td><td class="n">%s</td></tr>`,
-			e(l.libelle), eur(l.base), ts, ms, te, me)
+			e(l.label), eur(l.base), ts, ms, te, me)
 	}
 	p(`<tr class="bp-rub"><th colspan="6">Exonérations et allègements de cotisations</th></tr>`)
 	p(`<tr><td>Réduction générale dégressive unique (coefficient %s)</td><td class="n">%s</td><td></td><td></td><td></td><td class="n">−%s</td></tr>`,
-		strings.ReplaceAll(fmt.Sprintf("%.4f", coef), ".", ","), eur(brut), eur(red))
-	p(`<tr class="bp-tot"><td>Total des cotisations et contributions</td><td></td><td></td><td class="n">%s</td><td></td><td class="n">%s</td></tr>`, eur(cotSal), eur(cotEmp))
+		strings.ReplaceAll(fmt.Sprintf("%.4f", coef), ".", ","), eur(gross), eur(reduction))
+	p(`<tr class="bp-tot"><td>Total des cotisations et contributions</td><td></td><td></td><td class="n">%s</td><td></td><td class="n">%s</td></tr>`, eur(employeeContrib), eur(employerContrib))
 	p(`</tbody></table></div>`)
-	p(`<div class="bp-pied"><div><span>Net à payer avant impôt sur le revenu</span><b>%s €</b></div><div><span>Net imposable</span><b>%s €</b></div>`, eur(netAvant), eur(netImp))
+	p(`<div class="bp-pied"><div><span>Net à payer avant impôt sur le revenu</span><b>%s €</b></div><div><span>Net imposable</span><b>%s €</b></div>`, eur(netBeforeTax), eur(netTaxable))
 	p(`<div><span>Impôt sur le revenu prélevé à la source (taux %s %%)</span><b>−%s €</b></div><div class="bp-fort"><span>Net payé</span><b>%s €</b></div>`,
-		strings.ReplaceAll(fmt.Sprintf("%.1f", tauxPas), ".", ","), eur(pas), eur(net))
-	p(`<div><span>Montant net social</span><b>%s €</b></div><div class="bp-fort"><span>Coût total pour l'employeur</span><b>%s €</b></div></div>`, eur(netAvant), eur(cout))
+		strings.ReplaceAll(fmt.Sprintf("%.1f", withholdingRate), ".", ","), eur(withholding), eur(net))
+	p(`<div><span>Montant net social</span><b>%s €</b></div><div class="bp-fort"><span>Coût total pour l'employeur</span><b>%s €</b></div></div>`, eur(netBeforeTax), eur(cost))
 	p(`</div>`)
 
 	// Répartition par budget : une barre à l'échelle, et la légende en liste
 	// (les petits budgets ne tiendraient pas dans la barre).
-	parBudget := map[string]float64{}
-	for _, f := range fl {
+	byBudget := map[string]float64{}
+	for _, f := range flows {
 		if f.org == "SALARIE" {
 			continue
 		}
-		parBudget[f.budget] += f.verse
+		byBudget[f.budget] += f.paid
 	}
 	{
-		type seg struct {
-			lib, cls string
-			v        float64
+		type segment struct {
+			label, cls string
+			v          float64
 		}
-		segs := []seg{{"Salariée (salaire net)", "s-b0", net}}
-		for _, b := range ordreBudget {
-			v, ok := parBudget[b]
+		segments := []segment{{"Salariée (salaire net)", "s-b0", net}}
+		for _, b := range budgetOrder {
+			v, ok := byBudget[b]
 			if !ok {
 				continue
 			}
@@ -333,20 +333,20 @@ func figure(ctx context.Context, pool *pgxpool.Pool) (string, error) {
 			if cls == "" {
 				cls = "s-b4"
 			}
-			segs = append(segs, seg{budgets[b], cls, v})
+			segments = append(segments, segment{budgets[b], cls, v})
 		}
 		W, x0, x1 := 1000.0, 0.0, 1000.0
-		k := (x1 - x0) / cout
-		p(`<figure><p><strong>Les %s € du coût employeur, par budget qui les reçoit</strong></p><svg viewBox="0 0 %.0f 36" role="img" aria-label="Répartition du coût employeur par budget destinataire">`, eur(cout), W)
+		k := (x1 - x0) / cost
+		p(`<figure><p><strong>Les %s € du coût employeur, par budget qui les reçoit</strong></p><svg viewBox="0 0 %.0f 36" role="img" aria-label="Répartition du coût employeur par budget destinataire">`, eur(cost), W)
 		x := x0
-		for _, sg := range segs {
-			p(`<rect class="s-budget %s" x="%.1f" y="0" width="%.1f" height="36"><title>%s : %s €</title></rect>`, sg.cls, x, sg.v*k, e(sg.lib), eur(sg.v))
+		for _, sg := range segments {
+			p(`<rect class="s-budget %s" x="%.1f" y="0" width="%.1f" height="36"><title>%s : %s €</title></rect>`, sg.cls, x, sg.v*k, e(sg.label), eur(sg.v))
 			x += sg.v * k
 		}
 		p(`</svg><ul class="bp-budgets">`)
-		for _, sg := range segs {
+		for _, sg := range segments {
 			p(`<li><svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true"><rect class="%s" width="12" height="12" stroke="currentColor" stroke-width=".8"/></svg><span>%s</span><b>%s €</b><em>%s %%</em></li>`,
-				sg.cls, e(sg.lib), eur(sg.v), strings.ReplaceAll(fmt.Sprintf("%.1f", 100*sg.v/cout), ".", ","))
+				sg.cls, e(sg.label), eur(sg.v), strings.ReplaceAll(fmt.Sprintf("%.1f", 100*sg.v/cost), ".", ","))
 		}
 		p(`</ul></figure>`)
 	}
@@ -354,86 +354,86 @@ func figure(ctx context.Context, pool *pgxpool.Pool) (string, error) {
 	// Le schéma des flux.
 	{
 		W, x0, nw, x1 := 1000.0, 150.0, 16.0, 440.0
-		top, gapNat, gap := 34.0, 30.0, 7.0
-		k := 760 / cout
+		top, natureGap, gap := 34.0, 30.0, 7.0
+		k := 760 / cost
 		h := func(v float64) float64 { return math.Max(v*k, 1.6) }
-		type pos struct{ y, hh float64 }
+		type pos struct{ y, height float64 }
 		ps := map[string]pos{}
-		var entetes []struct {
+		var headers []struct {
 			nat string
 			y   float64
 		}
-		y, prec := top, ""
-		for _, f := range fl {
-			if f.nature != prec {
-				if prec != "" {
-					y += gapNat
+		y, prev := top, ""
+		for _, f := range flows {
+			if f.nature != prev {
+				if prev != "" {
+					y += natureGap
 				}
-				entetes = append(entetes, struct {
+				headers = append(headers, struct {
 					nat string
 					y   float64
 				}{f.nature, y})
 				y += 18
-				prec = f.nature
+				prev = f.nature
 			}
-			ps[f.org] = pos{y, h(f.verse)}
-			y += math.Max(h(f.verse), 18) + gap
+			ps[f.org] = pos{y, h(f.paid)}
+			y += math.Max(h(f.paid), 18) + gap
 		}
 		H := y + 16
-		hb, hp := h(brut), h(cotEmp)
+		hb, hp := h(gross), h(employerContrib)
 		yb := top + 18
 		yp := yb + hb + 40
 		p(`<figure><svg viewBox="0 0 %.0f %.0f" role="img" aria-label="Chemin de chaque euro du coût employeur jusqu'à son destinataire">`, W, H)
 		p(`<defs><pattern id="bp-hach" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" class="p-fond"/><line x1="0" y1="0" x2="0" y2="6" class="p-trait"/></pattern>`)
 		p(`<pattern id="bp-demi" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="8" height="8" class="n-SOLIDARITE"/><rect width="4" height="8" class="n-DIFFERE"/></pattern></defs>`)
 		p(`<rect class="n-g" x="%.0f" y="%.1f" width="%.0f" height="%.1f"/>`, x0-nw, yb, nw, hb)
-		p(`<text class="t-lbl t-fort" x="%.0f" y="%.1f" text-anchor="end">Salaire brut</text><text class="t-num" x="%.0f" y="%.1f" text-anchor="end">%s €</text>`, x0-nw-10, yb+hb/2-6, x0-nw-10, yb+hb/2+12, eur(brut))
+		p(`<text class="t-lbl t-fort" x="%.0f" y="%.1f" text-anchor="end">Salaire brut</text><text class="t-num" x="%.0f" y="%.1f" text-anchor="end">%s €</text>`, x0-nw-10, yb+hb/2-6, x0-nw-10, yb+hb/2+12, eur(gross))
 		p(`<rect class="n-g" x="%.0f" y="%.1f" width="%.0f" height="%.1f"/>`, x0-nw, yp, nw, hp)
 		p(`<text class="t-lbl t-fort" x="%.0f" y="%.1f" text-anchor="end">Cotisations</text><text class="t-lbl t-fort" x="%.0f" y="%.1f" text-anchor="end">employeur</text><text class="t-num" x="%.0f" y="%.1f" text-anchor="end">%s €</text>`,
-			x0-nw-10, yp+hp/2-8, x0-nw-10, yp+hp/2+8, x0-nw-10, yp+hp/2+26, eur(cotEmp))
-		p(`<text class="t-pt t-fort" x="%.0f" y="%.1f">Coût total pour l'employeur : %s €</text>`, x0-nw, yb-12, eur(cout))
-		bande := func(ya, yc, hh float64, nat string) {
+			x0-nw-10, yp+hp/2-8, x0-nw-10, yp+hp/2+8, x0-nw-10, yp+hp/2+26, eur(employerContrib))
+		p(`<text class="t-pt t-fort" x="%.0f" y="%.1f">Coût total pour l'employeur : %s €</text>`, x0-nw, yb-12, eur(cost))
+		band := func(ya, yc, height float64, nat string) {
 			m := (x0 + x1) / 2
 			p(`<path class="f-%s" d="M%.0f,%.2f C%.1f,%.2f %.1f,%.2f %.0f,%.2f L%.0f,%.2f C%.1f,%.2f %.1f,%.2f %.0f,%.2f Z"/>`,
-				nat, x0, ya, m, ya, m, yc, x1, yc, x1, yc+hh, m, yc+hh, m, ya+hh, x0, ya+hh)
+				nat, x0, ya, m, ya, m, yc, x1, yc, x1, yc+height, m, yc+height, m, ya+height, x0, ya+height)
 		}
-		curB, curP := yb, yp
-		for _, f := range fl {
-			ps0 := ps[f.org]
-			rempli := 0.0
-			partSal := f.salarie
+		curGross, curEmployer := yb, yp
+		for _, f := range flows {
+			pos0 := ps[f.org]
+			filled := 0.0
+			employeeShare := f.employee
 			if f.org == "SALARIE" || f.org == "DGFIP" {
-				partSal = f.verse
+				employeeShare = f.paid
 			}
-			if partSal > 0 {
-				hh := partSal * k
-				bande(curB, ps0.y+rempli, hh, f.nature)
-				curB += hh
-				rempli += hh
+			if employeeShare > 0 {
+				height := employeeShare * k
+				band(curGross, pos0.y+filled, height, f.nature)
+				curGross += height
+				filled += height
 			}
-			if emp := f.employeur - f.reduction; emp > 0 && f.org != "SALARIE" && f.org != "DGFIP" {
-				hh := emp * k
-				bande(curP, ps0.y+rempli, hh, f.nature)
-				curP += hh
+			if emp := f.employer - f.reduction; emp > 0 && f.org != "SALARIE" && f.org != "DGFIP" {
+				height := emp * k
+				band(curEmployer, pos0.y+filled, height, f.nature)
+				curEmployer += height
 			}
 		}
-		noms := map[string]string{}
+		names := map[string]string{}
 		for _, n := range natures {
-			noms[n.code] = n.nom
+			names[n.code] = n.name
 		}
-		for _, en := range entetes {
-			p(`<text class="t-surt" x="%.0f" y="%.1f">%s</text>`, x1, en.y+11, e(strings.ToUpper(noms[en.nat])))
+		for _, en := range headers {
+			p(`<text class="t-surt" x="%.0f" y="%.1f">%s</text>`, x1, en.y+11, e(strings.ToUpper(names[en.nat])))
 		}
-		for _, f := range fl {
-			ps0 := ps[f.org]
-			p(`<rect class="n-%s" x="%.0f" y="%.1f" width="%.0f" height="%.1f"/>`, f.nature, x1, ps0.y, nw, ps0.hh)
-			yc := ps0.y + math.Max(ps0.hh, 14)/2 + 4
-			p(`<text class="t-lbl t-fort" x="%.0f" y="%.1f">%s</text>`, x1+nw+10, yc, e(courts[f.org]))
-			p(`<text class="t-num" x="%.0f" y="%.1f" text-anchor="end">%s €</text>`, x1+nw+290, yc, eur(f.verse))
-			if lib, ok := budgets[f.budget]; ok {
-				wb := float64(len([]rune(lib)))*6.7 + 12
+		for _, f := range flows {
+			pos0 := ps[f.org]
+			p(`<rect class="n-%s" x="%.0f" y="%.1f" width="%.0f" height="%.1f"/>`, f.nature, x1, pos0.y, nw, pos0.height)
+			yc := pos0.y + math.Max(pos0.height, 14)/2 + 4
+			p(`<text class="t-lbl t-fort" x="%.0f" y="%.1f">%s</text>`, x1+nw+10, yc, e(shortLabels[f.org]))
+			p(`<text class="t-num" x="%.0f" y="%.1f" text-anchor="end">%s €</text>`, x1+nw+290, yc, eur(f.paid))
+			if label, ok := budgets[f.budget]; ok {
+				wb := float64(len([]rune(label)))*6.7 + 12
 				p(`<rect class="r-badge" x="%.0f" y="%.1f" width="%.0f" height="17" rx="2"/><text class="t-badge" x="%.0f" y="%.1f">%s</text>`,
-					x1+nw+302, yc-13, wb, x1+nw+308, yc-1, e(lib))
+					x1+nw+302, yc-13, wb, x1+nw+308, yc-1, e(label))
 			}
 		}
 		p(`</svg>`)
@@ -443,43 +443,43 @@ func figure(ctx context.Context, pool *pgxpool.Pool) (string, error) {
 
 	// Le tableau des destinataires.
 	p(`<div class="bp-defil"><table class="bp-dest"><thead><tr><th>Destinataire</th><th>Budget</th><th class="n">Versé €</th><th class="n">Réduction générale €</th><th>Ce que ce mois ouvre pour la salariée</th></tr></thead><tbody>`)
-	prec := ""
-	for _, f := range fl {
+	prev := ""
+	for _, f := range flows {
 		if f.org == "SALARIE" {
 			continue
 		}
-		if f.nature != prec {
-			prec = f.nature
+		if f.nature != prev {
+			prev = f.nature
 			for _, n := range natures {
 				if n.code == f.nature {
-					p(`<tr class="bp-rub"><th colspan="5">%s</th></tr>`, e(n.nom))
+					p(`<tr class="bp-rub"><th colspan="5">%s</th></tr>`, e(n.name))
 				}
 			}
 		}
-		txt := ouvre[f.org]
+		text := opens[f.org]
 		if f.org == "AGIRC_ARRCO" {
-			txt = fmt.Sprintf(txt, strings.ReplaceAll(fmt.Sprintf("%.2f", points), ".", ","), eur(points*valeurPoint))
+			text = fmt.Sprintf(text, strings.ReplaceAll(fmt.Sprintf("%.2f", points), ".", ","), eur(points*pointValue))
 		}
-		ss := ""
-		if f.sousSecteur != "" {
-			ss = " · " + f.sousSecteur
+		subText := ""
+		if f.subSector != "" {
+			subText = " · " + f.subSector
 		}
-		redTxt := "—"
+		reductionText := "—"
 		if f.reduction > 0 {
-			redTxt = eur(f.reduction)
+			reductionText = eur(f.reduction)
 		}
 		p(`<tr><td><strong>%s</strong><br>%s</td><td><span class="bp-budget">%s%s</span><br><small>%s</small></td><td class="n">%s</td><td class="n">%s</td><td>%s</td></tr>`,
-			e(courts[f.org]), e(f.nom), e(budgets[f.budget]), e(ss), e(f.texteBudget), eur(f.verse), redTxt, e(txt))
+			e(shortLabels[f.org]), e(f.name), e(budgets[f.budget]), e(subText), e(f.budgetText), eur(f.paid), reductionText, e(text))
 	}
 	p(`</tbody></table></div>`)
 	p(`</div>`)
 
 	// goldmark termine un bloc HTML à la première ligne vide : il n'y en a aucune.
-	var sortie []string
+	var output []string
 	for _, l := range strings.Split(w.String(), "\n") {
 		if strings.TrimSpace(l) != "" {
-			sortie = append(sortie, l)
+			output = append(output, l)
 		}
 	}
-	return strings.Join(sortie, "\n") + "\n", nil
+	return strings.Join(output, "\n") + "\n", nil
 }

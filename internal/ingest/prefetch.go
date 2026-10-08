@@ -31,7 +31,7 @@ import (
 //
 // Le résultat, glissé dans le contexte renvoyé via archive.WithPrefetched,
 // fait que chaque connecteur qui récupère ensuite CES MÊMES URL (an.Download,
-// senat.Ingest, europe.Ingest, partis.IngestComptes/IngestPopuList/IngestCHES)
+// senat.Ingest, europe.Ingest, partis.IngestAccounts/IngestPopuList/IngestCHES)
 // retrouve directement ce qui vient d'être pris, sans repasser par le réseau.
 func PrefetchAll(ctx context.Context, arch *archive.Archive,
 	targets []archive.DownloadTarget, concurrence int) (context.Context, error) {
@@ -45,7 +45,7 @@ func PrefetchAll(ctx context.Context, arch *archive.Archive,
 	for _, t := range targets {
 		t := t
 		reg.Add(pipeline.Step{
-			Name: t.Nom, Description: "prefetching " + filenameOf(t.URL),
+			Name: t.Name, Description: "prefetching " + filenameOf(t.URL),
 			Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				srcID, err := arch.EnsureSource(ctx, t.Source)
 				if err != nil {
@@ -58,7 +58,7 @@ func PrefetchAll(ctx context.Context, arch *archive.Archive,
 				f, err := arch.Fetch(ctx, srcID, runID, t.URL, t.Ext)
 				if err != nil {
 					arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
-					return nil, fmt.Errorf("%s : %w", t.Nom, err)
+					return nil, fmt.Errorf("%s : %w", t.Name, err)
 				}
 				arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"sha256": f.SHA256}, "")
 				return f, nil
@@ -72,7 +72,7 @@ func PrefetchAll(ctx context.Context, arch *archive.Archive,
 
 	byURL := make(map[string]*archive.Fetched, len(targets))
 	for _, t := range targets {
-		f, ok := resultats[t.Nom].(*archive.Fetched)
+		f, ok := resultats[t.Name].(*archive.Fetched)
 		if !ok {
 			continue
 		}

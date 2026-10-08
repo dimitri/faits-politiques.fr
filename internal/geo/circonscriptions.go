@@ -27,7 +27,7 @@ const ConnectorVersionCirco = "geo-circonscriptions-v1"
 var SourceCirconscriptions = archive.Source{
 	Slug: "insee-circonscriptions-legislatives", Label: "Insee — portraits des circonscriptions législatives",
 	Publisher: "INSEE", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License: "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee, portraits des circonscriptions législatives",
 	Cadence:     "au redécoupage ou à chaque élection législative",
 	Notes: "Fond cartographique du 3 mai 2022 (558 circonscriptions de métropole et des DROM, " +
@@ -49,8 +49,8 @@ const (
 
 var reCodeCirco = regexp.MustCompile(`^(?:[0-9]{2}|2[AB])[0-9]{3}$`)
 
-// deptDeCirco : « 24001 » → 24, « 2A002 » → 2A, « 97302 » → 973, « 98801 » → 988.
-func deptDeCirco(code string) string {
+// deptFromCirco : « 24001 » → 24, « 2A002 » → 2A, « 97302 » → 973, « 98801 » → 988.
+func deptFromCirco(code string) string {
 	if strings.HasPrefix(code, "97") || strings.HasPrefix(code, "98") {
 		return code[:3]
 	}
@@ -58,11 +58,11 @@ func deptDeCirco(code string) string {
 }
 
 type circoIn struct {
-	code, nom, dep string
+	code, name, dep string
 }
 
 func IngestCirconscriptions(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, projectionsCSV string) error {
-	srids, err := lireProjections(projectionsCSV)
+	srids, err := loadProjections(projectionsCSV)
 	if err != nil {
 		return err
 	}
@@ -89,52 +89,52 @@ func IngestCirconscriptions(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		return fail(err)
 	}
 	defer xi.Close()
-	defs, err := xi.rows("Liste des variables")
+	definitions, err := xi.rows("Liste des variables")
 	if err != nil {
 		return fail(err)
 	}
-	libelles := map[string][2]string{}
-	for _, l := range defs {
+	labels := map[string][2]string{}
+	for _, l := range definitions {
 		if l["A"] != "" && l["B"] != "" && l["C"] != "" {
-			libelles[l["A"]] = [2]string{l["B"], l["C"]}
+			labels[l["A"]] = [2]string{l["B"], l["C"]}
 		}
 	}
-	lignes, err := xi.rows("indicateurs_circonscriptions")
+	indicatorRows, err := xi.rows("indicateurs_circonscriptions")
 	if err != nil {
 		return fail(err)
 	}
-	var entete map[string]string // colonne → variable
+	var header map[string]string // colonne → variable
 	var circos []circoIn
 	var indic, variables [][]any
-	varVue := map[string]bool{}
-	var nd int
-	for _, l := range lignes {
+	seenVar := map[string]bool{}
+	var undetermined int
+	for _, l := range indicatorRows {
 		if l["A"] == "circo" {
-			entete = l
+			header = l
 			continue
 		}
-		if entete == nil || !reCodeCirco.MatchString(l["A"]) {
+		if header == nil || !reCodeCirco.MatchString(l["A"]) {
 			continue
 		}
 		code := l["A"]
 		if code != "00000" {
-			circos = append(circos, circoIn{code: code, nom: strings.Join(strings.Fields(l["B"]), " "), dep: deptDeCirco(code)})
+			circos = append(circos, circoIn{code: code, name: strings.Join(strings.Fields(l["B"]), " "), dep: deptFromCirco(code)})
 		}
-		for col, v := range entete {
+		for col, v := range header {
 			if col == "A" || col == "B" {
 				continue
 			}
-			def, ok := libelles[v]
+			def, ok := labels[v]
 			if !ok {
 				return fail(fmt.Errorf("variable %q sans définition dans la feuille « Liste des variables »", v))
 			}
-			if !varVue[v] {
-				varVue[v] = true
+			if !seenVar[v] {
+				seenVar[v] = true
 				variables = append(variables, []any{v, def[0], def[1]})
 			}
 			x, err := strconv.ParseFloat(strings.ReplaceAll(l[col], ",", "."), 64)
 			if err != nil {
-				nd++ // « nd » : non déterminé, ou cellule vide
+				undetermined++ // non déterminé, ou cellule vide
 				continue
 			}
 			indic = append(indic, []any{code, v, x, srcID})
@@ -143,9 +143,9 @@ func IngestCirconscriptions(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	if len(circos) != nbCircoAttendues {
 		return fail(fmt.Errorf("%d circonscriptions dans les indicateurs, %d attendues", len(circos), nbCircoAttendues))
 	}
-	connue := map[string]bool{}
+	known := map[string]bool{}
 	for _, c := range circos {
-		connue[c.code] = true
+		known[c.code] = true
 	}
 
 	// ── Composition communale ──────────────────────────────────────────────
@@ -159,14 +159,14 @@ func IngestCirconscriptions(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	}
 	defer xc.Close()
 	var compo [][]any
-	vuCompo := map[[2]string]bool{}
-	circoAvecCommune := map[string]bool{}
-	var sansCirco int
-	for _, feuille := range []struct{ nom, com, lib, circo, typ string }{
+	seenCompo := map[[2]string]bool{}
+	circoHasCommune := map[string]bool{}
+	var withoutCirco int
+	for _, sheet := range []struct{ name, com, label, circo, kind string }{
 		{"table", "E", "F", "G", "H"},
 		{"table COM", "C", "D", "E", "F"},
 	} {
-		rows, err := xc.rows(feuille.nom)
+		rows, err := xc.rows(sheet.name)
 		if err != nil {
 			return fail(err)
 		}
@@ -174,28 +174,28 @@ func IngestCirconscriptions(ctx context.Context, pool *pgxpool.Pool, arch *archi
 			if i == 0 {
 				continue // en-tête
 			}
-			circo, com := l[feuille.circo], l[feuille.com]
+			circo, com := l[sheet.circo], l[sheet.com]
 			if circo == "" {
 				// Les six villages de la Meuse « morts pour la France », sans
 				// habitant ni électeur : aucune circonscription, et c'est exact.
-				sansCirco++
+				withoutCirco++
 				continue
 			}
-			if !connue[circo] {
-				return fail(fmt.Errorf("feuille %q ligne %d : circonscription %q inconnue des indicateurs", feuille.nom, i+1, circo))
+			if !known[circo] {
+				return fail(fmt.Errorf("feuille %q ligne %d : circonscription %q inconnue des indicateurs", sheet.name, i+1, circo))
 			}
 			k := [2]string{circo, com}
-			if vuCompo[k] {
+			if seenCompo[k] {
 				continue
 			}
-			vuCompo[k] = true
-			circoAvecCommune[circo] = true
-			compo = append(compo, []any{circo, com, l[feuille.lib], millesimeCompoCirco,
-				strings.EqualFold(l[feuille.typ], "entière"), srcID})
+			seenCompo[k] = true
+			circoHasCommune[circo] = true
+			compo = append(compo, []any{circo, com, l[sheet.label], millesimeCompoCirco,
+				strings.EqualFold(l[sheet.kind], "entière"), srcID})
 		}
 	}
 	for _, c := range circos {
-		if !circoAvecCommune[c.code] {
+		if !circoHasCommune[c.code] {
 			return fail(fmt.Errorf("circonscription %s sans aucune commune dans la table de correspondance", c.code))
 		}
 	}
@@ -205,21 +205,21 @@ func IngestCirconscriptions(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	if err != nil {
 		return fail(err)
 	}
-	formes, err := lireShapefileCirco(fFond.Path)
+	shapes, err := readShapefileCirco(fFond.Path)
 	if err != nil {
 		return fail(err)
 	}
 	var contours [][]any
-	for _, f := range formes {
+	for _, f := range shapes {
 		// Le fond écrit la métropole sur quatre caractères (« 3803 »), comme le
 		// répertoire des élus ; les indicateurs sur cinq (« 38003 »).
 		if len(f.code) == 4 {
 			f.code = f.code[:2] + "0" + f.code[2:]
 		}
-		if !connue[f.code] {
+		if !known[f.code] {
 			return fail(fmt.Errorf("contour %s absent des indicateurs", f.code))
 		}
-		contours = append(contours, []any{f.code, f.geojson, sridPour(deptDeCirco(f.code), f.code, srids), srcID})
+		contours = append(contours, []any{f.code, f.geojson, sridFor(deptFromCirco(f.code), f.code, srids), srcID})
 	}
 	if len(contours) != nbContoursAttendus {
 		return fail(fmt.Errorf("%d contours, %d attendus", len(contours), nbContoursAttendus))
@@ -242,7 +242,7 @@ func IngestCirconscriptions(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	}
 	var rc [][]any
 	for _, c := range circos {
-		rc = append(rc, []any{c.code, c.nom, c.dep, srcID})
+		rc = append(rc, []any{c.code, c.name, c.dep, srcID})
 	}
 	copies := []struct {
 		table []string
@@ -289,34 +289,34 @@ func IngestCirconscriptions(ctx context.Context, pool *pgxpool.Pool, arch *archi
 		"circonscriptions":              len(circos),
 		"contours":                      len(contours),
 		"liens_communes":                len(compo),
-		"communes_sans_circonscription": sansCirco,
+		"communes_sans_circonscription": withoutCirco,
 		"variables":                     len(variables),
 		"indicateurs":                   len(indic),
-		"valeurs_non_determinees":       nd,
+		"valeurs_non_determinees":       undetermined,
 	}, "")
 	fmt.Printf("  circonscriptions : %d, %d contours, %d liens communes, %d indicateurs (%d non déterminés)\n",
-		len(circos), len(contours), len(compo), len(indic), nd)
+		len(circos), len(contours), len(compo), len(indic), undetermined)
 	return nil
 }
 
 // ── Shapefile ─────────────────────────────────────────────────────────────
 
-type formeCirco struct {
+type circoShape struct {
 	code    string
 	geojson string // MultiLineString des anneaux
 }
 
-// lireShapefileCirco lit le .shp et le .dbf du fond Insee : polygones simples
+// readShapefileCirco lit le .shp et le .dbf du fond Insee : polygones simples
 // (type 5), attributs en UTF-8. Juste ce que ce fichier contient, rien de plus.
-func lireShapefileCirco(cheminZip string) ([]formeCirco, error) {
-	zr, err := zip.OpenReader(cheminZip)
+func readShapefileCirco(zipPath string) ([]circoShape, error) {
+	zr, err := zip.OpenReader(zipPath)
 	if err != nil {
 		return nil, err
 	}
 	defer zr.Close()
-	lire := func(suffixe string) ([]byte, error) {
+	read := func(suffix string) ([]byte, error) {
 		for _, f := range zr.File {
-			if strings.HasSuffix(strings.ToLower(f.Name), suffixe) {
+			if strings.HasSuffix(strings.ToLower(f.Name), suffix) {
 				rc, err := f.Open()
 				if err != nil {
 					return nil, err
@@ -325,30 +325,30 @@ func lireShapefileCirco(cheminZip string) ([]formeCirco, error) {
 				return io.ReadAll(rc)
 			}
 		}
-		return nil, fmt.Errorf("aucun fichier %s dans %s", suffixe, cheminZip)
+		return nil, fmt.Errorf("aucun fichier %s dans %s", suffix, zipPath)
 	}
-	shp, err := lire(".shp")
+	shp, err := read(".shp")
 	if err != nil {
 		return nil, err
 	}
-	dbf, err := lire(".dbf")
+	dbf, err := read(".dbf")
 	if err != nil {
 		return nil, err
 	}
-	if prj, err := lire(".prj"); err != nil || !bytes.Contains(prj, []byte("WGS_1984")) {
+	if prj, err := read(".prj"); err != nil || !bytes.Contains(prj, []byte("WGS_1984")) {
 		return nil, fmt.Errorf("projection du fond inattendue (WGS84 attendu)")
 	}
 
-	codes, err := lireDBFColonne(dbf, "id_circo")
+	codes, err := readDBFColumn(dbf, "id_circo")
 	if err != nil {
 		return nil, err
 	}
-	var out []formeCirco
+	var out []circoShape
 	pos := 100
 	for i := 0; pos+8 <= len(shp); i++ {
-		longueur := int(binary.BigEndian.Uint32(shp[pos+4:])) * 2
-		c := shp[pos+8 : pos+8+longueur]
-		pos += 8 + longueur
+		length := int(binary.BigEndian.Uint32(shp[pos+4:])) * 2
+		c := shp[pos+8 : pos+8+length]
+		pos += 8 + length
 		if i >= len(codes) {
 			return nil, fmt.Errorf("plus de formes que d'enregistrements dans le .dbf")
 		}
@@ -367,7 +367,7 @@ func lireShapefileCirco(cheminZip string) ([]formeCirco, error) {
 		}
 		parts[nParts] = nPoints
 		base := 44 + 4*nParts
-		anneaux := make([][][2]float64, 0, nParts)
+		rings := make([][][2]float64, 0, nParts)
 		for p := 0; p < nParts; p++ {
 			var a [][2]float64
 			for k := parts[p]; k < parts[p+1]; k++ {
@@ -375,42 +375,42 @@ func lireShapefileCirco(cheminZip string) ([]formeCirco, error) {
 				y := math.Float64frombits(binary.LittleEndian.Uint64(c[base+16*k+8:]))
 				a = append(a, [2]float64{x, y})
 			}
-			anneaux = append(anneaux, a)
+			rings = append(rings, a)
 		}
-		gj, err := json.Marshal(map[string]any{"type": "MultiLineString", "coordinates": anneaux})
+		gj, err := json.Marshal(map[string]any{"type": "MultiLineString", "coordinates": rings})
 		if err != nil {
 			return nil, err
 		}
-		out = append(out, formeCirco{code: codes[i], geojson: string(gj)})
+		out = append(out, circoShape{code: codes[i], geojson: string(gj)})
 	}
 	return out, nil
 }
 
-// lireDBFColonne : les valeurs d'une colonne texte d'un fichier dBase III.
-func lireDBFColonne(dbf []byte, nom string) ([]string, error) {
+// readDBFColumn : les valeurs d'une colonne texte d'un fichier dBase III.
+func readDBFColumn(dbf []byte, name string) ([]string, error) {
 	if len(dbf) < 32 {
 		return nil, fmt.Errorf(".dbf tronqué")
 	}
 	n := int(binary.LittleEndian.Uint32(dbf[4:]))
-	lgEntete := int(binary.LittleEndian.Uint16(dbf[8:]))
-	lgEnreg := int(binary.LittleEndian.Uint16(dbf[10:]))
-	debut, largeur := -1, 0
-	decalage := 1 // l'octet d'effacement
-	for off := 32; off+32 <= lgEntete && dbf[off] != 0x0D; off += 32 {
-		champ := string(bytes.TrimRight(dbf[off:off+11], "\x00"))
-		lg := int(dbf[off+16])
-		if strings.EqualFold(champ, nom) {
-			debut, largeur = decalage, lg
+	headerLength := int(binary.LittleEndian.Uint16(dbf[8:]))
+	recordLength := int(binary.LittleEndian.Uint16(dbf[10:]))
+	start, width := -1, 0
+	offset := 1 // l'octet d'effacement
+	for off := 32; off+32 <= headerLength && dbf[off] != 0x0D; off += 32 {
+		fieldName := string(bytes.TrimRight(dbf[off:off+11], "\x00"))
+		fieldLength := int(dbf[off+16])
+		if strings.EqualFold(fieldName, name) {
+			start, width = offset, fieldLength
 		}
-		decalage += lg
+		offset += fieldLength
 	}
-	if debut < 0 {
-		return nil, fmt.Errorf("colonne %q absente du .dbf", nom)
+	if start < 0 {
+		return nil, fmt.Errorf("colonne %q absente du .dbf", name)
 	}
 	out := make([]string, 0, n)
 	for i := 0; i < n; i++ {
-		e := dbf[lgEntete+i*lgEnreg:]
-		out = append(out, strings.TrimSpace(string(e[debut:debut+largeur])))
+		e := dbf[headerLength+i*recordLength:]
+		out = append(out, strings.TrimSpace(string(e[start:start+width])))
 	}
 	return out, nil
 }

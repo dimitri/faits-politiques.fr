@@ -18,7 +18,7 @@ import (
 var SourceMunicipales = archive.Source{
 	Slug: "municipales-2026", Label: "Élections municipales 2026 — résultats",
 	Publisher: "Ministère de l'Intérieur", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Licence Ouverte v2.0",
+	License:     "Licence Ouverte v2.0",
 	ReuseClass:  "OPEN",
 	Attribution: "Source : ministère de l'Intérieur, résultats des élections municipales des 15 et 22 mars 2026",
 	Cadence:     "par scrutin",
@@ -28,12 +28,12 @@ var SourceMunicipales = archive.Source{
 }
 
 const (
-	MunicipalesAnnee     = 2026
-	CirculaireMillesime  = 2026
-	municipalesT1URL     = "https://static.data.gouv.fr/resources/elections-municipales-2026-resultats-du-premier-tour/20260320-164339/municipales-2026-resultats-communes-2026-03-20.csv"
-	municipalesT2URL     = "https://static.data.gouv.fr/resources/elections-municipales-2026-resultats-du-scond-tour/20260323-180124/municipales-2026-resultats-communes-2026-03-23-16h14.csv"
-	maxListesParCommune  = 13
-	CouleurMethodVersion = "couleur-v1-sieges-cm"
+	MunicipalesYear    = 2026
+	CircularVintage    = 2026
+	municipalesT1URL   = "https://static.data.gouv.fr/resources/elections-municipales-2026-resultats-du-premier-tour/20260320-164339/municipales-2026-resultats-communes-2026-03-20.csv"
+	municipalesT2URL   = "https://static.data.gouv.fr/resources/elections-municipales-2026-resultats-du-scond-tour/20260323-180124/municipales-2026-resultats-communes-2026-03-23-16h14.csv"
+	maxListsPerCommune = 13
+	ColorMethodVersion = "couleur-v1-sieges-cm"
 )
 
 func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
@@ -51,22 +51,22 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	}
 
 	tours := map[int]string{1: municipalesT1URL, 2: municipalesT2URL}
-	type ligne struct {
-		tour                     int
-		commune, nuance, libelle string
-		panneau                  int
-		nom, prenom              string
-		voix, cm, cc             *int
+	type entry struct {
+		tour                   int
+		commune, nuance, label string
+		panelNumber            int
+		name, firstName        string
+		votes, cm, cc          *int
 	}
-	var lignes []ligne
-	inconnues := map[string]bool{}
+	var entries []entry
+	unknown := map[string]bool{}
 
 	for tour, url := range tours {
 		f, err := arch.Fetch(ctx, srcID, runID, url, ".csv")
 		if err != nil {
 			return fail(err)
 		}
-		recs, err := lireCSV(f.Path, ';')
+		recs, err := readCSV(f.Path, ';')
 		if err != nil {
 			return fail(err)
 		}
@@ -75,7 +75,7 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 			if commune == "" {
 				continue
 			}
-			for i := 1; i <= maxListesParCommune; i++ {
+			for i := 1; i <= maxListsPerCommune; i++ {
 				suf := " " + strconv.Itoa(i)
 				lib := r["Libellé abrégé de liste"+suf]
 				if lib == "" {
@@ -90,14 +90,14 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 					// on prend le rang du bloc, qui est l'ordre du fichier.
 					pan = i
 				}
-				lignes = append(lignes, ligne{
-					tour: tour, commune: commune, panneau: pan,
-					nuance:  r["Nuance liste"+suf],
-					libelle: lib,
-					nom:     r["Nom candidat"+suf], prenom: r["Prénom candidat"+suf],
-					voix: entier(r["Voix"+suf]),
-					cm:   entier(r["Sièges au CM"+suf]),
-					cc:   entier(r["Sièges au CC"+suf]),
+				entries = append(entries, entry{
+					tour: tour, commune: commune, panelNumber: pan,
+					nuance: r["Nuance liste"+suf],
+					label:  lib,
+					name:   r["Nom candidat"+suf], firstName: r["Prénom candidat"+suf],
+					votes: parseIntOrNil(r["Voix"+suf]),
+					cm:    parseIntOrNil(r["Sièges au CM"+suf]),
+					cc:    parseIntOrNil(r["Sièges au CC"+suf]),
 				})
 			}
 		}
@@ -113,7 +113,7 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	// résultat dont la commune n'existe pas dans le référentiel est un signal,
 	// pas un détail à faire passer.
 	rows, err := tx.Query(ctx,
-		`SELECT code_insee FROM ref.commune WHERE cog_millesime = $1`, COGMillesime)
+		`SELECT code_insee FROM ref.commune WHERE cog_millesime = $1`, COGVintage)
 	if err != nil {
 		return fail(err)
 	}
@@ -129,19 +129,19 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	rows.Close()
 
 	var copyRows [][]any
-	for _, l := range lignes {
+	for _, l := range entries {
 		if !connues[l.commune] {
-			inconnues[l.commune] = true
+			unknown[l.commune] = true
 			continue
 		}
-		var nuance, mil any
+		var nuance, vintage any
 		if l.nuance != "" {
-			nuance, mil = l.nuance, CirculaireMillesime
+			nuance, vintage = l.nuance, CircularVintage
 		}
 		copyRows = append(copyRows, []any{
-			MunicipalesAnnee, l.tour, l.commune, COGMillesime, l.panneau,
-			nuance, mil, l.libelle, nul(l.nom), nul(l.prenom),
-			nulInt(l.voix), nulInt(l.cm), nulInt(l.cc), srcID,
+			MunicipalesYear, l.tour, l.commune, COGVintage, l.panelNumber,
+			nuance, vintage, l.label, nullIfEmpty(l.name), nullIfEmpty(l.firstName),
+			intPtrOrNull(l.votes), intPtrOrNull(l.cm), intPtrOrNull(l.cc), srcID,
 		})
 	}
 
@@ -168,7 +168,7 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return fail(fmt.Errorf("copie des listes : %w", err))
 	}
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.municipal_list", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.municipal_list", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO municipal_list_2026 AS tgt
 			USING tmp_municipal_list AS src
@@ -210,7 +210,7 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		return fail(err)
 	}
 
-	if err := couleurs(ctx, tx, MunicipalesAnnee); err != nil {
+	if err := colors(ctx, tx, MunicipalesYear); err != nil {
 		return fail(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -218,11 +218,11 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"listes": len(copyRows), "listes_touchees": n, "communes_hors_cog": len(inconnues)}, "")
-	fmt.Printf("  municipales %d : %d listes (%d touchées par la fusion)\n", MunicipalesAnnee, len(copyRows), n)
-	if len(inconnues) > 0 {
+		map[string]any{"listes": len(copyRows), "listes_touchees": n, "communes_hors_cog": len(unknown)}, "")
+	fmt.Printf("  municipales %d : %d listes (%d touchées par la fusion)\n", MunicipalesYear, len(copyRows), n)
+	if len(unknown) > 0 {
 		fmt.Printf("  %d communes des résultats absentes du COG %d (ignorées)\n",
-			len(inconnues), COGMillesime)
+			len(unknown), COGVintage)
 	}
 	return nil
 }
@@ -232,9 +232,9 @@ func IngestMunicipales(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 //
 //	« la couleur d'une commune est la nuance de la liste ayant obtenu le plus
 //	  de sièges au conseil municipal, au tour où le conseil a été pourvu »
-func couleurs(ctx context.Context, tx pgx.Tx, annee int) error {
+func colors(ctx context.Context, tx pgx.Tx, year int) error {
 	if _, err := tx.Exec(ctx,
-		`DELETE FROM derived.commune_couleur WHERE scrutin_annee = $1`, annee); err != nil {
+		`DELETE FROM derived.commune_couleur WHERE scrutin_annee = $1`, year); err != nil {
 		return err
 	}
 	// Le tour retenu est le dernier où des sièges ont été attribués : un conseil
@@ -280,11 +280,11 @@ func couleurs(ctx context.Context, tx pgx.Tx, annee int) error {
 		            ELSE 'NUANCEE' END,
 		       $2
 		  FROM classe c WHERE c.rang = 1`,
-		annee, CouleurMethodVersion)
+		year, ColorMethodVersion)
 	return err
 }
 
-func entier(s string) *int {
+func parseIntOrNil(s string) *int {
 	s = strings.TrimSpace(strings.ReplaceAll(s, " ", ""))
 	if s == "" {
 		return nil
@@ -296,14 +296,14 @@ func entier(s string) *int {
 	return &n
 }
 
-func nul(s string) any {
+func nullIfEmpty(s string) any {
 	if s == "" {
 		return nil
 	}
 	return s
 }
 
-func nulInt(p *int) any {
+func intPtrOrNull(p *int) any {
 	if p == nil {
 		return nil
 	}

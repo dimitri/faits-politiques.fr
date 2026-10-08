@@ -13,11 +13,11 @@ import (
 // La composition du revenu des ménages, par grand type — de quoi simuler un
 // socle universel sur des catégories réelles plutôt que sur un forfait par
 // personne. Voir docs/revenu-universel-microsimulation.md.
-var SourceMenagesDREES = archive.Source{
+var SourceHouseholdsDrees = archive.Source{
 	Slug: "drees-composition-revenu-menages", Label: "DREES — composition du revenu des ménages",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Insee-DGFiP-Cnaf-Cnav-CCMSA, enquête Revenus fiscaux et sociaux, calculs Drees",
 	Cadence:     "annuelle",
 	Notes: "Champ : France métropolitaine, ménages vivant dans un logement ordinaire, " +
@@ -34,23 +34,23 @@ const drees4aXLSXURL = "https://data.drees.solidarites-sante.gouv.fr/api/explore
 // dans les mêmes colonnes : 4a porte ses libellés en colonne B et ses valeurs
 // de E à O, 4b ses libellés en colonne A et ses valeurs de D à N. Repéré à la
 // main sur le classeur du 14 septembre 2026 (voir le commentaire de
-// typeMenageCol4a pour ce que change une colonne déplacée).
-var typeMenageCol4a = map[string]string{
+// householdTypeCol4a pour ce que change une colonne déplacée).
+var householdTypeCol4a = map[string]string{
 	"personne_seule": "E", "monoparentale_1_enfant": "F", "monoparentale_2p_enfants": "G",
 	"couple_sans_enfant": "H", "couple_1_enfant": "I", "couple_2_enfants": "J",
 	"couple_3_enfants": "K", "couple_4p_enfants": "L",
 	"complexe_sans_enfant": "M", "complexe_avec_enfants": "N", "ensemble": "O",
 }
 
-var typeMenageCol4b = map[string]string{
+var householdTypeCol4b = map[string]string{
 	"personne_seule": "D", "monoparentale_1_enfant": "E", "monoparentale_2p_enfants": "F",
 	"couple_sans_enfant": "G", "couple_1_enfant": "H", "couple_2_enfants": "I",
 	"couple_3_enfants": "J", "couple_4p_enfants": "K",
 	"complexe_sans_enfant": "L", "complexe_avec_enfants": "M", "ensemble": "N",
 }
 
-func IngestMenagesDREES(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourceMenagesDREES)
+func IngestHouseholdsDrees(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourceHouseholdsDrees)
 	if err != nil {
 		return err
 	}
@@ -73,50 +73,50 @@ func IngestMenagesDREES(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	}
 	defer x.Close()
 
-	l4a, err := x.rows("Tableau 4a")
+	sheet4a, err := x.rows("Tableau 4a")
 	if err != nil {
 		return fail(err)
 	}
-	l4b, err := x.rows("Tableau 4b")
+	sheet4b, err := x.rows("Tableau 4b")
 	if err != nil {
 		return fail(err)
 	}
 
-	revenuInitial, err := ligneParLibelle(l4a, "B", "Revenu initial")
+	initialIncome, err := rowByLabel(sheet4a, "B", "Revenu initial")
 	if err != nil {
 		return fail(fmt.Errorf("tableau 4a : %w", err))
 	}
-	prestNonContrib, err := ligneParLibelle(l4a, "B", "Prestations sociales non contributives")
+	nonContribBenefits, err := rowByLabel(sheet4a, "B", "Prestations sociales non contributives")
 	if err != nil {
 		return fail(fmt.Errorf("tableau 4a : %w", err))
 	}
-	impotsDirects, err := ligneParLibelle(l4a, "B", "Impôts directs")
+	directTaxes, err := rowByLabel(sheet4a, "B", "Impôts directs")
 	if err != nil {
 		return fail(fmt.Errorf("tableau 4a : %w", err))
 	}
-	revenuDisponible, err := ligneParLibelle(l4a, "B", "Revenu disponible")
+	disposableIncome, err := rowByLabel(sheet4a, "B", "Revenu disponible")
 	if err != nil {
 		return fail(fmt.Errorf("tableau 4a : %w", err))
 	}
-	revenuInitialUC, err := ligneParLibelle(l4b, "A", "Revenu initial")
+	initialIncomeUC, err := rowByLabel(sheet4b, "A", "Revenu initial")
 	if err != nil {
 		return fail(fmt.Errorf("tableau 4b : %w", err))
 	}
 
-	const annee = 2023
+	const year = 2023
 	var rows [][]any
-	for typ, col4a := range typeMenageCol4a {
-		col4b := typeMenageCol4b[typ]
-		ri, ok1 := valeurNumerique(revenuInitial, col4a)
-		riUC, ok2 := valeurNumerique(revenuInitialUC, col4b)
-		pnc, ok3 := valeurNumerique(prestNonContrib, col4a)
-		imp, ok4 := valeurNumerique(impotsDirects, col4a)
-		rd, ok5 := valeurNumerique(revenuDisponible, col4a)
-		if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 || riUC == 0 {
-			return fail(fmt.Errorf("type %s incomplet (4a:%s 4b:%s)", typ, col4a, col4b))
+	for houseType, col4a := range householdTypeCol4a {
+		col4b := householdTypeCol4b[houseType]
+		initial, ok1 := numericValue(initialIncome, col4a)
+		initialUC, ok2 := numericValue(initialIncomeUC, col4b)
+		nonContrib, ok3 := numericValue(nonContribBenefits, col4a)
+		taxes, ok4 := numericValue(directTaxes, col4a)
+		disposable, ok5 := numericValue(disposableIncome, col4a)
+		if !ok1 || !ok2 || !ok3 || !ok4 || !ok5 || initialUC == 0 {
+			return fail(fmt.Errorf("type %s incomplet (4a:%s 4b:%s)", houseType, col4a, col4b))
 		}
-		uc := ri / riUC
-		rows = append(rows, []any{typ, annee, uc, ri, pnc, imp, rd, srcID})
+		uc := initial / initialUC
+		rows = append(rows, []any{houseType, year, uc, initial, nonContrib, taxes, disposable, srcID})
 	}
 
 	tx, err := pool.Begin(ctx)
@@ -172,25 +172,25 @@ func IngestMenagesDREES(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"types_charges": len(rows), "touchees": touchees}, "")
 	fmt.Printf("  composition du revenu des ménages : %d types (Drees, ERFS %d), %d touchées par la fusion\n",
-		len(rows), annee, touchees)
+		len(rows), year, touchees)
 	return nil
 }
 
-// ligneParLibelle trouve, dans une feuille où labelCol porte le libellé de
+// rowByLabel trouve, dans une feuille où labelCol porte le libellé de
 // chaque ligne, celle dont le libellé COMMENCE par le préfixe donné — les
 // classeurs Drees suffixent leurs libellés d'un exposant de note ("1", "5")
 // que la correspondance exacte casserait.
-func ligneParLibelle(lignes []map[string]string, labelCol, prefixe string) (map[string]string, error) {
-	for _, l := range lignes {
-		if v, ok := l[labelCol]; ok && len(v) >= len(prefixe) && v[:len(prefixe)] == prefixe {
+func rowByLabel(rows []map[string]string, labelCol, prefix string) (map[string]string, error) {
+	for _, l := range rows {
+		if v, ok := l[labelCol]; ok && len(v) >= len(prefix) && v[:len(prefix)] == prefix {
 			return l, nil
 		}
 	}
-	return nil, fmt.Errorf("ligne %q introuvable en colonne %s", prefixe, labelCol)
+	return nil, fmt.Errorf("ligne %q introuvable en colonne %s", prefix, labelCol)
 }
 
-func valeurNumerique(ligne map[string]string, col string) (float64, bool) {
-	v, ok := ligne[col]
+func numericValue(row map[string]string, col string) (float64, bool) {
+	v, ok := row[col]
 	if !ok {
 		return 0, false
 	}

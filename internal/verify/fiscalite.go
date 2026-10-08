@@ -3,10 +3,10 @@ package verify
 // Contrôles du dossier sur l'évasion fiscale des multinationales
 // (docs/evasion-fiscale-multinationales.md).
 func init() {
-	checks = append(checks, checksFiscalite...)
+	checks = append(checks, checksTaxation...)
 }
 
-var checksFiscalite = []check{
+var checksTaxation = []check{
 	{
 		name:    "listes UE : chaque version de l'annexe I est chargée",
 		query:   `SELECT count(DISTINCT version) FROM ref.juridiction_non_cooperative WHERE liste = 'UE_ANNEXE_I'`,

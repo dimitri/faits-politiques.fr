@@ -17,7 +17,7 @@ var SourcePrimeActivite = archive.Source{
 	Slug: "drees-prime-activite-nationale", Label: "Drees — RSA et prime d'activité, données nationales",
 	Publisher: "Direction de la recherche, des études, de l'évaluation et des statistiques",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : Drees, à partir de la Cnaf et de la MSA",
 	Cadence:     "annuelle",
 	Notes: "Même jeu de données ouvert que core.minima_sociaux_effectif (n° 336), fichier " +
@@ -53,11 +53,11 @@ func IngestPrimeActivite(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(err)
 	}
 	defer x.Close()
-	lignes, err := x.rows("Tableau 1")
+	sheetRows, err := x.rows("Tableau 1")
 	if err != nil {
 		return fail(err)
 	}
-	annees, err := colonneAnnees(lignes)
+	yearCols, err := yearColumns(sheetRows)
 	if err != nil {
 		return fail(err)
 	}
@@ -69,30 +69,30 @@ func IngestPrimeActivite(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	// le PREMIER bloc rencontré — France métropolitaine, le champ déjà
 	// retenu pour core.minima_sociaux_effectif — pour ne jamais mélanger deux
 	// champs géographiques dans une même série.
-	valeurs := map[int]int{}
-	trouve := false
-	for _, l := range lignes {
-		if l["B"] != "Prime d'activité" {
+	values := map[int]int{}
+	found := false
+	for _, row := range sheetRows {
+		if row["B"] != "Prime d'activité" {
 			continue
 		}
-		for _, ca := range annees {
-			v, ok := l[ca.col]
+		for _, yc := range yearCols {
+			v, ok := row[yc.col]
 			if !ok || v == "-" {
 				continue
 			}
-			eff, err := strconv.Atoi(v)
+			count, err := strconv.Atoi(v)
 			if err != nil {
 				continue
 			}
-			valeurs[ca.annee] = eff
+			values[yc.year] = count
 		}
-		trouve = true
+		found = true
 		break
 	}
-	if !trouve {
+	if !found {
 		return fail(fmt.Errorf("ligne « Prime d'activité » introuvable"))
 	}
-	if len(valeurs) == 0 {
+	if len(values) == 0 {
 		return fail(fmt.Errorf("ligne « Prime d'activité » introuvable ou vide"))
 	}
 
@@ -108,8 +108,8 @@ func IngestPrimeActivite(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		return fail(err)
 	}
 	var rows [][]any
-	for annee, eff := range valeurs {
-		rows = append(rows, []any{annee, eff, srcID})
+	for year, count := range values {
+		rows = append(rows, []any{year, count, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_prime_activite_effectif"},
 		[]string{"annee", "effectif", "source_id"}, pgx.CopyFromRows(rows)); err != nil {

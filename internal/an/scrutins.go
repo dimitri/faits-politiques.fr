@@ -28,37 +28,37 @@ type scrutin struct {
 	Objet struct {
 		Libelle string `json:"libelle"`
 	} `json:"objet"`
-	ModePublicationDesVotes flexStr `json:"modePublicationDesVotes"`
-	SyntheseVote            struct {
-		NombreVotants flexStr `json:"nombreVotants"`
-		Decompte      struct {
+	VotePublicationMode flexStr `json:"modePublicationDesVotes"`
+	VoteSummary         struct {
+		VoterCount flexStr `json:"nombreVotants"`
+		Tally      struct {
 			Pour        flexStr `json:"pour"`
 			Contre      flexStr `json:"contre"`
 			Abstentions flexStr `json:"abstentions"`
 		} `json:"decompte"`
 	} `json:"syntheseVote"`
-	VentilationVotes struct {
-		Organe struct {
-			Groupes struct {
-				Groupe json.RawMessage `json:"groupe"`
+	VoteBreakdown struct {
+		Body struct {
+			Groups struct {
+				Group json.RawMessage `json:"groupe"`
 			} `json:"groupes"`
 		} `json:"organe"`
 	} `json:"ventilationVotes"`
-	MiseAuPoint json.RawMessage `json:"miseAuPoint"`
+	Corrections json.RawMessage `json:"miseAuPoint"`
 }
 
-type groupeVote struct {
-	OrganeRef flexStr `json:"organeRef"`
-	Vote      struct {
-		PositionMajoritaire flexStr                    `json:"positionMajoritaire"`
-		DecompteNominatif   map[string]json.RawMessage `json:"decompteNominatif"`
-		DecompteVoix        map[string]flexStr         `json:"decompteVoix"`
+type groupVote struct {
+	BodyRef flexStr `json:"organeRef"`
+	Vote    struct {
+		MajorityPosition flexStr                    `json:"positionMajoritaire"`
+		NominalTally     map[string]json.RawMessage `json:"decompteNominatif"`
+		VoteTally        map[string]flexStr         `json:"decompteVoix"`
 	} `json:"vote"`
 }
 
-type votant struct {
-	ActeurRef     flexStr `json:"acteurRef"`
-	ParDelegation flexStr `json:"parDelegation"`
+type voter struct {
+	ActeurRef    flexStr `json:"acteurRef"`
+	ByDelegation flexStr `json:"parDelegation"`
 }
 
 // Correspondance entre les catégories du décompte AN et les positions du modèle.
@@ -72,7 +72,7 @@ var positionOf = map[string]string{
 	"nonVotantsVolontaires": "NON_VOTING",
 }
 
-func votantsIn(raw json.RawMessage) []votant {
+func votersIn(raw json.RawMessage) []voter {
 	if len(raw) == 0 {
 		return nil
 	}
@@ -82,9 +82,9 @@ func votantsIn(raw json.RawMessage) []votant {
 	if err := json.Unmarshal(raw, &box); err != nil {
 		return nil
 	}
-	var out []votant
+	var out []voter
 	for _, e := range asSlice(box.Votant) {
-		var v votant
+		var v voter
 		if err := json.Unmarshal(e, &v); err == nil && v.ActeurRef != "" {
 			out = append(out, v)
 		}
@@ -98,7 +98,7 @@ type ballotRow struct {
 	orgID      *int64
 	position   string
 	delegation bool
-	rectifiee  *string
+	corrected  *string
 }
 
 // watermarkScrutins identifie, dans core.ingest_watermark, l'état de
@@ -108,18 +108,18 @@ const watermarkScrutins = "an-scrutins"
 
 // normalizeScrutins reconstruit core.scrutin/core.ballot pour l'Assemblée.
 //
-// unchanged, raison, count et highWater viennent de l'appelant (Normalize) :
+// unchanged, reason, count et highWater viennent de l'appelant (Normalize) :
 // la décision de sauter cette reconstruction doit être prise UNE SEULE FOIS,
 // avant la transaction de remise à zéro qui précède l'appel à cette
 // fonction — cette transaction efface déjà core.ballot pour l'Assemblée
 // avant que normalizeScrutins ne soit atteinte, donc si elle décidait seule
 // de sauter son travail, elle laisserait la table vide en croyant l'avoir
-// juste sautée. raison explique pourquoi ce n'est PAS le cas (scrutins
+// juste sautée. reason explique pourquoi ce n'est PAS le cas (scrutins
 // changés, organisations changées, ou premier passage) ; vide quand
 // unchanged est vrai. Voir Normalize pour le calcul des deux.
 func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	personByUID map[string]int64, orgByUID map[string]int64,
-	unchanged bool, raison string, count, highWater int64) (int, int, error) {
+	unchanged bool, reason string, count, highWater int64) (int, int, error) {
 
 	var legID int64
 	if err := pool.QueryRow(ctx, `
@@ -153,9 +153,9 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 				logs.Plural(nScr, "roll-call vote"), logs.Plural(nBal, "individual ballot")))
 			return nScr, nBal, nil
 		}
-		raison = "watermark says unchanged but core.scrutin/core.ballot looks empty"
+		reason = "watermark says unchanged but core.scrutin/core.ballot looks empty"
 	}
-	logs.Notice("cache invalidated: " + raison)
+	logs.Notice("cache invalidated: " + reason)
 
 	rows, err := pool.Query(ctx,
 		`SELECT DISTINCT ON (natural_key) payload FROM raw.record
@@ -185,38 +185,38 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	// session qui l'a introduit). Aucune contrainte d'exclusion sur
 	// core.scrutin — (institution, source_uid) est une clé unique ordinaire
 	// — donc aucune dépendance à l'ordre des lignes, contrairement à
-	// copierMandats plus haut dans ce paquet.
-	lignes := make([]ligneScrutin, 0, len(all))
+	// copyMandates plus haut dans ce paquet.
+	rows2 := make([]scrutinRow, 0, len(all))
 	for _, s := range all {
 		// La granularité décrit ce que la SOURCE publie, jamais ce qu'on
 		// aimerait avoir (docs/perimetre.md §2.4).
 		gran := "GROUP"
-		if strings.EqualFold(s.ModePublicationDesVotes.String(), "DecompteNominatif") {
+		if strings.EqualFold(s.VotePublicationMode.String(), "DecompteNominatif") {
 			gran = "INDIVIDUAL"
 		}
-		sort := strings.ToUpper(s.Sort.Code.String())
-		switch sort {
+		resultat := strings.ToUpper(s.Sort.Code.String())
+		switch resultat {
 		case "ADOPTÉ", "ADOPTE":
-			sort = "ADOPTE"
+			resultat = "ADOPTE"
 		case "REJETÉ", "REJETE":
-			sort = "REJETE"
+			resultat = "REJETE"
 		default:
-			sort = ""
+			resultat = ""
 		}
 		objet := s.Objet.Libelle
 		if objet == "" {
 			objet = s.Titre
 		}
-		lignes = append(lignes, ligneScrutin{
+		rows2 = append(rows2, scrutinRow{
 			uid: s.UID.String(), slug: "an-17-" + s.Numero.String(), numero: s.Numero.String(),
 			date: s.DateScrutin.String(), gran: gran, objet: objet,
-			typeVote: s.TypeVote.LibelleTypeVote.String(), resultat: sort,
-			votants: s.SyntheseVote.NombreVotants.Int(), pour: s.SyntheseVote.Decompte.Pour.Int(),
-			contre: s.SyntheseVote.Decompte.Contre.Int(), abstentions: s.SyntheseVote.Decompte.Abstentions.Int(),
+			typeVote: s.TypeVote.LibelleTypeVote.String(), resultat: resultat,
+			votants: s.VoteSummary.VoterCount.Int(), pour: s.VoteSummary.Tally.Pour.Int(),
+			contre: s.VoteSummary.Tally.Contre.Int(), abstentions: s.VoteSummary.Tally.Abstentions.Int(),
 		})
 	}
 
-	sidByUID, err := copierScrutins(ctx, pool, legID, lignes)
+	sidByUID, err := copyScrutins(ctx, pool, legID, rows2)
 	if err != nil {
 		return 0, 0, err
 	}
@@ -226,31 +226,31 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	for _, s := range all {
 		sid, ok := sidByUID[s.UID.String()]
 		if !ok {
-			continue // anomalie déjà signalée par copierScrutins, jamais ici en double
+			continue // anomalie déjà signalée par copyScrutins, jamais ici en double
 		}
 		gran := "GROUP"
-		if strings.EqualFold(s.ModePublicationDesVotes.String(), "DecompteNominatif") {
+		if strings.EqualFold(s.VotePublicationMode.String(), "DecompteNominatif") {
 			gran = "INDIVIDUAL"
 		}
 
 		// Mises au point : à l'AN, un député peut corriger son vote APRÈS le
 		// scrutin. Cela modifie le relevé nominatif sans modifier le résultat
 		// officiel — les deux sont stockés séparément.
-		rectif := map[string]string{}
-		if len(s.MiseAuPoint) > 0 {
+		corrections := map[string]string{}
+		if len(s.Corrections) > 0 {
 			var mp map[string]json.RawMessage
-			if json.Unmarshal(s.MiseAuPoint, &mp) == nil {
+			if json.Unmarshal(s.Corrections, &mp) == nil {
 				for cat, pos := range positionOf {
-					for _, v := range votantsIn(mp[cat]) {
-						rectif[v.ActeurRef.String()] = pos
+					for _, v := range votersIn(mp[cat]) {
+						corrections[v.ActeurRef.String()] = pos
 					}
 				}
 			}
 		}
 
 		seen := map[int64]bool{}
-		for _, graw := range asSlice(s.VentilationVotes.Organe.Groupes.Groupe) {
-			var g groupeVote
+		for _, graw := range asSlice(s.VoteBreakdown.Body.Groups.Group) {
+			var g groupVote
 			if err := json.Unmarshal(graw, &g); err != nil {
 				continue
 			}
@@ -262,11 +262,11 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 			}
 			// Le groupe sous lequel la source enregistre ce vote, ce jour-là.
 			var orgID *int64
-			if id, ok := orgByUID[g.OrganeRef.String()]; ok {
+			if id, ok := orgByUID[g.BodyRef.String()]; ok {
 				orgID = &id
 			}
 			for cat, pos := range positionOf {
-				for _, v := range votantsIn(g.Vote.DecompteNominatif[cat]) {
+				for _, v := range votersIn(g.Vote.NominalTally[cat]) {
 					pid, ok := personByUID[v.ActeurRef.String()]
 					if !ok || seen[pid] {
 						continue
@@ -277,10 +277,10 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 						personID:   pid,
 						orgID:      orgID,
 						position:   pos,
-						delegation: v.ParDelegation.String() == "true",
+						delegation: v.ByDelegation.String() == "true",
 					}
-					if r, ok := rectif[v.ActeurRef.String()]; ok && r != pos {
-						b.rectifiee = &r
+					if r, ok := corrections[v.ActeurRef.String()]; ok && r != pos {
+						b.corrected = &r
 					}
 					ballots = append(ballots, b)
 				}
@@ -302,7 +302,7 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	// un NOTICE avant le DELETE+COPY, gratuit, plutôt qu'une commande qui
 	// semble bloquée pendant que Postgres réécrit plus d'un million de lignes.
 	logs.Notice(fmt.Sprintf("rebuilding %s (this takes a while)", logs.Plural(len(ballots), "ballot")))
-	// Une transaction explicite, ici, pour que bulkload.SansContraintesFK
+	// Une transaction explicite, ici, pour que bulkload.WithoutFKConstraints
 	// puisse retirer/réinstaller les FK de core.ballot autour du MERGE :
 	// sûr vis-à-vis de senat/europe (qui écrivent aussi dans core.ballot) car
 	// normalize précède les deux dans le graphe de dépendance de l'ingestion
@@ -314,7 +314,7 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	// un DELETE+COPY payait le prix des triggers RI pour l'INTÉGRALITÉ des
 	// 1,27M bulletins de l'Assemblée à chaque renormalisation, changement ou
 	// non — possible ici parce que core.scrutin.id est déjà stable pour
-	// l'Assemblée (copierScrutins upserte sans DELETE préalable, contrairement
+	// l'Assemblée (copyScrutins upserte sans DELETE préalable, contrairement
 	// à l'ancien core.texte/core.dossier — voir Normalize). ballot_an, une vue
 	// scopée plutôt que core.ballot directement : même raison qu'ailleurs,
 	// éviter de faire visiter à Postgres les bulletins Sénat/Europe pour rien.
@@ -342,8 +342,8 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 		pgx.CopyFromSlice(len(ballots), func(i int) ([]any, error) {
 			b := ballots[i]
 			var rect, date any
-			if b.rectifiee != nil {
-				rect = *b.rectifiee
+			if b.corrected != nil {
+				rect = *b.corrected
 				date = "1970-01-01" // date de mise au point non publiée dans ce flux
 			}
 			var org any
@@ -355,7 +355,7 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 		return 0, 0, err
 	}
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.ballot", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.ballot", func() error {
 		_, err := tx.Exec(ctx, `
 			MERGE INTO ballot_an AS tgt
 			USING tmp_ballot_an AS src
@@ -393,18 +393,18 @@ func normalizeScrutins(ctx context.Context, pool *pgxpool.Pool,
 	return nScrutins, int(n), nil
 }
 
-// ligneScrutin : une ligne prête pour tmp_scrutin (copierScrutins).
-type ligneScrutin struct {
+// scrutinRow : une ligne prête pour tmp_scrutin (copyScrutins).
+type scrutinRow struct {
 	uid, slug, numero, date, gran, objet, typeVote, resultat string
 	votants, pour, contre, abstentions                       int
 }
 
-// copierScrutins upserte tous les scrutins d'un coup — une table temporaire,
+// copyScrutins upserte tous les scrutins d'un coup — une table temporaire,
 // une copie, un WITH...INSERT...RETURNING joint sur cette même table pour
 // retrouver l'id attribué à chaque source_uid, exactement le patron déjà
-// suivi par normalizeOrganes (internal/an/normalize.go) pour la même raison.
-func copierScrutins(ctx context.Context, pool *pgxpool.Pool, legID int64, lignes []ligneScrutin) (map[string]int64, error) {
-	if len(lignes) == 0 {
+// suivi par normalizeBodies (internal/an/normalize.go) pour la même raison.
+func copyScrutins(ctx context.Context, pool *pgxpool.Pool, legID int64, batch []scrutinRow) (map[string]int64, error) {
+	if len(batch) == 0 {
 		return map[string]int64{}, nil
 	}
 	tx, err := pool.Begin(ctx)
@@ -420,8 +420,8 @@ func copierScrutins(ctx context.Context, pool *pgxpool.Pool, legID int64, lignes
 		) ON COMMIT DROP`); err != nil {
 		return nil, err
 	}
-	rows := make([][]any, len(lignes))
-	for i, l := range lignes {
+	rows := make([][]any, len(batch))
+	for i, l := range batch {
 		rows[i] = []any{l.uid, l.slug, l.numero, l.date, l.gran, l.objet, l.typeVote,
 			nullable(l.resultat), l.votants, l.pour, l.contre, l.abstentions}
 	}
@@ -467,14 +467,14 @@ func copierScrutins(ctx context.Context, pool *pgxpool.Pool, legID int64, lignes
 }
 
 func insertGroupBallot(ctx context.Context, pool *pgxpool.Pool, sid int64,
-	g groupeVote, orgByUID map[string]int64) error {
-	orgID, ok := orgByUID[g.OrganeRef.String()]
+	g groupVote, orgByUID map[string]int64) error {
+	orgID, ok := orgByUID[g.BodyRef.String()]
 	if !ok {
 		return nil
 	}
 	pos := map[string]string{
 		"pour": "FOR", "contre": "AGAINST", "abstention": "ABSTAIN",
-	}[strings.ToLower(g.Vote.PositionMajoritaire.String())]
+	}[strings.ToLower(g.Vote.MajorityPosition.String())]
 	if pos == "" {
 		pos = "NON_VOTING"
 	}
@@ -483,8 +483,8 @@ func insertGroupBallot(ctx context.Context, pool *pgxpool.Pool, sid int64,
 		  (scrutin_id, organization_id, position, nb_pour, nb_contre, nb_abstentions)
 		VALUES ($1,$2,$3,$4,$5,$6) ON CONFLICT DO NOTHING`,
 		sid, orgID, pos,
-		g.Vote.DecompteVoix["pour"].Int(),
-		g.Vote.DecompteVoix["contre"].Int(),
-		g.Vote.DecompteVoix["abstentions"].Int())
+		g.Vote.VoteTally["pour"].Int(),
+		g.Vote.VoteTally["contre"].Int(),
+		g.Vote.VoteTally["abstentions"].Int())
 	return err
 }

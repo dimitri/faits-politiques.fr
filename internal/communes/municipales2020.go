@@ -27,7 +27,7 @@ import (
 var SourceMunicipales2020 = archive.Source{
 	Slug: "municipales-2020", Label: "Élections municipales 2020 — résultats",
 	Publisher: "Ministère de l'Intérieur", Tier: "PRIMARY_OFFICIAL",
-	Licence:     "Aucune licence déclarée par le producteur",
+	License:     "Aucune licence déclarée par le producteur",
 	ReuseClass:  "RESTRICTED",
 	Attribution: "Source : ministère de l'Intérieur, résultats des élections municipales des 15 mars et 28 juin 2020",
 	Cadence:     "par scrutin",
@@ -38,19 +38,19 @@ var SourceMunicipales2020 = archive.Source{
 }
 
 const (
-	Municipales2020Annee = 2020
-	Circulaire2020       = 2020
+	Municipales2020Year = 2020
+	Circulaire2020      = 2020
 	// Le seuil d'attribution des nuances était plus élevé en 2020 qu'en 2026 :
 	// « LNC » couvre les communes en dessous. Ce n'est pas une nuance.
-	nuanceNonCommuniquee = "LNC"
+	nuanceNotReported = "LNC"
 
 	m2020T1URL = "https://static.data.gouv.fr/resources/elections-municipales-2020-resultats/20200525-133704/2020-05-18-resultats-communes-de-1000-et-plus.txt"
 	m2020T2URL = "https://static.data.gouv.fr/resources/municipales-2020-resultats-2nd-tour/20200629-192435/2020-06-29-resultats-t2-communes-de-1000-hab-et-plus.txt"
 
 	// Le fichier répète un bloc de douze colonnes par liste, à partir de la
 	// dix-neuvième. Les colonnes fixes décrivent la commune et la participation.
-	m2020PremiereListe = 18
-	m2020TailleBloc    = 12
+	m2020FirstList = 18
+	m2020BlockSize = 12
 )
 
 func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
@@ -67,35 +67,35 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return err
 	}
 
-	connues, err := communesConnues(ctx, pool)
+	connues, err := knownCommunes(ctx, pool)
 	if err != nil {
 		return fail(err)
 	}
 
-	type ligne struct {
-		tour                 int
-		commune, nuance, lib string
-		panneau              int
-		nom, prenom          string
-		voix, cm, cc         any
+	type entry struct {
+		tour                   int
+		commune, nuance, label string
+		panelNumber            int
+		name, firstName        string
+		votes, cm, cc          any
 	}
-	var lignes []ligne
-	horsCOG := map[string]bool{}
+	var entries []entry
+	outsideCOG := map[string]bool{}
 
 	for tour, u := range map[int]string{1: m2020T1URL, 2: m2020T2URL} {
 		f, err := arch.Fetch(ctx, srcID, runID, u, ".txt")
 		if err != nil {
 			return fail(err)
 		}
-		recs, err := lireTSVLatin1(f.Path)
+		recs, err := readLatin1TSV(f.Path)
 		if err != nil {
 			return fail(err)
 		}
 		for _, c := range recs {
-			if len(c) <= m2020PremiereListe {
+			if len(c) <= m2020FirstList {
 				continue
 			}
-			insee := codeINSEE(c[0], c[2])
+			insee := inseeCode(c[0], c[2])
 			if insee == "" {
 				continue
 			}
@@ -104,12 +104,12 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 				// jamais rattachée de force à une commune actuelle : la
 				// correspondance passerait par ref.commune_change et demande
 				// une décision qui n'est pas prise ici.
-				horsCOG[insee] = true
+				outsideCOG[insee] = true
 				continue
 			}
-			for i := m2020PremiereListe; i+m2020TailleBloc <= len(c)+m2020TailleBloc-1 && i+5 < len(c); i += m2020TailleBloc {
-				lib := strings.TrimSpace(c[i+5])
-				if lib == "" {
+			for i := m2020FirstList; i+m2020BlockSize <= len(c)+m2020BlockSize-1 && i+5 < len(c); i += m2020BlockSize {
+				label := strings.TrimSpace(c[i+5])
+				if label == "" {
 					continue
 				}
 				pan, err := strconv.Atoi(strings.TrimSpace(c[i]))
@@ -118,15 +118,15 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 				}
 				nu := strings.TrimSpace(c[i+1])
 				// « LNC » n'est pas une nuance : c'est l'absence d'attribution.
-				if nu == nuanceNonCommuniquee {
+				if nu == nuanceNotReported {
 					nu = ""
 				}
-				lignes = append(lignes, ligne{
-					tour: tour, commune: insee, panneau: pan, nuance: nu, lib: lib,
-					nom: strings.TrimSpace(c[i+3]), prenom: strings.TrimSpace(c[i+4]),
-					cm:   entier(champ(c, i+6)),
-					cc:   entier(champ(c, i+8)),
-					voix: entier(champ(c, i+9)),
+				entries = append(entries, entry{
+					tour: tour, commune: insee, panelNumber: pan, nuance: nu, label: label,
+					name: strings.TrimSpace(c[i+3]), firstName: strings.TrimSpace(c[i+4]),
+					cm:    parseIntOrNil(field(c, i+6)),
+					cc:    parseIntOrNil(field(c, i+8)),
+					votes: parseIntOrNil(field(c, i+9)),
 				})
 			}
 		}
@@ -158,19 +158,19 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 
 	vus := map[string]bool{}
 	var rows [][]any
-	for _, l := range lignes {
-		k := fmt.Sprintf("%d|%s|%d", l.tour, l.commune, l.panneau)
+	for _, l := range entries {
+		k := fmt.Sprintf("%d|%s|%d", l.tour, l.commune, l.panelNumber)
 		if vus[k] {
 			continue
 		}
 		vus[k] = true
-		var nuance, mil any
+		var nuance, vintage any
 		if l.nuance != "" {
-			nuance, mil = l.nuance, Circulaire2020
+			nuance, vintage = l.nuance, Circulaire2020
 		}
 		rows = append(rows, []any{
-			Municipales2020Annee, l.tour, l.commune, COGMillesime, l.panneau,
-			nuance, mil, l.lib, nul(l.nom), nul(l.prenom), l.voix, l.cm, l.cc, srcID,
+			Municipales2020Year, l.tour, l.commune, COGVintage, l.panelNumber,
+			nuance, vintage, l.label, nullIfEmpty(l.name), nullIfEmpty(l.firstName), l.votes, l.cm, l.cc, srcID,
 		})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_municipal_list_2020"},
@@ -181,7 +181,7 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 		return fail(fmt.Errorf("copie des listes 2020 : %w", err))
 	}
 	var n int64
-	err = bulkload.SansContraintesFK(ctx, tx, "core.municipal_list", func() error {
+	err = bulkload.WithoutFKConstraints(ctx, tx, "core.municipal_list", func() error {
 		ct, err := tx.Exec(ctx, `
 			MERGE INTO municipal_list_2020 AS tgt
 			USING tmp_municipal_list_2020 AS src
@@ -220,7 +220,7 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	if _, err := tx.Exec(ctx, `ANALYZE core.municipal_list`); err != nil {
 		return fail(err)
 	}
-	if err := couleurs(ctx, tx, Municipales2020Annee); err != nil {
+	if err := colors(ctx, tx, Municipales2020Year); err != nil {
 		return fail(err)
 	}
 	if err := tx.Commit(ctx); err != nil {
@@ -228,16 +228,16 @@ func IngestMunicipales2020(ctx context.Context, pool *pgxpool.Pool, arch *archiv
 	}
 
 	arch.EndRun(ctx, runID, "SUCCESS",
-		map[string]any{"listes": len(rows), "listes_touchees": n, "hors_cog": len(horsCOG)}, "")
+		map[string]any{"listes": len(rows), "listes_touchees": n, "hors_cog": len(outsideCOG)}, "")
 	fmt.Printf("  municipales 2020 : %d listes (%d touchées par la fusion), %d communes disparues depuis (écartées)\n",
-		len(rows), n, len(horsCOG))
+		len(rows), n, len(outsideCOG))
 	return nil
 }
 
-// codeINSEE reconstruit « 01004 » à partir d'un code département « 1 » et d'un
+// inseeCode reconstruit « 01004 » à partir d'un code département « 1 » et d'un
 // code commune « 4 », que le fichier publie sans zéros de remplissage. La Corse
 // et l'outre-mer gardent leur code littéral.
-func codeINSEE(dep, com string) string {
+func inseeCode(dep, com string) string {
 	dep = strings.TrimSpace(dep)
 	com = strings.TrimSpace(com)
 	if dep == "" || com == "" {
@@ -249,31 +249,31 @@ func codeINSEE(dep, com string) string {
 		}
 	}
 	// Les codes d'outre-mer tiennent déjà sur trois chiffres.
-	largeur := 5 - len(dep)
-	for len(com) < largeur {
+	width := 5 - len(dep)
+	for len(com) < width {
 		com = "0" + com
 	}
 	return dep + com
 }
 
-func champ(c []string, i int) string {
+func field(c []string, i int) string {
 	if i < len(c) {
 		return c[i]
 	}
 	return ""
 }
 
-// lireTSVLatin1 lit un fichier séparé par des tabulations et encodé en
+// readLatin1TSV lit un fichier séparé par des tabulations et encodé en
 // ISO-8859-1, sans passer par encoding/csv : les libellés de liste contiennent
 // des guillemets non échappés que le lecteur CSV refuserait.
-func lireTSVLatin1(path string) ([][]string, error) {
+func readLatin1TSV(path string) ([][]string, error) {
 	b, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}
-	texte := latin1TSV(b)
+	text := latin1ToString(b)
 	var out [][]string
-	for i, l := range strings.Split(texte, "\n") {
+	for i, l := range strings.Split(text, "\n") {
 		if i == 0 {
 			continue // en-tête
 		}
@@ -286,7 +286,7 @@ func lireTSVLatin1(path string) ([][]string, error) {
 	return out, nil
 }
 
-func latin1TSV(b []byte) string {
+func latin1ToString(b []byte) string {
 	r := make([]rune, len(b))
 	for i, c := range b {
 		r[i] = rune(c)

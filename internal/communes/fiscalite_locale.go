@@ -21,7 +21,7 @@ var SourceFiscaliteLocale = archive.Source{
 	Slug: "ofgl-fiscalite-directe-locale", Label: "OFGL — fiscalité directe locale (REI/DGFiP)",
 	Publisher: "Observatoire des finances et de la gestion publique locales (REI, DGFiP)",
 	Tier:      "PRIMARY_OFFICIAL",
-	Licence:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
+	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : DGFiP (Registre des éléments d'imposition), diffusion OFGL",
 	Cadence:     "annuelle",
 	Notes: "Produit réel du foncier bâti, du foncier non bâti, de la CFE et de la TASCOM, " +
@@ -46,15 +46,15 @@ const urlFiscaliteLocale = "https://data.ofgl.fr/api/explore/v2.1/catalog/datase
 	"&where=var%20in(%22E13%22,%22E33%22,%22B13%22,%22B33%22,%22P13%22,%22P33%22,%22TASCOMcom%22,%22TASCOMgfp%22)" +
 	"&group_by=annee,dispositif_fiscal,destinataire,var&limit=50"
 
-// categoriePayeur : foncier bâti et non bâti sont assis sur la propriété
+// payerCategory : foncier bâti et non bâti sont assis sur la propriété
 // (ménages, très majoritairement) ; CFE et TASCOM sont assis sur l'activité
 // économique (entreprises) — la même distinction que docs/collectivites-donnees.md.
-var categoriePayeur = map[string]string{
+var payerCategory = map[string]string{
 	"FB": "MENAGES", "FNB": "MENAGES",
 	"CFE": "ENTREPRISES", "TASCOM": "ENTREPRISES",
 }
 
-var destinataireCode = map[string]string{"Commune": "COMMUNE", "GFP": "GFP"}
+var recipientCode = map[string]string{"Commune": "COMMUNE", "GFP": "GFP"}
 
 func IngestFiscaliteDirecteLocale(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceFiscaliteLocale)
@@ -80,11 +80,11 @@ func IngestFiscaliteDirecteLocale(ctx context.Context, pool *pgxpool.Pool, arch 
 	}
 	var rep struct {
 		Results []struct {
-			Annee            string  `json:"annee"`
-			DispositifFiscal string  `json:"dispositif_fiscal"`
-			Destinataire     string  `json:"destinataire"`
-			Var              string  `json:"var"`
-			Total            float64 `json:"total"`
+			Year         string  `json:"annee"`
+			FiscalDevice string  `json:"dispositif_fiscal"`
+			Recipient    string  `json:"destinataire"`
+			Var          string  `json:"var"`
+			Total        float64 `json:"total"`
 		} `json:"results"`
 	}
 	if err := json.Unmarshal(b, &rep); err != nil {
@@ -102,21 +102,21 @@ func IngestFiscaliteDirecteLocale(ctx context.Context, pool *pgxpool.Pool, arch 
 
 	var rows [][]any
 	for _, r := range rep.Results {
-		cat, ok := categoriePayeur[r.DispositifFiscal]
+		cat, ok := payerCategory[r.FiscalDevice]
 		if !ok {
 			return fail(fmt.Errorf("dispositif fiscal inattendu : %q (var %q) — le format REI a peut-être changé",
-				r.DispositifFiscal, r.Var))
+				r.FiscalDevice, r.Var))
 		}
-		dest, ok := destinataireCode[r.Destinataire]
+		dest, ok := recipientCode[r.Recipient]
 		if !ok {
 			return fail(fmt.Errorf("destinataire inattendu : %q (var %q) — le format REI a peut-être changé",
-				r.Destinataire, r.Var))
+				r.Recipient, r.Var))
 		}
-		annee, err := strconv.Atoi(r.Annee)
+		year, err := strconv.Atoi(r.Year)
 		if err != nil {
-			return fail(fmt.Errorf("année %q illisible : %w", r.Annee, err))
+			return fail(fmt.Errorf("année %q illisible : %w", r.Year, err))
 		}
-		rows = append(rows, []any{annee, r.DispositifFiscal, cat, dest, r.Total, srcID})
+		rows = append(rows, []any{year, r.FiscalDevice, cat, dest, r.Total, srcID})
 	}
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_fiscalite_directe_locale (

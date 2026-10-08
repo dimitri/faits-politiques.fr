@@ -15,10 +15,10 @@ import (
 // Le taux de pauvreté français (core.pauvrete_seuil_annuel) n'a de sens en
 // comparaison internationale que rapproché d'une mesure construite pareil
 // ailleurs. Voir docs/pauvrete-donnees.md § 5.
-var SourcePauvreteTauxEU = archive.Source{
+var SourcePovertyRateEU = archive.Source{
 	Slug: "eurostat-taux-pauvrete", Label: "Eurostat — taux de risque de pauvreté par pays (tps00184)",
 	Publisher: "Eurostat", Tier: "PRIMARY_OFFICIAL",
-	Licence: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
+	License: "Creative Commons Attribution 4.0 (CC BY 4.0)", ReuseClass: "ATTRIBUTION",
 	Attribution: "Source : Eurostat (tps00184)",
 	Cadence:     "annuelle",
 	Notes: "Seuil à 60 % du revenu médian équivalent, population totale (sexe=T). Ne couvre " +
@@ -28,11 +28,11 @@ var SourcePauvreteTauxEU = archive.Source{
 		"comparable) — voir docs/pauvrete-donnees.md § 5.",
 }
 
-const pauvreteEuURL = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/" +
+const povertyEuURL = "https://ec.europa.eu/eurostat/api/dissemination/statistics/1.0/data/" +
 	"tps00184?format=JSON&lang=FR&sex=T"
 
-func IngestPauvreteTauxEU(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	srcID, err := arch.EnsureSource(ctx, SourcePauvreteTauxEU)
+func IngestPovertyRateEU(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
+	srcID, err := arch.EnsureSource(ctx, SourcePovertyRateEU)
 	if err != nil {
 		return err
 	}
@@ -45,7 +45,7 @@ func IngestPauvreteTauxEU(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, pauvreteEuURL, ".json")
+	f, err := arch.Fetch(ctx, srcID, runID, povertyEuURL, ".json")
 	if err != nil {
 		return fail(err)
 	}
@@ -53,21 +53,21 @@ func IngestPauvreteTauxEU(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	if err != nil {
 		return fail(err)
 	}
-	var js jsonStatPauvrete
+	var js jsonStatPoverty
 	if err := json.Unmarshal(b, &js); err != nil {
 		return fail(err)
 	}
 	if len(js.Error) > 0 {
 		return fail(fmt.Errorf("Eurostat : %s", js.Error[0].Label))
 	}
-	cells, err := js.cellules()
+	cells, err := js.cells()
 	if err != nil {
 		return fail(err)
 	}
 	if len(cells) == 0 {
 		return fail(fmt.Errorf("taux de pauvreté UE : aucune cellule décodée"))
 	}
-	libGeo := js.Dimension["geo"].Category.Label
+	geoLabel := js.Dimension["geo"].Category.Label
 
 	tx, err := pool.Begin(ctx)
 	if err != nil {
@@ -83,11 +83,11 @@ func IngestPauvreteTauxEU(ctx context.Context, pool *pgxpool.Pool, arch *archive
 
 	var rows [][]any
 	for _, c := range cells {
-		annee, err := strconv.Atoi(c.dims["time"])
+		year, err := strconv.Atoi(c.dims["time"])
 		if err != nil {
 			continue
 		}
-		rows = append(rows, []any{c.dims["geo"], libGeo[c.dims["geo"]], annee, c.valeur, srcID})
+		rows = append(rows, []any{c.dims["geo"], geoLabel[c.dims["geo"]], year, c.value, srcID})
 	}
 	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_pauvrete_taux_eu"},
 		[]string{"geo_code", "geo_label", "annee", "taux_pct", "source_id"},
@@ -120,32 +120,32 @@ func IngestPauvreteTauxEU(ctx context.Context, pool *pgxpool.Pool, arch *archive
 	return nil
 }
 
-type jsonStatPauvrete struct {
+type jsonStatPoverty struct {
 	Error []struct {
 		Label string `json:"label"`
 	} `json:"error"`
-	ID        []string                             `json:"id"`
-	Size      []int                                `json:"size"`
-	Value     map[string]*float64                  `json:"value"`
-	Dimension map[string]jsonStatPauvreteDimension `json:"dimension"`
+	ID        []string                            `json:"id"`
+	Size      []int                               `json:"size"`
+	Value     map[string]*float64                 `json:"value"`
+	Dimension map[string]jsonStatPovertyDimension `json:"dimension"`
 }
 
-type jsonStatPauvreteDimension struct {
+type jsonStatPovertyDimension struct {
 	Category struct {
 		Index map[string]int    `json:"index"`
 		Label map[string]string `json:"label"`
 	} `json:"category"`
 }
 
-type cellulePauvrete struct {
-	dims   map[string]string
-	valeur float64
+type povertyCell struct {
+	dims  map[string]string
+	value float64
 }
 
-// cellules décode un cube JSON-stat générique — même algorithme que
+// cells décode un cube JSON-stat générique — même algorithme que
 // internal/dette/eurostat.go et internal/ecologie/depenses_environnementales.go,
 // dupliqué ici plutôt que partagé (convention déjà établie dans ce dépôt).
-func (js *jsonStatPauvrete) cellules() ([]cellulePauvrete, error) {
+func (js *jsonStatPoverty) cells() ([]povertyCell, error) {
 	if len(js.ID) != len(js.Size) {
 		return nil, fmt.Errorf("JSON-stat : %d dimensions pour %d tailles", len(js.ID), len(js.Size))
 	}
@@ -163,25 +163,25 @@ func (js *jsonStatPauvrete) cellules() ([]cellulePauvrete, error) {
 			codes[i][pos] = code
 		}
 	}
-	out := make([]cellulePauvrete, 0, len(js.Value))
-	for cle, v := range js.Value {
+	out := make([]povertyCell, 0, len(js.Value))
+	for key, v := range js.Value {
 		if v == nil {
 			continue
 		}
-		n, err := strconv.Atoi(cle)
+		n, err := strconv.Atoi(key)
 		if err != nil {
-			return nil, fmt.Errorf("JSON-stat : index %q", cle)
+			return nil, fmt.Errorf("JSON-stat : index %q", key)
 		}
 		dims := make(map[string]string, len(js.ID))
-		reste := n
+		remainder := n
 		for i := len(js.ID) - 1; i >= 0; i-- {
-			dims[js.ID[i]] = codes[i][reste%js.Size[i]]
-			reste /= js.Size[i]
+			dims[js.ID[i]] = codes[i][remainder%js.Size[i]]
+			remainder /= js.Size[i]
 		}
-		if reste != 0 {
+		if remainder != 0 {
 			return nil, fmt.Errorf("JSON-stat : index %d hors du cube", n)
 		}
-		out = append(out, cellulePauvrete{dims: dims, valeur: *v})
+		out = append(out, povertyCell{dims: dims, value: *v})
 	}
 	return out, nil
 }

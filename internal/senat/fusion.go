@@ -8,7 +8,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
-// Fusionner réunit les sénateurs et les personnes déjà connues d'une autre
+// MergePersons réunit les sénateurs et les personnes déjà connues d'une autre
 // source.
 //
 // Le répertoire du Sénat ne publie aucun identifiant partagé : son matricule
@@ -25,7 +25,7 @@ import (
 // parce que la date de naissance au jour près écarte les homonymes, et parce
 // que l'ambiguïté est mesurée plutôt que supposée : elle vaut zéro, et la
 // fusion s'arrête si elle cesse de valoir zéro.
-func Fusionner(ctx context.Context, pool *pgxpool.Pool) error {
+func MergePersons(ctx context.Context, pool *pgxpool.Pool) error {
 	tx, err := pool.Begin(ctx)
 	if err != nil {
 		return err
@@ -56,8 +56,8 @@ func Fusionner(ctx context.Context, pool *pgxpool.Pool) error {
 		return fmt.Errorf("appariement : %w", err)
 	}
 
-	var aFusionner, ambigus int
-	if err := tx.QueryRow(ctx, `SELECT count(*) FROM fusion`).Scan(&aFusionner); err != nil {
+	var toMerge, ambiguous int
+	if err := tx.QueryRow(ctx, `SELECT count(*) FROM fusion`).Scan(&toMerge); err != nil {
 		return err
 	}
 	// Les appariements écartés parce que multiples : ils sont comptés et
@@ -73,13 +73,13 @@ func Fusionner(ctx context.Context, pool *pgxpool.Pool) error {
 		                WHERE i.person_id = s.id AND i.scheme = 'SENAT_MATRICULE')
 		   AND NOT EXISTS (SELECT 1 FROM core.person_identifier i
 		                    WHERE i.person_id = o.id AND i.scheme = 'SENAT_MATRICULE')
-		   AND NOT EXISTS (SELECT 1 FROM fusion f WHERE f.sen_id = s.id)`).Scan(&ambigus); err != nil {
+		   AND NOT EXISTS (SELECT 1 FROM fusion f WHERE f.sen_id = s.id)`).Scan(&ambiguous); err != nil {
 		return err
 	}
 
-	if aFusionner == 0 {
+	if toMerge == 0 {
 		logs.Notice(fmt.Sprintf("senator merge: nothing to merge (%s discarded as ambiguous)",
-			logs.Plural(ambigus, "match")))
+			logs.Plural(ambiguous, "match")))
 		return tx.Commit(ctx)
 	}
 
@@ -172,17 +172,17 @@ func Fusionner(ctx context.Context, pool *pgxpool.Pool) error {
 		"core.person_identifier", "core.texte_author",
 		"jo.acte_elu", "ref.elu_recherche", "ref.fait_dossier",
 	}
-	var manquantes []string
+	var missing []string
 	if err := tx.QueryRow(ctx, `
 		SELECT coalesce(array_agg(t), '{}')
 		  FROM (SELECT DISTINCT c.conrelid::regclass::text AS t
 		          FROM pg_constraint c
 		         WHERE c.contype = 'f' AND c.confrelid = 'core.person'::regclass) s
-		 WHERE t <> ALL($1::text[])`, tables).Scan(&manquantes); err != nil {
+		 WHERE t <> ALL($1::text[])`, tables).Scan(&missing); err != nil {
 		return fmt.Errorf("inventaire des références : %w", err)
 	}
 	// core.gouvernement référence la personne par une colonne nommée autrement.
-	for _, t := range manquantes {
+	for _, t := range missing {
 		if t == "core.gouvernement" {
 			continue
 		}
@@ -209,6 +209,6 @@ func Fusionner(ctx context.Context, pool *pgxpool.Pool) error {
 		return err
 	}
 	logs.Notice(fmt.Sprintf("senator merge: %s merged, %s removed, %s discarded as ambiguous",
-		logs.Plural(aFusionner, "record"), logs.Plural(int(res.RowsAffected()), "record"), logs.Plural(ambigus, "match")))
+		logs.Plural(toMerge, "record"), logs.Plural(int(res.RowsAffected()), "record"), logs.Plural(ambiguous, "match")))
 	return nil
 }

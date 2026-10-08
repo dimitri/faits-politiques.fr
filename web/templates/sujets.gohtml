@@ -7,22 +7,22 @@ les formulent les institutions, les règles, les contrôles, les chiffres — et
 permettent pas de dire. Chacun se lit avec l'argent public qui le finance.</p>
 
 <div class="familles familles-page">
-  {{range .Familles}}
+  {{range .Families}}
   <div class="famille famille-carte" id="{{.ID}}">
-    <h2><a href="#{{.ID}}">{{.Nom}}</a></h2>
-    <span class="poids">{{if .ParMille}}{{.ParMille}}&nbsp;€ sur 1&nbsp;000 de dépense publique{{else}}Hors fonctions de dépense{{end}}</span>
-    {{if .ParMille}}<span class="jauge"><span style="width:{{.Largeur}}%"></span></span>{{end}}
+    <h2><a href="#{{.ID}}">{{.Name}}</a></h2>
+    <span class="poids">{{if .PerThousand}}{{.PerThousand}}&nbsp;€ sur 1&nbsp;000 de dépense publique{{else}}Hors fonctions de dépense{{end}}</span>
+    {{if .PerThousand}}<span class="jauge"><span style="width:{{.Width}}%"></span></span>{{end}}
     <p class="q">{{.Intro}}</p>
     <ul class="liste-sujets">
-      {{range .Sujets}}
+      {{range .Topics}}
       {{if .D}}<li><a href="{{$.Root}}/{{.URL}}">
-        <span class="nom">{{.Nom}}</span>
-        <span class="d">{{.D.Titre}}</span>
-        {{if .Pages}}<span class="ext">+ {{(index .Pages 0).Titre}}</span>{{end}}
+        <span class="nom">{{.Name}}</span>
+        <span class="d">{{.D.Title}}</span>
+        {{if .Pages}}<span class="ext">+ {{(index .Pages 0).Title}}</span>{{end}}
       </a></li>
       {{else if .Pages}}<li><a href="{{$.Root}}/{{(index .Pages 0).URL}}">
-        <span class="nom">{{.Nom}}</span>
-        <span class="d">{{(index .Pages 0).Titre}}</span>
+        <span class="nom">{{.Name}}</span>
+        <span class="d">{{(index .Pages 0).Title}}</span>
       </a></li>{{end}}
       {{end}}
     </ul>
@@ -31,6 +31,6 @@ permettent pas de dire. Chacun se lit avec l'argent public qui le finance.</p>
 </div>
 
 <p class="note">Le poids indiqué pour chaque famille reprend les fonctions de la nomenclature COFOG
-(Eurostat / Insee, {{.Annee}})&nbsp;: il situe, il ne s'additionne pas. L'argent public lui-même —
+(Eurostat / Insee, {{.Year}})&nbsp;: il situe, il ne s'additionne pas. L'argent public lui-même —
 budgets, dette, coût des institutions — a sa propre entrée&nbsp;: <a href="{{.Root}}/argent-public/">Argent public →</a></p>
 {{end}}

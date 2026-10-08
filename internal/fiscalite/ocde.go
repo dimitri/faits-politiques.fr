@@ -15,8 +15,8 @@ import (
 const sdmxOCDE = "https://sdmx.oecd.org/public/rest/data/"
 
 // urlOCDE compose une requête SDMX : une clé par dimension, vide pour « toutes ».
-func urlOCDE(flux string, cle []string, debut int) string {
-	return fmt.Sprintf("%s%s/%s?startPeriod=%d&format=csvfilewithlabels", sdmxOCDE, flux, strings.Join(cle, "."), debut)
+func urlOCDE(dataset string, key []string, startYear int) string {
+	return fmt.Sprintf("%s%s/%s?startPeriod=%d&format=csvfilewithlabels", sdmxOCDE, dataset, strings.Join(key, "."), startYear)
 }
 
 // Juridictions de contrepartie retenues pour le CbCR : la France, ses grands
@@ -25,7 +25,7 @@ func urlOCDE(flux string, cle []string, debut int) string {
 // dépasseraient la centaine de mégaoctets pour un usage qui n'en demande
 // qu'une vingtaine. WXD = reste du monde (tout l'étranger du siège, total
 // qui permet les parts) ; STLS = entités apatrides (sans résidence fiscale).
-var contrepartiesCbCR = []string{
+var cbcrCounterparts = []string{
 	"FRA", "DEU", "ITA", "ESP", "GBR", "USA", "JPN", "CHN",
 	"IRL", "LUX", "NLD", "BEL", "CHE", "MLT", "CYP", "HUN", "SGP", "HKG", "PRI",
 	"BMU", "CYM", "VGB", "BHS", "JEY", "GGY", "IMN", "CAN", "MEX", "IND", "BRA", "KOR", "AUS", "POL",
@@ -34,15 +34,15 @@ var contrepartiesCbCR = []string{
 
 // Mesures CbCR conservées : les montants et effectifs. Les distributions de
 // taux effectifs (percentiles) et les comptages d'activités sont écartés.
-var mesuresCbCR = map[string]bool{
+var cbcrMeasures = map[string]bool{
 	"PROFIT": true, "PROFIT_ADJ": true, "TAX_PAID": true, "TAX_ACCRUED": true, "EMPLOYEES": true,
 	"TOT_REV": true, "RPR": true, "UPR": true, "ASSETS": true, "EARNINGS": true,
 	"STATED_CAPITAL": true, "ENTITIES_COUNT": true, "CBCR_COUNT": true, "ACT_HOLDING": true, "ACT_IP": true,
 }
 
-// valeurOCDE lit OBS_VALUE et applique UNIT_MULT quand la colonne existe.
+// ocdeValue lit OBS_VALUE et applique UNIT_MULT quand la colonne existe.
 // Chaîne vide : valeur absente, jamais zéro.
-func valeurOCDE(r map[string]string) (float64, bool, error) {
+func ocdeValue(r map[string]string) (float64, bool, error) {
 	s := strings.TrimSpace(r["OBS_VALUE"])
 	if s == "" {
 		return 0, false, nil
@@ -62,39 +62,39 @@ func valeurOCDE(r map[string]string) (float64, bool, error) {
 }
 
 func IngestOCDEImpotSocietes(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, arch, SourceOCDEImpotSocietes, func(srcID, runID int64) (map[string]any, error) {
+	return run(ctx, arch, SourceOCDEImpotSocietes, func(srcID, runID int64) (map[string]any, error) {
 		stats := map[string]any{}
 
 		// 1. Déclarations pays par pays : tous les sièges, juridictions retenues.
 		u := urlOCDE("OECD.CTP.TPS,DSD_CBCR@DF_CBCRI,1.1",
-			[]string{"", strings.Join(contrepartiesCbCR, "+"), "A", "", "", "_Z", "TOTAL", "", "", ""}, 2016)
+			[]string{"", strings.Join(cbcrCounterparts, "+"), "A", "", "", "_Z", "TOTAL", "", "", ""}, 2016)
 		f, err := arch.Fetch(ctx, srcID, runID, u, ".csv")
 		if err != nil {
 			return nil, err
 		}
-		rows, err := lireCSV(f.Path)
+		rows, err := readCSV(f.Path)
 		if err != nil {
 			return nil, err
 		}
-		type cleCbCR struct{ annee, siege, jur, mesure, groupe string }
-		vus := map[cleCbCR]bool{}
+		type cbcrKey struct{ annee, siege, jur, mesure, groupe string }
+		seen := map[cbcrKey]bool{}
 		var cbcr [][]any
 		for _, r := range rows {
-			if !mesuresCbCR[r["MEASURE"]] || r["STATISTICAL_OPERATION"] != "_Z" {
+			if !cbcrMeasures[r["MEASURE"]] || r["STATISTICAL_OPERATION"] != "_Z" {
 				continue
 			}
-			v, ok, err := valeurOCDE(r)
+			v, ok, err := ocdeValue(r)
 			if err != nil {
 				return nil, fmt.Errorf("CbCR : %w", err)
 			}
 			if !ok {
 				continue
 			}
-			k := cleCbCR{r["TIME_PERIOD"], r["REF_AREA"], r["COUNTERPART_AREA"], r["MEASURE"], r["PROFIT_GROUPING"]}
-			if vus[k] {
+			k := cbcrKey{r["TIME_PERIOD"], r["REF_AREA"], r["COUNTERPART_AREA"], r["MEASURE"], r["PROFIT_GROUPING"]}
+			if seen[k] {
 				return nil, fmt.Errorf("CbCR : doublon %v (dimension non filtrée)", k)
 			}
-			vus[k] = true
+			seen[k] = true
 			annee, err := strconv.Atoi(k.annee)
 			if err != nil {
 				return nil, fmt.Errorf("CbCR : période %q", k.annee)
@@ -106,15 +106,15 @@ func IngestOCDEImpotSocietes(ctx context.Context, pool *pgxpool.Pool, arch *arch
 		// 2. Indicateurs par pays : taux légaux, taux effectifs, régimes de
 		// propriété intellectuelle. Tous les pays couverts.
 		var pays [][]any
-		type clePays struct{ pays, annee, ind, var_ string }
-		vusPays := map[clePays]bool{}
-		ajoutePays := func(r map[string]string, ind, variante string, doc int64, texteAdmis bool) error {
+		type countryKey struct{ pays, annee, ind, var_ string }
+		seenCountries := map[countryKey]bool{}
+		addCountryRow := func(r map[string]string, ind, variante string, doc int64, texteAdmis bool) error {
 			annee, err := strconv.Atoi(r["TIME_PERIOD"])
 			if err != nil {
 				return fmt.Errorf("période %q", r["TIME_PERIOD"])
 			}
-			k := clePays{r["REF_AREA"], r["TIME_PERIOD"], ind, variante}
-			if vusPays[k] {
+			k := countryKey{r["REF_AREA"], r["TIME_PERIOD"], ind, variante}
+			if seenCountries[k] {
 				return fmt.Errorf("doublon %v", k)
 			}
 			brut := strings.TrimSpace(r["OBS_VALUE"])
@@ -133,44 +133,44 @@ func IngestOCDEImpotSocietes(ctx context.Context, pool *pgxpool.Pool, arch *arch
 			} else {
 				return fmt.Errorf("%s : valeur non numérique %q", ind, brut)
 			}
-			vusPays[k] = true
-			pays = append(pays, []any{k.pays, annee, ind, variante, valeur, texte, nul(unite), doc})
+			seenCountries[k] = true
+			pays = append(pays, []any{k.pays, annee, ind, variante, valeur, texte, nullable(unite), doc})
 			return nil
 		}
 
-		requetes := []struct {
-			nom  string
-			url  string
-			lire func(r map[string]string, doc int64) error
+		queries := []struct {
+			label string
+			url   string
+			parse func(r map[string]string, doc int64) error
 		}{
 			{"taux légaux", urlOCDE("OECD.CTP.TPS,DSD_TAX_CIT@DF_CIT,", make([]string, 9), 2000),
 				func(r map[string]string, doc int64) error {
-					return ajoutePays(r, "CIT."+r["MEASURE"], r["TARGETING"]+"."+r["SECTOR"], doc, false)
+					return addCountryRow(r, "CIT."+r["MEASURE"], r["TARGETING"]+"."+r["SECTOR"], doc, false)
 				}},
 			{"taux effectifs", urlOCDE("OECD.CTP.TPS,DSD_ETR@DF_ETR_BASELINE,", []string{"", "A", "EATR+EMTR", "", "BASELINE", "", "", ""}, 2017),
 				func(r map[string]string, doc int64) error {
-					return ajoutePays(r, "ETR."+r["MEASURE"], r["ETR_SCENARIO"]+"."+r["ETR_TAX_TYPE"]+"."+r["REGIME"], doc, false)
+					return addCountryRow(r, "ETR."+r["MEASURE"], r["ETR_SCENARIO"]+"."+r["ETR_TAX_TYPE"]+"."+r["REGIME"], doc, false)
 				}},
 			{"régimes PI", urlOCDE("OECD.CTP.TPS,DSD_QDD_IPR@DF_QDD_IPR,", make([]string, 4), 2017),
 				func(r map[string]string, doc int64) error {
-					return ajoutePays(r, "IPR."+r["MEASURE"], r["REGIME"], doc, true)
+					return addCountryRow(r, "IPR."+r["MEASURE"], r["REGIME"], doc, true)
 				}},
 		}
-		for _, q := range requetes {
+		for _, q := range queries {
 			f, err := arch.Fetch(ctx, srcID, runID, q.url, ".csv")
 			if err != nil {
-				return nil, fmt.Errorf("%s : %w", q.nom, err)
+				return nil, fmt.Errorf("%s : %w", q.label, err)
 			}
-			rows, err := lireCSV(f.Path)
+			rows, err := readCSV(f.Path)
 			if err != nil {
-				return nil, fmt.Errorf("%s : %w", q.nom, err)
+				return nil, fmt.Errorf("%s : %w", q.label, err)
 			}
 			if len(rows) == 0 {
-				return nil, fmt.Errorf("%s : réponse vide", q.nom)
+				return nil, fmt.Errorf("%s : réponse vide", q.label)
 			}
 			for _, r := range rows {
-				if err := q.lire(r, f.DocumentID); err != nil {
-					return nil, fmt.Errorf("%s : %w", q.nom, err)
+				if err := q.parse(r, f.DocumentID); err != nil {
+					return nil, fmt.Errorf("%s : %w", q.label, err)
 				}
 			}
 		}
@@ -250,20 +250,20 @@ var entitesIDE = map[string]string{"ALL": "TOUTES", "RSP": "SPE", "ROU": "HORS_S
 // pays de contrepartie par pays de contrepartie, entrants (versés par les
 // filiales en France à leurs investisseurs étrangers) et sortants.
 func IngestOCDEIDE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	return executer(ctx, arch, SourceOCDEIDE, func(srcID, runID int64) (map[string]any, error) {
+	return run(ctx, arch, SourceOCDEIDE, func(srcID, runID int64) (map[string]any, error) {
 		u := urlOCDE("OECD.DAF.INV,DSD_FDI@DF_FDI_INC_CTRY,1.0",
 			[]string{"FRA", "", "", "", "NET_FDI", "", "D", "S1", "", "IMC", "_T", "A", ""}, 2013)
 		f, err := arch.Fetch(ctx, srcID, runID, u, ".csv")
 		if err != nil {
 			return nil, err
 		}
-		rows, err := lireCSV(f.Path)
+		rows, err := readCSV(f.Path)
 		if err != nil {
 			return nil, err
 		}
-		type cle struct{ annee, cp, dir, comp, ent, unite string }
-		vus := map[cle]bool{}
-		var lignes [][]any
+		type key struct{ annee, cp, dir, comp, ent, unite string }
+		seen := map[key]bool{}
+		var outRows [][]any
 		for _, r := range rows {
 			comp, ok := composantesIDE[r["MEASURE"]]
 			if !ok {
@@ -283,7 +283,7 @@ func IngestOCDEIDE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			if unite == "" {
 				return nil, fmt.Errorf("devise absente")
 			}
-			v, ok, err := valeurOCDE(r)
+			v, ok, err := ocdeValue(r)
 			if err != nil {
 				return nil, err
 			}
@@ -294,15 +294,15 @@ func IngestOCDEIDE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			if err != nil {
 				return nil, fmt.Errorf("période %q", r["TIME_PERIOD"])
 			}
-			k := cle{r["TIME_PERIOD"], r["COUNTERPART_AREA"], dir, comp, ent, unite}
-			if vus[k] {
+			k := key{r["TIME_PERIOD"], r["COUNTERPART_AREA"], dir, comp, ent, unite}
+			if seen[k] {
 				return nil, fmt.Errorf("doublon %v", k)
 			}
-			vus[k] = true
-			lignes = append(lignes, []any{"FRA", annee, k.cp, dir, comp, ent, unite, v, f.DocumentID})
+			seen[k] = true
+			outRows = append(outRows, []any{"FRA", annee, k.cp, dir, comp, ent, unite, v, f.DocumentID})
 		}
-		if len(lignes) < 10000 {
-			return nil, fmt.Errorf("%d lignes seulement", len(lignes))
+		if len(outRows) < 10000 {
+			return nil, fmt.Errorf("%d lignes seulement", len(outRows))
 		}
 		tx, err := pool.Begin(ctx)
 		if err != nil {
@@ -327,7 +327,7 @@ func IngestOCDEIDE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		}
 		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_ide_revenu"},
 			[]string{"pays_declarant", "annee", "contrepartie", "direction", "composante", "type_entite", "unite", "valeur", "document_id"},
-			pgx.CopyFromRows(lignes)); err != nil {
+			pgx.CopyFromRows(outRows)); err != nil {
 			return nil, err
 		}
 		if _, err := tx.Exec(ctx, `
@@ -345,6 +345,6 @@ func IngestOCDEIDE(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 			WHEN NOT MATCHED BY SOURCE THEN DELETE`); err != nil {
 			return nil, fmt.Errorf("fusion ide_revenu : %w", err)
 		}
-		return map[string]any{"lignes": len(lignes)}, tx.Commit(ctx)
+		return map[string]any{"lignes": len(outRows)}, tx.Commit(ctx)
 	})
 }
