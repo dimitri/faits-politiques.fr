@@ -174,8 +174,19 @@ jobs:
       # 100 connexions par défaut de Postgres, même cumulé aux 8 de
       # l'actualisation des matvues (internal/ingest/ingest.go,
       # actualiserMatviews) qui suit juste après.
+      # --force PONCTUEL : le diagnostic ajouté juste en dessous a montré
+      # organization_id NUL sur tous les bulletins de l'Assemblée alors que
+      # "votes unchanged since last run, skipping rebuild" empêchait toute
+      # reconstruction depuis — le conteneur Postgres de dev-runner persiste
+      # d'une exécution à l'autre (voir internal/an/normalize.go), donc un
+      # état faux une fois écrit ne se corrige jamais seul derrière ce
+      # raccourci de watermark. Ce run-ci force une reconstruction complète
+      # pour purger l'état figé ; --force doit repartir dès que le
+      # diagnostic montre des bulletins par groupe non nuls, pour ne pas
+      # perdre l'optimisation incrémentale que le passage en self-hosted
+      # visait justement à obtenir.
       - name: Ingestion
-        run: ./bin/fpctl ingest default -j 32
+        run: ./bin/fpctl ingest default -j 32 --force
 
       # Diagnostic de la chaîne CHES -> groupe -> votes, posé après une
       # panne non reproduite en local (run 38046899924 et les nuits
