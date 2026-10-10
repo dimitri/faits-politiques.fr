@@ -1,0 +1,67 @@
+name: scratch-diag
+# Fichier temporaire, jamais destiné à main : inspecte en lecture seule la
+# base déjà présente sur dev-runner (conteneur Postgres persistant, voir
+# ci-force-heal-votes-watermark) sans relancer un ingest de 20-40 minutes.
+# À supprimer une fois le diagnostic terminé.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diag:
+    runs-on: [self-hosted, faits-politiques]
+    timeout-minutes: 10
+    env:
+      FP_DB_PORT: "55433"
+      DATABASE_URL: postgres://fp:fp@localhost:55433/fp?sslmode=disable
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Installer les clients PostgreSQL 17
+        run: ./scripts/install-pg-client.sh
+
+      - name: Provisionner Postgres (réutilise le conteneur existant)
+        run: |
+          docker compose up -d --wait db
+
+      - name: Organisation des 10 groupes (id, slug, identifiants)
+        run: |
+          psql -d "$DATABASE_URL" -c "
+          SELECT g.id, g.slug,
+                 (SELECT string_agg(scheme || ':' || value, ', ') FROM core.organization_identifier i WHERE i.organization_id = g.id) AS identifiers
+            FROM core.party_group_link pgl
+            JOIN core.organization g ON g.id = pgl.group_id
+           ORDER BY g.id;
+          "
+
+      - name: Ballots AN -- distinct organization_id utilisés
+        run: |
+          psql -d "$DATABASE_URL" -c "
+          SELECT b.organization_id, count(*)
+            FROM core.ballot b
+            JOIN core.scrutin s ON s.id = b.scrutin_id
+           WHERE s.institution = 'ASSEMBLEE_NATIONALE'
+           GROUP BY 1
+           ORDER BY 2 DESC
+           LIMIT 20;
+          "
+
+      - name: Ballots AN -- total vs organization_id non nul
+        run: |
+          psql -d "$DATABASE_URL" -c "
+          SELECT s.institution, count(*), count(b.organization_id)
+            FROM core.ballot b
+            JOIN core.scrutin s ON s.id = b.scrutin_id
+           GROUP BY 1;
+          "
+
+      - name: Organisations candidates par OrganeRef type GP (groupes parlementaires)
+        run: |
+          psql -d "$DATABASE_URL" -c "
+          SELECT o.id, o.slug, o.kind, o.validity
+            FROM core.organization o
+            JOIN core.organization_identifier i ON i.organization_id = o.id
+           WHERE i.scheme = 'AN_ORGANE'
+             AND o.kind = 'PARLIAMENTARY_GROUP'
+           ORDER BY o.id;
+          "
