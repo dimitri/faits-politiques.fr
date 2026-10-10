@@ -10,7 +10,7 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// commandeIngest : fpctl ingest default | complet | <catégorie> [all|<source>].
+// commandIngest : fpctl ingest default | complet | <catégorie> [all|<source>].
 // L'arbre de sous-commandes est construit en ITÉRANT internal/ingest.
 // Categories() et SourcesDeCategorie plutôt que recopié à la main — le
 // catalogue (internal/ingest/catalogue.go) reste la référence unique des
@@ -20,7 +20,7 @@ import (
 // Deux PORTÉES possibles, nommées pareil des deux côtés de fpctl (voir
 // « fpctl verify data », qui reprend exactement ces deux noms) :
 //   - « default » (internal/ingest.ChaineParDefaut) : le socle parlementaire
-//     plus runToutSupplement — ce que ce dépôt a toujours rechargé sans
+//     plus runAllSupplement — ce que ce dépôt a toujours rechargé sans
 //     -only, jamais littéralement tout le catalogue. C'était l'ancien
 //     « fpctl ingest all », renommé pour ne plus dire « tout » quand il ne
 //     recharge qu'une partie.
@@ -39,10 +39,10 @@ import (
 // n'ont aucune dépendance déclarée entre elles, donc partagent une seule
 // vague et tournent de front jusqu'à -j, là où elles s'exécutaient
 // jusqu'ici une par une dans l'ordre du catalogue.
-func commandeIngest() *cobra.Command {
+func commandIngest() *cobra.Command {
 	var rawDir, migDir string
 	var dryRun, force bool
-	var concurrence int
+	var concurrency int
 	cmd := &cobra.Command{
 		Use:   "ingest",
 		Short: "Charge une ressource dans la base",
@@ -63,12 +63,12 @@ func commandeIngest() *cobra.Command {
 	cmd.PersistentFlags().StringVar(&migDir, "migrations", "db/migrations", "répertoire des migrations")
 	cmd.PersistentFlags().BoolVar(&dryRun, "dry-run", false,
 		"affiche l'ordre d'exécution par vagues sans rien exécuter")
-	cmd.PersistentFlags().IntVarP(&concurrence, "concurrence", "j", 1,
+	cmd.PersistentFlags().IntVarP(&concurrency, "concurrency", "j", 1,
 		"étapes indépendantes exécutées de front, par vague")
 	cmd.PersistentFlags().BoolVar(&force, "force", false,
 		"ignore tous les watermarks (internal/watermark, internal/an/watermark.go) : "+
 			"reconstruit comme si rien n'avait jamais tourné")
-	opts := func() pipeline.Options { return pipeline.Options{DryRun: dryRun, Concurrence: concurrence} }
+	opts := func() pipeline.Options { return pipeline.Options{DryRun: dryRun, Concurrency: concurrency} }
 	// ctxForce applique --force à cmd.Context(), jamais l'inverse : un appel
 	// qui l'oublierait garderait le comportement normal (les watermarks
 	// jouent), plutôt que de forcer par défaut sans qu'on l'ait demandé.
@@ -94,7 +94,7 @@ func commandeIngest() *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := ctxForce(cmd)
-			return executerInterne(ctx, ingest.RunTout(ctx, rawDir, migDir, opts()))
+			return runInternal(ctx, ingest.RunAll(ctx, rawDir, migDir, opts()))
 		},
 	})
 
@@ -115,7 +115,7 @@ func commandeIngest() *cobra.Command {
 		Args: cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := ctxForce(cmd)
-			return executerInterne(ctx, ingest.RunSources(ctx, rawDir, migDir, ingest.TousLesNoms(), opts()))
+			return runInternal(ctx, ingest.RunSources(ctx, rawDir, migDir, ingest.TousLesNoms(), opts()))
 		},
 	})
 
@@ -124,24 +124,24 @@ func commandeIngest() *cobra.Command {
 		Short: "Applique les migrations de schéma en attente",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
-			return executerInterne(cmd.Context(), ingest.RunSource(cmd.Context(), rawDir, migDir, "migrate"))
+			return runInternal(cmd.Context(), ingest.RunSource(cmd.Context(), rawDir, migDir, "migrate"))
 		},
 	})
 
-	for _, categorie := range ingest.Categories() {
-		cmd.AddCommand(commandeIngestCategorie(categorie, &rawDir, &migDir, opts, ctxForce))
+	for _, category := range ingest.Categories() {
+		cmd.AddCommand(commandIngestCategory(category, &rawDir, &migDir, opts, ctxForce))
 	}
 
 	return cmd
 }
 
-func commandeIngestCategorie(categorie string, rawDir, migDir *string, opts func() pipeline.Options,
+func commandIngestCategory(category string, rawDir, migDir *string, opts func() pipeline.Options,
 	ctxForce func(cmd *cobra.Command) context.Context) *cobra.Command {
-	sources := ingest.SourcesDeCategorie(categorie)
+	sources := ingest.SourcesDeCategorie(category)
 
 	catCmd := &cobra.Command{
-		Use:   categorie,
-		Short: fmt.Sprintf("Sources de la catégorie %s (%d)", categorie, len(sources)),
+		Use:   category,
+		Short: fmt.Sprintf("Sources de la catégorie %s (%d)", category, len(sources)),
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			return cmd.Help()
 		},
@@ -149,11 +149,11 @@ func commandeIngestCategorie(categorie string, rawDir, migDir *string, opts func
 
 	catCmd.AddCommand(&cobra.Command{
 		Use:   "all",
-		Short: fmt.Sprintf("Recharge toutes les sources de %s", categorie),
+		Short: fmt.Sprintf("Recharge toutes les sources de %s", category),
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, _ []string) error {
 			ctx := ctxForce(cmd)
-			return executerInterne(ctx, ingest.RunCategorie(ctx, *rawDir, *migDir, categorie, opts()))
+			return runInternal(ctx, ingest.RunCategorie(ctx, *rawDir, *migDir, category, opts()))
 		},
 	})
 
@@ -165,7 +165,7 @@ func commandeIngestCategorie(categorie string, rawDir, migDir *string, opts func
 			Args:  cobra.NoArgs,
 			RunE: func(cmd *cobra.Command, _ []string) error {
 				ctx := ctxForce(cmd)
-				return executerInterne(ctx, ingest.RunSource(ctx, *rawDir, *migDir, s.Nom, opts()))
+				return runInternal(ctx, ingest.RunSource(ctx, *rawDir, *migDir, s.Nom, opts()))
 			},
 		})
 	}

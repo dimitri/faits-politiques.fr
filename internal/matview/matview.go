@@ -54,7 +54,7 @@ func (d Definition) QualifieNom() string { return "mv." + d.Nom }
 // Catalogue : les matvues connues. Une seule entrée aujourd'hui
 // (scrutin_groupe_vote, le premier étage du chantier) — chaque nouvelle
 // matvue s'y ajoute, jamais ailleurs : fpctl list matviews et
-// ActualiserToutes n'ont besoin de connaître qu'elle.
+// RefreshAll n'ont besoin de connaître qu'elle.
 var Catalogue = []Definition{
 	{
 		Nom:    "scrutin_groupe_vote",
@@ -106,7 +106,7 @@ var Catalogue = []Definition{
 	WHERE rang <= 100`,
 	},
 	// Les six matvues de loadTerritoires (internal/sitegen/territoires.go).
-	// dept_population D'ABORD dans ce fichier : Registre.Ajouter (registre,
+	// dept_population D'ABORD dans ce fichier : Registry.Add (registre,
 	// plus bas) panique si une matvue est déclarée avant celle qu'elle cite
 	// dans Tables — les quatre suivantes la lisent par SELECT (une matvue
 	// construite sur une autre, voir la migration 0157), donc leur place ici
@@ -695,7 +695,7 @@ func Actualiser(ctx context.Context, pool *pgxpool.Pool, def Definition) (rafrai
 // matvue une vague trop tôt, jamais une erreur SQL — juste une lecture
 // d'une matvue pas encore actualisée. Avec la concurrence à 4 (l'ancien
 // pool partagé de l'ingest), ce risque restait largement théorique ; à 8
-// (ActualiserToutesConcurrence, voir OpenWithMaxConns dans internal/
+// (RefreshAllConcurrency, voir OpenWithMaxConns dans internal/
 // ingest) plus de vagues tournent vraiment en parallèle, donc une entrée
 // manquante dans Tables cesse d'être un détail cosmétique.
 func dependancesReellesMV(ctx context.Context, pool *pgxpool.Pool) (map[string][]string, error) {
@@ -735,7 +735,7 @@ func dependancesReellesMV(ctx context.Context, pool *pgxpool.Pool) (map[string][
 // des AUTRES matvues (directes ou transitives) dont son SELECT dépend —
 // calculé en une requête WITH RECURSIVE sur pg_depend/pg_rewrite (le
 // parcours de dependancesReellesMV, poursuivi de proche en proche) plutôt
-// qu'en re-empilant les niveaux que pipeline.Registre.Niveaux calcule déjà
+// qu'en re-empilant les niveaux que pipeline.Registry.Levels calcule déjà
 // pour l'ORDONNANCEMENT : celle-ci répond à une question différente —
 // « qu'est-ce qui deviendrait périmé, en cascade, si cette matvue-source
 // changeait ? » — utile pour l'afficher (fpctl list matviews), pas pour
@@ -783,33 +783,33 @@ func FermetureDependances(ctx context.Context, pool *pgxpool.Pool) (map[string][
 	return out, rows.Err()
 }
 
-// registre construit le pipeline.Registre du Catalogue pour pool : chaque
-// Definition devient une Etape dont les Dependances sont lues directement
+// registre construit le pipeline.Registry du Catalogue pour pool : chaque
+// Definition devient une Step dont les Dependencies sont lues directement
 // dans Tables — toute entrée qui commence par "mv." y nomme une AUTRE
 // matvue du Catalogue (jamais une TableDirecte, qui ne vit pas dans ce
-// schéma), donc c'est exactement le nom qu'attend Registre.Ajouter.
+// schéma), donc c'est exactement le nom qu'attend Registry.Add.
 // Catalogue reste déclaré dépendance-d'abord (dept_population avant ce qui
-// la lit, person_actif avant ce qui le lit) : Ajouter panique sinon, donc
+// la lit, person_actif avant ce qui le lit) : Add panique sinon, donc
 // cette construction est elle-même une vérification que l'ordre du fichier
 // reste correct.
 //
 // Avant de construire le graphe, on le confronte à dependancesReellesMV :
 // toute dépendance mv-sur-mv que Postgres connaît (pg_depend) et que Tables
-// aurait oubliée panique ici, avec le même esprit que le panic d'Ajouter —
+// aurait oubliée panique ici, avec le même esprit que le panic d'Add —
 // mieux vaut un échec net au démarrage qu'une matvue lue avant d'être à
 // jour, en silence, une fois de plus de front que 4 en train de tourner.
 //
-// pool volontairement absent de pipeline.NouveauRegistre : le journal
-// core.pipeline_etape que pipeline.Registre.Executer tient à jour reste
-// réservé à l'ingest (internal/ingest), jamais à ce registre-ci — un
-// Registre sans pool saute cette écriture (voir pipeline.go, Executer).
-func registre(ctx context.Context, pool *pgxpool.Pool) (*pipeline.Registre, error) {
+// pool volontairement absent de pipeline.NewRegistry : le journal
+// core.pipeline_etape que pipeline.Registry.Run tient à jour reste réservé
+// à l'ingest (internal/ingest), jamais à ce registre-ci — un Registry sans
+// pool saute cette écriture (voir pipeline.go, Run).
+func registre(ctx context.Context, pool *pgxpool.Pool) (*pipeline.Registry, error) {
 	reel, err := dependancesReellesMV(ctx, pool)
 	if err != nil {
 		return nil, err
 	}
 
-	reg := pipeline.NouveauRegistre(nil)
+	reg := pipeline.NewRegistry(nil)
 	for _, def := range Catalogue {
 		def := def
 		var dependances []string
@@ -828,11 +828,11 @@ func registre(ctx context.Context, pool *pgxpool.Pool) (*pipeline.Registre, erro
 					def.Nom, vraie)
 			}
 		}
-		reg.Ajouter(pipeline.Etape{
-			Nom:         def.Nom,
-			Description: "checking " + def.QualifieNom(),
-			Dependances: dependances,
-			Executer: func(ctx context.Context, _ pipeline.Results) (any, error) {
+		reg.Add(pipeline.Step{
+			Name:         def.Nom,
+			Description:  "checking " + def.QualifieNom(),
+			Dependencies: dependances,
+			Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
 				rafraichie, err := Actualiser(ctx, pool, def)
 				if err != nil {
 					return nil, fmt.Errorf("mv.%s : %w", def.Nom, err)
@@ -849,24 +849,24 @@ func registre(ctx context.Context, pool *pgxpool.Pool) (*pipeline.Registre, erro
 	return reg, nil
 }
 
-// ActualiserToutes actualise chaque matvue du Catalogue, dans l'ordre de
+// RefreshAll actualise chaque matvue du Catalogue, dans l'ordre de
 // dépendance déclaré (registre) plutôt que dans l'ordre du fichier tenu à
 // la main — une matvue construite sur une autre (mv.dept_population,
 // mv.person_actif) est désormais garantie à jour avant que sa dépendante ne
 // soit vérifiée, par construction du graphe plutôt que par une place
 // correcte dans Catalogue. À la concurrence partagée par défaut (4, celle du
 // pool qu'ouvre internal/store.Open) — pour un appelant qui n'a pas de
-// raison de s'en écarter. Voir ActualiserToutesConcurrence pour celui qui en
+// raison de s'en écarter. Voir RefreshAllConcurrency pour celui qui en
 // a une.
-func ActualiserToutes(ctx context.Context, pool *pgxpool.Pool) error {
-	return ActualiserToutesConcurrence(ctx, pool, 4)
+func RefreshAll(ctx context.Context, pool *pgxpool.Pool) error {
+	return RefreshAllConcurrency(ctx, pool, 4)
 }
 
-// ActualiserToutesConcurrence : comme ActualiserToutes, jusqu'à `concurrence`
+// RefreshAllConcurrency : comme RefreshAll, jusqu'à `concurrence`
 // de front plutôt que 4 — la plupart des 25 matvues n'ont aucune dépendance
 // entre elles (voir Catalogue), les enchaîner à une concurrence bridée par
 // défaut n'avait jamais été qu'un héritage du pool à 4 connexions que
-// RunSources/RunSource/RunCategorie/RunTout ouvrent pour tout le reste de
+// RunSources/RunSource/RunCategorie/RunAll ouvrent pour tout le reste de
 // l'ingestion, jamais une limite propre à cette étape.
 //
 // L'appelant doit fournir un pool dont MaxConns couvre CETTE concurrence
@@ -874,12 +874,12 @@ func ActualiserToutes(ctx context.Context, pool *pgxpool.Pool) error {
 // pour le même besoin) : demander plus de front que le pool n'a de
 // connexions ne fait que mettre des goroutines en attente de la même
 // poignée de connexions, sans rien paralléliser de plus.
-func ActualiserToutesConcurrence(ctx context.Context, pool *pgxpool.Pool, concurrence int) error {
+func RefreshAllConcurrency(ctx context.Context, pool *pgxpool.Pool, concurrence int) error {
 	reg, err := registre(ctx, pool)
 	if err != nil {
 		return err
 	}
-	_, err = reg.Executer(ctx, reg.Noms(), pipeline.Options{Concurrence: concurrence})
+	_, err = reg.Run(ctx, reg.Names(), pipeline.Options{Concurrency: concurrence})
 	return err
 }
 

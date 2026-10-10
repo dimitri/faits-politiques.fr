@@ -82,7 +82,7 @@ type Source struct {
 	// celle-ci — vide pour la quasi-totalité du catalogue (des connecteurs
 	// indépendants les uns des autres), déclarée seulement pour le socle
 	// parlementaire (download, partis, normalize, carto, senat, europe,
-	// themes), le seul audité et exécuté via internal/pipeline.Registre
+	// themes), le seul audité et exécuté via internal/pipeline.Registry
 	// (résolution automatique, concurrence, simulation) — voir
 	// registreParlement() dans ingest.go. Une source hors de ce socle garde
 	// l'ordre implicite qu'elle a toujours eu (le nom de sa catégorie ne
@@ -255,7 +255,7 @@ var catalogue = []Source{
 	// finances locales.
 	//
 	// La chaîne communes-* ci-dessous MERGE dimensionLocale (qui enchaînait
-	// ces 8 appels à la main, en dehors de tout Registre — voir l'ancien
+	// ces 8 appels à la main, en dehors de tout Registry — voir l'ancien
 	// internal/ingest.dimensionLocale) dans le même graphe de dépendances
 	// que le reste du catalogue : ref.commune (communes-cog) est référencé
 	// par tout le reste, donc la chaîne doit rester strictement linéaire
@@ -271,11 +271,11 @@ var catalogue = []Source{
 	// plutôt que d'attendre toute la chaîne — ce qu'aucune étape n'exploite
 	// encore aujourd'hui (associations/hatvp/jorf/geo-courant dépendent tous
 	// de l'alias "communes" ci-dessous, pas d'un maillon précis ; voir leurs
-	// entrées, et le commentaire de dependancesRunTout qui cite déjà le
+	// entrées, et le commentaire de dependenciesRunAll qui cite déjà le
 	// maillon réel dont chacun a besoin).
 	//
 	// "communes" reste l'alias stable que tout le reste du catalogue connaît
-	// déjà (dependancesRunTout, geo-courant) : un simple relais sans
+	// déjà (dependenciesRunAll, geo-courant) : un simple relais sans
 	// Executer propre, qui ne force PAS la chaîne dans Source.Dependances
 	// directement (ce qui obligerait un appel isolé — fpctl ingest
 	// collectivites communes — à toujours tout recharger, un comportement
@@ -377,13 +377,13 @@ var catalogue = []Source{
 			return budget.Ingest(ctx, pool, arch)
 		}},
 	// macro-* : ingestMacro enchaînait ces 11 appels à la main, hors de tout
-	// Registre — aucun ne lit ce qu'un autre écrit (chacun sa propre table,
+	// Registry — aucun ne lit ce qu'un autre écrit (chacun sa propre table,
 	// ref.macro_serie pour macro-eurostat, une table core.* dédiée pour
 	// chacun des dix autres ; vérifié par lecture directe, aucune des dix
 	// autres ne touche ref.macro_serie ni les tables des autres), à la
 	// différence de la chaîne communes-* : ici rien n'impose l'ordre, donc
 	// aucune Dependances entre les onze — ils tournent de front jusqu'à
-	// Concurrence, un vrai gain plutôt qu'une simple commodité d'affichage.
+	// Concurrency, un vrai gain plutôt qu'une simple commodité d'affichage.
 	// "macro" reste l'alias stable (Dependances sur le dernier listé
 	// seulement — comme "communes", aucun autre ordre n'a de sens ici
 	// puisqu'aucun des onze ne dépend d'un autre).
@@ -529,7 +529,7 @@ var catalogue = []Source{
 		}},
 	// socle-* : même constat que macro-* ci-dessus (ingestSocle enchaînait
 	// ces 8 appels à la main, chacun sa propre table, aucune lecture
-	// croisée) — aucune Dependances entre eux, de front jusqu'à Concurrence.
+	// croisée) — aucune Dependances entre eux, de front jusqu'à Concurrency.
 	{Nom: "socle-pauvrete", Categorie: CategorieSocial, Description: "seuils de pauvreté annuels",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return macro.IngestPoverty(ctx, pool, arch)
@@ -826,7 +826,7 @@ var catalogue = []Source{
 		}},
 	{Nom: "matviews", Categorie: CategorieSysteme, Description: "actualise les matvues du schéma mv si leurs données ou leur définition ont changé (voir internal/matview)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return matview.ActualiserToutes(ctx, pool)
+			return matview.RefreshAll(ctx, pool)
 		}},
 	{Nom: "contours", Categorie: CategorieSysteme, Description: "contours IGN par millésime du COG",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {

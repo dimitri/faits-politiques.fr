@@ -8,7 +8,7 @@
 // directement (build, verify, list, generate) : leur logique vit dans
 // internal/, fpctl n'en est que la façade. Seul « build site » reste à part,
 // compilé et exécuté comme un binaire séparé plutôt qu'importé — voir le
-// commentaire de commandeBuild pour pourquoi.
+// commentaire de commandBuild pour pourquoi.
 package main
 
 import (
@@ -32,7 +32,7 @@ func main() {
 	ctx, stop := logs.Context()
 	defer stop()
 
-	racine, err := racineDepot()
+	root, err := repoRoot()
 	if err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
@@ -42,12 +42,12 @@ func main() {
 	// place lui-même avant de faire quoi que ce soit — les chemins par défaut
 	// des paquets routés (web/templates, docs, data, raw...) restent alors
 	// relatifs à la racine, jamais au répertoire d'appel.
-	if err := os.Chdir(racine); err != nil {
+	if err := os.Chdir(root); err != nil {
 		slog.Error(err.Error())
 		os.Exit(1)
 	}
 
-	racineCmd := &cobra.Command{
+	rootCmd := &cobra.Command{
 		Use:   "fpctl",
 		Short: "Chaîne de construction de faits-politiques.fr",
 		Long: "fpctl assemble en une seule commande l'ingestion, la vérification et\n" +
@@ -58,27 +58,27 @@ func main() {
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return afficherManuel("fpctl")
+			return showManual("fpctl")
 		},
 	}
-	racineCmd.CompletionOptions.DisableDefaultCmd = true
+	rootCmd.CompletionOptions.DisableDefaultCmd = true
 
-	racineCmd.AddCommand(
-		commandeBuild(),
-		commandeIngest(),
-		commandeVerify(),
-		commandeList(),
-		commandeGenerate(),
-		commandeProvision(),
-		commandeSync(),
-		commandeDump(),
+	rootCmd.AddCommand(
+		commandBuild(),
+		commandIngest(),
+		commandVerify(),
+		commandList(),
+		commandGenerate(),
+		commandProvision(),
+		commandSync(),
+		commandDump(),
 	)
 	// Remplace l'aide générée par cobra (une liste d'options) par la vraie
 	// page de manuel : « fpctl help » et « fpctl help <verbe> » doivent se
 	// comporter comme « git help », pas comme --help.
-	racineCmd.SetHelpCommand(commandeHelp())
+	rootCmd.SetHelpCommand(commandHelp())
 
-	if err := racineCmd.ExecuteContext(ctx); err != nil {
+	if err := rootCmd.ExecuteContext(ctx); err != nil {
 		// Un contexte déjà annulé (Ctrl-C pendant l'exécution) a sa
 		// propre convention de sortie — l'erreur qu'il a fait remonter
 		// est déjà celle du signal, pas la peine de la répéter.

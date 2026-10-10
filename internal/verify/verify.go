@@ -30,7 +30,7 @@ type check struct {
 
 	// sources : les noms du catalogue (internal/ingest.Source.Nom) dont ce
 	// contrôle dépend — vide si la donnée vérifiée appartient au socle
-	// parlementaire ou à runToutSupplement (ingest.ChaineParDefaut), donc
+	// parlementaire ou à runAllSupplement (ingest.ChaineParDefaut), donc
 	// toujours chargée par un « fpctl ingest default » normal, donc toujours
 	// pertinente à vérifier par défaut. Un contrôle qui porte sur une source
 	// hors chaîne (empire colonial, SIRENE, ports...) DOIT lister son nom
@@ -44,7 +44,7 @@ type check struct {
 
 // init vérifie, une bonne fois pour toutes, que chaque check.sources cite un
 // nom qui existe vraiment dans le catalogue — même discipline que
-// pipeline.Registre.Ajouter pour les dépendances d'ingestion : une faute de
+// pipeline.Registry.Add pour les dépendances d'ingestion : une faute de
 // frappe ici ferait silencieusement « disparaître » un contrôle du scope par
 // défaut (il ne correspondrait à aucune source de ChaineParDefaut) plutôt que
 // d'échouer bruyamment au chargement.
@@ -60,7 +60,7 @@ func init() {
 
 // inChain : c ne porte sur aucune source hors de chain — vrai
 // trivialement pour un contrôle sans sources déclarées (données du socle ou
-// de runToutSupplement, toujours chargées par « fpctl ingest default »).
+// de runAllSupplement, toujours chargées par « fpctl ingest default »).
 func inChain(c check, chain map[string]bool) bool {
 	for _, s := range c.sources {
 		if !chain[s] {

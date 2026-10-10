@@ -19,18 +19,18 @@ import (
 	"github.com/spf13/cobra"
 )
 
-// commandeDump : fpctl dump ci, fpctl dump restore. Le périmètre CI —
+// commandDump : fpctl dump ci, fpctl dump restore. Le périmètre CI —
 // internal/matview.Perimetre(), le schéma mv plus les TablesDirectes —
 // exporté vers un fichier pg_dump -Fc puis restauré dans une base vide, pour
 // valider fpctl build site sans les ~10 Go de core/ref/geo/raw ni les
 // connecteurs d'ingestion qui les remplissent (voir docs/ci-pipeline.md).
-func commandeDump() *cobra.Command {
+func commandDump() *cobra.Command {
 	cmd := &cobra.Command{Use: "dump", Short: "Exporte ou restaure le périmètre CI (schéma mv + TablesDirectes)"}
 	cmd.AddCommand(
 		&cobra.Command{
 			Use:   "ci [options]",
 			Short: "Actualise les matvues puis exporte le périmètre CI dans un fichier pg_dump -Fc",
-			Long: "Actualise d'abord chaque matvue (internal/matview.ActualiserToutes —\n" +
+			Long: "Actualise d'abord chaque matvue (internal/matview.RefreshAll —\n" +
 				"un REFRESH sauté si rien n'a changé, jamais gratuit à ignorer : sans\n" +
 				"cet appel, un export lancé hors de « fpctl ingest default » capturerait\n" +
 				"silencieusement le contenu d'un cycle d'ingestion antérieur), puis\n" +
@@ -50,10 +50,10 @@ func commandeDump() *cobra.Command {
 				"internal/objectstore) sous -bucket/-key, en plus de le garder en local.",
 			DisableFlagParsing: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				if estDemandeAide(args) {
-					return afficherManuel("fpctl-dump")
+				if isHelpRequested(args) {
+					return showManual("fpctl-dump")
 				}
-				return executerInterne(cmd.Context(), runDumpCI(cmd.Context(), args))
+				return runInternal(cmd.Context(), runDumpCI(cmd.Context(), args))
 			},
 		},
 		&cobra.Command{
@@ -70,10 +70,10 @@ func commandeDump() *cobra.Command {
 				"(-bucket/-key) avant de le restaurer.",
 			DisableFlagParsing: true,
 			RunE: func(cmd *cobra.Command, args []string) error {
-				if estDemandeAide(args) {
-					return afficherManuel("fpctl-dump")
+				if isHelpRequested(args) {
+					return showManual("fpctl-dump")
 				}
-				return executerInterne(cmd.Context(), runRestoreCI(cmd.Context(), args))
+				return runInternal(cmd.Context(), runRestoreCI(cmd.Context(), args))
 			},
 		},
 	)
@@ -108,9 +108,9 @@ func runDumpCI(ctx context.Context, args []string) error {
 	// Sans cet appel, ExportCI capturerait le contenu déjà présent dans
 	// mv.* — potentiellement celui d'un cycle d'ingestion antérieur si
 	// personne n'a relancé "fpctl ingest default"/"fpctl ingest systeme
-	// matviews" entretemps. ActualiserToutes ne fait rien (donc ne coûte
+	// matviews" entretemps. RefreshAll ne fait rien (donc ne coûte
 	// qu'un aller-retour d'empreinte par matvue) quand tout est déjà à jour.
-	if err := matview.ActualiserToutes(ctx, pool); err != nil {
+	if err := matview.RefreshAll(ctx, pool); err != nil {
 		return fmt.Errorf("actualisation des matvues avant export : %w", err)
 	}
 
@@ -122,7 +122,7 @@ func runDumpCI(ctx context.Context, args []string) error {
 	// dit pas quelle page en a besoin (voir l'incident
 	// core.medecin_secteur_effectif, PR « Prochaines étapes », 6 octobre
 	// 2026, corrigé à la main faute de ce contrôle).
-	if err := verifierPerimetreCI(ctx, pool); err != nil {
+	if err := verifyCIPerimeter(ctx, pool); err != nil {
 		return err
 	}
 
@@ -148,58 +148,58 @@ func runDumpCI(ctx context.Context, args []string) error {
 	return uploadDumpFile(ctx, *outFile, *bucket, *key)
 }
 
-// verifierPerimetreCI compare ce qu'internal/sitegen a RÉELLEMENT lu au
+// verifyCIPerimeter compare ce qu'internal/sitegen a RÉELLEMENT lu au
 // dernier « fpctl build site » (core.sitegen_table_usage, mesuré par un
 // pgx.QueryTracer — jamais deviné par relecture du code) à ce que
 // matview.Perimetre() exporterait. nil si core.sitegen_table_usage n'existe
 // pas encore (migration pas encore passée) ou si elle est vide (aucune
 // construction n'a encore tourné) : rien à comparer, pas une raison de
 // faire échouer l'export.
-func verifierPerimetreCI(ctx context.Context, pool *pgxpool.Pool) error {
-	parNoeud, err := sitegen.TablesPublished(ctx, pool)
+func verifyCIPerimeter(ctx context.Context, pool *pgxpool.Pool) error {
+	byNode, err := sitegen.TablesPublished(ctx, pool)
 	if err != nil {
 		if strings.Contains(err.Error(), "does not exist") {
 			return nil
 		}
 		return fmt.Errorf("lecture du reflet des tables lues par page (core.sitegen_table_usage) : %w", err)
 	}
-	if len(parNoeud) == 0 {
+	if len(byNode) == 0 {
 		return nil
 	}
-	perimetre := map[string]bool{}
+	perimeter := map[string]bool{}
 	for _, t := range matview.Perimetre() {
-		perimetre[t] = true
+		perimeter[t] = true
 	}
-	manquantes := map[string][]string{}
-	for nom, tables := range parNoeud {
+	missing := map[string][]string{}
+	for node, tables := range byNode {
 		for _, t := range tables {
 			if strings.HasPrefix(t, "mv.") {
 				continue // le schéma mv entier fait déjà partie du périmètre.
 			}
-			if !perimetre[t] {
-				manquantes[t] = append(manquantes[t], nom)
+			if !perimeter[t] {
+				missing[t] = append(missing[t], node)
 			}
 		}
 	}
-	if len(manquantes) == 0 {
+	if len(missing) == 0 {
 		return nil
 	}
-	tables := make([]string, 0, len(manquantes))
-	for t := range manquantes {
+	tables := make([]string, 0, len(missing))
+	for t := range missing {
 		tables = append(tables, t)
 	}
 	sort.Strings(tables)
-	var lignes []string
+	var lines []string
 	for _, t := range tables {
-		noeuds := manquantes[t]
-		sort.Strings(noeuds)
-		lignes = append(lignes, fmt.Sprintf("  %s (lue par %s)", t, strings.Join(noeuds, ", ")))
+		nodes := missing[t]
+		sort.Strings(nodes)
+		lines = append(lines, fmt.Sprintf("  %s (lue par %s)", t, strings.Join(nodes, ", ")))
 	}
 	return fmt.Errorf(
 		"périmètre CI incomplet — %d table(s) lue(s) par internal/sitegen mais absente(s) "+
 			"d'internal/matview.TablesDirectes (ajoutez-les, ou une matvue si la table est "+
 			"trop grosse pour le périmètre CI — voir le commentaire de TablesDirectes) :\n%s",
-		len(manquantes), strings.Join(lignes, "\n"))
+		len(missing), strings.Join(lines, "\n"))
 }
 
 // uploadDumpFile envoie chemin sous bucket/cle — internal/objectstore ne
@@ -229,7 +229,7 @@ func uploadDumpFile(ctx context.Context, path, bucket, key string) error {
 	if err != nil {
 		return err
 	}
-	n, octets, err := objectstore.SyncDir(ctx, c, bucket, tmp)
+	n, bytes, err := objectstore.SyncDir(ctx, c, bucket, tmp)
 	if err != nil {
 		return err
 	}
@@ -237,7 +237,7 @@ func uploadDumpFile(ctx context.Context, path, bucket, key string) error {
 		fmt.Printf("%s → %s/%s : déjà à jour (même taille), rien envoyé\n", path, bucket, key)
 		return nil
 	}
-	fmt.Printf("%s → %s/%s : envoyé (%.1f Mo)\n", path, bucket, key, float64(octets)/1e6)
+	fmt.Printf("%s → %s/%s : envoyé (%.1f Mo)\n", path, bucket, key, float64(bytes)/1e6)
 	return nil
 }
 

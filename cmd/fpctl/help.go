@@ -18,9 +18,9 @@ import (
 // reconstruire ses propres pages de manuel, jamais pour les lire.
 //
 //go:embed man/*.1
-var pagesManuel embed.FS
+var manualPages embed.FS
 
-func commandeHelp() *cobra.Command {
+func commandHelp() *cobra.Command {
 	return &cobra.Command{
 		Use:   "help [commande]",
 		Short: "Affiche la page de manuel de fpctl ou d'une de ses commandes",
@@ -34,20 +34,20 @@ func commandeHelp() *cobra.Command {
 			if len(args) == 1 {
 				page = "fpctl-" + args[0]
 			}
-			return afficherManuel(page)
+			return showManual(page)
 		},
 	}
 }
 
-// afficherManuel extrait la page embarquée vers un fichier temporaire puis
+// showManual extrait la page embarquée vers un fichier temporaire puis
 // appelle l'afficheur système — le même rendu, le même pagineur, les mêmes
 // recherches (/) qu'une vraie page de manuel installée. Pas de -l (GNU
 // man-db seulement — le man BSD/mandoc de macOS n'a pas cette option) : le
 // chemin absolu du fichier temporaire contient déjà un "/", ce qui suffit à
 // faire traiter l'argument comme un fichier local plutôt qu'un nom de page
 // sur man-db comme sur mandoc, sans avoir besoin de le demander.
-func afficherManuel(page string) error {
-	contenu, err := pagesManuel.ReadFile("man/" + page + ".1")
+func showManual(page string) error {
+	content, err := manualPages.ReadFile("man/" + page + ".1")
 	if err != nil {
 		return fmt.Errorf("pas de page de manuel pour %q (essayez : fpctl help)", page)
 	}
@@ -56,7 +56,7 @@ func afficherManuel(page string) error {
 		return err
 	}
 	defer os.Remove(f.Name())
-	if _, err := f.Write(contenu); err != nil {
+	if _, err := f.Write(content); err != nil {
 		f.Close()
 		return err
 	}
