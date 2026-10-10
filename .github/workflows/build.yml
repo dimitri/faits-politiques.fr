@@ -177,6 +177,36 @@ jobs:
       - name: Ingestion
         run: ./bin/fpctl ingest default -j 32
 
+      # Diagnostic de la chaîne CHES -> groupe -> votes, posé après une
+      # panne non reproduite en local (run 38046899924 et les nuits
+      # suivantes : "un score gauche-droite est joignable aux votes" tombe
+      # à 0, alors qu'un ingest from scratch identique, en local, donne 9 —
+      # chaque maillon (party_group_link, party_referential_link CHES,
+      # party_classification lrgen, ballot.organization_id par groupe)
+      # compte juste avant que verify ne pose la même question en un seul
+      # nombre. Toujours affiché, pas seulement sur échec : utile aussi pour
+      # voir une nuit qui passe se dégrader progressivement plutôt que de
+      # basculer d'un coup.
+      - name: Diagnostic cartographie CHES -> groupes -> votes
+        run: |
+          psql -d "$DATABASE_URL" -c "
+          SELECT 'party_group_link' AS table, count(*) FROM core.party_group_link
+          UNION ALL
+          SELECT 'party_referential_link (CHES)', count(*) FROM core.party_referential_link WHERE scheme = 'CHES'
+          UNION ALL
+          SELECT 'party_classification (CHES, lrgen)', count(*)
+            FROM core.party_classification pc
+            JOIN ref.classification_set s ON s.id = pc.classification_set_id
+           WHERE s.provider = 'CHES' AND pc.dimension = 'lrgen';
+          "
+          psql -d "$DATABASE_URL" -c "
+          SELECT g.id, g.name,
+                 (SELECT count(*) FROM core.ballot b WHERE b.organization_id = g.id) AS n_ballots
+            FROM core.party_group_link pgl
+            JOIN core.organization g ON g.id = pgl.group_id
+           ORDER BY g.id;
+          "
+
       # Porte 1 : les garanties structurelles tournent sur la base RÉELLEMENT
       # chargée, pas sur une base vide. Une donnée qui violerait une règle
       # éditoriale bloque la publication.
