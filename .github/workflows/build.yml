@@ -205,6 +205,13 @@ jobs:
       # basculer d'un coup.
       - name: Diagnostic cartographie CHES -> groupes -> votes
         run: |
+          echo "--- EXTRA (temporaire) : doublon suspecté 4411 vs 81252 (Rassemblement National) ---"
+          psql -d "$DATABASE_URL" -c "
+          SELECT id, slug, name, kind, validity FROM core.organization WHERE id IN (4411, 81252);
+          "
+          psql -d "$DATABASE_URL" -c "
+          SELECT organization_id, scheme, value FROM core.organization_identifier WHERE organization_id IN (4411, 81252);
+          "
           psql -d "$DATABASE_URL" -c "
           SELECT 'party_group_link' AS table, count(*) FROM core.party_group_link
           UNION ALL
