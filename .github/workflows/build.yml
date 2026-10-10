@@ -185,8 +185,13 @@ jobs:
       # diagnostic montre des bulletins par groupe non nuls, pour ne pas
       # perdre l'optimisation incrémentale que le passage en self-hosted
       # visait justement à obtenir.
-      - name: Ingestion
-        run: ./bin/fpctl ingest default -j 32 --force
+      # SAUTÉ EXPRÈS pour ce run : la base de dev-runner porte déjà le
+      # résultat du run --force précédent (toujours organization_id à 0
+      # malgré une reconstruction complète) — ce passage-ci n'ingère rien,
+      # il inspecte seulement ce qui est déjà là, pour ne pas repayer 40
+      # minutes à chaque hypothèse.
+      - name: Ingestion (sautée -- diagnostic lecture seule sur l'état déjà présent)
+        run: echo "sautée -- diagnostic de l'état déjà chargé par le run --force précédent"
 
       # Diagnostic de la chaîne CHES -> groupe -> votes, posé après une
       # panne non reproduite en local (run 38046899924 et les nuits
@@ -216,6 +221,31 @@ jobs:
             FROM core.party_group_link pgl
             JOIN core.organization g ON g.id = pgl.group_id
            ORDER BY g.id;
+          "
+          echo "--- EXTRA (temporaire) : quels organization_id les bulletins AN portent-ils vraiment ? ---"
+          psql -d "$DATABASE_URL" -c "
+          SELECT b.organization_id, count(*)
+            FROM core.ballot b
+            JOIN core.scrutin s ON s.id = b.scrutin_id
+           WHERE s.institution = 'ASSEMBLEE_NATIONALE'
+           GROUP BY 1
+           ORDER BY 2 DESC
+           LIMIT 15;
+          "
+          echo "--- EXTRA (temporaire) : AN, total vs organization_id non nul ---"
+          psql -d "$DATABASE_URL" -c "
+          SELECT s.institution, count(*), count(b.organization_id)
+            FROM core.ballot b
+            JOIN core.scrutin s ON s.id = b.scrutin_id
+           GROUP BY 1;
+          "
+          echo "--- EXTRA (temporaire) : organisations PARLIAMENTARY_GROUP connues (AN_ORGANE) ---"
+          psql -d "$DATABASE_URL" -c "
+          SELECT o.id, o.slug, o.kind, o.validity
+            FROM core.organization o
+            JOIN core.organization_identifier i ON i.organization_id = o.id
+           WHERE i.scheme = 'AN_ORGANE' AND o.kind = 'PARLIAMENTARY_GROUP'
+           ORDER BY o.id;
           "
 
       # Porte 1 : les garanties structurelles tournent sur la base RÉELLEMENT
