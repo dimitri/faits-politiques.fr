@@ -135,6 +135,19 @@ func normalizeBodies(ctx context.Context, pool *pgxpool.Pool) (map[string]int64,
 		o    body
 		kind string
 	}
+	// seenUID : DISTINCT ON (natural_key) ne déduplique que par natural_key,
+	// pas par UID d'organe — deux natural_key distincts (une resucée
+	// d'archive, une page différente du même export...) peuvent décrire la
+	// MÊME organisation. Non dédupliqué ici, le MÊME uid atteignait deux
+	// fois slugUniqueBase plus bas : la seconde occurrence, trouvant son
+	// slug de base déjà pris par la première, retombait sur son repli
+	// UID+compteur (« rassemblement-national-17-po845401-14 ») — un doublon
+	// d'organisation, jamais vu localement (jamais deux natural_key pour le
+	// même organe dans un premier chargement), reproduit sur dev-runner où
+	// l'archive raw/ accumule plusieurs nuits. ORDER BY ... extracted_at
+	// DESC ci-dessus : la première occurrence rencontrée par uid est déjà
+	// la plus récente, donc celle à garder.
+	seenUID := map[string]bool{}
 	var items []item
 	for rows.Next() {
 		var raw []byte
@@ -145,7 +158,11 @@ func normalizeBodies(ctx context.Context, pool *pgxpool.Pool) (map[string]int64,
 		if err := json.Unmarshal(raw, &o); err != nil {
 			continue
 		}
+		if seenUID[o.UID.String()] {
+			continue
+		}
 		if k, ok := bodyKind[o.CodeType.String()]; ok {
+			seenUID[o.UID.String()] = true
 			items = append(items, item{o: o, kind: k})
 		}
 	}
@@ -253,10 +270,24 @@ func normalizeBodies(ctx context.Context, pool *pgxpool.Pool) (map[string]int64,
 	// avec son dernier état connu — exact tant qu'elle a existé, jamais une
 	// donnée fausse — plutôt que de risquer de casser l'ingestion pour
 	// protéger une suppression dont ce dépôt n'a jamais eu besoin.
+	// ON tgt.id = (... AN_ORGANE ...), PAS tgt.slug = src.slug : le slug est
+	// DÉRIVÉ du libellé AN (slugify(Libelle) + numéro de législature), donc
+	// rejoue différemment si le libellé change le moindrement, ou si
+	// slugUniqueBase retombe sur son repli uid+compteur en cas de collision
+	// (voir seenUID ci-dessus) — alors que l'uid AN, lui, identifie
+	// l'organe de façon stable. Le faire correspondre par SON identifiant
+	// déjà posé (organization_an, la vue scopée AN_ORGANE) empêche qu'une
+	// organisation déjà connue reparte comme neuve sous un slug légèrement
+	// différent : exactement le doublon constaté en CI (4411
+	// rassemblement-national-17 vs 81252
+	// rassemblement-national-17-po845401-14, le même PO845401). Le slug
+	// stocké n'est jamais réécrit sur un MATCHED : une fois choisi, il
+	// reste l'adresse publique de l'organisation.
 	if _, err := tx.Exec(ctx, `
 		MERGE INTO organization_an AS tgt
 		USING tmp_organe AS src
-		ON tgt.slug = src.slug
+		ON tgt.id = (SELECT i.organization_id FROM core.organization_identifier i
+		              WHERE i.scheme = 'AN_ORGANE' AND i.value = src.uid)
 		WHEN MATCHED AND (tgt.name, tgt.organ_type) IS DISTINCT FROM (src.nom, src.organ_type) THEN
 		    UPDATE SET name = src.nom, organ_type = src.organ_type
 		WHEN NOT MATCHED BY TARGET THEN
@@ -265,19 +296,22 @@ func normalizeBodies(ctx context.Context, pool *pgxpool.Pool) (map[string]int64,
 		            daterange(src.debut::date, src.fin::date), src.organ_type)`); err != nil {
 		return nil, fmt.Errorf("organisations : %w", err)
 	}
-	// JOIN core.organization directement, PAS organization_an : cette vue
-	// filtre sur la présence d'un identifiant AN_ORGANE, que les lignes que
-	// le MERGE vient d'INSÉRER ne portent pas encore (voir le commentaire
-	// au-dessus du MERGE — l'identifiant est ajouté juste après, dans cette
-	// même transaction). Sur une base déjà peuplée, le filtre ne se voyait
-	// jamais : chaque organisation du payload existait déjà et portait
-	// déjà son identifiant. Sur une base vide (premier chargement), TOUTES
-	// les lignes sont neuves : la vue ne retenait alors AUCUNE d'entre
-	// elles, et byUID ressortait vide — « 0 organizations normalized »,
-	// découvert en CI, qui exécute pour la première fois un ingest sur une
-	// base réellement vide.
+	// Même raison que le MERGE ci-dessus : résoudre byUID par l'identifiant
+	// déjà posé plutôt que par le slug, pour ne pas retomber dans le même
+	// doublon une seconde fois ici. coalesce vers la jointure par slug sur
+	// core.organization (pas organization_an, toujours pour la même raison
+	// qu'avant cette réécriture : une ligne qui vient d'être INSÉRÉE par le
+	// MERGE ne porte pas encore son identifiant AN_ORGANE, ajouté juste
+	// après dans cette même transaction) : une organisation déjà connue se
+	// résout par son identifiant stable, une organisation neuve — qui n'a
+	// encore ni identifiant ni, sur une base vide, de ligne antérieure à
+	// retrouver — par le slug qu'on vient de lui donner.
 	res, err := tx.Query(ctx, `
-		SELECT t.uid, o.id FROM tmp_organe t JOIN core.organization o ON o.slug = t.slug`)
+		SELECT t.uid, coalesce(ident.organization_id, o.id) AS id
+		  FROM tmp_organe t
+		  LEFT JOIN core.organization_identifier ident
+		    ON ident.scheme = 'AN_ORGANE' AND ident.value = t.uid
+		  LEFT JOIN core.organization o ON o.slug = t.slug`)
 	if err != nil {
 		return nil, fmt.Errorf("organisations : %w", err)
 	}
