@@ -527,6 +527,13 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		Dependencies: []string{"securite-civile"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			page := dep[*PageMap](d, "securite-civile")
+			if page == nil {
+				// Connecteur SDIS pas encore chargé (base fraîchement
+				// migrée, graine CI minimale) : pas de carte à publier,
+				// pas une erreur — accueil-data (loadHome) sait déjà
+				// composer sans cet onglet.
+				return nil, nil
+			}
 			l := e.layout
 			l.Title = page.Title
 			l.Description = page.Question

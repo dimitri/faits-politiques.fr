@@ -2,6 +2,7 @@ package sitegen
 
 import (
 	"context"
+	"database/sql"
 
 	"github.com/jackc/pgx/v5/pgxpool"
 )
@@ -26,10 +27,17 @@ func loadFinancementSDIS(ctx context.Context, pool *pgxpool.Pool) (*PageMap, err
 		return nil, err
 	}
 
-	var lastYear int
+	// max(exercice) sur zéro ligne renvoie une ligne NULL, pas zéro ligne :
+	// un *int planterait au Scan tant que le connecteur SDIS n'a pas tourné
+	// (base vide fraîchement migrée, graine CI minimale...). sql.NullInt32
+	// distingue ce cas pour ne pas publier une carte vide.
+	var lastYear sql.NullInt32
 	if err := pool.QueryRow(ctx, `SELECT max(exercice) FROM core.collectivite_budget WHERE niveau = 'SDIS'`).
 		Scan(&lastYear); err != nil {
 		return nil, err
+	}
+	if !lastYear.Valid {
+		return nil, nil
 	}
 
 	eur := func(v float64) string { return Count(int(v+0.5)) + " €" }
