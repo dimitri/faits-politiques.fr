@@ -672,6 +672,18 @@ func inBrief(ctx context.Context, pool *pgxpool.Pool, s *Topic, acc *DataHome, c
 	case "defense":
 		cofog("GF02")
 		mission("Défense")
+	case "securite-civile":
+		query(`SELECT exercice, sum(montant)::float8 FROM core.collectivite_budget
+			WHERE niveau='SDIS' AND indicator_code='sdis.participation_departements'
+			GROUP BY exercice ORDER BY exercice DESC LIMIT 1`,
+			"de participations départementales au financement des SDIS", "OFGL, comptes des SDIS",
+			func(v float64) string { return Decimal(v/1e9, 2) + " Md€" })
+		query(`SELECT exercice, sum(credit_paiement)::float8 FROM core.budget_programme
+			WHERE programme_libelle = 'Sécurité civile' AND loi = 'PLF'
+			GROUP BY exercice ORDER BY exercice DESC LIMIT 1`,
+			"de crédits demandés pour le programme budgétaire « Sécurité civile » (moyens nationaux de l'État, hors SDIS)",
+			"projet de loi de finances, Direction du budget",
+			func(v float64) string { return Decimal(v/1e6, 0) + " M€" })
 	case "ecologie":
 		cofog("GF05")
 		credits0()

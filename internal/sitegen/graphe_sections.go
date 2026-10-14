@@ -211,6 +211,7 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 	schemaHistoryImmigration := dep[template.HTML](deps, "historique-immigration")
 	schemaAgeStartPension := dep[template.HTML](deps, "age-depart-retraite")
 	schemaRateReplacement := dep[template.HTML](deps, "taux-remplacement")
+	schemaFireGironde := dep[template.HTML](deps, "incendie-gironde")
 	root := e.root
 
 	var mapDoctors *MapTerritory
@@ -777,6 +778,10 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 					`du 1ᵉʳ au 3ᵉ quartile, avec la médiane ; tige : du 1ᵉʳ au 9ᵉ décile. 100 = pension égale au `+
 					`revenu d'avant la retraite.</figcaption></figure>`))
 		}
+		if schemaFireGironde != "" && strings.Contains(string(d.Body), "<!-- schema:incendie-gironde-2026 -->") {
+			d.Body = template.HTML(strings.ReplaceAll(string(d.Body), "<!-- schema:incendie-gironde-2026 -->",
+				string(schemaFireGironde)))
+		}
 		if strings.Contains(string(d.Body), "<!-- schema:holding-mere-fille -->") {
 			d.Body = template.HTML(strings.ReplaceAll(string(d.Body), "<!-- schema:holding-mere-fille -->",
 				`<figure class="schema"><div class="carte-pleine">`+string(schemaHoldingParentSubsidiary())+`</div>`+
@@ -859,7 +864,7 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 // chaque document est soit un sujet (sa propre section -only, l'ID du
 // sujet — "fpctl build <sujet.id>" ne construit que celui-là), soit un
 // document de méthode accumulé dans methode pour la section "comprendre".
-func buildGuidesAndTopics(e *environment, docs []*Doc) error {
+func buildGuidesAndTopics(e *environment, docs []*Doc, year int) error {
 	ts := e.page("sujet.gohtml")
 	var method []*Doc
 	for _, d := range docs {
@@ -886,6 +891,24 @@ func buildGuidesAndTopics(e *environment, docs []*Doc) error {
 			if err := redirection(filepath.Join(e.out, formerBase, s.ID, "index.html"), e.root+"/"+s.URL()); err != nil {
 				return err
 			}
+		}
+	}
+
+	// Une page par famille (/sujets/<famille>/) : la cible du « Les N
+	// sujets → » de l'accueil et de /sujets/, qui pointait jusqu'ici vers
+	// une page jamais écrite — sujets-famille.gohtml existait, mais rien
+	// ne l'appelait.
+	tf := e.page("sujets-famille.gohtml")
+	for _, f := range familiesTopics() {
+		l := e.layout
+		l.Title = f.Name
+		if err := e.writeAlways(tf, filepath.Join(e.out, f.Base, f.ID, "index.html"), struct {
+			Layout
+			F    *Family
+			Year int
+			Map  MapFamily
+		}{l, f, year, MapFamily{}}); err != nil {
+			return err
 		}
 	}
 
@@ -1098,6 +1121,7 @@ var sectionNodes = map[string][]string{
 	"vieillesse":       {"vieillesse", "vieillesse-carte"},
 	"jeunesse":         {"jeunesse", "jeunesse-carte"},
 	"securite":         {"securite-page"},
+	"securite-civile":  {"securite-civile-page"},
 	"election2027":     {"election2027-page"},
 	"gouvernement":     {"gouvernement-page"},
 	"collectivites":    {"collectivites-page", "collectivites-cartes", "collectivites-pages-locales"},

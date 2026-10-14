@@ -568,6 +568,14 @@ pointer-events:none;opacity:.6}
 .geo.sru .sru-c{stroke-width:300}
 .geo.sru .sru-conforme{fill:#4B7A3D;fill-opacity:.55;stroke:#4B7A3D}
 .geo.sru .sru-deficitaire{fill:#B0763A;fill-opacity:.6;stroke:#B0763A}
+
+.geo.incendie .eau{fill:var(--eau);fill-opacity:.4;stroke:none;pointer-events:none}
+.geo.incendie .fond{fill:var(--papier2);stroke:var(--carte);stroke-width:400;pointer-events:none}
+.geo.incendie .fleuve{fill:none;stroke:var(--eau);stroke-width:220;stroke-linejoin:round;pointer-events:none;opacity:.8}
+.geo.incendie .brule{fill:#4A3225;stroke:#2B1810;stroke-width:60}
+.geo.incendie .ville-point{fill:var(--encre);stroke:var(--papier);stroke-width:1px}
+.geo.incendie .ville-nom{font:500 10px/1 var(--sans);fill:var(--encre);opacity:.9;
+  paint-order:stroke fill;stroke:var(--papier);stroke-width:3px;stroke-linejoin:round;pointer-events:none}
 .geo.sru .sru-carencee{fill:#9A3322;fill-opacity:.7;stroke:#9A3322}
 .geo.sru .sru-c:hover{fill-opacity:.9}
 .echelle{display:flex;gap:.3rem .5rem;flex-wrap:wrap;align-items:center;margin-top:.7rem;
