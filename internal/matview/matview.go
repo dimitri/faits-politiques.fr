@@ -581,10 +581,19 @@ var TablesDirectes = []TableDirecte{
 	{"derived.protection_sociale_total", "lu directement par internal/sitegen — 396 lignes"},
 	{"derived.scrutin_topic", "lu directement par internal/sitegen — 73 629 lignes"},
 	{"core.affiliation", "lu directement par europe.go (JOIN sur les eurodéputés) — 173 886 lignes"},
-	{"core.collectivite_budget", "lu directement par collectivites.go/lieux_pages.go en plus des matvues qui s'en nourrissent — 87 993 lignes"},
+	{"core.collectivite_budget", "lu directement par collectivites.go/securitecivile.go/lieux_pages.go en plus des matvues qui s'en nourrissent — 99 931 lignes (dont SDIS)"},
+	{"core.sdis", "dimension des SDIS (siren/département), jointe à core.collectivite_budget par securitecivile.go — 98 lignes"},
 	{"core.epci", "lu directement par carte_situation.go/collectivites.go/lieux.go/lieux_pages.go en plus de mv.epci — 9 281 lignes"},
 	{"core.municipal_list", "lu directement par election2027.go/lieux_pages.go en plus de mv.dept_part_partisane — 73 557 lignes"},
 	{"ref.commune", "table de référence des communes (deux millésimes COG) — 69 750 lignes"},
+	// Les trois tables locales de la carte de l'incendie de Gironde 2026
+	// (voir leurs migrations 0204/0205) : une seule géométrie chacune ou
+	// presque, mais absentes du périmètre CI sans cette entrée, la carte
+	// casserait sur "relation does not exist" dès que la base de test n'a
+	// pas rejoué ces migrations — constaté en CI (build-pr) avant cet ajout.
+	{"geo.zone_brulee_gironde_2026", "lu directement par incendie_gironde.go — 1 ligne"},
+	{"geo.eau_gironde_2026", "lu directement par incendie_gironde.go — 1 ligne"},
+	{"geo.riviere_gironde_2026", "lu directement par incendie_gironde.go — 2 lignes"},
 }
 
 // Perimetre : le nom qualifié de chaque objet nécessaire pour reconstruire

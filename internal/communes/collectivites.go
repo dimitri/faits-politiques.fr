@@ -81,7 +81,10 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 		CREATE TEMP TABLE tmp_collectivite_budget (
 			niveau text, code text, nom text, exercice int, indicator_code text,
 			montant numeric, euros_par_hab numeric, population int, source_id bigint
-		) ON COMMIT DROP`); err != nil {
+		) ON COMMIT DROP;
+		CREATE OR REPLACE TEMPORARY VIEW collectivite_budget_ofgl AS
+		  SELECT * FROM core.collectivite_budget WHERE niveau IN ('REGION','DEPARTEMENT','GROUPEMENT')
+		  WITH LOCAL CHECK OPTION`); err != nil {
 		return fail(err)
 	}
 
@@ -134,11 +137,15 @@ func IngestCollectivites(ctx context.Context, pool *pgxpool.Pool, arch *archive.
 	// MERGE plutôt que DELETE+COPY : l'ancien DELETE (table entière, ce
 	// connecteur en est l'unique propriétaire) payait le prix des triggers
 	// RI pour l'intégralité des trois niveaux et huit exercices à chaque
-	// republication de l'OFGL, changement ou non.
+	// republication de l'OFGL, changement ou non. Fusion scopée sur une vue
+	// (REGION/DEPARTEMENT/GROUPEMENT) depuis que core.collectivite_budget
+	// porte aussi 'SDIS' (internal/securitecivile.IngestSDIS) : sans ce
+	// scope, le WHEN NOT MATCHED BY SOURCE THEN DELETE ci-dessous effacerait
+	// les lignes SDIS à chaque réingestion des trois niveaux historiques.
 	var touchees int64
 	err = bulkload.WithoutFKConstraints(ctx, tx, "core.collectivite_budget", func() error {
 		ct, err := tx.Exec(ctx, `
-			MERGE INTO core.collectivite_budget AS tgt
+			MERGE INTO collectivite_budget_ofgl AS tgt
 			USING tmp_collectivite_budget AS src
 			ON tgt.niveau = src.niveau AND tgt.code = src.code
 			   AND tgt.exercice = src.exercice AND tgt.indicator_code = src.indicator_code

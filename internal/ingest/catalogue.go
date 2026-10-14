@@ -37,6 +37,7 @@ import (
 	"github.com/faits-politiques/faits-politiques/internal/prefets"
 	"github.com/faits-politiques/faits-politiques/internal/presidentielle"
 	"github.com/faits-politiques/faits-politiques/internal/sante"
+	"github.com/faits-politiques/faits-politiques/internal/securitecivile"
 	"github.com/faits-politiques/faits-politiques/internal/senat"
 	"github.com/faits-politiques/faits-politiques/internal/vieillesse"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -361,6 +362,10 @@ var catalogue = []Source{
 	{Nom: "fiscalite-locale", Categorie: CategorieCollectivites, Description: "fiscalité directe locale par mécanisme (OFGL/REI)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestFiscaliteDirecteLocale(ctx, pool, arch)
+		}},
+	{Nom: "sdis", Categorie: CategorieCollectivites, Description: "comptes des SDIS : qui finance les pompiers (OFGL)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return securitecivile.IngestSDIS(ctx, pool, arch)
 		}},
 	{Nom: "population-age", Categorie: CategorieCollectivites, Description: "population par département et grande tranche d'âge (Insee)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {

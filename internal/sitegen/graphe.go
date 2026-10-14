@@ -520,10 +520,34 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			}
 			return nil, nil
 		}})
+	addNode(region, "securite-civile", nil, func(ctx context.Context, _ pipeline.Results) (*PageMap, error) {
+		return loadFinancementSDIS(ctx, e.pool)
+	})
+	region.Add(pipeline.Step{Name: "securite-civile-page", Description: "carte et série : qui finance les pompiers",
+		Dependencies: []string{"securite-civile"},
+		Run: func(_ context.Context, d pipeline.Results) (any, error) {
+			page := dep[*PageMap](d, "securite-civile")
+			if page == nil {
+				// Connecteur SDIS pas encore chargé (base fraîchement
+				// migrée, graine CI minimale) : pas de carte à publier,
+				// pas une erreur — accueil-data (loadHome) sait déjà
+				// composer sans cet onglet.
+				return nil, nil
+			}
+			l := e.layout
+			l.Title = page.Title
+			l.Description = page.Question
+			imageMap(&l, e.out, "securite-civile", page.Map.SVG)
+			return nil, e.writeSection("securite-civile", tcd, filepath.Join(e.out, "securite-civile", "index.html"),
+				struct {
+					Layout
+					P PageMap
+				}{l, *page})
+		}})
 
-	addNode(region, "accueil-data", []string{"territoires", "securite"},
+	addNode(region, "accueil-data", []string{"territoires", "securite-civile"},
 		func(ctx context.Context, d pipeline.Results) (*DataHome, error) {
-			return loadHome(ctx, e.pool, dep[*StatsTerritories](d, "territoires"), dep[*StatsSecurity](d, "securite"))
+			return loadHome(ctx, e.pool, dep[*StatsTerritories](d, "territoires"), dep[*PageMap](d, "securite-civile"))
 		})
 	addNode(region, "fonctions", []string{"accueil-data"},
 		func(ctx context.Context, d pipeline.Results) (map[string]*PageFunction, error) {
@@ -909,6 +933,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		"historique-immigration":     loadHistoryImmigration,
 		"age-depart-retraite":        loadAgeStartPension,
 		"taux-remplacement":          loadRateReplacement,
+		"incendie-gironde":           loadFireGironde,
 	} {
 		fn := fn
 		addNode(region, name, nil, func(ctx context.Context, _ pipeline.Results) (template.HTML, error) { return fn(ctx, e.pool) })
@@ -994,6 +1019,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		"carte-semi-conducteurs", "contributif-non-contributif", "carte-musees", "ecart-prix-dom", "alimentaire-dom",
 		"carte-etudiants", "carte-sru", "sru-prelevement", "effort-recherche", "sipri", "historique-immigration",
 		"age-depart-retraite", "taux-remplacement", "indochine-partition", "medecins-evolution",
+		"incendie-gironde",
 	}
 	addNode(region, "sujets-data", topicsDeps, func(ctx context.Context, d pipeline.Results) (topicsReady, error) {
 		return topicsReady{}, buildTopicsData(ctx, e, d)
@@ -1058,9 +1084,10 @@ func buildRegistry(env *environment) *pipeline.Registry {
 				}{l, acc})
 		}})
 	region.Add(pipeline.Step{Name: "comprendre", Description: "documents de méthode et sujets",
-		Dependencies: []string{"sujets-data", "docs"},
+		Dependencies: []string{"sujets-data", "docs", "accueil-data"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
-			return nil, buildGuidesAndTopics(e, dep[[]*Doc](d, "docs"))
+			acc := dep[*DataHome](d, "accueil-data")
+			return nil, buildGuidesAndTopics(e, dep[[]*Doc](d, "docs"), acc.Year)
 		}})
 
 	// --- fiches : personnes, candidats, organisations, référentiels, groupes.

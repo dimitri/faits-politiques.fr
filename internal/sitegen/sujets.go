@@ -144,9 +144,11 @@ var families = []*Family{
 			{ID: "sport", Name: "Sport et vie associative", Doc: "sport-vie-associative-donnees"},
 		}},
 	{ID: "securite-justice-defense", Name: "Sécurité, justice et défense", Base: "sujets",
-		Intro: "Police et délinquance enregistrée, tribunaux et prisons, armées.",
+		Intro: "Police et délinquance enregistrée, sécurité civile (qui finance les pompiers), tribunaux et prisons, armées.",
 		Cofog: []string{"GF03", "GF02"}, Topics: []*Topic{
 			{ID: "police", Name: "Police et délinquance", Doc: "securite-police-donnees", Pages: []LinkPage{{"La délinquance enregistrée, commune par commune", "securite/"}}},
+			{ID: "securite-civile", Name: "Sécurité civile : qui finance les pompiers", Doc: "securite-civile-donnees",
+				Pages: []LinkPage{{"La participation des départements, carte et série nationale", "securite-civile/"}}},
 			{ID: "justice", Name: "Justice", Doc: "justice-donnees"},
 			{ID: "violences-policieres", Name: "Violences policières", Doc: "violences-policieres-donnees"},
 			{ID: "defense", Name: "Défense", Doc: "defense-donnees"},
@@ -325,7 +327,7 @@ var detailCofog = map[string]string{
 	"GF05": "",
 }
 
-func loadHome(ctx context.Context, pool *pgxpool.Pool, territory *StatsTerritories, sec *StatsSecurity) (*DataHome, error) {
+func loadHome(ctx context.Context, pool *pgxpool.Pool, territory *StatsTerritories, civil *PageMap) (*DataHome, error) {
 	a := &DataHome{Families: familiesTopics(), Money: familyMoney()}
 	for _, fam := range a.Families {
 		a.CountTopics += len(fam.Topics)
@@ -472,11 +474,9 @@ func loadHome(ctx context.Context, pool *pgxpool.Pool, territory *StatsTerritori
 	if c := mapTerritory("rsa"); c != nil {
 		a.Tabs = append(a.Tabs, TabMap{"Solidarité", c.Title, c.Question, c.Source, "collectivites/carte/" + c.Slug + "/", c.Page.Map})
 	}
-	for _, ind := range sec.Indicators {
-		if ind.Code == "cambriolages_de_logement" {
-			a.Tabs = append(a.Tabs, TabMap{"Sécurité", ind.Label + " pour 1 000 habitants", ind.Question,
-				ind.Page.Source + ", " + fmt.Sprint(sec.Year), "securite/" + ind.Slug + "/", ind.Page.Map})
-		}
+	if civil != nil {
+		a.Tabs = append(a.Tabs, TabMap{"Sécurité civile", civil.Title, civil.Question,
+			civil.Source, "securite-civile/", civil.Map})
 	}
 	if c := mapTerritory("dette"); c != nil {
 		a.Tabs = append(a.Tabs, TabMap{"Finances locales", c.Title, c.Question, c.Source, "collectivites/carte/" + c.Slug + "/", c.Page.Map})
