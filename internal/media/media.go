@@ -251,20 +251,31 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 			if e.Rejected {
 				rejected++
 				fromCache++
-				continue
-			}
-			if _, err := os.Stat(filepath.Join(mediaDir, e.Local)); err == nil {
-				if err := insert(ctx, pool, target, e.Local, e.SourceURL,
-					e.Licence, e.LicenceCode, e.Author, e.Width, e.Height); err != nil {
+				if err := deleteExisting(ctx, pool, target); err != nil {
 					return err
 				}
-				kept++
-				fromCache++
 				continue
 			}
+			// e.Local == "" : une entrée positive mais vide (vue en pratique
+			// sur une quinzaine de cibles, logos de partis compris) ne doit
+			// jamais être traitée comme un succès — os.Stat(mediaDir, "")
+			// statue le RÉPERTOIRE lui-même, qui existe toujours, et faisait
+			// insérer une ligne core.media entièrement vide à chaque run.
+			if e.Local != "" {
+				if _, err := os.Stat(filepath.Join(mediaDir, e.Local)); err == nil {
+					if err := insert(ctx, pool, target, e.Local, e.SourceURL,
+						e.Licence, e.LicenceCode, e.Author, e.Width, e.Height); err != nil {
+						return err
+					}
+					kept++
+					fromCache++
+					continue
+				}
+			}
 			// Le fichier a disparu de mediaDir (nettoyage manuel, clone
-			// partiel) : l'entrée ne vaut plus rien, on la résout en direct
-			// comme une cible nouvelle.
+			// partiel), ou l'entrée était positive mais vide (voir ci-dessus) :
+			// elle ne vaut plus rien, on résout en direct comme une cible
+			// neuve.
 		}
 
 		size := 400
@@ -280,6 +291,9 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 			fmt.Printf("    %-34s écarté — %s\n", target.Label, reason)
 			rejected++
 			cch.Entries[key] = cacheEntry{Rejected: true, Reason: reason}
+			if err := deleteExisting(ctx, pool, target); err != nil {
+				return err
+			}
 			continue
 		}
 		ext := filepath.Ext(f.Name)
@@ -311,17 +325,27 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive,
 	return nil
 }
 
+// deleteExisting retire toute ligne core.media déjà posée pour cette cible —
+// appelée aussi bien avant un insert (reconstruire plutôt que compléter)
+// qu'au moment d'un rejet : une cible déjà résolue avec succès puis rejetée
+// à un run ultérieur (fichier retiré de Commons, relicencié...) ne doit pas
+// laisser sa ligne précédente trainer comme si elle restait valide.
+func deleteExisting(ctx context.Context, pool *pgxpool.Pool, target Target) error {
+	_, err := pool.Exec(ctx, `
+		DELETE FROM core.media
+		 WHERE kind = $3
+		   AND (person_id IS NOT DISTINCT FROM $1)
+		   AND (organization_id IS NOT DISTINCT FROM $2)`,
+		target.PersonID, target.OrganizationID, target.Kind)
+	return err
+}
+
 // insert : reconstruit plutôt que compléter, comme partout ailleurs —
 // factorisé parce que le chemin cache et le chemin résolution en direct
 // écrivent tous deux la même ligne, jamais deux copies divergentes de ce SQL.
 func insert(ctx context.Context, pool *pgxpool.Pool, target Target,
 	local, sourceURL, licence, licenceCode, author string, width, height int) error {
-	if _, err := pool.Exec(ctx, `
-		DELETE FROM core.media
-		 WHERE kind = $3
-		   AND (person_id IS NOT DISTINCT FROM $1)
-		   AND (organization_id IS NOT DISTINCT FROM $2)`,
-		target.PersonID, target.OrganizationID, target.Kind); err != nil {
+	if err := deleteExisting(ctx, pool, target); err != nil {
 		return err
 	}
 	_, err := pool.Exec(ctx, `
