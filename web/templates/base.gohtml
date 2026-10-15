@@ -12,8 +12,22 @@
      description générale du site et sur la carte de partage par défaut. */}}
 {{$desc := .Description}}{{if not $desc}}{{$desc = "Ce qui a été voté, décidé, proposé — et d'où on le sait. Chaque chiffre remonte à un document officiel archivé ; aucun verdict n'est rendu."}}{{end}}
 <meta name="description" content="{{$desc}}">
+{{/* __FP_CANONICAL__ : remplacé après coup par un passage dédié
+     (internal/sitegen/canonical.go), qui relit chaque index.html une fois
+     out/ entièrement écrit et en déduit l'URL depuis le CHEMIN DE FICHIER
+     RÉEL — la même source de vérité que writeSitemap (sitemap.go), plutôt
+     qu'une deuxième comptabilité tenue au fil des centaines d'appels à
+     writeAlways() qui pourrait diverger de ce qui est publié. Un gabarit ne
+     connaît que son propre contenu, jamais le chemin où il finira écrit
+     (deplace.gohtml et collectivite.gohtml, par exemple, partagent le même
+     gabarit pour des dizaines de chemins différents) — déduire l'URL après
+     coup, depuis le système de fichiers, est donc le seul point où cette
+     information existe déjà sans qu'aucune page n'ait à la répéter. */}}
+<link rel="canonical" href="__FP_CANONICAL__">
 <meta property="og:site_name" content="faits-politiques.fr">
 <meta property="og:type" content="website">
+<meta property="og:locale" content="fr_FR">
+<meta property="og:url" content="__FP_CANONICAL__">
 <meta property="og:title" content="{{.Title}} — faits-politiques.fr">
 <meta property="og:description" content="{{$desc}}">
 <meta property="og:image" content="{{.CanonicalBase}}{{.Image}}">
@@ -23,6 +37,21 @@
 <meta name="twitter:title" content="{{.Title}} — faits-politiques.fr">
 <meta name="twitter:description" content="{{$desc}}">
 <meta name="twitter:image" content="{{.CanonicalBase}}{{.Image}}">
+{{/* JSON-LD : WebSite partout (une seule fois, jamais répété par page), et
+     Organization (même objet, SameAs vers les seuls profils qui existent
+     réellement — voir le commentaire au pied de ce bloc avant d'en ajouter
+     un). .SchemaExtra accueille un second bloc <script> propre à la page
+     (Person pour un député, GovernmentOrganization pour un groupe...) —
+     vide par défaut, jamais obligatoire : une page sans position claire
+     dans schema.org n'en porte simplement pas. */}}
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[
+{"@type":"WebSite","name":"faits-politiques.fr","url":"{{.CanonicalBase}}/",
+ "description":"Ce qui a été voté, décidé, proposé — et d'où on le sait, document par document.",
+ "inLanguage":"fr-FR","publisher":{"@id":"{{.CanonicalBase}}/#organisation"}},
+{"@type":"Organization","@id":"{{.CanonicalBase}}/#organisation","name":"faits-politiques.fr",
+ "url":"{{.CanonicalBase}}/","logo":"{{.CanonicalBase}}/media/logo-mark.svg"}
+]}</script>
+{{.SchemaExtra}}
 <link rel="stylesheet" href="{{.Root}}/{{.CSS}}">
 <script>
 // Appliqué avant le premier rendu : sans cela la page clignote du thème

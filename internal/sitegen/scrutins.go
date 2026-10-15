@@ -210,6 +210,8 @@ func buildElections(ctx context.Context, pool *pgxpool.Pool, tpl *template.Templ
 
 			l := layout
 			l.Title = "Scrutin n° " + s.Number
+			l.Description = fmt.Sprintf("Scrutin n° %s, %s (%s) : %s — %d pour, %d contre, %d abstentions, sourcés document par document.",
+				s.Number, s.Date, s.InstitutionName, Truncate(s.Object, 100), s.For, s.Against, s.Abstentions)
 			data := struct {
 				Layout
 				S              Election

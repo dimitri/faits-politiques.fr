@@ -70,6 +70,13 @@ type Layout struct {
 	Image          string
 	ImageW, ImageH int
 	CanonicalBase  string
+	// SchemaExtra : un second bloc JSON-LD propre à la page (Person pour un
+	// député ou un candidat, GovernmentOrganization pour un groupe ou un
+	// parti...), en plus du WebSite/Organization que base.gohtml pose sur
+	// CHAQUE page. Vide par défaut — la plupart des pages (une carte, un
+	// index de section) n'ont rien d'assez typé dans schema.org pour
+	// justifier d'en déclarer un.
+	SchemaExtra template.HTML
 }
 
 type Vote struct {
@@ -398,8 +405,15 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxElection
 		return err
 	}
 
-	// Plan du site et robots.txt : en dernier, une fois que out/ porte
-	// exactement l'arborescence publiée — voir internal/sitegen/sitemap.go.
+	// Canonique, plan du site et robots.txt : en dernier, une fois que out/
+	// porte exactement l'arborescence publiée — voir internal/sitegen/sitemap.go.
+	// AVANT writeSitemap : les deux lisent out/ en lecture, mais rien n'y
+	// réécrit entre les deux, l'ordre ne change donc rien à ce qu'ils voient
+	// — seulement une question de lisibilité (l'URL d'une page existe dans
+	// sa propre balise avant d'exister dans le plan qui la référence).
+	if _, err := rewriteCanonical(out, layout.CanonicalBase); err != nil {
+		return fmt.Errorf("balises canoniques : %w", err)
+	}
 	nSitemap, err := writeSitemap(out, layout.CanonicalBase)
 	if err != nil {
 		return err

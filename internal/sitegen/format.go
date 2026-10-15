@@ -171,3 +171,24 @@ func caseWord(m string) string {
 	}
 	return string(r)
 }
+
+// Truncate coupe s à max caractères (runes, pas octets — l'objet d'un
+// scrutin porte des apostrophes et des espaces fines insécables) et ajoute
+// une ellipse, pour une meta description : l'objet d'un scrutin peut citer
+// l'intégralité d'une proposition de loi, bien au-delà des ~155 caractères
+// qu'un moteur de recherche affiche — jamais tronqué au milieu d'un mot, qui
+// se lirait comme du texte coupé par erreur plutôt que par choix.
+func Truncate(s string, max int) string {
+	r := []rune(s)
+	if len(r) <= max {
+		return s
+	}
+	cut := max
+	for cut > 0 && r[cut] != ' ' {
+		cut--
+	}
+	if cut == 0 {
+		cut = max
+	}
+	return strings.TrimRight(string(r[:cut]), " ,;") + "…"
+}

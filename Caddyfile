@@ -1,0 +1,48 @@
+# Caddyfile du site statique produit par internal/sitegen (fpctl build site).
+#
+# Le serveur en production répond déjà "server: Caddy" avec ETag et
+# Last-Modified (observé sur faits-politiques.fr), mais sans Cache-Control :
+# chaque requête revalide au lieu de pouvoir sauter le réseau entièrement.
+# Ce fichier n'est pas encore branché par la CI — le job build-full
+# (.github/workflows/build.yml) laisse le déploiement en placeholder, voir
+# docs/decisions.md D-012 — mais sert dès à présent de référence pour la
+# configuration à adopter, ici ou ailleurs.
+faits-politiques.fr {
+	root * site
+	encode gzip zstd
+
+	# 404.html, écrit à la racine (pas .../404/index.html) précisément pour
+	# ce rewrite — voir le commentaire de internal/sitegen/main.go au-dessus
+	# de son écriture.
+	handle_errors {
+		rewrite * /{http.error.status_code}.html
+		file_server
+	}
+
+	# Défaut : toute page HTML est revalidée à chaque visite plutôt que
+	# gardée en cache sans contrôle. Aucune n'est réellement immuable — le
+	# site entier est reconstruit chaque nuit (fpctl ingest default), et une
+	# page dont les données n'ont pas changé peut quand même changer de
+	# contenu si le gabarit, lui, a changé. ETag/Last-Modified (déjà posés
+	# par file_server) rendent cette revalidation quasi gratuite : un
+	# 304 Not Modified sans re-télécharger le corps.
+	header Cache-Control "public, max-age=0, must-revalidate"
+
+	# CSS/JS : le nom de fichier porte l'empreinte du contenu
+	# (internal/sitegen/assets.go, copyAssets) — une modification change le
+	# nom, jamais le contenu d'un nom déjà vu. immutable dit explicitement
+	# au navigateur de ne même pas revalider avant l'expiration : rien ne
+	# peut la rendre fausse.
+	@empreinte path *.css *.js
+	header @empreinte Cache-Control "public, max-age=31536000, immutable"
+
+	# Médias (portraits, logos, favicons) : pas d'empreinte dans le nom
+	# (web/media/, recopiés tels quels) — un portrait peut être remplacé
+	# sous le même nom de fichier. Jamais immutable, mais une semaine
+	# absorbe largement un pic de trafic (lien cité dans un débat télévisé,
+	# voir docs/decisions.md D-012) sans retarder longtemps un remplacement.
+	@media path /media/*
+	header @media Cache-Control "public, max-age=604800"
+
+	file_server
+}

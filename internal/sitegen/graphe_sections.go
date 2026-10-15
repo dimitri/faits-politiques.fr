@@ -70,6 +70,11 @@ func addPageNode[T any](region *pipeline.Registry, e *environment, name string, 
 			}
 			l := e.layout
 			l.Title = title
+			// title sert aussi de description : chacune des huit pages qui
+			// passent par addPageNode le rend déjà assez spécifique
+			// ("La dette publique", "Le taux de chômage"...) pour ne plus
+			// retomber sur la description générale du site (base.gohtml).
+			l.Description = title
 			path, data := data(l, v)
 			if err := e.writeSection(name, e.page(template), path, data); err != nil {
 				return nil, err
@@ -127,6 +132,7 @@ func buildMunicipalitiesAndEPCI(ctx context.Context, e *environment, d pipeline.
 		g.Go(func() error {
 			lp := e.layout
 			lp.Title = pc.Name + " (" + pc.Dept.Code + ")"
+			lp.Description = pc.Name + " (" + pc.Dept.Name + ") : " + Count(pc.Population) + " habitants, conseil municipal, finances et sécurité — sourcés document par document."
 			return e.writeAlways(tcom, filepath.Join(e.out, "collectivites", "commune", code, "index.html"), struct {
 				Layout
 				C *PageMunicipality
@@ -149,6 +155,7 @@ func buildMunicipalitiesAndEPCI(ctx context.Context, e *environment, d pipeline.
 	for siren, pe := range pagesEPCI {
 		l := e.layout
 		l.Title = pe.Name
+		l.Description = fmt.Sprintf("%s : %d communes, %s habitants — finances et élus, sourcés document par document.", pe.Name, pe.CountMunicipalities, Count(pe.Population))
 		if err := e.writeAlways(tepci, filepath.Join(e.out, "collectivites", "epci", siren, "index.html"), struct {
 			Layout
 			E *PageEPCI
@@ -878,6 +885,7 @@ func buildGuidesAndTopics(e *environment, docs []*Doc, year int) error {
 		}
 		l := e.layout
 		l.Title = s.Name
+		l.Description = s.Name + " : chiffres et positions des candidats, sourcés document par document, sans verdict rendu."
 		if err := e.writeAlways(ts, filepath.Join(e.out, filepath.FromSlash(s.URL()), "index.html"), struct {
 			Layout
 			S *Topic
@@ -902,6 +910,7 @@ func buildGuidesAndTopics(e *environment, docs []*Doc, year int) error {
 	for _, f := range familiesTopics() {
 		l := e.layout
 		l.Title = f.Name
+		l.Description = f.Name + " : les sujets de campagne de cette famille, sourcés document par document."
 		if err := e.writeAlways(tf, filepath.Join(e.out, f.Base, f.ID, "index.html"), struct {
 			Layout
 			F    *Family
@@ -914,6 +923,7 @@ func buildGuidesAndTopics(e *environment, docs []*Doc, year int) error {
 
 	l := e.layout
 	l.Title = "Documents de méthode"
+	l.Description = "Les documents de méthode du site : comment chaque chiffre est calculé et vérifié."
 	if err := e.writeSection("comprendre", e.page("comprendre.gohtml"), filepath.Join(e.out, "comprendre", "index.html"), struct {
 		Layout
 		Docs   []*Doc
@@ -931,6 +941,7 @@ func buildGuidesAndTopics(e *environment, docs []*Doc, year int) error {
 		}
 		l := e.layout
 		l.Title = d.Title
+		l.Description = d.Title + " : document de méthode — comment ce chiffre est calculé et vérifié."
 		if err := e.writeSection("comprendre", td, filepath.Join(e.out, "comprendre", d.Slug, "index.html"), struct {
 			Layout
 			D      *Doc
@@ -966,6 +977,11 @@ func buildProfilePages(e *environment, d pipeline.Results) error {
 	for _, p := range id.Persons {
 		l := e.layout
 		l.Title = p.FirstName + " " + p.Name
+		if p.Expressed > 0 {
+			l.Description = fmt.Sprintf("%s %s : %s positions exprimées — chaque vote sourcé, sans verdict rendu.", p.FirstName, p.Name, Count(p.Expressed))
+		} else {
+			l.Description = p.FirstName + " " + p.Name + " : mandats et appartenances déclarées — sourcés document par document."
+		}
 		data := struct {
 			Layout
 			P              *Person
@@ -988,6 +1004,11 @@ func buildProfilePages(e *environment, d pipeline.Results) error {
 	for _, c := range id.Candidates {
 		l := e.layout
 		l.Title = c.FirstName + " " + c.Name
+		if c.Organization != "" {
+			l.Description = fmt.Sprintf("%s %s, candidat à la présidentielle 2027 (%s) : parcours, positions et sources vérifiées.", c.FirstName, c.Name, c.Organization)
+		} else {
+			l.Description = c.FirstName + " " + c.Name + ", candidat à la présidentielle 2027 : parcours, positions et sources vérifiées."
+		}
 		p := c.Person
 		if p == nil {
 			p = &Person{Slug: c.Slug, FirstName: c.FirstName, Name: c.Name}
@@ -1015,6 +1036,7 @@ func buildProfilePages(e *environment, d pipeline.Results) error {
 	for _, o := range id.Orgs {
 		l := e.layout
 		l.Title = o.Label
+		l.Description = o.Label + " : mandats, positions et liens déclarés — sourcés document par document."
 		if err := e.writeSection("fiches", to, filepath.Join(e.out, "organisation", o.Slug, "index.html"), struct {
 			Layout
 			O *Organization
@@ -1036,6 +1058,7 @@ func buildProfilePages(e *environment, d pipeline.Results) error {
 		}
 		l := e.layout
 		l.Title = r.Title
+		l.Description = r.Title + " : ce référentiel et les organisations qui s'y rattachent — sourcés document par document."
 		if err := e.writeSection("fiches", tr, filepath.Join(e.out, "referentiel", r.Slug, "index.html"), struct {
 			Layout
 			R    *Reference
@@ -1049,6 +1072,7 @@ func buildProfilePages(e *environment, d pipeline.Results) error {
 	for _, g := range id.Groups {
 		l := e.layout
 		l.Title = g.Name
+		l.Description = g.Name + " : députés, votes et positions du groupe — sourcés document par document."
 		if err := e.writeSection("fiches", tg, filepath.Join(e.out, "groupe", g.Slug, "index.html"), struct {
 			Layout
 			G *Group
