@@ -88,7 +88,12 @@ migrate: db-up fpctl    ## applique les migrations
 ingest: db-up fpctl     ## télécharge, archive et charge les jeux de données
 	./bin/fpctl ingest default
 
-build: fpctl            ## génère le site statique dans ./site
+# db-up, pas seulement fpctl : sans lui, un conteneur arrêté (reboot,
+# `docker stop` par quelqu'un d'autre sur cette machine partagée) fait
+# échouer la construction sur une erreur de connexion plutôt que de
+# redémarrer la base — constaté en pratique (make install en échec), alors
+# que migrate/ingest/test s'en protégeaient déjà.
+build: db-up fpctl      ## génère le site statique dans ./site
 	./bin/fpctl build site
 
 verify: fpctl           ## contrôles de cohérence des données chargées
