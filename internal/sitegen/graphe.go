@@ -364,6 +364,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			europe := dep[*StatsEurope](d, "europe")
 			l := e.layout
 			l.Title = "Parlement européen"
+			l.Description = "Scrutins et votes des eurodéputés français au Parlement européen, sourcés document par document."
 			return nil, e.writeSection("europe", e.page("europe.gohtml"), filepath.Join(e.out, "europe", "index.html"), struct {
 				Layout
 				E *StatsEurope
@@ -387,6 +388,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			themes := dep[*StatsThemes](d, "themes")
 			l := e.layout
 			l.Title = "Thèmes"
+			l.Description = "Les thèmes des lois votées à l'Assemblée, par groupe politique — sourcés document par document."
 			if err := e.writeSection("themes", e.page("themes.gohtml"), filepath.Join(e.out, "themes", "index.html"), struct {
 				Layout
 				T *StatsThemes
@@ -403,6 +405,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 				}
 				l := e.layout
 				l.Title = th.Label
+				l.Description = th.Label + " : les lois votées sur ce thème, par groupe politique — sourcées document par document."
 				if err := e.writeSection("themes", tth, filepath.Join(e.out, "theme", th.Slug, "index.html"), struct {
 					Layout
 					Th       *Theme
@@ -422,6 +425,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			senate := dep[*StatsSenate](d, "senat")
 			l := e.layout
 			l.Title = "Sénat"
+			l.Description = "Scrutins, sénateurs, mandats et commissions du Sénat, sourcés document par document."
 			return nil, e.writeSection("senat", e.page("senat.gohtml"), filepath.Join(e.out, "senat", "index.html"), struct {
 				Layout
 				Se *StatsSenate
@@ -497,6 +501,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			sec := dep[*StatsSecurity](d, "securite")
 			l := e.layout
 			l.Title = "Sécurité"
+			l.Description = "Délinquance, effectifs de police et de gendarmerie, incendies — cartes et chiffres sourcés document par document."
 			if len(sec.Indicators) > 0 {
 				imageMap(&l, e.out, "securite", sec.Indicators[0].Page.Map.SVG)
 			}
@@ -562,6 +567,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			e27 := dep[*Stats2027](d, "election2027")
 			l := e.layout
 			l.Title = "Présidentielle 2027"
+			l.Description = "La présidentielle 2027, sujet par sujet : candidats, positions et cartes départementales, sourcés document par document."
 			if err := e.writeSection("election2027", e.page("election2027.gohtml"), filepath.Join(e.out, "2027", "index.html"), struct {
 				Layout
 				E *Stats2027
@@ -596,6 +602,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			gouv := dep[*StatsGovernment](d, "gouvernement")
 			l := e.layout
 			l.Title = "Gouvernement"
+			l.Description = "Composition du Gouvernement et décrets de nomination, depuis la Ve République — sourcés document par document."
 			if err := e.writeSection("gouvernement", e.page("gouvernement.gohtml"), filepath.Join(e.out, "gouvernement", "index.html"),
 				struct {
 					Layout
@@ -605,6 +612,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			}
 			l = e.layout
 			l.Title = "Tous les décrets de composition"
+			l.Description = "Tous les décrets de composition du Gouvernement, nomination par nomination — sourcés document par document."
 			allDecrees := *gouv
 			allDecrees.Decrees = gouv.All
 			return nil, e.writeSection("gouvernement", e.page("decrets.gohtml"), filepath.Join(e.out, "gouvernement", "decrets", "index.html"),
@@ -637,6 +645,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			territory := dep[*StatsTerritories](d, "territoires")
 			l := e.layout
 			l.Title = "Collectivités"
+			l.Description = "Communes, intercommunalités, départements et régions : budgets et finances locales, sourcés document par document."
 			imageMap(&l, e.out, "collectivites", cb.Col.MapDepts.SVG)
 			return nil, e.writeSection("collectivites", e.page("collectivites.gohtml"), filepath.Join(e.out, "collectivites", "index.html"),
 				struct {
@@ -671,6 +680,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			// quand "collectivites" n'est pas demandé.
 			l := e.layout
 			l.Title = "Page déplacée"
+			l.Description = "Cette page a déménagé vers Collectivités."
 			if err := e.writeAlways(e.page("deplace.gohtml"), filepath.Join(e.out, "territoires", "index.html"),
 				struct {
 					Layout
@@ -681,6 +691,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			for _, c := range territory.Maps {
 				l := e.layout
 				l.Title = "Page déplacée"
+				l.Description = "Cette page a déménagé vers " + c.Title + "."
 				if err := e.writeAlways(e.page("deplace.gohtml"), filepath.Join(e.out, "territoires", c.Slug, "index.html"),
 					struct {
 						Layout
@@ -741,6 +752,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 				pc.Situation = background.forDistrict(pc, popFrance)
 				l := e.layout
 				l.Title = pc.Title
+				l.Description = pc.Title + " : " + Count(pc.Population) + " habitants, députés et résultats électoraux — sourcés document par document."
 				if err := e.writeSection("circonscriptions", tcirco, filepath.Join(e.out, "circonscription", code, "index.html"), struct {
 					Layout
 					C *PageDistrict
@@ -780,6 +792,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 				}
 				l := e.layout
 				l.Title = pc.Name
+				l.Description = pc.Name + " (" + pc.TypeLabel + ") : " + Count(pc.Population) + " habitants, finances et élus — sourcés document par document."
 				if err := e.writeSection("collectivites", tcol, filepath.Join(e.out, "collectivites", pc.TypeURL, pc.Slug, "index.html"),
 					struct {
 						Layout
@@ -811,6 +824,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			if bud != nil {
 				l := e.layout
 				l.Title = "Budget de l'État"
+				l.Description = "Le budget de l'État, mission par mission et dispositif par dispositif — sourcé document par document."
 				if err := e.writeSection("budget", e.page("budget.gohtml"), filepath.Join(e.out, "budget", "index.html"), struct {
 					Layout
 					B *StatsBudget
@@ -825,6 +839,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 				for _, m := range circuit.LargeMeasures {
 					l := e.layout
 					l.Title = m.Label
+					l.Description = m.Label + " : ce dispositif budgétaire, son coût et son périmètre — sourcés document par document."
 					if err := e.writeSection("budget", tdisp, filepath.Join(e.out, "budget", "dispositif", m.Code, "index.html"), struct {
 						Layout
 						M MeasureExemption
@@ -843,6 +858,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			}
 			l := e.layout
 			l.Title = "Protection sociale"
+			l.Description = "Retraites, santé, famille, chômage : les dépenses de protection sociale, sourcées document par document."
 			return nil, e.writeSection("social", e.page("social.gohtml"), filepath.Join(e.out, "social", "index.html"), struct {
 				Layout
 				X *StatsSocial
@@ -856,6 +872,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			l := e.layoutWithIdentity(dep[identityBundle](d, "identite"))
 			l.Title = "Qui décide"
+			l.Description = "Gouvernement, Assemblée, Sénat, Parlement européen : qui décide, et comment chacun a voté — sourcé document par document."
 			return nil, e.writeSection("qui-decide", e.page("qui-decide.gohtml"), filepath.Join(e.out, "qui-decide", "index.html"), l)
 		}})
 
@@ -872,6 +889,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			l := e.layout
 			l.Title = "Sources"
+			l.Description = "Les documents officiels derrière chaque chiffre du site, avec dates de consultation et empreintes SHA-256."
 			return nil, e.writeSection("sources", e.page("sources.gohtml"), filepath.Join(e.out, "sources", "index.html"), struct {
 				Layout
 				Flow  []SourceDetail
@@ -883,6 +901,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			id := dep[identityBundle](d, "identite")
 			l := e.layout
 			l.Title = "Candidats 2027"
+			l.Description = "Les candidats déclarés à la présidentielle 2027 : parcours, positions et sources vérifiées."
 			return nil, e.writeSection("candidats", e.page("candidats.gohtml"), filepath.Join(e.out, "candidats", "index.html"), struct {
 				Layout
 				Candidates []*Candidate
@@ -893,6 +912,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			id := dep[identityBundle](d, "identite")
 			l := e.layout
 			l.Title = "Partis"
+			l.Description = "Les partis politiques, leurs comptes de campagne et leurs liens avec les groupes parlementaires — sourcés document par document."
 			return nil, e.writeSection("partis", e.page("partis.gohtml"), filepath.Join(e.out, "partis", "index.html"), struct {
 				Layout
 				Orgs []*Organization
@@ -905,6 +925,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			last := dep[[]Vote](d, "derniers-scrutins")
 			l := e.layout
 			l.Title = "Assemblée nationale"
+			l.Description = "Députés, groupes et scrutins de l'Assemblée nationale, sourcés document par document."
 			return nil, e.writeSection("assemblee", e.page("assemblee.gohtml"), filepath.Join(e.out, "assemblee", "index.html"), struct {
 				Layout
 				Groups    []*Group
@@ -1040,7 +1061,12 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			l.HeroLede = "Retraites, santé, école, sécurité, immigration, dette : ce que l'État dépense, " +
 				"d'où vient l'argent, qui décide et qui contrôle — sourcé document par document."
 			l.HeroVisual = heroThousand(acc, e.root)
-			l.Title = "Le budget réel de la France, sujet par sujet de la campagne 2027"
+			// Distinct du HeroTitle (le H1 affiché, qui peut se permettre
+			// d'être long et descriptif) : la balise <title> compte pour le
+			// référencement, où tout au-delà d'environ 60 caractères se
+			// retrouve tronqué dans les résultats de recherche — l'ancien
+			// titre, 86 caractères, l'était systématiquement.
+			l.Title = "France - Campagne 2027 en chiffres"
 			return nil, e.writeSection("accueil", e.page("accueil.gohtml"), filepath.Join(e.out, "index.html"), struct {
 				Layout
 				A *DataHome
@@ -1052,6 +1078,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			acc := dep[*DataHome](d, "accueil-data")
 			l := e.layout
 			l.Title = "Sujets de campagne"
+			l.Description = "Les sujets de la campagne 2027, famille par famille : retraites, santé, sécurité, immigration — sourcés document par document."
 			return nil, e.writeSection("sujets", e.page("sujets.gohtml"), filepath.Join(e.out, "sujets", "index.html"), struct {
 				Layout
 				Families []*Family
@@ -1068,6 +1095,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 				pf := pagesFunctions[f.Code]
 				l := e.layout
 				l.Title = pf.Name
+				l.Description = fmt.Sprintf("%s : %s milliards d'euros de dépense publique, %d — sourcés document par document.", pf.Name, Decimal(pf.Billions, 1), pf.Year)
 				if err := e.writeSection("argent-public", tf, filepath.Join(e.out, "fonction", f.Slug, "index.html"), struct {
 					Layout
 					F *PageFunction
@@ -1077,6 +1105,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			}
 			l := e.layout
 			l.Title = "Argent public"
+			l.Description = "Où va l'argent public : budget de l'État, protection sociale et dette, fonction par fonction — sourcés document par document."
 			return nil, e.writeSection("argent-public", e.page("argent-public.gohtml"), filepath.Join(e.out, "argent-public", "index.html"),
 				struct {
 					Layout

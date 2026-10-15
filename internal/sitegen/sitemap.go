@@ -109,6 +109,69 @@ func writeXML(path string, v any) error {
 	return os.WriteFile(path, body, 0o644)
 }
 
+// placeholderCanonical : voir le commentaire de ce jeton dans
+// web/templates/base.gohtml — jamais inséré par un gabarit avec l'URL déjà
+// résolue, parce qu'aucun gabarit ne connaît son propre chemin de
+// publication.
+const placeholderCanonical = "__FP_CANONICAL__"
+
+// rewriteCanonical reprend le même parcours que writeSitemap (chaque
+// index.html de out/, après que tout a été écrit) pour remplacer le jeton
+// posé par base.gohtml par l'URL canonique réellement déduite du chemin de
+// fichier — jamais une deuxième fonction qui recalculerait cette URL
+// autrement et pourrait un jour diverger de celle du plan du site.
+//
+// 404.html n'a pas d'URL publique à s'attribuer (ce n'est la page d'aucune
+// adresse précise) : filepath.Base(p) != "index.html" l'écarte déjà du même
+// coup que writeSitemap, donc son jeton reste en l'état — ÔTÉ explicitement
+// plus bas plutôt que publié tel quel, qui romprait le HTML.
+func rewriteCanonical(out, canonicalBase string) (int, error) {
+	n := 0
+	err := filepath.Walk(out, func(p string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		base := filepath.Base(p)
+		if base != "index.html" && base != "404.html" {
+			return nil
+		}
+		body, err := os.ReadFile(p)
+		if err != nil {
+			return err
+		}
+		if !strings.Contains(string(body), placeholderCanonical) {
+			return nil
+		}
+		if base == "404.html" {
+			// Pas de balise canonique du tout plutôt qu'une URL inventée :
+			// supprime la ligne entière, elle est seule sur la sienne.
+			lines := strings.Split(string(body), "\n")
+			kept := lines[:0]
+			for _, line := range lines {
+				if !strings.Contains(line, placeholderCanonical) {
+					kept = append(kept, line)
+				}
+			}
+			return os.WriteFile(p, []byte(strings.Join(kept, "\n")), 0o644)
+		}
+		rel := strings.TrimPrefix(strings.TrimSuffix(p, "index.html"), out)
+		rel = "/" + strings.Trim(rel, "/")
+		if rel != "/" {
+			rel += "/"
+		}
+		rewritten := strings.ReplaceAll(string(body), placeholderCanonical, canonicalBase+rel)
+		if err := os.WriteFile(p, []byte(rewritten), 0o644); err != nil {
+			return err
+		}
+		n++
+		return nil
+	})
+	return n, err
+}
+
 // writeRobots écrit une politique délibérément permissive : ce site n'a ni
 // recherche à facettes, ni panier, ni espace privé — rien dont l'exploration
 // gaspillerait le budget de Google. Seule exception : les images de partage
