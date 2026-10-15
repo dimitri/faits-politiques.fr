@@ -10,6 +10,14 @@
 # l'article Wikipédia « Candidatures à l'élection présidentielle française de
 # 2027 », chacune rapportée à un article de presse daté).
 #
+# Révision du 15 octobre 2026 : la primaire de la gauche unitaire du
+# 11 octobre 2026 a eu lieu — Raphaël Glucksmann l'a emportée dès le premier
+# tour (66,17 %), ce qui en fait, au sens du champ STATUT ci-dessous, une
+# candidature déclarée à l'élection (DECLARE) et non plus seulement à la
+# primaire — son statut est mis à jour en conséquence, sans toucher aux autres
+# candidats de cette primaire (leur défaite ne vaut pas retrait sourcé de la
+# présidentielle elle-même). Ajout de Natacha Polony, nouvelle déclaration.
+#
 # STATUT : DECLARE = candidature à l'élection annoncée ; PRIMAIRE = candidature
 # annoncée à une primaire (primaire de la gauche unitaire du 11 octobre 2026,
 # primaire socialiste), qui n'est pas encore une candidature à l'élection.
@@ -46,7 +54,8 @@ manolo-mlekuz,Mlekuz,Manolo,Trajectoire,,DECLARE,2026,https://www.valeursactuell
 francois-ruffin,Ruffin,François,Debout !,,PRIMAIRE,2025-04-01,https://www.lemonde.fr/politique/article/2025/04/06/francois-ruffin-se-dit-pret-a-representer-la-gauche-a-la-prochaine-presidentielle_6591779_823448.html,2026-09-15,,François Ruffin
 lydie-massard,Massard,Lydie,,,PRIMAIRE,2026-04-02,https://www.ouest-france.fr/elections/presidentielle/la-pontivyenne-lydie-massard-ex-deputee-europeenne-candidate-a-la-primaire-de-la-gauche-pour-la-presidentielle-0cd197e2-2e77-11f1-9aaf-bfbe7938d313,2026-09-15,,Lydie Massard
 olivier-faure,Faure,Olivier,Parti socialiste,parti-socialiste,PRIMAIRE,2026-08-30,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Olivier Faure (homme politique)
-raphael-glucksmann,Glucksmann,Raphaël,Place publique,place-publique,PRIMAIRE,2026-08-23,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Raphaël Glucksmann
+raphael-glucksmann,Glucksmann,Raphaël,Place publique,place-publique,DECLARE,2026-10-11,https://www.publicsenat.fr/actualites/politique/primaire-de-la-gauche-raphael-glucksmann-plie-le-match-et-remporte-le-scrutin-des-le-premier-tour-avec-66,2026-10-15,,Raphaël Glucksmann
 philippe-brun,Brun,Philippe,Parti socialiste,parti-socialiste,PRIMAIRE,2026-06-30,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Philippe Brun
 jerome-guedj,Guedj,Jérôme,,,PRIMAIRE,,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Jérôme Guedj
 segolene-royal,Royal,Ségolène,,,PRIMAIRE,,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Ségolène Royal
+natacha-polony,Polony,Natacha,,,DECLARE,2026-10-14,https://lcp.fr/actualites/natacha-polony-annonce-sa-candidature-a-l-election-presidentielle-443808,2026-10-15,,Natacha Polony
