@@ -16,13 +16,17 @@
 # candidature déclarée à l'élection (DECLARE) et non plus seulement à la
 # primaire — son statut est mis à jour en conséquence, sans toucher aux autres
 # candidats de cette primaire (leur défaite ne vaut pas retrait sourcé de la
-# présidentielle elle-même). Ajout de Natacha Polony, nouvelle déclaration.
+# présidentielle elle-même). Ajout de Natacha Polony (14 octobre), ainsi que
+# de deux déclarations antérieures au 15 septembre 2026 mais absentes de ce
+# fichier jusqu'ici : Éric Zemmour (17 septembre — jusque-là cité plus bas en
+# exemple de personnalité « seulement pressentie », ce qui n'était déjà plus
+# exact) et Olivier Becht (24 septembre).
 #
 # STATUT : DECLARE = candidature à l'élection annoncée ; PRIMAIRE = candidature
 # annoncée à une primaire (primaire de la gauche unitaire du 11 octobre 2026,
 # primaire socialiste), qui n'est pas encore une candidature à l'élection.
-# Les personnalités seulement pressenties (Éric Zemmour, François Hollande…)
-# n'y figurent pas : il n'y a pas de déclaration à sourcer. Elle est révisée UNIQUEMENT PAR AJOUT : un candidat qui se
+# Les personnalités seulement pressenties (François Hollande, Dominique de
+# Villepin…) n'y figurent pas : il n'y a pas de déclaration à sourcer. Elle est révisée UNIQUEMENT PAR AJOUT : un candidat qui se
 # retire reste affiché comme retiré, avec sa date. Retirer silencieusement une
 # ligne serait indistinguable d'un tri.
 #
@@ -59,3 +63,5 @@ philippe-brun,Brun,Philippe,Parti socialiste,parti-socialiste,PRIMAIRE,2026-06-3
 jerome-guedj,Guedj,Jérôme,,,PRIMAIRE,,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Jérôme Guedj
 segolene-royal,Royal,Ségolène,,,PRIMAIRE,,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Ségolène Royal
 natacha-polony,Polony,Natacha,,,DECLARE,2026-10-14,https://lcp.fr/actualites/natacha-polony-annonce-sa-candidature-a-l-election-presidentielle-443808,2026-10-15,,Natacha Polony
+eric-zemmour,Zemmour,Éric,Reconquête,reconquete,DECLARE,2026-09-17,https://lcp.fr/actualites/presidentielle-2027-eric-zemmour-officialise-sa-candidature-441871,2026-10-15,,Éric Zemmour
+olivier-becht,Becht,Olivier,,,DECLARE,2026-09-24,https://entrevue.fr/presidentielle-2027/presidentielle-2027-olivier-becht-se-lance-au-nom-de-lextreme-centre__trashed/,2026-10-15,,Olivier Becht
