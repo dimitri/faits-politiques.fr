@@ -1,7 +1,14 @@
 DATABASE_URL ?= postgres://fp:fp@localhost:55432/fp?sslmode=disable
 export DATABASE_URL
 
-.PHONY: db-up db-down db-image db-dump db-restore migrate ingest build test reset site man fpctl lint-delete-copy
+# Où `make install` publie le site construit — un répertoire hors de tout
+# arbre Git (voir Caddyfile sur la machine de production : root * pointe ici,
+# jamais sur un checkout). dépôt, worktrees et site publié sont trois choses
+# distinctes ; un `git clean -fdx` dans l'un des deux premiers ne doit plus
+# jamais pouvoir effacer le troisième.
+DEPLOY_DIR ?= /var/www/faits-politiques.fr
+
+.PHONY: db-up db-down db-image db-dump db-restore migrate ingest build test reset site man fpctl lint-delete-copy install
 
 db-up:            ## démarre Postgres local
 	docker compose up -d --wait db
@@ -79,15 +86,26 @@ migrate: db-up fpctl    ## applique les migrations
 	./bin/fpctl ingest migrate
 
 ingest: db-up fpctl     ## télécharge, archive et charge les jeux de données
-	./bin/fpctl ingest all
+	./bin/fpctl ingest default
 
 build: fpctl            ## génère le site statique dans ./site
-	./bin/fpctl build
+	./bin/fpctl build site
 
 verify: fpctl           ## contrôles de cohérence des données chargées
-	./bin/fpctl verify
+	./bin/fpctl verify data
 
 site: ingest verify build
+
+# rsync, pas cp -a : ne transfère que ce qui a changé (le site pèse plusieurs
+# Go) et --delete retire du répertoire publié les pages qu'un site reconstruit
+# n'a plus. Ne dépend QUE de build (pas de site, donc pas d'ingest/verify) :
+# publier ce qui vient d'être construit est une étape distincte de reconstruire
+# les données, à enchaîner soi-même (make site && make install) quand les deux
+# sont voulues.
+install: build          ## publie ./site vers $(DEPLOY_DIR) — déploiement réel (voir Caddyfile)
+	@test -d site || { echo "site/ absent — lancer d'abord make build" >&2; exit 1; }
+	rsync -a --delete site/ $(DEPLOY_DIR)/
+	@echo "publié dans $(DEPLOY_DIR)"
 
 test: db-up       ## rejoue les garanties structurelles sur la base chargée
 	@for f in db/tests/*.sql; do \
