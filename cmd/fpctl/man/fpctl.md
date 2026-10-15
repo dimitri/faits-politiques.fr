@@ -34,7 +34,7 @@ réimplémente rien.
 :   Génère le site statique et le met en place, en entier ou par section
     (pour itérer localement). Voir **fpctl-build**(1), SECTIONS.
 
-**ingest all** | **ingest** *catégorie* [**all**|*source*]
+**ingest default** | **ingest full** | **ingest** *catégorie* [**all**|*source*]
 :   Télécharge, archive et charge les jeux de données sources, rangées par
     catégorie thématique. Voir **fpctl-ingest**(1).
 
