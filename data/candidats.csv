@@ -14,21 +14,27 @@
 # 11 octobre 2026 a eu lieu — Raphaël Glucksmann l'a emportée dès le premier
 # tour (66,17 %), ce qui en fait, au sens du champ STATUT ci-dessous, une
 # candidature déclarée à l'élection (DECLARE) et non plus seulement à la
-# primaire — son statut est mis à jour en conséquence, sans toucher aux autres
-# candidats de cette primaire (leur défaite ne vaut pas retrait sourcé de la
-# présidentielle elle-même). Ajout de Natacha Polony (14 octobre), ainsi que
-# de deux déclarations antérieures au 15 septembre 2026 mais absentes de ce
-# fichier jusqu'ici : Éric Zemmour (17 septembre — jusque-là cité plus bas en
-# exemple de personnalité « seulement pressentie », ce qui n'était déjà plus
-# exact) et Olivier Becht (24 septembre).
+# primaire — son statut est mis à jour en conséquence. Ajout de Natacha
+# Polony (14 octobre), ainsi que de deux déclarations antérieures au
+# 15 septembre 2026 mais absentes de ce fichier jusqu'ici : Éric Zemmour
+# (17 septembre — jusque-là cité plus bas en exemple de personnalité
+# « seulement pressentie », ce qui n'était déjà plus exact) et Olivier Becht
+# (24 septembre).
 #
-# STATUT : DECLARE = candidature à l'élection annoncée ; PRIMAIRE = candidature
-# annoncée à une primaire (primaire de la gauche unitaire du 11 octobre 2026,
-# primaire socialiste), qui n'est pas encore une candidature à l'élection.
+# Retrait, la même révision : les candidats SEULEMENT déclarés à cette
+# primaire et qui ne l'ont pas emportée (Ruffin, Massard, Faure, Brun, Guedj,
+# Royal) sont retirés de ce fichier — la primaire étant désormais tranchée,
+# une candidature qui n'a jamais dépassé ce stade n'apporte rien à une liste
+# dont l'objet est de suivre qui se présente à l'élection elle-même. Ce
+# retrait déroge à la règle d'ajout seul énoncée dans une révision antérieure
+# de ce commentaire ; il reste tracé ici et dans l'historique Git du fichier.
+#
+# STATUT : DECLARE = candidature à l'élection annoncée. (PRIMAIRE a existé
+# comme statut transitoire — candidature à une primaire, pas encore à
+# l'élection — le temps que la primaire de la gauche unitaire se tienne ;
+# aucune ligne ne le porte plus depuis le retrait ci-dessus.)
 # Les personnalités seulement pressenties (François Hollande, Dominique de
-# Villepin…) n'y figurent pas : il n'y a pas de déclaration à sourcer. Elle est révisée UNIQUEMENT PAR AJOUT : un candidat qui se
-# retire reste affiché comme retiré, avec sa date. Retirer silencieusement une
-# ligne serait indistinguable d'un tri.
+# Villepin…) n'y figurent pas : il n'y a pas de déclaration à sourcer.
 #
 # Toute modification de ce fichier est une décision éditoriale et doit être
 # relue comme telle.
@@ -55,13 +61,7 @@ francis-lalanne,Lalanne,Francis,France Libre,,DECLARE,2026-08-19,https://www.fra
 sylvain-durif,Durif,Sylvain,Elvita,,DECLARE,2026-08-23,https://www.lefigaro.fr/politique/grand-monarque-et-doux-cingle-complotiste-sylvain-durif-annonce-sa-candidature-a-la-presidentielle-2027-20260825,2026-09-15,,Sylvain Durif
 benoit-mathieu,Mathieu,Benoît,,,DECLARE,2026-03-30,https://www.lemonde.fr/politique/article/2026/06/14/presidentielle-2027-a-velo-sur-les-routes-de-france-la-campagne-decalee-d-un-candidat-citoyen_6702744_823448.html,2026-09-15,,
 manolo-mlekuz,Mlekuz,Manolo,Trajectoire,,DECLARE,2026,https://www.valeursactuelles.com/politique/presidentielle-2027-un-candidat-anti-systeme-de-20-ans-sillonne-la-france-en-van-pour-obtenir-ses-parrainages,2026-09-15,,
-francois-ruffin,Ruffin,François,Debout !,,PRIMAIRE,2025-04-01,https://www.lemonde.fr/politique/article/2025/04/06/francois-ruffin-se-dit-pret-a-representer-la-gauche-a-la-prochaine-presidentielle_6591779_823448.html,2026-09-15,,François Ruffin
-lydie-massard,Massard,Lydie,,,PRIMAIRE,2026-04-02,https://www.ouest-france.fr/elections/presidentielle/la-pontivyenne-lydie-massard-ex-deputee-europeenne-candidate-a-la-primaire-de-la-gauche-pour-la-presidentielle-0cd197e2-2e77-11f1-9aaf-bfbe7938d313,2026-09-15,,Lydie Massard
-olivier-faure,Faure,Olivier,Parti socialiste,parti-socialiste,PRIMAIRE,2026-08-30,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Olivier Faure (homme politique)
 raphael-glucksmann,Glucksmann,Raphaël,Place publique,place-publique,DECLARE,2026-10-11,https://www.publicsenat.fr/actualites/politique/primaire-de-la-gauche-raphael-glucksmann-plie-le-match-et-remporte-le-scrutin-des-le-premier-tour-avec-66,2026-10-15,,Raphaël Glucksmann
-philippe-brun,Brun,Philippe,Parti socialiste,parti-socialiste,PRIMAIRE,2026-06-30,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Philippe Brun
-jerome-guedj,Guedj,Jérôme,,,PRIMAIRE,,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Jérôme Guedj
-segolene-royal,Royal,Ségolène,,,PRIMAIRE,,https://www.france24.com/fr/france/20260830-pr%C3%A9sidentielle-2027-olivier-faure-annonce-sa-candidature-%C3%A0-la-primaire-de-la-gauche,2026-09-15,,Ségolène Royal
 natacha-polony,Polony,Natacha,,,DECLARE,2026-10-14,https://lcp.fr/actualites/natacha-polony-annonce-sa-candidature-a-l-election-presidentielle-443808,2026-10-15,,Natacha Polony
 eric-zemmour,Zemmour,Éric,Reconquête,reconquete,DECLARE,2026-09-17,https://lcp.fr/actualites/presidentielle-2027-eric-zemmour-officialise-sa-candidature-441871,2026-10-15,,Éric Zemmour
 olivier-becht,Becht,Olivier,,,DECLARE,2026-09-24,https://entrevue.fr/presidentielle-2027/presidentielle-2027-olivier-becht-se-lance-au-nom-de-lextreme-centre__trashed/,2026-10-15,,Olivier Becht
