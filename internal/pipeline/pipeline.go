@@ -18,6 +18,7 @@ package pipeline
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sort"
 	"strings"
@@ -198,6 +199,24 @@ func (r *Registry) Levels(targets []string) ([][]string, error) {
 type Options struct {
 	DryRun      bool
 	Concurrency int
+
+	// ContinueOnError : une étape qui échoue n'arrête plus le reste du
+	// graphe — seulement ses propres dépendantes (qui ne peuvent de toute
+	// façon jamais devenir prêtes, remaining ne descendant que sur succès).
+	// Chaque échec est journalisé en WARN (pas FATAL), Run rend malgré tout
+	// les Results des étapes réussies, et renvoie à la fin une erreur
+	// agrégée (errors.Join) si au moins une étape a échoué — pour que
+	// l'appelant sache encore que le run n'est pas intégralement propre,
+	// sans avoir perdu tout le travail des étapes indépendantes de l'échec.
+	//
+	// Pensé pour l'ingestion (fpctl ingest <catégorie> all / full) : une
+	// source externe en panne (un site qui 404, une API qui time out) ne
+	// doit pas faire perdre les dizaines d'autres sources, sans lien, de la
+	// même catégorie. Laissé à false par défaut — en particulier pour la
+	// génération du site (internal/sitegen), où une page qui dépend
+	// vraiment du résultat d'une autre NE DOIT PAS s'exécuter sur un
+	// Results partiel ou absent.
+	ContinueOnError bool
 }
 
 // Run résout les dépendances des cibles demandées et exécute chaque étape
@@ -283,6 +302,19 @@ func (r *Registry) Run(ctx context.Context, targets []string, opts ...Options) (
 	g, gctx := errgroup.WithContext(ctx)
 	g.SetLimit(limit)
 
+	// stepCtx : le contexte passé À CHAQUE ÉTAPE. errgroup.WithContext
+	// annule gctx dès la PREMIÈRE erreur renvoyée par g.Go — exactement ce
+	// qu'on veut par défaut (une étape en vol voit l'abandon plus tôt, voir
+	// le commentaire de Run plus haut), mais l'inverse de ce que
+	// ContinueOnError promet : une étape sans aucun rapport avec celle qui
+	// vient d'échouer ne doit pas voir SON PROPRE contexte annulé pour
+	// autant. D'où ctx (jamais annulé par un échec de pair) sous
+	// ContinueOnError, gctx sinon.
+	stepCtx := gctx
+	if opt.ContinueOnError {
+		stepCtx = ctx
+	}
+
 	type arrival struct {
 		name string
 		err  error
@@ -315,7 +347,7 @@ func (r *Registry) Run(ctx context.Context, targets []string, opts ...Options) (
 			// la même chose en moins bien.
 			logs.Notice(s.Description)
 			start := time.Now()
-			value, err := s.Run(context.WithValue(gctx, stepNameKey{}, name), deps)
+			value, err := s.Run(context.WithValue(stepCtx, stepNameKey{}, name), deps)
 			duration := time.Since(start)
 			if err != nil {
 				err = fmt.Errorf("%s (après %s) : %w", name, duration.Round(time.Millisecond), err)
@@ -335,7 +367,7 @@ func (r *Registry) Run(ctx context.Context, targets []string, opts ...Options) (
 			durations[name] = duration
 			mu.Unlock()
 			if r.pool != nil {
-				if _, err := r.pool.Exec(gctx,
+				if _, err := r.pool.Exec(stepCtx,
 					`UPDATE core.pipeline_etape SET derniere_execution_reussie = now() WHERE nom = $1`,
 					name); err != nil {
 					err = fmt.Errorf("%s : journal d'exécution : %w", name, err)
@@ -361,6 +393,8 @@ func (r *Registry) Run(ctx context.Context, targets []string, opts ...Options) (
 	// répartition.
 	stopped := false
 	inFlight := 0
+	var failed []error
+	echouees := map[string]bool{}
 	for {
 		if !stopped {
 			for len(ready) > 0 && inFlight < limit {
@@ -382,6 +416,17 @@ func (r *Registry) Run(ctx context.Context, targets []string, opts ...Options) (
 		a := <-arrivals
 		inFlight--
 		if a.err != nil {
+			if opt.ContinueOnError {
+				// Un avertissement, pas un arrêt : ses dépendantes ne
+				// démarreront jamais (remaining ne descend que sur succès,
+				// juste en dessous), mais le reste du graphe — tout ce qui
+				// n'en dépend pas — continue. L'erreur est gardée pour le
+				// résumé agrégé à la fin de Run, jamais perdue.
+				logs.Warn(a.err.Error())
+				failed = append(failed, a.err)
+				echouees[a.name] = true
+				continue
+			}
 			// Ni ses dépendantes (qui ne peuvent de toute façon jamais
 			// devenir prêtes : remaining ne descend que sur succès) ni le
 			// reste du graphe non encore lancé ne démarrent — la même
@@ -396,6 +441,30 @@ func (r *Registry) Run(ctx context.Context, targets []string, opts ...Options) (
 				ready = append(ready, dep)
 			}
 		}
+	}
+
+	if opt.ContinueOnError {
+		// g.Wait() renverrait seulement la PREMIÈRE erreur rencontrée par
+		// errgroup — failed, construit ci-dessus depuis arrivals, porte
+		// TOUTES les étapes en échec, c'est lui qui fait foi ici. L'appel
+		// reste nécessaire pour attendre la fin réelle des goroutines encore
+		// en vol ; son erreur éventuelle est déjà dans failed, donc ignorée.
+		_ = g.Wait()
+		printDurations(durations, time.Since(startTotal))
+		if len(failed) == 0 {
+			return results, nil
+		}
+		var jamaisExecutees []string
+		for _, name := range neededOrder {
+			if _, ok := results[name]; !ok && !echouees[name] {
+				jamaisExecutees = append(jamaisExecutees, name)
+			}
+		}
+		if len(jamaisExecutees) > 0 {
+			logs.Warn(fmt.Sprintf("jamais exécutée(s), dépendance en échec : %s", strings.Join(jamaisExecutees, ", ")))
+		}
+		return results, fmt.Errorf("%d étape(s) en échec sur %d : %w",
+			len(failed), len(neededOrder), errors.Join(failed...))
 	}
 
 	if err := g.Wait(); err != nil {

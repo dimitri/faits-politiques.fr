@@ -158,3 +158,69 @@ func TestRunStopsOnError(t *testing.T) {
 		t.Fatalf("%d étape(s) n'auraient jamais dû démarrer après l'échec", aDemarre)
 	}
 }
+
+// TestRunContinueOnErrorRunsIndependentSteps : le cas visé par
+// ContinueOnError — une source d'ingestion en échec (un site externe en
+// panne) ne doit pas faire perdre les sources SANS RAPPORT de la même
+// catégorie. "depend-de-rate" ne doit jamais démarrer (sa dépendance a
+// échoué) ; "sans-rapport" doit, elle, tourner jusqu'au bout.
+func TestRunContinueOnErrorRunsIndependentSteps(t *testing.T) {
+	reg := NewRegistry(nil)
+	var aDemarre int32
+
+	echoue := errors.New("échec simulé")
+	addStep(reg, "rate", nil, func(ctx context.Context, d Results) (any, error) {
+		return nil, echoue
+	})
+	addStep(reg, "depend-de-rate", []string{"rate"}, func(ctx context.Context, d Results) (any, error) {
+		atomic.AddInt32(&aDemarre, 1)
+		return nil, nil
+	})
+	addStep(reg, "sans-rapport", nil, func(ctx context.Context, d Results) (any, error) {
+		atomic.AddInt32(&aDemarre, 1)
+		return "fait", nil
+	})
+
+	resultats, err := reg.Run(context.Background(), reg.Names(), Options{Concurrency: 2, ContinueOnError: true})
+	if err == nil {
+		t.Fatal("Run : attendu une erreur agrégée, les échecs ne doivent pas disparaître silencieusement")
+	}
+	if !errors.Is(err, echoue) {
+		t.Fatalf("erreur attendue enveloppant %v, obtenu %v", echoue, err)
+	}
+	if resultats["sans-rapport"] != "fait" {
+		t.Fatalf("« sans-rapport » aurait dû s'exécuter malgré l'échec de « rate » ; résultats = %v", resultats)
+	}
+	if _, ran := resultats["depend-de-rate"]; ran {
+		t.Fatal("« depend-de-rate » n'aurait jamais dû s'exécuter : sa dépendance a échoué")
+	}
+}
+
+// TestRunContinueOnErrorDoesNotCancelSiblings : la garantie qui distingue
+// ContinueOnError de errgroup.WithContext tout seul — un échec ne doit PAS
+// annuler le ctx que voient les étapes indépendantes déjà en vol : sans
+// stepCtx (voir Run), toute étape encore active au moment de l'échec
+// verrait son propre ctx.Err() non-nil et échouerait en cascade.
+func TestRunContinueOnErrorDoesNotCancelSiblings(t *testing.T) {
+	reg := NewRegistry(nil)
+	var longueVitAnnulee int32
+
+	addStep(reg, "rate-vite", nil, func(ctx context.Context, d Results) (any, error) {
+		return nil, errors.New("échec immédiat")
+	})
+	addStep(reg, "longue", nil, func(ctx context.Context, d Results) (any, error) {
+		time.Sleep(50 * time.Millisecond)
+		if ctx.Err() != nil {
+			atomic.AddInt32(&longueVitAnnulee, 1)
+		}
+		return nil, nil
+	})
+
+	if _, err := reg.Run(context.Background(), reg.Names(), Options{Concurrency: 2, ContinueOnError: true}); err == nil {
+		t.Fatal("Run : attendu une erreur agrégée")
+	}
+	if longueVitAnnulee != 0 {
+		t.Fatal("« longue » a vu son contexte annulé par l'échec de « rate-vite » : " +
+			"ContinueOnError doit isoler les étapes indépendantes, pas seulement empêcher leurs dépendantes")
+	}
+}
