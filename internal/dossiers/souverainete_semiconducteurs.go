@@ -78,9 +78,9 @@ var factsSemiConducteurs = []Fact{
 	{ID: "ccomptes-semi-conditionnalite", Dossier: dossierSouv, Section: "CONTROLE", Theme: themeSemi, Type: "EVALUATION", Date: "2026-04-21",
 		Author: authorCCSemi, Title: "Des aides peu conditionnées à la production nationale et à l'emploi",
 		Finding: "À la différence des États-Unis ou du Japon, les soutiens publics français se caractérisent selon la Cour par une faible " +
-			"conditionnalité en terms de production nationale et d'emploi, et ne prennent quasiment jamais la forme d'avances remboursables.",
+			"conditionnalité en termes de production nationale et d'emploi, et ne prennent quasiment jamais la forme d'avances remboursables.",
 		URL: urlCCSemi, Page: "9", Quality: "OFFICIEL",
-		Expected: []string{"une faible conditionnalité en terms de production nationale et d'emploi"}},
+		Expected: []string{"une faible conditionnalité en termes de production nationale et d'emploi"}},
 	{ID: "ccomptes-liberty-versements", Dossier: dossierSouv, Section: "CONTROLE", Theme: themeSemi, Type: "EVALUATION", Date: "2026-04-21",
 		Author: authorCCSemi, Group: groupST, Title: "Projet Liberty : 574 M€ versés à STMicroelectronics, rien à GlobalFoundries",
 		Finding: "Sur 2,9 Md€ de subventions accordées (1,8 Md€ pour GlobalFoundries, 1,1 Md€ pour STMicroelectronics), 574 M€ avaient été versés " +

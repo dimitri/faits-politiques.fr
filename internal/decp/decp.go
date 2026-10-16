@@ -5,6 +5,7 @@ package decp
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"io"
 	"os"
@@ -37,7 +38,37 @@ var SourceDECP = archive.Source{
 		"statistiques-doublons-sources.parquet) — dédoublonnés à l'ingestion.",
 }
 
-const decpURL = "https://static.data.gouv.fr/resources/donnees-essentielles-de-la-commande-publique-consolidees-format-tabulaire/20260915-051620/decp.parquet"
+const decpDataset = "https://www.data.gouv.fr/api/1/datasets/donnees-essentielles-de-la-commande-publique-consolidees-format-tabulaire/"
+
+// urlDECP trouve le fichier Parquet dans les métadonnées du jeu : son adresse
+// change à CHAQUE republication (quotidienne) — une adresse figée finit par
+// renvoyer 404 dès que le producteur republie sous un nouveau chemin daté.
+func urlDECP(ctx context.Context, arch *archive.Archive, srcID, runID int64) (string, error) {
+	f, err := arch.Fetch(ctx, srcID, runID, decpDataset, ".json")
+	if err != nil {
+		return "", err
+	}
+	b, err := os.ReadFile(f.Path)
+	if err != nil {
+		return "", err
+	}
+	var jeu struct {
+		Resources []struct {
+			Title  string `json:"title"`
+			Format string `json:"format"`
+			URL    string `json:"url"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal(b, &jeu); err != nil {
+		return "", err
+	}
+	for _, r := range jeu.Resources {
+		if r.Title == "decp.parquet" && r.Format == "parquet" {
+			return r.URL, nil
+		}
+	}
+	return "", fmt.Errorf("decp.parquet introuvable dans le jeu DECP")
+}
 
 // decpLigne : seules les colonnes utiles à core.public_contract, sur les 60
 // que porte le fichier — parquet-go ne lit que celles déclarées ici.
@@ -76,6 +107,10 @@ func IngestDECP(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return err
 	}
 
+	decpURL, err := urlDECP(ctx, arch, srcID, runID)
+	if err != nil {
+		return fail(err)
+	}
 	f, err := arch.Fetch(ctx, srcID, runID, decpURL, ".parquet")
 	if err != nil {
 		return fail(err)

@@ -3,6 +3,7 @@ package sante
 import (
 	"bufio"
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 	"strings"
@@ -31,7 +32,37 @@ var SourceRPPS = archive.Source{
 		"lignes, internal/communes/ssmsi.go).",
 }
 
-const rppsURL = "https://static.data.gouv.fr/resources/annuaire-sante-extractions-des-donnees-en-libre-acces-des-professionnels-intervenant-dans-le-systeme-de-sante-rpps/20260915-114421/ps-libreacces-personne-activite.txt"
+const rppsDataset = "https://www.data.gouv.fr/api/1/datasets/annuaire-sante-extractions-des-donnees-en-libre-acces-des-professionnels-intervenant-dans-le-systeme-de-sante-rpps/"
+
+// urlRPPS trouve le fichier dans les métadonnées du jeu : son adresse change
+// à CHAQUE republication (quotidienne) — une adresse figée finit par renvoyer
+// 404 dès que le producteur republie sous un nouveau chemin daté.
+func urlRPPS(ctx context.Context, arch *archive.Archive, srcID, runID int64) (string, error) {
+	f, err := arch.Fetch(ctx, srcID, runID, rppsDataset, ".json")
+	if err != nil {
+		return "", err
+	}
+	b, err := os.ReadFile(f.Path)
+	if err != nil {
+		return "", err
+	}
+	var jeu struct {
+		Resources []struct {
+			Title  string `json:"title"`
+			Format string `json:"format"`
+			URL    string `json:"url"`
+		} `json:"resources"`
+	}
+	if err := json.Unmarshal(b, &jeu); err != nil {
+		return "", err
+	}
+	for _, r := range jeu.Resources {
+		if r.Title == "ps-libreacces-personne-activite.txt" && r.Format == "txt" {
+			return r.URL, nil
+		}
+	}
+	return "", fmt.Errorf("ps-libreacces-personne-activite.txt introuvable dans le jeu RPPS")
+}
 
 // Position des colonnes dans l'en-tête du fichier plat, vérifiée sur un
 // extrait réel plutôt que supposée depuis la documentation.
@@ -72,6 +103,10 @@ func IngestRPPS(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 		return err
 	}
 
+	rppsURL, err := urlRPPS(ctx, arch, srcID, runID)
+	if err != nil {
+		return fail(err)
+	}
 	f, err := arch.Fetch(ctx, srcID, runID, rppsURL, ".txt")
 	if err != nil {
 		return fail(err)
