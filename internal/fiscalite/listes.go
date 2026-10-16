@@ -18,7 +18,7 @@ var SourceListeUE = archive.Source{
 	Publisher: "Commission européenne, DG TAXUD (d'après les conclusions du Conseil)", Tier: "PRIMARY_OFFICIAL",
 	License:     "Conditions d'utilisation du site Europa : réutilisation avec mention de la source",
 	ReuseClass:  "ATTRIBUTION",
-	Attribution: "Source : Commission européenne, EU list of non-cooperative jurisdictions for tax purposes (mise à jour du 17 février 2026)",
+	Attribution: "Source : Commission européenne, EU list of non-cooperative jurisdictions for tax purposes (mise à jour du 9 octobre 2026)",
 	Cadence:     "semestrielle (février, octobre)",
 	Notes: "La liste ne peut contenir aucun État membre : les critères du Conseil servent à examiner les " +
 		"juridictions tierces. Composition transcrite du document scellé, version par version, et " +
@@ -26,7 +26,11 @@ var SourceListeUE = archive.Source{
 		"17 octobre 2023, absente de la table.",
 }
 
-const listeUEURL = "https://taxation-customs.ec.europa.eu/document/download/3ceac073-5184-46a0-864a-b3038e4d9a6b_en?filename=eu_list_update_17-02-2026.pdf"
+// Adresse de la version courante : la Commission publie chaque mise à jour
+// sous un nouvel identifiant de document (pas un chemin stable comme
+// data.gouv.fr) — remise à jour manuellement à chaque semestre, en même
+// temps qu'une entrée est ajoutée à euAnnexI ci-dessous.
+const listeUEURL = "https://taxation-customs.ec.europa.eu/document/download/b39b071c-93e0-4cf2-9f64-2fad3b8e599f_en?filename=Evolution%20of%20EU%20List-09-10-2026.pdf"
 
 // euAnnexI : l'annexe I (liste noire) de chaque version, avec le nombre de
 // juridictions que le document annonce. Transcrite à la main : le PDF est une
@@ -61,6 +65,7 @@ var euAnnexI = []struct {
 	{"2025-02-18", 11, []string{"American Samoa", "Anguilla", "Fiji", "Guam", "Palau", "Panama", "Russian Federation", "Samoa", "Trinidad and Tobago", "US Virgin Islands", "Vanuatu"}},
 	{"2025-10-10", 11, []string{"American Samoa", "Anguilla", "Fiji", "Guam", "Palau", "Panama", "Russian Federation", "Samoa", "Trinidad and Tobago", "US Virgin Islands", "Vanuatu"}},
 	{"2026-02-17", 10, []string{"American Samoa", "Anguilla", "Guam", "Palau", "Panama", "Russian Federation", "Turks and Caicos Islands", "US Virgin Islands", "Vanuatu", "Viet Nam"}},
+	{"2026-10-09", 8, []string{"American Samoa", "Anguilla", "Guam", "Palau", "Russian Federation", "Turks and Caicos Islands", "US Virgin Islands", "Vanuatu"}},
 }
 
 var (
