@@ -103,6 +103,25 @@ func (f *stream) start(ctx context.Context, pool *pgxpool.Pool, wg *sync.WaitGro
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
+		// Vu une fois (pgx/pgconn, « close of closed channel »), jamais
+		// reproduit sur une relance dans un environnement stable — la
+		// panique a coïncidé avec une instabilité réseau externe au
+		// processus, pas une erreur SQL. Un recover ici échoue CE flux
+		// seul (f.err, remonté normalement par l'appelant) plutôt que tout
+		// le programme : les trois autres tables restent chargées, et
+		// l'appelant peut réessayer sans reperdre une traversée entière de
+		// l'archive.
+		defer func() {
+			if r := recover(); r != nil {
+				f.err = fmt.Errorf("panique dans le flux COPY vers %s : %v", f.table.Sanitize(), r)
+				// Même raison que les deux autres sorties en erreur de cette
+				// fonction : si la panique survient pendant que le lecteur de
+				// l'archive pousse encore des lignes, lui seul vide le canal
+				// désormais sans lecteur le bloquerait indéfiniment.
+				for range f.rows {
+				}
+			}
+		}()
 		conn, err := pool.Acquire(ctx)
 		if err != nil {
 			f.err = err
@@ -136,10 +155,12 @@ type summaryJO struct {
 }
 
 // IngestComplet télécharge la base complète du Journal officiel, la scelle, et
-// la charge en entier dans le schéma jo.
+// fusionne son contenu dans le schéma jo.
 //
-// Idempotent : les tables sont vidées avant chargement, et l'archive n'est
-// téléchargée qu'une fois — archive.Fetch la reconnaît à son empreinte.
+// Idempotent : un acte déjà présent (chargé par ce connecteur ou par « jorf »,
+// la fenêtre récente de la chaîne par défaut) n'est jamais réécrit ni
+// dupliqué — voir le commentaire sur jo_staging plus bas. L'archive, elle,
+// n'est téléchargée qu'une fois : archive.Fetch la reconnaît à son empreinte.
 func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, Source)
 	if err != nil {
@@ -159,37 +180,69 @@ func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		return fail(err)
 	}
 
-	// TOUT CE QUI VÉRIFIE PART LE TEMPS DU CHARGEMENT.
+	// COPY ne sait pas fusionner, seulement ajouter : rejouer ce chargement
+	// directement dans jo.sommaire/jo.lien/jo.texte/jo.bloc violerait leur clé
+	// primaire dès la seconde ligne déjà vue. Une version antérieure vidait
+	// donc les quatre tables avant de les remplir (TRUNCATE) — mais cette
+	// archive est un export FIGÉ (fullArchiveURL, 13 juillet 2025 pour la
+	// version actuelle), alors que jo.texte reçoit aussi, en continu, les
+	// actes récents du connecteur « jorf » (chaîne par défaut, fenêtre
+	// glissante des 60 derniers jours). Vider puis recharger depuis l'archive
+	// figée effacerait ces actes récents sans les remplacer — une régression
+	// de couverture, pas un chargement complet — et, de toute façon, Postgres
+	// refuse désormais ce TRUNCATE : cinq tables hors du schéma jo (dont
+	// ref.fait_dossier, core.dossier_promulgation) portent une clé étrangère
+	// vers jo.texte, ajoutée après que ce TRUNCATE a été écrit.
 	//
-	// La clé étrangère, parce que les quatre tables sont remplies en parallèle
-	// et qu'un bloc peut arriver avant son acte : la vérifier au fil de l'eau
-	// imposerait un ordre entre les flux, donc de les sérialiser. La vérifier à
-	// la fin coûte quatre secondes et contrôle tout d'un coup.
-	//
-	// Les index de recherche, eux, n'ont rien à retirer : ils ne sont pas sur
-	// ces tables. Ils portent sur des VUES MATÉRIALISÉES, rafraîchies après le
-	// chargement (migration 0063). C'est ce qui permet à COPY d'écrire à plein
-	// débit sans qu'aucun index ne soit maintenu ligne à ligne — mesuré, un GIN
-	// présent pendant l'insertion coûte 8 % de plus que le même construit en
-	// bloc à la fin.
+	// D'où jo_staging (migration 0206) : les quatre flux COPY y écrivent
+	// exactement comme avant, sans contrainte à retirer ni ligne à perdre,
+	// puis une fusion par INSERT ... SELECT ... WHERE NOT EXISTS n'ajoute
+	// dans les vraies tables que ce qui n'y est pas déjà — jamais un TRUNCATE
+	// sur une table réelle, jamais une ligne récente écrasée.
 	for _, q := range []string{
-		`ALTER TABLE jo.bloc DROP CONSTRAINT IF EXISTS bloc_texte_fk`,
-		`TRUNCATE jo.sommaire, jo.lien, jo.texte, jo.bloc`,
+		`TRUNCATE jo_staging.sommaire, jo_staging.lien, jo_staging.texte, jo_staging.bloc`,
 	} {
 		if _, err := pool.Exec(ctx, q); err != nil {
 			return fail(err)
 		}
 	}
 
-	stats, err := CopierArchive(ctx, pool, f.Path, "jo")
+	stats, err := CopierArchive(ctx, pool, f.Path, "jo_staging")
 	if err != nil {
 		return fail(err)
 	}
 
-	if _, err := pool.Exec(ctx, `
-		ALTER TABLE jo.bloc ADD CONSTRAINT bloc_texte_fk
-		  FOREIGN KEY (texte_id) REFERENCES jo.texte(id) ON DELETE CASCADE`); err != nil {
-		return fail(fmt.Errorf("remise de la clé étrangère : %w", err))
+	// Ordre : sommaire et texte d'abord (rien n'y pointe), puis lien et bloc,
+	// qui référencent texte — bloc par une clé étrangère réelle, toujours en
+	// place (elle n'a jamais été retirée : contrairement à l'ancien chargement
+	// direct, celui-ci n'écrit dans jo.bloc qu'après que jo.texte contient déjà
+	// l'acte visé).
+	for _, q := range []string{
+		`INSERT INTO jo.sommaire (id, nature, titre, num, date_publi)
+		   SELECT s.id, s.nature, s.titre, s.num, s.date_publi
+		     FROM jo_staging.sommaire s
+		    WHERE NOT EXISTS (SELECT 1 FROM jo.sommaire r WHERE r.id = s.id)`,
+		`INSERT INTO jo.texte (id, nature, num, nor, date_publi, date_texte,
+		                       titre, titre_complet, ministere, origine_publi)
+		   SELECT s.id, s.nature, s.num, s.nor, s.date_publi, s.date_texte,
+		          s.titre, s.titre_complet, s.ministere, s.origine_publi
+		     FROM jo_staging.texte s
+		    WHERE NOT EXISTS (SELECT 1 FROM jo.texte r WHERE r.id = s.id)`,
+		`INSERT INTO jo.lien (sommaire_id, texte_id, titre, ordre)
+		   SELECT s.sommaire_id, s.texte_id, s.titre, s.ordre
+		     FROM jo_staging.lien s
+		    WHERE NOT EXISTS (SELECT 1 FROM jo.lien r
+		                       WHERE r.sommaire_id = s.sommaire_id
+		                         AND r.texte_id = s.texte_id AND r.ordre = s.ordre)`,
+		`INSERT INTO jo.bloc (texte_id, ordre, section, article_id, article_num, contenu)
+		   SELECT s.texte_id, s.ordre, s.section, s.article_id, s.article_num, s.contenu
+		     FROM jo_staging.bloc s
+		    WHERE NOT EXISTS (SELECT 1 FROM jo.bloc r
+		                       WHERE r.texte_id = s.texte_id AND r.ordre = s.ordre)`,
+	} {
+		if _, err := pool.Exec(ctx, q); err != nil {
+			return fail(fmt.Errorf("fusion depuis jo_staging : %w", err))
+		}
 	}
 
 	// Le vecteur de recherche est calculé ici, en rafraîchissant les vues.
