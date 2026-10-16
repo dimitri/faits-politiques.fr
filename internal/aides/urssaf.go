@@ -183,12 +183,3 @@ func IngestUrssafTaille(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	fmt.Printf("  %-28s %5d exonérations  %4d lignes d'emploi\n", SourceUrssafTaille.Slug, len(rowsExo), len(rowsEmp))
 	return nil
 }
-
-// Ingest charge la taille des entreprises : URSSAF puis SIRENE. SIRENE pèse
-// près d'un gigaoctet : il se charge aussi seul (-only=sirene).
-func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
-	if err := IngestUrssafTaille(ctx, pool, arch); err != nil {
-		return err
-	}
-	return IngestSirene(ctx, pool, arch)
-}

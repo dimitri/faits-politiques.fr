@@ -452,10 +452,17 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return paie.Ingest(ctx, pool, arch)
 		}},
-	{Nom: "aides", Categorie: CategorieBudget, Description: "aides aux entreprises : taille des bénéficiaires",
-		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			return aides.Ingest(ctx, pool, arch)
-		}},
+	// Pas d'entrée « aides » distincte : elle appelait IngestUrssafTaille puis
+	// IngestSirene, strictement le même travail que « aides-urssaf » et
+	// « sirene » ci-dessous, déjà inscrites séparément au catalogue. Les deux
+	// coexistaient (découvert en octobre 2026) : une « fpctl ingest full »
+	// les lance dans la même vague, deux exécutions concurrentes de
+	// IngestUrssafTaille se disputent alors les mêmes lignes de
+	// core.exoneration_tranche (clé (annee, tranche, code_categorie), pas
+	// source_id) — DELETE puis COPY sans verrou entre les deux, l'une des
+	// deux viole la contrainte de clé primaire à la validation. Supprimer le
+	// doublon plutôt que la fusionner avec une dépendance : rien d'autre ne
+	// nommait « aides ».
 	{Nom: "aides-urssaf", Categorie: CategorieBudget, Description: "exonérations URSSAF par taille d'entreprise",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return aides.IngestUrssafTaille(ctx, pool, arch)
