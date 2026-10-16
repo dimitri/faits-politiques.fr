@@ -31,6 +31,11 @@ func Notice(msg string, args ...any) { slog.Default().Log(nil, LevelNotice, msg,
 // Trace is the firehose.
 func Trace(msg string, args ...any) { slog.Default().Log(nil, LevelTrace, msg, args...) }
 
+// Warn logs at warning level: something failed, but the caller is carrying
+// on rather than aborting — see pipeline.Options.ContinueOnError, the first
+// caller that needed a non-fatal level between Notice and Fatal.
+func Warn(msg string, args ...any) { slog.Default().Log(nil, LevelWarn, msg, args...) }
+
 // Fatal logs and exits non-zero. The exit is the point: a caller that
 // wanted to carry on would have used Error.
 func Fatal(msg string, args ...any) {

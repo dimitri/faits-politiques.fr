@@ -12,6 +12,7 @@ package ingest
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -263,20 +264,27 @@ func RunSources(ctx context.Context, rawDir, migDir string, noms []string, opts 
 		return err
 	}
 
-	if _, err := reg.Run(ctx, noms, opts...); err != nil {
+	_, runErr := reg.Run(ctx, noms, toleranceAuxPannes(opts))
+	if dryRun {
+		return runErr
+	}
+	// raw -> core est fait (pour ce qui a réussi — voir ContinueOnError
+	// ci-dessus) ; core -> mv avant de rendre la main, jamais après, et
+	// jamais sauté non plus à cause d'un échec partiel : ce qui a réussi
+	// mérite ses matvues à jour tout autant qu'une chaîne entièrement
+	// propre. fpctl build appelle sitegen.RunSections juste après
+	// RunSources : sans cette étape ICI, une page qui lit une matvue
+	// (14 fichiers de internal/sitegen le font) verrait un raw -> core tout
+	// frais à côté d'un mv.* resté sur l'exécution précédente — le même
+	// bogue que RunAll évite déjà en bout de chaîne complète, mais dont
+	// fpctl build n'avait jamais hérité.
+	if err := actualiserMatviews(ctx); err != nil {
+		if runErr != nil {
+			return fmt.Errorf("%w (et : %s)", runErr, err)
+		}
 		return err
 	}
-	if dryRun {
-		return nil
-	}
-	// raw -> core est fait ; core -> mv avant de rendre la main, jamais
-	// après. fpctl build appelle sitegen.RunSections juste après RunSources :
-	// sans cette étape ICI, une page qui lit une matvue (14 fichiers de
-	// internal/sitegen le font) verrait un raw -> core tout frais à côté
-	// d'un mv.* resté sur l'exécution précédente — le même bogue que
-	// RunAll évite déjà en bout de chaîne complète, mais dont fpctl build
-	// n'avait jamais hérité.
-	return actualiserMatviews(ctx)
+	return runErr
 }
 
 // downloadTargetsFor réunit les cibles de téléchargement des connecteurs
@@ -316,6 +324,23 @@ func downloadTargetsFor(noms []string) []archive.DownloadTarget {
 		}
 	}
 	return out
+}
+
+// toleranceAuxPannes : les options passées à Registry.Run pour un graphe
+// d'INGESTION — RunSources, RunCategorie, RunAll, jamais internal/sitegen,
+// qui construit et exécute ses propres registres séparément et doit garder
+// le défaut strict (une page qui dépend vraiment d'une autre ne doit jamais
+// tourner sur un Results partiel). Une source externe en panne (un site qui
+// 404, une API qui time out) ne fait ainsi plus perdre les dizaines d'autres
+// sources, sans rapport, de la même catégorie ou de la chaîne complète —
+// voir pipeline.Options.ContinueOnError.
+func toleranceAuxPannes(opts []pipeline.Options) pipeline.Options {
+	var opt pipeline.Options
+	if len(opts) > 0 {
+		opt = opts[0]
+	}
+	opt.ContinueOnError = true
+	return opt
 }
 
 // concurrenceDuPool : la taille du pool Postgres que contexte doit ouvrir —
@@ -487,26 +512,29 @@ func RunCategorie(ctx context.Context, rawDir, migDir, categorie string, opts ..
 			return err
 		}
 	}
+	var runErrs []error
 	if regSocle != nil {
-		if _, err := regSocle.Run(ctx, socle, opts...); err != nil {
-			return err
+		if _, err := regSocle.Run(ctx, socle, toleranceAuxPannes(opts)); err != nil {
+			runErrs = append(runErrs, err)
 		}
 	}
 	if regReste != nil {
-		if _, err := regReste.Run(ctx, reste, opts...); err != nil {
-			return err
+		if _, err := regReste.Run(ctx, reste, toleranceAuxPannes(opts)); err != nil {
+			runErrs = append(runErrs, err)
 		}
 	}
 	if dryRun {
-		return nil
+		return errors.Join(runErrs...)
 	}
-	// raw -> core est fait pour toute la catégorie ; core -> mv avant de
-	// rendre la main, jamais après — voir le même choix dans RunSources.
+	// raw -> core est fait pour toute la catégorie (ce qui a réussi — voir
+	// ContinueOnError dans toleranceAuxPannes) ; core -> mv avant de rendre
+	// la main, jamais après, et jamais sauté à cause d'un échec partiel non
+	// plus — voir le même choix dans RunSources.
 	if err := actualiserMatviews(ctx); err != nil {
-		return err
+		runErrs = append(runErrs, err)
 	}
 	logs.Notice(fmt.Sprintf("category %s done in %s", categorie, time.Since(start).Round(time.Second)))
-	return nil
+	return errors.Join(runErrs...)
 }
 
 // dependenciesRunAll : dépendances RÉELLES entre sources hors socle,
@@ -701,20 +729,24 @@ func RunAll(ctx context.Context, rawDir, migDir string, opts ...pipeline.Options
 		return err
 	}
 
-	if _, err := reg.Run(ctx, reg.Names(), opts...); err != nil {
-		return err
-	}
+	_, runErr := reg.Run(ctx, reg.Names(), toleranceAuxPannes(opts))
 	if dryRun {
-		return nil
+		return runErr
 	}
 	// Même logique qu'ailleurs (voir RunSources) : core -> mv avant de
-	// rendre la main, jamais après.
+	// rendre la main, jamais après, et jamais sauté à cause d'un échec
+	// partiel — avec des dizaines de sources dans la chaîne complète,
+	// « une a échoué » ne veut jamais dire « aucune des autres ne mérite ses
+	// matvues à jour ».
 	if err := actualiserMatviews(ctx); err != nil {
+		if runErr != nil {
+			return fmt.Errorf("%w (et : %s)", runErr, err)
+		}
 		return err
 	}
 
 	logs.Notice(fmt.Sprintf("done in %s", time.Since(start).Round(time.Second)))
-	return nil
+	return runErr
 }
 
 // --- ce que RunAll et le catalogue partagent : les blocs multi-étapes du
