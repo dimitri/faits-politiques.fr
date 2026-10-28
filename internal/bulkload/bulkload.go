@@ -35,7 +35,26 @@ import (
 // temps de CE chargement précis — un compromis correct au vu du gain
 // mesuré, et limité à la durée du chargement, pas à celle du connecteur
 // entier.
+//
+// UN INTERBLOCAGE QUE POSTGRES NE VOIT PAS. Une FK vers raw.source (presque
+// toutes les tables en portent une) fait prendre au DROP CONSTRAINT un verrou
+// ACCESS EXCLUSIVE sur raw.source aussi. Or chaque connecteur écrit sa
+// provenance (raw.source, raw.retrieval) par une AUTRE connexion du pool,
+// pendant que sa propre transaction reste ouverte : le DROP attend ceux qui
+// tiennent déjà un verrou sur raw.source, et tout nouvel arrivant se range
+// derrière lui — y compris la connexion dont dépend la transaction qui retient
+// le verrou. Chaque côté attend l'autre, l'un dans Postgres, l'autre dans le
+// client Go : aucun détecteur d'interblocage ne voit le cycle. Constaté le
+// 16 octobre 2026 : `fpctl ingest full -j 12` figé douze jours, onze
+// sessions bloquées sur ALTER TABLE ref.finess_etablissement. D'où ce délai :
+// dix minutes couvrent largement l'attente légitime derrière un autre
+// chargement (quelques minutes au pire), et transforment l'interblocage en
+// échec nommé — un WARN avec ContinueOnError — que la reprise (fpctl ingest
+// <source>) règle, au lieu d'un arrêt silencieux sans fin.
 func WithoutFKConstraints(ctx context.Context, tx pgx.Tx, table string, fn func() error) error {
+	if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '10min'`); err != nil {
+		return fmt.Errorf("délai de verrou pour %s : %w", table, err)
+	}
 	rows, err := tx.Query(ctx, `
 		SELECT conname, pg_get_constraintdef(oid)
 		  FROM pg_constraint
