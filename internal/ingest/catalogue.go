@@ -251,6 +251,10 @@ var catalogue = []Source{
 			}
 			return presidentielle.IngestTurnout(ctx, pool, arch)
 		}},
+	{Nom: "parrainages", Categorie: CategorieParlement, Description: "parrainages des candidats à la présidentielle (Conseil constitutionnel : 2017, 2022, et 2027 dès sa publication)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return presidentielle.IngestParrainages(ctx, pool, arch)
+		}},
 
 	// --- collectivites : communes, intercommunalités, élections locales,
 	// finances locales.
