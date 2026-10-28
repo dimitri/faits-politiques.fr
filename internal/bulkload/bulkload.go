@@ -36,6 +36,14 @@ import (
 // mesuré, et limité à la durée du chargement, pas à celle du connecteur
 // entier.
 //
+// LES FK VERS raw.source ET raw.document RESTENT EN PLACE. Presque toutes les
+// tables en portent une, et la table PARENTE d'un DROP CONSTRAINT prend elle
+// aussi un verrou ACCESS EXCLUSIVE — ici sur une table que TOUS les
+// connecteurs touchent. Le coût de les laisser est faible (une recherche dans
+// une table de ~100 lignes, plan en cache) ; le coût de les retirer est
+// l'interblocage ci-dessous. Les autres FK (vers core.*, ref.*) se retirent
+// comme avant : leurs tables parentes ne sont pas partagées par tous.
+//
 // UN INTERBLOCAGE QUE POSTGRES NE VOIT PAS. Une FK vers raw.source (presque
 // toutes les tables en portent une) fait prendre au DROP CONSTRAINT un verrou
 // ACCESS EXCLUSIVE sur raw.source aussi. Or chaque connecteur écrit sa
@@ -58,7 +66,8 @@ func WithoutFKConstraints(ctx context.Context, tx pgx.Tx, table string, fn func(
 	rows, err := tx.Query(ctx, `
 		SELECT conname, pg_get_constraintdef(oid)
 		  FROM pg_constraint
-		 WHERE conrelid = $1::regclass AND contype = 'f'`, table)
+		 WHERE conrelid = $1::regclass AND contype = 'f'
+		   AND confrelid NOT IN ('raw.source'::regclass, 'raw.document'::regclass)`, table)
 	if err != nil {
 		return fmt.Errorf("contraintes FK de %s : %w", table, err)
 	}
