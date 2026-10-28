@@ -33,12 +33,17 @@ var SourceDREES = archive.Source{
 }
 
 type dreesRow struct {
-	Annee     string   `json:"annee"`
-	PsNiveau  string   `json:"ps_niveau"`
-	PsCode    string   `json:"ps_code"`
-	PsLib     string   `json:"ps_lib"`
-	Risque    string   `json:"risque"`
-	NomRegime string   `json:"nom_regime"`
+	Annee     string `json:"annee"`
+	PsNiveau  string `json:"ps_niveau"`
+	PsCode    string `json:"ps_code"`
+	PsLib     string `json:"ps_lib"`
+	Risque    string `json:"risque"`
+	NomRegime string `json:"nom_regime"`
+	// RegimeNom : le même champ sous son nom actuel. La DREES l'a renommé
+	// (nom_regime -> regime_nom) entre le 16 et le 28 octobre 2026 sans rien
+	// annoncer ; décodé sous l'ancien nom seul, le régime de CHAQUE ligne devient
+	// vide, la clé de fusion s'effondre et 4 386 lignes entrent en collision.
+	RegimeNom string   `json:"regime_nom"`
 	SiNiveau  string   `json:"si_niveau"`
 	SiCode    string   `json:"si_code"`
 	SiNom     string   `json:"si_nom"`
@@ -94,6 +99,15 @@ func IngestProtectionSociale(ctx context.Context, pool *pgxpool.Pool, arch *arch
 		sin, err := strconv.Atoi(l.SiNiveau)
 		if err != nil {
 			return fail(fmt.Errorf("DREES : si_niveau illisible %q", l.SiNiveau))
+		}
+		if l.NomRegime == "" {
+			l.NomRegime = l.RegimeNom
+		}
+		if l.NomRegime == "" {
+			// Un régime vide n'existe pas dans ce jeu : c'est un champ renommé ou
+			// retiré. Mieux vaut échouer ici, nommément, que laisser la fusion
+			// s'effondrer sur des doublons sans rapport apparent avec la cause.
+			return fail(fmt.Errorf("DREES : régime absent (ligne %s/%s/%s) — le schéma de l'export a changé", l.Annee, l.PsCode, l.SiCode))
 		}
 		if l.Val == nil {
 			// Rien n'est inventé : une valeur absente ne devient pas zéro, la
