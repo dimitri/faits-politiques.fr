@@ -474,15 +474,19 @@ var catalogue = []Source{
 	// déclarée nulle part avant « fpctl ingest
 	// full », qui met pour la première fois ces sources dans la MÊME
 	// vague que sirene sans ordre garanti entre elles.
-	{Nom: "aides-nominatives", Categorie: CategorieBudget, Description: "aides publiées bénéficiaire par bénéficiaire (ADEME, minimis, TAM — SIRENE requis)",
-		Dependances: []string{"sirene"},
+	// Alias, pas un quatrième chargeur : cette entrée appelait elle-même
+	// IngestADEME, IngestMinimis et IngestTAM, c'est-à-dire exactement ce que
+	// font « ademe », « minimis » et « tam » ci-dessous. Une exécution complète
+	// parallèle (fpctl ingest full -j N) lançait donc les deux à la fois sur
+	// core.aide_nominative, et l'un des deux échouait sur la clé primaire
+	// (constaté le 28 octobre 2026 : tam, après 31 minutes, contre sa propre
+	// copie dans ce lot) — le même défaut que l'ancienne entrée « aides » doublon
+	// d'« aides-urssaf » et « sirene ». Même remède que l'alias « macro » : le nom
+	// reste (verify/dette.go le cite, et « fpctl ingest budget aides-nominatives »
+	// continue de tout charger), mais le travail n'existe qu'une fois.
+	{Nom: "aides-nominatives", Categorie: CategorieBudget, Description: "aides publiées bénéficiaire par bénéficiaire (ADEME, minimis, TAM — SIRENE requis) — alias regroupant ademe, minimis et tam",
+		Dependances: []string{"ademe", "minimis", "tam"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			for _, f := range []func(context.Context, *pgxpool.Pool, *archive.Archive) error{
-				aides.IngestADEME, aides.IngestMinimis, aides.IngestTAM} {
-				if err := f(ctx, pool, arch); err != nil {
-					return err
-				}
-			}
 			return nil
 		}},
 	{Nom: "ademe", Categorie: CategorieBudget, Description: "aides ADEME seules",
