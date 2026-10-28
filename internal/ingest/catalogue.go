@@ -153,23 +153,28 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return ingestSenat(ctx, pool, arch, rawDir)
 		}},
-	{Nom: "senat-repertoire", Categorie: CategorieParlement, Description: "répertoire des sénateurs seul",
+	// Les cinq fragments du Sénat ci-dessous déclarent leur place : `ingest full`
+	// les lance avec tout le catalogue, et sans dépendance le répertoire créait
+	// les sénateurs AVANT que normalize ait créé les députés — les fiches des
+	// 1 038 parlementaires passés par les deux chambres se retrouvaient sous un
+	// slug « sen-… » (le rapprochement adoptait la fiche du Sénat).
+	{Nom: "senat-repertoire", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "répertoire des sénateurs seul",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.IngestSenateurs(ctx, pool, arch)
 		}},
-	{Nom: "senat-fusion", Categorie: CategorieParlement, Description: "fusion des fiches de sénateurs seule",
+	{Nom: "senat-fusion", Categorie: CategorieParlement, Dependances: []string{"senat"}, Description: "fusion des fiches de sénateurs seule",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.MergePersons(ctx, pool)
 		}},
-	{Nom: "senat-mandats", Categorie: CategorieParlement, Description: "mandats de sénateurs seuls (recalculés depuis senat_raw)",
+	{Nom: "senat-mandats", Categorie: CategorieParlement, Dependances: []string{"senat"}, Description: "mandats de sénateurs seuls (recalculés depuis senat_raw)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.NormalizeMandates(ctx, pool)
 		}},
-	{Nom: "senat-commissions", Categorie: CategorieParlement, Description: "commissions du Sénat seules",
+	{Nom: "senat-commissions", Categorie: CategorieParlement, Dependances: []string{"senat"}, Description: "commissions du Sénat seules",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.IngestCommissions(ctx, pool, arch)
 		}},
-	{Nom: "senat-presentations", Categorie: CategorieParlement, Description: "présentations des dossiers du Sénat seules",
+	{Nom: "senat-presentations", Categorie: CategorieParlement, Dependances: []string{"senat"}, Description: "présentations des dossiers du Sénat seules",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.NormalizePresentations(ctx, pool)
 		}},
