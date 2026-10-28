@@ -299,8 +299,13 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestCOG(ctx, pool, arch)
 		}},
+	// Le RNE crée une fiche (slug « nom-prénom-hash ») pour chaque élu qu'il ne
+	// connaît pas ; normalize rattrape ensuite par le triplet nom/prénom/naissance
+	// la personne ainsi créée plutôt que d'en créer une — et le député garde le
+	// slug du RNE. D'où normalize AVANT : 1 452 députés avaient un slug haché
+	// quand `ingest full` les a lancés dans l'autre ordre.
 	{Nom: "communes-rne", Categorie: CategorieCollectivites, Description: "chaîne communes, 2/8 : répertoire national des élus (maires)",
-		Dependances: []string{"communes-cog"},
+		Dependances: []string{"communes-cog", "normalize"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestRNE(ctx, pool, arch)
 		}},
@@ -344,7 +349,7 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestCOG(ctx, pool, arch)
 		}},
-	{Nom: "rne", Categorie: CategorieCollectivites, Description: "répertoire national des élus (maires) seul, sans la chaîne (ref.commune déjà en base)",
+	{Nom: "rne", Categorie: CategorieCollectivites, Dependances: []string{"normalize"}, Description: "répertoire national des élus (maires) seul, sans la chaîne (ref.commune déjà en base)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestRNE(ctx, pool, arch)
 		}},
@@ -841,7 +846,10 @@ var catalogue = []Source{
 		}},
 
 	// --- systeme : infrastructure partagée, pas propre à un dossier.
-	{Nom: "media", Categorie: CategorieSysteme, Description: "portraits et logos librement réutilisables",
+	// media crée la fiche d'un candidat qui n'en a pas (ON CONFLICT sur le slug) :
+	// lancé avant normalize, il prenait le slug « marine-le-pen » pour une fiche
+	// vide, et la vraie députée héritait de « marine-le-pen-7e9adbb5 ».
+	{Nom: "media", Categorie: CategorieSysteme, Dependances: []string{"normalize", "carto"}, Description: "portraits et logos librement réutilisables",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return ingestMedia(ctx, pool, arch, "data", "web/media")
 		}},
