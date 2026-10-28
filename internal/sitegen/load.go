@@ -299,6 +299,7 @@ func loadCandidates(path string, persons map[string]*Person) ([]*Candidate, erro
 			OrganizationSlug: get(rec, "organisation_slug"),
 			DateDeclaration:  get(rec, "date_declaration"), SourceURL: get(rec, "source_url"),
 			SourceConsulted: get(rec, "source_consultee"), SiteCampaign: get(rec, "site_campagne"),
+			Note: get(rec, "note"),
 		}
 		if c.Slug == "" {
 			continue

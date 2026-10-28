@@ -23,7 +23,8 @@
 {{if .Cand}}<p class="lede">Candidat déclaré à l'élection présidentielle de 2027 pour
 {{if .Cand.Org}}<a href="{{.Root}}/organisation/{{.Cand.Org.Slug}}/">{{.Cand.Organization}}</a>{{else}}{{.Cand.Organization}}{{end}}{{if .Cand.DateDeclaration}}, déclaré le {{.Cand.DateDeclaration}}{{end}}.
 <span class="small">Source&nbsp;: <a href="{{.Cand.SourceURL}}">déclaration publique</a>,
-consultée le {{.Cand.SourceConsulted}}.</span></p>{{end}}
+consultée le {{.Cand.SourceConsulted}}.</span></p>
+{{if .Cand.Note}}<p class="small muted"><strong>À savoir&nbsp;:</strong> {{.Cand.Note}}</p>{{end}}{{end}}
 
 {{if .Cand}}
 {{/* Ce que le site sait d'un candidat qui n'a jamais siégé au Parlement. Sans
