@@ -9,6 +9,8 @@
 package europe
 
 import (
+	"bufio"
+	"bytes"
 	"compress/gzip"
 	"context"
 	"encoding/csv"
@@ -546,6 +548,39 @@ func loadNominalVotes(ctx context.Context, pool *pgxpool.Pool, path string,
 	}
 	defer gz.Close()
 
+	// La liste des colonnes vient de l'EN-TÊTE du fichier, pas d'un nombre figé :
+	// la publication du 24 octobre 2026 a ajouté trois colonnes à member_votes
+	// (group_short_label, national_party_id, national_party_short_label) et le
+	// COPY à cinq colonnes échouait sur « données supplémentaires après la
+	// dernière colonne attendue ». Les cinq colonnes connues sont exigées ; toute
+	// autre est chargée telle quelle dans une colonne texte sans emploi, pour que
+	// le flux puisse continuer d'aller directement dans Postgres sans passer par Go.
+	br := bufio.NewReaderSize(gz, 1<<20)
+	head, err := br.Peek(4096)
+	if err != nil && err != io.EOF && err != bufio.ErrBufferFull {
+		return 0, err
+	}
+	if i := bytes.IndexByte(head, '\n'); i >= 0 {
+		head = head[:i]
+	}
+	var copyCols, extraDefs []string
+	known := map[string]bool{"vote_id": false, "member_id": false, "position": false, "country_code": false, "group_code": false}
+	for i, name := range strings.Split(strings.TrimSpace(string(head)), ",") {
+		if _, ok := known[name]; ok {
+			known[name] = true
+			copyCols = append(copyCols, name)
+			continue
+		}
+		col := fmt.Sprintf("extra_%d", i)
+		copyCols = append(copyCols, col)
+		extraDefs = append(extraDefs, ", "+col+" text")
+	}
+	for name, seen := range known {
+		if !seen {
+			return 0, fmt.Errorf("member_votes.csv.gz : colonne %q absente de l'en-tête (%s) — le schéma du fichier a changé", name, head)
+		}
+	}
+
 	conn, err := pool.Acquire(ctx)
 	if err != nil {
 		return 0, err
@@ -561,7 +596,7 @@ func loadNominalVotes(ctx context.Context, pool *pgxpool.Pool, path string,
 	if _, err := tx.Exec(ctx, `
 		CREATE TEMP TABLE tmp_member_votes (
 			rn bigint GENERATED ALWAYS AS IDENTITY,
-			vote_id text, member_id text, position text, country_code text, group_code text
+			vote_id text, member_id text, position text, country_code text, group_code text`+strings.Join(extraDefs, "")+`
 		) ON COMMIT DROP`); err != nil {
 		return 0, err
 	}
@@ -590,8 +625,8 @@ func loadNominalVotes(ctx context.Context, pool *pgxpool.Pool, path string,
 	// Le COPY protocol lui-même, en direct depuis le flux décompressé — voir
 	// le commentaire de tête : c'est ici que le gain a lieu, pas dans la
 	// requête qui suit.
-	if _, err := conn.Conn().PgConn().CopyFrom(ctx, gz,
-		`COPY tmp_member_votes (vote_id, member_id, position, country_code, group_code)
+	if _, err := conn.Conn().PgConn().CopyFrom(ctx, br,
+		`COPY tmp_member_votes (`+strings.Join(copyCols, ", ")+`)
 		 FROM STDIN WITH (FORMAT csv, HEADER true)`); err != nil {
 		return 0, fmt.Errorf("chargement de member_votes.csv.gz : %w", err)
 	}
