@@ -29,6 +29,25 @@
 # retrait déroge à la règle d'ajout seul énoncée dans une révision antérieure
 # de ce commentaire ; il reste tracé ici et dans l'historique Git du fichier.
 #
+# Révision du 28 octobre 2026 : ajout de trois déclarations manquantes —
+# Gilles Platret (8 octobre, réunion publique « Parlons de la France » à
+# Chalon-sur-Saône, confirmée le lendemain sur la radio locale), Mira Markovic
+# (2 octobre, candidate du Parti animaliste) et Antoine Mikolajczak (candidat
+# d'Équinoxe, désigné au jugement majoritaire par les adhérents ; le mois
+# exact n'est pas établi par la source consultée, d'où l'année seule).
+# Aucun des trois n'a de page Wikipédia en français : pas de portrait.
+#
+# NON TRANCHÉ, volontairement absent : François Ruffin (Debout !). Retiré le
+# 15 octobre comme candidat « seulement à la primaire » ; or la primaire du
+# 11 octobre n'était pas unitaire (LFI et PCF n'y ont pas participé) et il
+# avait annoncé le 12 mai qu'il irait « s'il n'y a pas de primaire ». Les
+# sources divergent (franceinfo le compte parmi les candidats actifs au
+# 22 octobre, Elysée Scope écrit qu'aucune candidature officielle n'est
+# déclarée). À trancher quand une déclaration datée et non conditionnelle
+# existe. Idem pour des candidatures marginales que franceinfo recense et
+# Wikipédia non (Lassalle, Legendre, Branco, Egger, Rohou, Billetdoux,
+# Collovati) : hors du critère « recensée par Wikipédia » retenu plus haut.
+#
 # STATUT : DECLARE = candidature à l'élection annoncée. (PRIMAIRE a existé
 # comme statut transitoire — candidature à une primaire, pas encore à
 # l'élection — le temps que la primaire de la gauche unitaire se tienne ;
@@ -65,3 +84,6 @@ raphael-glucksmann,Glucksmann,Raphaël,Place publique,place-publique,DECLARE,202
 natacha-polony,Polony,Natacha,,,DECLARE,2026-10-14,https://lcp.fr/actualites/natacha-polony-annonce-sa-candidature-a-l-election-presidentielle-443808,2026-10-15,,Natacha Polony
 eric-zemmour,Zemmour,Éric,Reconquête,reconquete,DECLARE,2026-09-17,https://lcp.fr/actualites/presidentielle-2027-eric-zemmour-officialise-sa-candidature-441871,2026-10-15,,Éric Zemmour
 olivier-becht,Becht,Olivier,,,DECLARE,2026-09-24,https://entrevue.fr/presidentielle-2027/presidentielle-2027-olivier-becht-se-lance-au-nom-de-lextreme-centre__trashed/,2026-10-15,,Olivier Becht
+gilles-platret,Platret,Gilles,,,DECLARE,2026-10-08,https://france3-regions.franceinfo.fr/bourgogne-franche-comte/saone-et-loire/chalon-sur-saone/gilles-platret-le-maire-de-chalon-sur-saone-se-declare-candidat-a-l-election-presidentielle-je-m-engage-resolument-vers-2027-3430416.html,2026-10-28,,
+mira-markovic,Markovic,Mira,Parti animaliste,,DECLARE,2026-10-02,https://www.cnews.fr/france/2026-10-02/presidentielle-2027-si-nous-ne-sommes-pas-la-personne-ne-parle-des-animaux,2026-10-28,https://parti-animaliste.fr/mira-markovic-2027,
+antoine-mikolajczak,Mikolajczak,Antoine,Équinoxe,,DECLARE,2026,https://parti-equinoxe.fr/presidentielle-2027/,2026-10-28,https://parti-equinoxe.fr/presidentielle-2027/,
