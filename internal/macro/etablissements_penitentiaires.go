@@ -27,7 +27,7 @@ var SourcePrisonFacilities = archive.Source{
 // Août 2026 au moment de l'écriture ; l'URL suit un format prévisible
 // (année-mois/..._01MMAAAA.xlsx), vérifié directement — pas de découverte
 // automatique du dernier mois publié pour cette version.
-const prisonFacilitiesURL = "https://www.justice.gouv.fr/sites/default/files/2026-08/statistique_etablissements_personnes_ecrouees_01082026.xlsx"
+const prisonFacilitiesURL = "https://www.justice.gouv.fr/sites/default/files/2026-10/statistique_etablissements_personnes_ecrouees_01092026.xlsx"
 
 // tenRegionalDirections : les feuilles Tab14 à Tab23 du classeur
 // mensuel, une par direction interrégionale — vérifié à l'exécution

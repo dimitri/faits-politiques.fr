@@ -39,7 +39,7 @@ var Source = archive.Source{
 		"français, et le fichier complet des votes nominatifs pèse 67 Mo compressés.",
 }
 
-const base = "https://github.com/HowTheyVote/data/releases/download/2026-09-05/"
+const base = "https://github.com/HowTheyVote/data/releases/download/2026-10-24/"
 
 var files = []string{
 	"members", "groups", "group_memberships", "votes",
