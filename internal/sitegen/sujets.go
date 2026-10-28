@@ -150,6 +150,7 @@ var families = []*Family{
 			{ID: "securite-civile", Name: "Sécurité civile : qui finance les pompiers", Doc: "securite-civile-donnees",
 				Pages: []LinkPage{{"La participation des départements, carte et série nationale", "securite-civile/"}}},
 			{ID: "justice", Name: "Justice", Doc: "justice-donnees"},
+			{ID: "candidats-justice", Name: "Les candidats et la justice : condamnations", Doc: "candidats-condamnations"},
 			{ID: "violences-policieres", Name: "Violences policières", Doc: "violences-policieres-donnees"},
 			{ID: "defense", Name: "Défense", Doc: "defense-donnees"},
 		}},

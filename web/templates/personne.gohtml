@@ -24,7 +24,9 @@
 {{if .Cand.Org}}<a href="{{.Root}}/organisation/{{.Cand.Org.Slug}}/">{{.Cand.Organization}}</a>{{else}}{{.Cand.Organization}}{{end}}{{if .Cand.DateDeclaration}}, déclaré le {{.Cand.DateDeclaration}}{{end}}.
 <span class="small">Source&nbsp;: <a href="{{.Cand.SourceURL}}">déclaration publique</a>,
 consultée le {{.Cand.SourceConsulted}}.</span></p>
-{{if .Cand.Note}}<p class="small muted"><strong>À savoir&nbsp;:</strong> {{.Cand.Note}}</p>{{end}}{{end}}
+{{if .Cand.Note}}<p class="small muted"><strong>À savoir&nbsp;:</strong> {{.Cand.Note}}</p>{{end}}
+{{if .Cand.Justice}}<p class="small"><strong>Décisions de justice&nbsp;:</strong> ce dossier en recense au moins une, avec son stade et sa source —
+<a href="{{.Root}}/sujets/candidats-justice/">Les candidats et la justice</a>. L'absence de ce lien sur une autre fiche ne veut pas dire qu'il n'y en a pas&nbsp;: la liste est partielle.</p>{{end}}{{end}}
 
 {{if .Cand}}
 {{/* Ce que le site sait d'un candidat qui n'a jamais siégé au Parlement. Sans

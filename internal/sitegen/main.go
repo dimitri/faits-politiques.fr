@@ -112,6 +112,7 @@ type Candidate struct {
 	// Note : le commentaire éditorial d'une ligne qui ne se lit pas d'un
 	// coup (candidature conditionnelle, deux primaires à ne pas confondre).
 	Note             string
+	Justice          bool // le dossier des décisions de condamnation en dit quelque chose
 	OrganizationSlug string
 	Person           *Person
 	Org              *Organization

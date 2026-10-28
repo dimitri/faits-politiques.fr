@@ -313,6 +313,36 @@ func loadCandidates(path string, persons map[string]*Person) ([]*Candidate, erro
 	return out, nil
 }
 
+// markCandidatesWithJudicialFacts signale, sur la fiche d'un candidat, que le
+// dossier des décisions de condamnation (docs/candidats-condamnations.md) en dit
+// quelque chose : le lien n'apparaît que s'il y a un fait chargé, jamais pour tous
+// les candidats — son absence ne veut pas dire « aucune condamnation », et la page
+// du dossier le dit.
+func markCandidatesWithJudicialFacts(ctx context.Context, pool *pgxpool.Pool, cands []*Candidate) error {
+	rows, err := pool.Query(ctx, `
+		SELECT DISTINCT p.slug FROM ref.fait_dossier f JOIN core.person p ON p.id = f.person_id
+		WHERE f.dossier = 'candidats-condamnations'`)
+	if err != nil {
+		return err
+	}
+	defer rows.Close()
+	has := map[string]bool{}
+	for rows.Next() {
+		var slug string
+		if err := rows.Scan(&slug); err != nil {
+			return err
+		}
+		has[slug] = true
+	}
+	if err := rows.Err(); err != nil {
+		return err
+	}
+	for _, c := range cands {
+		c.Justice = has[c.Slug]
+	}
+	return nil
+}
+
 func period(start, end string) string {
 	if end == "" {
 		return "depuis le " + fr(start)

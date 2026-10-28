@@ -239,15 +239,34 @@ func IngestParrainages(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		if err != nil {
 			return fail(err)
 		}
-		if _, err := tx.Exec(ctx, `DELETE FROM core.parrainage_presidentielle WHERE election = $1`, s.Election); err != nil {
+		// Table temporaire puis MERGE plutôt que DELETE+COPY : le jeu du Conseil
+		// est cumulatif, la fusion ne touche que ce qui a changé, et le scope
+		// sur l'élection empêche d'effacer les autres scrutins.
+		if _, err := tx.Exec(ctx, `CREATE TEMP TABLE tmp_parrainage (LIKE core.parrainage_presidentielle) ON COMMIT DROP`); err != nil {
 			tx.Rollback(ctx)
 			return fail(err)
 		}
-		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"core", "parrainage_presidentielle"},
+		if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_parrainage"},
 			[]string{"election", "candidat", "categorie", "departement", "date_publication", "nombre", "source_id", "document_id"},
 			pgx.CopyFromRows(rows)); err != nil {
 			tx.Rollback(ctx)
 			return fail(err)
+		}
+		if _, err := tx.Exec(ctx, `
+			MERGE INTO core.parrainage_presidentielle AS tgt
+			USING tmp_parrainage AS src
+			ON tgt.election = src.election AND tgt.candidat = src.candidat AND tgt.categorie = src.categorie
+			   AND tgt.departement = src.departement AND tgt.date_publication = src.date_publication
+			WHEN MATCHED AND (tgt.nombre, tgt.source_id, tgt.document_id)
+			                  IS DISTINCT FROM (src.nombre, src.source_id, src.document_id) THEN
+			    UPDATE SET nombre = src.nombre, source_id = src.source_id, document_id = src.document_id
+			WHEN NOT MATCHED BY TARGET THEN
+			    INSERT (election, candidat, categorie, departement, date_publication, nombre, source_id, document_id)
+			    VALUES (src.election, src.candidat, src.categorie, src.departement, src.date_publication,
+			            src.nombre, src.source_id, src.document_id)
+			WHEN NOT MATCHED BY SOURCE AND tgt.election = $1 THEN DELETE`, s.Election); err != nil {
+			tx.Rollback(ctx)
+			return fail(fmt.Errorf("fusion : %w", err))
 		}
 		if err := tx.Commit(ctx); err != nil {
 			return fail(err)

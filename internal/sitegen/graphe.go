@@ -171,6 +171,9 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		if err != nil {
 			return identityBundle{}, err
 		}
+		if err := markCandidatesWithJudicialFacts(ctx, e.pool, candidates); err != nil {
+			return identityBundle{}, err
+		}
 		refs, tags, err := loadReferences(filepath.Join(e.dataDir, "referentiels.csv"))
 		if err != nil {
 			return identityBundle{}, err
