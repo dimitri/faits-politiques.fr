@@ -24,37 +24,10 @@ la loi prescrit.
 
 <!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-- **Un mécanisme de financement de l'État confirmé mais non quantifiable SDIS par SDIS**
-  (12 février 2025). La dotation de l'État au Bataillon de marins-pompiers de
-  Marseille est, à partir de 2025, indexée sur « la dynamique de la taxe spéciale
-  sur les conventions d'assurance prélevée au bénéfice des départements pour le
-  financement des SDIS » — la Cour des comptes confirme ainsi, en passant, que
-  cette taxe (TSCA) finance bien les départements au titre des SDIS, mais aucun
-  jeu de données structuré n'a été trouvé pour en suivre le produit SDIS par
-  SDIS. — Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1588-Le-bataillon-de%20marins-pompiers-de-Marseille.pdf) · *officiel*
-- **256 400 sapeurs-pompiers, aux trois quarts volontaires** (31 décembre 2023).
-  Au 31 décembre 2023 (dernière édition disponible), la France compte 256 400
-  sapeurs-pompiers : 43 400 professionnels (SPP, 17 %), 200 000 volontaires
-  (SPV, 78 %) et 13 000 militaires (BSPP et BMPM, 5 %) — auxquels s'ajoutent
-  11 500 personnels administratifs, techniques et spécialisés (PATS) employés
-  par les SDIS, qui ne sont pas des sapeurs-pompiers. — DGSCGC, ministère de
-  l'Intérieur · [source](https://www.interieur.gouv.fr/content/download/137846/1089580/file/StatsSDIS24BD.pdf) · *officiel*
-- **7 Canadair disponibles sur 12, en pleine saison des feux** (27 juillet 2026).
-  Au plus fort des incendies de Gironde (plus de 42 000 ha brûlés, environ
-  220 000 personnes évacuées, fin juillet 2026), le ministre de l'Intérieur a
-  annoncé que seuls 7 des 12 Canadair de la flotte française étaient
-  disponibles, les autres étant en maintenance — à l'échelle de la saison,
-  13 566 départs de feux et 116 085 hectares brûlés ont été recensés en
-  France. — Laurent Nuñez, ministre de l'Intérieur (point de presse sur les
-  incendies) · [source](https://www.cnews.fr/france/2026-07-27/canadair-en-maintenance-feu-fixe-en-gironde-116085-hectares-brules-laurent-nunez) · *presse*
-- **Un sapeur-pompier volontaire de 22 ans tué en Savoie — un feu différent,
-  pas celui de Gironde** (8 juillet 2026). Baptiste Gerfaud Valentin, jeune
-  caporal du centre d'incendie et de secours d'Albertville, est mort le
-  8 juillet 2026, emporté par une chute de bloc rocheux alors qu'il combattait
-  depuis la nuit un feu de forêt à Planay (Savoie), déclaré le 24 juin après
-  un orage sur un terrain difficile d'accès. Un incendie distinct de celui de
-  Gironde, à ne jamais confondre avec lui : même saison, deux événements
-  différents. — Laurent Nuñez, ministre de l'Intérieur · [source](https://www.franceinfo.fr/faits-divers/incendie/un-sapeur-pompier-volontaire-de-22-ans-meurt-en-savoie-lors-d-une-intervention-sur-un-feu-de-vegetation_8099114.html) · *presse*
+- **Un mécanisme réel mais à part : la taxe sur les conventions d'assurance** (12 février 2025). La dotation de l'État au BMPM est, à partir de 2025, indexée sur « la dynamique de la taxe spéciale sur les conventions d'assurance prélevée au bénéfice des départements pour le financement des SDIS » — confirmation officielle que cette taxe (TSCA) finance bien les départements au titre de leur contribution aux SDIS, mais aucun jeu de données structuré n'a été trouvé pour en suivre le produit SDIS par SDIS (voir « Ce que les données ne disent pas »). — Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1588-Le-bataillon-de%20marins-pompiers-de-Marseille.pdf) · *officiel*
+- **256 379 sapeurs-pompiers, aux trois quarts volontaires** (31 décembre 2024). Au 31 décembre 2024 (dernière édition disponible, parue en décembre 2025), la France compte 256 379 sapeurs-pompiers : 43 985 professionnels (SPP, 17 %), 198 918 volontaires (SPV, 78 %) et 13 476 militaires (BSPP et BMPM, 5 %) — auxquels s'ajoutent 11 508 personnels administratifs, techniques et spécialisés (PATS) employés par les SDIS, qui ne sont pas des sapeurs-pompiers. — DGSCGC, ministère de l'Intérieur · [source](https://www.interieur.gouv.fr/sites/minint/files/medias/documents/2025-12/2025-12-Statistiques-SDIS25.pdf) · *officiel*
+- **Un sapeur-pompier volontaire de 22 ans tué en Savoie — un feu différent, pas celui de Gironde** (8 juillet 2026). Baptiste Gerfaud Valentin, jeune caporal du centre d'incendie et de secours d'Albertville, est mort le 8 juillet 2026, emporté par une chute de bloc rocheux alors qu'il combattait depuis la nuit un feu de forêt à Planay (Savoie), déclaré le 24 juin après un orage sur un terrain difficile d'accès. Un incendie distinct de celui de Gironde, à ne jamais confondre avec lui : même saison, deux événements différents. — Laurent Nuñez, ministre de l'Intérieur · [source](https://www.franceinfo.fr/faits-divers/incendie/un-sapeur-pompier-volontaire-de-22-ans-meurt-en-savoie-lors-d-une-intervention-sur-un-feu-de-vegetation_8099114.html) · *presse*
+- **7 Canadair disponibles sur 12, en pleine saison des feux** (27 juillet 2026). Au plus fort des incendies de Gironde (plus de 42 000 ha brûlés, environ 220 000 personnes évacuées, fin juillet 2026), le ministre de l'Intérieur a annoncé que seuls 7 des 12 Canadair de la flotte française étaient disponibles, les autres étant en maintenance — à l'échelle de la saison, 13 566 départs de feux et 116 085 hectares brûlés ont été recensés en France. — Laurent Nuñez, ministre de l'Intérieur (point de presse sur les incendies) · [source](https://www.cnews.fr/france/2026-07-27/canadair-en-maintenance-feu-fixe-en-gironde-116085-hectares-brules-laurent-nunez) · *presse*
 
 <!-- faits:ENJEUX:fin -->
 
@@ -62,33 +35,10 @@ la loi prescrit.
 
 <!-- faits:CADRE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-- **Le budget de la Brigade de sapeurs-pompiers de Paris (BSPP) et son financement à quatre**
-  (12 février 2025). La BSPP n'est pas un SDIS : ses dépenses (493,4 M€ en 2022,
-  dont 432,7 M€ de fonctionnement) figurent au budget spécial de la préfecture de
-  police de Paris, voté par le Conseil de Paris. C'est un « budget de
-  contributions » auquel participent l'État (sur le seul fonctionnement), la
-  Ville de Paris, les trois départements de la petite couronne et leurs 123
-  communes, « à hauteur d'environ un quart pour chaque partie prenante ». —
-  Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1573_Brigade-Sapeurs-pompiers-de-Paris.pdf) · *officiel*
-- **Deux statuts militaires, deux montages financiers différents** (12 février 2025).
-  Les sapeurs-pompiers de Paris ont un statut militaire mais sont rémunérés
-  directement sur le budget spécial de la préfecture de police — « à la
-  différence du bataillon de marins-pompiers de Marseille (BMPM) où les
-  militaires sont rémunérés par le ministère des armées », qui se fait ensuite
-  rembourser une partie des rémunérations et des charges sociales par la ville
-  de Marseille. — Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1573_Brigade-Sapeurs-pompiers-de-Paris.pdf) · *officiel*
-- **Le budget du Bataillon de marins-pompiers de Marseille (BMPM)** (12 février 2025).
-  Le BMPM, lui non plus, n'est pas un SDIS : en 2022, ses dépenses ont atteint
-  123,2 M€ en fonctionnement (dont 82 % de personnel) et 24 M€ en
-  investissement — la ville de Marseille assumant « la plus grande partie » de
-  ces deux budgets. — Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1588-Le-bataillon-de%20marins-pompiers-de-Marseille.pdf) · *officiel*
-- **Qui finance le BMPM : État, département, métropole — hors CAS Pensions**
-  (12 février 2025). Hors pensions militaires (CAS Pensions, à part), « près de
-  40 % du coût » du bataillon est financé par l'État et les collectivités : en
-  2024, la participation de l'État est passée de 10 à 15 M€, le département
-  verse 10 M€ et la métropole 12,9 M€ — des montants fixés par le code général
-  des collectivités territoriales que la Cour relève comme non indexés, donc en
-  baisse en euros constants. — Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1588-Le-bataillon-de%20marins-pompiers-de-Marseille.pdf) · *officiel*
+- **Le budget du Bataillon de marins-pompiers de Marseille (BMPM)** (12 février 2025). Le BMPM, lui non plus, n'est pas un SDIS : en 2022, ses dépenses ont atteint 123,2 M€ en fonctionnement (dont 82 % de personnel) et 24 M€ en investissement — la ville de Marseille assumant « la plus grande partie » de ces deux budgets. — Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1588-Le-bataillon-de%20marins-pompiers-de-Marseille.pdf) · *officiel*
+- **Qui finance le BMPM : État, département, métropole — hors CAS Pensions** (12 février 2025). Hors pensions militaires (CAS Pensions, à part), « près de 40 % du coût » du bataillon est financé par l'État et les collectivités : en 2024, la participation de l'État est passée de 10 à 15 M€, le département verse 10 M€ et la métropole 12,9 M€ — des montants fixés par le code général des collectivités territoriales que la Cour relève comme non indexés, donc en baisse en euros constants. — Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1588-Le-bataillon-de%20marins-pompiers-de-Marseille.pdf) · *officiel*
+- **Le budget de la Brigade de sapeurs-pompiers de Paris (BSPP) et son financement à quatre** (12 février 2025). La BSPP n'est pas un SDIS : ses dépenses (493,4 M€ en 2022, dont 432,7 M€ de fonctionnement) figurent au budget spécial de la préfecture de police de Paris, voté par le Conseil de Paris. C'est un « budget de contributions » auquel participent l'État (sur le seul fonctionnement), la Ville de Paris, les trois départements de la petite couronne et leurs 123 communes, « à hauteur d'environ un quart pour chaque partie prenante ». — Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1573_Brigade-Sapeurs-pompiers-de-Paris.pdf) · *officiel*
+- **Deux statuts militaires, deux montages financiers différents** (12 février 2025). Les sapeurs-pompiers de Paris ont un statut militaire mais sont rémunérés directement sur le budget spécial de la préfecture de police — « à la différence du bataillon de marins-pompiers de Marseille (BMPM) où les militaires sont rémunérés par le ministère des armées », qui se fait ensuite rembourser une partie des rémunérations et des charges sociales par la ville de Marseille. — Cour des comptes · [source](https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1573_Brigade-Sapeurs-pompiers-de-Paris.pdf) · *officiel*
 
 <!-- faits:CADRE:fin -->
 
@@ -96,29 +46,8 @@ la loi prescrit.
 
 <!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-- **2024 : l'exécution dépasse le vote de 8 à 9 %, portée par l'urgence**
-  (18 juin 2025). Pour le programme « Sécurité civile », les crédits exécutés
-  en 2024 dépassent ceux votés en loi de finances initiale de 8,7 % en
-  autorisations d'engagement (901,7 M€ votés, 980,5 M€ exécutés) et de 9,3 %
-  en crédits de paiement (880,5 M€ votés, 962,6 M€ exécutés) — un écart que le
-  rapporteur spécial attribue à « d'importants reports de crédits
-  d'investissement de 2023 ainsi qu'à la gestion d'évènements exceptionnels ».
-  Les gels de crédits de l'année ont principalement porté sur
-  l'investissement, « en raison des incertitudes associées aux délais de
-  réalisation du programme d'acquisition d'avions bombardiers d'eau » — un
-  dépassement qui n'est donc pas un surinvestissement choisi, mais la trace
-  comptable d'une année où il a fallu dépenser plus que prévu, notamment sur
-  les moyens aériens. — Sénat, commission des finances (rapporteur spécial
-  sur la loi de règlement 2024, mission « Sécurités ») · [source](https://www.senat.fr/rap/l24-743-229-2/l24-743-229-2_mono.html) · *officiel*
-- **12 Canadair, 8 Dash, 3 Beechcraft — et un renouvellement sans cesse
-  repoussé** (22 juin 2023). La flotte française de bombardiers d'eau est
-  composée de 12 avions Canadair CL415, 8 avions Dash et 3 avions Beechcraft
-  King 200. Le président de la République a annoncé, le 28 octobre 2022, que
-  « la flotte vieillissante de 12 Canadair serait intégralement renouvelée, et
-  portée à 16 appareils » ; leur livraison, « aujourd'hui estimée à 2027, mais
-  qui a déjà plusieurs fois été repoussée », dépend d'un constructeur unique
-  (De Havilland Canada) qui a tardé à relancer sa chaîne de production,
-  arrêtée depuis 2015. — Sénat, commission des finances · [source](https://www.senat.fr/rap/r22-838/r22-838-syn.pdf) · *officiel*
+- **2024 : l'exécution dépasse le vote de 8 à 9 %, portée par l'urgence** (18 juin 2025). Pour le programme « Sécurité civile », les crédits exécutés en 2024 dépassent ceux votés en loi de finances initiale de 8,7 % en autorisations d'engagement (901,7 M€ votés, 980,5 M€ exécutés) et de 9,3 % en crédits de paiement (880,5 M€ votés, 962,6 M€ exécutés) — un écart que le rapporteur spécial attribue à « d'importants reports de crédits d'investissement de 2023 ainsi qu'à la gestion d'évènements exceptionnels ». Les gels de crédits de l'année ont principalement porté sur l'investissement, « en raison des incertitudes associées aux délais de réalisation du programme d'acquisition d'avions bombardiers d'eau » — un dépassement qui n'est donc pas un surinvestissement choisi, mais la trace comptable d'une année où il a fallu dépenser plus que prévu, notamment sur les moyens aériens. — Sénat, commission des finances (rapporteur spécial sur la loi de règlement 2024, mission « Sécurités ») · [source](https://www.senat.fr/rap/l24-743-229-2/l24-743-229-2_mono.html) · *officiel*
+- **12 Canadair, 8 Dash, 3 Beechcraft — et un renouvellement sans cesse repoussé** (22 juin 2023). La flotte française de bombardiers d'eau est composée de 12 avions Canadair CL415, 8 avions Dash et 3 avions Beechcraft King 200. Le président de la République a annoncé, le 28 octobre 2022, que « la flotte vieillissante de 12 Canadair serait intégralement renouvelée, et portée à 16 appareils » ; leur livraison, « aujourd'hui estimée à 2027, mais qui a déjà plusieurs fois été repoussée », dépend d'un constructeur unique (De Havilland Canada) qui a tardé à relancer sa chaîne de production, arrêtée depuis 2015. — Sénat, commission des finances · [source](https://www.senat.fr/rap/r22-838/r22-838-syn.pdf) · *officiel*
 
 <!-- faits:CONTROLE:fin -->
 
@@ -269,8 +198,8 @@ capacité nominale au moment où la demande était la plus forte.
 ## Ce que les données ne disent pas
 
 - **Les effectifs de sapeurs-pompiers professionnels, volontaires et militaires,
-  par SDIS et par année.** Un seul chiffre national est établi ici (256 400 au
-  31 décembre 2023, voir « Enjeux »), tiré d'un PDF de la DGSCGC — aucun jeu de
+  par SDIS et par année.** Un seul chiffre national est établi ici (256 379 au
+  31 décembre 2024, voir « Enjeux »), tiré d'un PDF de la DGSCGC — aucun jeu de
   données structuré (CSV/XLSX) n'a été identifié au moment de la rédaction,
   donc aucune série dans le temps ni aucune ventilation par SDIS. Une partie de
   l'information existe en creux dans les comptes OFGL (une « strate du nombre

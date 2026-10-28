@@ -10,11 +10,11 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| Parcoursup | 113 | 57 | 23 octobre 2024 | 21 juillet 2026 |
+| Parcoursup | 168 | 76 | 23 octobre 2024 | 27 octobre 2026 |
 | précarité étudiante | 69 | 37 | 22 octobre 2024 | 16 juin 2026 |
 | loi de programmation de la recherche | 14 | 8 | 14 janvier 2025 | 11 février 2026 |
 

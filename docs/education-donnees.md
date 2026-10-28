@@ -13,12 +13,12 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| Éducation nationale | 685 | 217 | 1er octobre 2024 | 21 juillet 2026 |
-| AESH | 246 | 90 | 16 octobre 2024 | 21 juillet 2026 |
+| Éducation nationale | 768 | 233 | 1er octobre 2024 | 27 octobre 2026 |
+| AESH | 253 | 94 | 16 octobre 2024 | 13 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 

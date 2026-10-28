@@ -37,6 +37,23 @@ const (
 
 func init() {
 	facts = append(facts,
+		Fact{ID: "justice-cadre-ineligibilite-2017", Dossier: dossierJustice, Section: "CADRE", Theme: "textes", Type: "TEXTE",
+			Date: "2017-09-15", Author: "Parlement (loi n° 2017-1339 pour la confiance dans la vie politique, article 1er)",
+			Title: "L'inéligibilité est obligatoire pour les crimes et une liste de délits, sauf décision spécialement motivée",
+			Finding: "Le texte publié au Journal officiel en septembre 2017 crée l'article 131-26-2 du code pénal : la peine " +
+				"complémentaire d'inéligibilité est obligatoire contre toute personne coupable d'un crime ou de l'un des délits " +
+				"que l'article énumère (dont, selon sa liste, des délits d'atteinte à la probité), et la condamnation est " +
+				"mentionnée au bulletin n° 2 du casier judiciaire pendant la durée de l'inéligibilité. La juridiction peut " +
+				"cependant décider de ne pas la prononcer, par une décision spécialement motivée. Le même texte ouvre aux " +
+				"autorités qui reçoivent les déclarations de candidature l'accès à cette information. C'est le texte tel que " +
+				"publié en 2017 : les modifications ultérieures du code ne sont pas vérifiées ici, et le texte ne traite ni " +
+				"de l'exécution provisoire ni du recours.",
+			Quality: "OFFICIEL", JO: "JORFTEXT000035567974", JOArticle: "1",
+			Expected: []string{
+				"est obligatoire à l'encontre de toute personne coupable d'un délit mentionné au II du présent article ou d'un crime",
+				"par une décision spécialement motivée, décider de ne pas prononcer la peine",
+				"autorités compétentes pour recevoir les déclarations de candidatures à une élection",
+			}},
 		Fact{ID: "justice-le-pen-appel-2026", Dossier: dossierJustice, Section: "CONTROLE",
 			Theme: themeLePen, Type: "SANCTION", Date: "2026-07-07", Author: authorCAParis, Person: "marine-le-pen",
 			Title: "En appel : coupable de détournement de fonds publics, peine réduite — pourvoi non établi",

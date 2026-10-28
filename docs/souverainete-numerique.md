@@ -14,11 +14,11 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| souveraineté numérique | 63 | 39 | 5 novembre 2024 | 30 juin 2026 |
+| souveraineté numérique | 67 | 42 | 5 novembre 2024 | 15 octobre 2026 |
 | Cloud Act, extraterritorialité | 50 | 30 | 23 octobre 2024 | 11 juin 2026 |
 | logiciel libre | 8 | 3 | 18 mars 2025 | 10 juillet 2026 |
 | SecNumCloud | 5 | 4 | 12 février 2025 | 27 février 2026 |

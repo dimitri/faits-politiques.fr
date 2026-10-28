@@ -13,12 +13,12 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| dette publique | 151 | 82 | 1er octobre 2024 | 10 juin 2026 |
-| charge de la dette | 75 | 38 | 14 octobre 2024 | 7 juillet 2026 |
+| dette publique | 177 | 93 | 1er octobre 2024 | 23 octobre 2026 |
+| charge de la dette | 101 | 47 | 14 octobre 2024 | 20 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
