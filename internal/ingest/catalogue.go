@@ -192,27 +192,31 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return carto.Themes(ctx, pool)
 		}},
-	{Nom: "amendements", Categorie: CategorieParlement, Description: "amendements et exposés sommaires",
+	// amendements, interventions, deports et promulgation rattachent leurs lignes
+	// aux députés et aux organes créés par normalize (index AN_ACTEUR/AN_ORGANE) :
+	// lancés avant, ils chargent des lignes sans auteur ni orateur, et le dossier
+	// des faits ne retrouve plus aucune prise de parole.
+	{Nom: "amendements", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "amendements et exposés sommaires",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.IngestAmendements(ctx, pool, arch)
 		}},
-	{Nom: "exposes", Categorie: CategorieParlement, Description: "exposés des motifs",
+	{Nom: "exposes", Categorie: CategorieParlement, Dependances: []string{"amendements"}, Description: "exposés des motifs",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.IngestExposes(ctx, pool, arch)
 		}},
-	{Nom: "exposes-reparse", Categorie: CategorieParlement, Description: "réextraction des exposés depuis l'archive déjà scellée",
+	{Nom: "exposes-reparse", Categorie: CategorieParlement, Dependances: []string{"amendements"}, Description: "réextraction des exposés depuis l'archive déjà scellée",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.ReparseExposes(ctx, pool, rawDir)
 		}},
-	{Nom: "interventions", Categorie: CategorieParlement, Description: "interventions en séance",
+	{Nom: "interventions", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "interventions en séance",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.IngestInterventions(ctx, pool, arch)
 		}},
-	{Nom: "deports", Categorie: CategorieParlement, Description: "déclarations de déport",
+	{Nom: "deports", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "déclarations de déport",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.NormalizeDeports(ctx, pool)
 		}},
-	{Nom: "promulgation", Categorie: CategorieParlement, Description: "rattachement des dossiers à la loi promulguée",
+	{Nom: "promulgation", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "rattachement des dossiers à la loi promulguée",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.PromulgationDossiers(ctx, pool)
 		}},
