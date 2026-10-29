@@ -13,12 +13,12 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| Éducation nationale | 685 | 217 | 1er octobre 2024 | 21 juillet 2026 |
-| AESH | 246 | 90 | 16 octobre 2024 | 21 juillet 2026 |
+| Éducation nationale | 768 | 233 | 1er octobre 2024 | 27 octobre 2026 |
+| AESH | 253 | 94 | 16 octobre 2024 | 13 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
@@ -112,7 +112,11 @@ finances initiale adoptée ni l'exécution — même piège voté/exécuté que
 ### 2. Les effectifs par établissement : Depp, granularité fine
 
 Source : Depp, deux jeux distincts et asymétriques — le premier degré publie les
-rentrées 2024 et 2025, le second degré seulement 2024 au moment de l'écriture :
+rentrées 2024 et 2025, le second degré seulement 2024 au moment de l'écriture (le second
+degré publie aussi 2025 depuis, relevé le 28 octobre 2026 : 355 375 ETP dans le public,
+85 740 dans le privé ; son 2024 public est passé de 355 632 à 355 768 avec une ligne de
+plus dans l'export. Le tableau ci-dessous et ce qui en est dérivé n'ont pas été
+recalculés) :
 
 | | Premier degré (ETP enseignants) | Second degré (ETP enseignants) |
 |---|---:|---:|
@@ -391,7 +395,7 @@ limite.
 | --- | --- | --- |
 | 1 | Direction du budget, PLF, mission Enseignement scolaire | 6 programmes, 2024-2025 (table partagée, voir § 1) |
 | 2 | Depp, personnels des établissements du premier degré | 94 584 lignes, 2024-2025 |
-| 3 | Depp, personnels des établissements du second degré | 10 697 lignes, 2024 |
+| 3 | Depp, personnels des établissements du second degré | 10 697 lignes, 2024 (10 698 par rentrée, 2024 et 2025, au 28 octobre 2026) |
 | 4 | Depp, effectifs d'élèves des écoles (premier degré) | 35 lignes, agrégat national par secteur, 2009-2025 |
 | 5 | Depp, Panorama — personnels non enseignants par catégorie (dont AESH) | 18 lignes, national, rentrée 2024 |
 | 6 | Depp, RERS 10.05, dépense par élève et par étudiant | 180 lignes, 4 niveaux × 1980-2024 (§ 8) |

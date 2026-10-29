@@ -14,12 +14,12 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| taxe sur les services numériques, GAFAM | 113 | 53 | 21 octobre 2024 | 21 juillet 2026 |
-| évasion fiscale | 84 | 43 | 21 octobre 2024 | 10 juillet 2026 |
+| taxe sur les services numériques, GAFAM | 117 | 55 | 21 octobre 2024 | 14 octobre 2026 |
+| évasion fiscale | 87 | 43 | 21 octobre 2024 | 16 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
@@ -104,8 +104,9 @@ l'impôt payé au § 4 bis.
 Trois mécanismes, chacun établi par une source officielle au moins une fois :
 
 1. **Facturer les clients français depuis l'étranger.** Les annonceurs français de
-   Google contractaient avec Google Ireland Limited ; le parquet national financier y
-   voyait une activité imposable en France (convention de 2019). Les abonnés de
+   Google contractaient avec Google Ireland Limited ; le parquet national financier a
+   enquêté sur le défaut de déclaration de l'impôt sur les sociétés de cette société en
+   France (convention de 2019). Les abonnés de
    Netflix contractaient avec une société néerlandaise jusqu'en 2021. Le contrat
    Microsoft du ministère de la Défense a été conclu avec la société irlandaise du
    groupe (Sénat, 2017).
@@ -188,7 +189,7 @@ que des montants partiels attribués à Crayon.
 | Amazon (AWS) | Bpifrance : plateforme des prêts garantis par l'État sur AWS, sans appel d'offres | non publié | Assemblée nationale (réponse ministérielle, 2022) |
 | Amazon (AWS) | Doctolib, hébergé par AWS, pour les rendez-vous de vaccination : pas de suspension | — | Conseil d'État (2021) |
 | Google | Éducation nationale : arrêt du déploiement de Google Workspace et d'Office 365 dans les établissements, contraires au RGPD | — | Assemblée nationale (réponse ministérielle, 2022) |
-| Google | convention judiciaire : 500 M€ d'amende, 465 M€ d'impôts | 965 M€ | PNF, Agence française anticorruption (2019) |
+| Google | convention judiciaire : 500 M€ d'amende ; accord fiscal distinct de 465 M€ selon la presse | 500 M€ (officiel) | PNF, communiqué du 12 septembre 2019 (archivé) ; presse pour l'accord fiscal |
 | S3NS (Thales-Google Cloud) | qualification SecNumCloud de l'offre bâtie sur Google Cloud (déc. 2025) | — | communiqué de l'entreprise |
 | Bleu (Orange-Capgemini) | « cloud de confiance » pour l'État bâti sur Microsoft 365 et Azure, sous licence | non public | communiqué des entreprises |
 | Capgemini (français) | appui à la préfiguration de la plateforme des données de santé (2018-2019), finalement hébergée sur Azure | — | Sénat (rapport n° 830) |

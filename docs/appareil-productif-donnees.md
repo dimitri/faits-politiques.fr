@@ -16,12 +16,12 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| délocalisation | 177 | 115 | 1er octobre 2024 | 20 juillet 2026 |
-| désindustrialisation | 102 | 82 | 22 octobre 2024 | 6 juillet 2026 |
+| délocalisation | 184 | 121 | 1er octobre 2024 | 21 octobre 2026 |
+| désindustrialisation | 107 | 84 | 22 octobre 2024 | 14 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 

@@ -10,12 +10,12 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| diplomatie | 320 | 150 | 2 octobre 2024 | 6 juillet 2026 |
-| aide publique au développement | 92 | 47 | 8 octobre 2024 | 21 juillet 2026 |
+| diplomatie | 330 | 154 | 2 octobre 2024 | 21 octobre 2026 |
+| aide publique au développement | 94 | 47 | 8 octobre 2024 | 14 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
@@ -25,7 +25,7 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-- **Une politique « remise en cause » dans son architecture et ses présupposés** (6 novembre 2025). Les rapporteurs situent la baisse française dans un environnement international où l'aide au développement est remise en cause, dans son architecture financière comme dans ses présupposés politiques (solidarité internationale, multilatéralisme). — [Michel Canévet](/depute/michel-canevet/), Sénat, commission des finances (rapport spécial sur la mission « Aide publique au développement », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-34/l25-139-34-syn.pdf) · *officiel*
+- **Une politique « remise en cause » dans son architecture et ses présupposés** (6 novembre 2025). Les rapporteurs situent la baisse française dans un environnement international où l'aide au développement est remise en cause, dans son architecture financière comme dans ses présupposés politiques (solidarité internationale, multilatéralisme). — [Michel Canevet](/depute/michel-canevet/), Sénat, commission des finances (rapport spécial sur la mission « Aide publique au développement », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-34/l25-139-34-syn.pdf) · *officiel*
 
 <!-- faits:ENJEUX:fin -->
 
@@ -41,8 +41,8 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-- **Aide au développement : - 35 % de crédits de paiement entre 2024 et 2025, - 16,1 % en 2026** (6 novembre 2025). Entre les lois de finances pour 2024 et 2025, les crédits ont baissé de 28 % en autorisations d'engagement et de 35 % en crédits de paiement ; le projet pour 2026 prévoit encore - 16,1 % en crédits de paiement, à 3,67 Md€. — [Michel Canévet](/depute/michel-canevet/), Sénat, commission des finances (rapport spécial sur la mission « Aide publique au développement », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-34/l25-139-34-syn.pdf) · *officiel*
-- **Une aide bilatérale dispersée dans 124 pays** (6 novembre 2025). L'aide bilatérale française intervient dans 124 pays, contre 60 pour l'Allemagne ; l'objectif de concentrer 60 % de l'aide sur les pays les moins avancés et vulnérables n'est pas respecté. — [Michel Canévet](/depute/michel-canevet/), Sénat, commission des finances (rapport spécial sur la mission « Aide publique au développement », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-34/l25-139-34-syn.pdf) · *officiel*
+- **Aide au développement : - 35 % de crédits de paiement entre 2024 et 2025, - 16,1 % en 2026** (6 novembre 2025). Entre les lois de finances pour 2024 et 2025, les crédits ont baissé de 28 % en autorisations d'engagement et de 35 % en crédits de paiement ; le projet pour 2026 prévoit encore - 16,1 % en crédits de paiement, à 3,67 Md€. — [Michel Canevet](/depute/michel-canevet/), Sénat, commission des finances (rapport spécial sur la mission « Aide publique au développement », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-34/l25-139-34-syn.pdf) · *officiel*
+- **Une aide bilatérale dispersée dans 124 pays** (6 novembre 2025). L'aide bilatérale française intervient dans 124 pays, contre 60 pour l'Allemagne ; l'objectif de concentrer 60 % de l'aide sur les pays les moins avancés et vulnérables n'est pas respecté. — [Michel Canevet](/depute/michel-canevet/), Sénat, commission des finances (rapport spécial sur la mission « Aide publique au développement », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-34/l25-139-34-syn.pdf) · *officiel*
 - **Diplomatie : l'objectif de 700 emplois supplémentaires de facto écarté** (19 novembre 2025). Pour la première fois depuis 2021, le plafond d'emplois du ministère de l'Europe et des affaires étrangères reste stable ; l'ambition de créer 700 équivalents temps plein entre 2023 et 2027, issue des états généraux de la diplomatie, semble écartée. — [Nathalie Goulet](/depute/nathalie-goulet/), Sénat, commission des finances (rapport spécial sur la mission « Action extérieure de l'État », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-31/l25-139-31-syn.pdf) · *officiel*
 
 <!-- faits:CONTROLE:fin -->

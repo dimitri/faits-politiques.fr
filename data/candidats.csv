@@ -29,6 +29,43 @@
 # retrait déroge à la règle d'ajout seul énoncée dans une révision antérieure
 # de ce commentaire ; il reste tracé ici et dans l'historique Git du fichier.
 #
+# Révision du 28 octobre 2026 : ajout de trois déclarations manquantes —
+# Gilles Platret (8 octobre, réunion publique « Parlons de la France » à
+# Chalon-sur-Saône, confirmée le lendemain sur la radio locale), Mira Markovic
+# (2 octobre, candidate du Parti animaliste) et Antoine Mikolajczak (candidat
+# d'Équinoxe, désigné au jugement majoritaire par les adhérents ; le mois
+# exact n'est pas établi par la source consultée, d'où l'année seule).
+# Aucun des trois n'a de page Wikipédia en français : pas de portrait.
+#
+# CORRECTION du 28 octobre 2026 — deux primaires confondues. La révision du
+# 15 octobre parle de « la primaire de la gauche unitaire du 11 octobre » : il
+# y en a eu DEUX, et une seule a eu lieu. (1) La primaire UNITAIRE de la gauche
+# (Ruffin, Tondelier…, lancée en novembre 2025 ; LFI, PCF et Place publique n'y
+# participent pas) a été annulée — sa date prévue était le 11 octobre. (2) Celle
+# qui s'est tenue le 11 octobre est la primaire PS–Place publique : cinq
+# candidats (Glucksmann 66,17 %, Faure 14,46 %, Royal, Guedj, Maurel), Ruffin
+# n'y figurait pas. François Ruffin, retiré le 15 octobre comme « battu à la
+# primaire », n'a donc été battu par personne : retrait fondé sur une erreur de
+# fait, rétabli ci-dessous avec une note qui explique pourquoi sa situation
+# est difficile à lire. Les cinq autres retraits de la même révision ne sont
+# PAS rouverts ici (franceinfo donne Faure, Guedj, Royal et Massard comme
+# retirés) ; ils restent à revoir au regard de la règle d'ajout seul : le
+# pré-enregistrement veut qu'un candidat retiré reste affiché comme retiré,
+# avec sa date.
+#
+# CRITÈRE, précision du 28 octobre : « recensée par Wikipédia » (ci-dessus) ne
+# sert qu'à REPÉRER des déclarations, jamais à les admettre — une page
+# encyclopédique n'est pas une source primaire. Seul vaut le critère du
+# pré-enregistrement : déclaration publique, datée, sourcée à la prise de
+# parole elle-même ou à un article de presse qui la rapporte. Le Journal
+# officiel ne peut pas la remplacer avant mars 2027 : en 2022 le premier acte
+# lié à l'élection était le décret de convocation des électeurs (26 janvier,
+# qui ne nomme personne), puis les décisions de l'autorité audiovisuelle
+# fixant le temps d'antenne « pour chaque candidat » (18 mars), c'est-à-dire
+# APRÈS la liste du Conseil constitutionnel. Candidatures que franceinfo
+# recense et Wikipédia non (Lassalle, Legendre, Branco, Egger, Rohou,
+# Billetdoux, Collovati) : à sourcer une à une avant d'entrer ici.
+#
 # STATUT : DECLARE = candidature à l'élection annoncée. (PRIMAIRE a existé
 # comme statut transitoire — candidature à une primaire, pas encore à
 # l'élection — le temps que la primaire de la gauche unitaire se tienne ;
@@ -38,7 +75,7 @@
 #
 # Toute modification de ce fichier est une décision éditoriale et doit être
 # relue comme telle.
-slug,nom,prenom,organisation,organisation_slug,statut,date_declaration,source_url,source_consultee,site_campagne,wikipedia_fr
+slug,nom,prenom,organisation,organisation_slug,statut,date_declaration,source_url,source_consultee,site_campagne,wikipedia_fr,note
 fabien-roussel,Roussel,Fabien,Parti communiste français,parti-communiste-francais,DECLARE,2026-09-06,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Fabien Roussel
 jean-luc-melenchon,Mélenchon,Jean-Luc,La France insoumise,la-france-insoumise,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Jean-Luc Mélenchon
 marine-tondelier,Tondelier,Marine,Les Écologistes,les-ecologistes,DECLARE,,https://lcp.fr/actualites/presidentielle-2027-la-liste-des-candidats-deja-en-lice-et-des-pretendants-436373,2026-09-11,,Marine Tondelier
@@ -65,3 +102,7 @@ raphael-glucksmann,Glucksmann,Raphaël,Place publique,place-publique,DECLARE,202
 natacha-polony,Polony,Natacha,,,DECLARE,2026-10-14,https://lcp.fr/actualites/natacha-polony-annonce-sa-candidature-a-l-election-presidentielle-443808,2026-10-15,,Natacha Polony
 eric-zemmour,Zemmour,Éric,Reconquête,reconquete,DECLARE,2026-09-17,https://lcp.fr/actualites/presidentielle-2027-eric-zemmour-officialise-sa-candidature-441871,2026-10-15,,Éric Zemmour
 olivier-becht,Becht,Olivier,,,DECLARE,2026-09-24,https://entrevue.fr/presidentielle-2027/presidentielle-2027-olivier-becht-se-lance-au-nom-de-lextreme-centre__trashed/,2026-10-15,,Olivier Becht
+gilles-platret,Platret,Gilles,,,DECLARE,2026-10-08,https://france3-regions.franceinfo.fr/bourgogne-franche-comte/saone-et-loire/chalon-sur-saone/gilles-platret-le-maire-de-chalon-sur-saone-se-declare-candidat-a-l-election-presidentielle-je-m-engage-resolument-vers-2027-3430416.html,2026-10-28,,
+mira-markovic,Markovic,Mira,Parti animaliste,,DECLARE,2026-10-02,https://www.cnews.fr/france/2026-10-02/presidentielle-2027-si-nous-ne-sommes-pas-la-personne-ne-parle-des-animaux,2026-10-28,https://parti-animaliste.fr/mira-markovic-2027,
+antoine-mikolajczak,Mikolajczak,Antoine,Équinoxe,,DECLARE,2026,https://parti-equinoxe.fr/presidentielle-2027/,2026-10-28,https://parti-equinoxe.fr/presidentielle-2027/,
+francois-ruffin,Ruffin,François,Debout !,,DECLARE,2026-05-12,https://lcp.fr/actualites/presidentielle-2027-s-il-n-y-a-pas-de-primaire-moi-j-y-vais-annonce-francois-ruffin,2026-10-28,,François Ruffin,"Déclaration conditionnelle, situation difficile à lire. Le 12 mai 2026 il annonce sur France Inter qu'il sera candidat « s'il n'y a pas de primaire » à gauche. Deux primaires sont à distinguer : la primaire unitaire de la gauche, dont il était candidat, a été annulée (elle était prévue le 11 octobre 2026) ; celle qui s'est tenue le 11 octobre est la primaire PS–Place publique, où il ne figurait pas (Glucksmann l'a emportée avec 66,17 %). Il n'a donc été battu par personne. Aucune déclaration postérieure, datée et sans condition, n'a été trouvée dans les sources consultées le 28 octobre 2026 : franceinfo le compte parmi les candidats actifs (22 octobre), Elysée Scope écrit qu'aucune candidature officielle n'est déclarée."

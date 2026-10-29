@@ -35,11 +35,39 @@ import (
 // temps de CE chargement précis — un compromis correct au vu du gain
 // mesuré, et limité à la durée du chargement, pas à celle du connecteur
 // entier.
+//
+// LES FK VERS raw.source ET raw.document RESTENT EN PLACE. Presque toutes les
+// tables en portent une, et la table PARENTE d'un DROP CONSTRAINT prend elle
+// aussi un verrou ACCESS EXCLUSIVE — ici sur une table que TOUS les
+// connecteurs touchent. Le coût de les laisser est faible (une recherche dans
+// une table de ~100 lignes, plan en cache) ; le coût de les retirer est
+// l'interblocage ci-dessous. Les autres FK (vers core.*, ref.*) se retirent
+// comme avant : leurs tables parentes ne sont pas partagées par tous.
+//
+// UN INTERBLOCAGE QUE POSTGRES NE VOIT PAS. Une FK vers raw.source (presque
+// toutes les tables en portent une) fait prendre au DROP CONSTRAINT un verrou
+// ACCESS EXCLUSIVE sur raw.source aussi. Or chaque connecteur écrit sa
+// provenance (raw.source, raw.retrieval) par une AUTRE connexion du pool,
+// pendant que sa propre transaction reste ouverte : le DROP attend ceux qui
+// tiennent déjà un verrou sur raw.source, et tout nouvel arrivant se range
+// derrière lui — y compris la connexion dont dépend la transaction qui retient
+// le verrou. Chaque côté attend l'autre, l'un dans Postgres, l'autre dans le
+// client Go : aucun détecteur d'interblocage ne voit le cycle. Constaté le
+// 16 octobre 2026 : `fpctl ingest full -j 12` figé douze jours, onze
+// sessions bloquées sur ALTER TABLE ref.finess_etablissement. D'où ce délai :
+// dix minutes couvrent largement l'attente légitime derrière un autre
+// chargement (quelques minutes au pire), et transforment l'interblocage en
+// échec nommé — un WARN avec ContinueOnError — que la reprise (fpctl ingest
+// <source>) règle, au lieu d'un arrêt silencieux sans fin.
 func WithoutFKConstraints(ctx context.Context, tx pgx.Tx, table string, fn func() error) error {
+	if _, err := tx.Exec(ctx, `SET LOCAL lock_timeout = '10min'`); err != nil {
+		return fmt.Errorf("délai de verrou pour %s : %w", table, err)
+	}
 	rows, err := tx.Query(ctx, `
 		SELECT conname, pg_get_constraintdef(oid)
 		  FROM pg_constraint
-		 WHERE conrelid = $1::regclass AND contype = 'f'`, table)
+		 WHERE conrelid = $1::regclass AND contype = 'f'
+		   AND confrelid NOT IN ('raw.source'::regclass, 'raw.document'::regclass)`, table)
 	if err != nil {
 		return fmt.Errorf("contraintes FK de %s : %w", table, err)
 	}

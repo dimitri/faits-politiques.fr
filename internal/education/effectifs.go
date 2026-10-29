@@ -36,8 +36,9 @@ var SourceStaffHeadcount = archive.Source{
 	License:   "Licence Ouverte v2.0", ReuseClass: "OPEN",
 	Attribution: "Source : ministère de l'Éducation nationale (Depp)",
 	Cadence:     "annuelle (à la rentrée scolaire)",
-	Notes: "Deux jeux distincts, asymétriques : le premier degré publie 2024 ET 2025, le second " +
-		"degré seulement 2024 au moment du chargement. Le premier degré ne publie pas la même " +
+	Notes: "Deux jeux distincts, asymétriques : les deux publient 2024 ET 2025 (le second degré " +
+		"n'avait que 2024 avant le 28 octobre 2026, et nomme son identifiant « uai » là où le " +
+		"premier l'appelle « identifiant_de_l_etablissement »). Le premier degré ne publie pas la même " +
 		"décomposition par statut (titulaire/agrégé/certifié) que le second degré, qui la publie " +
 		"par établissement. Rien sur les AESH en tant que catégorie séparée : ils sont mêlés, si " +
 		"présents, aux « personnels de vie scolaire » du second degré, sans identification propre.",
@@ -109,6 +110,18 @@ func IngestStaffHeadcount(ctx context.Context, pool *pgxpool.Pool, arch *archive
 		var rows [][]any
 		for _, l := range records {
 			id := asStr(l["identifiant_de_l_etablissement"])
+			if id == "" {
+				// Le second degré publie désormais l'identifiant sous « uai » (vérifié
+				// le 28 octobre 2026 sur l'export réel : 21 396 lignes, toutes
+				// « uai », aucune « identifiant_de_l_etablissement »). Lu sous l'ancien
+				// nom seul, l'identifiant devenait vide pour TOUTES les lignes et la
+				// fusion échouait sur des doublons sans rapport apparent avec la cause.
+				id = asStr(l["uai"])
+			}
+			if id == "" {
+				return fail(fmt.Errorf("%s : identifiant d'établissement absent (ligne %v) — le schéma de l'export a changé",
+					dataset.Stage, l["nom_de_l_etablissement"]))
+			}
 			sector, err := normalizeSector(asStr(l["secteur"]))
 			if err != nil {
 				return fail(fmt.Errorf("%s, établissement %s : %w", dataset.Stage, id, err))

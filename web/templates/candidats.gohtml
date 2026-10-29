@@ -20,7 +20,7 @@ officielle avant la publication des parrainages par le Conseil constitutionnel, 
     <div class="small muted">
       {{if .Org}}<a href="{{$.Root}}/organisation/{{.Org.Slug}}/">{{.Organization}}</a>{{else}}{{.Organization}}{{end}}
       {{if eq .Status "PRIMAIRE"}} · candidature à une primaire{{if .DateDeclaration}}, annoncée {{.DateDeclaration}}{{end}}{{else if .DateDeclaration}} · déclaré {{.DateDeclaration}}{{end}}
-    </div></div>
+    </div>{{if .Note}}<div class="small muted"><a href="{{$.Root}}/candidat/{{.Slug}}/">Situation à lire avec précaution</a></div>{{end}}</div>
   </header>
 
   {{if and .Person .Person.HasVotes}}

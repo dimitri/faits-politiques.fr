@@ -10,13 +10,13 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| vie associative | 80 | 39 | 1er octobre 2024 | 20 juillet 2026 |
+| vie associative | 87 | 43 | 1er octobre 2024 | 16 octobre 2026 |
 | service civique | 29 | 23 | 4 décembre 2024 | 7 mai 2026 |
-| service national universel | 25 | 19 | 14 octobre 2024 | 21 juillet 2026 |
+| service national universel | 27 | 20 | 14 octobre 2024 | 6 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 

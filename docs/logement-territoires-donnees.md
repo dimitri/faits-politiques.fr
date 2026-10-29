@@ -10,13 +10,13 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| logement social | 535 | 175 | 1er octobre 2024 | 15 juillet 2026 |
-| hébergement d'urgence | 117 | 63 | 8 octobre 2024 | 23 juin 2026 |
-| aides personnalisées au logement | 116 | 61 | 24 octobre 2024 | 11 juin 2026 |
+| logement social | 558 | 181 | 1er octobre 2024 | 27 octobre 2026 |
+| aides personnalisées au logement | 132 | 70 | 24 octobre 2024 | 21 octobre 2026 |
+| hébergement d'urgence | 127 | 65 | 8 octobre 2024 | 27 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
@@ -26,7 +26,7 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:ENJEUX:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-- **Plus de 2 150 enfants à la rue fin août 2025, selon l'UNICEF** (4 novembre 2025). Le rapport cite le baromètre de l'UNICEF : plus de 2 150 enfants à la rue fin août 2025 ; il relève un risque de moindre qualité des places d'hébergement et de retour des nuitées hôtelières, alors que l'objectif de 203 000 places est maintenu. — [Sophie Primas](/depute/sophie-primas/), Sénat, commission des finances (rapport spécial sur la mission « Cohésion des territoires », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-35-1/l25-139-35-1-syn.pdf) · *officiel*
+- **Plus de 2 150 enfants à la rue fin août 2025, selon l'UNICEF** (4 novembre 2025). Le rapport cite le baromètre de l'UNICEF : plus de 2 150 enfants à la rue fin août 2025 ; il relève un risque de moindre qualité des places d'hébergement et de retour des nuitées hôtelières, alors que l'objectif de 203 000 places est maintenu. — [Sophie Primas](/depute/sophie-primas-pa345916/), Sénat, commission des finances (rapport spécial sur la mission « Cohésion des territoires », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-35-1/l25-139-35-1-syn.pdf) · *officiel*
 
 <!-- faits:ENJEUX:fin -->
 
@@ -43,8 +43,8 @@ Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
 <!-- faits:CONTROLE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-- **Aides au logement : 5,7 millions de ménages, principal poste d'économies de l'État depuis 2017** (4 novembre 2025). Le programme 109 (16,1 Md€) baisse de 587,1 M€ faute de revalorisation du barème ; 5,7 millions de ménages perçoivent une aide au logement, dont 87,2 % ont des revenus inférieurs au SMIC. — [Sophie Primas](/depute/sophie-primas/), Sénat, commission des finances (rapport spécial sur la mission « Cohésion des territoires », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-35-1/l25-139-35-1-syn.pdf) · *officiel*
-- **Cohésion des territoires : - 5,1 % hors inflation, et 11,68 Md€ de dépenses fiscales** (4 novembre 2025). Les crédits passent de 23,1 Md€ à 22,2 Md€, une baisse de 5,1 % inflation déduite, liée surtout aux aides au logement et à la rénovation énergétique ; la politique est aussi financée par 11,68 Md€ de dépenses fiscales. — [Sophie Primas](/depute/sophie-primas/), Sénat, commission des finances (rapport spécial sur la mission « Cohésion des territoires », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-35-1/l25-139-35-1-syn.pdf) · *officiel*
+- **Aides au logement : 5,7 millions de ménages, principal poste d'économies de l'État depuis 2017** (4 novembre 2025). Le programme 109 (16,1 Md€) baisse de 587,1 M€ faute de revalorisation du barème ; 5,7 millions de ménages perçoivent une aide au logement, dont 87,2 % ont des revenus inférieurs au SMIC. — [Sophie Primas](/depute/sophie-primas-pa345916/), Sénat, commission des finances (rapport spécial sur la mission « Cohésion des territoires », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-35-1/l25-139-35-1-syn.pdf) · *officiel*
+- **Cohésion des territoires : - 5,1 % hors inflation, et 11,68 Md€ de dépenses fiscales** (4 novembre 2025). Les crédits passent de 23,1 Md€ à 22,2 Md€, une baisse de 5,1 % inflation déduite, liée surtout aux aides au logement et à la rénovation énergétique ; la politique est aussi financée par 11,68 Md€ de dépenses fiscales. — [Sophie Primas](/depute/sophie-primas-pa345916/), Sénat, commission des finances (rapport spécial sur la mission « Cohésion des territoires », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-35-1/l25-139-35-1-syn.pdf) · *officiel*
 - **Contrats de plan État-régions : 21 M€ manquent pour honorer les engagements** (4 novembre 2025). Malgré la hausse des crédits de paiement du programme 112, le rapporteur spécial estime qu'il manque 21 M€ pour financer les restes à payer et les engagements contractuels de 2026 sur la section locale du Fonds national d'aménagement et de développement du territoire. — [Bernard Delcros](/depute/bernard-delcros/), Sénat, commission des finances (rapport spécial sur la mission « Cohésion des territoires », projet de loi de finances pour 2026) · [source](https://www.senat.fr/rap/l25-139-35-2/l25-139-35-2-syn.pdf) · *officiel*
 
 <!-- faits:CONTROLE:fin -->

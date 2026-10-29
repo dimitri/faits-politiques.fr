@@ -10,7 +10,7 @@ package dossiers
 
 const urlCCBSPP = "https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1573_Brigade-Sapeurs-pompiers-de-Paris.pdf"
 const urlCCBMPM = "https://www.ccomptes.fr/sites/default/files/2025-02/20250212-S2024-1588-Le-bataillon-de%20marins-pompiers-de-Marseille.pdf"
-const urlDGSCGCEffectifs = "https://www.interieur.gouv.fr/content/download/137846/1089580/file/StatsSDIS24BD.pdf"
+const urlDGSCGCEffectifs = "https://www.interieur.gouv.fr/sites/minint/files/medias/documents/2025-12/2025-12-Statistiques-SDIS25.pdf"
 const urlSenatLFIExecution2024 = "https://www.senat.fr/rap/l24-743-229-2/l24-743-229-2_mono.html"
 const urlSenatFlotteCanadair = "https://www.senat.fr/rap/r22-838/r22-838-syn.pdf"
 const urlFranceInfoSavoie = "https://www.franceinfo.fr/faits-divers/incendie/un-sapeur-pompier-volontaire-de-22-ans-meurt-en-savoie-lors-d-une-intervention-sur-un-feu-de-vegetation_8099114.html"
@@ -89,19 +89,19 @@ func init() {
 		// Effectifs : le seul chiffre nationalement établi, et seulement en PDF
 		// (DGSCGC) — voir « Ce que les données ne disent pas » pour l'absence de
 		// série structurée SPP/SPV/PATS par SDIS et par année.
-		Fact{ID: "dgscgc-2023-effectifs", Dossier: "securite-civile-donnees", Section: "ENJEUX",
+		Fact{ID: "dgscgc-2024-effectifs", Dossier: "securite-civile-donnees", Section: "ENJEUX",
 			Theme: "les effectifs, un seul chiffre national", Type: "CONSTAT",
-			Date: "2023-12-31", Author: "DGSCGC, ministère de l'Intérieur",
-			Title: "256 400 sapeurs-pompiers, aux trois quarts volontaires",
-			Finding: "Au 31 décembre 2023 (dernière édition disponible), la France compte 256 400 sapeurs-pompiers : " +
-				"43 400 professionnels (SPP, 17 %), 200 000 volontaires (SPV, 78 %) et 13 000 militaires (BSPP et " +
-				"BMPM, 5 %) — auxquels s'ajoutent 11 500 personnels administratifs, techniques et spécialisés " +
+			Date: "2024-12-31", Author: "DGSCGC, ministère de l'Intérieur",
+			Title: "256 379 sapeurs-pompiers, aux trois quarts volontaires",
+			Finding: "Au 31 décembre 2024 (dernière édition disponible, parue en décembre 2025), la France compte 256 379 sapeurs-pompiers : " +
+				"43 985 professionnels (SPP, 17 %), 198 918 volontaires (SPV, 78 %) et 13 476 militaires (BSPP et " +
+				"BMPM, 5 %) — auxquels s'ajoutent 11 508 personnels administratifs, techniques et spécialisés " +
 				"(PATS) employés par les SDIS, qui ne sont pas des sapeurs-pompiers.",
 			Quality: "OFFICIEL", URL: urlDGSCGCEffectifs,
 			Expected: []string{
-				"L'effectif des sapeurs-pompiers est de 256 400",
-				"dont 43 400 sapeurs-pompiers professionnels (SPP) soit 17 %",
-				"dont 200 000 sapeurs-pompiers volontaires (SPV) soit 78 %",
+				"L'effectif des sapeurs-pompiers est de 256 379",
+				"dont 43 985 sapeurs-pompiers professionnels (SPP) soit 17 %",
+				"dont 198 918 sapeurs-pompiers volontaires (SPV) soit 78 %",
 			}},
 
 		// Contrôles et évaluations : les deux rapports du Sénat sur le

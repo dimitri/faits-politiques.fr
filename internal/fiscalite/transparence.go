@@ -138,8 +138,8 @@ var taxStatuses = []struct {
 	faits                  []string
 }{
 	{"Alphabet Inc.", "FRAUDE_TRANSIGEE",
-		"Convention judiciaire d'intérêt public de 2019 : 500 M€ d'amende et 465 M€ d'impôts ; la justice considérait que Google Ireland exerçait en France une activité imposable.",
-		[]string{"google-cjip-2019-amende", "google-cjip-2019-impot"}},
+		"Convention judiciaire d'intérêt public de 2019 : 500 M€ d'amende, après une plainte pour défaut de déclaration de l'impôt sur les sociétés de Google Ireland (exercices 2011 à 2014) ; elle est adossée à un accord fiscal distinct (465 M€ selon la presse, aucune source officielle accessible).",
+		[]string{"google-cjip-2019-amende"}},
 	{"McDonald's Corporation", "FRAUDE_TRANSIGEE",
 		"Convention judiciaire d'intérêt public de 2022 : 508 M€ d'amende et 737 M€ d'impôt, pour une redevance à la société mère luxembourgeoise jugée artificiellement gonflée.",
 		[]string{"mcdonalds-2022-amende", "mcdonalds-2022-impot"}},

@@ -10,12 +10,12 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| fonction publique | 340 | 162 | 8 octobre 2024 | 17 juillet 2026 |
-| point d'indice | 31 | 28 | 21 octobre 2024 | 1er juillet 2026 |
+| fonction publique | 362 | 169 | 8 octobre 2024 | 23 octobre 2026 |
+| point d'indice | 42 | 34 | 21 octobre 2024 | 22 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 

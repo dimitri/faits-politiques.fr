@@ -153,23 +153,28 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return ingestSenat(ctx, pool, arch, rawDir)
 		}},
-	{Nom: "senat-repertoire", Categorie: CategorieParlement, Description: "répertoire des sénateurs seul",
+	// Les cinq fragments du Sénat ci-dessous déclarent leur place : `ingest full`
+	// les lance avec tout le catalogue, et sans dépendance le répertoire créait
+	// les sénateurs AVANT que normalize ait créé les députés — les fiches des
+	// 1 038 parlementaires passés par les deux chambres se retrouvaient sous un
+	// slug « sen-… » (le rapprochement adoptait la fiche du Sénat).
+	{Nom: "senat-repertoire", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "répertoire des sénateurs seul",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.IngestSenateurs(ctx, pool, arch)
 		}},
-	{Nom: "senat-fusion", Categorie: CategorieParlement, Description: "fusion des fiches de sénateurs seule",
+	{Nom: "senat-fusion", Categorie: CategorieParlement, Dependances: []string{"senat"}, Description: "fusion des fiches de sénateurs seule",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.MergePersons(ctx, pool)
 		}},
-	{Nom: "senat-mandats", Categorie: CategorieParlement, Description: "mandats de sénateurs seuls (recalculés depuis senat_raw)",
+	{Nom: "senat-mandats", Categorie: CategorieParlement, Dependances: []string{"senat"}, Description: "mandats de sénateurs seuls (recalculés depuis senat_raw)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.NormalizeMandates(ctx, pool)
 		}},
-	{Nom: "senat-commissions", Categorie: CategorieParlement, Description: "commissions du Sénat seules",
+	{Nom: "senat-commissions", Categorie: CategorieParlement, Dependances: []string{"senat"}, Description: "commissions du Sénat seules",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.IngestCommissions(ctx, pool, arch)
 		}},
-	{Nom: "senat-presentations", Categorie: CategorieParlement, Description: "présentations des dossiers du Sénat seules",
+	{Nom: "senat-presentations", Categorie: CategorieParlement, Dependances: []string{"senat"}, Description: "présentations des dossiers du Sénat seules",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return senat.NormalizePresentations(ctx, pool)
 		}},
@@ -187,27 +192,31 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return carto.Themes(ctx, pool)
 		}},
-	{Nom: "amendements", Categorie: CategorieParlement, Description: "amendements et exposés sommaires",
+	// amendements, interventions, deports et promulgation rattachent leurs lignes
+	// aux députés et aux organes créés par normalize (index AN_ACTEUR/AN_ORGANE) :
+	// lancés avant, ils chargent des lignes sans auteur ni orateur, et le dossier
+	// des faits ne retrouve plus aucune prise de parole.
+	{Nom: "amendements", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "amendements et exposés sommaires",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.IngestAmendements(ctx, pool, arch)
 		}},
-	{Nom: "exposes", Categorie: CategorieParlement, Description: "exposés des motifs",
+	{Nom: "exposes", Categorie: CategorieParlement, Dependances: []string{"amendements"}, Description: "exposés des motifs",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.IngestExposes(ctx, pool, arch)
 		}},
-	{Nom: "exposes-reparse", Categorie: CategorieParlement, Description: "réextraction des exposés depuis l'archive déjà scellée",
+	{Nom: "exposes-reparse", Categorie: CategorieParlement, Dependances: []string{"amendements"}, Description: "réextraction des exposés depuis l'archive déjà scellée",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.ReparseExposes(ctx, pool, rawDir)
 		}},
-	{Nom: "interventions", Categorie: CategorieParlement, Description: "interventions en séance",
+	{Nom: "interventions", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "interventions en séance",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.IngestInterventions(ctx, pool, arch)
 		}},
-	{Nom: "deports", Categorie: CategorieParlement, Description: "déclarations de déport",
+	{Nom: "deports", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "déclarations de déport",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.NormalizeDeports(ctx, pool)
 		}},
-	{Nom: "promulgation", Categorie: CategorieParlement, Description: "rattachement des dossiers à la loi promulguée",
+	{Nom: "promulgation", Categorie: CategorieParlement, Dependances: []string{"normalize"}, Description: "rattachement des dossiers à la loi promulguée",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return an.PromulgationDossiers(ctx, pool)
 		}},
@@ -251,6 +260,10 @@ var catalogue = []Source{
 			}
 			return presidentielle.IngestTurnout(ctx, pool, arch)
 		}},
+	{Nom: "parrainages", Categorie: CategorieParlement, Description: "parrainages des candidats à la présidentielle (Conseil constitutionnel : 2017, 2022, et 2027 dès sa publication)",
+		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
+			return presidentielle.IngestParrainages(ctx, pool, arch)
+		}},
 
 	// --- collectivites : communes, intercommunalités, élections locales,
 	// finances locales.
@@ -290,8 +303,13 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestCOG(ctx, pool, arch)
 		}},
+	// Le RNE crée une fiche (slug « nom-prénom-hash ») pour chaque élu qu'il ne
+	// connaît pas ; normalize rattrape ensuite par le triplet nom/prénom/naissance
+	// la personne ainsi créée plutôt que d'en créer une — et le député garde le
+	// slug du RNE. D'où normalize AVANT : 1 452 députés avaient un slug haché
+	// quand `ingest full` les a lancés dans l'autre ordre.
 	{Nom: "communes-rne", Categorie: CategorieCollectivites, Description: "chaîne communes, 2/8 : répertoire national des élus (maires)",
-		Dependances: []string{"communes-cog"},
+		Dependances: []string{"communes-cog", "normalize"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestRNE(ctx, pool, arch)
 		}},
@@ -335,7 +353,7 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestCOG(ctx, pool, arch)
 		}},
-	{Nom: "rne", Categorie: CategorieCollectivites, Description: "répertoire national des élus (maires) seul, sans la chaîne (ref.commune déjà en base)",
+	{Nom: "rne", Categorie: CategorieCollectivites, Dependances: []string{"normalize"}, Description: "répertoire national des élus (maires) seul, sans la chaîne (ref.commune déjà en base)",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return communes.IngestRNE(ctx, pool, arch)
 		}},
@@ -474,15 +492,19 @@ var catalogue = []Source{
 	// déclarée nulle part avant « fpctl ingest
 	// full », qui met pour la première fois ces sources dans la MÊME
 	// vague que sirene sans ordre garanti entre elles.
-	{Nom: "aides-nominatives", Categorie: CategorieBudget, Description: "aides publiées bénéficiaire par bénéficiaire (ADEME, minimis, TAM — SIRENE requis)",
-		Dependances: []string{"sirene"},
+	// Alias, pas un quatrième chargeur : cette entrée appelait elle-même
+	// IngestADEME, IngestMinimis et IngestTAM, c'est-à-dire exactement ce que
+	// font « ademe », « minimis » et « tam » ci-dessous. Une exécution complète
+	// parallèle (fpctl ingest full -j N) lançait donc les deux à la fois sur
+	// core.aide_nominative, et l'un des deux échouait sur la clé primaire
+	// (constaté le 28 octobre 2026 : tam, après 31 minutes, contre sa propre
+	// copie dans ce lot) — le même défaut que l'ancienne entrée « aides » doublon
+	// d'« aides-urssaf » et « sirene ». Même remède que l'alias « macro » : le nom
+	// reste (verify/dette.go le cite, et « fpctl ingest budget aides-nominatives »
+	// continue de tout charger), mais le travail n'existe qu'une fois.
+	{Nom: "aides-nominatives", Categorie: CategorieBudget, Description: "aides publiées bénéficiaire par bénéficiaire (ADEME, minimis, TAM — SIRENE requis) — alias regroupant ademe, minimis et tam",
+		Dependances: []string{"ademe", "minimis", "tam"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
-			for _, f := range []func(context.Context, *pgxpool.Pool, *archive.Archive) error{
-				aides.IngestADEME, aides.IngestMinimis, aides.IngestTAM} {
-				if err := f(ctx, pool, arch); err != nil {
-					return err
-				}
-			}
 			return nil
 		}},
 	{Nom: "ademe", Categorie: CategorieBudget, Description: "aides ADEME seules",
@@ -828,7 +850,10 @@ var catalogue = []Source{
 		}},
 
 	// --- systeme : infrastructure partagée, pas propre à un dossier.
-	{Nom: "media", Categorie: CategorieSysteme, Description: "portraits et logos librement réutilisables",
+	// media crée la fiche d'un candidat qui n'en a pas (ON CONFLICT sur le slug) :
+	// lancé avant normalize, il prenait le slug « marine-le-pen » pour une fiche
+	// vide, et la vraie députée héritait de « marine-le-pen-7e9adbb5 ».
+	{Nom: "media", Categorie: CategorieSysteme, Dependances: []string{"normalize", "carto"}, Description: "portraits et logos librement réutilisables",
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return ingestMedia(ctx, pool, arch, "data", "web/media")
 		}},

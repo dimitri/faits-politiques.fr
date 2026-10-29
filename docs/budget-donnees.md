@@ -13,12 +13,12 @@
 
 <!-- faits:CONTEXTE:debut — généré par cmd/sections-dossiers depuis ref.fait_dossier, ne pas modifier à la main -->
 
-Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 21 juillet 2026), les interventions qui emploient les mots du dossier :
+Dans les comptes rendus de séance de l'Assemblée nationale chargés (du 18 juillet 2024 au 27 octobre 2026), les interventions qui emploient les mots du dossier :
 
 | expression | interventions | orateurs distincts | première | dernière |
 |---|---:|---:|---|---|
-| loi de finances | 1692 | 356 | 1er octobre 2024 | 21 juillet 2026 |
-| dette sociale, Cades | 177 | 46 | 14 octobre 2024 | 9 juin 2026 |
+| loi de finances | 1886 | 370 | 1er octobre 2024 | 27 octobre 2026 |
+| dette sociale, Cades | 194 | 50 | 14 octobre 2024 | 23 octobre 2026 |
 
 Une mention ne dit pas la position de l'orateur (`derived.dossier_mentions_an`).
 
