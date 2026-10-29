@@ -1623,6 +1623,53 @@ padding:.2rem .38rem;border:1px solid var(--attenue);border-radius:3px;vertical-
 .qual.q-presse{background:transparent;color:var(--attenue);border-style:dashed}
 @media(max-width:44rem){ol.faits-frise li{grid-template-columns:1fr;gap:.2rem}}
 
+/* Les candidats et la justice : une fiche par candidat. Deux repères descriptifs
+   (stade, peine), en encre et en accent — jamais de couleur d'alerte : ils disent
+   ce qu'une juridiction a décidé, pas ce qu'il faut en penser. */
+.jug-lecture{border-left:3px solid var(--accent);background:var(--accent-doux);padding:.7rem 1rem;
+border-radius:0 var(--rayon-s) var(--rayon-s) 0;margin:.6rem 0 1.4rem;font-size:.92rem}
+.jug-lecture p{margin:0}
+ul.jug-resume{list-style:none;padding:0;margin:.8rem 0 1.4rem;display:grid;gap:1rem;
+grid-template-columns:repeat(auto-fit,minmax(17rem,1fr))}
+.jug-resume a{display:grid;grid-template-columns:auto minmax(0,1fr);gap:.9rem;align-items:start;height:100%;
+padding:1rem;background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);
+text-decoration:none;color:var(--encre)}
+.jug-resume a:hover,.jug-resume a:focus-visible{border-color:var(--accent)}
+.jug-resume .portrait{width:64px;height:64px}
+.jug-resume .jug-id{display:grid;gap:.3rem}
+.jug-resume strong{font:600 1.05rem/1.25 var(--sans)}
+.jug-ligne{display:flex;flex-wrap:wrap;align-items:center;gap:.4rem;font-size:.85rem}
+.jug-ligne .jug-lbl{min-width:2.8rem}
+.jug-n{color:var(--attenue)}
+.jug-liste{display:grid;gap:1.2rem;margin:0 0 1.4rem}
+.jug{background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);padding:1rem 1.2rem 0.4rem}
+.jug header{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:1rem;align-items:center;
+padding-bottom:.9rem;border-bottom:1px solid var(--filet)}
+.jug .portrait{width:72px;height:72px}
+.jug h3{margin:0;font:600 1.2rem/1.25 var(--sans)}
+.jug h3 a{text-decoration:none}
+.jug-org{margin:.15rem 0 0;font-size:.9rem;color:var(--attenue)}
+.jug-peine{display:grid;gap:.25rem;justify-items:start;font-size:.85rem;max-width:16rem}
+.jug-lbl{font:500 .64rem/1.2 var(--mono);letter-spacing:.06em;text-transform:uppercase;color:var(--attenue)}
+.jug-val{font-weight:600}
+.jug-inelig{color:var(--attenue)}
+.jug-echelle{display:inline-flex;gap:3px}
+.jug-echelle i{width:1.5rem;height:.5rem;border-radius:2px;background:var(--filet);border:1px solid var(--attenue)}
+.jug-echelle i.on{background:var(--encre);border-color:var(--encre)}
+ol.jug-decisions{margin:0}
+ol.jug-stade{list-style:none;display:flex;flex-wrap:wrap;gap:.25rem;padding:0;margin:.15rem 0 .45rem}
+ol.faits-frise ol.jug-stade li{display:block;gap:0;padding:.15rem .5rem;border:1px solid var(--filet);border-radius:999px;
+font:500 .72rem/1.3 var(--sans);color:var(--attenue)}
+ol.faits-frise ol.jug-stade li.passe{border-color:var(--attenue)}
+ol.faits-frise ol.jug-stade li.now{background:var(--accent);border-color:var(--accent);color:var(--papier);font-weight:600}
+.jug-faits{font-size:.88rem;margin-bottom:.3rem}
+.jug-faits .jug-lbl{margin-right:.2rem}
+.jug-faits .jug-lbl:not(:first-child){margin-left:.7rem}
+@media(max-width:44rem){
+  .jug header{grid-template-columns:auto minmax(0,1fr)}
+  .jug-peine{grid-column:1/-1;max-width:none}
+}
+
 .intro-mentions{color:var(--attenue);font-size:.9rem;margin:0 0 .6rem;max-width:44rem}
 figure.credits{margin:1rem 0 1.4rem}
 figure.credits figcaption{font-size:.95rem;margin-bottom:.6rem}

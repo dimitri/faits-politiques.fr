@@ -864,7 +864,7 @@ func buildTopicsData(ctx context.Context, e *environment, deps pipeline.Results)
 		return err
 	}
 	rewriteLinksDocs(docs, root)
-	return prepareTopics(ctx, e.pool, e.out, root, acc)
+	return prepareTopics(ctx, e.pool, e.out, root, e.dataDir, acc)
 }
 
 // buildGuidesAndTopics reprend verbatim la double boucle sur docs :
