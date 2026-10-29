@@ -865,7 +865,10 @@ var catalogue = []Source{
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			return matview.RefreshAll(ctx, pool)
 		}},
+	// Dépend de communes-banatic : les contours intercommunaux du millésime
+	// courant se dessinent d'après core.epci_membre (voir geo-courant, ingest.go).
 	{Nom: "contours", Categorie: CategorieSysteme, Description: "contours IGN par millésime du COG",
+		Dependances: []string{"communes-banatic"},
 		Executer: func(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive, rawDir string) error {
 			if err := communes.IngestCOG(ctx, pool, arch); err != nil {
 				return err

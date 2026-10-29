@@ -677,10 +677,13 @@ func registreComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Arch
 	// « contours » invoquée seule, catégorie systeme, qui le recharge
 	// elle-même). Dépend de communes-cog précisément, pas de l'alias
 	// "communes" ni du reste de la chaîne (RNE, OFGL...) qui ne concerne pas
-	// le COG.
+	// le COG. Dépend aussi de communes-banatic : les contours intercommunaux du
+	// millésime courant se dessinent d'après core.epci_membre (geo/ign.go) ;
+	// lancé avant BANATIC, le millésime courant n'a aucune intercommunalité et
+	// verify data bloque la publication (« tout EPCI … a son contour »).
 	reg.Add(pipeline.Step{
 		Name: "geo-courant", Description: "IGN boundaries by vintage",
-		Dependencies: []string{"communes-cog"},
+		Dependencies: []string{"communes-cog", "communes-banatic"},
 		Run: func(ctx context.Context, _ pipeline.Results) (any, error) {
 			return nil, geo.Ingest(ctx, pool, arch, filepath.Join("data", "geo-projections.csv"), communes.COGVintage)
 		},

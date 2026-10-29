@@ -46,6 +46,7 @@ type factTopic struct {
 	section, author, caption, finding, url, page, quality string
 	year, dateFr                                          string
 	name, slug                                            string
+	id                                                    string
 	profile, session                                      bool
 }
 
@@ -53,7 +54,7 @@ func loadFactsTopics(ctx context.Context, pool *pgxpool.Pool) (map[string][]fact
 	rows, err := pool.Query(ctx, `
 		SELECT f.dossier, f.section, f.auteur, f.intitule, f.constat, f.source_url, coalesce(f.page,''),
 		       f.qualite, f.date_fait, coalesce(p.nom,''), coalesce(p.slug,''), coalesce(p.a_une_fiche,false),
-		       f.intervention_slug IS NOT NULL
+		       f.intervention_slug IS NOT NULL, f.id
 		FROM ref.fait_dossier f
 		LEFT JOIN derived.fait_dossier_personne p ON p.fait_id = f.id
 		ORDER BY f.dossier, f.section, f.date_fait NULLS LAST, f.id`)
@@ -67,7 +68,7 @@ func loadFactsTopics(ctx context.Context, pool *pgxpool.Pool) (map[string][]fact
 		var f factTopic
 		var date *time.Time
 		if err := rows.Scan(&d, &f.section, &f.author, &f.caption, &f.finding, &f.url, &f.page,
-			&f.quality, &date, &f.name, &f.slug, &f.profile, &f.session); err != nil {
+			&f.quality, &date, &f.name, &f.slug, &f.profile, &f.session, &f.id); err != nil {
 			return nil, err
 		}
 		if date != nil {
@@ -299,7 +300,7 @@ var (
 var sectionsCollapsed = map[string]bool{"Glossaire": true, "Sources": true, "Annexe technique": true, "Versions": true}
 var sectionsBox = map[string]bool{"Ce que les données ne disent pas": true, "Pièges de lecture": true}
 
-func splitDossier(s *Topic, facts []factTopic, credits []lineCredit, root string) {
+func splitDossier(s *Topic, facts []factTopic, credits []lineCredit, root string, judicial []judicialCard) {
 	body := reH1Doc.ReplaceAllString(string(s.D.Body), "")
 	if m := reBlockquote.FindStringSubmatchIndex(body); m != nil {
 		ps := reParagraphs.FindAllStringSubmatch(body[m[2]:m[3]], -1)
@@ -325,7 +326,12 @@ func splitDossier(s *Topic, facts []factTopic, credits []lineCredit, root string
 			return barsMentions(m[2]) + timeline(facts, "CONTEXTE", root)
 		case "BUDGET":
 			return barsCredits(credits)
-		case "ENJEUX", "CADRE", "CONTROLE", "SITUATION":
+		case "CONTROLE":
+			if len(judicial) > 0 {
+				return judicialCards(judicial, root)
+			}
+			return timeline(facts, m[1], root)
+		case "ENJEUX", "CADRE", "SITUATION":
 			if f := timeline(facts, m[1], root); f != "" {
 				return f
 			}
@@ -349,6 +355,12 @@ func splitDossier(s *Topic, facts []factTopic, credits []lineCredit, root string
 			ID: body[m[2]:m[3]], Title: html.UnescapeString(title), HTML: template.HTML(content),
 			Box: sectionsBox[title], Collapsed: sectionsCollapsed[title],
 		})
+	}
+	if len(judicial) > 0 {
+		s.Sections = append([]SectionTopic{{
+			ID: "candidats-concernes", Title: "Les candidats concernés",
+			HTML: template.HTML(judicialSummary(judicial, root)),
+		}}, s.Sections...)
 	}
 	for _, f := range facts {
 		switch f.section {
@@ -790,7 +802,7 @@ func inBrief(ctx context.Context, pool *pgxpool.Pool, s *Topic, acc *DataHome, c
 
 // prepareTopics complète chaque sujet : chiffres clés, page de données,
 // dossier découpé. Appelé après l'écriture des pages de données.
-func prepareTopics(ctx context.Context, pool *pgxpool.Pool, out, root string, acc *DataHome) error {
+func prepareTopics(ctx context.Context, pool *pgxpool.Pool, out, root, dataDir string, acc *DataHome) error {
 	facts, err := loadFactsTopics(ctx, pool)
 	if err != nil {
 		return err
@@ -804,7 +816,13 @@ func prepareTopics(ctx context.Context, pool *pgxpool.Pool, out, root string, ac
 			if s.D == nil {
 				continue
 			}
-			splitDossier(s, facts[s.Doc], credits[s.Doc], root)
+			var judicial []judicialCard
+			if s.Doc == dossierJudicial {
+				if judicial, err = loadJudicialCards(ctx, pool, dataDir, facts[s.Doc]); err != nil {
+					return err
+				}
+			}
+			splitDossier(s, facts[s.Doc], credits[s.Doc], root, judicial)
 			s.InBrief = inBrief(ctx, pool, s, acc, credits[s.Doc])
 			switch {
 			case s.ID == "collectivites":
