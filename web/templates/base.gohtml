@@ -272,3 +272,54 @@ projection&nbsp;: les surfaces ne se comparent pas d'un carton à l'autre, ni à
   </div>
 </div>
 {{end}}{{end}}
+
+{{/* L'échelle des candidats (internal/sitegen/echelle_candidats.go). Trois blocs partagés
+     par l'accueil et la page 2027. Ce site ne place personne : les positions sont celles
+     que des experts donnent au PARTI du candidat. */}}
+
+{{define "echelle-plan"}}
+<div class="echelle-defile" tabindex="0" role="group" aria-label="Plan « {{.Title}} » : faire défiler horizontalement sur un petit écran">
+<div class="echelle-grille t-{{.Tint}}">
+  <div class="echelle-axe-v" aria-hidden="true"><span class="bas">{{.Bas}}</span><span class="haut">{{.Haut}}</span></div>
+  <div class="echelle-plan">
+    <svg class="echelle-fil" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
+      <line x1="25" y1="0" x2="25" y2="100"/><line x1="50" y1="0" x2="50" y2="100"/><line x1="75" y1="0" x2="75" y2="100"/>
+      <line x1="0" y1="25" x2="100" y2="25"/><line x1="0" y1="50" x2="100" y2="50"/><line x1="0" y1="75" x2="100" y2="75"/>
+      {{range .Points}}{{if .Displaced}}<line class="lien" x1="{{printf "%.2f" .DotLeft}}" y1="{{printf "%.2f" .DotTop}}" x2="{{printf "%.2f" .Left}}" y2="{{printf "%.2f" .Top}}" style="stroke:{{.Color}}"/>{{end}}{{end}}
+    </svg>
+    {{range .Points}}
+    <i class="echelle-pt" style="left:{{printf "%.2f" .DotLeft}}%;top:{{printf "%.2f" .DotTop}}%;background:{{.Color}}"></i>
+    <a class="echelle-av" href="{{$.Root}}/candidat/{{.Slug}}/" title="{{.Label}}" style="left:{{printf "%.2f" .Left}}%;top:{{printf "%.2f" .Top}}%;border-color:{{.Color}}">
+      {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.File}}" alt="" width="54" height="54" loading="lazy">{{else}}<span class="mono">{{.Initials}}</span>{{end}}
+      <em>{{.FirstName}}&nbsp;{{.Name}}</em></a>
+    {{end}}
+  </div>
+  <span class="echelle-coin"></span>
+  <div class="echelle-axe" aria-hidden="true"><span>Gauche</span><span>Droite</span></div>
+</div>
+</div>
+{{end}}
+
+{{define "echelle-sans"}}{{if .Unplaced}}
+<div class="echelle-sans">
+  <h3>Pas de mesure pour leur organisation&nbsp;: {{len .Unplaced}} candidats</h3>
+  <p class="small muted">Les experts n'ont mesuré que {{.Placed}} des organisations des candidats déclarés. Les autres ne sont pas placés,
+  et ce n'est pas un jugement&nbsp;: par ordre alphabétique.</p>
+  <ul>
+    {{range .Unplaced}}<li><a href="{{$.Root}}/candidat/{{.Slug}}/" title="{{.FirstName}} {{.Name}}{{if .Organization}}, {{.Organization}}{{end}}">
+      {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.File}}" alt="" width="46" height="46" loading="lazy">{{else}}<span class="mono">{{.Initials}}</span>{{end}}
+      <b>{{.FirstName}} {{.Name}}</b><span>{{if .Organization}}{{.Organization}}{{else}}organisation non renseignée{{end}}</span></a></li>{{end}}
+  </ul>
+</div>
+{{end}}{{end}}
+
+{{/* Chaque colonne dit ce que veut dire 10 : le sens est celui de l'enquête, jamais « plus » d'une qualité. */}}
+{{define "echelle-tableau"}}{{if .Rows}}
+<div class="scroll"><table class="pile echelle-tableau">
+  <thead><tr><th>Candidat</th><th>Organisation</th>{{range .Columns}}<th>{{.Title}}<span class="dix">10&nbsp;: {{.Ten}}</span></th>{{end}}</tr></thead>
+  <tbody>{{range .Rows}}<tr>
+    <td data-l="Candidat"><a href="{{$.Root}}/candidat/{{.Slug}}/">{{.FirstName}} {{.Name}}</a></td>
+    <td class="small z" data-l="Organisation">{{.Organization}}</td>
+    {{range $i, $v := .Values}}<td data-l="{{(index $.Columns $i).Title}}">{{$v}}</td>{{end}}
+  </tr>{{end}}</tbody></table></div>
+{{end}}{{end}}

@@ -565,7 +565,14 @@ func buildRegistry(env *environment) *pipeline.Registry {
 	addNode(region, "election2027", []string{"identite"}, func(ctx context.Context, d pipeline.Results) (*Stats2027, error) {
 		return load2027(ctx, e.pool, dep[identityBundle](d, "identite").Candidates, e.dataDir)
 	})
-	region.Add(pipeline.Step{Name: "election2027-page", Description: "page présidentielle 2027", Dependencies: []string{"election2027"},
+	// Les partis des candidats, placés sur cinq axes (échelle_candidats.go) : lus par la
+	// page 2027, qui les montre tous en onglets, et par l'accueil, qui montre l'écologie.
+	// Déclaré ici, avant ses deux lecteurs : le registre refuse une dépendance qui vient après.
+	addNode(region, "echelle-candidats", []string{"identite"},
+		func(ctx context.Context, d pipeline.Results) (*EchelleCandidats, error) {
+			return loadEchelleCandidats(ctx, e.pool, e.root, dep[identityBundle](d, "identite").Candidates)
+		})
+	region.Add(pipeline.Step{Name: "election2027-page", Description: "page présidentielle 2027", Dependencies: []string{"election2027", "echelle-candidats"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			e27 := dep[*Stats2027](d, "election2027")
 			l := e.layout
@@ -573,8 +580,9 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			l.Description = "La présidentielle 2027, sujet par sujet : candidats, positions et cartes départementales, sourcés document par document."
 			if err := e.writeSection("election2027", e.page("election2027.gohtml"), filepath.Join(e.out, "2027", "index.html"), struct {
 				Layout
-				E *Stats2027
-			}{l, e27}); err != nil {
+				E       *Stats2027
+				Echelle *EchelleCandidats
+			}{l, e27, dep[*EchelleCandidats](d, "echelle-candidats")}); err != nil {
 				return nil, err
 			}
 			views := map[string]bool{}
@@ -1064,10 +1072,6 @@ func buildRegistry(env *environment) *pipeline.Registry {
 	// dépendances DIRECTES d'un nœud dans deps, jamais toute la fermeture —
 	// accueil.gohtml lit Cov.Candidats/CandidatsPrimaire/CandidatsAvecBilan
 	// (voir layoutWithIdentity), qu'il faut donc nommer ici aussi.
-	addNode(region, "echelle-candidats", []string{"identite"},
-		func(ctx context.Context, d pipeline.Results) (*EchelleCandidats, error) {
-			return loadEchelleCandidats(ctx, e.pool, dep[identityBundle](d, "identite").Candidates)
-		})
 	region.Add(pipeline.Step{Name: "accueil", Description: "page d'accueil",
 		Dependencies: []string{"accueil-data", "sujets-data", "identite", "echelle-candidats"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {

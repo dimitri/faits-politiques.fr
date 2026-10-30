@@ -3,7 +3,64 @@
 <span class="sur">Élection présidentielle</span>
 <h1>2027</h1>
 <p class="lede">Ce que le site sait de chaque candidat déclaré — et, tout aussi utile, ce qu'il ne
-sait pas. Aucun classement, aucune note, aucun pronostic&nbsp;: l'ordre est alphabétique.</p>
+sait pas. Aucune note ni aucun pronostic de ce site, l'ordre est alphabétique&nbsp;; les positions des
+partis sont celles d'experts, citées avec leur source.</p>
+
+{{with .Echelle}}{{if .Axes}}
+<section class="bloc" id="echelle" style="padding-top:1rem">
+  <div class="tete"><div><span class="sur">Où des experts placent les partis</span>
+    <h2 class="h2" style="margin:0">Les candidats sur cinq axes</h2></div></div>
+  <p class="echelle-intro"><strong>Ce site ne place personne.</strong> Chaque position est celle que des experts
+  donnent au <em>parti</em> du candidat, de 0 à 10, dans le Chapel Hill Expert Survey 2024&nbsp;: pas celle du
+  candidat, ni celle de ce site. {{.Placed}} candidats sur {{.Total}} ont un parti mesuré&nbsp;; les autres ne sont pas
+  placés. L'abscisse est toujours la position gauche-droite&nbsp;; l'ordonnée change avec l'onglet.</p>
+
+  {{/* Onglets sans script, comme les cartes de l'accueil : un bouton radio par onglet, un panneau par bouton. */}}
+  <div class="onglets-carte onglets-axes">
+    {{range $i, $a := .Axes}}<input type="radio" name="onglet-axe" id="ax{{add $i 1}}" class="vh"{{if eq $i 0}} checked{{end}}>{{end}}
+    <div class="etiquettes" role="presentation">
+      {{range $i, $a := .Axes}}<label for="ax{{add $i 1}}">{{$a.Title}}</label>{{end}}
+    </div>
+    <div class="panneaux">
+      {{range $i, $a := .Axes}}
+      <div class="panneau p{{add $i 1}}">
+        <p class="small muted echelle-note">{{$a.Note}}</p>
+        <div class="echelle-cadre">
+          <p class="echelle-astuce" aria-hidden="true">Le plan est plus large que l'écran : faites-le défiler →</p>
+          {{template "echelle-plan" $a}}
+        </div>
+      </div>
+      {{end}}
+    </div>
+  </div>
+  {{template "echelle-sans" .}}
+  <details class="plus echelle-valeurs">
+    <summary>Les mesures, candidat par candidat</summary>
+    <div class="dedans">{{template "echelle-tableau" .}}
+      <p class="small muted">Moyennes d'appréciations d'experts, de 0 à 10. Chaque colonne dit ce que veut dire 10&nbsp;: le sens est celui de
+      l'enquête, un score élevé n'est jamais «&nbsp;plus&nbsp;» d'une qualité.</p></div>
+  </details>
+  <details class="plus">
+    <summary>Ce que ces mesures disent, et ce qu'elles ne disent pas</summary>
+    <div class="dedans">
+      <p class="note"><strong>Des positions, pas des verdicts.</strong> L'enquête ne pose aucune question sur le fascisme ou le
+      racisme, et ce site ne qualifie aucun parti&nbsp;: il montre ce que les experts notent (l'immigration, les valeurs, le
+      pouvoir de l'exécutif, l'indépendance de la justice) avec le sens de chaque échelle. Aucun seuil «&nbsp;extrême&nbsp;» n'est tracé, ni à
+      droite ni à gauche&nbsp;: s'il y a un écart, il se lit dans les mesures.</p>
+      <p class="note"><strong>Les deux questions de 2024 sur l'exécutif et la justice</strong> ont été posées pour la première fois cette année-là.
+      Leurs auteurs précisent qu'elles ne suffisent pas, seules, à mesurer l'attachement d'un parti à la démocratie libérale.</p>
+      <p class="note"><strong>La même règle à gauche et à droite.</strong> Ces notes ne se comparent pas à des régimes comme l'URSS, la
+      Chine ou Cuba&nbsp;: l'axe gauche-droite est celui que les experts entendent dans chaque pays (voir
+      <a href="{{$.Root}}/referentiel/ches-2024/#lrgen">sa définition</a>), il n'est pas étalonné sur des régimes, et il ne dit ni l'histoire d'un parti,
+      ni ses sympathies à l'étranger, ni son fonctionnement interne.</p>
+      <p class="note"><strong>Un score n'est pas un vote.</strong> Les positions de 2024 décrivent le parti, pas son candidat de 2027.</p>
+    </div>
+  </details>
+  <p class="src-bloc">Source&nbsp;: Chapel Hill Expert Survey 2024 (Jolly, Bakker, Hooghe, Marks, Polk, Rovny, Steenbergen, Vachudova),
+  moyennes d'appréciations d'experts, <a href="{{$.Root}}/referentiel/ches-2024/">définitions complètes</a>. Portraits&nbsp;: Wikimedia Commons,
+  licence et auteur sur la fiche de chacun.</p>
+</section>
+{{end}}{{end}}
 
 <section class="bloc" style="padding-top:1rem">
   <div class="tete"><div><span class="sur">Sujets de campagne</span>

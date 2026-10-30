@@ -24,62 +24,27 @@
        PARTI du candidat (Chapel Hill Expert Survey 2024). Un candidat dont
        l'organisation n'est pas mesurée n'est pas placé, et le dit. L'ordonnée est
        « environment » : 0, protéger l'environnement même au prix de la croissance,
-       au contact de l'axe ; 10, la croissance même au prix de l'environnement. */}}
+       au contact de l'axe ; 10, la croissance même au prix de l'environnement.
+       Les quatre autres axes sont sur /2027/. */}}
   <p class="echelle-intro"><strong>Où des experts placent le parti de chaque candidat.</strong>
   À gauche ou à droite, et plus ou moins près de l'environnement&nbsp;: ce n'est pas la position du
-  candidat, ni celle de ce site. {{len .Placed}} candidats sur {{.Total}} ont un parti mesuré.</p>
-  {{if .Placed}}
+  candidat, ni celle de ce site. {{.Placed}} candidats sur {{.Total}} ont un parti mesuré.</p>
+  {{if .Axes}}
   <div class="echelle-cadre">
     <p class="echelle-astuce" aria-hidden="true">Le plan est plus large que l'écran : faites-le défiler →</p>
-    <div class="echelle-defile" tabindex="0" role="group" aria-label="Plan des candidats : défiler horizontalement sur un petit écran">
-    <div class="echelle-grille">
-    <div class="echelle-axe-v" aria-hidden="true"><span class="bas">L'environnement d'abord</span><span class="haut">La croissance d'abord</span></div>
-    <div class="echelle-plan">
-      <svg class="echelle-fil" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
-        <line x1="25" y1="0" x2="25" y2="100"/><line x1="50" y1="0" x2="50" y2="100"/><line x1="75" y1="0" x2="75" y2="100"/>
-        <line x1="0" y1="25" x2="100" y2="25"/><line x1="0" y1="50" x2="100" y2="50"/><line x1="0" y1="75" x2="100" y2="75"/>
-        {{range .Placed}}{{if .Displaced}}<line class="lien" x1="{{printf "%.2f" .DotLeft}}" y1="{{printf "%.2f" .DotTop}}" x2="{{printf "%.2f" .Left}}" y2="{{printf "%.2f" .Top}}" style="stroke:{{.Color}}"/>{{end}}{{end}}
-      </svg>
-      {{range .Placed}}
-      <i class="echelle-pt" style="left:{{printf "%.2f" .DotLeft}}%;top:{{printf "%.2f" .DotTop}}%;background:{{.Color}}"></i>
-      <a class="echelle-av" href="{{$.Root}}/candidat/{{.Slug}}/" title="{{.Label}}" style="left:{{printf "%.2f" .Left}}%;top:{{printf "%.2f" .Top}}%;border-color:{{.Color}}">
-        {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.File}}" alt="" width="54" height="54" loading="lazy">{{else}}<span class="mono">{{.Initials}}</span>{{end}}
-        <em>{{.FirstName}}&nbsp;{{.Name}}</em></a>
-      {{end}}
-    </div>
-    <span class="echelle-coin"></span>
-    <div class="echelle-axe" aria-hidden="true"><span>Gauche</span><span>Droite</span></div>
-    </div>
-    </div>
-    <p class="echelle-legende">Abscisse&nbsp;: position générale du parti de gauche (0) à droite (10). Ordonnée&nbsp;: position sur l'environnement,
-    de «&nbsp;protéger l'environnement même au prix de la croissance&nbsp;» (en bas, au contact de l'axe, en vert) à
-    «&nbsp;la croissance même au prix de l'environnement&nbsp;» (en haut). Le point est la mesure&nbsp;; le portrait est écarté de
-    son voisin quand les deux se recouvriraient, et relié à son point.</p>
+    {{template "echelle-plan" (index .Axes 0)}}
+    <p class="echelle-legende">Abscisse&nbsp;: position générale du parti, de la gauche (0) à la droite (10). Ordonnée&nbsp;: sa position sur
+    l'environnement, de «&nbsp;l'environnement d'abord, même au prix de la croissance&nbsp;» (0, en bas, au contact de l'axe, en vert) à
+    «&nbsp;la croissance d'abord, même au prix de l'environnement&nbsp;» (10, en haut). Le point est la mesure&nbsp;; le portrait est écarté de
+    son voisin quand les deux se recouvriraient, et relié à son point.
+    <a href="{{$.Root}}/2027/#echelle">Immigration, valeurs, pouvoir de l'exécutif, justice&nbsp;: les autres axes →</a></p>
   </div>
   {{end}}
-  {{if .Unplaced}}
-  <div class="echelle-sans">
-    <h3>Pas de mesure pour leur organisation&nbsp;: {{len .Unplaced}} candidats</h3>
-    <p class="small muted">Les experts n'ont mesuré que {{len .Placed}} des organisations des candidats déclarés. Les autres ne sont pas placés,
-    et ce n'est pas un jugement&nbsp;: par ordre alphabétique.</p>
-    <ul>
-      {{range .Unplaced}}<li><a href="{{$.Root}}/candidat/{{.Slug}}/" title="{{.FirstName}} {{.Name}}{{if .Organization}}, {{.Organization}}{{end}}">
-        {{if .Portrait}}<img src="{{$.Root}}/media/{{.Portrait.File}}" alt="" width="46" height="46" loading="lazy">{{else}}<span class="mono">{{.Initials}}</span>{{end}}
-        <b>{{.FirstName}} {{.Name}}</b><span>{{if .Organization}}{{.Organization}}{{else}}organisation non renseignée{{end}}</span></a></li>{{end}}
-    </ul>
-  </div>
-  {{end}}
-  {{if .Placed}}
+  {{template "echelle-sans" .}}
+  {{if .Rows}}
   <details class="plus echelle-valeurs">
     <summary>Les mesures, candidat par candidat</summary>
-    <div class="dedans"><div class="scroll"><table class="pile">
-      <thead><tr><th>Candidat</th><th>Organisation</th><th>Gauche-droite (0 à 10)</th><th>Environnement (0 à 10)</th></tr></thead>
-      <tbody>{{range .Placed}}<tr>
-        <td data-l="Candidat"><a href="{{$.Root}}/candidat/{{.Slug}}/">{{.FirstName}} {{.Name}}</a></td>
-        <td class="small z" data-l="Organisation">{{.Organization}}</td>
-        <td data-l="Gauche-droite">{{dec .LR 1}}</td>
-        <td data-l="Environnement">{{dec .Env 1}}</td>
-      </tr>{{end}}</tbody></table></div></div>
+    <div class="dedans">{{template "echelle-tableau" .}}</div>
   </details>
   {{end}}
   {{end}}
