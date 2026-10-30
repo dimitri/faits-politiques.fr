@@ -106,8 +106,12 @@ func loadBackgroundSituation(ctx context.Context, pool *pgxpool.Pool, out, root 
 		return nil, err
 	}
 	f.vb = f.deps.ViewBox
-	if _, err := fmt.Sscanf(f.vb, "%f %f %f %f", &f.box[0], &f.box[1], &f.box[2], &f.box[3]); err != nil {
-		return nil, fmt.Errorf("boîte de la carte %q : %w", f.vb, err)
+	// Sans contours de départements (périmètre CI) la boîte reste nulle : aucune loupe
+	// n'est alors possible, la carte de situation garde son cercle.
+	if f.vb != "" {
+		if _, err := fmt.Sscanf(f.vb, "%f %f %f %f", &f.box[0], &f.box[1], &f.box[2], &f.box[3]); err != nil {
+			return nil, fmt.Errorf("boîte de la carte %q : %w", f.vb, err)
+		}
 	}
 	for _, o := range f.deps.overseas {
 		f.domDept[o.Code] = o
