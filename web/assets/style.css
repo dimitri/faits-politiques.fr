@@ -241,6 +241,8 @@ a{color:var(--accent);text-underline-offset:3px;text-decoration-thickness:1px}
 .sur,.eyebrow{font:500 .7rem/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;
 color:var(--accent);display:block;margin-bottom:.5rem}
 .h2{font:500 1.55rem/1.2 var(--titre);letter-spacing:-.014em;text-wrap:balance}
+.h2 a{color:inherit;text-decoration:none}
+.h2 a:hover,.h2 a:focus-visible{text-decoration:underline;text-underline-offset:.18em}
 .bloc{padding:2.8rem 0}
 .bloc + .bloc{border-top:1px solid var(--filet)}
 .tete{display:flex;align-items:center;justify-content:space-between;gap:1rem;
@@ -1828,7 +1830,8 @@ background:var(--encre);color:var(--papier);border-color:var(--encre)}
 .echelle-sans li b{font-size:.84rem;line-height:1.2;align-self:end}
 .echelle-sans li span:not(.mono){font-size:.72rem;line-height:1.25;color:var(--attenue)}
 .echelle-sans li a:hover b{text-decoration:underline}
-.echelle-valeurs{margin-top:1.2rem}
+.echelle-valeurs{margin-top:2.2rem}
+.echelle-valeurs .h2{margin:0 0 .8rem}
 /* Les maires qui ont parrainé un candidat : un département, une teinte — la part de ses maires parrains qui ont choisi ce candidat. */
 .parrain-cartes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),30rem));gap:1.6rem 2rem;margin:1rem 0 1.2rem}
 .parrain-carte{margin:0}

@@ -34,15 +34,15 @@ partis sont celles d'experts, citées avec leur source.</p>
     </div>
   </div>
   {{template "echelle-sans" .}}
-  <details class="plus echelle-valeurs">
-    <summary>Les mesures, candidat par candidat</summary>
-    <div class="dedans">{{template "echelle-tableau" .}}
-      <p class="small muted">Moyennes d'appréciations d'experts, de 0 à 10. Chaque colonne dit ce que veut dire 10&nbsp;: le sens est celui de
-      l'enquête, un score élevé n'est jamais «&nbsp;plus&nbsp;» d'une qualité.</p></div>
-  </details>
-  <details class="plus">
-    <summary>Ce que ces mesures disent, et ce qu'elles ne disent pas</summary>
-    <div class="dedans">
+  <div class="echelle-valeurs">
+    <h2 class="h2">Les mesures, candidat par candidat</h2>
+    {{template "echelle-tableau" .}}
+    <p class="small muted">Moyennes d'appréciations d'experts, de 0 à 10. Chaque colonne dit ce que veut dire 10&nbsp;: le sens est celui de
+    l'enquête, un score élevé n'est jamais «&nbsp;plus&nbsp;» d'une qualité.</p>
+  </div>
+  <div class="echelle-valeurs">
+    <h2 class="h2">Ce que ces mesures disent, et ce qu'elles ne disent pas</h2>
+    <div>
       <p class="note"><strong>Des positions, pas des verdicts.</strong> L'enquête ne pose aucune question sur le fascisme ou le
       racisme, et ce site ne qualifie aucun parti&nbsp;: il montre ce que les experts notent (l'immigration, les valeurs, le
       pouvoir de l'exécutif, l'indépendance de la justice) avec le sens de chaque échelle. Aucun seuil «&nbsp;extrême&nbsp;» n'est tracé, ni à
@@ -55,7 +55,7 @@ partis sont celles d'experts, citées avec leur source.</p>
       ni ses sympathies à l'étranger, ni son fonctionnement interne.</p>
       <p class="note"><strong>Un score n'est pas un vote.</strong> Les positions de 2024 décrivent le parti, pas son candidat de 2027.</p>
     </div>
-  </details>
+  </div>
   <p class="src-bloc">Source&nbsp;: Chapel Hill Expert Survey 2024 (Jolly, Bakker, Hooghe, Marks, Polk, Rovny, Steenbergen, Vachudova),
   moyennes d'appréciations d'experts, <a href="{{$.Root}}/referentiel/ches-2024/">définitions complètes</a>. Portraits&nbsp;: Wikimedia Commons,
   licence et auteur sur la fiche de chacun.</p>

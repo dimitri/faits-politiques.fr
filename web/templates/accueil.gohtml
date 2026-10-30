@@ -17,7 +17,7 @@
 
 <section class="bloc" style="padding-top:2.4rem">
   <div class="tete"><div><span class="sur">2027</span>
-    <h2 class="h2">Les candidats déclarés</h2></div>
+    <h2 class="h2"><a href="{{.Root}}/2027/">Les candidats déclarés</a></h2></div>
     <a class="plus" href="{{.Root}}/2027/">{{sub .Cov.Candidates .Cov.CandidatesPrimary}} candidatures, {{.Cov.CandidatesPrimary}} candidats à une primaire →</a></div>
   {{with .Echelle}}
   {{/* Ce site ne place personne : la position est celle que des experts donnent au
@@ -62,7 +62,7 @@
 
 <section class="bloc">
   <div class="tete"><div><span class="sur">Qui dépense</span>
-    <h2 class="h2">Trois budgets, dont le plus gros n'est pas celui de l'État</h2></div>
+    <h2 class="h2"><a href="{{.Root}}/argent-public/budget/">Trois budgets, dont le plus gros n'est pas celui de l'État</a></h2></div>
     <a class="plus" href="{{.Root}}/argent-public/budget/">Comment ils s'articulent →</a></div>
   <div class="niveaux">
     {{range $a.Budgets}}<a class="niveau" href="{{$.Root}}/{{.URL}}">
@@ -98,7 +98,7 @@
 
 <section class="bloc">
   <div class="tete"><div><span class="sur">Sujets de campagne</span>
-    <h2 class="h2">Les sujets dont parlent les candidats</h2></div>
+    <h2 class="h2"><a href="{{.Root}}/sujets/">Les sujets dont parlent les candidats</a></h2></div>
     <a class="plus" href="{{.Root}}/sujets/">Tous les sujets →</a></div>
   {{/* Trois chiffres avant la liste des familles (révisé le 20 septembre
        2026) : la donnée qui prouve l'ampleur du site, avant le détail —
@@ -133,7 +133,7 @@
 {{if $a.Tabs}}
 <section class="bloc">
   <div class="tete"><div><span class="sur">Près de chez vous</span>
-    <h2 class="h2">Les sujets de campagne, département par département</h2></div>
+    <h2 class="h2"><a href="{{.Root}}/collectivites/">Les sujets de campagne, département par département</a></h2></div>
     <a class="plus" href="{{.Root}}/collectivites/">Toutes les cartes →</a></div>
   {{/* Onglets sans script : des boutons radio, un panneau par onglet. Chaque
        panneau affiche la carte PLEINE de la page de détail vers laquelle il
@@ -174,7 +174,7 @@
 {{if $a.Markers}}
 <section class="bloc">
   <div class="tete"><div><span class="sur">Repères</span>
-    <h2 class="h2">Des chiffres cités dans tous les débats</h2></div>
+    <h2 class="h2"><a href="{{.Root}}/frise/">Des chiffres cités dans tous les débats</a></h2></div>
     <a class="plus" href="{{.Root}}/frise/">Les séries depuis 1958 →</a></div>
   <div class="reperes">
     {{range $a.Markers}}<div><b>{{.Value}}</b><span>{{.Label}}</span><em>{{.Source}}</em></div>{{end}}
@@ -186,7 +186,7 @@
 
 <section class="bloc">
   <div class="tete"><div><span class="sur">Qui décide</span>
-    <h2 class="h2">Les institutions, et les textes qu'elles ont votés</h2></div>
+    <h2 class="h2"><a href="{{.Root}}/qui-decide/">Les institutions, et les textes qu'elles ont votés</a></h2></div>
     <a class="plus" href="{{.Root}}/qui-decide/">Toutes les institutions →</a></div>
   <div class="decide">
     <a href="{{.Root}}/gouvernement/"><b>Gouvernement</b><span>compositions et décrets du Journal officiel</span></a>
@@ -201,7 +201,7 @@
 
 <section class="bloc">
   <div class="tete"><div><span class="sur">Sources</span>
-    <h2 class="h2">D'où viennent ces chiffres, et ce que ce site refuse</h2></div>
+    <h2 class="h2"><a href="{{.Root}}/sources/">D'où viennent ces chiffres, et ce que ce site refuse</a></h2></div>
     <a class="plus" href="{{.Root}}/sources/">Les {{nb .Cov.Documents}} documents scellés →</a></div>
   <div class="quatre-points">
     <div><b>Aucun verdict</b><span>Un fait, sa source primaire, ses limites.</span></div>
