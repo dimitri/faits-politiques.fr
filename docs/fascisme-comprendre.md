@@ -11,6 +11,52 @@
 
 ---
 
+## Avant-propos : deux listes courtes
+
+Ce dossier est long ; voici l'essentiel en deux listes. Les sections suivantes disent d'où elles
+viennent, et ce qu'elles ne permettent pas de conclure.
+
+### 1. Pourquoi le fascisme est jugé dangereux
+
+Ce sont les effets qu'on lui reproche là où il a gouverné, pas un jugement de ce dossier :
+
+1. **La fin des libertés et du pluralisme** : partis d'opposition écartés, presse et justice
+   soumises, opposants détenus sans jugement (Allemagne, février-mars 1933 ; Italie après 1924).
+2. **La violence politique organisée** : milices, attaques contre les adversaires, assassinats
+   (l'assassinat de Matteotti en 1924 ; aujourd'hui encore des procès pour des faits de ce type).
+3. **La persécution de groupes désignés comme ennemis**, jusqu'à l'extermination dans le cas du
+   nazisme (voir le dossier du site sur la Seconde Guerre mondiale).
+4. **La guerre et l'expansion** : pour Paxton, le fascisme poursuit une « purification » à
+   l'intérieur et une expansion à l'extérieur⁶.
+5. **Un pouvoir qu'on ne peut plus contrôler ni changer** par les voies pacifiques, puisque le
+   pluralisme et les contre-pouvoirs ont disparu.
+
+### 2. Les grands traits habituels
+
+Les spécialistes ne sont pas d'accord sur une liste unique (§ 3). Ces six traits reviennent le
+plus souvent dans leurs grilles ; chacun renvoie à ceux qui l'ont décrit :
+
+1. **Un nationalisme extrême et le mythe d'une renaissance** après un déclin ou une humiliation
+   (Griffin, Paxton, Stanley)⁶ ⁸ ⁹.
+2. **Un groupe « pur » et des ennemis désignés**, à l'intérieur ou à l'extérieur : minorités,
+   opposants, étrangers, complot (Eco, Stanley, Paxton)⁶ ⁷ ⁸.
+3. **Un chef et un mouvement placés au-dessus des institutions**, qui prétendent parler au nom d'un
+   « peuple » unique (Eco)⁷.
+4. **La violence organisée, valorisée ou tolérée** : milices, culte de l'action et de l'héroïsme
+   (Paxton, Eco, Levitsky et Ziblatt)⁶ ⁷ ¹⁰.
+5. **Le rejet du pluralisme** : l'adversaire est un traître, les libertés, la presse et la justice
+   sont des obstacles (Eco, Levitsky et Ziblatt)⁷ ¹⁰.
+6. **Une arrivée au pouvoir avec l'aide d'élites conservatrices** qui croient s'en servir
+   (Paxton)⁶.
+
+**Comment lire cette liste.** Un seul trait ne fait pas un fascisme : le nationalisme, l'autorité
+ou le populisme existent hors du fascisme, et Eco le dit lui-même⁷. Ce qui pèse pour les
+spécialistes, c'est la **combinaison** de plusieurs traits, surtout la violence organisée et le
+rejet du pluralisme, **observée dans la durée** et dans les actes plutôt que dans les mots⁶. Ils
+débattent encore de l'application de ces traits à des mouvements d'aujourd'hui (§ 4).
+
+---
+
 ## 1. Un mot que tout le monde emploie, que les spécialistes discutent
 
 En 1944, George Orwell posait dans la presse britannique ce qu'il tenait pour l'une des questions
@@ -169,8 +215,10 @@ Convention : interdiction de l'abus de droit)¹⁴. Le 24 avril 2019, sept assoc
 le nom de Bastion social sont dissoutes ; le 3 mars 2021, Génération identitaire l'est à son tour,
 par un décret qui la qualifie de milice privée en raison de son organisation militaire, et le
 Conseil d'État refuse d'en suspendre l'effet le 3 mai 2021¹⁵. La même procédure a été employée
-contre des mouvements d'autres orientations, par exemple les Soulèvements de la Terre en 2023, dont
-la dissolution a été suspendue en référé par le Conseil d'État¹⁶.
+contre des mouvements d'autres orientations : les Soulèvements de la Terre en 2023 (dissolution
+suspendue en référé par le Conseil d'État¹⁶) et La Jeune Garde, groupe qui se réclame de
+l'antifascisme, dissoute par décret le 12 juin 2025 ; le Conseil d'État a rejeté son recours le 30
+avril 2026, en retenant qu'elle avait incité à des actes violents²⁴.
 
 **Italie : Forza Nuova.** Le 9 octobre 2021, des militants attaquent le siège de la CGIL (syndicat),
 à Rome. Le 20 décembre 2023, le tribunal de Rome condamne Roberto Fiore, chef de Forza Nuova, à 8
@@ -265,21 +313,67 @@ décisions de justice documentent. Aucun parti n'est évalué dans ce dossier.
 
 ## Glossaire
 
-- **Fascisme** : au sens étroit, le mouvement et le régime de Mussolini ; au sens large, une famille de
-  mouvements nationalistes, violents et antipluralistes de l'entre-deux-guerres, dont la définition
-  fait débat.
-- **Nazisme** : le mouvement et le régime allemands (1933-1945), dont le racisme biologique est
-  le trait distinctif ; les historiens discutent de son rattachement au fascisme.
-- **Néofascisme** : mouvement d'après 1945 qui se réclame explicitement du fascisme.
-- **Extrême droite** : catégorie large de la science politique, plus vaste que le fascisme.
-- **Droite radicale populiste** : catégorie employée pour des partis nationalistes qui acceptent
-  l'élection tout en contestant le libéralisme politique ; elle est elle-même discutée.
-- **Totalitarisme** : notion (Arendt, 1951) qui rapproche le nazisme et le stalinisme ; autoritarisme :
-  régime qui concentre le pouvoir sans le contrôle social total d'un totalitarisme.
+Les liens renvoient à des notices de référence (encyclopédie en ligne) pour situer chaque terme ;
+les définitions ci-dessous sont celles de ce dossier. Les notices encyclopédiques sont des
+points d'entrée, pas des sources de fait : les faits du dossier sont sourcés dans la section
+« Sources ».
+
+- **[Fascisme](https://fr.wikipedia.org/wiki/Fascisme)** : au sens étroit, le mouvement et le
+  régime de Mussolini ; au sens large, une famille de mouvements nationalistes, violents et
+  antipluralistes de l'entre-deux-guerres, dont la définition fait débat (§ 1, § 3).
+- **[Nazisme](https://fr.wikipedia.org/wiki/Nazisme)** : le mouvement et le régime allemands
+  (1933-1945), dont le racisme biologique est le trait distinctif ; les historiens discutent de son
+  rattachement au fascisme.
+- **[Néofascisme](https://fr.wikipedia.org/wiki/N%C3%A9ofascisme)** (voir aussi
+  [*neo-fascism*](https://en.wikipedia.org/wiki/Neo-fascism)) : mouvement d'après 1945 qui se
+  réclame explicitement du fascisme.
+- **[Post-fascisme](https://fr.wikipedia.org/wiki/Post-fascisme)** (voir aussi
+  [*postfascism*](https://en.wikipedia.org/wiki/Postfascism)) : terme employé par certains
+  chercheurs pour des mouvements actuels issus ou héritiers du fascisme historique sans en
+  reprendre tous les traits ; son emploi est débattu (§ 4).
+- **[Extrême droite](https://fr.wikipedia.org/wiki/Extr%C3%AAme_droite)** : catégorie large de la
+  science politique, plus vaste que le fascisme.
+- **[Droite radicale populiste](https://en.wikipedia.org/wiki/Populist_radical_right)** (voir aussi
+  [populisme de droite](https://fr.wikipedia.org/wiki/Populisme_de_droite)) : catégorie employée
+  pour des partis nationalistes qui acceptent l'élection tout en contestant le libéralisme
+  politique ; elle est elle-même discutée.
+- **[Totalitarisme](https://fr.wikipedia.org/wiki/Totalitarisme)** : notion qui rapproche le
+  nazisme et le stalinisme, développée notamment par Hannah Arendt dans [*Les origines du
+  totalitarisme*](https://fr.wikipedia.org/wiki/Les_Origines_du_totalitarisme) (1951).
+- **[Autoritarisme](https://fr.wikipedia.org/wiki/Autoritarisme)** : régime qui concentre le
+  pouvoir sans le contrôle social total d'un régime totalitaire.
+- **[Antifascisme](https://fr.wikipedia.org/wiki/Antifascisme)** : opposition au fascisme, sous des
+  formes très différentes selon les époques et les acteurs. En Italie, les *Arditi del Popolo*
+  (fondés à Rome en juin 1921, voir [*Arditi del
+  Popolo*](https://fr.wikipedia.org/wiki/Arditi_del_Popolo)) sont souvent présentés comme la
+  première organisation antifasciste ; Benedetto Croce publie un manifeste en 1925 ; en Allemagne,
+  le Parti communiste lance l'*[Antifaschistische
+  Aktion](https://en.wikipedia.org/wiki/Antifaschistische_Aktion)* en 1932, à côté du Front de fer
+  social-démocrate ; la politique de Front populaire (à partir de 1934, [en
+  France](https://fr.wikipedia.org/wiki/Front_populaire_(France)) en 1936) puis la guerre
+  d'Espagne et la Résistance en font un cadre commun à des courants très divers²⁵. Le mot recouvre
+  donc à la fois une posture démocratique large (libérale, conservatrice, socialiste) et un
+  courant militant révolutionnaire. Les historiens notent que, selon les époques, des régimes
+  comme ceux du bloc soviétique ont aussi employé l'étiquette « fasciste » contre leurs
+  adversaires²⁵. Depuis les années 1980, « antifa » désigne en Europe puis aux États-Unis des
+  groupes militants issus notamment de la scène punk ; une partie d'entre eux justifie la
+  violence comme réponse à celle de leurs adversaires, violence que la notice consultée juge très
+  rare²⁵, alors que des gouvernements ont désigné certains groupes comme terroristes (ci-dessous).
+  **L'antifascisme, comme le fascisme, est donc un terme
+  dont l'usage est disputé.** Des groupes qui s'en réclament ont fait l'objet de décisions
+  officielles : en France, La Jeune Garde a été dissoute par décret le 12 juin 2025 et le Conseil
+  d'État a rejeté son recours le 30 avril 2026²⁴ ; en novembre 2025, les États-Unis ont désigné
+  comme organisations terroristes quatre groupes européens (en Allemagne, en Italie et en
+  Grèce), dont un seul se désigne comme antifa²⁶. Ces décisions visent des groupes précis et des
+  faits précis ; elles ne disent rien de l'antifascisme en général.
 - **Milice privée** : organisation à structure militaire, avec hiérarchie et discipline, dont la
-  loi française permet de prononcer la dissolution.
-- **Dissolution administrative** : mesure de police prononcée par décret, contrôlée par le juge ; elle
-  ne sanctionne pas, elle prévient.
+  loi française permet de prononcer la dissolution ; voir la [décision du Conseil d'État sur
+  Génération identitaire](https://conseil-etat.fr/site/actualites/le-conseil-d-etat-ne-suspend-pas-la-dissolution-de-l-association-generation-identitaire)
+  et l'[arrêt *Ayoub c. France*](https://www.echrcaselaw.com/en/?p=12927).
+- **Dissolution administrative** : mesure de police prononcée par décret, contrôlée par le juge ;
+  elle ne sanctionne pas, elle prévient ; voir la [note du Conseil
+  d'État](https://conseil-etat.fr/actualites/dissolution-d-une-association-et-de-groupements)
+  sur son interprétation stricte.
 
 ## Sources
 
@@ -311,6 +405,9 @@ La **qualité** de chaque source est précisée entre crochets : *officiel* (ét
 21. [Putin's invasion of Ukraine speech](https://en.wikipedia.org/wiki/Putin%27s_invasion_of_Ukraine_speech) ; [NPR, 24 février 2022](https://www.npr.org/2022/02/24/1082736110/putin-justifies-ukraine-invasion-as-a-special-military-operation) [presse].
 22. [A/RES/79/160](https://digitallibrary.un.org/record/4071770) (vote du 17 décembre 2024) [officiel].
 23. [Résolution du Parlement européen du 25 octobre 2018](https://oeil.europarl.europa.eu/oeil/en/document-summary?id=1559321) [officiel].
+24. [Conseil d'État, La Jeune Garde, décision du 30 avril 2026 (n° 506860)](https://conseil-etat.fr/actualites/le-conseil-d-etat-rejette-le-recours-forme-par-la-jeune-garde-contre-le-decret-qui-prononcait-sa-dissolution) [officiel].
+25. [Anti-fascism](https://en.wikipedia.org/wiki/Anti-fascism) (Arditi del Popolo 1921, Antifaschistische Aktion 1932, Front populaire, guerre d'Espagne, antifa contemporaine) [analyse].
+26. [Désignation de quatre groupes européens par le département d'État américain, 13 novembre 2025](https://keyt.com/politics/cnn-us-politics/2025/11/13/trump-administration-designates-four-european-antifa-groups-as-terrorists) [presse] ; les documents officiels (*Federal Register*, 20 novembre 2025) sont à relire.
 
 ## À vérifier avant toute publication
 
@@ -329,6 +426,11 @@ doivent être relus dans les textes avant publication :
 - le texte de la résolution du Parlement européen de 2018, de la Convention de 1965 et de la
   décision-cadre européenne de 2008 ;
 - les dates de fondation des *Fasci italiani di combattimento* (mars 1919) et de la loi du 10 janvier 1936.
+- l'entrée « Antifascisme » du glossaire : dates et usages à relire dans des ouvrages d'historiens (la
+  doctrine officielle de l'antifascisme en RDA n'y est pas traitée) ; la désignation américaine de
+  novembre 2025 (documents officiels) ;
+- la date d'entrée en vigueur du Front populaire de 1934 selon les auteurs (1934 ou 1935 selon la
+  source consultée).
 
 ## Versions
 
