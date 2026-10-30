@@ -387,6 +387,9 @@ type PageMunicipality struct {
 	Associations     int
 	Neighboring      []LinkMap
 	Situation        *Situation
+	// Sponsorships : ce que le maire en exercice a parrainé à la présidentielle
+	// (parrainages_maires.go) — le fait brut, jamais une étiquette.
+	Sponsorships []MayorSponsorship
 }
 
 type PageEPCI struct {

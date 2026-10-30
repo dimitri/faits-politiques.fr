@@ -22,6 +22,12 @@
       universel direct.</span></div>
   <div class="carte"><span class="v">{{$c.CountCouncillors}}</span><span class="t">Conseillers municipaux</span>
     <span class="d">En fonction selon le répertoire national des élus, maire compris.</span></div>
+  {{with $c.Sponsorships}}{{$dernier := index . 0}}
+  <div class="carte"><span class="v" style="font-size:1.25rem">{{if $dernier.Slug}}<a href="{{$.Root}}/candidat/{{$dernier.Slug}}/">{{$dernier.Candidate}}</a>{{else}}{{$dernier.Candidate}}{{end}}</span>
+    <span class="t">Parrainé en {{$dernier.Election}}</span>
+    <span class="d">{{range $i, $s := .}}{{if $i}}En {{$s.Election}}&nbsp;: {{if $s.Slug}}<a href="{{$.Root}}/candidat/{{$s.Slug}}/">{{$s.Candidate}}</a>{{else}}{{$s.Candidate}}{{end}}. {{end}}{{end}}
+      Parrainage de candidat à la présidentielle, publié par le Conseil constitutionnel. Ce n'est ni un vote, ni une adhésion&nbsp;: un maire peut parrainer un candidat dont il ne partage pas les idées.</span></div>
+  {{end}}
 </div>
 {{else}}<p class="nodata">Le répertoire national des élus ne publie pas de maire en fonction pour cette
 commune.</p>{{end}}

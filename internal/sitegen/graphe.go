@@ -727,8 +727,18 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			return loadBackgroundSituation(ctx, e.pool, e.out, e.root, cb.Col.FiscalYear, linkDept)
 		})
 
+	// Les maires qui ont parrainé un candidat à la présidentielle : lus par la
+	// page de leur commune (le maire en exercice) et par la fiche du candidat
+	// (la carte des communes).
+	addNode(region, "parrainages-maires", []string{"lieux", "fond-situation", "identite"},
+		func(ctx context.Context, d pipeline.Results) (*SponsorshipsMayors, error) {
+			id := dep[identityBundle](d, "identite")
+			return loadSponsorshipsMayors(ctx, e.pool, dep[*Resolver](d, "lieux"),
+				dep[*backgroundSituation](d, "fond-situation"), id.Candidates)
+		})
+
 	region.Add(pipeline.Step{Name: "communes", Description: "communes et intercommunalités",
-		Dependencies: []string{"lieux", "fond-situation", "identite", "collectivites-data"},
+		Dependencies: []string{"lieux", "fond-situation", "identite", "collectivites-data", "parrainages-maires"},
 		Run: func(ctx context.Context, d pipeline.Results) (any, error) {
 			return nil, buildMunicipalitiesAndEPCI(ctx, e, d)
 		}})
@@ -1140,7 +1150,7 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		return true, nil
 	})
 	region.Add(pipeline.Step{Name: "fiches", Description: "fiches personnes/candidats/organisations",
-		Dependencies: []string{"identite", "election2027", "mandats-locaux", "votes-bulk"},
+		Dependencies: []string{"identite", "election2027", "mandats-locaux", "votes-bulk", "parrainages-maires"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			return nil, buildProfilePages(e, d)
 		}})

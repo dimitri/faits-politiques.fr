@@ -88,6 +88,65 @@ consultée le {{.Cand.SourceConsulted}}.</span></p>
 </tr>{{end}}</tbody></table></div>
 {{end}}
 
+{{with .Sponsor}}
+<h2>Les maires qui ont parrainé sa candidature</h2>
+<div class="parrain-cartes">
+{{range .Elections}}
+  <figure class="parrain-carte">
+    <figcaption><strong>{{.Election}}</strong>&nbsp;: {{nb .Mayors}}&nbsp;maire{{if gt .Mayors 1}}s{{end}} parrain{{if gt .Mayors 1}}s{{end}},
+      soit {{.Part}}&nbsp;% des {{nb .Total}} maires ayant donné un parrainage, tous candidats confondus.</figcaption>
+    {{if .Map}}
+    <div class="situation-carte parrain-aplats">
+      <object data="{{.Map.Background}}" type="image/svg+xml" style="aspect-ratio:{{.Map.Width}}/{{.Map.Height}}" aria-label="Carte des départements de France"><img src="{{.Map.Background}}" alt="" width="{{.Map.Width}}" height="{{.Map.Height}}"></object>
+      {{.Map.Layer}}
+    </div>
+    <p class="cle-parrains">{{range .Legend}}<span class="cle-parrain"><i class="s{{.Class}}"></i>{{.Label}}</span>{{end}}<span class="cle-parrain"><i class="sfaible"></i>base trop faible</span></p>
+    {{if .OffMap}}<p class="small muted">{{nb .OffMap}} maire{{if gt .OffMap 1}}s{{end}} d'outre-mer ou d'une commune non localisée, hors de la carte.</p>{{end}}
+    {{else}}<p class="small muted">Trop peu de maires parrains pour une carte par département.</p>{{end}}
+  </figure>
+{{end}}
+</div>
+<p class="small muted"><strong>Ce que montre la carte.</strong> Chaque département est coloré selon la part de ses maires
+parrains qui ont choisi ce candidat&nbsp;: sur 100 maires du département ayant donné un parrainage, combien l'ont fait pour lui.
+Cette part ne dépend ni du nombre de communes d'un département, ni du nombre de maires qui y parrainent. Les départements de
+moins de 15 maires parrains sont en gris&nbsp;: leurs chiffres bruts sont dans le tableau et au survol.</p>
+<p class="small muted"><strong>Un parrainage n'est ni un vote ni une adhésion.</strong> La loi exige 500 parrainages d'élus
+pour se présenter&nbsp;; un maire peut parrainer un candidat dont il ne partage pas les idées, pour que le choix reste
+ouvert. Liste publiée par le
+<a href="https://www.data.gouv.fr/fr/datasets/parrainages-des-candidats-a-lelection-presidentielle-francaise-de-2022/" target="_blank" rel="noopener">Conseil constitutionnel</a>
+(nom, commune et candidat), rapprochée ici des communes par leur nom&nbsp;; les communes fusionnées ou rebaptisées depuis peuvent manquer.</p>
+{{range .Elections}}
+{{if .Depts}}
+<details class="plus">
+  <summary>Département par département, en {{.Election}}</summary>
+  <div class="dedans">
+  <div class="scroll"><table class="pile">
+  <thead><tr><th>Département</th><th>Maires parrains du candidat</th><th>Maires parrains, tous candidats</th><th>Part</th></tr></thead>
+  <tbody>{{range .Depts}}<tr>
+    <td data-l="Département">{{if .URL}}<a href="{{.URL}}">{{.Name}}</a>{{else}}{{.Name}}{{end}}</td>
+    <td data-l="Candidat">{{nb .N}}</td>
+    <td class="small z" data-l="Tous candidats">{{nb .Total}}</td>
+    <td class="small z" data-l="Part">{{if .Part}}{{.Part}}&nbsp;%{{else}}<span class="z">base trop faible</span>{{end}}</td>
+  </tr>{{end}}</tbody></table></div>
+  </div>
+</details>
+{{end}}
+<details class="plus">
+  <summary>Les {{nb .Mayors}} maires parrains en {{.Election}}</summary>
+  <div class="dedans">
+  <div class="scroll"><table class="pile">
+  <thead><tr><th>Maire</th><th>Commune</th><th>Département</th><th>Parrainage publié le</th></tr></thead>
+  <tbody>{{range .List}}<tr>
+    <td data-l="Maire">{{.Name}}</td>
+    <td data-l="Commune">{{if .URL}}<a href="{{.URL}}">{{.Commune}}</a>{{else}}{{.Commune}}{{end}}</td>
+    <td class="small z" data-l="Département">{{.Dept}}</td>
+    <td class="small z" data-l="Publié le">{{.Date}}</td>
+  </tr>{{end}}</tbody></table></div>
+  </div>
+</details>
+{{end}}
+{{end}}
+
 {{if and .K .K.Terrain.Present (not .K.Overview.Empty)}}
 <h2>Où son parti a recueilli des voix</h2>
 <div class="une-carte">

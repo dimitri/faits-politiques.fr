@@ -27,6 +27,7 @@ import (
 // territoire affiché porte le calque.
 
 const toleranceSituation = 0.005 // ≈ 500 m : à l'échelle de la France, un pixel couvre près de 2 km
+const toleranceLoupe = 0.0006    // ≈ 60 m : la loupe montre une commune sur une vingtaine de kilomètres
 
 type TileSituation struct {
 	Name, Background string
@@ -62,6 +63,10 @@ type geomSituation struct {
 	population            int
 	x, y                  float64 // point intérieur, pour repérer une petite commune
 	epcis                 []string
+	// La loupe : le contour fin de la commune (communes seulement), le centre
+	// et la taille de sa boîte englobante, dans le repère de la carte.
+	fine         string
+	xc, yc, w, h float64
 }
 
 type backgroundSituation struct {
@@ -80,6 +85,8 @@ type backgroundSituation struct {
 	budgetCom      map[string][2]float64 // département → fonctionnement, investissement des communes
 	budgetEPCI     map[string][2]float64 // département du siège → idem, groupements à fiscalité propre
 	yearBudget     int
+	box            [4]float64            // la boîte de la carte de France : x, y, largeur, hauteur
+	communeFiles   map[string][4]float64 // département → boîte du fichier de contours de la loupe
 }
 
 var regionDOM = map[string]string{"01": "971", "02": "972", "03": "973", "04": "974", "06": "976"}
@@ -99,6 +106,13 @@ func loadBackgroundSituation(ctx context.Context, pool *pgxpool.Pool, out, root 
 		return nil, err
 	}
 	f.vb = f.deps.ViewBox
+	// Sans contours de départements (périmètre CI) la boîte reste nulle : aucune loupe
+	// n'est alors possible, la carte de situation garde son cercle.
+	if f.vb != "" {
+		if _, err := fmt.Sscanf(f.vb, "%f %f %f %f", &f.box[0], &f.box[1], &f.box[2], &f.box[3]); err != nil {
+			return nil, fmt.Errorf("boîte de la carte %q : %w", f.vb, err)
+		}
+	}
 	for _, o := range f.deps.overseas {
 		f.domDept[o.Code] = o
 		f.domOrder = append(f.domOrder, o.Code)
@@ -164,8 +178,11 @@ func loadBackgroundSituation(ctx context.Context, pool *pgxpool.Pool, out, root 
 		       st_assvg(st_transform(st_simplifypreservetopology(geom,$2),srid_rendu),1,0),
 		       coalesce(superficie_cadastrale_ha,0)::float8/100, coalesce(population,0),
 		       st_x(st_transform(st_pointonsurface(geom),srid_rendu)), -st_y(st_transform(st_pointonsurface(geom),srid_rendu)),
-		       coalesce(codes_siren_epci, '{}')
-		FROM geo.contour_cog WHERE niveau IN ('COMMUNE','EPCI') AND cog_millesime=$1`, mill, toleranceSituation)
+		       coalesce(codes_siren_epci, '{}'),
+		       CASE WHEN niveau='COMMUNE' THEN st_assvg(st_transform(st_simplifypreservetopology(geom,$3),srid_rendu),1,0) ELSE '' END,
+		       (st_xmin(gp)+st_xmax(gp))/2, -(st_ymin(gp)+st_ymax(gp))/2, st_xmax(gp)-st_xmin(gp), st_ymax(gp)-st_ymin(gp)
+		FROM geo.contour_cog CROSS JOIN LATERAL (SELECT st_transform(geom,srid_rendu) AS gp) t
+		WHERE niveau IN ('COMMUNE','EPCI') AND cog_millesime=$1`, mill, toleranceSituation, toleranceLoupe)
 	if err != nil {
 		return nil, err
 	}
@@ -173,7 +190,7 @@ func loadBackgroundSituation(ctx context.Context, pool *pgxpool.Pool, out, root 
 		var level, code string
 		g := &geomSituation{}
 		if err := rows.Scan(&level, &code, &g.name, &g.dept, &g.region, &g.srid, &g.d,
-			&g.areaKm2, &g.population, &g.x, &g.y, &g.epcis); err != nil {
+			&g.areaKm2, &g.population, &g.x, &g.y, &g.epcis, &g.fine, &g.xc, &g.yc, &g.w, &g.h); err != nil {
 			rows.Close()
 			return nil, err
 		}
@@ -189,6 +206,10 @@ func loadBackgroundSituation(ctx context.Context, pool *pgxpool.Pool, out, root 
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
+	if err := f.writeCommuneFiles(ctx, pool, out, mill); err != nil {
+		return nil, err
+	}
+
 	// Superficie et population d'un groupement : celles de ses communes membres.
 	for _, c := range f.municipalities {
 		for _, s := range c.epcis {
@@ -569,16 +590,31 @@ func (f *backgroundSituation) forMunicipality(code, name string) *Situation {
 		return nil
 	}
 	s := &Situation{}
+	loupe := f.hasLens(c)
 	f.envelopper(s, c.dept, func(k *layer, dom bool) {
-		k.group("commune", []string{c.d})
-		if !dom {
-			if t := f.deps.traces[c.dept]; t != "" {
-				k.group("departements", []string{t})
+		if dom {
+			k.group("commune", []string{c.d})
+			return
+		}
+		if t := f.deps.traces[c.dept]; t != "" {
+			cls := "departements"
+			if loupe {
+				cls += " loupe" // teinté : c'est lui que la loupe sort de la France
 			}
+			k.group(cls, []string{t})
+		}
+		if loupe {
+			f.lens(k, c)
+		} else {
+			k.group("commune", []string{c.d})
 			k.marker(c.x, c.y, 14000)
 		}
 	}, "Situation de "+name+" dans la France entière")
 	s.Legend = f.legendTerritory(c.population, c.areaKm2)
-	s.Note = "La commune en évidence, son département en trait moyen ; le cercle aide à la trouver à l'échelle de la France."
+	if loupe {
+		s.Note = "Le point repère la commune, son département est teinté ; la loupe la montre avec ses voisines, à une échelle de quelques kilomètres."
+	} else {
+		s.Note = "La commune en évidence, son département en trait moyen ; le cercle aide à la trouver à l'échelle de la France."
+	}
 	return s
 }
