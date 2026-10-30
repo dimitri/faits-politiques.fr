@@ -185,10 +185,11 @@ var families = []*Family{
 	// traverser la Seconde Guerre mondiale et la décolonisation pour les
 	// trouver, et réciproquement.
 	{ID: "histoire", Name: "Histoire", Base: "sujets",
-		Intro: "L'Empire colonial, la Seconde Guerre mondiale, les guerres de décolonisation.",
+		Intro: "L'Empire colonial, la Seconde Guerre mondiale, le fascisme, les guerres de décolonisation.",
 		Topics: []*Topic{
 			{ID: "empire-colonial", Name: "La France coloniale", Doc: "empire-colonial-donnees"},
 			{ID: "seconde-guerre-mondiale", Name: "La France dans la Seconde Guerre mondiale", Doc: "seconde-guerre-mondiale-donnees"},
+			{ID: "fascisme", Name: "Le fascisme", Doc: "fascisme-comprendre"},
 			{ID: "guerres-decolonisation", Name: "Les guerres de décolonisation : Algérie et Indochine", Doc: "guerres-decolonisation-donnees"},
 		}},
 	// Les finances publiques elles-mêmes : l'entrée « Argent public » du menu.
