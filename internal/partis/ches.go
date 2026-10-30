@@ -51,6 +51,7 @@ func DownloadTargets() []archive.DownloadTarget {
 	out = append(out, CNCCFPDownloadTargets()...)
 	out = append(out, PopuListDownloadTargets()...)
 	out = append(out, CHESDownloadTargets()...)
+	out = append(out, VPartyDownloadTargets()...)
 	return out
 }
 

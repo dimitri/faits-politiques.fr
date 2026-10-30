@@ -779,7 +779,10 @@ func ingestPartis(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive
 	if err := partis.IngestPopuList(ctx, pool, arch); err != nil {
 		return err
 	}
-	return partis.IngestCHES(ctx, pool, arch)
+	if err := partis.IngestCHES(ctx, pool, arch); err != nil {
+		return err
+	}
+	return partis.IngestVParty(ctx, pool, arch)
 }
 
 func normaliserAssemblee(ctx context.Context, pool *pgxpool.Pool) error {
