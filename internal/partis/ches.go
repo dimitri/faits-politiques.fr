@@ -59,7 +59,12 @@ const chesFrance = "6"
 
 // Les dimensions retenues. CHES en publie davantage ; n'en exposer que cinq est
 // un choix, donc il est explicite.
-var chesDimensions = []string{"lrgen", "lrecon", "galtan", "eu_position", "immigrate_policy"}
+//
+// « environment » : position sur la protection de l'environnement face à la
+// croissance, de 0 (protéger l'environnement, même au prix de la croissance) à
+// 10 (privilégier la croissance, même au prix de l'environnement). C'est l'axe
+// vertical de l'échelle des candidats de l'accueil.
+var chesDimensions = []string{"lrgen", "lrecon", "galtan", "eu_position", "immigrate_policy", "environment"}
 
 func IngestCHES(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) error {
 	srcID, err := arch.EnsureSource(ctx, SourceCHES)
@@ -80,9 +85,9 @@ func IngestCHES(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) 
 	if err := pool.QueryRow(ctx, `
 		INSERT INTO ref.classification_set (slug, provider, version, label, vocabulary, source_id)
 		VALUES ('ches-2024','CHES','2024','Chapel Hill Expert Survey 2024',
-		        'scores continus de 0 à 10 : lrgen, lrecon, galtan, eu_position, immigrate_policy — moyennes d''appréciations d''experts',
+		        'scores continus de 0 à 10 : lrgen, lrecon, galtan, eu_position, immigrate_policy, environment — moyennes d''appréciations d''experts',
 		        $1)
-		ON CONFLICT (provider, version) DO UPDATE SET label = EXCLUDED.label
+		ON CONFLICT (provider, version) DO UPDATE SET label = EXCLUDED.label, vocabulary = EXCLUDED.vocabulary
 		RETURNING id`, srcID).Scan(&setID); err != nil {
 		return err
 	}

@@ -73,6 +73,14 @@
 # Les personnalités seulement pressenties (François Hollande, Dominique de
 # Villepin…) n'y figurent pas : il n'y a pas de déclaration à sourcer.
 #
+# PORTRAIT : la colonne wikipedia_fr nomme la page Wikipédia dont l'image
+# principale sert de portrait — ou, pour un candidat sans page propre, un
+# fichier Commons précis (« File:GPlatret.jpg »). Dans les deux cas la licence
+# doit être libre, et elle est vérifiée ; sinon l'absence est affichée telle
+# quelle. Sans page ni image libre trouvée (5 candidats au 30 octobre : Labib,
+# Markovic, Mathieu, Mikolajczak, Mlekuz ; Commons n'a que la bannière de
+# campagne de Selma Labib, pas un portrait), la ligne reste vide.
+#
 # Toute modification de ce fichier est une décision éditoriale et doit être
 # relue comme telle.
 slug,nom,prenom,organisation,organisation_slug,statut,date_declaration,source_url,source_consultee,site_campagne,wikipedia_fr,note
@@ -102,7 +110,7 @@ raphael-glucksmann,Glucksmann,Raphaël,Place publique,place-publique,DECLARE,202
 natacha-polony,Polony,Natacha,,,DECLARE,2026-10-14,https://lcp.fr/actualites/natacha-polony-annonce-sa-candidature-a-l-election-presidentielle-443808,2026-10-15,,Natacha Polony
 eric-zemmour,Zemmour,Éric,Reconquête,reconquete,DECLARE,2026-09-17,https://lcp.fr/actualites/presidentielle-2027-eric-zemmour-officialise-sa-candidature-441871,2026-10-15,,Éric Zemmour
 olivier-becht,Becht,Olivier,,,DECLARE,2026-09-24,https://entrevue.fr/presidentielle-2027/presidentielle-2027-olivier-becht-se-lance-au-nom-de-lextreme-centre__trashed/,2026-10-15,,Olivier Becht
-gilles-platret,Platret,Gilles,,,DECLARE,2026-10-08,https://france3-regions.franceinfo.fr/bourgogne-franche-comte/saone-et-loire/chalon-sur-saone/gilles-platret-le-maire-de-chalon-sur-saone-se-declare-candidat-a-l-election-presidentielle-je-m-engage-resolument-vers-2027-3430416.html,2026-10-28,,
+gilles-platret,Platret,Gilles,,,DECLARE,2026-10-08,https://france3-regions.franceinfo.fr/bourgogne-franche-comte/saone-et-loire/chalon-sur-saone/gilles-platret-le-maire-de-chalon-sur-saone-se-declare-candidat-a-l-election-presidentielle-je-m-engage-resolument-vers-2027-3430416.html,2026-10-28,,File:GPlatret.jpg
 mira-markovic,Markovic,Mira,Parti animaliste,,DECLARE,2026-10-02,https://www.cnews.fr/france/2026-10-02/presidentielle-2027-si-nous-ne-sommes-pas-la-personne-ne-parle-des-animaux,2026-10-28,https://parti-animaliste.fr/mira-markovic-2027,
 antoine-mikolajczak,Mikolajczak,Antoine,Équinoxe,,DECLARE,2026,https://parti-equinoxe.fr/presidentielle-2027/,2026-10-28,https://parti-equinoxe.fr/presidentielle-2027/,
 francois-ruffin,Ruffin,François,Debout !,,DECLARE,2026-05-12,https://lcp.fr/actualites/presidentielle-2027-s-il-n-y-a-pas-de-primaire-moi-j-y-vais-annonce-francois-ruffin,2026-10-28,,François Ruffin,"Déclaration conditionnelle, situation difficile à lire. Le 12 mai 2026 il annonce sur France Inter qu'il sera candidat « s'il n'y a pas de primaire » à gauche. Deux primaires sont à distinguer : la primaire unitaire de la gauche, dont il était candidat, a été annulée (elle était prévue le 11 octobre 2026) ; celle qui s'est tenue le 11 octobre est la primaire PS–Place publique, où il ne figurait pas (Glucksmann l'a emportée avec 66,17 %). Il n'a donc été battu par personne. Aucune déclaration postérieure, datée et sans condition, n'a été trouvée dans les sources consultées le 28 octobre 2026 : franceinfo le compte parmi les candidats actifs (22 octobre), Elysée Scope écrit qu'aucune candidature officielle n'est déclarée."

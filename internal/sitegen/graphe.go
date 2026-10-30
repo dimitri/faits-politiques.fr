@@ -1064,8 +1064,12 @@ func buildRegistry(env *environment) *pipeline.Registry {
 	// dépendances DIRECTES d'un nœud dans deps, jamais toute la fermeture —
 	// accueil.gohtml lit Cov.Candidats/CandidatsPrimaire/CandidatsAvecBilan
 	// (voir layoutWithIdentity), qu'il faut donc nommer ici aussi.
+	addNode(region, "echelle-candidats", []string{"identite"},
+		func(ctx context.Context, d pipeline.Results) (*EchelleCandidats, error) {
+			return loadEchelleCandidats(ctx, e.pool, dep[identityBundle](d, "identite").Candidates)
+		})
 	region.Add(pipeline.Step{Name: "accueil", Description: "page d'accueil",
-		Dependencies: []string{"accueil-data", "sujets-data", "identite"},
+		Dependencies: []string{"accueil-data", "sujets-data", "identite", "echelle-candidats"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			acc := dep[*DataHome](d, "accueil-data")
 			l := e.layoutWithIdentity(dep[identityBundle](d, "identite"))
@@ -1082,8 +1086,9 @@ func buildRegistry(env *environment) *pipeline.Registry {
 			l.Title = "France - Campagne 2027 en chiffres"
 			return nil, e.writeSection("accueil", e.page("accueil.gohtml"), filepath.Join(e.out, "index.html"), struct {
 				Layout
-				A *DataHome
-			}{l, acc})
+				A       *DataHome
+				Echelle *EchelleCandidats
+			}{l, acc, dep[*EchelleCandidats](d, "echelle-candidats")})
 		}})
 	region.Add(pipeline.Step{Name: "sujets", Description: "index des sujets",
 		Dependencies: []string{"accueil-data", "sujets-data"},
