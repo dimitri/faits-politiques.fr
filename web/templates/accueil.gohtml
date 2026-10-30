@@ -32,14 +32,14 @@
   <div class="echelle-cadre">
     <p class="echelle-astuce" aria-hidden="true">Le plan est plus large que l'écran : faites-le défiler →</p>
     <div class="echelle-defile" tabindex="0" role="group" aria-label="Plan des candidats : défiler horizontalement sur un petit écran">
+    <div class="echelle-grille">
+    <div class="echelle-axe-v" aria-hidden="true"><span class="bas">L'environnement d'abord</span><span class="haut">La croissance d'abord</span></div>
     <div class="echelle-plan">
       <svg class="echelle-fil" viewBox="0 0 100 100" preserveAspectRatio="none" aria-hidden="true">
         <line x1="25" y1="0" x2="25" y2="100"/><line x1="50" y1="0" x2="50" y2="100"/><line x1="75" y1="0" x2="75" y2="100"/>
         <line x1="0" y1="25" x2="100" y2="25"/><line x1="0" y1="50" x2="100" y2="50"/><line x1="0" y1="75" x2="100" y2="75"/>
         {{range .Placed}}{{if .Displaced}}<line class="lien" x1="{{printf "%.2f" .DotLeft}}" y1="{{printf "%.2f" .DotTop}}" x2="{{printf "%.2f" .Left}}" y2="{{printf "%.2f" .Top}}" style="stroke:{{.Color}}"/>{{end}}{{end}}
       </svg>
-      <span class="echelle-etiq haut">↑ la croissance d'abord, même au prix de l'environnement</span>
-      <span class="echelle-etiq bas">↓ l'environnement d'abord, même au prix de la croissance</span>
       {{range .Placed}}
       <i class="echelle-pt" style="left:{{printf "%.2f" .DotLeft}}%;top:{{printf "%.2f" .DotTop}}%;background:{{.Color}}"></i>
       <a class="echelle-av" href="{{$.Root}}/candidat/{{.Slug}}/" title="{{.Label}}" style="left:{{printf "%.2f" .Left}}%;top:{{printf "%.2f" .Top}}%;border-color:{{.Color}}">
@@ -47,10 +47,12 @@
         <em>{{.FirstName}}&nbsp;{{.Name}}</em></a>
       {{end}}
     </div>
+    <span class="echelle-coin"></span>
     <div class="echelle-axe" aria-hidden="true"><span>Gauche</span><span>Droite</span></div>
     </div>
+    </div>
     <p class="echelle-legende">Abscisse&nbsp;: position générale du parti de gauche (0) à droite (10). Ordonnée&nbsp;: position sur l'environnement,
-    de «&nbsp;protéger l'environnement même au prix de la croissance&nbsp;» (en bas, au contact de l'axe) à
+    de «&nbsp;protéger l'environnement même au prix de la croissance&nbsp;» (en bas, au contact de l'axe, en vert) à
     «&nbsp;la croissance même au prix de l'environnement&nbsp;» (en haut). Le point est la mesure&nbsp;; le portrait est écarté de
     son voisin quand les deux se recouvriraient, et relié à son point.</p>
   </div>
