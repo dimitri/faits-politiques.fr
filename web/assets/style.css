@@ -42,7 +42,7 @@ unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304
 :root{
   --papier:#FAF8F3; --papier2:#F1EEE6; --carte:#FFFFFF;
   --encre:#17181D; --attenue:#5A5850; --filet:#E4E0D6; --filet2:#EFEBE2;
-  --accent:#125863; --accent-doux:#E3EEF0; --repere:#C2410C;
+  --accent:#125863; --accent-doux:#E3EEF0; --repere:#C2410C; --gauche:#D6392F; --centre:#7E5BA6; --droite:#2456A8; --vert:#2E8B57; --ocre:#B8731B;
   --rampe0:#FDE6D6; --rampe1:#F9BE98; --rampe2:#F0914F; --rampe3:#D5601F; --rampe4:#8F3508;
   --pour:#1C6B45; --contre:#A32C2A; --abst:#7E5C0E; --absent:#6B675F;
   --absent-f:#E2DFD9; --seuil:#17181D; --eau:#6E9CB5;
@@ -54,7 +54,7 @@ unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304
 @media(prefers-color-scheme:dark){:root:not([data-theme=light]){
   --papier:#131419; --papier2:#0E0F14; --carte:#1B1C22;
   --encre:#EEEBE4; --attenue:#9C988F; --filet:#2A2B33; --filet2:#212229;
-  --accent:#74C3D3; --accent-doux:#16323A; --repere:#FB8C4F;
+  --accent:#74C3D3; --accent-doux:#16323A; --repere:#FB8C4F; --gauche:#F0645A; --centre:#A98AD0; --droite:#6C9BE8; --vert:#5CC389; --ocre:#E0A04A;
   --rampe0:#3A2C26; --rampe1:#6B4030; --rampe2:#A65A33; --rampe3:#DA7A45; --rampe4:#FFB27A;
   --pour:#58C089; --contre:#E87D76; --abst:#DAAE45; --absent:#918D85;
   --absent-f:#2B2A28; --seuil:#EEEBE4; --eau:#5E93B0;
@@ -62,7 +62,7 @@ unicode-range:U+0100-02BA,U+02BD-02C5,U+02C7-02CC,U+02CE-02D7,U+02DD-02FF,U+0304
 [data-theme=dark]{
   --papier:#131419; --papier2:#0E0F14; --carte:#1B1C22;
   --encre:#EEEBE4; --attenue:#9C988F; --filet:#2A2B33; --filet2:#212229;
-  --accent:#74C3D3; --accent-doux:#16323A; --repere:#FB8C4F;
+  --accent:#74C3D3; --accent-doux:#16323A; --repere:#FB8C4F; --gauche:#F0645A; --centre:#A98AD0; --droite:#6C9BE8; --vert:#5CC389; --ocre:#E0A04A;
   --rampe0:#3A2C26; --rampe1:#6B4030; --rampe2:#A65A33; --rampe3:#DA7A45; --rampe4:#FFB27A;
   --pour:#58C089; --contre:#E87D76; --abst:#DAAE45; --absent:#918D85;
   --absent-f:#2B2A28; --seuil:#EEEBE4; --eau:#5E93B0;
@@ -241,6 +241,8 @@ a{color:var(--accent);text-underline-offset:3px;text-decoration-thickness:1px}
 .sur,.eyebrow{font:500 .7rem/1 var(--mono);letter-spacing:.13em;text-transform:uppercase;
 color:var(--accent);display:block;margin-bottom:.5rem}
 .h2{font:500 1.55rem/1.2 var(--titre);letter-spacing:-.014em;text-wrap:balance}
+.h2 a{color:inherit;text-decoration:none}
+.h2 a:hover,.h2 a:focus-visible{text-decoration:underline;text-underline-offset:.18em}
 .bloc{padding:2.8rem 0}
 .bloc + .bloc{border-top:1px solid var(--filet)}
 .tete{display:flex;align-items:center;justify-content:space-between;gap:1rem;
@@ -430,7 +432,10 @@ ul.tight{margin:.3rem 0;padding-left:1.1rem}
 code{font-size:.85em;font-family:var(--mono);background:var(--filet2);
 padding:.12em .38em;border-radius:4px}
 .annee{margin:1.8rem 0}.annee h3{margin-bottom:.4rem}
-.jauge{width:150px;height:87px;display:block;color:var(--attenue)}
+/* Le demi-anneau des référentiels tiers a sa propre classe : il s'appelait « jauge »,
+   comme la barre de 4 px des budgets (plus bas), qui l'écrasait — les valeurs CHES des
+   pages d'organisation tenaient en un trait de 4 px. */
+.jauge-demi{width:150px;height:87px;display:block;color:var(--attenue)}
 .poles{display:flex;justify-content:space-between;gap:.6rem;width:150px;
 font-size:.7rem;line-height:1.25;text-align:left}
 .poles span:last-child{text-align:right}
@@ -1769,6 +1774,64 @@ padding:.28rem .2rem;text-decoration:none;color:var(--encre);border-top:1px soli
 .calque .commune-fine{fill:var(--repere);fill-opacity:.9;stroke:var(--encre);stroke-width:1px}
 .calque .echelle line{stroke:var(--encre);stroke-width:2px;vector-effect:non-scaling-stroke}
 .calque .echelle text{font:600 46000px var(--sans);fill:var(--encre);paint-order:stroke;stroke:var(--carte);stroke-width:12000px;stroke-linejoin:round}
+/* L'échelle des candidats de l'accueil : gauche-droite en abscisse (rouge à gauche, bleu à droite), environnement en ordonnée.
+   La position est celle du parti, mesurée par des experts ; la couleur n'est qu'une aide de lecture. */
+.echelle-intro{max-width:62ch;margin:.4rem 0 1.1rem;font-size:1.05rem}
+.echelle-cadre{background:var(--carte);border:1px solid var(--filet);border-radius:var(--rayon);padding:1rem 1.1rem .9rem}
+.echelle-defile{overflow-x:auto;padding:.2rem 0 .4rem}
+.echelle-astuce{display:none;margin:0 0 .4rem;font:500 .74rem/1.3 var(--mono);color:var(--attenue)}
+@media(max-width:60rem){.echelle-astuce{display:block}}
+.t-vert{--teinte:var(--vert)}.t-ocre{--teinte:var(--ocre)}
+.echelle-tableau th .dix{display:block;margin-top:.15rem;font:400 .66rem/1.25 var(--sans);letter-spacing:0;text-transform:none;color:var(--attenue)}
+.echelle-note{margin:0 0 .6rem;max-width:80ch}
+/* Onglets des axes : même composant que les cartes de l'accueil (cinq onglets, d'où cinq règles). */
+.onglets-axes .panneaux > .panneau{display:none}
+#ax1:checked ~ .panneaux .p1,#ax2:checked ~ .panneaux .p2,#ax3:checked ~ .panneaux .p3,
+#ax4:checked ~ .panneaux .p4,#ax5:checked ~ .panneaux .p5{display:block}
+#ax1:checked ~ .etiquettes label[for=ax1],#ax2:checked ~ .etiquettes label[for=ax2],#ax3:checked ~ .etiquettes label[for=ax3],
+#ax4:checked ~ .etiquettes label[for=ax4],#ax5:checked ~ .etiquettes label[for=ax5]{
+background:var(--encre);color:var(--papier);border-color:var(--encre)}
+#ax1:focus-visible ~ .etiquettes label[for=ax1],#ax2:focus-visible ~ .etiquettes label[for=ax2],#ax3:focus-visible ~ .etiquettes label[for=ax3],
+#ax4:focus-visible ~ .etiquettes label[for=ax4],#ax5:focus-visible ~ .etiquettes label[for=ax5]{outline:2px solid var(--accent);outline-offset:2px}
+.echelle-grille{display:grid;grid-template-columns:2rem minmax(52rem,1fr);column-gap:.5rem;row-gap:.4rem}
+.echelle-coin{display:block}
+.echelle-plan{position:relative;aspect-ratio:980/440;
+  background:linear-gradient(0deg,color-mix(in srgb,var(--teinte,var(--vert)) 17%,transparent),transparent 62%),
+    linear-gradient(90deg,color-mix(in srgb,var(--gauche) 13%,transparent),color-mix(in srgb,var(--centre) 7%,transparent) 50%,color-mix(in srgb,var(--droite) 13%,transparent));
+  border-radius:var(--rayon-s)}
+/* L'axe vertical : le miroir de la barre gauche-droite, en vert. Le pied est au contact de l'axe, là où l'on
+   protège l'environnement d'abord ; le haut s'éclaircit vers la croissance. */
+.echelle-axe-v{position:relative;border-radius:6px;overflow:hidden;
+  background:linear-gradient(0deg,var(--teinte,var(--vert)),color-mix(in srgb,var(--teinte,var(--vert)) 12%,var(--carte)));
+  font:600 .74rem/1.2 var(--sans)}
+.echelle-axe-v span{position:absolute;left:0;right:0;display:flex;align-items:center;justify-content:center;padding:.6rem 0;white-space:nowrap;
+  writing-mode:vertical-rl;transform:rotate(180deg)}
+.echelle-axe-v .bas{bottom:0;height:55%;color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35)}
+.echelle-axe-v .haut{top:0;height:45%;color:var(--encre)}
+.echelle-fil{position:absolute;inset:0;width:100%;height:100%;overflow:visible}
+.echelle-fil line{stroke:var(--filet);stroke-width:1px;vector-effect:non-scaling-stroke;stroke-dasharray:3 4}
+.echelle-fil line.lien{stroke-dasharray:none;stroke-width:1.5px;stroke-opacity:.8}
+.echelle-pt{position:absolute;width:10px;height:10px;margin:-5px 0 0 -5px;border-radius:50%;box-shadow:0 0 0 2px var(--carte)}
+.echelle-av{position:absolute;display:block;width:54px;height:54px;margin:-27px 0 0 -27px;border:3px solid var(--filet);border-radius:50%;background:var(--carte);text-decoration:none}
+.echelle-av img,.echelle-av .mono{display:block;width:100%;height:100%;border-radius:50%;object-fit:cover}
+.echelle-av .mono,.echelle-sans .mono{display:grid;place-items:center;background:var(--accent-doux);color:var(--accent);font:600 1rem/1 var(--sans)}
+.echelle-av em{position:absolute;left:50%;top:100%;transform:translateX(-50%);margin-top:2px;font:600 .68rem/1.2 var(--sans);font-style:normal;white-space:nowrap;color:var(--encre);
+  background:color-mix(in srgb,var(--carte) 82%,transparent);padding:0 .2rem;border-radius:3px}
+.echelle-av:hover,.echelle-av:focus-visible{z-index:3;outline:2px solid var(--encre);outline-offset:2px}
+.echelle-axe{display:flex;justify-content:space-between;height:1.6rem;border-radius:6px;padding:.25rem .7rem;
+  font:600 .74rem/1.2 var(--sans);color:#fff;text-shadow:0 1px 2px rgba(0,0,0,.35);
+  background:linear-gradient(90deg,var(--gauche),var(--centre),var(--droite))}
+.echelle-legende{margin:.7rem 0 0;font-size:.8rem;color:var(--attenue);max-width:78ch}
+.echelle-sans{margin:1.4rem 0 .6rem}
+.echelle-sans h3{font:600 1rem/1.3 var(--sans);margin:0 0 .3rem}
+.echelle-sans ul{list-style:none;margin:.8rem 0 0;padding:0;display:grid;grid-template-columns:repeat(auto-fill,minmax(10.5rem,1fr));gap:.7rem .9rem}
+.echelle-sans li a{display:grid;grid-template-columns:46px 1fr;gap:0 .6rem;align-items:center;text-decoration:none;color:inherit}
+.echelle-sans li img,.echelle-sans li .mono{grid-row:1/3;width:46px;height:46px;border-radius:50%;object-fit:cover;background:var(--papier2)}
+.echelle-sans li b{font-size:.84rem;line-height:1.2;align-self:end}
+.echelle-sans li span:not(.mono){font-size:.72rem;line-height:1.25;color:var(--attenue)}
+.echelle-sans li a:hover b{text-decoration:underline}
+.echelle-valeurs{margin-top:2.2rem}
+.echelle-valeurs .h2{margin:0 0 .8rem}
 /* Les maires qui ont parrainé un candidat : un département, une teinte — la part de ses maires parrains qui ont choisi ce candidat. */
 .parrain-cartes{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,20rem),30rem));gap:1.6rem 2rem;margin:1rem 0 1.2rem}
 .parrain-carte{margin:0}

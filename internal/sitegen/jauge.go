@@ -9,7 +9,8 @@ import (
 )
 
 // Dimensions dont les pôles correspondent à l'axe gauche-droite. Les autres
-// dimensions de CHES — GAL-TAN, position sur l'UE, immigration — ne sont PAS
+// dimensions de CHES — GAL-TAN, position sur l'UE, immigration, environnement,
+// pouvoir de l'exécutif, justice — ne sont PAS
 // des axes gauche-droite : leur appliquer un dégradé rouge-bleu ferait croire
 // à une équivalence qui n'existe pas, et c'est précisément la confusion que la
 // littérature comparée s'attache à défaire.
@@ -21,6 +22,10 @@ var hubsOf = map[string][2]string{
 	"galtan":           {"GAL — libertés, minorités, écologie", "TAN — tradition, autorité, nation"},
 	"eu_position":      {"opposition à l'intégration européenne", "soutien à l'intégration européenne"},
 	"immigrate_policy": {"politique ouverte", "politique restrictive"},
+	"environment":      {"l'environnement d'abord", "la croissance d'abord"},
+	// Posées pour la première fois en 2024 ; jamais un verdict (voir referentiels.csv).
+	"executive_power":       {"exécutif contraint", "exécutif sans contrainte"},
+	"judicial_independence": {"justice indépendante", "gouvernement influent"},
 }
 
 // Gauge produit un demi-anneau gradué de 0 à 10 avec une aiguille à la valeur.
@@ -57,7 +62,7 @@ func Gauge(dimension, value string) template.HTML {
 	x2, y2 := cx+80*math.Cos(a), cy-80*math.Sin(a)
 
 	hubs := hubsOf[dimension]
-	svg := fmt.Sprintf(`<svg class="jauge" viewBox="0 0 200 116" role="img"
+	svg := fmt.Sprintf(`<svg class="jauge-demi" viewBox="0 0 200 116" role="img"
  aria-label="%s sur 10, de %s à %s">
 <defs><linearGradient id="%s" x1="0" x2="1">%s</linearGradient></defs>
 <path d="M 20 96 A 80 80 0 0 1 180 96" fill="none" stroke="url(#%s)" stroke-width="17"/>

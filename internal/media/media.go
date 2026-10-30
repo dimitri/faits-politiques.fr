@@ -110,26 +110,33 @@ type File struct {
 
 // Resolve retrouve l'image principale d'une page Wikipédia et n'en retourne les
 // métadonnées que si sa licence est libre.
+//
+// pageFR peut aussi nommer directement un fichier Commons (« File:GPlatret.jpg ») :
+// une personne sans page Wikipédia propre (un maire candidat à la présidentielle,
+// par exemple) peut avoir un portrait libre sur Commons. La licence est vérifiée
+// de la même façon dans les deux cas.
 func (c *client) Resolve(ctx context.Context, pageFR string, size int) (*File, string, error) {
-	var wp struct {
-		Query struct {
-			Pages map[string]struct {
-				PageImage string `json:"pageimage"`
-			} `json:"pages"`
-		} `json:"query"`
-	}
-	if err := c.getJSON(ctx, "https://fr.wikipedia.org/w/api.php", url.Values{
-		"action": {"query"}, "prop": {"pageimages"}, "titles": {pageFR},
-		"format": {"json"}, "formatversion": {"1"},
-	}, &wp); err != nil {
-		return nil, "", err
-	}
-	var fileName string
-	for _, p := range wp.Query.Pages {
-		fileName = p.PageImage
-	}
-	if fileName == "" {
-		return nil, "aucune image sur la page Wikipédia", nil
+	fileName, direct := strings.CutPrefix(pageFR, "File:")
+	if !direct {
+		var wp struct {
+			Query struct {
+				Pages map[string]struct {
+					PageImage string `json:"pageimage"`
+				} `json:"pages"`
+			} `json:"query"`
+		}
+		if err := c.getJSON(ctx, "https://fr.wikipedia.org/w/api.php", url.Values{
+			"action": {"query"}, "prop": {"pageimages"}, "titles": {pageFR},
+			"format": {"json"}, "formatversion": {"1"},
+		}, &wp); err != nil {
+			return nil, "", err
+		}
+		for _, p := range wp.Query.Pages {
+			fileName = p.PageImage
+		}
+		if fileName == "" {
+			return nil, "aucune image sur la page Wikipédia", nil
+		}
 	}
 
 	var cm struct {

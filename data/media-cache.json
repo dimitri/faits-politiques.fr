@@ -338,6 +338,19 @@
       "Rejected": false,
       "Reason": ""
     },
+    "PORTRAIT|File:GPlatret.jpg": {
+      "Name": "GPlatret.jpg",
+      "SourceURL": "https://commons.wikimedia.org/wiki/File:GPlatret.jpg",
+      "Licence": "CC0",
+      "LicenceCode": "cc0",
+      "Author": "Jérémy Viger",
+      "URL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/GPlatret.jpg/500px-GPlatret.jpg?utm_source=commons.wikimedia.org\u0026utm_campaign=imageinfo\u0026utm_content=thumbnail",
+      "Width": 400,
+      "Height": 578,
+      "Local": "gilles-platret-portrait.jpg",
+      "Rejected": false,
+      "Reason": ""
+    },
     "PORTRAIT|Florian Philippot": {
       "Name": "",
       "SourceURL": "https://commons.wikimedia.org/wiki/File:2022-04-16_16-49-26_MAM-Paris_02.jpg",
