@@ -1,4 +1,4 @@
-# Le fascisme : ce que le mot désigne, comment on le reconnaît, pourquoi il n'a pas disparu
+# Le fascisme
 
 > **Dossier** · version 1 · 30 octobre 2026
 >
