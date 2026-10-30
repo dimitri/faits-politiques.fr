@@ -409,29 +409,6 @@ La **qualité** de chaque source est précisée entre crochets : *officiel* (ét
 25. [Anti-fascism](https://en.wikipedia.org/wiki/Anti-fascism) (Arditi del Popolo 1921, Antifaschistische Aktion 1932, Front populaire, guerre d'Espagne, antifa contemporaine) [analyse].
 26. [Désignation de quatre groupes européens par le département d'État américain, 13 novembre 2025](https://keyt.com/politics/cnn-us-politics/2025/11/13/trump-administration-designates-four-european-antifa-groups-as-terrorists) [presse] ; les documents officiels (*Federal Register*, 20 novembre 2025) sont à relire.
 
-## À vérifier avant toute publication
-
-Ce dossier est un document de travail. Les points suivants ont été écrits à partir de sources secondaires et
-doivent être relus dans les textes avant publication :
-
-- la définition de Paxton et sa liste de « passions mobilisatrices » (le livre) ;
-- le texte exact d'Orwell du 24 mars 1944 ;
-- les lois italiennes de 1925-1926 et la loi Scelba (non citées dans le corps du texte) ;
-- l'arrêt *Vona c. Hongrie* (2013) et la dissolution de la Garde hongroise (2009) ;
-- la décision du Conseil constitutionnel allemand sur le NPD (2017) et l'état des recours de l'AfD en 2026 ;
-- l'état de la procédure d'appel du dossier Forza Nuova ;
-- le texte de l'article L. 212-1 du code de la sécurité intérieure dans sa version en vigueur ;
-- les raisons du vote des États opposés à la résolution de l'ONU, à relire dans les explications de vote ;
-- la suite donnée à la dissolution des Soulèvements de la Terre (2023) ;
-- le texte de la résolution du Parlement européen de 2018, de la Convention de 1965 et de la
-  décision-cadre européenne de 2008 ;
-- les dates de fondation des *Fasci italiani di combattimento* (mars 1919) et de la loi du 10 janvier 1936.
-- l'entrée « Antifascisme » du glossaire : dates et usages à relire dans des ouvrages d'historiens (la
-  doctrine officielle de l'antifascisme en RDA n'y est pas traitée) ; la désignation américaine de
-  novembre 2025 (documents officiels) ;
-- la date d'entrée en vigueur du Front populaire de 1934 selon les auteurs (1934 ou 1935 selon la
-  source consultée).
-
 ## Versions
 
 - **Version 1** (30 octobre 2026) : première rédaction.
