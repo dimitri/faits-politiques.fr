@@ -508,6 +508,7 @@ var TablesDirectes = []TableDirecte{
 	{"geo.contour_eptb_epage", "lu directement par internal/sitegen — 65 lignes"},
 	{"core.eptb_epage", "lu directement par internal/sitegen — 67 lignes"},
 	{"core.party_classification", "lu directement par internal/sitegen — 73 lignes"},
+	{"core.parrainage_maire", "lu wholesale par parrainages_maires.go, rapproché en Go (la base du périmètre CI n'a pas core.f_cle_nom) — 18 468 lignes"},
 	{"core.revenu_agricole_reel", "lu directement par internal/sitegen — 74 lignes"},
 	{"geo.empire_colonial_extension", "lu directement par internal/sitegen — 75 lignes"},
 	{"geo.cours_eau", "lu directement par internal/sitegen — 77 lignes"},

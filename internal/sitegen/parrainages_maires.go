@@ -10,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/jackc/pgx/v5/pgxpool"
+	"golang.org/x/text/unicode/norm"
 )
 
 // Les maires qui ont parrainé un candidat à l'élection présidentielle.
@@ -105,6 +106,32 @@ func prettyCandidate(s string) string {
 	return strings.TrimSpace(strings.Join(prenom, " ") + " " + strings.Join(nom, " "))
 }
 
+// cleNom : la clé de comparaison d'un nom propre, la même que core.f_cle_nom
+// (migration 0208) : minuscules, sans accent, sans espace ni ponctuation.
+func cleNom(s string) string {
+	var b strings.Builder
+	for _, r := range norm.NFD.String(strings.ToLower(s)) {
+		switch {
+		case unicode.Is(unicode.Mn, r):
+		case r == 'œ':
+			b.WriteString("oe")
+		case r == 'æ':
+			b.WriteString("ae")
+		case r == 'ß':
+			b.WriteString("ss")
+		case r == 'ø':
+			b.WriteByte('o')
+		case r == 'ł':
+			b.WriteByte('l')
+		case r == 'đ' || r == 'ð':
+			b.WriteByte('d')
+		case r >= 'a' && r <= 'z', r >= '0' && r <= '9':
+			b.WriteRune(r)
+		}
+	}
+	return b.String()
+}
+
 func titleCase(w string) string {
 	var b strings.Builder
 	start := true
@@ -127,37 +154,29 @@ func titleCase(w string) string {
 func loadSponsorshipsMayors(ctx context.Context, pool *pgxpool.Pool, r *Resolver, bg *backgroundSituation,
 	cands []*Candidate) (*SponsorshipsMayors, error) {
 
-	var depCodes, depNames []string
+	// Les clés se calculent ici, pas en SQL : la base du périmètre CI n'a pas les
+	// fonctions de la base complète (core.f_cle_nom), seulement des tables.
+	depByKey := map[string]string{}
 	for code, name := range r.depts {
 		// « Rhône (avec Métropole de Lyon) » : le Conseil écrit « Rhône ».
 		name, _, _ = strings.Cut(name, " (")
-		depCodes, depNames = append(depCodes, code), append(depNames, name)
+		depByKey[cleNom(name)] = code
 	}
-	var slugs, names []string
+	communesByKey := map[[2]string][]string{} // département, nom → codes INSEE
+	for code, c := range r.municipalities {
+		k := [2]string{c.Dept, cleNom(c.Name)}
+		communesByKey[k] = append(communesByKey[k], code)
+	}
+	slugByKey := map[string]string{}
 	bySlug := map[string]*Candidate{}
 	for _, c := range cands {
-		slugs, names = append(slugs, c.Slug), append(names, c.Name+" "+c.FirstName)
+		slugByKey[cleNom(c.Name+" "+c.FirstName)] = c.Slug
 		bySlug[c.Slug] = c
 	}
 
 	rows, err := pool.Query(ctx, `
-		WITH dep AS (
-		  SELECT code, core.f_cle_nom(nom) AS cle FROM unnest($1::text[], $2::text[]) AS t(code, nom)),
-		cand AS (
-		  SELECT slug, core.f_cle_nom(nom) AS cle FROM unnest($3::text[], $4::text[]) AS t(slug, nom)),
-		com AS (
-		  SELECT code_insee, code_departement, core.f_cle_nom(nom) AS cle
-		  FROM ref.commune WHERE cog_millesime = (SELECT max(cog_millesime) FROM ref.commune))
-		SELECT pm.election, pm.candidat, coalesce(cand.slug, ''), pm.nom, pm.prenom, pm.commune,
-		       pm.departement, pm.date_publication, pm.nom_cle, pm.prenom_cle,
-		       coalesce(array_agg(DISTINCT com.code_insee) FILTER (WHERE com.code_insee IS NOT NULL), '{}')
-		FROM core.parrainage_maire pm
-		LEFT JOIN cand ON cand.cle = core.f_cle_nom(pm.candidat)
-		LEFT JOIN dep ON dep.cle = pm.departement_cle
-		LEFT JOIN com ON com.cle = pm.commune_cle AND com.code_departement = dep.code
-		GROUP BY pm.election, pm.candidat, cand.slug, pm.nom, pm.prenom, pm.commune, pm.departement,
-		         pm.date_publication, pm.nom_cle, pm.prenom_cle`,
-		depCodes, depNames, slugs, names)
+		SELECT election, candidat, nom, prenom, commune, departement, date_publication, nom_cle, prenom_cle, commune_cle
+		FROM core.parrainage_maire`)
 	if err != nil {
 		return nil, err
 	}
@@ -173,14 +192,15 @@ func loadSponsorshipsMayors(ctx context.Context, pool *pgxpool.Pool, r *Resolver
 	totals := map[int]int{}
 	for rows.Next() {
 		var p parrainage
-		var codes []string
 		var date time.Time
-		if err := rows.Scan(&p.election, &p.candidat, &p.slug, &p.nom, &p.prenom, &p.commune, &p.dept,
-			&date, &p.nomKey, &p.preK, &codes); err != nil {
+		var communeKey string
+		if err := rows.Scan(&p.election, &p.candidat, &p.nom, &p.prenom, &p.commune, &p.dept,
+			&date, &p.nomKey, &p.preK, &communeKey); err != nil {
 			return nil, err
 		}
 		p.date = date.Format("02/01/2006")
-		if len(codes) == 1 {
+		p.slug = slugByKey[cleNom(p.candidat)]
+		if codes := communesByKey[[2]string{depByKey[cleNom(p.dept)], communeKey}]; len(codes) == 1 {
 			p.code = codes[0]
 		}
 		all = append(all, p)
@@ -193,7 +213,7 @@ func loadSponsorshipsMayors(ctx context.Context, pool *pgxpool.Pool, r *Resolver
 
 	// Les maires en exercice, par commune.
 	mrows, err := pool.Query(ctx, `
-		SELECT m.commune_code, core.f_cle_nom(p.family_name), core.f_cle_nom(p.given_name)
+		SELECT m.commune_code, p.family_name, p.given_name
 		FROM core.mandate m JOIN core.person p ON p.id = m.person_id
 		WHERE m.mandate_type = 'MAIRE' AND upper(m.validity) IS NULL AND m.commune_code IS NOT NULL`)
 	if err != nil {
@@ -208,7 +228,7 @@ func loadSponsorshipsMayors(ctx context.Context, pool *pgxpool.Pool, r *Resolver
 		if err := mrows.Scan(&code, &k.nom, &k.prenom); err != nil {
 			return nil, err
 		}
-		mayors[code] = k
+		mayors[code] = cle{cleNom(k.nom), cleNom(k.prenom)}
 	}
 	if err := mrows.Err(); err != nil {
 		return nil, err
