@@ -26,11 +26,17 @@ import (
 //     changé la façon de la construire depuis ?
 //
 // Les deux sont nécessaires : la donnée seule ignore un gabarit modifié à
-// données inchangées ; le code seul ignore une nouvelle ingestion. Se tromper
-// dans un sens (oublier un fichier ci-dessous) ne fait jamais servir une page
-// fausse — au pire une section reconstruite pour rien ; se tromper dans l'autre
-// sens n'existe pas, il n'y a pas de mécanisme qui accepterait une empreinte
-// qu'on n'aurait pas vérifiée.
+// données inchangées ; le code seul ignore une nouvelle ingestion.
+//
+// Oublier un fichier ci-dessous N'EST PAS sans danger, contrairement à ce que
+// ce commentaire a longtemps affirmé : une section recopiée du site précédent
+// garde tout ce que ses pages contenaient, et les pages nomment la feuille de
+// style et le script, empreinte comprise (voir assets.go). Un CSS modifié seul,
+// sans que la section le sache, laissait 35 000 pages de communes, les
+// intercommunalités et les scrutins pointer vers une feuille effacée — le site
+// publié sans CSS, sans une erreur (octobre 2026). Les ressources partagées
+// figurent donc dans chaque liste, et checkAssetReferences (assets_check.go)
+// refuse de mettre en place un site dont une page nomme un autre fichier.
 var filesSection = map[string][]string{
 	"communes": {
 		"web/templates/base.gohtml", "internal/sitegen/main.go", "internal/sitegen/format.go",
@@ -38,12 +44,14 @@ var filesSection = map[string][]string{
 		"internal/sitegen/lieux.go", "internal/sitegen/lieux_pages.go", "internal/sitegen/carte_situation.go",
 		"internal/sitegen/parrainages_maires.go", "internal/sitegen/loupe.go",
 		"web/templates/commune.gohtml", "web/templates/epci.gohtml",
+		"web/assets/style.css", "web/assets/site.js", "internal/sitegen/icones.go",
 	},
 	"scrutin": {
 		"web/templates/base.gohtml", "internal/sitegen/main.go", "internal/sitegen/format.go",
 		"internal/sitegen/assets.go", "internal/sitegen/typographie.go",
 		"internal/sitegen/scrutins.go", "internal/sitegen/dossiers.go",
 		"web/templates/scrutin.gohtml",
+		"web/assets/style.css", "web/assets/site.js", "internal/sitegen/icones.go",
 	},
 }
 

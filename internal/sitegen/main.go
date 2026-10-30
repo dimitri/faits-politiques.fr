@@ -427,6 +427,12 @@ func buildAt(ctx context.Context, out, tplDir, dataDir, root string, maxElection
 	}
 	logs.Notice(fmt.Sprintf("sitemap: %s, %s", logs.Plural(nSitemap, "URL"), layout.CanonicalBase+"/sitemap.xml"))
 
+	// Avant toute mise en place : aucune page ne doit nommer une autre feuille de
+	// style ou un autre script que ceux publiés (voir assets_check.go).
+	if err := checkAssetReferences(out, assets); err != nil {
+		return err
+	}
+
 	id := dep[identityBundle](results, "identite")
 	n, _ := results["scrutin"].(int)
 	logs.Notice(fmt.Sprintf("site generated in %s/: %s, %s, %s, %s, %s (%s)",
