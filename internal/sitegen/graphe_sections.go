@@ -121,8 +121,12 @@ func buildMunicipalitiesAndEPCI(ctx context.Context, e *environment, d pipeline.
 		return err
 	}
 	fmt.Printf("    pages communes chargées : %s écoulées\n", time.Since(e.start).Round(time.Second))
+	sponsors := dep[*SponsorshipsMayors](d, "parrainages-maires")
 	for code, pc := range pagesCom {
 		pc.Situation = background.forMunicipality(code, pc.Name)
+		if sponsors != nil {
+			pc.Sponsorships = sponsors.Mayor[code]
+		}
 	}
 	tcom := e.page("commune.gohtml")
 	g := new(errgroup.Group)
@@ -961,6 +965,10 @@ func buildProfilePages(e *environment, d pipeline.Results) error {
 	id := dep[identityBundle](d, "identite")
 	e27 := dep[*Stats2027](d, "election2027")
 	premises := dep[map[string]*ReconciliationRNE](d, "mandats-locaux")
+	sponsors := dep[*SponsorshipsMayors](d, "parrainages-maires")
+	if sponsors == nil {
+		sponsors = &SponsorshipsMayors{}
+	}
 
 	per2027 := map[string]*Candidate2027{}
 	for _, k := range e27.Candidates {
@@ -990,7 +998,8 @@ func buildProfilePages(e *environment, d pipeline.Results) error {
 			K              *Candidate2027
 			Defs           template.HTML
 			TotalElections int
-		}{l, p, byCand[p.Slug], nil, nil, "", e.layout.Cov.Elections}
+			Sponsor        *CandidateSponsorships
+		}{l, p, byCand[p.Slug], nil, nil, "", e.layout.Cov.Elections, nil}
 		if c := byCand[p.Slug]; c != nil {
 			data.Local, data.K = premises[c.Slug], per2027[c.Slug]
 			if data.K != nil && !data.K.Overview.Empty {
@@ -1026,7 +1035,8 @@ func buildProfilePages(e *environment, d pipeline.Results) error {
 			K              *Candidate2027
 			Defs           template.HTML
 			TotalElections int
-		}{l, p, c, premises[c.Slug], k, defs, e.layout.Cov.Elections}
+			Sponsor        *CandidateSponsorships
+		}{l, p, c, premises[c.Slug], k, defs, e.layout.Cov.Elections, sponsors.Candidate[c.Slug]}
 		if err := e.writeSection("fiches", tp, filepath.Join(e.out, "candidat", c.Slug, "index.html"), data); err != nil {
 			return err
 		}

@@ -88,6 +88,43 @@ consultée le {{.Cand.SourceConsulted}}.</span></p>
 </tr>{{end}}</tbody></table></div>
 {{end}}
 
+{{with .Sponsor}}
+<h2>Les maires qui ont parrainé sa candidature</h2>
+<div class="parrain-bloc">
+  <div class="situation-carte">
+    <object data="{{.Map.Background}}" type="image/svg+xml" style="aspect-ratio:{{.Map.Width}}/{{.Map.Height}}" aria-label="Carte des départements de France"><img src="{{.Map.Background}}" alt="" width="{{.Map.Width}}" height="{{.Map.Height}}"></object>
+    {{.Map.Layer}}
+  </div>
+  <div>
+    {{range .Elections}}<p class="parrain-chiffre"><strong>{{nb .Mayors}}&nbsp;maire{{if gt .Mayors 1}}s{{end}}</strong>
+      {{if gt .Mayors 1}}ont{{else}}a{{end}} parrainé sa candidature à l'élection présidentielle de {{.Election}}, sur
+      {{nb .Total}} maires ayant donné un parrainage, tous candidats confondus.
+      {{if .OffMap}}<span class="small muted">{{nb .OffMap}} commune{{if gt .OffMap 1}}s{{end}} d'outre-mer ou non localisée{{if gt .OffMap 1}}s{{end}}, hors de la carte.</span>{{end}}</p>{{end}}
+    <p class="cle-parrains">{{range .Elections}}<span class="cle-parrain e{{.Election}}"><i></i>Commune d'un maire parrain en {{.Election}}</span>{{end}}</p>
+    <p class="small muted"><strong>Un parrainage n'est ni un vote ni une adhésion.</strong> La loi exige 500 parrainages d'élus
+    pour se présenter&nbsp;; un maire peut parrainer un candidat dont il ne partage pas les idées, pour que le choix reste
+    ouvert. La carte montre où sont les communes de ces maires, pas où sont les électeurs du candidat. Liste publiée par le
+    <a href="https://www.data.gouv.fr/fr/datasets/parrainages-des-candidats-a-lelection-presidentielle-francaise-de-2022/" target="_blank" rel="noopener">Conseil constitutionnel</a>
+    (nom, commune et candidat), rapprochée ici des communes par leur nom&nbsp;; les communes fusionnées ou rebaptisées depuis peuvent manquer.</p>
+  </div>
+</div>
+{{range .Elections}}
+<details class="plus">
+  <summary>Les {{nb .Mayors}} maires parrains en {{.Election}}</summary>
+  <div class="dedans">
+  <div class="scroll"><table class="pile">
+  <thead><tr><th>Maire</th><th>Commune</th><th>Département</th><th>Parrainage publié le</th></tr></thead>
+  <tbody>{{range .List}}<tr>
+    <td data-l="Maire">{{.Name}}</td>
+    <td data-l="Commune">{{if .URL}}<a href="{{.URL}}">{{.Commune}}</a>{{else}}{{.Commune}}{{end}}</td>
+    <td class="small z" data-l="Département">{{.Dept}}</td>
+    <td class="small z" data-l="Publié le">{{.Date}}</td>
+  </tr>{{end}}</tbody></table></div>
+  </div>
+</details>
+{{end}}
+{{end}}
+
 {{if and .K .K.Terrain.Present (not .K.Overview.Empty)}}
 <h2>Où son parti a recueilli des voix</h2>
 <div class="une-carte">

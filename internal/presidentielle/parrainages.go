@@ -28,8 +28,9 @@ var SourceParrainages = archive.Source{
 	Cadence:     "par scrutin ; plusieurs publications par semaine à partir de février, jusqu'à la liste des candidats",
 	Notes: "Jeu CUMULATIF : chaque publication contient tous les parrainages connus à sa date, " +
 		"et remplace la précédente — seule la dernière est chargée. Agrégé par candidat, catégorie " +
-		"de mandat, département et date de publication : les élus ne sont pas nommés (voir la migration " +
-		"0207). Un parrainage retiré par son auteur disparaît du jeu suivant et n'apparaît donc plus ici.",
+		"de mandat, département et date de publication (migration 0207) ; seuls les maires sont de plus " +
+		"nommés, nom, commune et candidat (migration 0208), les autres élus restent agrégés. Un " +
+		"parrainage retiré par son auteur disparaît du jeu suivant et n'apparaît donc plus ici.",
 }
 
 // Un jeu data.gouv.fr par scrutin. Le nom suit la même règle d'un scrutin à
@@ -103,6 +104,101 @@ func categorieMandat(mandat string) string {
 	return "AUTRE"
 }
 
+// colonnes repère les colonnes du CSV par leur en-tête et exige celles qu'on lui
+// nomme : le fichier a changé de forme d'un scrutin à l'autre, un rang figé
+// lirait la mauvaise colonne sans rien dire.
+func colonnes(head []string, requises ...string) (map[string]int, error) {
+	col := map[string]int{"mandat": -1, "departement": -1, "candidat": -1, "date": -1,
+		"nom": -1, "prenom": -1, "commune": -1}
+	for i, h := range head {
+		h = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(h, string(rune(0xFEFF)))))
+		switch {
+		case h == "mandat":
+			col["mandat"] = i
+		case h == "département" || h == "departement":
+			col["departement"] = i
+		case strings.HasPrefix(h, "candidat"):
+			col["candidat"] = i
+		case strings.HasPrefix(h, "date de publication"):
+			col["date"] = i
+		case h == "nom":
+			col["nom"] = i
+		case h == "prénom" || h == "prenom":
+			col["prenom"] = i
+		case h == "circonscription":
+			col["commune"] = i
+		}
+	}
+	for _, k := range requises {
+		if col[k] < 0 {
+			return nil, fmt.Errorf("colonne « %s » absente de l'en-tête %q — le format du fichier a changé", k, head)
+		}
+	}
+	return col, nil
+}
+
+// maire : un parrainage donné par un maire, nommé, tel que le Conseil le publie.
+type maire struct {
+	nom, prenom, commune, departement, candidat string
+	date                                        time.Time
+}
+
+// parseMaires lit dans le même CSV les seuls parrainages de maires (la catégorie
+// MAIRE : ni maires délégués ni maires d'arrondissement, dont la
+// « circonscription » n'est pas une commune). Le fait brut, rien d'autre : le
+// site n'en tire aucune étiquette politique (migration 0208). Un même maire qui
+// reparaît sur plusieurs dates pour le même candidat garde la plus ancienne.
+func parseMaires(r io.Reader) ([]maire, error) {
+	cr := csv.NewReader(r)
+	cr.Comma = ';'
+	cr.LazyQuotes = true
+	cr.FieldsPerRecord = -1
+	head, err := cr.Read()
+	if err != nil {
+		return nil, fmt.Errorf("en-tête : %w", err)
+	}
+	col, err := colonnes(head, "mandat", "departement", "candidat", "date", "nom", "prenom", "commune")
+	if err != nil {
+		return nil, err
+	}
+	vus := map[[5]string]int{}
+	var out []maire
+	for {
+		rec, err := cr.Read()
+		if err == io.EOF {
+			break
+		}
+		if err != nil {
+			return nil, err
+		}
+		if len(rec) <= col["date"] || categorieMandat(rec[col["mandat"]]) != "MAIRE" {
+			continue
+		}
+		d, err := time.Parse("02/01/2006", strings.TrimSpace(rec[col["date"]]))
+		if err != nil {
+			return nil, fmt.Errorf("date de publication illisible %q", rec[col["date"]])
+		}
+		m := maire{
+			nom: strings.TrimSpace(rec[col["nom"]]), prenom: strings.TrimSpace(rec[col["prenom"]]),
+			commune: strings.TrimSpace(rec[col["commune"]]), departement: strings.TrimSpace(rec[col["departement"]]),
+			candidat: strings.TrimSpace(rec[col["candidat"]]), date: d,
+		}
+		if m.nom == "" || m.commune == "" || m.candidat == "" {
+			return nil, fmt.Errorf("ligne de maire incomplète (%v)", rec)
+		}
+		k := [5]string{m.nom, m.prenom, m.commune, m.departement, m.candidat}
+		if i, ok := vus[k]; ok {
+			if m.date.Before(out[i].date) {
+				out[i].date = m.date
+			}
+			continue
+		}
+		vus[k] = len(out)
+		out = append(out, m)
+	}
+	return out, nil
+}
+
 // parseParrainages lit le CSV du Conseil. Les colonnes sont repérées par leur
 // en-tête, jamais par leur rang : la colonne du candidat s'appelle « Candidat »
 // en 2022 et « Candidat-e parrainé-e » en 2017.
@@ -115,24 +211,9 @@ func parseParrainages(r io.Reader) (map[clef]int, int, error) {
 	if err != nil {
 		return nil, 0, fmt.Errorf("en-tête : %w", err)
 	}
-	col := map[string]int{"mandat": -1, "departement": -1, "candidat": -1, "date": -1}
-	for i, h := range head {
-		h = strings.ToLower(strings.TrimSpace(strings.TrimPrefix(h, string(rune(0xFEFF)))))
-		switch {
-		case h == "mandat":
-			col["mandat"] = i
-		case h == "département" || h == "departement":
-			col["departement"] = i
-		case strings.HasPrefix(h, "candidat"):
-			col["candidat"] = i
-		case strings.HasPrefix(h, "date de publication"):
-			col["date"] = i
-		}
-	}
-	for k, v := range col {
-		if v < 0 {
-			return nil, 0, fmt.Errorf("colonne « %s » absente de l'en-tête %q — le format du fichier a changé", k, head)
-		}
+	col, err := colonnes(head, "mandat", "departement", "candidat", "date")
+	if err != nil {
+		return nil, 0, err
 	}
 	agg := map[clef]int{}
 	lignes := 0
@@ -271,9 +352,70 @@ func IngestParrainages(ctx context.Context, pool *pgxpool.Pool, arch *archive.Ar
 		if err := tx.Commit(ctx); err != nil {
 			return fail(err)
 		}
-		stats[fmt.Sprint(s.Election)] = map[string]any{"parrainages": lignes, "lignes": len(rows), "fichier": res.Title}
-		fmt.Printf("  parrainages %d : %d parrainages, %d lignes agrégées (%s)\n", s.Election, lignes, len(rows), res.Title)
+		nMaires, err := chargerMaires(ctx, pool, f.Path, s.Election, srcID, f.DocumentID)
+		if err != nil {
+			return fail(fmt.Errorf("%d : maires : %w", s.Election, err))
+		}
+		stats[fmt.Sprint(s.Election)] = map[string]any{"parrainages": lignes, "lignes": len(rows), "maires": nMaires, "fichier": res.Title}
+		fmt.Printf("  parrainages %d : %d parrainages, %d lignes agrégées, %d maires nommés (%s)\n", s.Election, lignes, len(rows), nMaires, res.Title)
 	}
 	arch.EndRun(ctx, runID, "SUCCESS", stats, "")
 	return nil
+}
+
+// chargerMaires remplace, pour un scrutin, les maires nommés par ceux du
+// dernier jeu du Conseil. Même principe que l'agrégat : le jeu est cumulatif,
+// la fusion ne touche que ce qui a changé, et un parrainage retiré par son
+// auteur disparaît du jeu suivant — et donc d'ici.
+func chargerMaires(ctx context.Context, pool *pgxpool.Pool, path string, election int, srcID, docID int64) (int, error) {
+	fh, err := os.Open(path)
+	if err != nil {
+		return 0, err
+	}
+	maires, err := parseMaires(fh)
+	fh.Close()
+	if err != nil {
+		return 0, err
+	}
+	rows := make([][]any, 0, len(maires))
+	for _, m := range maires {
+		rows = append(rows, []any{election, m.nom, m.prenom, m.commune, m.departement, m.candidat, m.date, srcID, docID})
+	}
+	tx, err := pool.Begin(ctx)
+	if err != nil {
+		return 0, err
+	}
+	// Les colonnes générées (clés de comparaison) ne se copient pas : la table
+	// temporaire n'a que les colonnes saisies.
+	cols := []string{"election", "nom", "prenom", "commune", "departement", "candidat", "date_publication", "source_id", "document_id"}
+	if _, err := tx.Exec(ctx, `CREATE TEMP TABLE tmp_parrainage_maire (
+		election smallint, nom text, prenom text, commune text, departement text, candidat text,
+		date_publication date, source_id bigint, document_id bigint) ON COMMIT DROP`); err != nil {
+		tx.Rollback(ctx)
+		return 0, err
+	}
+	if _, err := tx.CopyFrom(ctx, pgx.Identifier{"tmp_parrainage_maire"}, cols, pgx.CopyFromRows(rows)); err != nil {
+		tx.Rollback(ctx)
+		return 0, err
+	}
+	if _, err := tx.Exec(ctx, `
+		MERGE INTO core.parrainage_maire AS tgt
+		USING tmp_parrainage_maire AS src
+		ON tgt.election = src.election AND tgt.nom = src.nom AND tgt.prenom = src.prenom
+		   AND tgt.commune = src.commune AND tgt.departement = src.departement AND tgt.candidat = src.candidat
+		WHEN MATCHED AND (tgt.date_publication, tgt.source_id, tgt.document_id)
+		                  IS DISTINCT FROM (src.date_publication, src.source_id, src.document_id) THEN
+		    UPDATE SET date_publication = src.date_publication, source_id = src.source_id, document_id = src.document_id
+		WHEN NOT MATCHED BY TARGET THEN
+		    INSERT (election, nom, prenom, commune, departement, candidat, date_publication, source_id, document_id)
+		    VALUES (src.election, src.nom, src.prenom, src.commune, src.departement, src.candidat,
+		            src.date_publication, src.source_id, src.document_id)
+		WHEN NOT MATCHED BY SOURCE AND tgt.election = $1 THEN DELETE`, election); err != nil {
+		tx.Rollback(ctx)
+		return 0, fmt.Errorf("fusion : %w", err)
+	}
+	if err := tx.Commit(ctx); err != nil {
+		return 0, err
+	}
+	return len(maires), nil
 }

@@ -23,7 +23,7 @@ var Sections = map[string][]string{
 		"core.mandate", "core.person", "core.commune_indicator",
 		"core.commune_delinquance", "core.municipal_list", "core.association",
 		"core.epci", "core.epci_membre", "ref.commune", "geo.contour_cog",
-		"core.collectivite_budget",
+		"core.collectivite_budget", "core.parrainage_maire",
 	},
 	// internal/sitegen/scrutins.go (buildScrutins et ses chargements associés :
 	// loadDossiers, chargerExposes, groupBreakdown, nominalVotes).

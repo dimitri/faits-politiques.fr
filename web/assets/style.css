@@ -1757,6 +1757,21 @@ padding:.28rem .2rem;text-decoration:none;color:var(--encre);border-top:1px soli
 .calque .departements path{fill:none;stroke:var(--encre);stroke-width:1px;stroke-opacity:.75}
 .calque .contour path{fill:none;stroke:var(--encre);stroke-width:2px}
 .calque .repere{fill:none;stroke:var(--accent);stroke-width:2px;vector-effect:non-scaling-stroke}
+/* Les maires qui ont parrainé un candidat : un point par commune, un scrutin
+   par style — le plein pour le plus récent, l'anneau pour les plus anciens. */
+.parrain-bloc{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:1.6rem;margin:1rem 0 1.2rem;align-items:start}
+@media(max-width:48rem){.parrain-bloc{grid-template-columns:minmax(0,1fr)}}
+.parrain-chiffre{margin:0 0 .7rem}
+.calque .parrains circle{vector-effect:non-scaling-stroke}
+.calque .parrains.e2017 circle{fill:none;stroke:var(--encre);stroke-width:1px;stroke-opacity:.7}
+.calque .parrains.e2022 circle{fill:var(--accent);fill-opacity:.55;stroke:none}
+.calque .parrains.e2027 circle{fill:var(--accent);fill-opacity:.85;stroke:var(--encre);stroke-width:.6px}
+.cle-parrains{display:flex;flex-wrap:wrap;gap:.3rem 1.2rem;font-size:.85rem;margin:.4rem 0 .9rem}
+.cle-parrain{display:inline-flex;align-items:center;gap:.4rem}
+.cle-parrain i{display:inline-block;width:.8rem;height:.8rem;border-radius:50%;box-sizing:border-box}
+.cle-parrain.e2017 i{border:1px solid var(--encre)}
+.cle-parrain.e2022 i{background:var(--accent);opacity:.7}
+.cle-parrain.e2027 i{background:var(--accent);border:1px solid var(--encre)}
 .situation-cartons{display:flex;flex-wrap:wrap;gap:.6rem .9rem;margin-top:.6rem;align-items:flex-end}
 .situation-cartons figure{margin:0;width:4.6rem;text-align:center}
 .carton-situation{position:relative;width:100%;height:3rem}

@@ -36,6 +36,7 @@ var filesSection = map[string][]string{
 		"web/templates/base.gohtml", "internal/sitegen/main.go", "internal/sitegen/format.go",
 		"internal/sitegen/assets.go", "internal/sitegen/typographie.go",
 		"internal/sitegen/lieux.go", "internal/sitegen/lieux_pages.go", "internal/sitegen/carte_situation.go",
+		"internal/sitegen/parrainages_maires.go",
 		"web/templates/commune.gohtml", "web/templates/epci.gohtml",
 	},
 	"scrutin": {
