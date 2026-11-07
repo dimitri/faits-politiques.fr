@@ -889,12 +889,40 @@ func buildRegistry(env *environment) *pipeline.Registry {
 	// --- qui décide : aucune donnée propre, mais son gabarit lit
 	// Cov.Organisations/Cov.Candidats (partis, candidats 2027) — voir
 	// layoutWithIdentity.
-	region.Add(pipeline.Step{Name: "qui-decide", Description: "page qui décide", Dependencies: []string{"identite"},
+	// Comment les groupes votent ensemble (votes_groupes.go) : lu par sa propre page, et par
+	// celle-ci pour savoir s'il y a quelque chose à montrer — pas de lien vers une page absente.
+	addNode(region, "votes-groupes", nil, func(ctx context.Context, _ pipeline.Results) (*VotesGroupes, error) {
+		return loadVotesGroupes(ctx, e.pool, e.root)
+	})
+	region.Add(pipeline.Step{Name: "votes-groupes-page", Description: "page : comment les groupes votent ensemble", Dependencies: []string{"votes-groupes"},
+		Run: func(_ context.Context, d pipeline.Results) (any, error) {
+			vg := dep[*VotesGroupes](d, "votes-groupes")
+			if vg == nil {
+				return nil, nil
+			}
+			l := e.layout
+			l.Title = "Comment les groupes votent ensemble"
+			l.Description = "À l'Assemblée nationale et au Parlement européen : quels groupes votent dans le même sens, avec les chiffres, leur incertitude et la méthode."
+			if err := e.writeSection("votes-groupes", e.page("votes-groupes.gohtml"), filepath.Join(e.out, "qui-decide", "votes-ensemble", "index.html"), struct {
+				Layout
+				V *VotesGroupes
+			}{l, vg}); err != nil {
+				return nil, err
+			}
+			if e.excluded("votes-groupes") {
+				return nil, nil
+			}
+			return nil, vgEcritJSON(e.out, vg.an, vg.pe)
+		}})
+	region.Add(pipeline.Step{Name: "qui-decide", Description: "page qui décide", Dependencies: []string{"identite", "votes-groupes"},
 		Run: func(_ context.Context, d pipeline.Results) (any, error) {
 			l := e.layoutWithIdentity(dep[identityBundle](d, "identite"))
 			l.Title = "Qui décide"
 			l.Description = "Gouvernement, Assemblée, Sénat, Parlement européen : qui décide, et comment chacun a voté — sourcé document par document."
-			return nil, e.writeSection("qui-decide", e.page("qui-decide.gohtml"), filepath.Join(e.out, "qui-decide", "index.html"), l)
+			return nil, e.writeSection("qui-decide", e.page("qui-decide.gohtml"), filepath.Join(e.out, "qui-decide", "index.html"), struct {
+				Layout
+				VotesGroupes bool
+			}{l, dep[*VotesGroupes](d, "votes-groupes") != nil})
 		}})
 
 	// --- sources et Assemblée nationale : dépendent d'identite pour la

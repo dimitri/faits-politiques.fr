@@ -1934,3 +1934,59 @@ background:var(--encre);color:var(--papier);border-color:var(--encre)}
   .hero-mille li a{grid-template-columns:.6rem minmax(0,1fr) 3.4rem;padding:.32rem .2rem}
   .hero-mille li a .b{display:none}
 }
+
+/* Comment les groupes votent ensemble (internal/sitegen/votes_groupes*.go).
+   La teinte ne porte que l'intensité de |r| ; le signe et la valeur sont écrits dans
+   chaque case (charte : la couleur n'est jamais le seul porteur d'information).
+   Le plafond de mélange (48 %) garantit le contraste de l'encre sur la case la plus
+   foncée, dans les deux thèmes — pas de texte inversé à gérer. */
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.vg-defile{overflow-x:auto;margin:.6rem 0 1rem;-webkit-overflow-scrolling:touch}
+.vg-matrice{border-collapse:separate;border-spacing:2px;width:auto;font-size:.8rem;font-variant-numeric:tabular-nums}
+.vg-matrice th,.vg-matrice td{padding:0;text-align:center}
+.vg-matrice thead th{height:6.4rem;vertical-align:bottom;font:500 .74rem/1 var(--mono);color:var(--attenue)}
+.vg-matrice thead th span{writing-mode:vertical-rl;transform:rotate(180deg);display:inline-block;white-space:nowrap;padding-bottom:.3rem}
+.vg-matrice thead td{background:transparent}
+.vg-matrice tbody th{vertical-align:middle;font:500 .74rem/1 var(--mono);color:var(--attenue);text-align:right;padding-right:.5rem;white-space:nowrap}
+.vg-matrice td{min-width:3.1rem;height:2.1rem;border-radius:4px;color:var(--encre);background:var(--papier2)}
+.vg-matrice td.pos{background:color-mix(in srgb,var(--accent) calc(var(--v) * 48%),var(--carte))}
+.vg-matrice td.neg{background:color-mix(in srgb,var(--attenue) calc(var(--v) * 36%),var(--carte))}
+.vg-matrice td.diag,.vg-matrice td.nd{background:transparent;color:var(--attenue);border:1px dashed var(--filet)}
+.vg-matrice td:hover{outline:2px solid var(--accent);outline-offset:-1px}
+
+.vg-arbre{width:100%;min-width:34rem;max-width:44rem;height:auto;display:block}
+.vg-arbre .br{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+.vg-arbre .fe{font:500 .8rem/1 var(--sans);fill:var(--encre);text-anchor:end}
+.vg-arbre .ht{font:500 .62rem/1 var(--mono);fill:var(--attenue)}
+.vg-arbre .ax{stroke:var(--filet);stroke-width:1}
+.vg-arbre .tk{font:500 .62rem/1 var(--mono);fill:var(--attenue)}
+
+.vg-fig{margin:.6rem 0 1rem}
+.vg-halt{width:100%;min-width:34rem;max-width:46rem;height:auto;display:block}
+.vg-halt .gr{stroke:var(--filet);stroke-width:1}
+.vg-halt .zero{stroke:var(--attenue);stroke-width:1.2}
+.vg-halt .tk{font:500 .62rem/1 var(--mono);fill:var(--attenue);text-anchor:middle}
+.vg-halt .pa{font:500 .78rem/1 var(--sans);fill:var(--encre);text-anchor:end}
+.vg-halt .ic{stroke-width:2;opacity:.55}
+.vg-halt .ic.an{stroke:var(--accent)}.vg-halt .ic.pe{stroke:var(--attenue)}
+.vg-halt circle.pt.an{fill:var(--accent)}
+.vg-halt rect.pt.pe{fill:var(--carte);stroke:var(--encre);stroke-width:1.6}
+.vg-legende{font-size:.85rem;color:var(--attenue);margin:.4rem 0 0}
+.vg-legende .an{color:var(--accent)}.vg-legende .pe{color:var(--encre);margin-left:1rem}
+
+.vg-motions{border-collapse:separate;border-spacing:3px;width:auto;font-size:.78rem}
+.vg-motions tbody th a{color:inherit;text-decoration:none}.vg-motions tbody th a:hover,.vg-motions tbody th a:focus-visible{color:var(--accent);text-decoration:underline}
+.vg-motions th,.vg-motions td{padding:0;text-align:center}
+.vg-motions thead th{height:6.8rem;vertical-align:bottom;font:500 .7rem/1 var(--mono)}
+.vg-motions thead th a{color:var(--attenue);text-decoration:none}
+.vg-motions thead th a:hover,.vg-motions thead th a:focus-visible{color:var(--accent);text-decoration:underline}
+.vg-motions thead th span{writing-mode:vertical-rl;transform:rotate(180deg);display:inline-block;white-space:nowrap;padding-bottom:.3rem}
+.vg-motions tbody th{vertical-align:middle;font:500 .74rem/1 var(--mono);color:var(--attenue);text-align:right;padding-right:.5rem;white-space:nowrap}
+.vg-sq{display:inline-block;min-width:2.1rem;height:1.5rem;border-radius:3px;vertical-align:middle;
+  font:500 .66rem/1.5rem var(--mono);text-align:center;font-variant-numeric:tabular-nums;color:var(--encre)}
+.vg-sq.pour{background:color-mix(in srgb,var(--pour) 26%,var(--carte));border:1px solid var(--pour)}
+.vg-sq.aucune{border:1.5px dashed var(--absent);background:transparent}
+
+ol.vg-etapes{padding-left:1.3rem;display:grid;gap:.7rem;max-width:46rem}
+ol.vg-etapes code{font:500 .86rem/1.4 var(--mono);background:var(--papier2);padding:.05rem .3rem;border-radius:4px}
+ul.vg-limites{padding-left:1.1rem;display:grid;gap:.6rem;max-width:46rem}
