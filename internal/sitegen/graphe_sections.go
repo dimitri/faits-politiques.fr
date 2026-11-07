@@ -1164,6 +1164,7 @@ var sectionNodes = map[string][]string{
 	"budget":           {"budget"},
 	"social":           {"social"},
 	"qui-decide":       {"qui-decide"},
+	"votes-groupes":    {"votes-groupes-page"},
 	"sources":          {"sources"},
 	"candidats":        {"candidats"},
 	"partis":           {"partis"},

@@ -19,6 +19,8 @@ score d'un élu ou d'un parti.</p>
     <span class="d">Votes nominatifs de {{nb .Cov.Senators}} sénateurs. Sans groupe ni résultat&nbsp;: la source n'en publie pas.</span></a>
   <a class="carte" href="{{.Root}}/europe/"><span class="v">{{nb .Cov.ElectionsPE}}</span><span class="t">Parlement européen</span>
     <span class="d">Scrutins nominatifs et votes des eurodéputés français.</span></a>
+  {{if .VotesGroupes}}<a class="carte" href="{{.Root}}/qui-decide/votes-ensemble/"><span class="t">Les groupes votent ensemble</span>
+    <span class="d">Quels groupes de l'Assemblée et du Parlement européen votent dans le même sens&nbsp;: les chiffres, leur incertitude, la méthode.</span></a>{{end}}
   <a class="carte" href="{{.Root}}/collectivites/"><span class="t">Collectivités</span>
     <span class="d">Régions, départements, intercommunalités&nbsp;: exécutifs, budgets, compétences.</span></a>
   <a class="carte" href="{{.Root}}/partis/"><span class="v">{{.Cov.Organizations}}</span><span class="t">Partis</span>

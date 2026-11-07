@@ -1,0 +1,183 @@
+{{define "content"}}
+<p class="fil"><a href="{{.Root}}/">Accueil</a> › <a href="{{.Root}}/qui-decide/">Qui décide</a> › <span>Les groupes votent ensemble</span></p>
+<span class="sur">Statistique reproductible</span>
+<h1>Comment les groupes votent ensemble</h1>
+<p class="lede">Depuis le {{.V.Debut}}, à quel point deux groupes votent-ils dans le même sens&nbsp;? Pour chaque
+paire de groupes de l'Assemblée nationale et du Parlement européen, cette page donne le chiffre, son
+intervalle de confiance, et chaque étape du calcul.</p>
+
+<p class="note proc"><strong>Ce que ce chiffre mesure.</strong> La ressemblance de deux <em>votes</em>, pas celle de
+deux idées. Deux groupes votent dans le même sens quand ils sont alliés, quand l'un soutient l'amendement de
+l'autre, quand le calendrier les réunit, ou quand ils pensent la même chose&nbsp;: la page ne distingue pas ces cas.
+Elle ne classe aucun groupe, ne donne de note à aucun parti, et ne place personne sur un axe gauche-droite.</p>
+
+<h2>Les chiffres clés</h2>
+{{range .V.Assemblees}}
+<h3>{{.Titre}}</h3>
+<div class="cartes quatre">
+  <div class="carte"><span class="v">{{.Scrutins}}</span><span class="t">scrutins comparés</span>
+    <span class="d">{{.Jours}} jours de séance, du {{.Debut}} au {{.Fin}}.</span></div>
+  <div class="carte"><span class="v">{{.Groupes}}</span><span class="t">groupes</span>
+    <span class="d">{{.EcartesTxt}}.</span></div>
+  <div class="carte"><span class="v">{{.Proche}}</span><span class="t">la paire la plus proche</span>
+    <span class="d">{{.ProcheDetail}}</span></div>
+  <div class="carte"><span class="v">{{.Loin}}</span><span class="t">la paire la plus éloignée</span>
+    <span class="d">{{.LoinDetail}}</span></div>
+</div>
+<p class="small muted">Dans {{.StablesN}} cas sur {{.StablesTotal}}, le groupe le plus proche d'un groupe reste le même dans
+au moins 90&nbsp;% des 1&nbsp;000 rééchantillonnages&nbsp;: c'est la part du résultat qui ne tient pas au hasard
+du jeu de scrutins.</p>
+{{end}}
+
+<h2>Lire une case</h2>
+<p><strong>r</strong> est un coefficient de corrélation, de −1 à +1, entre les scores de deux groupes sur les scrutins où
+tous deux ont une position. <strong>+1</strong>&nbsp;: les deux groupes ont le même score partout.
+<strong>0</strong>&nbsp;: aucun rapport. <strong>−1</strong>&nbsp;: des scores opposés. Entre crochets, l'intervalle de
+confiance à 95&nbsp;%&nbsp;: <em>plus il est large, moins le chiffre est sûr</em>. L'<strong>accord</strong> est la part des
+scrutins où les deux groupes ont la même position majoritaire (pour, contre ou abstention).</p>
+
+{{range .V.Assemblees}}
+<h2 id="{{.ID}}">{{.Titre}}</h2>
+<p class="small muted">Source&nbsp;: {{.Source}}.</p>
+
+<h3>La matrice</h3>
+<p>Les groupes sont rangés par l'arbre ci-dessous&nbsp;: <strong>l'ordre n'a aucun sens politique</strong>, il rapproche
+seulement les groupes qui se ressemblent. La teinte pétrole marque un vote dans le même sens, le gris un vote en
+sens opposé&nbsp;; la valeur est écrite dans chaque case. Survolez une case pour son intervalle, son accord et son
+nombre de scrutins.</p>
+{{.Matrice}}
+
+<h3>L'arbre des groupes</h3>
+<p>Chaque trait réunit les deux branches qui votent le plus semblablement. Plus la fusion est à gauche, plus les
+groupes se ressemblent.</p>
+<div class="vg-defile">{{.Arbre}}</div>
+<details class="plus"><summary>Les fusions, dans l'ordre</summary>
+  <div class="dedans"><table class="pile"><thead><tr><th>Distance (1 − r)</th><th>Branches réunies</th></tr></thead><tbody>
+    {{range .Fusions}}<tr><td class="num">{{.Distance}}</td><td>{{.Entre}}</td></tr>{{end}}
+  </tbody></table></div>
+</details>
+
+<h3>Le voisin le plus proche de chaque groupe</h3>
+<table class="pile">
+  <thead><tr><th>Groupe</th><th>Voisin le plus proche</th><th class="r">r</th><th>Intervalle à 95&nbsp;%</th><th class="r">Accord</th><th class="r">Scrutins communs</th><th class="r">Voisin inchangé</th></tr></thead>
+  <tbody>
+  {{range .Voisins}}<tr><td>{{.Groupe}}</td><td>{{.Voisin}}</td><td class="r num">{{.R}}</td><td class="num">{{.Intervalle}}</td>
+    <td class="r num">{{.Accord}}</td><td class="r num">{{.N}}</td><td class="r num">{{.Stabilite}}&nbsp;%</td></tr>{{end}}
+  </tbody>
+</table>
+<p class="small muted">«&nbsp;Voisin inchangé&nbsp;»&nbsp;: sur 1&nbsp;000 tirages de jours de séance, la part où ce voisin reste le plus
+proche. Sous 90&nbsp;%, le voisin dépend du jeu de scrutins retenu.</p>
+
+<details class="plus" open><summary>Les groupes de cette comparaison</summary>
+  <div class="dedans">
+    <table class="pile"><thead><tr><th>Sigle</th><th>Nom</th><th class="r">Scrutins avec une position</th></tr></thead><tbody>
+    {{range .Groupe}}<tr><td>{{if .URL}}<a href="{{.URL}}">{{.Court}}</a>{{else}}{{.Court}}{{end}}</td><td>{{.Nom}}</td><td class="r num">{{.Scrutins}}</td></tr>{{end}}
+    </tbody></table>
+    {{if .Ecartes}}<p class="note abs"><strong>Écartés&nbsp;:</strong>
+      {{range $i, $e := .Ecartes}}{{if $i}} ; {{end}}{{$e.Court}} — {{$e.Raison}}{{end}}.</p>{{end}}
+  </div>
+</details>
+{{end}}
+
+{{with .V.Croisement}}
+<h2 id="croisement">D'une assemblée à l'autre</h2>
+<p>Les mêmes partis votent-ils de la même façon à Paris et à Strasbourg&nbsp;? On rapproche, pour six partis, le groupe
+où leurs élus siègent dans chaque assemblée, et l'on compare la corrélation de chaque paire. Chaque trait est
+l'intervalle à 95&nbsp;%&nbsp;; les paires sont rangées par leur valeur à l'Assemblée nationale, ce qui ne dit rien d'autre.</p>
+<div class="vg-fig">{{.Figure}}
+  <p class="vg-legende"><span class="an">● Assemblée nationale</span> <span class="pe">◆ Parlement européen (élus français)</span></p></div>
+<details class="plus"><summary>Les valeurs, en tableau</summary>
+  <div class="dedans"><table class="pile"><thead><tr><th>Paire de partis</th><th class="r">Assemblée nationale</th><th class="r">Parlement européen</th></tr></thead><tbody>
+    {{range .Lignes}}<tr><td>{{.Paire}}</td><td class="r num">{{.AN}}</td><td class="r num">{{.PE}}</td></tr>{{end}}
+  </tbody></table></div>
+</details>
+<details class="plus"><summary>Quel groupe pour quel parti</summary>
+  <div class="dedans">
+    <table class="pile"><thead><tr><th>Parti</th><th>Assemblée nationale</th><th>Parlement européen</th></tr></thead><tbody>
+      {{range .Familles}}<tr><td>{{.Nom}}</td><td>{{.AN}}</td><td>{{.PE}}</td></tr>{{end}}
+    </tbody></table>
+    <p class="small muted">Ce rapprochement est fait par ce site, et il est approximatif&nbsp;: un groupe européen réunit
+    souvent plusieurs partis français (Renew&nbsp;: Renaissance, MoDem, Horizons&nbsp;; S&amp;D&nbsp;: PS et Place publique).
+    Au Parlement européen, la comparaison porte sur la délégation française du groupe, pas sur le groupe entier.</p>
+  </div>
+</details>
+{{end}}
+
+{{with .V.Motions}}
+<h2 id="censure">Les motions de censure</h2>
+<p>{{.N}} motions de censure ont été votées à l'Assemblée nationale depuis le {{$.V.Debut}}. La procédure ne fait voter
+que ceux qui la soutiennent&nbsp;: un groupe sans bulletin «&nbsp;pour&nbsp;» n'a <strong>aucune position enregistrée</strong>, ce qui
+n'est ni un vote contre ni une abstention. Chaque case donne le <strong>nombre de bulletins «&nbsp;pour&nbsp;»</strong> du groupe,
+pas un oui ou un non&nbsp;: quelques députés d'un groupe qui en compte des dizaines ne sont pas la position du groupe
+(la page du groupe donne son effectif). Chaque colonne est une motion (jour/mois, article 49 de la Constitution) et renvoie à la
+page du scrutin.</p>
+{{.Table}}
+<p class="vg-legende"><span class="vg-sq pour" aria-hidden="true">12</span> nombre de bulletins «&nbsp;pour&nbsp;» du groupe
+&nbsp;&nbsp;<span class="vg-sq aucune" aria-hidden="true"></span> aucune position enregistrée</p>
+{{end}}
+
+<h2 id="methode">Comment c'est calculé</h2>
+<p>Chaque étape est reproductible&nbsp;: les décomptes viennent de la source (chaque bulletin porte le groupe sous lequel le
+vote a été enregistré), les paramètres sont fixés d'avance dans le <a href="{{.Root}}/comprendre/pre-enregistrement-003/">protocole</a>,
+et le fichier de données donne chaque chiffre de chaque paire.</p>
+<ol class="vg-etapes">
+  <li><strong>Les scrutins.</strong> Tous les scrutins publics depuis le {{.V.Debut}}, quel qu'en soit l'objet&nbsp;: textes,
+    articles, amendements, motions. Un scrutin n'est pas écarté parce qu'il ne plaît pas à l'analyse.</li>
+  <li><strong>Le décompte d'un groupe.</strong> Pour chaque scrutin, le nombre de «&nbsp;pour&nbsp;», de «&nbsp;contre&nbsp;» et
+    d'abstentions parmi les membres du groupe, rectifications comprises. <strong>Les absents et les non-votants ne sont jamais
+    une position&nbsp;:</strong> ils n'entrent dans aucun décompte.</li>
+  <li><strong>Le score d'un groupe.</strong> <code>s = (pour − contre) ÷ (pour + contre + abstentions)</code>, de −1 (tous
+    contre) à +1 (tous pour). Un groupe n'a une position que s'il compte au moins 3 exprimés&nbsp;: en dessous, la majorité de
+    deux élus n'est pas celle d'un groupe.</li>
+  <li><strong>La corrélation.</strong> Pour deux groupes A et B, le coefficient de Pearson entre <code>s<sub>A</sub></code> et
+    <code>s<sub>B</sub></code>, sur les scrutins où les deux ont une position (au moins 30, sinon pas de chiffre).</li>
+  <li><strong>L'accord.</strong> La part de ces scrutins où la position majoritaire (pour, contre, abstention) est la même.
+    Une égalité en tête n'est pas une position.</li>
+  <li><strong>L'intervalle.</strong> On tire 1&nbsp;000 fois, avec remise, des <em>jours de séance entiers</em> (pas des
+    scrutins&nbsp;: les scrutins d'un même jour, souvent d'un même texte, ne sont pas indépendants), on refait tous les calculs,
+    et l'on garde les valeurs qui encadrent 95&nbsp;% des tirages. Le tirage est reproductible (graine fixe).</li>
+  <li><strong>L'arbre.</strong> Distance entre deux groupes&nbsp;: <code>1 − r</code>. On réunit à chaque étape les deux
+    branches dont la distance moyenne est la plus courte (lien moyen, UPGMA).</li>
+</ol>
+
+<h3>Un exemple, scrutin par scrutin</h3>
+{{with .V.Exemple}}
+<p>Le scrutin solennel le plus récent où chaque groupe a une position&nbsp;: <a href="{{$.Root}}/scrutin/{{.Slug}}/">{{.Objet}}</a>
+({{.Date}}). Voici ce que la source donne, et le score qui en découle.</p>
+<table class="pile">
+  <thead><tr><th>Groupe</th><th class="r">Pour</th><th class="r">Contre</th><th class="r">Abstentions</th><th class="r">Exprimés</th><th class="r">Score <code>s</code></th><th>Position</th></tr></thead>
+  <tbody>{{range .Lignes}}<tr><td>{{.Groupe}}</td><td class="r num">{{.Pour}}</td><td class="r num">{{.Contre}}</td><td class="r num">{{.Abstentions}}</td><td class="r num">{{.Exprimes}}</td><td class="r num">{{.Score}}</td><td>{{.Position}}</td></tr>{{end}}</tbody>
+</table>
+<p class="small muted">La corrélation compare ensuite, pour deux groupes, la colonne «&nbsp;score&nbsp;» sur tous les scrutins comme celui-ci.</p>
+{{end}}
+
+<details class="plus" open><summary>Les paramètres</summary>
+  <div class="dedans"><table class="pile"><thead><tr><th>Paramètre</th><th>Valeur</th><th>Pourquoi</th></tr></thead><tbody>
+    {{range .V.Param}}<tr><td>{{.Nom}}</td><td class="num">{{.Valeur}}</td><td>{{.Pourquoi}}</td></tr>{{end}}
+  </tbody></table></div>
+</details>
+
+<h2 id="limites">Ce que ces chiffres ne disent pas</h2>
+<ul class="vg-limites">
+  <li><strong>Un vote n'est pas une idée.</strong> Une coalition, une consigne, un amendement déposé par l'un et voté par l'autre, un
+    calendrier&nbsp;: tout cela produit des votes semblables sans que les groupes pensent la même chose.</li>
+  <li><strong>La proximité n'est pas une alliance.</strong> Elle ne dit pas qui gouverne avec qui, ni qui s'est concerté.</li>
+  <li><strong>Beaucoup de scrutins de l'Assemblée sont des amendements votés par quelques députés présents.</strong> La position
+    d'un petit groupe y repose parfois sur trois ou quatre bulletins&nbsp;; le seuil de 3 exprimés et l'intervalle de confiance
+    existent pour cela.</li>
+  <li><strong>Le Parlement européen ne compte ici que les élus français</strong>, groupe par groupe. Un groupe européen réunit
+    des partis de plusieurs pays&nbsp;; ce n'est pas lui, entier, qui est comparé.</li>
+  <li><strong>Le Sénat n'est pas dans cette page.</strong> Ses bulletins ne portent aucun groupe et ce site ne le reconstitue pas
+    à partir des appartenances (décision D-014)&nbsp;; sans cela, rien n'est calculable.</li>
+  <li><strong>Une première dimension n'est pas un axe gauche-droite.</strong> Dans un régime à groupes disciplinés, la principale
+    différence entre les votes sépare souvent la majorité de l'opposition. C'est pourquoi la page ne montre aucune
+    projection à deux axes.</li>
+  <li><strong>Aucune évolution dans le temps.</strong> Les chiffres portent sur toute la période&nbsp;; ils ne disent pas si deux
+    groupes se sont rapprochés ou éloignés.</li>
+</ul>
+
+<h2>Les données</h2>
+<p><a href="{{.V.JSON}}">Télécharger les chiffres (JSON)</a> — paramètres, version de la méthode (<code>{{.V.Version}}</code>) et,
+pour chaque paire, r, accord, intervalles et nombre de scrutins. Le code du calcul est
+<code>internal/sitegen/votes_groupes.go</code>, ses tests <code>votes_groupes_test.go</code>.</p>
+{{end}}

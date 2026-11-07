@@ -64,6 +64,7 @@ var orderDocs = map[string]int{
 	"enrichissement-conception":  13,
 	"pre-enregistrement-001":     14,
 	"pre-enregistrement-002":     15,
+	"pre-enregistrement-003":     16,
 }
 
 // familleDocs : à quoi sert le document, du point de vue du lecteur — pas de
@@ -85,6 +86,7 @@ var familyDocs = map[string]string{
 	"enrichissement-conception":  "Chantiers en cours",
 	"pre-enregistrement-001":     "Chantiers en cours",
 	"pre-enregistrement-002":     "Chantiers en cours",
+	"pre-enregistrement-003":     "Chantiers en cours",
 }
 
 var orderFamilies = []struct{ name, intro string }{

@@ -2675,3 +2675,34 @@ retouchée.
 - La démographie coloniale (recensements Gallica, numérisés mais non structurés) et l'économie
   coloniale (CEPII TRADHIST, piste identifiée mais non vérifiée dans le temps disponible) restent
   non chargées — signalées comme telles plutôt que remplacées par une estimation non vérifiée.
+
+---
+
+## D-082 — Les groupes votent ensemble : l'Assemblée et le Parlement européen, jamais le Sénat
+
+**Pourquoi.** Une comparaison de la façon dont les groupes votent (corrélation des scores de
+groupe, accord sur la position majoritaire) répond à une question que le site ne traitait pas.
+Le Sénat, lui, ne publie aucun groupe sur ses bulletins : lui en attribuer un revient à le
+reconstituer à partir des appartenances datées, ce que D-014 interdit (« le groupe d'un votant
+est transcrit, jamais reconstitué »). Une première exploration avait reconstitué ce groupe (99,55 %
+des bulletins rattachés) ; le choix a été de ne pas l'inclure, plutôt que de déroger à la règle.
+
+**Décidé le 7 novembre 2026.**
+
+- La page « Comment les groupes votent ensemble » (`/qui-decide/votes-ensemble/`) ne couvre que
+  l'Assemblée nationale et la délégation française au Parlement européen, depuis le 18 juillet 2024,
+  à partir de `mv.scrutin_groupe_vote` : aucune migration, aucune table nouvelle.
+- Protocole [003](pre-enregistrement-003.md), **écrit après une exploration** des mêmes données et
+  déclaré tel : les premiers chiffres sont exploratoires (D-005 demande un protocole scellé avant
+  le premier calcul ; il n'a pas pu l'être ici, et la page le dit).
+- Chaque chiffre porte son intervalle de confiance à 95 %, obtenu par rééchantillonnage des
+  **jours de séance** (docs/perimetre.md § 5.2 : corriger la redondance entre scrutins d'un même
+  texte), et son nombre de scrutins ; les paramètres et les résultats sont publiés en JSON.
+- Aucune projection à deux axes ni classement (charte graphique : pas d'hémicycle, pas d'axe).
+- Les motions de censure sont montrées par le nombre de bulletins « pour » de chaque groupe, pas
+  par un oui ou un non : une première lecture avait attribué à LR des motions votées par un à
+  trois de ses députés, parce qu'elle comptait tout groupe ayant au moins un bulletin « pour ».
+
+**Ce que la décision laisse ouvert.** Le Sénat, si D-014 évolue (une version qui l'inclurait demande
+un nouveau protocole) ; le rapprochement entre un parti et son groupe européen, fait à la main faute
+de `core.ep_national_party_link` (D-020), à valider.
