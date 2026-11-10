@@ -176,7 +176,10 @@ Aucun contrôle ni aucune évaluation n'est encore chargé pour ce dossier.
 
 - Banque mondiale, *World Development Indicators* — PIB (NY.GDP.MKTP.CD) et
   valeur ajoutée par secteur (NV.AGR/IND/SRV.TOTL.ZS), Union européenne
-  (agrégat EU/EUU), États-Unis, Chine.
+  (agrégat EU/EUU), États-Unis, Chine. Pour l'UE, la Banque mondiale ne publie
+  plus d'épargne nette ajustée ni d'épuisement des ressources naturelles
+  (jeu du 8 octobre 2026 : aucune valeur sur 2000-2025) : ces deux mesures
+  restent propres aux dix pays du dossier international.
 - Eurostat, `ext_lt_maineu` — commerce extra-UE27 de biens avec le reste du
   monde, 2002-2025.
 

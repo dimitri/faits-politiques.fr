@@ -2627,9 +2627,22 @@ var checks = []check{
 		sources: []string{"ports"},
 	},
 	{
-		name:    "poids économique mondial : l'UE est chargée aux côtés des dix pays de comparaison",
-		query:   `SELECT count(DISTINCT indicateur) FROM core.indicateur_mondial WHERE pays_code='EU'`,
-		min:     10,
+		// Les six indicateurs que la page Union européenne lit pour l'UE :
+		// PIB et trois secteurs (Banque mondiale), commerce extra-UE
+		// (Eurostat). Depuis octobre 2026 la Banque mondiale ne publie plus
+		// de valeur pour l'UE sur l'épargne nette ajustée ni sur
+		// l'épuisement des ressources naturelles (NY.ADJ.SVNG.GN.ZS,
+		// NY.ADJ.DRES.GN.ZS : 26 années à null) ; la page ne les emploie
+		// pas, donc le contrôle ne les compte plus. Les exportations et
+		// importations de biens et services de la Banque mondiale sont
+		// chargées pour l'UE mais la page leur préfère le commerce
+		// extra-UE, seul comparable aux États-Unis et à la Chine.
+		name: "poids économique mondial : l'UE est chargée pour les six indicateurs de sa page",
+		query: `SELECT count(DISTINCT indicateur) FROM core.indicateur_mondial
+		         WHERE pays_code='EU' AND indicateur IN (
+		           'NY.GDP.MKTP.CD', 'NV.AGR.TOTL.ZS', 'NV.IND.TOTL.ZS', 'NV.SRV.TOTL.ZS',
+		           'EU_EXTRA_EXPORT_MEUR', 'EU_EXTRA_IMPORT_MEUR')`,
+		min:     6,
 		sources: []string{"international"},
 	},
 	{
