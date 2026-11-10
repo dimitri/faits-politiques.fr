@@ -18,7 +18,7 @@
 <section class="bloc" style="padding-top:2.4rem">
   <div class="tete"><div><span class="sur">2027</span>
     <h2 class="h2"><a href="{{.Root}}/2027/">Les candidats déclarés</a></h2></div>
-    <a class="plus" href="{{.Root}}/2027/">{{sub .Cov.Candidates .Cov.CandidatesPrimary}} candidatures, {{.Cov.CandidatesPrimary}} candidats à une primaire →</a></div>
+    <a class="plus" href="{{.Root}}/2027/">{{sub .Cov.Candidates .Cov.CandidatesPrimary}} candidatures{{if .Cov.CandidatesPrimary}}, {{.Cov.CandidatesPrimary}} candidats à une primaire{{end}} →</a></div>
   {{with .Echelle}}
   {{/* Ce site ne place personne : la position est celle que des experts donnent au
        PARTI du candidat (Chapel Hill Expert Survey 2024). Un candidat dont
