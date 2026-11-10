@@ -79,13 +79,21 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	if err != nil {
 		return err
 	}
-	_ = leiSrcID
 	runID, err := arch.StartRun(ctx, srcID, ConnectorVersion)
 	if err != nil {
 		return err
 	}
+	// Les consultations du répertoire LEI sont archivées sous la source GLEIF,
+	// avec sa propre exécution : sous la source INPI, elles se lisaient comme
+	// des ratios financiers, et « gleif » comme une source jamais chargée.
+	leiRunID, err := arch.StartRun(ctx, leiSrcID, ConnectorVersion)
+	if err != nil {
+		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
+		return err
+	}
 	fail := func(err error) error {
 		arch.EndRun(ctx, runID, "FAILED", nil, err.Error())
+		arch.EndRun(ctx, leiRunID, "FAILED", nil, err.Error())
 		return err
 	}
 
@@ -141,7 +149,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 		if err != nil {
 			return fail(err)
 		}
-		lei := leiFor(ctx, arch, srcID, runID, s.Siren)
+		lei := leiFor(ctx, arch, leiSrcID, leiRunID, s.Siren)
 
 		var revenue float64
 		if s.Revenue != nil {
@@ -209,6 +217,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archive) erro
 	}
 	arch.EndRun(ctx, runID, "SUCCESS",
 		map[string]any{"societes": nCompanies, "exercices": nStatements, "lei": nLEI}, "")
+	arch.EndRun(ctx, leiRunID, "SUCCESS", map[string]any{"societes_interrogees": nCompanies, "lei": nLEI}, "")
 	fmt.Printf("  Entreprises : %d sociétés retenues par la règle, %d exercices, %d LEI appariés\n",
 		nCompanies, nStatements, nLEI)
 	fmt.Printf("  Règle : %s\n", criterion)

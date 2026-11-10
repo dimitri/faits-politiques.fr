@@ -43,8 +43,50 @@ import (
 // qu'une trentaine d'actes : charger la totalité du Journal officiel pour
 // répondre à cette question serait disproportionné, et c'est une décision
 // séparée.
+//
+// fullArchiveURL n'est que le REPLI. La DILA ne garde en ligne que la dernière
+// archive complète : celle du 13 juillet 2025 a disparu (HTTP 404 le 10
+// novembre 2026) quand la suivante est parue. resolveFullArchiveURL lit
+// l'index et prend la plus récente.
 const fullArchiveURL = "https://echanges.dila.gouv.fr/OPENDATA/JORFSIMPLE/" +
-	"Freemium_jorf_simple_20250713-140000.tar.gz"
+	"Freemium_jorf_simple_20261108-140000.tar.gz"
+
+var reFullArchive = regexp.MustCompile(`href="(Freemium_jorf_simple_[0-9]{8}-[0-9]{6}\.tar\.gz)"`)
+
+// latestFullArchive rend le nom de l'archive complète la plus récente de
+// l'index HTML (les noms portent leur date : l'ordre lexicographique est
+// l'ordre chronologique), ou "" s'il n'y en a aucune.
+func latestFullArchive(index []byte) string {
+	latest := ""
+	for _, m := range reFullArchive.FindAllSubmatch(index, -1) {
+		if name := string(m[1]); name > latest {
+			latest = name
+		}
+	}
+	return latest
+}
+
+// resolveFullArchiveURL lit l'index de la DILA (scellé comme toute récupération)
+// et rend l'URL de la plus récente archive complète. Un index illisible ou sans
+// archive complète retombe sur fullArchiveURL : le téléchargement dira alors
+// lui-même si ce repli existe encore.
+func resolveFullArchiveURL(ctx context.Context, arch *archive.Archive, srcID, runID int64) string {
+	f, err := arch.Fetch(ctx, srcID, runID, indexURL, ".html")
+	if err != nil {
+		logs.Notice("index JORFSIMPLE illisible (" + err.Error() + ") : repli sur " + fullArchiveURL)
+		return fullArchiveURL
+	}
+	b, err := os.ReadFile(f.Path)
+	if err != nil {
+		return fullArchiveURL
+	}
+	name := latestFullArchive(b)
+	if name == "" {
+		logs.Notice("aucune archive complète dans l'index JORFSIMPLE : repli sur " + fullArchiveURL)
+		return fullArchiveURL
+	}
+	return indexURL + name
+}
 
 // Les titres qui portent la composition du Gouvernement.
 //
@@ -83,7 +125,7 @@ func IngestGouvernement(ctx context.Context, pool *pgxpool.Pool, arch *archive.A
 	}
 
 	fmt.Println("  téléchargement de la base complète du Journal officiel (1,1 Go)…")
-	f, err := arch.Fetch(ctx, srcID, runID, fullArchiveURL, ".tar.gz")
+	f, err := arch.Fetch(ctx, srcID, runID, resolveFullArchiveURL(ctx, arch, srcID, runID), ".tar.gz")
 	if err != nil {
 		return fail(err)
 	}
