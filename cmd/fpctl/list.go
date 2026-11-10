@@ -197,7 +197,7 @@ var stepComponents = map[string]struct {
 	Tables      []string
 }{
 	"download":  {SourceSlugs: []string{"an-amo", "an-amo-15", "an-amo-16", "an-dossiers", "an-scrutins"}},
-	"partis":    {SourceSlugs: []string{"ches-2024", "cnccfp-comptes", "populist-v4"}},
+	"partis":    {SourceSlugs: []string{"ches-2024", "vparty-v2", "cnccfp-comptes", "populist-v4"}},
 	"senat":     {SourceSlugs: []string{"senat-dosleg", "senat-senateurs"}},
 	"europe":    {SourceSlugs: []string{"howtheyvote"}},
 	"normalize": {Tables: []string{"core.person", "core.organization", "core.mandate", "core.affiliation", "core.scrutin", "core.ballot", "core.dossier", "core.texte"}},

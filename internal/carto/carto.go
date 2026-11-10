@@ -36,6 +36,7 @@ type csvRow struct {
 	Slug, Label   string
 	CodeCNCCFP    string
 	CHESName      string
+	VPartyName    string
 	PopuListName  string
 	GroupANUID    string
 	Justification string
@@ -78,7 +79,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, csvPath string) error {
 		if l.CodeCNCCFP == "" {
 			// Sans entrée au registre, pas de parti canonique : on ne fabrique
 			// pas une identité que l'État ne reconnaît pas.
-			if l.CHESName != "" || l.GroupANUID != "" {
+			if l.CHESName != "" || l.VPartyName != "" || l.GroupANUID != "" {
 				skipped = append(skipped, l.Slug+" (aucun code CNCCFP)")
 			}
 			continue
@@ -111,6 +112,7 @@ func Ingest(ctx context.Context, pool *pgxpool.Pool, csvPath string) error {
 		// le fournisseur est celui déclaré par ref.classification_set.
 		for _, ref := range []struct{ scheme, provider, name string }{
 			{"CHES", "CHES", l.CHESName},
+			{"VPARTY", "V-Party", l.VPartyName},
 			{"POPULIST", "PopuList", l.PopuListName},
 		} {
 			if ref.name == "" {
@@ -281,7 +283,7 @@ func read(path string) ([]csvRow, error) {
 	for _, rec := range recs[1:] {
 		l := csvRow{
 			Slug: get(rec, "slug"), Label: get(rec, "libelle"),
-			CodeCNCCFP: get(rec, "code_cnccfp"), CHESName: get(rec, "ches_nom"),
+			CodeCNCCFP: get(rec, "code_cnccfp"), CHESName: get(rec, "ches_nom"), VPartyName: get(rec, "vparty_nom"),
 			PopuListName: get(rec, "populist_nom"), GroupANUID: get(rec, "groupe_an_uid"),
 			Justification: get(rec, "justification"),
 		}
