@@ -129,6 +129,95 @@ func TestDownloadBodyInterruptionAndResume(t *testing.T) {
 	}
 }
 
+// Un serveur qui coupe le flux toutes les quelques centaines d'octets mais
+// avance à chaque reprise ne doit pas épuiser le budget de tentatives : seules
+// les tentatives sans aucun octet comptent (run build-full du 2 novembre 2026,
+// flux coupé par data.assemblee-nationale.fr après 113 Mo).
+func TestDownloadBodyProgressDoesNotExhaustBudget(t *testing.T) {
+	old := delaiReprise
+	delaiReprise = 0
+	defer func() { delaiReprise = old }()
+
+	body := expectedBody(3000)
+	const morceau = 100 // 30 coupures : bien au-delà de maxAttempts (8)
+	var attempts int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		start := 0
+		if rh := r.Header.Get("Range"); rh != "" {
+			fmt.Sscanf(rh, "bytes=%d-", &start)
+		}
+		end := start + morceau
+		if end > len(body) {
+			end = len(body)
+		}
+		if start > 0 {
+			w.Header().Set("Content-Range", fmt.Sprintf("bytes %d-%d/%d", start, len(body)-1, len(body)))
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)-start))
+			w.WriteHeader(http.StatusPartialContent)
+		} else {
+			w.Header().Set("Content-Length", fmt.Sprintf("%d", len(body)))
+			w.WriteHeader(http.StatusOK)
+		}
+		w.Write(body[start:end])
+		if end < len(body) {
+			if f, ok := w.(http.Flusher); ok {
+				f.Flush()
+			}
+			if hj, ok := w.(http.Hijacker); ok {
+				if conn, _, err := hj.Hijack(); err == nil {
+					conn.Close()
+				}
+			}
+		}
+	}))
+	defer srv.Close()
+
+	tmp := tempFile(t)
+	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
+	if _, _, _, err := downloadBody(context.Background(), srv.Client(), req, tmp); err != nil {
+		t.Fatalf("après %d tentatives : %v", attempts, err)
+	}
+	if got := content(t, tmp); string(got) != string(body) {
+		t.Fatalf("contenu assemblé différent (%d octets, attendu %d)", len(got), len(body))
+	}
+	if attempts <= 8 {
+		t.Fatalf("seulement %d tentatives : le test ne dépasse pas le budget", attempts)
+	}
+}
+
+// Sans aucun progrès, le budget reste de 8 tentatives.
+func TestDownloadBodyNoProgressStillGivesUp(t *testing.T) {
+	old := delaiReprise
+	delaiReprise = 0
+	defer func() { delaiReprise = old }()
+
+	var attempts int
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		attempts++
+		w.Header().Set("Content-Length", "1000")
+		w.WriteHeader(http.StatusOK)
+		if f, ok := w.(http.Flusher); ok {
+			f.Flush()
+		}
+		if hj, ok := w.(http.Hijacker); ok {
+			if conn, _, err := hj.Hijack(); err == nil {
+				conn.Close()
+			}
+		}
+	}))
+	defer srv.Close()
+
+	tmp := tempFile(t)
+	req, _ := http.NewRequest(http.MethodGet, srv.URL, nil)
+	if _, _, _, err := downloadBody(context.Background(), srv.Client(), req, tmp); err == nil {
+		t.Fatal("un serveur qui n'envoie rien doit finir en erreur")
+	}
+	if attempts != 8 {
+		t.Fatalf("tentatives = %d, attendu 8", attempts)
+	}
+}
+
 func TestDownloadBodyRangeIgnoredRestarts(t *testing.T) {
 	body := expectedBody(3000)
 	var attempts int
