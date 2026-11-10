@@ -3,6 +3,7 @@ package fiscalite
 import (
 	"archive/zip"
 	"bufio"
+	"compress/gzip"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -95,7 +96,26 @@ func readCSVStream(path string, f func(col map[string]int, rec []string) error) 
 		return err
 	}
 	defer fh.Close()
-	return scanCSV(bufio.NewReaderSize(fh, 1<<20), f)
+	r, err := lisible(fh)
+	if err != nil {
+		return err
+	}
+	return scanCSV(r, f)
+}
+
+// lisible rend le flux décompressé s'il commence par l'en-tête gzip (0x1f 0x8b),
+// tel quel sinon. Le jeu DECP consolidé a remplacé « decp.csv » par
+// « decp.csv.gz » (10 novembre 2026) : le même lecteur sert aux deux.
+func lisible(fh io.Reader) (io.Reader, error) {
+	br := bufio.NewReaderSize(fh, 1<<20)
+	if magic, err := br.Peek(2); err == nil && magic[0] == 0x1f && magic[1] == 0x8b {
+		zr, err := gzip.NewReader(br)
+		if err != nil {
+			return nil, err
+		}
+		return bufio.NewReaderSize(zr, 1<<20), nil
+	}
+	return br, nil
 }
 
 func scanCSV(r io.Reader, f func(col map[string]int, rec []string) error) error {

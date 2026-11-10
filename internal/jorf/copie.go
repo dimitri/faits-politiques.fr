@@ -175,7 +175,7 @@ func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		return err
 	}
 
-	f, err := arch.Fetch(ctx, srcID, runID, fullArchiveURL, ".tar.gz")
+	f, err := arch.Fetch(ctx, srcID, runID, resolveFullArchiveURL(ctx, arch, srcID, runID), ".tar.gz")
 	if err != nil {
 		return fail(err)
 	}
@@ -184,8 +184,8 @@ func IngestComplet(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 	// directement dans jo.sommaire/jo.lien/jo.texte/jo.bloc violerait leur clé
 	// primaire dès la seconde ligne déjà vue. Une version antérieure vidait
 	// donc les quatre tables avant de les remplir (TRUNCATE) — mais cette
-	// archive est un export FIGÉ (fullArchiveURL, 13 juillet 2025 pour la
-	// version actuelle), alors que jo.texte reçoit aussi, en continu, les
+	// archive est un export FIGÉ (la plus récente de l'index DILA, voir
+	// resolveFullArchiveURL), alors que jo.texte reçoit aussi, en continu, les
 	// actes récents du connecteur « jorf » (chaîne par défaut, fenêtre
 	// glissante des 60 derniers jours). Vider puis recharger depuis l'archive
 	// figée effacerait ces actes récents sans les remplacer — une régression

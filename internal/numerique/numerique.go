@@ -7,6 +7,7 @@ package numerique
 
 import (
 	"bufio"
+	"compress/gzip"
 	"context"
 	"encoding/csv"
 	"encoding/json"
@@ -95,6 +96,21 @@ func nilIfEmpty(s string) any {
 	return s
 }
 
+// lisible rend le flux décompressé s'il commence par l'en-tête gzip (0x1f 0x8b),
+// tel quel sinon : le jeu DECP consolidé a remplacé « decp.csv » par
+// « decp.csv.gz » (10 novembre 2026).
+func lisible(fh io.Reader) (io.Reader, error) {
+	br := bufio.NewReaderSize(fh, 1<<20)
+	if magic, err := br.Peek(2); err == nil && magic[0] == 0x1f && magic[1] == 0x8b {
+		zr, err := gzip.NewReader(br)
+		if err != nil {
+			return nil, err
+		}
+		return bufio.NewReaderSize(zr, 1<<20), nil
+	}
+	return br, nil
+}
+
 // Lecture en flux d'un CSV avec en-tête, comme pour les marchés de l'évasion
 // fiscale : le fichier consolidé dépasse 2,5 Go.
 func readCSVStream(path string, f func(columns map[string]int, rec []string) error) error {
@@ -103,7 +119,11 @@ func readCSVStream(path string, f func(columns map[string]int, rec []string) err
 		return err
 	}
 	defer fh.Close()
-	cr := csv.NewReader(bufio.NewReaderSize(fh, 1<<20))
+	r, err := lisible(fh)
+	if err != nil {
+		return err
+	}
+	cr := csv.NewReader(r)
 	cr.ReuseRecord = true
 	cr.FieldsPerRecord = -1
 	cr.LazyQuotes = true

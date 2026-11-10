@@ -110,11 +110,11 @@ func IngestMarches(ctx context.Context, pool *pgxpool.Pool, arch *archive.Archiv
 		if err != nil {
 			return nil, err
 		}
-		urlCSV, err := dataGouvResource(info.Path, "decp.csv")
+		urlCSV, err := dataGouvResource(info.Path, "decp.csv.gz")
 		if err != nil {
 			return nil, err
 		}
-		f, err := arch.Fetch(ctx, srcID, runID, urlCSV, ".csv")
+		f, err := arch.Fetch(ctx, srcID, runID, urlCSV, ".csv.gz")
 		if err != nil {
 			return nil, err
 		}

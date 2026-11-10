@@ -86,8 +86,15 @@ ses élus siègent. Ce n'est pas une équivalence.
 
 Un groupe européen réunit plusieurs partis français (Renew : Renaissance, MoDem, Horizons ;
 S&D : PS et Place publique). C'est la délégation française qui est comparée, pas le groupe entier.
-**À valider** par un contrôle sur la liste des eurodéputés français et leurs partis, qui
-n'est pas chargée en base (`core.ep_national_party_link` est vide, voir D-020).
+**Recoupé le 10 novembre 2026** avec les appartenances publiées par HowTheyVote (publication
+du 7 novembre, fichiers `national_party_memberships` et `group_memberships`, 10ᵉ législature,
+élus français) : les six correspondances ci-dessus se retrouvent, LFI→The Left (11 élus),
+PS→S&D (10), Écologistes→Greens/EFA (6), Renaissance→Renew (6), LR→EPP (7), RN→Patriots for
+Europe (32). Les autres élus français ne sont pas dans ce tableau : MoDem (4), Horizons (2) et
+UDI (1) siègent à Renew, Place publique (3) à S&D, Identité-Libertés (5) et quelques divers à
+l'ECR, Reconquête (1) à ESN. Un élu de l'UDR siège à l'EPP et un autre à Patriots for Europe, ce
+qui laisse ce parti hors du tableau. Le contrôle est fait hors base : `core.ep_national_party_link`
+reste vide (voir D-020), il n'est pas une donnée chargée du site.
 
 ## 7. Affichage
 
@@ -121,3 +128,5 @@ de ces chiffres comme un positionnement idéologique.
 ## Versions
 
 - **v1 — 7 novembre 2026.** Première version, écrite après une exploration (§ 8).
+- **v1.1 — 10 novembre 2026.** Le rapprochement du § 6 est recoupé avec HowTheyVote. Aucun
+  changement de méthode ni de chiffre.

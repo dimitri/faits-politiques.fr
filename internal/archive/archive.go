@@ -272,6 +272,11 @@ func resumableStatus(status int) bool {
 	return false
 }
 
+// delaiReprise : l'attente avant la première reprise d'un téléchargement
+// interrompu, doublée à chaque échec sans progrès. Variable pour que les tests
+// n'attendent pas des secondes réelles.
+var delaiReprise = 2 * time.Second
+
 // wait attend delay (ou l'annulation de ctx), puis le double pour la
 // prochaine fois, plafonné à 60s — le même rythme pour une panne réseau et
 // pour un statut reprenable, jamais deux politiques de repli différentes
@@ -322,7 +327,17 @@ func totalFromContentRange(cr string) int64 {
 // hachage à recoller entre elles.
 func downloadBody(ctx context.Context, client *http.Client, req *http.Request, tmp *os.File) (status int, headers http.Header, announcedSize int64, err error) {
 	const maxAttempts = 8
-	delay := 2 * time.Second
+	// Une tentative qui a fait avancer le fichier avant de tomber n'épuise pas
+	// le budget : seules comptent celles qui n'apportent aucun octet. Sans
+	// cela, un serveur qui coupe le flux toutes les quelques dizaines de Mo
+	// (data.assemblee-nationale.fr, « stream error … INTERNAL_ERROR », run
+	// build-full du 2 novembre 2026 : échec après 113 Mo et 1 h) consommait
+	// les 8 reprises en progressant à chaque fois. Le plafond global garde
+	// une borne : un téléchargement qui avance d'un octet par tentative ne
+	// boucle pas indéfiniment.
+	const maxTentativesTotal = 64
+	total := 0
+	delay := delaiReprise
 	var written int64
 	announcedSize = -1
 	restart := func() error {
@@ -336,6 +351,7 @@ func downloadBody(ctx context.Context, client *http.Client, req *http.Request, t
 		return nil
 	}
 	for attempt := 1; ; attempt++ {
+		total++
 		r := req.Clone(ctx)
 		if written > 0 {
 			r.Header.Set("Range", fmt.Sprintf("bytes=%d-", written))
@@ -420,6 +436,12 @@ func downloadBody(ctx context.Context, client *http.Client, req *http.Request, t
 		if errCopy != nil {
 			if ctx.Err() != nil {
 				return 0, nil, announcedSize, ctx.Err()
+			}
+			if n > 0 && total < maxTentativesTotal {
+				// La reprise a avancé : le compteur repart (la boucle
+				// l'incrémente aussitôt, d'où 0), et l'attente aussi.
+				attempt = 0
+				delay = delaiReprise
 			}
 			if attempt >= maxAttempts {
 				return 0, nil, announcedSize, fmt.Errorf("%s : %w (après %s reçus)",
