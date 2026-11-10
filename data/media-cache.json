@@ -299,6 +299,19 @@
       "Rejected": false,
       "Reason": ""
     },
+    "PORTRAIT|Clara Egger": {
+      "Name": "Clara_Egger.jpg",
+      "SourceURL": "https://commons.wikimedia.org/wiki/File:Clara_Egger.jpg",
+      "Licence": "CC BY-SA 4.0",
+      "LicenceCode": "cc-by-sa-4.0",
+      "Author": "Thomas Binet",
+      "URL": "https://upload.wikimedia.org/wikipedia/commons/9/9d/Clara_Egger.jpg?utm_source=commons.wikimedia.org\u0026utm_campaign=imageinfo\u0026utm_content=thumbnail_unscaled",
+      "Width": 400,
+      "Height": 563,
+      "Local": "clara-egger-portrait.jpg",
+      "Rejected": false,
+      "Reason": ""
+    },
     "PORTRAIT|David Lisnard": {
       "Name": "",
       "SourceURL": "https://commons.wikimedia.org/wiki/File:David_Lisnard_-_2013.jpg",
@@ -426,6 +439,19 @@
       "Width": 0,
       "Height": 0,
       "Local": "jean-luc-melenchon-portrait.jpg",
+      "Rejected": false,
+      "Reason": ""
+    },
+    "PORTRAIT|Juan Branco": {
+      "Name": "2019_-_Centre_Stage_-_Day_2_VJR21625_(49024215596).jpg",
+      "SourceURL": "https://commons.wikimedia.org/wiki/File:2019_-_Centre_Stage_-_Day_2_VJR21625_(49024215596).jpg",
+      "Licence": "CC BY 2.0",
+      "LicenceCode": "cc-by-2.0",
+      "Author": "Web Summit",
+      "URL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b8/2019_-_Centre_Stage_-_Day_2_VJR21625_%2849024215596%29.jpg/500px-2019_-_Centre_Stage_-_Day_2_VJR21625_%2849024215596%29.jpg?utm_source=commons.wikimedia.org\u0026utm_campaign=imageinfo\u0026utm_content=thumbnail",
+      "Width": 400,
+      "Height": 467,
+      "Local": "juan-branco-portrait.jpg",
       "Rejected": false,
       "Reason": ""
     },
@@ -608,6 +634,19 @@
       "Width": 0,
       "Height": 0,
       "Local": "segolene-royal-portrait.JPG",
+      "Rejected": false,
+      "Reason": ""
+    },
+    "PORTRAIT|Teddy Riner": {
+      "Name": "Teddy_Riner_Cannes_2016.jpg",
+      "SourceURL": "https://commons.wikimedia.org/wiki/File:Teddy_Riner_Cannes_2016.jpg",
+      "Licence": "CC BY-SA 3.0",
+      "LicenceCode": "cc-by-sa-3.0",
+      "Author": "Georges Biard",
+      "URL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/7f/Teddy_Riner_Cannes_2016.jpg/500px-Teddy_Riner_Cannes_2016.jpg?utm_source=commons.wikimedia.org\u0026utm_campaign=imageinfo\u0026utm_content=thumbnail",
+      "Width": 400,
+      "Height": 566,
+      "Local": "teddy-riner-portrait.jpg",
       "Rejected": false,
       "Reason": ""
     },

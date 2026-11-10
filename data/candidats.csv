@@ -66,6 +66,23 @@
 # recense et Wikipédia non (Lassalle, Legendre, Branco, Egger, Rohou,
 # Billetdoux, Collovati) : à sourcer une à une avant d'entrer ici.
 #
+# Révision du 10 novembre 2026 : ajout de quatre déclarations.
+# Teddy Riner (9 novembre : vidéo publiée sur son compte X — « Je suis
+# candidat à l'élection présidentielle de 2027 » — et entretien au Parisien,
+# rapportés par LCP le jour même ; mouvement « La France qu'on veut » selon
+# la presse, que l'article LCP ne nomme pas comme parti). Juan Branco
+# (19 décembre 2025, annonce rapportée par Sud Radio ; l'affiliation « Les
+# Ruches » n'est pas dans cet article, d'où l'absence de parti). Clara Egger
+# (19 avril 2026, communiqué de Solution démocratique, source primaire ;
+# aucun article de presse n'a pu être lu). Erwan Rohou (11 septembre 2026 :
+# le Mouvement écologiste indépendant le présente à Strasbourg, d'après RCF
+# Alsace — page non relue directement, HTTP 403 ; contenu connu par le
+# résumé d'une recherche, à confirmer à la prochaine révision).
+# Restent à sourcer, faute de déclaration datée trouvée au 10 novembre :
+# Lassalle, Legendre, Billetdoux, Collovati, Chevé (franceinfo les recense
+# dans sa liste de 36 candidats actifs au 9 novembre ; aucune source datée
+# de leur propre déclaration n'a été trouvée).
+#
 # STATUT : DECLARE = candidature à l'élection annoncée. (PRIMAIRE a existé
 # comme statut transitoire — candidature à une primaire, pas encore à
 # l'élection — le temps que la primaire de la gauche unitaire se tienne ;
@@ -114,3 +131,7 @@ gilles-platret,Platret,Gilles,,,DECLARE,2026-10-08,https://france3-regions.franc
 mira-markovic,Markovic,Mira,Parti animaliste,,DECLARE,2026-10-02,https://www.cnews.fr/france/2026-10-02/presidentielle-2027-si-nous-ne-sommes-pas-la-personne-ne-parle-des-animaux,2026-10-28,https://parti-animaliste.fr/mira-markovic-2027,
 antoine-mikolajczak,Mikolajczak,Antoine,Équinoxe,,DECLARE,2026,https://parti-equinoxe.fr/presidentielle-2027/,2026-10-28,https://parti-equinoxe.fr/presidentielle-2027/,
 francois-ruffin,Ruffin,François,Debout !,,DECLARE,2026-05-12,https://lcp.fr/actualites/presidentielle-2027-s-il-n-y-a-pas-de-primaire-moi-j-y-vais-annonce-francois-ruffin,2026-10-28,,François Ruffin,"Déclaration conditionnelle, situation difficile à lire. Le 12 mai 2026 il annonce sur France Inter qu'il sera candidat « s'il n'y a pas de primaire » à gauche. Deux primaires sont à distinguer : la primaire unitaire de la gauche, dont il était candidat, a été annulée (elle était prévue le 11 octobre 2026) ; celle qui s'est tenue le 11 octobre est la primaire PS–Place publique, où il ne figurait pas (Glucksmann l'a emportée avec 66,17 %). Il n'a donc été battu par personne. Aucune déclaration postérieure, datée et sans condition, n'a été trouvée dans les sources consultées le 28 octobre 2026 : franceinfo le compte parmi les candidats actifs (22 octobre), Elysée Scope écrit qu'aucune candidature officielle n'est déclarée."
+teddy-riner,Riner,Teddy,La France qu'on veut,,DECLARE,2026-11-09,https://lcp.fr/actualites/le-judoka-teddy-riner-annonce-sa-candidature-a-l-election-presidentielle-de-2027-444920,2026-11-10,https://x.com/teddyriner/status/2119740524064322005,Teddy Riner,
+juan-branco,Branco,Juan,,,DECLARE,2025-12-19,https://www.sudradio.fr/sud-radio/lavocat-juan-branco-candidat-a-la-presidentielle,2026-11-10,,Juan Branco,
+clara-egger,Egger,Clara,Solution démocratique,,DECLARE,2026-04-19,https://solutiondemocratique.fr/presidentielle2027-annonce-candidature-clara-egger/,2026-11-10,https://solutiondemocratique.fr/presidentielle2027-annonce-candidature-clara-egger/,Clara Egger,
+erwan-rohou,Rohou,Erwan,Mouvement écologiste indépendant,,DECLARE,2026-09-11,https://www.rcf.fr/articles/actualite/presidentielles-le-mouvement-ecologiste-independant-lance-sa-campagne-a,2026-11-10,,,
