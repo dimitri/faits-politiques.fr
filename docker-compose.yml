@@ -43,7 +43,12 @@ services:
     # lie 0.0.0.0 quel que soit le démon) : sans ce décalage, les deux
     # entrent en collision sur le port hôte, jamais sur le nom du conteneur
     # (scopé par démon, lui, pas par la machine).
-    ports: ["${FP_DB_PORT:-55432}:5432"]
+    #
+    # Publié sur 127.0.0.1 seulement : sur 0.0.0.0, dev-runner offrait ce
+    # Postgres (fp/fp) à tout internet, Docker contournant le pare-feu de
+    # l'hôte. Le Makefile et la CI s'y connectent par localhost ; depuis un
+    # autre poste, passer par un tunnel ssh.
+    ports: ["127.0.0.1:${FP_DB_PORT:-55432}:5432"]
     volumes:
       # UN VOLUME NEUF, et non `fp_pgdata`. Ce dernier a été initialisé par
       # l'ancienne image Alpine — musl — et ses index de texte sont rangés selon
@@ -86,9 +91,10 @@ services:
     environment:
       MINIO_ROOT_USER: fpminio
       MINIO_ROOT_PASSWORD: fp12345678
+    # 127.0.0.1 seulement, comme le Postgres ci-dessus.
     ports:
-      - "9090:9000"   # API S3
-      - "9091:9091"   # console web
+      - "127.0.0.1:9090:9000"   # API S3
+      - "127.0.0.1:9091:9091"   # console web
     volumes:
       - "fp_minio_data:/data"
     healthcheck:
