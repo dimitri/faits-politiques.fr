@@ -698,8 +698,18 @@ func (a *Archive) StartRun(ctx context.Context, sourceID int64, version string) 
 	return id, err
 }
 
+// EndRun referme une exécution. Deux pièges l'ont laissée « RUNNING » pour
+// toujours : un statut hors de la contrainte de raw.fetch_run (« OK » au lieu
+// de « SUCCESS », europe-1940) et un contexte déjà annulé par Ctrl-C ou un
+// délai, alors que c'est précisément alors qu'on referme l'exécution en
+// échec. L'écriture se fait donc sur un contexte détaché de l'annulation, et
+// une erreur n'est plus avalée en silence.
 func (a *Archive) EndRun(ctx context.Context, runID int64, status string, stats map[string]any, errMsg string) {
-	_, _ = a.Pool.Exec(ctx, `
+	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+	defer cancel()
+	if _, err := a.Pool.Exec(ctx, `
 		UPDATE raw.fetch_run SET finished_at = now(), status = $2, stats = $3, error = NULLIF($4,'')
-		WHERE id = $1`, runID, status, stats, errMsg)
+		WHERE id = $1`, runID, status, stats, errMsg); err != nil {
+		fmt.Fprintf(os.Stderr, "  exécution %d : impossible de la refermer en %q : %v\n", runID, status, err)
+	}
 }

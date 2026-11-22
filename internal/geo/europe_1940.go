@@ -176,6 +176,6 @@ func IngestEuropeGuerre1940(ctx context.Context, pool *pgxpool.Pool, arch *archi
 	}
 
 	fmt.Printf("  Europe au %s (CShapes 2.0) : %d pays\n", referenceDateEurope1940, len(countriesEurope1940))
-	arch.EndRun(ctx, runID, "OK", map[string]any{"pays": len(countriesEurope1940)}, "")
+	arch.EndRun(ctx, runID, "SUCCESS", map[string]any{"pays": len(countriesEurope1940)}, "")
 	return nil
 }

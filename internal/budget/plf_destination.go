@@ -23,7 +23,11 @@ var SourcePLFDestination = archive.Source{
 	Attribution: "Source : Direction du budget, data.economie.gouv.fr",
 	Cadence:     "annuelle (dépôt du PLF, généralement en octobre)",
 	Notes: "Deux millésimes chargés (2024, 2025), sous deux schémas de champs différents d'une " +
-		"édition à l'autre — voir normalizeLine. Ce sont des montants VOTÉS au PROJET de loi de " +
+		"édition à l'autre — voir normalizeLine. Au 22 novembre 2026, data.economie.gouv.fr ne " +
+		"publie aucun jeu « dépenses selon destination » pour le PLF 2026 ni pour le PLF 2027 " +
+		"(seulement le budget vert 2026, déjà chargé par budget-vert-depenses-fiscales, et les " +
+		"annexes opérateurs du PLF 2027) : à reprendre au prochain jeu publié. " +
+		"Ce sont des montants VOTÉS au PROJET de loi de " +
 		"finances (PLF), pas la loi de finances initiale telle qu'adoptée ni l'exécution réelle : " +
 		"même piège voté/exécuté que docs/budget-donnees.md § 2, le champ `loi` le porte pour ne " +
 		"jamais le perdre en aval. Couvre TOUTES les missions du budget général, pas seulement " +
