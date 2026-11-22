@@ -77,13 +77,13 @@ parrainages par le Conseil constitutionnel, le 12 mars 2027.</p>
 
 <h2>Quatre angles, quatre couvertures très inégales</h2>
 <div class="angles">
-  <div class="angle"><div class="t">Votes</div><div class="v">{{.E.WithVotes}} / {{len .E.Candidates}}</div>
+  <div class="angle"><div class="t">Votes</div><div class="v">{{.E.WithVotes}} / {{.E.Active}}</div>
     <div class="d">ont siégé dans une assemblée couverte</div></div>
-  <div class="angle"><div class="t">Comptes du parti</div><div class="v">{{.E.WithAccounts}} / {{len .E.Candidates}}</div>
+  <div class="angle"><div class="t">Comptes du parti</div><div class="v">{{.E.WithAccounts}} / {{.E.Active}}</div>
     <div class="d">ont une organisation aux comptes CNCCFP</div></div>
-  <div class="angle"><div class="t">Terrain</div><div class="v">{{.E.WithTerrain}} / {{len .E.Candidates}}</div>
+  <div class="angle"><div class="t">Terrain</div><div class="v">{{.E.WithTerrain}} / {{.E.Active}}</div>
     <div class="d">ont un parti que l'Intérieur nuance</div></div>
-  <div class="angle"><div class="t">Intérêts</div><div class="v">{{.E.WithInterest}} / {{len .E.Candidates}}</div>
+  <div class="angle"><div class="t">Intérêts</div><div class="v">{{.E.WithInterest}} / {{.E.Active}}</div>
     <div class="d">ont une déclaration HATVP</div></div>
 </div>
 <p class="note"><strong>C'est le résultat le plus important de cette page.</strong> Un candidat sur
@@ -99,7 +99,7 @@ vide décrit <em>ce site</em>, pas la personne.</p>
         width="72" height="72" loading="lazy" class="portrait">
       {{else}}<div class="portrait vide" style="width:72px;height:72px"></div>{{end}}
       <div>
-        <span class="sur">{{if .Organization}}{{.Organization}}{{else}}sans organisation rattachée{{end}}{{if eq .Status "PRIMAIRE"}} · candidature à une primaire{{end}}{{if .DateDeclaration}} · annoncée {{.DateDeclaration}}{{end}}</span>
+        <span class="sur">{{if .Organization}}{{.Organization}}{{else}}sans organisation rattachée{{end}}{{if eq .Status "PRIMAIRE"}} · candidature à une primaire{{end}}{{if .DateDeclaration}} · annoncée {{.DateDeclaration}}{{end}}{{if .Withdrawn}} · <strong>candidature retirée{{if .DateWithdrawal}} le {{.DateWithdrawal}}{{end}}</strong>{{end}}</span>
         <h2 class="h2" style="margin:0">{{.FirstName}} {{.Name}}</h2>
         {{if .Portrait}}<span class="credit">Portrait&nbsp;: {{.Portrait.License}}{{if .Portrait.Author}},
           {{.Portrait.Author}}{{end}} — Wikimedia Commons</span>{{end}}

@@ -1013,7 +1013,9 @@ func buildProfilePages(e *environment, d pipeline.Results) error {
 	for _, c := range id.Candidates {
 		l := e.layout
 		l.Title = c.FirstName + " " + c.Name
-		if c.Organization != "" {
+		if c.Withdrawn() {
+			l.Description = fmt.Sprintf("%s %s, candidature à la présidentielle 2027 retirée le %s : parcours, positions et sources vérifiées.", c.FirstName, c.Name, fr(c.DateWithdrawal))
+		} else if c.Organization != "" {
 			l.Description = fmt.Sprintf("%s %s, candidat à la présidentielle 2027 (%s) : parcours, positions et sources vérifiées.", c.FirstName, c.Name, c.Organization)
 		} else {
 			l.Description = c.FirstName + " " + c.Name + ", candidat à la présidentielle 2027 : parcours, positions et sources vérifiées."

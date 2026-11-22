@@ -51,6 +51,7 @@ type Candidate2027 struct {
 
 type Stats2027 struct {
 	Candidates   []*Candidate2027
+	Active       int // candidatures en cours : Candidates moins les retirées
 	Defs         template.HTML
 	WithVotes    int
 	WithTerrain  int
@@ -190,13 +191,24 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidates []*Candidate,
 
 	for _, c := range candidates {
 		k := &Candidate2027{Candidate: c}
+		// Un candidat retiré reste affiché mais ne compte plus dans les
+		// « n sur N » des quatre angles : N est le nombre de candidatures
+		// en cours, le même que sur l'accueil.
+		count := func(n *int) {
+			if !c.Withdrawn() {
+				*n++
+			}
+		}
+		if !c.Withdrawn() {
+			st.Active++
+		}
 
 		// 1. Les votes — seulement si la personne a siégé.
 		if c.Person != nil && c.Person.HasVotes {
 			k.Votes = Angle{Present: true}
 			k.For, k.Against = c.Person.For, c.Person.Against
 			k.Abstention, k.Expressed = c.Person.Abstention, c.Person.Expressed
-			st.WithVotes++
+			count(&st.WithVotes)
 		} else {
 			k.Votes = Angle{Reason: "n'a pas siégé dans une assemblée couverte par ce site"}
 		}
@@ -205,7 +217,7 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidates []*Candidate,
 		if c.Org != nil && c.Org.HasAccounts {
 			k.Accounts = Angle{Present: true}
 			k.FiscalYears = len(c.Org.FiscalYears)
-			st.WithAccounts++
+			count(&st.WithAccounts)
 		} else {
 			k.Accounts = Angle{Reason: "aucun compte CNCCFP rattaché à son organisation"}
 		}
@@ -227,7 +239,7 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidates []*Candidate,
 				if t.votes != nil {
 					k.VotesMunicipal = *t.votes
 				}
-				st.WithTerrain++
+				count(&st.WithTerrain)
 
 				fmtPct := func(v float64) string { return Decimal(v, 1) + " %" }
 				k.Overview = overview(vign, t.cells, "part des voix nuancées", fmtPct)
@@ -265,7 +277,7 @@ func load2027(ctx context.Context, pool *pgxpool.Pool, candidates []*Candidate,
 		}
 		if k.CountInterest > 0 {
 			k.Interest = Angle{Present: true}
-			st.WithInterest++
+			count(&st.WithInterest)
 		} else {
 			k.Interest = Angle{Reason: "aucune déclaration HATVP rattachée"}
 		}

@@ -338,6 +338,19 @@
       "Rejected": false,
       "Reason": ""
     },
+    "PORTRAIT|Dominique de Villepin": {
+      "Name": "Dominique_de_Villepin_20100330_Salon_du_livre_de_Paris_2_cropped.jpg",
+      "SourceURL": "https://commons.wikimedia.org/wiki/File:Dominique_de_Villepin_20100330_Salon_du_livre_de_Paris_2_cropped.jpg",
+      "Licence": "CC BY-SA 3.0",
+      "LicenceCode": "cc-by-sa-3.0",
+      "Author": "Georges Seguin (Okki)",
+      "URL": "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/be/Dominique_de_Villepin_20100330_Salon_du_livre_de_Paris_2_cropped.jpg/500px-Dominique_de_Villepin_20100330_Salon_du_livre_de_Paris_2_cropped.jpg?utm_source=commons.wikimedia.org\u0026utm_campaign=imageinfo\u0026utm_content=thumbnail",
+      "Width": 400,
+      "Height": 500,
+      "Local": "dominique-villepin-portrait.jpg",
+      "Rejected": false,
+      "Reason": ""
+    },
     "PORTRAIT|Fabien Roussel": {
       "Name": "",
       "SourceURL": "https://commons.wikimedia.org/wiki/File:Roussel_Fabien_1.jpg",

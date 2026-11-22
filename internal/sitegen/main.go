@@ -42,6 +42,7 @@ type Coverage struct {
 	Dossiers                           int
 	Candidates, CandidatesWithSummary  int
 	CandidatesPrimary                  int
+	CandidatesWithdrawn                int
 	Organizations                      int
 	Documents                          int64
 	ElectionsPE, Themes                int
@@ -111,13 +112,21 @@ type Candidate struct {
 	SiteCampaign                                string
 	// Note : le commentaire éditorial d'une ligne qui ne se lit pas d'un
 	// coup (candidature conditionnelle, deux primaires à ne pas confondre).
-	Note             string
-	Justice          bool // le dossier des décisions de condamnation en dit quelque chose
-	OrganizationSlug string
-	Person           *Person
-	Org              *Organization
-	Portrait         *Media
+	Note string
+	// DateWithdrawal, WithdrawalSourceURL : un candidat qui renonce reste
+	// affiché, avec sa date et sa source (pré-enregistrement 002 § 3) ;
+	// Status vaut alors « RETIRE ».
+	DateWithdrawal, WithdrawalSourceURL string
+	Justice                             bool // le dossier des décisions de condamnation en dit quelque chose
+	OrganizationSlug                    string
+	Person                              *Person
+	Org                                 *Organization
+	Portrait                            *Media
 }
+
+// Withdrawn : la candidature a été retirée par son auteur. Une méthode, pour
+// que les gabarits et les décomptes lisent la même définition.
+func (c *Candidate) Withdrawn() bool { return c.Status == "RETIRE" }
 
 // Run builds the complete site with args (the -out/-max-scrutins/...
 // options the old fpbuild took, unchanged) and returns an error instead of

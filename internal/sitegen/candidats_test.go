@@ -16,8 +16,16 @@ func TestLoadCandidatesRealFile(t *testing.T) {
 			t.Errorf("slug en double : %s", c.Slug)
 		}
 		seen[c.Slug] = true
-		if c.Status != "DECLARE" && c.Status != "PRIMAIRE" {
+		if c.Status != "DECLARE" && c.Status != "PRIMAIRE" && c.Status != "RETIRE" {
 			t.Errorf("%s : statut inattendu %q (colonnes décalées ?)", c.Slug, c.Status)
+		}
+		// Un retrait est un fait daté et sourcé, comme une déclaration ; sans
+		// date ni source il ne se distingue pas d'une ligne mal remplie.
+		if c.Withdrawn() && (c.DateWithdrawal == "" || c.WithdrawalSourceURL == "") {
+			t.Errorf("%s : candidature retirée sans date ou sans source du retrait", c.Slug)
+		}
+		if !c.Withdrawn() && (c.DateWithdrawal != "" || c.WithdrawalSourceURL != "") {
+			t.Errorf("%s : date ou source de retrait sur une candidature non retirée", c.Slug)
 		}
 		if c.SourceURL == "" || c.SourceConsulted == "" {
 			t.Errorf("%s : déclaration sans source ou sans date de consultation", c.Slug)
@@ -29,7 +37,8 @@ func TestLoadCandidatesRealFile(t *testing.T) {
 	if ruffin == nil {
 		t.Fatal("François Ruffin absent")
 	}
-	if ruffin.Note == "" || ruffin.Status != "DECLARE" || ruffin.DateDeclaration != "2026-05-12" {
+	if ruffin.Note == "" || !ruffin.Withdrawn() || ruffin.DateDeclaration != "2026-05-12" ||
+		ruffin.DateWithdrawal != "2026-11-21" {
 		t.Errorf("Ruffin mal lu : %+v", ruffin)
 	}
 }

@@ -152,6 +152,7 @@ func (e *environment) layoutWithIdentity(id identityBundle) Layout {
 	l.Cov.Candidates = id.Cov.Candidates
 	l.Cov.CandidatesWithSummary = id.Cov.CandidatesWithSummary
 	l.Cov.CandidatesPrimary = id.Cov.CandidatesPrimary
+	l.Cov.CandidatesWithdrawn = id.Cov.CandidatesWithdrawn
 	l.Cov.Organizations = id.Cov.Organizations
 	return l
 }
@@ -236,12 +237,21 @@ func buildRegistry(env *environment) *pipeline.Registry {
 		for _, c := range candidates {
 			if o, ok := orgs[c.OrganizationSlug]; ok {
 				c.Org = o
-				o.Candidates = append(o.Candidates, c)
+				// La page de l'organisation annonce « candidat déclaré » :
+				// un candidat retiré n'y figure plus, mais reste sur la liste
+				// des candidats et sur sa fiche, avec sa date de retrait.
+				if !c.Withdrawn() {
+					o.Candidates = append(o.Candidates, c)
+				}
 			}
 		}
 		var cov Coverage
-		cov.Candidates = len(candidates)
 		for _, c := range candidates {
+			if c.Withdrawn() {
+				cov.CandidatesWithdrawn++
+				continue
+			}
+			cov.Candidates++
 			if c.Person != nil && c.Person.HasVotes {
 				cov.CandidatesWithSummary++
 			}

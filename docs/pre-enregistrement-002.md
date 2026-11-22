@@ -51,7 +51,10 @@ constitutionnel, publiée vers mars 2027. D'ici là, critère d'inclusion explic
 
 La liste est publiée avec ses sources, et **révisée uniquement par ajout** : un candidat
 retiré reste affiché comme retiré, avec sa date. Retirer silencieusement une ligne serait
-indistinguable d'un tri.
+indistinguable d'un tri. Concrètement, la ligne passe au statut `RETIRE` avec la date et la
+source du retrait (`data/candidats.csv`, colonnes `date_retrait` et `source_retrait`) ; elle
+reste sur la liste des candidats et sur sa fiche, et ne compte plus parmi les candidatures en
+cours. Ce n'est pas un amendement : c'est l'application de la règle ci-dessus.
 
 Dès la publication de la liste officielle, elle **remplace** ce critère, et l'écart entre
 les deux listes est publié.
