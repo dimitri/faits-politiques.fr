@@ -130,3 +130,12 @@ de ces chiffres comme un positionnement idéologique.
 - **v1 — 7 novembre 2026.** Première version, écrite après une exploration (§ 8).
 - **v1.1 — 10 novembre 2026.** Le rapprochement du § 6 est recoupé avec HowTheyVote. Aucun
   changement de méthode ni de chiffre.
+- **v1.2 — 22 novembre 2026.** Recoupement renouvelé avec la publication HowTheyVote du
+  21 novembre (25 782 votes, dernier scrutin le 12 novembre). Parmi les 81 élus français en
+  cours de mandat (appartenance sans date de fin), les six correspondances du § 6 sont
+  inchangées et chacune est unanime : LFI→The Left (9), PS→S&D (10), Écologistes→Greens/EFA (5),
+  Renaissance→Renew (6), LR→EPP (6), RN→Patriots for Europe (29). Ces effectifs diffèrent de
+  ceux du § 6 (par exemple LFI 11, RN 32), que ce recoupement ne retrouve pas, même en comptant
+  les appartenances terminées : la base de comptage du 10 novembre n'est pas documentée. Seule
+  la correspondance parti → groupe est recoupée ici, pas les effectifs. Aucun changement de
+  méthode.
